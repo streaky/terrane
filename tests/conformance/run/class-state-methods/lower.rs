@@ -425,7 +425,7 @@ impl Counter {
     pub fn shifted(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
         return self.value.clone() + amount.clone();
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("destruct")));
     }
 }

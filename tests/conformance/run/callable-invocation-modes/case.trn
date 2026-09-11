@@ -1,0 +1,115 @@
+namespace callable-invocation-modes
+from /core/concurrency import channel, channel-block
+
+function double int; value int
+  return value * 2
+
+async function double-later int; value int
+  return value * 2
+
+class accumulator
+  total int = 0
+
+  mutable function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+class ticket
+  message string = >redeemed
+
+  consuming function redeem string;
+    return this.message
+
+class async-accumulator
+  total int = 0
+
+  mutable async function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+class gated-accumulator
+  total int = 0
+
+  mutable async function add int; (
+    delta int,
+    started (channel-sender of int),
+    gate (channel-receiver of int)
+  )
+    sent = await started.send; 1
+    if not sent.accepted
+      return -1
+    released = await gate.receive;
+    if not released.available
+      return -2
+    this.total = this.total + delta
+    return this.total
+
+async function main;
+  counter = 0
+  step = mutable function int; delta int
+    counter = counter + delta
+    return counter
+  message = >finished
+  finish = consuming function string;
+    return move message
+  print; (step; 1)
+  print; (step; 2)
+  copy = step
+  print; step.invocation-mode
+  print; step.exact-invocation-mode
+  print; (step; 1)
+  print; (copy; 10)
+  print; finish.invocation-mode
+  print; finish.exact-invocation-mode
+  print; (finish;)
+  operation mutable function from int to int = double
+  print; (operation; 6)
+  async-counter = 0
+  async-step = mutable async function int; delta int
+    async-counter = async-counter + delta
+    return async-counter
+  print; await (async-step; 2)
+  print; await (async-step; 3)
+  async-copy = async-step
+  print; await (async-step; 1)
+  print; await (async-copy; 10)
+  asynchronous mutable async function from int to int = double-later
+  print; await (asynchronous; 7)
+  value accumulator = instance accumulator;
+  bound mutable function from int to int = value.add
+  print; (bound; 5)
+  print; (bound; 7)
+  value ticket = instance ticket;
+  redemption consuming function to string = value.redeem
+  print; (redemption;)
+  shared = function int; value int
+    return value + 1
+  adapted mutable function from int to int = shared
+  print; (adapted; 8)
+  async-value async-accumulator = instance async-accumulator;
+  async-bound mutable async function from int to int = async-value.add
+  print; await (async-bound; 2)
+  print; await (async-bound; 3)
+  one-shot consuming function from int to int = adapted
+  print; (one-shot; 10)
+  declared-mutable = mutable function int;
+    return 9
+  print; declared-mutable.invocation-mode
+  print; declared-mutable.exact-invocation-mode
+  print; (declared-mutable;)
+  gate = channel; int, 1, channel-block
+  started = channel; int, 1, channel-block
+  gated-value = instance gated-accumulator;
+  gated-bound mutable async function from int, (channel-sender of int), (channel-receiver of int) to int = gated-value.add
+  scope = task-scope;
+  child = scope.spawn; (gated-bound; 4, started.sender, gate.receiver)
+  observed = await started.receiver.receive;
+  print; observed.available
+  gated-copy = gated-bound
+  print; gated-copy.invocation-mode
+  released = await gate.sender.send; 1
+  print; released.accepted
+  outcome = await scope.join; child
+  result = outcome.value
+  if result != none
+    print; result

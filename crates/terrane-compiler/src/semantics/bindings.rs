@@ -373,7 +373,13 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                 .map(|binding| {
                     let initially_assigned =
                         unit.source.text()[binding.span.start..binding.span.end].contains('=');
-                    binding_span_is_mutated(package, unit, binding.span, initially_assigned)
+                    binding_span_is_mutated(
+                        package,
+                        unit,
+                        binding.span,
+                        initially_assigned,
+                        ClosureWrites::Include,
+                    )
                 })
                 .collect::<Vec<_>>()
         })
@@ -389,7 +395,13 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                         .parameters
                         .iter()
                         .map(|parameter| {
-                            binding_span_is_mutated(package, unit, parameter.span, true)
+                            binding_span_is_mutated(
+                                package,
+                                unit,
+                                parameter.span,
+                                true,
+                                ClosureWrites::Include,
+                            )
                         })
                         .collect::<Vec<_>>()
                 })
@@ -1408,7 +1420,7 @@ fn validate_projected_callback_contract(
     consumed_once: &mut BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
     let crate::projection::ProjectedType::Callback {
-        kind,
+        invocation_mode,
         retained,
         send,
         ..
@@ -1448,31 +1460,7 @@ fn validate_projected_callback_contract(
             "projected callback requires transferable captured values",
         );
     }
-    if matches!(kind, crate::projection::CallbackKind::Mutable)
-        && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                package
-                    .binding_events
-                    .get(&span_key(binding.span))
-                    .is_some_and(|events| {
-                        events.iter().any(|event| {
-                            matches!(
-                                event,
-                                BindingEvent::Write { span, .. }
-                                    if span.start >= contract.span.start
-                                        && span.end <= contract.span.end
-                            )
-                        })
-                    })
-            })
-        })
-    {
-        return reject(
-            "T0085",
-            "projected mutable callback cannot alias captured mutable state",
-        );
-    }
-    if matches!(kind, crate::projection::CallbackKind::Once)
+    if *invocation_mode == InvocationMode::Consuming
         && value.kind == SyntaxKind::Name
         && let Some(declaration) = package
             .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))

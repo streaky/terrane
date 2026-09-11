@@ -162,7 +162,7 @@ pub(super) fn iterable_item_type(
                     ))?;
             if iterator.is_async
                 || iterator.throws
-                || iterator.mutates_receiver
+                || iterator.written_invocation_mode != InvocationMode::Shared
                 || !iterator.parameters.is_empty()
             {
                 return Err((
@@ -283,8 +283,31 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CallableModes {
+    pub written: InvocationMode,
+    pub exact: InvocationMode,
+}
+
+impl CallableModes {
+    pub(crate) fn shared() -> Self {
+        Self {
+            written: InvocationMode::Shared,
+            exact: InvocationMode::Shared,
+        }
+    }
+
+    pub(crate) fn from_contract(contract: &FunctionContract) -> Self {
+        Self {
+            written: contract.written_invocation_mode,
+            exact: contract.exact_invocation_mode,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableEffects {
+    pub modes: CallableModes,
     pub upper_bound: Option<Box<ValueType>>,
     pub escaping: BTreeSet<String>,
 }
@@ -292,6 +315,7 @@ pub struct CallableEffects {
 impl CallableEffects {
     pub(crate) fn infallible() -> Self {
         Self {
+            modes: CallableModes::shared(),
             upper_bound: None,
             escaping: BTreeSet::new(),
         }
@@ -315,6 +339,7 @@ impl CallableEffects {
             _ => unreachable!("function declarations admit at most one throwable upper bound"),
         };
         Self {
+            modes: CallableModes::from_contract(contract),
             upper_bound,
             escaping: contract.escaping_throwables.clone(),
         }
@@ -1095,6 +1120,7 @@ pub struct FunctionContract {
     pub owner: Option<String>,
     /// Canonical owner identity for methods; aliases never rewrite it.
     pub(crate) owner_identity: Option<ObjectIdentity>,
+    pub(crate) is_anonymous: bool,
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
@@ -1105,8 +1131,8 @@ pub struct FunctionContract {
     pub is_async: bool,
     pub task_transferability: TaskTransferability,
     pub is_static: bool,
-    pub mutates_receiver: bool,
-    pub consumes_receiver: bool,
+    pub written_invocation_mode: InvocationMode,
+    pub exact_invocation_mode: InvocationMode,
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
 }
 

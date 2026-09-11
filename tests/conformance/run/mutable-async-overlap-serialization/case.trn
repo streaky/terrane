@@ -1,0 +1,106 @@
+namespace mutable-async-overlap-serialization
+from /core/concurrency import channel, channel-block
+
+class gated-accumulator
+  total int = 0
+
+  mutable async function add int; (
+    delta int,
+    started (channel-sender of int),
+    gate (channel-receiver of int)
+  )
+    sent = await started.send; delta
+    if not sent.accepted
+      return -1
+    released = await gate.receive;
+    if not released.available
+      return -2
+    this.total = this.total + delta
+    return this.total
+
+async function main;
+  gate-a = channel; int, 1, channel-block
+  gate-b = channel; int, 1, channel-block
+  gate-c = channel; int, 1, channel-block
+  started-a = channel; int, 1, channel-block
+  started-b = channel; int, 1, channel-block
+  started-c = channel; int, 1, channel-block
+  value = instance gated-accumulator;
+  bound mutable async function from int, (channel-sender of int), (channel-receiver of int) to int = value.add
+  scope = task-scope;
+  first = scope.spawn; (bound; 1, started-a.sender, gate-a.receiver)
+  first-start = await started-a.receiver.receive;
+  if not first-start.available
+    return
+  second = scope.spawn; (bound; 10, started-b.sender, gate-b.receiver)
+  first-release = await gate-a.sender.send; 1
+  if not first-release.accepted
+    return
+  first-outcome = await scope.join; first
+  second-start = await started-b.receiver.receive;
+  if not second-start.available
+    return
+  second-release = await gate-b.sender.send; 1
+  if not second-release.accepted
+    return
+  second-outcome = await scope.join; second
+  third-release = await gate-c.sender.send; 1
+  if not third-release.accepted
+    return
+  third = await (bound; 100, started-c.sender, gate-c.receiver)
+  first-value = first-outcome.value
+  second-value = second-outcome.value
+  if first-value != none
+    print; first-value
+  if second-value != none
+    print; second-value
+  print; third
+  counter = 0
+  step = mutable async function int; (
+    delta int,
+    started (channel-sender of int),
+    gate (channel-receiver of int)
+  )
+    seen = counter
+    sent = await started.send; delta
+    if not sent.accepted
+      return -1
+    released = await gate.receive;
+    if not released.available
+      return -2
+    counter = seen + delta
+    return counter
+  closure-gate-a = channel; int, 1, channel-block
+  closure-gate-b = channel; int, 1, channel-block
+  closure-gate-c = channel; int, 1, channel-block
+  closure-started-a = channel; int, 1, channel-block
+  closure-started-b = channel; int, 1, channel-block
+  closure-started-c = channel; int, 1, channel-block
+  closure-scope = task-scope;
+  closure-first = closure-scope.spawn; (step; 1, closure-started-a.sender, closure-gate-a.receiver)
+  closure-first-start = await closure-started-a.receiver.receive;
+  if not closure-first-start.available
+    return
+  closure-second = closure-scope.spawn; (step; 10, closure-started-b.sender, closure-gate-b.receiver)
+  closure-first-release = await closure-gate-a.sender.send; 1
+  if not closure-first-release.accepted
+    return
+  closure-first-outcome = await closure-scope.join; closure-first
+  closure-second-start = await closure-started-b.receiver.receive;
+  if not closure-second-start.available
+    return
+  closure-second-release = await closure-gate-b.sender.send; 1
+  if not closure-second-release.accepted
+    return
+  closure-second-outcome = await closure-scope.join; closure-second
+  closure-third-release = await closure-gate-c.sender.send; 1
+  if not closure-third-release.accepted
+    return
+  closure-third = await (step; 100, closure-started-c.sender, closure-gate-c.receiver)
+  closure-first-value = closure-first-outcome.value
+  closure-second-value = closure-second-outcome.value
+  if closure-first-value != none
+    print; closure-first-value
+  if closure-second-value != none
+    print; closure-second-value
+  print; closure-third

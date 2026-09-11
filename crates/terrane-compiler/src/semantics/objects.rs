@@ -422,6 +422,9 @@ pub(super) fn value_type_owns_resource(
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => true,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+            effects.modes.written == InvocationMode::Consuming
+        }
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Iterator(item)
@@ -668,21 +671,22 @@ pub(super) fn validate_resource_collection_types(
 pub(super) fn validate_object_conformance(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    fn same_signature(left: &FunctionContract, right: &FunctionContract) -> bool {
-        left.parameters.len() == right.parameters.len()
-            && left
+    fn implementation_satisfies_requirement(
+        requirement: &FunctionContract,
+        implementation: &FunctionContract,
+    ) -> bool {
+        requirement.parameters.len() == implementation.parameters.len()
+            && requirement
                 .parameters
                 .iter()
-                .zip(&right.parameters)
-                .all(|(left, right)| {
-                    left.value_type == right.value_type
-                        && left.optional == right.optional
-                        && left.mutable == right.mutable
-                })
-            && left.return_type == right.return_type
-            && (!right.throws || left.throws)
-            && left.is_async == right.is_async
-            && left.consumes_receiver == right.consumes_receiver
+                .zip(&implementation.parameters)
+                .all(|(left, right)| left.value_type == right.value_type)
+            && requirement.return_type == implementation.return_type
+            && (!implementation.throws || requirement.throws)
+            && requirement.is_async == implementation.is_async
+            && requirement
+                .written_invocation_mode
+                .accepts(implementation.written_invocation_mode)
     }
 
     fn effective_method<'a>(
@@ -774,6 +778,7 @@ pub(super) fn validate_object_conformance(
                         span: object.span,
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
+                        is_anonymous: false,
                         captures: Vec::new(),
                         parameters: Vec::new(),
                         is_static: false,
@@ -785,10 +790,10 @@ pub(super) fn validate_object_conformance(
                         execution_requirements: crate::execution::ExecutionRequirements::default(),
                         throws: false,
                         is_async: false,
-                        mutates_receiver: false,
-                        consumes_receiver: false,
+                        written_invocation_mode: InvocationMode::Shared,
+                        exact_invocation_mode: InvocationMode::Shared,
                     };
-                    if !same_signature(&required_render, render) {
+                    if !implementation_satisfies_requirement(&required_render, render) {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
@@ -834,7 +839,7 @@ pub(super) fn validate_object_conformance(
                             object.span,
                         ));
                     };
-                    if !same_signature(required, actual) {
+                    if !implementation_satisfies_requirement(required, actual) {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
@@ -984,96 +989,6 @@ pub(super) fn validate_class_field_initializers(
     Ok(())
 }
 
-pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
-    fn effective_method<'a>(
-        unit: &'a SemanticUnit,
-        object: &'a DescriptorContract,
-        name: &str,
-    ) -> Option<&'a FunctionContract> {
-        unit.functions
-            .iter()
-            .find(|method| {
-                method.owner_identity.as_ref() == Some(&object.identity) && method.name == name
-            })
-            .or_else(|| {
-                object
-                    .base
-                    .as_ref()
-                    .and_then(|base| {
-                        unit.descriptors
-                            .iter()
-                            .find(|candidate| candidate.identity == *base)
-                    })
-                    .and_then(|base| effective_method(unit, base, name))
-            })
-            .or_else(|| {
-                object.traits.iter().find_map(|used_trait| {
-                    unit.descriptors
-                        .iter()
-                        .find(|candidate| candidate.identity == *used_trait)
-                        .and_then(|used_trait| effective_method(unit, used_trait, name))
-                })
-            })
-    }
-
-    let mut mutating = BTreeSet::<(u32, usize, usize, String)>::new();
-    for unit in &package.units {
-        for class in unit
-            .descriptors
-            .iter()
-            .filter(|object| object.kind == ObjectKind::Class)
-        {
-            for interface_name in &class.interfaces {
-                let Some(interface) = unit
-                    .descriptors
-                    .iter()
-                    .find(|candidate| candidate.identity == *interface_name)
-                else {
-                    continue;
-                };
-                for required in unit
-                    .functions
-                    .iter()
-                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
-                {
-                    if effective_method(unit, class, &required.name)
-                        .is_some_and(|actual| actual.mutates_receiver)
-                    {
-                        mutating.insert((
-                            interface.span.file,
-                            interface.span.start,
-                            interface.span.end,
-                            required.name.clone(),
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    for unit in &mut package.units {
-        for method in &mut unit.functions {
-            let Some(owner) = method.owner.as_deref() else {
-                continue;
-            };
-            let Some(interface) = unit
-                .descriptors
-                .iter()
-                .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
-            else {
-                continue;
-            };
-            if mutating.contains(&(
-                interface.span.file,
-                interface.span.start,
-                interface.span.end,
-                method.name.clone(),
-            )) {
-                method.mutates_receiver = true;
-            }
-        }
-    }
-}
 #[expect(
     clippy::too_many_lines,
     reason = "receiver-consumption inference keeps its source-ownership helpers scoped to one fixed-point pass"
@@ -1248,7 +1163,9 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                             &object_name,
                             node_text(&unit.source, member)
                         )
-                        .is_some_and(|method| method.consumes_receiver)
+                        .is_some_and(|method| {
+                            method.written_invocation_mode == InvocationMode::Consuming
+                        })
                 )
                 && receiver_resource_expression(package, unit, contract, receiver)
             {
@@ -1264,9 +1181,8 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
         let mut newly_consuming = BTreeSet::new();
         for unit in &package.units {
             for contract in &unit.functions {
-                if !contract.consumes_receiver
+                if contract.exact_invocation_mode != InvocationMode::Consuming
                     && contract.owner.is_some()
-                    && contract.name != "destruct"
                     && find_node_by_span(&unit.tree.root, contract.span)
                         .is_some_and(|node| node_consumes_receiver(package, unit, contract, node))
                 {
@@ -1288,67 +1204,184 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     contract.span.start,
                     contract.span.end,
                 )) {
-                    contract.consumes_receiver = true;
+                    contract.exact_invocation_mode = InvocationMode::Consuming;
                 }
             }
+        }
+    }
+}
+
+pub(super) fn infer_and_validate_invocation_modes(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn root_name(node: &SyntaxNode) -> Option<&SyntaxNode> {
+        match node.kind {
+            SyntaxKind::Name => Some(node),
+            SyntaxKind::MemberExpression
+            | SyntaxKind::IndexExpression
+            | SyntaxKind::GroupExpression => node.children.first().and_then(root_name),
+            _ => None,
         }
     }
 
-    let mut consuming_interfaces = BTreeSet::<((u32, usize, usize), String)>::new();
-    for unit in &package.units {
-        for class in unit
-            .descriptors
-            .iter()
-            .filter(|object| object.kind == ObjectKind::Class)
+    fn tracked_receiver(
+        unit: &SemanticUnit,
+        contract: &FunctionContract,
+        node: &SyntaxNode,
+    ) -> bool {
+        root_name(node).is_some_and(|root| {
+            let name = node_text(&unit.source, root);
+            name == "this" || contract.captures.iter().any(|capture| capture == name)
+        })
+    }
+
+    fn call_mode(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        contract: &FunctionContract,
+        call: &SyntaxNode,
+    ) -> InvocationMode {
+        let Some(callee) = call.children.first() else {
+            return InvocationMode::Shared;
+        };
+        if callee.kind == SyntaxKind::Name
+            && tracked_receiver(unit, contract, callee)
+            && let Ok(Some(
+                ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+            )) = infer_value_type(unit, callee, &unit.typed_bindings)
         {
-            for interface_name in &class.interfaces {
-                let Some(interface) = unit.descriptors.iter().find(|object| {
-                    object.kind == ObjectKind::Interface && object.identity == *interface_name
-                }) else {
-                    continue;
-                };
-                for required in unit
-                    .functions
-                    .iter()
-                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
-                {
-                    if effective_method(unit, &class.identity, &required.name)
-                        .is_some_and(|actual| actual.consumes_receiver)
-                    {
-                        consuming_interfaces.insert((
-                            (
-                                interface.span.file,
-                                interface.span.start,
-                                interface.span.end,
-                            ),
-                            required.name.clone(),
-                        ));
-                    }
-                }
-            }
+            return effects.modes.written;
         }
+        let [receiver, member] = callee.children.as_slice() else {
+            return InvocationMode::Shared;
+        };
+        if !tracked_receiver(unit, contract, receiver) {
+            return InvocationMode::Shared;
+        }
+        let Ok(Some(receiver_type)) =
+            infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+        else {
+            return InvocationMode::Shared;
+        };
+        member_invocation_mode(
+            package,
+            unit,
+            &receiver_type,
+            node_text(&unit.source, member),
+        )
     }
+
+    fn required_mode(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        contract: &FunctionContract,
+        node: &SyntaxNode,
+    ) -> InvocationMode {
+        if node.span != contract.span
+            && matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            )
+        {
+            return InvocationMode::Shared;
+        }
+        let local = match node.kind {
+            SyntaxKind::Assignment | SyntaxKind::PostfixExpression
+                if node
+                    .children
+                    .first()
+                    .is_some_and(|target| tracked_receiver(unit, contract, target)) =>
+            {
+                InvocationMode::Mutable
+            }
+            SyntaxKind::UnaryExpression
+                if unary_operator_text(unit, node).as_deref() == Some("move")
+                    && node
+                        .children
+                        .last()
+                        .is_some_and(|target| tracked_receiver(unit, contract, target)) =>
+            {
+                InvocationMode::Consuming
+            }
+            SyntaxKind::CallExpression => call_mode(package, unit, contract, node),
+            _ => InvocationMode::Shared,
+        };
+        node.children.iter().fold(local, |mode, child| {
+            mode.max(required_mode(package, unit, contract, child))
+        })
+    }
+
+    let inferred = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.functions.iter().filter_map(|contract| {
+                find_node_by_span(&unit.tree.root, contract.span).map(|node| {
+                    (
+                        span_key(contract.span),
+                        contract
+                            .exact_invocation_mode
+                            .max(required_mode(package, unit, contract, node)),
+                    )
+                })
+            })
+        })
+        .collect::<BTreeMap<_, _>>();
+
     for unit in &mut package.units {
-        for method in &mut unit.functions {
-            if method.owner.as_deref().is_some_and(|owner| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
-                    .is_some_and(|interface| {
-                        consuming_interfaces.contains(&(
-                            (
-                                interface.span.file,
-                                interface.span.start,
-                                interface.span.end,
-                            ),
-                            method.name.clone(),
-                        ))
-                    })
-            }) {
-                method.consumes_receiver = true;
+        for contract in &mut unit.functions {
+            if let Some(mode) = inferred.get(&span_key(contract.span)) {
+                contract.exact_invocation_mode = *mode;
+            }
+            if !contract
+                .written_invocation_mode
+                .accepts(contract.exact_invocation_mode)
+            {
+                let required = contract.exact_invocation_mode.reflection_name();
+                return Err(failure(
+                    &unit.source,
+                    "T0120",
+                    format!(
+                        "callable `{}` requires {required} invocation because its body uses {required} access; declare `{}function`",
+                        contract.name,
+                        contract.exact_invocation_mode.source_prefix()
+                    ),
+                    contract.span,
+                ));
             }
         }
     }
+    let binding_modes = package
+        .units
+        .iter()
+        .enumerate()
+        .flat_map(|(unit_index, unit)| {
+            unit.typed_bindings
+                .iter()
+                .enumerate()
+                .filter_map(move |(binding_index, binding)| {
+                    let node = find_node_by_span(&unit.tree.root, binding.span)?;
+                    let value = node.children.last()?;
+                    let actual = infer_value_type(unit, value, &unit.typed_bindings).ok()??;
+                    match actual {
+                        ValueType::Function(_, _, effects)
+                        | ValueType::AsyncFunction(_, _, _, effects) => {
+                            Some((unit_index, binding_index, effects.modes.exact))
+                        }
+                        _ => None,
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
+    for (unit_index, binding_index, exact) in binding_modes {
+        match &mut package.units[unit_index].typed_bindings[binding_index].value_type {
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+                effects.modes.exact = exact
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
@@ -1408,7 +1441,6 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
     refresh_source_descriptor_members(&mut package.units);
-    propagate_interface_receiver_mutability(package);
     validate_descriptor_value_uses(package)?;
 
     collect_initial_typed_bindings(package)?;
@@ -1418,8 +1450,9 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     }
     validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
-    validate_object_conformance(package)?;
     populate_closure_captures(package);
+    infer_and_validate_invocation_modes(package)?;
+    validate_object_conformance(package)?;
     Ok(())
 }
 pub(super) fn collect_initial_typed_bindings(
@@ -2263,7 +2296,7 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         let captures = unit
             .functions
             .iter()
-            .filter(|contract| contract.name.starts_with("closure@"))
+            .filter(|contract| contract.is_anonymous)
             .map(|contract| {
                 let mut captures = BTreeSet::new();
                 if let Some(node) = closure_node(&unit.tree.root, contract.span) {

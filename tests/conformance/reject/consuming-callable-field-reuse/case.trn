@@ -1,0 +1,12 @@
+namespace consuming-callable-field-reuse
+
+function noop;
+  return
+
+class holder
+  finish consuming function to none = noop
+
+function main;
+  value holder = instance holder;
+  value.finish;
+  value.finish;

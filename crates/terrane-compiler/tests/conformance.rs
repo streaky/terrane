@@ -45,7 +45,7 @@ terrane-string-support = { path = "support/terrane-string-support" }
 terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
-tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "time"] }
+tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "sync", "time"] }
 "#
         .to_owned();
         for dependency in dependencies

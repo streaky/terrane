@@ -742,7 +742,8 @@ fn main() {
                     }
                     return String::from("wide-closure");
                 })
-            };
+            }
+                .clone();
             std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
                 callable(argument_0),
             ))
@@ -765,12 +766,15 @@ fn main() {
                         return String::from("wide-async");
                     })
                 })
-            };
+            }
+                .clone();
             std::sync::Arc::new(move |
                 argument_0: terrane_int_support::Int,
             | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-                let callable = callable.clone();
-                Box::pin(async move { Ok(callable(argument_0).await) })
+                {
+                    let callable_future = callable(argument_0);
+                    Box::pin(async move { Ok(callable_future.await) })
+                }
             })
         };
         let alias: std::sync::Arc<

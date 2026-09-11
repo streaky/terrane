@@ -19,7 +19,7 @@ class tls-stream
         raw = await host-tls-write-async; this.handle, data, options.deadline-ms, cancellation
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
-    function close network-operation-result;
+    consuming function close network-operation-result;
         raw = host-close; this.handle
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
@@ -28,7 +28,7 @@ class tls-stream
         raw = await host-tls-shutdown-async; this.handle, options.deadline-ms, cancellation
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function destruct;
+    consuming function destruct;
         host-close; this.handle
 
 class tls-result

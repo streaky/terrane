@@ -1,0 +1,8 @@
+namespace mutable-closure-calls-consuming-capture
+
+function main;
+  finish = consuming function;
+    return
+  repeat = mutable function;
+    finish;
+  repeat;

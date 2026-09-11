@@ -6,14 +6,14 @@ class counter
     function construct; start int
         this.value = start
 
-    function increase int; amount int
+    mutable function increase int; amount int
         this.value = this.value + amount
         return this.value
 
     function shifted int; amount int
         return this.value + amount
 
-    function destruct;
+    consuming function destruct;
         print; 'destruct'
 
 function main;

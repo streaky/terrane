@@ -1,0 +1,18 @@
+namespace callable-mode-throwable-composition
+from /core/errors import coercion-error, throwable
+
+class accumulator
+  total int = 0
+
+  mutable function add int throws coercion-error; delta int
+    if delta < 0
+      throw coercion-error
+    this.total = this.total + delta
+    return this.total
+
+function main;
+  value accumulator = instance accumulator;
+  operation consuming function from int to int throws throwable = value.add
+  print; operation.invocation-mode
+  print; operation.throwable-contract
+  print; (operation; 4)

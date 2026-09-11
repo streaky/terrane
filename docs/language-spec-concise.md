@@ -257,7 +257,7 @@ Canonical statement inventory (some not version-one implementation scope):
 ```terrane
 namespace, use, from/import, import with
 binding/declaration, assignment, expression
-function, class, protocol, interface, trait
+function, class, interface, trait
 if/else, while, for-in, three-clause for
 return, break, continue
 goto/label
@@ -711,17 +711,24 @@ coercion-error               coercion has no compatible result outside the overf
 - Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml
+invocation:
+  written: function = shared; mutable function; consuming function
+  exact: inferred authority used by the body; may be weaker than written, never stronger
+  substitution: shared -> shared|mutable|consuming; mutable -> mutable|consuming; consuming -> consuming
+  environment: shared observes; mutable owns repeatable receiver/captures exclusively for the full call and serializes overlapping invocations of the same value; consuming transfers and is one-shot; separated mutable values have independent environments and serialization boundaries
+  composition: invocation prefix precedes async; throws remains a postfix upper bound
 throws: exact inferred escaping set plus optional written upper bound
 async: invocation produces a task; `await` consumes a task and marks a possible suspension point
-receiver_mutation: inferred from concrete bodies; retained as method/interface compatibility metadata
 unsafe_boundary: only concrete adapters or `unsafe rust`; never a bare callable qualifier or generic unsafe block
-derived_facts: suspension points, receiver mutation, `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
+derived_facts: suspension points, exact receiver/capture authority, `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
 foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never a bare callable qualifier and never transitive to ordinary callers
 purity: no `pure` qualifier; a future contract requires independently defined observable guarantees
 ```
 - Reflection may group retained contracts and derived facts for inspection, but compatibility and
   validation apply each contract's own rules. Ordinary I/O requires no compiler-issued authority
   token.
+- Reflection is ordinary value access: invoking a consuming callable consumes that value, so its
+  contract metadata must be inspected before invocation or through a separate owning value.
 - Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
   traceback/details after translation to a declared throwable class.
 
@@ -797,7 +804,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 
 ## OBJECT_MODEL
 
-- Objects expose protocols rather than compiler-special-cased runtime species.
+- Objects expose unnamed structural protocols rather than compiler-special-cased runtime species.
 - `name` resolves through one lookup view; `value.name` selects an instance member; `class::name`
   selects a static/class member; calls are explicit with `;`. The `class` designator is a simple
   visible name (including an imported local name), or late-bound `self` inside a class method.
@@ -808,9 +815,12 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   `instance self;`.
 - Function/class/namespace/type objects are reflectable semantic objects.
 - `construct` is the conventional constructor method invoked by `instance`.
-- Protocol: structural capability.
-- Interface: typed dispatch boundary.
-- Trait: implementation reuse, not a type.
+- Protocol: unnamed structural operation shape; not a declaration, nominal type, or dispatch object.
+- Interface: named nominal contract/type and dispatch boundary adopted with `implements`.
+- Trait: source field/method implementation composed with `uses`; not a type, subtyping relation, or
+  Rust-style foreign contract.
+- Compiler descriptor operations are internal lookup/reflection machinery, not another public
+  source construct.
 - Class: single inheritance initially; subclass-to-base assignment preserves dynamic value (no slicing).
 - Overloading by implicit same-name signature dispatch is not initial behavior.
 - Mutation visible by default; immutable behavior explicit via `constant`/contracts.
@@ -1066,7 +1076,7 @@ projection_oracle: deterministic contained minimal crate; production destination
 projection_destination_results: one Rust generic parameter used only by a projected result may be selected from exactly one explicit binding, argument, class-field, or declared-return destination; template unification must agree at every occurrence; supported closed owned shapes are scalars, string, bytes, optional, sequence, mapping, set, homogeneous tuple, and projected foreign object; missing, incompatible, conflicting, borrowed, source-object, no, unknown, and missing-oracle-answer cases are compile-time diagnostics; lowering emits an explicit concrete turbofish and applies recursive owned result conversion; Terrane source never writes Rust generic arguments
 projected_reexports: prefer reachable non-prelude public Rust paths, then shortest path, then lexical order at equal depth; a prelude path is valid only when no substantive path exists; assign namespace-qualified identity from that canonical path; re-export and definition are one type; distinct same-named sibling items remain distinct; output ordering and generated imports are deterministic
 projection_aggregates: Option<T> in parameters/results => T|none; Vec<T>, HashMap/BTreeMap, HashSet/BTreeSet, and homogeneous tuples recursively cross as matching Terrane collections when every component is representable; map keys/set items must be scalar (never optional/collection/tuple/foreign); shims elide identity-element Vec mapping and move uniquely-owned tuple items without clone/panic; Vec<u8> remains bytes; heterogeneous tuples decline
-projection_callbacks: concrete Fn/FnMut/FnOnce parenthesized bounds => monomorphic Terrane function type at free-function and projected-method calls; Future<Output=T> return => async function; artifact records multiplicity, retained/'static, Send, Sync; shim performs argument/result conversion in exact Rust closure; retained callback rejects borrowed receiver/ref capture, transferable callback rejects local capture, FnMut records repeatable mutable Rust invocation but v1 anonymous functions still capture ordinary values by value and aliased mutable capture rejects (stateful coordination uses an explicit owner task/channel), FnOnce consumes one-shot callback, throwable mismatch rejects unless Rust result represents it; open/HRTB/lifetime-generic shapes decline
+projection_callbacks: concrete Fn/FnMut/FnOnce parenthesized bounds => shared/mutable/consuming monomorphic Terrane function type at free-function and projected-method calls; Future<Output=T> return => async function; artifact records invocation mode, retained/'static, Send, Sync; shim performs argument/result conversion in exact Rust closure; retained callback rejects borrowed receiver/ref capture, transferable callback rejects local capture, mutable callables preserve repeatable owned state and separate by copying their current environment, consuming callables transfer once, throwable mismatch rejects unless Rust result represents it; open/HRTB/lifetime-generic shapes decline; Rust traits project toward Terrane interfaces because both are named contracts, never toward Terrane traits whose role is source implementation composition
 projection_transitive_owners: signature type owned by undeclared transitive crate declines naming crate + lock version; declaring a unifying owner shares canonical identity/members across dependencies; after Cargo lock resolution, projection validation rejects multiple versions at a crossed owner boundary before semantic import resolution/lowering
 types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => shared receiver; &mut self => mutable-receiver contract; self => move. Borrowed receivers use ordinary member-call syntax; the contract drives Rust borrowing and mutable binding
 panic: unwinding profile converts crossing panic to dependency-panic; abort profile emits no catch boundary and generated Cargo uses panic=abort. Receiver crossings use an explicit AssertUnwindSafe boundary because foreign receiver state is the captured logical invariant; receiver-free crossings retain Rust's UnwindSafe proof

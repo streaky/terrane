@@ -253,7 +253,11 @@ pub(super) fn infer_member_value_type(
         Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
     ) && matches!(
         member_name,
-        "contracts" | "throwable-contract" | "escaping-throwables"
+        "contracts"
+            | "throwable-contract"
+            | "escaping-throwables"
+            | "invocation-mode"
+            | "exact-invocation-mode"
     ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }

@@ -70,7 +70,7 @@ class file-handle
         this.failed = failure
         this.message = detail
 
-    function destruct;
+    consuming function destruct;
         host-release; this.handle
 
 class directory-handle
@@ -83,7 +83,7 @@ class directory-handle
         this.failed = failure
         this.message = detail
 
-    function destruct;
+    consuming function destruct;
         host-release; this.handle
 
 function open-file file-handle; capability filesystem, target path, readable bool, writable bool, create bool = false, truncate bool = false

@@ -7,14 +7,14 @@ class base implements named
     value int = 1
     function report int;
         return this.value
-    function set; value int
+    mutable function set; value int
         this.value = value
-    function destruct;
+    consuming function destruct;
         print; 'base-destruct'
 
 class child extends base
     extra int = 2
-    function destruct;
+    consuming function destruct;
         print; 'child-destruct'
 
 function main;

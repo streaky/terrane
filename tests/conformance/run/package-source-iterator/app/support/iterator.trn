@@ -7,7 +7,7 @@ public class counter
   function iterator counter;
     return this
 
-  function next iteration-step of int;
+  mutable function next iteration-step of int;
     if this.current >= 2
       return iteration-step.end;
     value int = this.current

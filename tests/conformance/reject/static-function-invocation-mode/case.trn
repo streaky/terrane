@@ -1,0 +1,5 @@
+namespace static-function-invocation-mode
+
+class factory
+  static mutable function make int;
+    return 1

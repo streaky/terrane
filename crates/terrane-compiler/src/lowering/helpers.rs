@@ -371,6 +371,18 @@ pub(super) fn rust_empty_collection(
     clippy::too_many_lines,
     reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
 )]
+fn rust_callable_arguments(package: &SemanticPackage, parameters: Vec<ElementType>) -> String {
+    let parameters = parameters
+        .into_iter()
+        .map(|parameter| rust_element_type(package, parameter))
+        .collect::<Vec<_>>();
+    match parameters.as_slice() {
+        [] => "()".to_owned(),
+        [parameter] => format!("({parameter},)"),
+        _ => format!("({})", parameters.join(", ")),
+    }
+}
+
 pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
@@ -494,15 +506,25 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             } else {
                 result
             };
-            format!(
-                "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
-                parameters
-                    .into_iter()
-                    .map(|parameter| rust_element_type(package, parameter))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                output
-            )
+            match effects.modes.written {
+                InvocationMode::Shared => format!(
+                    "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
+                    parameters
+                        .into_iter()
+                        .map(|parameter| rust_element_type(package, parameter))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    output
+                ),
+                InvocationMode::Mutable => format!(
+                    "TerraneMutableCallable<{}, {output}>",
+                    rust_callable_arguments(package, parameters)
+                ),
+                InvocationMode::Consuming => format!(
+                    "TerraneConsumingCallable<{}, {output}>",
+                    rust_callable_arguments(package, parameters)
+                ),
+            }
         }
         ValueType::AsyncFunction(parameters, result, transferability, effects) => {
             let result = rust_element_type(package, result);
@@ -511,20 +533,32 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             } else {
                 result
             };
-            format!(
-                "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>{}>> + Send + Sync>",
-                parameters
-                    .into_iter()
-                    .map(|parameter| rust_element_type(package, parameter))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                output,
+            let future = format!(
+                "std::pin::Pin<Box<dyn Future<Output = {output}>{}>>",
                 if transferability == TaskTransferability::Transferable {
                     " + Send"
                 } else {
                     ""
                 }
-            )
+            );
+            match effects.modes.written {
+                InvocationMode::Shared => format!(
+                    "std::sync::Arc<dyn Fn({}) -> {future} + Send + Sync>",
+                    parameters
+                        .into_iter()
+                        .map(|parameter| rust_element_type(package, parameter))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                InvocationMode::Mutable => format!(
+                    "TerraneMutableCallable<{}, {future}>",
+                    rust_callable_arguments(package, parameters)
+                ),
+                InvocationMode::Consuming => format!(
+                    "TerraneConsumingCallable<{}, {future}>",
+                    rust_callable_arguments(package, parameters)
+                ),
+            }
         }
         ValueType::Task(result, transferability) => {
             format!(

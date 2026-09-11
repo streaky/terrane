@@ -41,7 +41,7 @@ impl Counter {
     pub fn read(&self) -> terrane_int_support::Int {
         return self.value.clone();
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("destruct")));
     }
 }
@@ -53,7 +53,7 @@ impl ReadableProtocol for Counter {
         Box::new(self.terrane_separate())
     }
     fn read(&self) -> terrane_int_support::Int {
-        Counter::read(self)
+        Counter::read(&*self)
     }
 }
 impl From<Counter> for Readable {

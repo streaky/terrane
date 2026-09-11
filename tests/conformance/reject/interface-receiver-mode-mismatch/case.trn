@@ -1,0 +1,11 @@
+namespace interface-receiver-mode-mismatch
+
+interface observer
+  function observe int; value int
+
+class mutating-observer implements observer
+  total int = 0
+
+  mutable function observe int; value int
+    this.total = this.total + value
+    return this.total

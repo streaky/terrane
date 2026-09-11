@@ -1854,7 +1854,7 @@ impl TcpStream {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn close(&self) -> NetworkOperationResult {
+    pub fn close(self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
@@ -1862,7 +1862,7 @@ impl TcpStream {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_capability_close(&self.handle);
     }
 }
@@ -1995,7 +1995,7 @@ impl TcpListener {
             stream,
         );
     }
-    pub fn close(&self) -> NetworkOperationResult {
+    pub fn close(self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
@@ -2003,7 +2003,7 @@ impl TcpListener {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_capability_close(&self.handle);
     }
 }
@@ -2142,7 +2142,7 @@ impl UdpSocket {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn close(&self) -> NetworkOperationResult {
+    pub fn close(self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
@@ -2150,7 +2150,7 @@ impl UdpSocket {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_capability_close(&self.handle);
     }
 }
@@ -2628,7 +2628,7 @@ impl ByteReader {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -2741,7 +2741,7 @@ impl ByteWriter {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -2918,7 +2918,7 @@ impl TextReader {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -3051,7 +3051,7 @@ impl TextWriter {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }

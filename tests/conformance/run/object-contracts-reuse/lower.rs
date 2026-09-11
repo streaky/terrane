@@ -95,7 +95,7 @@ impl DescribableProtocol for Child {
         Box::new(self.clone())
     }
     fn describe(&self, prefix: String) -> String {
-        Child::describe(self, prefix)
+        Child::describe(&*self, prefix)
     }
 }
 impl From<Child> for Describable {

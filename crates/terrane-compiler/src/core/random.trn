@@ -124,7 +124,7 @@ class pseudo-random
         raw = host-random-bounded; this.handle, upper-exclusive
         return instance random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
-    function split pseudo-random;
+    consuming function split pseudo-random;
         raw = host-random-split; this.handle
         child = instance pseudo-random; (chacha20;), b''
         child.handle = host-result-capability; raw

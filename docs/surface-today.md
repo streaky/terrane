@@ -11,19 +11,22 @@ Status labels:
 - **name only** — reserved in the compiler-owned namespace, but has no implemented value semantics or operations yet.
 - **source-declared** — supplied by a Terrane program rather than the prelude.
 
-Source-declared and projected class, interface, and trait types have namespace-qualified nominal
-identity. Named built-ins use canonical `/core` identities; synthesized composed descriptors such
-as references, callables, optionals, and unions retain canonical source-shaped spelling. Import
-aliases preserve identity, and same-named types from different namespaces remain distinct.
+Source-declared and projected class, interface, and trait declarations have namespace-qualified
+identity, but their roles differ. Interfaces are named nominal contracts adopted with `implements`;
+traits are source implementation composition adopted with `uses` and are not types; protocols are
+unnamed structural operation shapes and therefore have no declaration identity. Named built-ins use
+canonical `/core` identities; synthesized composed descriptors such as references, callables,
+optionals, and unions retain canonical source-shaped spelling. Import aliases preserve identity, and
+same-named declarations from different namespaces remain distinct.
 Built-ins and source declarations share `DescriptorContract`, with immutable built-in templates
 kept separate from per-unit source contracts. Canonical contracts carry identity, kind, category
 conformance, complete instance and static member inventories, their callable subsets, stable
 operation IDs, invocation-only constraints, fields, nominal bases, interfaces, traits, and
 reflection data. Member lookup, nominal relations, compatibility, dispatch, reflection, and
-structural protocols query those contracts for both built-in and source-declared receivers.
-Structural source protocols recursively include base, trait, and interface composition. The
-implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
-non-mutating, parameterless `truth bool` method may be used directly as an `if` or `while`
+structural protocol checks query those contracts for built-in and source-declared receivers.
+Compiler descriptor operations are internal machinery, not another source construct. The
+implemented non-iteration protocol example is `truth`: a source class with a synchronous,
+non-throwing, shared, parameterless `truth bool` method may be used directly as an `if` or `while`
 condition.
 
 Every `/core/types` descriptor is available as an implicit language construct. Operational core
@@ -260,6 +263,7 @@ Terrane package
     │   ├── nested namespace                   hierarchical name
     │   └── import                             selected names or namespace binding
     ├── function
+    │   ├── invocation mode                    shared / mutable / consuming
     │   ├── parameter                          positional or named
     │   ├── optional parameter                 has a default expression
     │   ├── return type                        declared value type
@@ -271,8 +275,8 @@ Terrane package
     │   ├── instance                            explicit construction operation
     │   ├── self / this                         class / instance implicit receivers
     │   └── construct / destruct                compiler-recognized lifecycle methods
-    ├── interface                              named structural dispatch contract
-    ├── trait                                  reusable fields and methods
+    ├── interface                              named nominal contract and dispatch type (`implements`)
+    ├── trait                                  reusable source fields and methods (`uses`), not a type
     └── lexical block
         └── binding                            local typed value, ref, or shared ref
 ```
@@ -666,21 +670,31 @@ Implemented callable contract:
 
 ```text
 callable value
+├── written invocation mode               function / mutable function / consuming function
+├── exact invocation mode                 inferred receiver/capture authority
+├── sync or async independently
+├── optional throws upper bound and exact escaping set
+├── typed parameters and return
 ├── source function or anonymous closure
 ├── stored bound method
-├── typed parameters and return
-├── positional, named, and defaulted arguments
 └── value capture
     └── captures resolver-selected outer bindings once when the closure is created
 ```
 
-Function values use `function from ... to ... [throws T]` annotations and may cross bindings,
+Shared callables observe repeatable state. Mutable callables may update repeatable receiver or
+captured state, and separation copies the current environment rather than aliasing it. Consuming
+callables may transfer from their environment and are callable once. A body may require less
+authority than the written mode but never more; substitution proceeds from shared to mutable to
+consuming destinations, never in reverse. `async` and `throws` compose orthogonally, for example
+`mutable async function from int to int throws E`.
+
+Function values use these `function from ... to ... [throws T]` annotations and may cross bindings,
 parameters, returns, and object-member boundaries. `throws T` is a callable upper bound; nested
 function results associate right and each postfix clause binds to its nearest function type.
-Anonymous functions use ordinary `function` syntax without a declaration name. The compiler checks
+Anonymous functions use ordinary function syntax without a declaration name. The compiler checks
 duplicate, unknown, missing, and excess arguments, rejects positional arguments after named
-arguments, and checks callable throwable compatibility at every typed destination. Variadic
-functions, overloads, and generic functions are not implemented.
+arguments, and checks callable invocation and throwable compatibility at every typed destination.
+Variadic functions, overloads, and generic functions are not implemented.
 
 ## Source object and name model
 
@@ -721,9 +735,9 @@ directly declared state at arbitrary inheritance depth; methods access their fla
 directly, while nested base wrappers recursively forward inherited instance-field reads and writes
 and overridden methods to the preserved concrete value. Static fields are never forwarded through
 instances. Subclasses inherit their bases' declared interface conformance. Declared named
-interfaces check complete method signatures, infer required receiver mutability from conforming
-implementations, and lower as typed dispatch contracts. Traits reuse declared fields and methods,
-with unresolved multi-trait member conflicts rejected.
+interfaces state complete method signatures and written invocation modes, require explicit
+`implements`, and lower as typed dispatch contracts. Traits reuse source fields and methods through
+`uses`, are not type objects or Rust-style contracts, and reject unresolved multi-trait conflicts.
 
 `ref T` values carry compiler-owned whole-path provenance: their originating owner, selected
 external-lender parameter, field/element/call-result projections, and first lifetime-ending
@@ -753,19 +767,22 @@ while the owner proof remains complete.
 
 Callable contracts are modelled by the rule each one enforces rather than as permissions from one
 generic effect system. The compiler retains a callable declaration's written throwable upper bound
-separately from its exact escaping set. Infallible and narrower implementations satisfy a broader
-destination; broader or unrelated sets are rejected. Omitting `throws` declares an infallible
-callable type. Named functions, closures, bound methods, and inferred aliases keep exact metadata;
-explicitly typed bindings and class fields retain both the exact initializer summary for reflection
-and their written storage ABI and invocation bound. Source callables never acquire an implicit broad
-`throwable` fallback. ABI selection follows the written bound independently, so widening a proven
-infallible implementation creates result-bearing storage without falsifying the empty reflected set.
-The compiler also infers receiver mutation, distinguishes sync and async callable types, and validates suspension through
-explicit `await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not function
-qualifiers. Concrete unsafe Rust and foreign interoperability belong to explicit Rust, runtime,
-adapter, import, or ABI constructs. Callable reflection exposes retained `.contracts`,
-`.throwable-contract`, and `.escaping-throwables` metadata; descriptor values retain canonical
-identity and `.name`.
+separately from its exact escaping set, and its written invocation mode separately from the exact
+receiver/capture authority its body uses. Infallible and narrower implementations satisfy a broader
+throwable destination. Shared callables satisfy all invocation destinations, mutable callables
+satisfy mutable or consuming destinations, and consuming callables satisfy only consuming
+destinations. Omitting `throws` declares an infallible callable type; omitting an invocation prefix
+declares shared invocation.
+
+Named functions, closures, bound methods, and inferred aliases keep exact metadata; explicitly typed
+bindings and class fields retain both the exact initializer summary for reflection and their written
+storage ABI and invocation bound. Source callables never acquire an implicit broad throwable
+fallback. ABI selection follows written contracts independently. `async` remains orthogonal and
+requires explicit `await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not
+function qualifiers. Concrete unsafe Rust and foreign interoperability belong to explicit Rust,
+runtime, adapter, import, or ABI constructs. Callable reflection exposes retained `.contracts`,
+`.throwable-contract`, `.escaping-throwables`, `.invocation-mode`, and
+`.exact-invocation-mode`; descriptor values retain canonical identity and `.name`.
 
 I/O and blocking are not source qualifiers, ordinary operations require no compiler-issued
 capability value, and manifests do not inject authority into entrypoints. `pure` is not a function
@@ -938,10 +955,11 @@ representable `Result` returns, arbitrary projected `Option<T>` values, all Rust
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
 callback bounds, concrete owned asynchronous producers with typed item/end steps, and concrete
-owned asynchronous sinks with accepted/close outcomes. Callback metadata retains multiplicity,
-retention, and `Send`/`Sync`; generated shims cover free-function and projected-method arguments.
-`FnMut` does not introduce mutable capture cells: version-one anonymous functions still capture
-ordinary values by value and aliased mutable capture is rejected.
+owned asynchronous sinks with accepted/close outcomes. Callback metadata maps `Fn`, `FnMut`, and
+`FnOnce` to shared, mutable, and consuming invocation modes while retaining retention and
+`Send`/`Sync` independently. Generated shims cover free-function and projected-method arguments.
+Mutable callback state is repeatable and independently copied at value separation; consuming
+callbacks transfer once.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming

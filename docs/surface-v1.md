@@ -616,10 +616,12 @@ callable
 +-- parameter descriptor list
 +-- return descriptor
 +-- callable contracts and inferred facts
-|   +-- throwable-contract -> descriptor|none      optional written upper bound
-|   +-- escaping-throwables -> descriptor set      exact inferred current set
-|   +-- async metadata
-|   +-- suspension / receiver-mutation / unsafe-rust / foreign-transition facts are inferred
+|   +-- invocation-mode -> shared|mutable|consuming  written authority
+|   +-- exact-invocation-mode                       inferred authority actually used
+|   +-- throwable-contract -> descriptor|none       optional written upper bound
+|   +-- escaping-throwables -> descriptor set       exact inferred current set
+|   +-- async metadata                              orthogonal to invocation and throws
+|   +-- suspension / unsafe-rust / foreign-transition facts are inferred
 |   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor
@@ -646,8 +648,11 @@ class instance
 - `this` exists only in instance methods. `self` exists in instance and static methods, follows the
   effective class receiver through inherited behaviour, and may be constructed with `instance self;`.
 - `drop` is deterministic.
-- Interfaces are named structural contract/type objects.
-- Traits reuse implementation and are not subtyping.
+- Protocols are unnamed structural operation shapes, not declarations or nominal types. Interfaces
+  are named nominal contracts and dispatch type objects adopted with `implements`.
+- Traits compose source fields and methods through `uses`; they are not subtyping and are not the
+  analogue of Rust traits. Rust traits project toward Terrane interfaces because both name
+  conformance contracts.
 - Single class inheritance preserves complete subclass state; multiple class inheritance and implicit signature overloading are later/non-v1.
 - Default/named/variadic parameters, typed returns, closures, recursion, and early return are v1.
 - Source-declared type parameters are later; v1 uses concrete types, unions, interfaces, and compiler/package-supplied type constructors.
@@ -1385,8 +1390,8 @@ Editor package knowledge is an optional, light-touch index over the same resolve
 When the profile retains reflection metadata, descriptors expose:
 
 ```text
-type: identity, compatibility, protocols, members, ownership, capabilities, inherently-identity-bearing
-callable: parameters, return, contracts, receiver, source identity
+type: identity, compatibility, structural protocols, members, ownership, capabilities, inherently-identity-bearing
+callable: parameters, return, written/exact invocation mode, throwable contracts, receiver, source identity
 namespace/package: children, visibility, origin/version
 value: source type, identity category, storage/copy facts where permitted
 build: target, profile, capabilities, selected branches, adapter inputs

@@ -462,6 +462,80 @@ mod __terrane_trace {
         )
     }
 }
+trait TerraneMutableCallableBody<Arguments, Output>: Send {
+    fn call(&mut self, arguments: Arguments) -> Output;
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>;
+}
+impl<Arguments, Output, Function> TerraneMutableCallableBody<Arguments, Output>
+for Function
+where
+    Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
+{
+    fn call(&mut self, arguments: Arguments) -> Output {
+        self(arguments)
+    }
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>> {
+        std::boxed::Box::new(self.clone())
+    }
+}
+pub struct TerraneMutableCallable<Arguments, Output> {
+    body: std::sync::Mutex<
+        std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>,
+    >,
+}
+impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
+    fn new<Function>(function: Function) -> Self
+    where
+        Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
+    {
+        Self {
+            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
+        }
+    }
+    fn call(&self, arguments: Arguments) -> Output {
+        self.body.lock().expect("mutable callable lock poisoned").call(arguments)
+    }
+}
+impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
+    fn clone(&self) -> Self {
+        let body = self.body.lock().expect("mutable callable lock poisoned").clone_box();
+        Self {
+            body: std::sync::Mutex::new(body),
+        }
+    }
+}
+trait TerraneConsumingCallableBody<Arguments, Output>: Send {
+    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output;
+}
+impl<Arguments, Output, Function> TerraneConsumingCallableBody<Arguments, Output>
+for Function
+where
+    Function: FnOnce(Arguments) -> Output + Send + 'static,
+{
+    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output {
+        self(arguments)
+    }
+}
+pub struct TerraneConsumingCallable<Arguments, Output> {
+    body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
+}
+impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
+    fn new<Function>(function: Function) -> Self
+    where
+        Function: FnOnce(Arguments) -> Output + Send + 'static,
+    {
+        Self {
+            body: std::boxed::Box::new(function),
+        }
+    }
+    fn call(self, arguments: Arguments) -> Output {
+        self.body.call(arguments)
+    }
+}
 use std::future::Future;
 #[derive(Clone)]
 struct TerraneCancellation {
@@ -943,12 +1017,14 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_mutable(terrane_int_support::Int::from(10_i128),
-            std::sync::Arc::new(add_two)), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
+            TerraneMutableCallable::new(move | (argument_0,) :
+            (terrane_int_support::Int,) | add_two(argument_0))), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_once(String::from("HELLO"),
-            std::sync::Arc::new(keep_string)), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
+            TerraneConsumingCallable::new(move | (argument_0,) : (String,) |
+            keep_string(argument_0))), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
         );
         let changed: String = __terrane_traced(
             __terrane_await({
@@ -1121,9 +1197,10 @@ pub async fn apply_async(
         let callback = callback.clone();
         move |callback_argument_0: String| {
             let callback = callback.clone();
+            let callback_future = callback(callback_argument_0);
             Box::pin(async move {
                 match async {
-                    let callback_value = callback(callback_argument_0).await;
+                    let callback_value = callback_future.await;
                     Ok::<_, crate::TerraneForeignError>(callback_value)
                 }
                     .await
@@ -1169,14 +1246,12 @@ pub async fn apply_async_concurrently(
         let callback = callback.clone();
         move |callback_argument_0: i64| {
             let callback = callback.clone();
+            let callback_future = callback(
+                terrane_int_support::Int::from(i128::from(callback_argument_0)),
+            );
             Box::pin(async move {
                 match async {
-                    let callback_value = callback(
-                            terrane_int_support::Int::from(
-                                i128::from(callback_argument_0),
-                            ),
-                        )
-                        .await;
+                    let callback_value = callback_future.await;
                     Ok::<
                         _,
                         crate::TerraneForeignError,
@@ -1214,8 +1289,9 @@ pub async fn apply_async_concurrently(
 }
 pub fn apply_mutable(
     value: terrane_int_support::Int,
-    callback: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    callback: TerraneMutableCallable<
+        (terrane_int_support::Int,),
+        terrane_int_support::Int,
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = terrane_int_support::coerce::<i64>(&value)
@@ -1226,9 +1302,10 @@ pub fn apply_mutable(
         let callback = callback.clone();
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(
-                    terrane_int_support::Int::from(i128::from(callback_argument_0)),
-                );
+                let callback_value = callback
+                    .call((
+                        terrane_int_support::Int::from(i128::from(callback_argument_0)),
+                    ));
                 Ok(
                     terrane_int_support::coerce::<i64>(&callback_value)
                         .map_err(|error| crate::TerraneForeignError(
@@ -1261,14 +1338,14 @@ pub fn apply_mutable(
 }
 pub fn apply_once(
     value: String,
-    callback: std::sync::Arc<dyn Fn(String) -> String + Send + Sync>,
+    callback: TerraneConsumingCallable<(String,), String>,
 ) -> Result<String, crate::TerraneForeignError> {
     let value = value;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: String| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(callback_argument_0);
+                let callback_value = callback.call((callback_argument_0,));
                 Ok(callback_value)
             }() {
                 Ok(value) => value,
@@ -1354,14 +1431,12 @@ pub async fn invoke_retained(
         let callback = callback.clone();
         move |callback_argument_0: i64| {
             let callback = callback.clone();
+            let callback_future = callback(
+                terrane_int_support::Int::from(i128::from(callback_argument_0)),
+            );
             Box::pin(async move {
                 match async {
-                    let callback_value = callback(
-                            terrane_int_support::Int::from(
-                                i128::from(callback_argument_0),
-                            ),
-                        )
-                        .await;
+                    let callback_value = callback_future.await;
                     Ok::<
                         _,
                         crate::TerraneForeignError,

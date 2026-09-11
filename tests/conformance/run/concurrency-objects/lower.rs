@@ -189,7 +189,7 @@ fn terrane_platform_thread_local_int_set(
 // Source: src/main.trn
 // Namespace: concurrency-objects
 fn main() {
-    let counter: IntMutex = IntMutex::terrane_construct(
+    let mut counter: IntMutex = IntMutex::terrane_construct(
         terrane_int_support::Int::from(4_i128),
     );
     counter.increase(terrane_int_support::Int::from(3_i128));
@@ -199,7 +199,7 @@ fn main() {
     );
     shared.write(terrane_int_support::Int::from(9_i128));
     println!("{}", terrane_scalar_support::scalar_text(&shared.read().value));
-    let atomic: AtomicInt64 = AtomicInt64::terrane_construct(10);
+    let mut atomic: AtomicInt64 = AtomicInt64::terrane_construct(10);
     let updated: ConcurrencyIntResult = atomic.increase(5, acquire_release_order());
     println!("{}", terrane_scalar_support::scalar_text(&updated.failed));
     println!(
@@ -334,7 +334,10 @@ impl IntMutex {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn increase(&self, amount: terrane_int_support::Int) -> ConcurrencyIntResult {
+    pub fn increase(
+        &mut self,
+        amount: terrane_int_support::Int,
+    ) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
             &self.handle,
             amount,
@@ -474,7 +477,11 @@ impl AtomicInt64 {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn increase(&self, amount: i64, ordering: MemoryOrder) -> ConcurrencyIntResult {
+    pub fn increase(
+        &mut self,
+        amount: i64,
+        ordering: MemoryOrder,
+    ) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
             &self.handle,
             amount,

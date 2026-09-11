@@ -446,7 +446,7 @@ impl Marker {
     pub fn construct(&mut self, name: String) {
         self.name = name;
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("drop-")),
             terrane_scalar_support::scalar_text(&self.name)

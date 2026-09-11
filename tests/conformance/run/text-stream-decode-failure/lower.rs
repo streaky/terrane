@@ -919,7 +919,7 @@ impl ByteReader {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -1032,7 +1032,7 @@ impl ByteWriter {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -1209,7 +1209,7 @@ impl TextReader {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -1342,7 +1342,7 @@ impl TextWriter {
             raw.message.clone().clone(),
         );
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }

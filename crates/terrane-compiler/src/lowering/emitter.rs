@@ -9,7 +9,7 @@ mod statements;
 
 use std::{
     cell::{Cell, RefCell},
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
 };
 
 use num_bigint::BigInt;
@@ -144,6 +144,7 @@ pub(super) struct Emitter<'a> {
     in_loop: bool,
     closure_depth: usize,
     assignment_target: bool,
+    async_mutable_captures: BTreeSet<String>,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
 }
@@ -180,6 +181,7 @@ impl<'a> Emitter<'a> {
             in_loop: false,
             closure_depth: 0,
             assignment_target: false,
+            async_mutable_captures: BTreeSet::new(),
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
         }

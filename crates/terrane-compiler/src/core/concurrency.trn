@@ -46,7 +46,7 @@ class int-mutex
         raw = host-int-mutex-store; this.handle, value
         return instance concurrency-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function increase concurrency-int-result; amount int
+    mutable function increase concurrency-int-result; amount int
         raw = host-int-mutex-add; this.handle, amount
         return instance concurrency-int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
 
@@ -115,7 +115,7 @@ class atomic-int64
         raw = host-atomic-int64-store; this.handle, value, ordering.name
         return instance concurrency-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function increase concurrency-int-result; amount int64, ordering memory-order
+    mutable function increase concurrency-int-result; amount int64, ordering memory-order
         raw = host-atomic-int64-add; this.handle, amount, ordering.name
         return instance concurrency-int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
 

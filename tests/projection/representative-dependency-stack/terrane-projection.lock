@@ -4861,11 +4861,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "6d260e5c101f2e7b67114b7d3e8a3c5ebfa79c46206aec3ee93819d4fa4cd4a2",
+  "cache_identity": "481d8d3d599084c222f63589caebc1408b8468d7c83899c00793a52716f8cf24",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "25",
-  "content_hash": "fee794e7b7e850cd07563ea2629d143ffaa28817c3e5eceeb09ab5a821825e18",
+  "projection_schema": "26",
+  "content_hash": "1d8cfe720b2737a93f40a8121542d945e558b37229121b8aa70b7c4af129ccf2",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

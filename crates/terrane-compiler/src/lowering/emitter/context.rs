@@ -512,7 +512,13 @@ impl Emitter<'_> {
                         binding.name == self.text(node)
                             && binding.is_visible_at(self.source.id(), node.span.start)
                             && !self.is_namespace_binding_span(binding.span)
-                            && !binding_span_is_mutated(self.package, self.unit, binding.span, true)
+                            && !binding_span_is_mutated(
+                                self.package,
+                                self.unit,
+                                binding.span,
+                                true,
+                                ClosureWrites::Include,
+                            )
                     })
                     .and_then(|binding| binding.storage_type)
             })
@@ -698,6 +704,14 @@ impl Emitter<'_> {
     }
 
     pub(super) fn value_type_owns_resource(&self, value_type: &ValueType) -> bool {
+        if matches!(
+            value_type,
+            ValueType::Function(_, _, effects)
+                | ValueType::AsyncFunction(_, _, _, effects)
+                if effects.modes.written == InvocationMode::Consuming
+        ) {
+            return true;
+        }
         let ValueType::Object(identity) = value_type else {
             return false;
         };

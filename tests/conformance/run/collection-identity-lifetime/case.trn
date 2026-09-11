@@ -9,7 +9,7 @@ class marker
   function construct; name string
     this.name = name
 
-  function destruct;
+  consuming function destruct;
     print; 'drop-', this.name
 
 

@@ -418,12 +418,10 @@ impl<'a> Emitter<'a> {
                 self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.consumes_receiver {
-                        "self: Box<Self>"
-                    } else if method.mutates_receiver {
-                        "&mut self"
-                    } else {
-                        "&self"
+                    let receiver = match method.written_invocation_mode {
+                        InvocationMode::Consuming => "self: Box<Self>",
+                        InvocationMode::Mutable => "&mut self",
+                        InvocationMode::Shared => "&self",
                     };
                     write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
@@ -460,12 +458,10 @@ impl<'a> Emitter<'a> {
                 self.indent += 1;
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.consumes_receiver {
-                        "self"
-                    } else if method.mutates_receiver {
-                        "&mut self"
-                    } else {
-                        "&self"
+                    let receiver = match method.written_invocation_mode {
+                        InvocationMode::Consuming => "self",
+                        InvocationMode::Mutable => "&mut self",
+                        InvocationMode::Shared => "&self",
                     };
                     write!(self.output, "pub fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
@@ -807,12 +803,10 @@ impl<'a> Emitter<'a> {
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
                         self.line_start();
-                        let receiver = if method.consumes_receiver {
-                            "self"
-                        } else if method.mutates_receiver {
-                            "&mut self"
-                        } else {
-                            "&self"
+                        let receiver = match method.written_invocation_mode {
+                            InvocationMode::Consuming => "self",
+                            InvocationMode::Mutable => "&mut self",
+                            InvocationMode::Shared => "&self",
                         };
                         write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
                             .unwrap();
@@ -956,13 +950,21 @@ impl<'a> Emitter<'a> {
                         ));
                     }
                     for method in effective_object_methods(interface_unit, interface) {
+                        let implementation = effective_object_methods(self.unit, object)
+                            .into_iter()
+                            .find(|candidate| candidate.name == method.name && !candidate.is_static)
+                            .expect("validated interface implementation");
                         self.line_start();
-                        let receiver = if method.consumes_receiver {
-                            "self: Box<Self>"
-                        } else if method.mutates_receiver {
-                            "&mut self"
-                        } else {
-                            "&self"
+                        let receiver = match (
+                            method.written_invocation_mode,
+                            implementation.written_invocation_mode,
+                        ) {
+                            (InvocationMode::Consuming, InvocationMode::Mutable) => {
+                                "mut self: Box<Self>"
+                            }
+                            (InvocationMode::Consuming, _) => "self: Box<Self>",
+                            (InvocationMode::Mutable, _) => "&mut self",
+                            (InvocationMode::Shared, _) => "&self",
                         };
                         write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                         for parameter in &method.parameters {
@@ -984,10 +986,18 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let receiver = if method.consumes_receiver {
-                            "*self"
-                        } else {
-                            "self"
+                        let receiver = match (
+                            method.written_invocation_mode,
+                            implementation.written_invocation_mode,
+                        ) {
+                            (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
+                            (InvocationMode::Consuming, InvocationMode::Mutable) => "&mut *self",
+                            (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
+                            (_, InvocationMode::Shared) => "&*self",
+                            (_, InvocationMode::Mutable) => "&mut *self",
+                            (_, InvocationMode::Consuming) => {
+                                unreachable!("validated interface mode compatibility")
+                            }
                         };
                         self.line(&format!(
                             "{class_type}::{}({receiver}, {arguments})",
@@ -1052,12 +1062,14 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.consumes_receiver {
-            "self"
-        } else if contract.mutates_receiver {
+        let receiver = if contract.name == "destruct" {
             "&mut self"
         } else {
-            "&self"
+            match contract.written_invocation_mode {
+                InvocationMode::Consuming => "self",
+                InvocationMode::Mutable => "&mut self",
+                InvocationMode::Shared => "&self",
+            }
         };
         self.emit_function_as(node, Some(receiver), None);
     }
@@ -1082,12 +1094,14 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.consumes_receiver {
-            "self"
-        } else if contract.mutates_receiver {
+        let receiver = if contract.name == "destruct" {
             "&mut self"
         } else {
-            "&self"
+            match contract.written_invocation_mode {
+                InvocationMode::Consuming => "self",
+                InvocationMode::Mutable => "&mut self",
+                InvocationMode::Shared => "&self",
+            }
         };
         self.emit_function_as(node, Some(receiver), Some(name));
     }
@@ -1314,6 +1328,32 @@ impl<'a> Emitter<'a> {
             })
             .collect::<Vec<_>>()
             .join(", ");
+        let parameter_names = contract
+            .parameters
+            .iter()
+            .map(|parameter| rust_name(&parameter.name))
+            .collect::<Vec<_>>();
+        let parameter_types = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter.value_type.clone().map_or_else(
+                    || "i128".to_owned(),
+                    |value_type| rust_value_type(self.package, value_type),
+                )
+            })
+            .collect::<Vec<_>>();
+        let tuple_pattern = match parameter_names.as_slice() {
+            [] => "()".to_owned(),
+            [name] => format!("({name},)"),
+            _ => format!("({})", parameter_names.join(", ")),
+        };
+        let tuple_type = match parameter_types.as_slice() {
+            [] => "()".to_owned(),
+            [ty] => format!("({ty},)"),
+            _ => format!("({})", parameter_types.join(", ")),
+        };
+        let stateful_parameters = format!("{tuple_pattern}: {tuple_type}");
         let result = contract
             .return_type
             .clone()
@@ -1344,6 +1384,11 @@ impl<'a> Emitter<'a> {
                 })
                 .collect(),
         );
+        let outer_async_mutable_captures = std::mem::take(&mut self.async_mutable_captures);
+        if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+            self.async_mutable_captures
+                .extend(contract.captures.iter().cloned());
+        }
         self.closure_depth += 1;
         self.indent = outer_indent + 1;
         if let Some(block) = node
@@ -1363,15 +1408,36 @@ impl<'a> Emitter<'a> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
-        let (captures, invocation_captures) = self.anonymous_function_captures(node, contract);
+        self.async_mutable_captures = outer_async_mutable_captures;
+        let (mut captures, mut invocation_captures) =
+            self.anonymous_function_captures(node, contract);
+        let invocation_guard =
+            if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+                captures.push_str("let __terrane_invocation = TerraneAsyncInvocationGate::new(); ");
+                invocation_captures
+                    .push_str("let __terrane_invocation = __terrane_invocation.share(); ");
+                "let _invocation = __terrane_invocation.enter().await;\n"
+            } else {
+                ""
+            };
+        let constructor = match contract.written_invocation_mode {
+            InvocationMode::Shared => "std::sync::Arc::new",
+            InvocationMode::Mutable => "TerraneMutableCallable::new",
+            InvocationMode::Consuming => "TerraneConsumingCallable::new",
+        };
+        let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
+            parameters
+        } else {
+            stateful_parameters
+        };
         if contract.is_async {
             format!(
-                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{body}{}}}) }}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
                 "    ".repeat(outer_indent)
             )
         } else {
             format!(
-                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> {result_type} {{\n{body}{}}}) }}",
                 "    ".repeat(outer_indent)
             )
         }
@@ -1386,6 +1452,11 @@ impl<'a> Emitter<'a> {
         let mut invocation_captures = String::new();
         for capture in &contract.captures {
             let name = rust_name(capture);
+            let mutable = if contract.written_invocation_mode == InvocationMode::Mutable {
+                "mut "
+            } else {
+                ""
+            };
             let source = if capture == "this" { "self" } else { &name };
             let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                 binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
@@ -1402,19 +1473,32 @@ impl<'a> Emitter<'a> {
                             !self.reference_owner_uses_shared_storage(provenance.owner)
                         })
             });
+            if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+                write!(
+                    captures,
+                    "let {name} = TerraneAsyncMutableState::new({source}.clone()); "
+                )
+                .expect("writing to a String cannot fail");
+                write!(invocation_captures, "let {name} = {name}.share(); ")
+                    .expect("writing to a String cannot fail");
+                continue;
+            }
             if transfer || borrowed {
-                write!(captures, "let {name} = {source}; ")
+                write!(captures, "let {mutable}{name} = {source}; ")
                     .expect("writing to a String cannot fail");
             } else {
-                write!(captures, "let {name} = {source}.clone(); ")
+                write!(captures, "let {mutable}{name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
             if borrowed {
-                write!(invocation_captures, "let {name} = {name}; ")
+                write!(invocation_captures, "let {mutable}{name} = {name}; ")
                     .expect("writing to a String cannot fail");
             } else {
-                write!(invocation_captures, "let {name} = {name}.clone(); ")
-                    .expect("writing to a String cannot fail");
+                write!(
+                    invocation_captures,
+                    "let {mutable}{name} = {name}.clone(); "
+                )
+                .expect("writing to a String cannot fail");
             }
         }
         (captures, invocation_captures)

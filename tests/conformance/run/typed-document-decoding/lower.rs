@@ -1266,7 +1266,7 @@ impl DocumentValidatableProtocol for ServiceConfig {
         Box::new(self.clone())
     }
     fn validate_document(&self) -> Option<String> {
-        ServiceConfig::validate_document(self)
+        ServiceConfig::validate_document(&*self)
     }
 }
 impl From<ServiceConfig> for DocumentValidatable {
@@ -1972,7 +1972,7 @@ impl SerializableProtocol for DocumentValue {
         Box::new(self.clone())
     }
     fn to_document(&self) -> DocumentValue {
-        DocumentValue::to_document(self)
+        DocumentValue::to_document(&*self)
     }
 }
 impl From<DocumentValue> for Serializable {
@@ -2079,7 +2079,7 @@ impl DeserializableProtocol for DocumentMapping {
         Box::new(self.clone())
     }
     fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        DocumentMapping::from_document(self, value)
+        DocumentMapping::from_document(&*self, value)
     }
 }
 impl From<DocumentMapping> for Deserializable {

@@ -2,7 +2,7 @@ namespace source-iterator-mutating-constructor
 from /core/collections import iteration-step
 class cursor
   current int = 0
-  function iterator cursor;
+  mutable function iterator cursor;
     this.current = this.current + 1
     return this
   function next iteration-step of int;

@@ -14,7 +14,7 @@ class counter
   function iterator counter;
     return this
 
-  function next iteration-step of int;
+  mutable function next iteration-step of int;
     if this.ended
       return iteration-step.end;
     this.advances = this.advances + 1
@@ -31,7 +31,7 @@ class none-once
   function iterator none-once;
     return this
 
-  function next iteration-step of none;
+  mutable function next iteration-step of none;
     if this.emitted
       return iteration-step.end;
     this.emitted = true

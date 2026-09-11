@@ -1,0 +1,8 @@
+namespace callable-mutable-to-shared
+
+function main;
+  counter = 0
+  actual = mutable function int;
+    counter = counter + 1
+    return counter
+  expected function to int = actual

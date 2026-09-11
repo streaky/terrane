@@ -289,7 +289,7 @@ pub(super) fn object_method_mutates(
         if let Some(method) = unit.functions.iter().find(|method| {
             method.owner_identity.as_ref() == Some(object_identity) && method.name == method_name
         }) {
-            return method.mutates_receiver;
+            return method.written_invocation_mode == InvocationMode::Mutable;
         }
         unit.descriptors
             .iter()
@@ -324,19 +324,69 @@ pub(super) fn object_method_mutates(
         })
 }
 
+pub(crate) fn member_invocation_mode(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member_name: &str,
+) -> InvocationMode {
+    if let ValueType::Object(identity) = receiver_type {
+        if let Some(
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+        ) = object_field_type(unit, identity, member_name, false)
+        {
+            return effects.modes.written;
+        }
+        if method_contract(package, identity, member_name, false)
+            .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
+            || package
+                .projection
+                .method(&identity.namespace, &identity.name, member_name, false)
+                .is_some_and(|method| {
+                    matches!(method.receiver, Some(crate::projection::Receiver::Move))
+                })
+        {
+            return InvocationMode::Consuming;
+        }
+        if object_method_mutates(package, identity, member_name) {
+            return InvocationMode::Mutable;
+        }
+        return InvocationMode::Shared;
+    }
+    match descriptor_operation(unit, receiver_type, member_name) {
+        Some(
+            "collection.add" | "collection.append" | "collection.clear" | "collection.extend"
+            | "collection.insert" | "collection.next" | "collection.pop" | "collection.remove"
+            | "collection.reverse" | "collection.set" | "collection.sort",
+        ) => InvocationMode::Mutable,
+        _ => InvocationMode::Shared,
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum ClosureWrites {
+    Include,
+    Exclude,
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     declaration_span: Span,
     initially_assigned: bool,
+    closure_writes: ClosureWrites,
 ) -> bool {
     fn writes(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         declaration_span: Span,
         iterator_binding: bool,
+        closure_writes: ClosureWrites,
         node: &SyntaxNode,
     ) -> usize {
+        if closure_writes == ClosureWrites::Exclude && node.kind == SyntaxKind::AnonymousFunction {
+            return 0;
+        }
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -361,23 +411,30 @@ pub(crate) fn binding_span_is_mutated(
                     return false;
                 };
                 callee.kind == SyntaxKind::MemberExpression
-                    && (matches!(
-                        node_text(&unit.source, member),
-                        "append" | "set" | "add" | "remove" | "clear"
-                    ) || (node_text(&unit.source, member) == "next"
-                        && matches!(
-                            infer_value_type(unit, receiver, &unit.typed_bindings),
-                            Ok(Some(ValueType::Iterator(_)))
-                        ))
-                        || matches!(
-                            infer_value_type(unit, receiver, &unit.typed_bindings),
-                            Ok(Some(ValueType::Object(object)))
-                                if object_method_mutates(
-                                    package,
-                                    &object,
-                                    node_text(&unit.source, member)
-                                )
-                        ))
+                    && infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                        .ok()
+                        .flatten()
+                        .is_some_and(|receiver_type| {
+                            let callable_field = match &receiver_type {
+                                ValueType::Object(identity) => matches!(
+                                    object_field_type(
+                                        unit,
+                                        identity,
+                                        node_text(&unit.source, member),
+                                        false,
+                                    ),
+                                    Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                                ),
+                                _ => false,
+                            };
+                            member_invocation_mode(
+                                package,
+                                unit,
+                                &receiver_type,
+                                node_text(&unit.source, member),
+                            ) == InvocationMode::Mutable
+                                && (closure_writes == ClosureWrites::Include || !callable_field)
+                        })
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding
@@ -388,7 +445,16 @@ pub(crate) fn binding_span_is_mutated(
             + node
                 .children
                 .iter()
-                .map(|child| writes(package, unit, declaration_span, iterator_binding, child))
+                .map(|child| {
+                    writes(
+                        package,
+                        unit,
+                        declaration_span,
+                        iterator_binding,
+                        closure_writes,
+                        child,
+                    )
+                })
                 .sum::<usize>()
     }
 
@@ -400,6 +466,7 @@ pub(crate) fn binding_span_is_mutated(
         unit,
         declaration_span,
         iterator_binding,
+        closure_writes,
         &unit.tree.root,
     ) > usize::from(!initially_assigned)
 }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use terrane_compiler::semantics::SymbolKind;
+use terrane_compiler::semantics::{InvocationMode, SymbolKind};
 use terrane_compiler::syntax::SyntaxKind;
 use terrane_compiler::{
     BuildToolchain, CapabilityProfile, EvaluationKind, ExecutorProfile, Package, ReflectionProfile,
@@ -74,6 +74,75 @@ fn implicit_script_namespace_has_an_unspellable_identity() {
     assert_eq!(implicit.units[0].namespace, "/<implicit-script>");
     assert_eq!(authored.units[0].namespace, "/implicit-script");
     assert_ne!(implicit.units[0].namespace, authored.units[0].namespace);
+}
+
+#[test]
+fn retains_written_callable_invocation_modes_in_semantic_types() {
+    let analyzed = analyze(&package(
+        false,
+        &[(
+            "modes.trn",
+            "namespace app\nmutable function update int; value int\n  return value\nconsuming function finish int; value int\n  return value\nshared-slot function from int to int = update\nmutable-slot mutable function from int to int = update\nconsuming-slot consuming function from int to int = finish\n",
+        )],
+    ))
+    .unwrap_err();
+
+    assert_eq!(
+        analyzed.diagnostics[0].message,
+        "`shared-slot` requires `function from int to int`, found `mutable function from int to int`"
+    );
+
+    let analyzed = analyze(&package(
+        false,
+        &[(
+            "modes.trn",
+            "namespace app\nmutable function update int; value int\n  return value\nconsuming function finish int; value int\n  return value\nmutable-slot mutable function from int to int = update\nconsuming-slot consuming function from int to int = finish\n",
+        )],
+    ))
+    .unwrap();
+    let modes = analyzed.units[0]
+        .typed_bindings
+        .iter()
+        .filter_map(|binding| match &binding.value_type {
+            ValueType::Function(_, _, effects) => Some(effects.modes.written),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(modes, [InvocationMode::Mutable, InvocationMode::Consuming]);
+}
+
+#[test]
+fn rejects_callable_bodies_needing_stronger_invocation_modes() {
+    for (source, expected) in [
+        (
+            "namespace app\ncounter = 0\nstep = function int;\n  counter = counter + 1\n  return counter\n",
+            "requires mutable invocation",
+        ),
+        (
+            "namespace app\nmessage = >ready\ntake = mutable function string;\n  return move message\n",
+            "requires consuming invocation",
+        ),
+    ] {
+        let failure = analyze(&package(false, &[("mode.trn", source)])).unwrap_err();
+        assert_eq!(failure.diagnostics[0].code, "T0120");
+        assert!(
+            failure.diagnostics[0].message.contains(expected),
+            "{:#?}",
+            failure.diagnostics
+        );
+    }
+}
+
+#[test]
+fn accepts_explicit_mutable_and_consuming_closure_modes() {
+    analyze(&package(
+        false,
+        &[(
+            "mode.trn",
+            "namespace app\ncounter = 0\nstep = mutable function int;\n  counter = counter + 1\n  return counter\nmessage = >ready\ntake = consuming function string;\n  return move message\n",
+        )],
+    ))
+    .unwrap();
 }
 
 #[test]

@@ -1371,10 +1371,12 @@ impl Emitter<'_> {
                         format!("&{receiver_expression}")
                     }
                     Some(crate::projection::Receiver::Move) => receiver_expression,
-                    _ if !contract.consumes_receiver && contract.mutates_receiver => {
+                    _ if contract.written_invocation_mode == InvocationMode::Mutable => {
                         format!("&mut {receiver_expression}")
                     }
-                    _ if !contract.consumes_receiver => format!("&{receiver_expression}"),
+                    _ if contract.written_invocation_mode == InvocationMode::Shared => {
+                        format!("&{receiver_expression}")
+                    }
                     _ => receiver_expression,
                 }
             } else {
@@ -1393,7 +1395,27 @@ impl Emitter<'_> {
         } else {
             name
         };
-        let call = format!("{name}({})", values.join(", "));
+        let callable_mode =
+            self.value_type(callee)
+                .and_then(|value_type| match value_type {
+                    ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
+                    _ => None,
+                });
+        let call = if contract.is_none()
+            && matches!(
+                callable_mode,
+                Some(InvocationMode::Mutable | InvocationMode::Consuming)
+            ) {
+            let arguments = match values.as_slice() {
+                [] => "()".to_owned(),
+                [value] => format!("({value},)"),
+                _ => format!("({})", values.join(", ")),
+            };
+            format!("{name}.call({arguments})")
+        } else {
+            format!("{name}({})", values.join(", "))
+        };
         let foreign_method = contract.as_ref().and_then(|contract| {
             let [receiver, _member] = callee.children.as_slice() else {
                 return None;

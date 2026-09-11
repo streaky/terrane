@@ -69,6 +69,40 @@ fn parses_lossless_declarations_and_legal_empty_blocks() {
 }
 
 #[test]
+fn parses_callable_invocation_modes_in_every_function_form() {
+    let tree = parse_source(
+        "mutable function update;\nconsuming async function finish;\ncallback mutable function from int to bool\nhandler = consuming function int;\n  return 1\nclass worker\n  static async function start;\n",
+    );
+    assert_eq!(
+        count(&tree.root, SyntaxKind::DeclarationQualifier),
+        7,
+        "{}",
+        tree.normalized()
+    );
+    assert_eq!(count(&tree.root, SyntaxKind::FunctionType), 1);
+    assert_eq!(count(&tree.root, SyntaxKind::AnonymousFunction), 1);
+}
+
+#[test]
+fn parses_callable_invocation_modes_in_class_fields() {
+    let tree = parse_source(
+        "class operations\n  change mutable function to none = noop\n  finish consuming function to none = noop\n",
+    );
+    assert_eq!(
+        count(&tree.root, SyntaxKind::FunctionType),
+        2,
+        "{}",
+        tree.normalized()
+    );
+    assert_eq!(
+        count(&tree.root, SyntaxKind::DeclarationQualifier),
+        2,
+        "{}",
+        tree.normalized()
+    );
+}
+
+#[test]
 fn removed_effect_words_are_not_function_qualifiers() {
     for word in [
         "pure", "io", "blocks", "mutating", "mutates", "awaits", "unsafe", "foreign",
@@ -511,6 +545,19 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
         assert_eq!(diagnostics[0].code, "S1029");
     }
     rejected("async async function work;\n", "S1029");
+    rejected("mutable consuming function work;\n", "S1029");
+    rejected("consuming mutable function work;\n", "S1029");
+    rejected("static mutable function work;\n", "S1029");
+    rejected("static consuming function work;\n", "S1029");
+    rejected("async mutable function work;\n", "S1029");
+    rejected("callback async mutable function to none = noop\n", "S1029");
+    rejected("callback = async mutable function;\n", "S1029");
+    rejected(
+        "callback mutable mutable function to none = noop\n",
+        "S1029",
+    );
+    rejected("value mutable int\n", "S1005");
+    rejected("value consuming string\n", "S1005");
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("catch problem\n", "S1090");

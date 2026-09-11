@@ -794,7 +794,7 @@ pub(super) fn validate_bool_condition(
             };
             if truth.is_async
                 || truth.throws
-                || truth.mutates_receiver
+                || truth.written_invocation_mode != InvocationMode::Shared
                 || !truth.parameters.is_empty()
                 || truth.return_type != Some(ValueType::Scalar(ScalarType::Bool))
             {
