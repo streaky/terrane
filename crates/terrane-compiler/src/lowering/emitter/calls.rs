@@ -1395,17 +1395,18 @@ impl Emitter<'_> {
         } else {
             name
         };
-        let callable_mode = self.value_type(callee).and_then(|value_type| match value_type {
-            ValueType::Function(_, _, effects)
-            | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
-            _ => None,
-        });
+        let callable_mode =
+            self.value_type(callee)
+                .and_then(|value_type| match value_type {
+                    ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
+                    _ => None,
+                });
         let call = if contract.is_none()
             && matches!(
                 callable_mode,
                 Some(InvocationMode::Mutable | InvocationMode::Consuming)
-            )
-        {
+            ) {
             let arguments = match values.as_slice() {
                 [] => "()".to_owned(),
                 [value] => format!("({value},)"),

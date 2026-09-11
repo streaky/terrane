@@ -1311,7 +1311,7 @@ impl FileHandle {
         self.failed = failure;
         self.message = detail;
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }
@@ -1349,7 +1349,7 @@ impl DirectoryHandle {
         self.failed = failure;
         self.message = detail;
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         terrane_platform_release(&self.handle);
     }
 }

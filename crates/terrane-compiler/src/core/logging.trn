@@ -139,14 +139,14 @@ function make-logger-options logger-options; minimum log-level, target-prefix st
 class log-context
     fields list of log-field = host-log-empty-fields;
     spans list of string = host-log-empty-spans;
-    private function append-field; item log-field
+    private mutable function append-field; item log-field
         updated = host-log-empty-fields;
         for existing in this.fields
             updated.append; existing
         updated.append; item
         this.fields = updated
 
-    private function append-span; item string
+    private mutable function append-span; item string
         updated = host-log-empty-spans;
         for existing in this.spans
             updated.append; existing

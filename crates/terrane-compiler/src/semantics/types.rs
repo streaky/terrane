@@ -387,20 +387,22 @@ pub(super) fn declared_value_type_with_visible_objects(
             };
             effects.escaping.insert(identity.qualified());
         }
-        return Ok(if source
-            .split_whitespace()
-            .take_while(|part| *part != "function")
-            .any(|part| part == "async")
-        {
-            ValueType::AsyncFunction(
-                parameters,
-                result,
-                TaskTransferability::Transferable,
-                effects,
-            )
-        } else {
-            ValueType::Function(parameters, result, effects)
-        });
+        return Ok(
+            if source
+                .split_whitespace()
+                .take_while(|part| *part != "function")
+                .any(|part| part == "async")
+            {
+                ValueType::AsyncFunction(
+                    parameters,
+                    result,
+                    TaskTransferability::Transferable,
+                    effects,
+                )
+            } else {
+                ValueType::Function(parameters, result, effects)
+            },
+        );
     }
     if let Some(union) = type_node
         .children

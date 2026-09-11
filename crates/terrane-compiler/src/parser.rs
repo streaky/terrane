@@ -502,9 +502,9 @@ impl Parser<'_> {
                 self.error_here("S1029", "duplicate function qualifier");
             }
             if matches!(qualifier.as_str(), "mutable" | "consuming")
-                && qualifiers
-                    .iter()
-                    .any(|existing| existing != &qualifier && matches!(existing.as_str(), "mutable" | "consuming"))
+                && qualifiers.iter().any(|existing| {
+                    existing != &qualifier && matches!(existing.as_str(), "mutable" | "consuming")
+                })
             {
                 self.error_here("S1029", "conflicting function invocation qualifiers");
             }

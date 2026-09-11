@@ -1367,11 +1367,8 @@ impl<'a> Emitter<'a> {
                 })
                 .collect(),
         );
-        let outer_async_mutable_captures =
-            std::mem::take(&mut self.async_mutable_captures);
-        if contract.is_async
-            && contract.written_invocation_mode == InvocationMode::Mutable
-        {
+        let outer_async_mutable_captures = std::mem::take(&mut self.async_mutable_captures);
+        if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
             self.async_mutable_captures
                 .extend(contract.captures.iter().cloned());
         }
@@ -1428,12 +1425,11 @@ impl<'a> Emitter<'a> {
         let mut invocation_captures = String::new();
         for capture in &contract.captures {
             let name = rust_name(capture);
-            let mutable =
-                if contract.written_invocation_mode == InvocationMode::Mutable {
-                    "mut "
-                } else {
-                    ""
-                };
+            let mutable = if contract.written_invocation_mode == InvocationMode::Mutable {
+                "mut "
+            } else {
+                ""
+            };
             let source = if capture == "this" { "self" } else { &name };
             let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                 binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
@@ -1450,9 +1446,7 @@ impl<'a> Emitter<'a> {
                             !self.reference_owner_uses_shared_storage(provenance.owner)
                         })
             });
-            if contract.is_async
-                && contract.written_invocation_mode == InvocationMode::Mutable
-            {
+            if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
                 write!(
                     captures,
                     "let {name} = std::sync::Arc::new(std::sync::Mutex::new({source}.clone())); "

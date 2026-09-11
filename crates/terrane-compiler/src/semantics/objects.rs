@@ -422,8 +422,7 @@ pub(super) fn value_type_owns_resource(
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => true,
-        ValueType::Function(_, _, effects)
-        | ValueType::AsyncFunction(_, _, _, effects) => {
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
             effects.modes.written == InvocationMode::Consuming
         }
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
@@ -1212,16 +1211,15 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     }
 }
 
-
 pub(super) fn infer_and_validate_invocation_modes(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     fn root_name(node: &SyntaxNode) -> Option<&SyntaxNode> {
         match node.kind {
             SyntaxKind::Name => Some(node),
-            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression | SyntaxKind::GroupExpression => {
-                node.children.first().and_then(root_name)
-            }
+            SyntaxKind::MemberExpression
+            | SyntaxKind::IndexExpression
+            | SyntaxKind::GroupExpression => node.children.first().and_then(root_name),
             _ => None,
         }
     }
@@ -1248,8 +1246,7 @@ pub(super) fn infer_and_validate_invocation_modes(
         if callee.kind == SyntaxKind::Name
             && tracked_receiver(unit, contract, callee)
             && let Ok(Some(
-                ValueType::Function(_, _, effects)
-                | ValueType::AsyncFunction(_, _, _, effects),
+                ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
             )) = infer_value_type(unit, callee, &unit.typed_bindings)
         {
             return effects.modes.written;
@@ -1387,8 +1384,9 @@ pub(super) fn infer_and_validate_invocation_modes(
         .collect::<Vec<_>>();
     for (unit_index, binding_index, exact) in binding_modes {
         match &mut package.units[unit_index].typed_bindings[binding_index].value_type {
-            ValueType::Function(_, _, effects)
-            | ValueType::AsyncFunction(_, _, _, effects) => effects.modes.exact = exact,
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+                effects.modes.exact = exact
+            }
             _ => {}
         }
     }

@@ -373,7 +373,7 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                 .map(|binding| {
                     let initially_assigned =
                         unit.source.text()[binding.span.start..binding.span.end].contains('=');
-                    binding_span_is_mutated(package, unit, binding.span, initially_assigned)
+                    binding_span_is_mutated(package, unit, binding.span, initially_assigned, true)
                 })
                 .collect::<Vec<_>>()
         })
@@ -389,7 +389,7 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                         .parameters
                         .iter()
                         .map(|parameter| {
-                            binding_span_is_mutated(package, unit, parameter.span, true)
+                            binding_span_is_mutated(package, unit, parameter.span, true, true)
                         })
                         .collect::<Vec<_>>()
                 })

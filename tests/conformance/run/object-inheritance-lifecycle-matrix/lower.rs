@@ -436,7 +436,7 @@ impl BaseStorage {
     pub fn set(&mut self, value: terrane_int_support::Int) {
         self.value = value.clone();
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
         );
@@ -530,12 +530,12 @@ impl Child {
     pub fn set(&mut self, value: terrane_int_support::Int) {
         self.value = value.clone();
     }
-    pub fn destruct(&self) {
+    pub fn destruct(&mut self) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&String::from("child-destruct"))
         );
     }
-    pub fn terrane_destruct_0(&self) {
+    pub fn terrane_destruct_0(&mut self) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
         );

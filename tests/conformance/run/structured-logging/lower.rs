@@ -2180,7 +2180,10 @@ impl IntMutex {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn increase(&self, amount: terrane_int_support::Int) -> ConcurrencyIntResult {
+    pub fn increase(
+        &mut self,
+        amount: terrane_int_support::Int,
+    ) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
             &self.handle,
             amount,
@@ -2320,7 +2323,11 @@ impl AtomicInt64 {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn increase(&self, amount: i64, ordering: MemoryOrder) -> ConcurrencyIntResult {
+    pub fn increase(
+        &mut self,
+        amount: i64,
+        ordering: MemoryOrder,
+    ) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
             &self.handle,
             amount,

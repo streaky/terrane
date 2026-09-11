@@ -7,7 +7,7 @@ class base implements named
     value int = 1
     function report int;
         return this.value
-    function set; value int
+    mutable function set; value int
         this.value = value
     consuming function destruct;
         print; 'base-destruct'

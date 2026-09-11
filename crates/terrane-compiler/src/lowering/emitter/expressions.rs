@@ -154,7 +154,9 @@ impl Emitter<'_> {
                 if self.async_mutable_captures.contains(name) {
                     let name = rust_name(name);
                     if self.assignment_target {
-                        return format!("*{name}.lock().expect(\"callable capture lock poisoned\")");
+                        return format!(
+                            "*{name}.lock().expect(\"callable capture lock poisoned\")"
+                        );
                     }
                     return format!(
                         "{name}.lock().expect(\"callable capture lock poisoned\").clone()"
@@ -640,10 +642,9 @@ impl Emitter<'_> {
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
                 let (actual_mode, value_requires_throwing_abi) = match &actual {
-                    Some(ValueType::AsyncFunction(_, _, _, effects)) => (
-                        effects.modes.written,
-                        effects.requires_throwing_abi(),
-                    ),
+                    Some(ValueType::AsyncFunction(_, _, _, effects)) => {
+                        (effects.modes.written, effects.requires_throwing_abi())
+                    }
                     _ => (InvocationMode::Shared, false),
                 };
                 if let Some(contract) = self.contract_for_call(node) {
@@ -651,9 +652,7 @@ impl Emitter<'_> {
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
                     let future = if expected_throws && !actual_throws {
-                        format!(
-                            "Box::pin(async move {{ Ok({function}({arguments}).await) }})"
-                        )
+                        format!("Box::pin(async move {{ Ok({function}({arguments}).await) }})")
                     } else {
                         format!("Box::pin({function}({arguments}))")
                     };
@@ -682,7 +681,9 @@ impl Emitter<'_> {
                         format!("callable.call({tuple_arguments})")
                     };
                     let future = if expected_throws && !value_requires_throwing_abi {
-                        format!("Box::pin(async move {{ Ok({invocation}.await) }})")
+                        format!(
+                            "{{ let callable_future = {invocation}; Box::pin(async move {{ Ok(callable_future.await) }}) }}"
+                        )
                     } else {
                         format!("Box::pin({invocation})")
                     };
@@ -720,15 +721,10 @@ impl Emitter<'_> {
                     Some(ValueType::AsyncFunction(_, _, _, effects))
                         if effects.requires_throwing_abi()
                 );
-                let actual_throws = method_contract.map_or(
-                    value_requires_throwing_abi,
-                    |contract| {
-                        self.contract_requires_throwing_abi(
-                            contract,
-                            value_requires_throwing_abi,
-                        )
-                    },
-                );
+                let actual_throws =
+                    method_contract.map_or(value_requires_throwing_abi, |contract| {
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi)
+                    });
                 let method = rust_name(self.text(member));
                 let (capture, invocation, call) = match actual_mode {
                     InvocationMode::Shared => (
@@ -769,15 +765,10 @@ impl Emitter<'_> {
                     Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
                 );
                 let method_contract = self.contract_for_call(node);
-                let actual_throws = method_contract.map_or(
-                    value_requires_throwing_abi,
-                    |contract| {
-                        self.contract_requires_throwing_abi(
-                            contract,
-                            value_requires_throwing_abi,
-                        )
-                    },
-                );
+                let actual_throws =
+                    method_contract.map_or(value_requires_throwing_abi, |contract| {
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi)
+                    });
                 let actual_mode = method_contract.map_or_else(
                     || match &value_type {
                         Some(ValueType::Function(_, _, effects)) => effects.modes.written,
@@ -850,10 +841,9 @@ impl Emitter<'_> {
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
                 let (actual_mode, value_requires_throwing_abi) = match &actual {
-                    Some(ValueType::Function(_, _, effects)) => (
-                        effects.modes.written,
-                        effects.requires_throwing_abi(),
-                    ),
+                    Some(ValueType::Function(_, _, effects)) => {
+                        (effects.modes.written, effects.requires_throwing_abi())
+                    }
                     _ => (InvocationMode::Shared, false),
                 };
                 if let Some(contract) = self.contract_for_call(node) {
@@ -908,10 +898,9 @@ impl Emitter<'_> {
                 let callable = self.expression(node);
                 let actual = self.value_type(node);
                 let (actual_mode, actual_throws) = match &actual {
-                    Some(ValueType::AsyncFunction(_, _, _, effects)) => (
-                        effects.modes.written,
-                        effects.requires_throwing_abi(),
-                    ),
+                    Some(ValueType::AsyncFunction(_, _, _, effects)) => {
+                        (effects.modes.written, effects.requires_throwing_abi())
+                    }
                     _ => (InvocationMode::Shared, false),
                 };
                 let expected_mode = expected_effects.modes.written;
@@ -933,7 +922,9 @@ impl Emitter<'_> {
                         format!("callable.call({tuple_arguments})")
                     };
                     let future = if expected_throws && !actual_throws {
-                        format!("Box::pin(async move {{ Ok({invocation}.await) }})")
+                        format!(
+                            "{{ let callable_future = {invocation}; Box::pin(async move {{ Ok(callable_future.await) }}) }}"
+                        )
                     } else {
                         format!("Box::pin({invocation})")
                     };
@@ -951,10 +942,9 @@ impl Emitter<'_> {
                 let callable = self.expression(node);
                 let actual = self.value_type(node);
                 let (actual_mode, actual_throws) = match &actual {
-                    Some(ValueType::Function(_, _, effects)) => (
-                        effects.modes.written,
-                        effects.requires_throwing_abi(),
-                    ),
+                    Some(ValueType::Function(_, _, effects)) => {
+                        (effects.modes.written, effects.requires_throwing_abi())
+                    }
                     _ => (InvocationMode::Shared, false),
                 };
                 let expected_mode = expected_effects.modes.written;

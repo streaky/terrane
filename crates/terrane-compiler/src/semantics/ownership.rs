@@ -73,9 +73,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 matches!(method.receiver, Some(crate::projection::Receiver::Move))
             })
             || method_contract(package, object_identity, method_name, false)
-                .is_some_and(|method| {
-                    method.written_invocation_mode == InvocationMode::Consuming
-                })
+                .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
     }
 
     #[expect(
@@ -548,9 +546,7 @@ fn first_owner_lifetime_end(
                 }
                 _ => None,
             })
-            .is_some_and(|contract| {
-                contract.written_invocation_mode == InvocationMode::Mutable
-            });
+            .is_some_and(|contract| contract.written_invocation_mode == InvocationMode::Mutable);
         (builtin_mutation || source_mutation).then_some(receiver)
     }
 

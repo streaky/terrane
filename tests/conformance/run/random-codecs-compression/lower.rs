@@ -1441,7 +1441,7 @@ impl PseudoRandom {
             terrane_platform_result_int(&raw),
         );
     }
-    pub fn split(&self) -> PseudoRandom {
+    pub fn split(self) -> PseudoRandom {
         let raw: TerranePlatformResult = terrane_platform_random_split(&self.handle);
         let mut child: PseudoRandom = PseudoRandom::terrane_construct(
             chacha20(),

@@ -283,7 +283,6 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CallableModes {
     pub written: InvocationMode,

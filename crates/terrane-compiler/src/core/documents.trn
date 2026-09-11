@@ -126,7 +126,7 @@ class document-map-entries
     function construct;
         this.raw = host-make-document-map;
 
-    function append; key string, value document-value
+    mutable function append; key string, value document-value
         this.raw = host-document-map-insert; this.raw, key, value.raw
 
 function append-document-map-entry document-map-entries; entries document-map-entries, key string, value document-value

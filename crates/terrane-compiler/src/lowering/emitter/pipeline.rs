@@ -67,18 +67,20 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         .iter()
         .flat_map(|unit| &unit.functions)
         .any(|function| function.name == "main" && function.is_async);
-    let has_stateful_callables = package.units.iter().any(|unit| {
-        unit.functions.iter().any(|function| {
-            function.written_invocation_mode != InvocationMode::Shared
-        }) || unit.typed_bindings.iter().any(|binding| {
-            matches!(
-                &binding.value_type,
-                ValueType::Function(_, _, effects)
-                    | ValueType::AsyncFunction(_, _, _, effects)
-                    if effects.modes.written != InvocationMode::Shared
-            )
+    let package_has_invocation_mode = |mode| {
+        package.units.iter().any(|unit| {
+            unit.typed_bindings.iter().any(|binding| {
+                matches!(
+                    &binding.value_type,
+                    ValueType::Function(_, _, effects)
+                        | ValueType::AsyncFunction(_, _, _, effects)
+                        if effects.modes.written == mode
+                )
+            })
         })
-    });
+    };
+    let has_mutable_callables = package_has_invocation_mode(InvocationMode::Mutable);
+    let has_consuming_callables = package_has_invocation_mode(InvocationMode::Consuming);
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(
@@ -102,10 +104,20 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
     }
-    if has_stateful_callables {
+    if has_mutable_callables {
         runtime.push(GeneratedModule {
-            name: "callables",
-            items: vec![Item::generated(include_str!("../../runtime/callables.rs"))],
+            name: "mutable-callable",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/mutable_callable.rs"
+            ))],
+        });
+    }
+    if has_consuming_callables {
+        runtime.push(GeneratedModule {
+            name: "consuming-callable",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/consuming_callable.rs"
+            ))],
         });
     }
     if has_async {

@@ -289,7 +289,6 @@ pub enum Receiver {
     Move,
 }
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,

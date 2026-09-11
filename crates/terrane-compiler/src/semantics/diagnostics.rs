@@ -329,14 +329,19 @@ pub(crate) fn binding_span_is_mutated(
     unit: &SemanticUnit,
     declaration_span: Span,
     initially_assigned: bool,
+    include_closure_writes: bool,
 ) -> bool {
     fn writes(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         declaration_span: Span,
         iterator_binding: bool,
+        include_closure_writes: bool,
         node: &SyntaxNode,
     ) -> usize {
+        if !include_closure_writes && node.kind == SyntaxKind::AnonymousFunction {
+            return 0;
+        }
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -388,7 +393,16 @@ pub(crate) fn binding_span_is_mutated(
             + node
                 .children
                 .iter()
-                .map(|child| writes(package, unit, declaration_span, iterator_binding, child))
+                .map(|child| {
+                    writes(
+                        package,
+                        unit,
+                        declaration_span,
+                        iterator_binding,
+                        include_closure_writes,
+                        child,
+                    )
+                })
                 .sum::<usize>()
     }
 
@@ -400,6 +414,7 @@ pub(crate) fn binding_span_is_mutated(
         unit,
         declaration_span,
         iterator_binding,
+        include_closure_writes,
         &unit.tree.root,
     ) > usize::from(!initially_assigned)
 }

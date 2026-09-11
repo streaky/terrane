@@ -108,10 +108,7 @@ fn retains_written_callable_invocation_modes_in_semantic_types() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(
-        modes,
-        [InvocationMode::Mutable, InvocationMode::Consuming]
-    );
+    assert_eq!(modes, [InvocationMode::Mutable, InvocationMode::Consuming]);
 }
 
 #[test]

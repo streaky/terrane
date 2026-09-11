@@ -257,9 +257,7 @@ impl Emitter<'_> {
             self.expression(right)
         };
         let value = Self::unwrapped_expression(value);
-        if left.kind == SyntaxKind::Name
-            && self.async_mutable_captures.contains(self.text(left))
-        {
+        if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
             let target = rust_name(self.text(left));
             self.line(&format!(
                 "{{ let callable_capture_value = {value}; *{target}.lock().expect(\"callable capture lock poisoned\") = callable_capture_value; }}"
@@ -657,7 +655,7 @@ impl Emitter<'_> {
             .and_then(|binding| binding.storage_type)
             .filter(|_| !reference_backed)
             .filter(|_| binding.is_none_or(|binding| !self.binding_is_reference_owner(binding)))
-            .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
+            .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true, true));
         let initializer = binding_initializer(node, name_index);
         let ty = binding
             .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
@@ -674,6 +672,7 @@ impl Emitter<'_> {
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
                 binding.mutable
+                    && binding_span_is_mutated(self.package, self.unit, node.span, true, false)
                     && !matches!(
                         binding.value_type,
                         ValueType::Reference(_) | ValueType::SharedReference(_)
@@ -1088,11 +1087,12 @@ impl Emitter<'_> {
         match target.children.as_slice() {
             [name] => {
                 let name_span = name.span;
-                let mutable = if binding_span_is_mutated(self.package, self.unit, name.span, true) {
-                    "mut "
-                } else {
-                    ""
-                };
+                let mutable =
+                    if binding_span_is_mutated(self.package, self.unit, name.span, true, false) {
+                        "mut "
+                    } else {
+                        ""
+                    };
                 let name = rust_name(self.text(name));
                 self.line(&format!("let {mutable}{name} = match {iterator}.next() {{"));
                 self.indent += 1;
@@ -1114,12 +1114,17 @@ impl Emitter<'_> {
                 self.line("};");
                 for (target, field) in [(key, "key"), (value, "value")] {
                     let target_span = target.span;
-                    let mutable =
-                        if binding_span_is_mutated(self.package, self.unit, target_span, true) {
-                            "mut "
-                        } else {
-                            ""
-                        };
+                    let mutable = if binding_span_is_mutated(
+                        self.package,
+                        self.unit,
+                        target_span,
+                        true,
+                        false,
+                    ) {
+                        "mut "
+                    } else {
+                        ""
+                    };
                     let name = rust_name(self.text(target));
                     self.line(&format!("let {mutable}{name} = {item}.{field};"));
                     if !binding_store_value_is_read(self.package, target_span, target_span) {

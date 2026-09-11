@@ -171,13 +171,7 @@ pub(super) fn projected_argument_expression(
             invocation_mode,
             is_async,
             ..
-        } => projected_callback_argument(
-            name,
-            parameters,
-            result,
-            *invocation_mode,
-            *is_async,
-        ),
+        } => projected_callback_argument(name, parameters, result, *invocation_mode, *is_async),
         crate::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 name.to_owned()

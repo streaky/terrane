@@ -512,7 +512,13 @@ impl Emitter<'_> {
                         binding.name == self.text(node)
                             && binding.is_visible_at(self.source.id(), node.span.start)
                             && !self.is_namespace_binding_span(binding.span)
-                            && !binding_span_is_mutated(self.package, self.unit, binding.span, true)
+                            && !binding_span_is_mutated(
+                                self.package,
+                                self.unit,
+                                binding.span,
+                                true,
+                                true,
+                            )
                     })
                     .and_then(|binding| binding.storage_type)
             })

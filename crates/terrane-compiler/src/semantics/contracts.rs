@@ -445,7 +445,8 @@ pub(super) fn analyze_function_contract(
     }) {
         InvocationMode::Consuming
     } else if node.children.iter().any(|child| {
-        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "mutable"
+        child.kind == SyntaxKind::DeclarationQualifier
+            && node_text(&unit.source, child) == "mutable"
     }) {
         InvocationMode::Mutable
     } else {

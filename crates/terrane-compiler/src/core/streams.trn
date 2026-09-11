@@ -110,7 +110,7 @@ class byte-reader
     function text text-reader; codec encoding
         return instance text-reader; this.handle, codec
 
-    function close stream-operation-result;
+    consuming function close stream-operation-result;
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
@@ -167,7 +167,7 @@ class byte-writer
         raw = host-sync-all; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function close stream-operation-result;
+    consuming function close stream-operation-result;
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
@@ -234,7 +234,7 @@ class text-reader
         text string = raw.data.decode; this.codec
         return instance text-read-result; text, raw.completed, raw.end, raw.failed, raw.message
 
-    function close stream-operation-result;
+    consuming function close stream-operation-result;
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
@@ -294,7 +294,7 @@ class text-writer
         raw = host-sync-all; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function close stream-operation-result;
+    consuming function close stream-operation-result;
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 

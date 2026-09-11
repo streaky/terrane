@@ -3,7 +3,7 @@ namespace class-instance-independence
 class counter
     value int = 0
 
-    function increase int;
+    mutable function increase int;
         this.value = this.value + 1
         return this.value
 
