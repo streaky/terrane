@@ -778,6 +778,7 @@ pub(super) fn validate_object_conformance(
                         span: object.span,
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
+                        is_anonymous: false,
                         captures: Vec::new(),
                         parameters: Vec::new(),
                         is_static: false,
@@ -2295,7 +2296,7 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         let captures = unit
             .functions
             .iter()
-            .filter(|contract| contract.name.starts_with("anonymous function at "))
+            .filter(|contract| contract.is_anonymous)
             .map(|contract| {
                 let mut captures = BTreeSet::new();
                 if let Some(node) = closure_node(&unit.tree.root, contract.span) {

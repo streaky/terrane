@@ -1,0 +1,7 @@
+namespace callable-consuming-to-mutable
+
+function main;
+  message = >done
+  actual = consuming function string;
+    return move message
+  expected mutable function to string = actual

@@ -1,20 +1,33 @@
 namespace interface-invocation-mode-widening
 
 interface mutable-counter
-  mutable function value int;
+  mutable function value int; offset int = 5
 
 interface consuming-label
   consuming function label string;
 
+interface consuming-counter
+  consuming function redeem int;
+
 class sample implements mutable-counter, consuming-label
-  function value int;
-    return 7
+  total int = 0
+  function value int; offset int
+    return 7 + offset
 
   function label string;
     return >ready
 
+class mutable-sample implements consuming-counter
+  total int = 0
+
+  mutable function redeem int;
+    this.total = this.total + 1
+    return this.total
+
 function main;
   mutable-view mutable-counter = instance sample;
   consuming-view consuming-label = instance sample;
+  mutable-consuming-view consuming-counter = instance mutable-sample;
   print; (mutable-view.value;)
   print; (consuming-view.label;)
+  print; (mutable-consuming-view.redeem;)

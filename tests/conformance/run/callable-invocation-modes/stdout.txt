@@ -20,3 +20,10 @@ redeemed
 2
 5
 11
+mutable
+shared
+9
+true
+mutable
+true
+4

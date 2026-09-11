@@ -260,7 +260,7 @@ impl Emitter<'_> {
         if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
             let target = rust_name(self.text(left));
             self.line(&format!(
-                "{{ let callable_capture_value = {value}; *{target}.lock().await = callable_capture_value; }}"
+                "{{ let callable_capture_value = {value}; *{target}.lock().expect(\"mutable async callable state lock poisoned\") = callable_capture_value; }}"
             ));
             return;
         }

@@ -946,8 +946,7 @@ fn validate_reference_return(
         })
         .map(|binding| binding.span);
     let provenance = expression_provenance(package, unit, value, proven, return_lenders);
-    let closure_lender = contract
-        .is_some_and(|contract| contract.name.starts_with("anonymous function at "))
+    let closure_lender = contract.is_some_and(|contract| contract.is_anonymous)
         && provenance
             .as_ref()
             .is_some_and(|provenance| provenance.external_lender);

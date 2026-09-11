@@ -460,6 +460,7 @@ pub(super) fn analyze_function_contract(
         span: node.span,
         owner,
         owner_identity,
+        is_anonymous: name_node.is_none(),
         parameters,
         captures: Vec::new(),
         return_type,

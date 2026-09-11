@@ -1,4 +1,5 @@
 namespace callable-invocation-modes
+from /core/concurrency import channel, channel-block
 
 function double int; value int
   return value * 2
@@ -23,6 +24,23 @@ class async-accumulator
   total int = 0
 
   mutable async function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+class gated-accumulator
+  total int = 0
+
+  mutable async function add int; (
+    delta int,
+    started (channel-sender of int),
+    gate (channel-receiver of int)
+  )
+    sent = await started.send; 1
+    if not sent.accepted
+      return -1
+    released = await gate.receive;
+    if not released.available
+      return -2
     this.total = this.total + delta
     return this.total
 
@@ -74,3 +92,24 @@ async function main;
   print; await (async-bound; 3)
   one-shot consuming function from int to int = adapted
   print; (one-shot; 10)
+  declared-mutable = mutable function int;
+    return 9
+  print; declared-mutable.invocation-mode
+  print; declared-mutable.exact-invocation-mode
+  print; (declared-mutable;)
+  gate = channel; int, 1, channel-block
+  started = channel; int, 1, channel-block
+  gated-value = instance gated-accumulator;
+  gated-bound mutable async function from int, (channel-sender of int), (channel-receiver of int) to int = gated-value.add
+  scope = task-scope;
+  child = scope.spawn; (gated-bound; 4, started.sender, gate.receiver)
+  observed = await started.receiver.receive;
+  print; observed.available
+  gated-copy = gated-bound
+  print; gated-copy.invocation-mode
+  released = await gate.sender.send; 1
+  print; released.accepted
+  outcome = await scope.join; child
+  result = outcome.value
+  if result != none
+    print; result

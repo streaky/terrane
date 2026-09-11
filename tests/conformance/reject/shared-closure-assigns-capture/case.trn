@@ -1,0 +1,8 @@
+namespace shared-closure-assigns-capture
+
+function main;
+  counter = 0
+  step = function int;
+    counter = counter + 1
+    return counter
+  print; (step;)

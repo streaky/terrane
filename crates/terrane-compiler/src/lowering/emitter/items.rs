@@ -950,11 +950,21 @@ impl<'a> Emitter<'a> {
                         ));
                     }
                     for method in effective_object_methods(interface_unit, interface) {
+                        let implementation = effective_object_methods(self.unit, object)
+                            .into_iter()
+                            .find(|candidate| candidate.name == method.name && !candidate.is_static)
+                            .expect("validated interface implementation");
                         self.line_start();
-                        let receiver = match method.written_invocation_mode {
-                            InvocationMode::Consuming => "self: Box<Self>",
-                            InvocationMode::Mutable => "&mut self",
-                            InvocationMode::Shared => "&self",
+                        let receiver = match (
+                            method.written_invocation_mode,
+                            implementation.written_invocation_mode,
+                        ) {
+                            (InvocationMode::Consuming, InvocationMode::Mutable) => {
+                                "mut self: Box<Self>"
+                            }
+                            (InvocationMode::Consuming, _) => "self: Box<Self>",
+                            (InvocationMode::Mutable, _) => "&mut self",
+                            (InvocationMode::Shared, _) => "&self",
                         };
                         write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                         for parameter in &method.parameters {
@@ -976,10 +986,6 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let implementation = effective_object_methods(self.unit, object)
-                            .into_iter()
-                            .find(|candidate| candidate.name == method.name && !candidate.is_static)
-                            .expect("validated interface implementation");
                         let receiver = match (
                             method.written_invocation_mode,
                             implementation.written_invocation_mode,

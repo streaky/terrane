@@ -71,11 +71,11 @@ fn parses_lossless_declarations_and_legal_empty_blocks() {
 #[test]
 fn parses_callable_invocation_modes_in_every_function_form() {
     let tree = parse_source(
-        "mutable function update;\nconsuming async function finish;\ncallback mutable function from int to bool\nhandler = consuming function int;\n  return 1\n",
+        "mutable function update;\nconsuming async function finish;\ncallback mutable function from int to bool\nhandler = consuming function int;\n  return 1\nclass worker\n  static async function start;\n",
     );
     assert_eq!(
         count(&tree.root, SyntaxKind::DeclarationQualifier),
-        5,
+        7,
         "{}",
         tree.normalized()
     );
@@ -547,6 +547,8 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("async async function work;\n", "S1029");
     rejected("mutable consuming function work;\n", "S1029");
     rejected("consuming mutable function work;\n", "S1029");
+    rejected("static mutable function work;\n", "S1029");
+    rejected("static consuming function work;\n", "S1029");
     rejected("async mutable function work;\n", "S1029");
     rejected("callback async mutable function to none = noop\n", "S1029");
     rejected("callback = async mutable function;\n", "S1029");
@@ -554,6 +556,8 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
         "callback mutable mutable function to none = noop\n",
         "S1029",
     );
+    rejected("value mutable int\n", "S1005");
+    rejected("value consuming string\n", "S1005");
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("catch problem\n", "S1090");

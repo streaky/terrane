@@ -527,6 +527,16 @@ impl Parser<'_> {
                 Vec::new(),
             ));
         }
+        if qualifiers.contains("static")
+            && qualifiers
+                .iter()
+                .any(|qualifier| matches!(qualifier.as_str(), "mutable" | "consuming"))
+        {
+            self.error_here(
+                "S1029",
+                "static functions cannot declare an invocation mode",
+            );
+        }
         children
     }
 
@@ -1249,6 +1259,13 @@ impl Parser<'_> {
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
         }
         let mut children = self.parse_function_qualifiers(false);
+        if !children.is_empty() && !self.at_text("function") {
+            self.error_here(
+                "S1005",
+                "function qualifiers must be followed by `function`",
+            );
+            return self.node(SyntaxKind::Error, start, self.position, children);
+        }
         if self.eat_text("function") {
             if self.eat_text("from") {
                 loop {
