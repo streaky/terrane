@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "29";
+const PROJECTION_SCHEMA: &str = "33";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1401,6 +1401,33 @@ pub fn resolve(
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
     validate_unique_projected_type_identities(&projected)?;
+    let impl_questions = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter_map(|item| match &item.kind {
+            ProjectedKind::Interface(interface) => {
+                Some(projected_interface_impl_question(item, interface))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if !impl_questions.is_empty() {
+        let report =
+            crate::projection_oracle::ProjectionOracle::new(&workspace, &identity, sandbox)
+                .prove_impls(&impl_questions)?;
+        if let Some(failed) = report
+            .evidence
+            .iter()
+            .find(|evidence| evidence.answer != crate::ProbeAnswer::Yes)
+        {
+            return Err(ProjectionError {
+                message: format!(
+                    "projected interface implementation witness `{}` did not compile against the resolved dependency",
+                    failed.question.label
+                ),
+            });
+        }
+    }
     resolution_events.push(ResolutionEvent {
         source: ResolutionSource::LocalRustdoc,
         status: ResolutionStatus::Generated,
@@ -2776,20 +2803,31 @@ fn project_interface(
             .name
             .as_deref()
             .ok_or_else(|| "trait has an unnamed member".to_owned())?;
-        let ItemEnum::Function(function) = &item.inner else {
-            return Err(format!("trait member `{name}` is not a receiver method"));
+        let function = match &item.inner {
+            ItemEnum::Function(function) => function,
+            ItemEnum::AssocType { .. } => {
+                return Err(format!("trait has unresolved associated type `{name}`"));
+            }
+            _ => return Err(format!("trait member `{name}` is not a receiver method")),
         };
-        let projected = project_function(function, index, paths, Some(name))
-            .map_err(|reason| format!("trait member `{name}`: {reason}"))?;
-        if projected.receiver.is_none() {
+        if function
+            .sig
+            .inputs
+            .first()
+            .is_none_or(|(name, _)| name != "self")
+        {
             return Err(format!("trait member `{name}` is an associated function"));
         }
+        let projected = project_function(function, index, paths, Some(name))
+            .map_err(|reason| format!("trait member `{name}`: {reason}"))?;
+        debug_assert!(projected.receiver.is_some());
         methods.push(ProjectedInterfaceMethod {
             function: projected,
             provided: function.has_body,
             docs: item.docs.clone(),
         });
     }
+
     if methods.is_empty() {
         return Err("trait has no projectable receiver methods".to_owned());
     }
@@ -2798,6 +2836,53 @@ fn project_interface(
         send,
         sync,
     })
+}
+fn projected_interface_impl_question(
+    item: &ProjectedItem,
+    interface: &ProjectedInterface,
+) -> crate::projection_oracle::ImplQuestion {
+    let mut source = format!(
+        "struct TerraneProjectionImpl;\nimpl {} for TerraneProjectionImpl {{\n",
+        item.rust_path
+    );
+    for method in interface.methods.iter().filter(|method| !method.provided) {
+        let function = &method.function;
+        if function.is_async {
+            source.push_str("async ");
+        }
+        write!(source, "fn {}(", function.name).expect("writing to a string cannot fail");
+        source.push_str(match function.receiver {
+            Some(Receiver::Borrow) => "&self",
+            Some(Receiver::MutableBorrow) => "&mut self",
+            Some(Receiver::Move) => "self",
+            None => "",
+        });
+        for parameter in &function.parameters {
+            let mut ty = parameter.ty.rust_type();
+            if parameter.borrowed {
+                ty = format!(
+                    "&{}{}",
+                    if parameter.mutable_borrow { "mut " } else { "" },
+                    ty
+                );
+            }
+            write!(source, ", {}: {ty}", parameter.name).expect("writing to a string cannot fail");
+        }
+        source.push(')');
+        let result = function.error.as_ref().map_or_else(
+            || function.result.rust_type(),
+            |error| format!("Result<{}, {error}>", function.result.rust_type()),
+        );
+        if result != "()" {
+            write!(source, " -> {result}").expect("writing to a string cannot fail");
+        }
+        source.push_str(" { todo!() }\n");
+    }
+    source.push_str("}\nfn main() {}\n");
+    crate::projection_oracle::ImplQuestion {
+        label: item.rust_path.clone(),
+        source,
+    }
 }
 
 #[expect(
@@ -4157,6 +4242,9 @@ fn project_type(
                 return Err("heterogeneous tuple has no Terrane tuple representation".to_owned());
             }
             Ok(ProjectedType::Tuple(items))
+        }
+        Type::FunctionPointer(function) if !function.generic_params.is_empty() => {
+            Err("higher-ranked function type is not projectable".to_owned())
         }
         Type::ResolvedPath(path) => project_resolved_type(ty, path, index, paths, generics),
         _ => Err("type has no stable Rust path".to_owned()),

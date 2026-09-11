@@ -4,6 +4,10 @@
       "members": [
         [
           "/deps/terrane-callback-witness",
+          "Adjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "Marker"
         ],
         [
@@ -21,6 +25,10 @@
         [
           "/deps/terrane-callback-witness",
           "active_retained_invocations"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "adjust_value"
         ],
         [
           "/deps/terrane-callback-witness",
@@ -68,7 +76,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "26",
+  "projection_schema": "33",
   "removed": [],
   "resolution": {
     "events": [

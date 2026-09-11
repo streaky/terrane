@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "S2029"
+contains = "trait member `raw`: type has no stable Rust path"

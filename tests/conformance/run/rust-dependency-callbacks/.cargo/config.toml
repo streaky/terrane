@@ -1,3 +1,4 @@
 [patch.crates-io]
 terrane-callback-witness = { path = "fixture-registry/terrane-callback-witness-0.1.0" }
 terrane-dispatch-witness = { path = "fixture-registry/terrane-dispatch-witness-0.1.0" }
+terrane-render-witness = { path = "fixture-registry/terrane-render-witness-0.1.0" }

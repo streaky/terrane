@@ -4,7 +4,8 @@ from /deps/terrane-callback-witness import Adjustable as adjustable, adjust_valu
 from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently, registrar
 from /deps/terrane-callback-witness import invoke_retained, wait_until_retained_invocation_active, active_retained_invocations, pending_value
 from /core/errors import dependency-panic
-from /deps/terrane-dispatch-witness import Renderable as renderable, dispatch, render_value, render_decorated
+from /deps/terrane-dispatch-witness import dispatch
+from /deps/terrane-render-witness import Renderable as renderable, render_value, render_decorated
 
 function add-two int; value int
     return value + 2

@@ -13,3 +13,8 @@ effects = ["build"]
 package = "terrane-dispatch-witness"
 version = "=0.1.0"
 effects = ["build"]
+
+[rust-dependencies.terrane-render-witness]
+package = "terrane-render-witness"
+version = "=0.1.0"
+effects = ["build"]

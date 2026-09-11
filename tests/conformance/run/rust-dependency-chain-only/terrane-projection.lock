@@ -219,6 +219,10 @@
           "TestFixture"
         ],
         [
+          "/deps/sqlx-core/testing",
+          "TestTermination"
+        ],
+        [
           "/deps/sqlx-core/testing/fixtures",
           "FixtureError"
         ],
@@ -306,7 +310,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "26",
+  "projection_schema": "33",
   "removed": [],
   "resolution": {
     "events": [

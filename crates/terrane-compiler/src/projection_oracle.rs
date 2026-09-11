@@ -54,6 +54,25 @@ pub struct CallProbeReport {
     pub wall_time_ms: u128,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct ImplQuestion {
+    pub label: String,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ImplProbeEvidence {
+    pub question: ImplQuestion,
+    pub answer: ProbeAnswer,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ImplProbeReport {
+    pub evidence: Vec<ImplProbeEvidence>,
+    pub compiled_probe_count: usize,
+    pub wall_time_ms: u128,
+}
+
 #[derive(Debug)]
 pub struct ProjectionOracle<'a> {
     workspace: &'a Path,
@@ -201,6 +220,7 @@ impl<'a> ProjectionOracle<'a> {
             ],
             self.containment,
         )?;
+
         let report = CallProbeReport {
             evidence: questions
                 .into_iter()
@@ -216,6 +236,31 @@ impl<'a> ProjectionOracle<'a> {
         bytes.push(b'\n');
         write_if_changed(&cache_path, &bytes)?;
         Ok(report)
+    }
+
+    /// Proves complete impl-shaped witnesses against the resolved dependency graph.
+    pub fn prove_impls(
+        &self,
+        questions: &[ImplQuestion],
+    ) -> Result<ImplProbeReport, ProjectionError> {
+        let calls = questions
+            .iter()
+            .map(|question| CallQuestion {
+                label: format!("impl:{}", question.label),
+                source: question.source.clone(),
+            })
+            .collect::<Vec<_>>();
+        let report = self.prove_calls(&calls)?;
+        Ok(ImplProbeReport {
+            evidence: questions
+                .iter()
+                .cloned()
+                .zip(report.evidence.into_iter().map(|evidence| evidence.answer))
+                .map(|(question, answer)| ImplProbeEvidence { question, answer })
+                .collect(),
+            compiled_probe_count: report.compiled_probe_count,
+            wall_time_ms: report.wall_time_ms,
+        })
     }
 
     /// Expands one macro-bearing library through rustdoc and returns its typed JSON input.
@@ -434,7 +479,7 @@ mod tests {
 
     use rustdoc_types::{Crate as RustdocCrate, ItemEnum};
 
-    use super::{BoundQuestion, CallQuestion, ProbeAnswer, ProjectionOracle};
+    use super::{BoundQuestion, CallQuestion, ImplQuestion, ProbeAnswer, ProjectionOracle};
     use crate::projection::Containment;
 
     fn workspace(name: &str) -> std::path::PathBuf {
@@ -541,6 +586,22 @@ mod tests {
             .unwrap();
         assert_eq!(second.evidence[0].answer, ProbeAnswer::Yes);
         assert_eq!(fs::read_dir(workspace.join("src/bin")).unwrap().count(), 1);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn impl_probe_compiles_complete_trait_implementation_shape() {
+        let workspace = workspace("impl-shape");
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let report = oracle
+            .prove_impls(&[ImplQuestion {
+                label: "Display for Local".to_owned(),
+                source: "struct Local;\nimpl std::fmt::Display for Local {\n    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n        formatter.write_str(\"local\")\n    }\n}\nfn main() { let _ = Local.to_string(); }\n".to_owned(),
+            }])
+            .unwrap();
+
+        assert_eq!(report.compiled_probe_count, 1);
+        assert_eq!(report.evidence[0].answer, ProbeAnswer::Yes);
         fs::remove_dir_all(workspace).unwrap();
     }
 
