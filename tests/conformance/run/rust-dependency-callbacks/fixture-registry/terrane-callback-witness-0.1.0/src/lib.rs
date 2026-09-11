@@ -105,3 +105,12 @@ pub fn make_marker(value: i64) -> Marker {
 pub fn open_callback<T, F: Fn(T) -> T>(value: T, callback: F) -> T {
     callback(value)
 }
+
+pub trait Adjustable {
+    fn adjust(&mut self, delta: i64) -> i64;
+    fn current(&self) -> i64;
+}
+
+pub fn adjust_value<T: Adjustable>(value: &mut T, delta: i64) -> i64 {
+    value.adjust(delta)
+}

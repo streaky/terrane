@@ -6,3 +6,6 @@ hello
 7
 DISSIMILAR
 truetrue0
+INTERFACE
+[DEFAULT]
+7
