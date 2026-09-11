@@ -3780,6 +3780,11 @@ environment, and `consuming function` may transfer from that environment and is 
 `mutable async function ... throws T`. A body may use less authority than its written mode but never
 more. Shared callables satisfy shared, mutable, or consuming destinations; mutable callables satisfy
 mutable or consuming destinations; consuming callables satisfy only consuming destinations.
+A mutable invocation has exclusive access to its receiver and captured environment for the full
+dynamic extent of the call, including suspension. If source scheduling overlaps invocations of the
+same mutable callable value, they execute serially in invocation order rather than observing
+independent snapshots. A separated callable has an independent environment and does not share that
+serialization boundary.
 Interface requirements state their mode directly and implementations must be compatible; the
 compiler never infers an interface requirement by observing whichever classes happen to implement
 it. Reflection exposes `invocation-mode` and `exact-invocation-mode` separately.

@@ -715,7 +715,7 @@ invocation:
   written: function = shared; mutable function; consuming function
   exact: inferred authority used by the body; may be weaker than written, never stronger
   substitution: shared -> shared|mutable|consuming; mutable -> mutable|consuming; consuming -> consuming
-  environment: shared observes; mutable updates repeatable receiver/captures; consuming transfers and is one-shot
+  environment: shared observes; mutable owns repeatable receiver/captures exclusively for the full call and serializes overlapping invocations of the same value; consuming transfers and is one-shot; separated mutable values have independent environments and serialization boundaries
   composition: invocation prefix precedes async; throws remains a postfix upper bound
 throws: exact inferred escaping set plus optional written upper bound
 async: invocation produces a task; `await` consumes a task and marks a possible suspension point

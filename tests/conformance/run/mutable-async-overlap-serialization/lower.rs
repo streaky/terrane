@@ -482,34 +482,6 @@ impl<Value: Clone> Clone for TerraneAsyncMutableState<Value> {
         Self::new(self.snapshot())
     }
 }
-trait TerraneConsumingCallableBody<Arguments, Output>: Send {
-    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output;
-}
-impl<Arguments, Output, Function> TerraneConsumingCallableBody<Arguments, Output>
-for Function
-where
-    Function: FnOnce(Arguments) -> Output + Send + 'static,
-{
-    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output {
-        self(arguments)
-    }
-}
-pub struct TerraneConsumingCallable<Arguments, Output> {
-    body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
-}
-impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
-    where
-        Function: FnOnce(Arguments) -> Output + Send + 'static,
-    {
-        Self {
-            body: std::boxed::Box::new(function),
-        }
-    }
-    fn call(self, arguments: Arguments) -> Output {
-        self.body.call(arguments)
-    }
-}
 use std::future::Future;
 #[derive(Clone)]
 struct TerraneCancellation {
@@ -1412,60 +1384,7 @@ fn terrane_platform_thread_local_int_set(
     terrane_platform_support::thread_local_int_set(value, replacement)
 }
 // Source: case.trn
-// Namespace: callable-invocation-modes
-fn double(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
-}
-async fn double_later(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
-}
-#[derive(Clone)]
-pub struct Accumulator {
-    pub total: terrane_int_support::Int,
-}
-impl Accumulator {
-    pub fn terrane_construct() -> Self {
-        Self {
-            total: terrane_int_support::Int::from(0_i128),
-        }
-    }
-    pub fn add(&mut self, delta: terrane_int_support::Int) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
-        return self.total.clone();
-    }
-}
-#[derive(Clone)]
-pub struct Ticket {
-    pub message: String,
-}
-impl Ticket {
-    pub fn terrane_construct() -> Self {
-        Self {
-            message: String::from("redeemed"),
-        }
-    }
-    pub fn redeem(self) -> String {
-        return self.message.clone();
-    }
-}
-#[derive(Clone)]
-pub struct AsyncAccumulator {
-    pub total: terrane_int_support::Int,
-}
-impl AsyncAccumulator {
-    pub fn terrane_construct() -> Self {
-        Self {
-            total: terrane_int_support::Int::from(0_i128),
-        }
-    }
-    pub async fn add(
-        &mut self,
-        delta: terrane_int_support::Int,
-    ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
-        return self.total.clone();
-    }
-}
+// Namespace: mutable-async-overlap-serialization
 #[derive(Clone)]
 pub struct GatedAccumulator {
     pub total: terrane_int_support::Int,
@@ -1483,7 +1402,7 @@ impl GatedAccumulator {
         gate: TerraneChannelReceiver<terrane_int_support::Int>,
     ) -> terrane_int_support::Int {
         let sent: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                Box::pin(started.send(terrane_int_support::Int::from(1_i128))),
+                Box::pin(started.send(delta.clone())),
             )
             .await;
         if !sent.accepted {
@@ -1502,246 +1421,50 @@ impl GatedAccumulator {
 }
 fn main() {
     __terrane_run(async move {
-        let counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        let step: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let mut counter = counter.clone();
-            TerraneMutableCallable::new(move |
-                (delta,): (terrane_int_support::Int,),
-            | -> terrane_int_support::Int {
-                counter = counter.clone() + delta.clone();
-                return counter.clone();
-            })
-        };
-        let message: String = String::from("finished");
-        let finish: TerraneConsumingCallable<(), String> = {
-            let message = message.clone();
-            TerraneConsumingCallable::new(move |(): ()| -> String {
-                return message;
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(1_i128),)))
+        let gate_a: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(2_i128),)))
+        let gate_b: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        let copy: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = step.clone();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = step; "mutable"
-            .to_owned() })
+        let gate_c: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = step; "mutable"
-            .to_owned() })
+        let started_a: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(1_i128),)))
+        let started_b: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&copy
-            .call((terrane_int_support::Int::from(10_i128),)))
+        let started_c: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = finish; "consuming"
-            .to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = finish; "consuming"
-            .to_owned() })
-        );
-        println!("{}", terrane_scalar_support::scalar_text(&finish.call(())));
-        let operation: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = TerraneMutableCallable::new(move |
-            (argument_0,): (terrane_int_support::Int,)|
-        double(argument_0));
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&operation
-            .call((terrane_int_support::Int::from(6_i128),)))
-        );
-        let async_counter: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let async_step: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = {
-            let async_counter = TerraneAsyncMutableState::new(async_counter.clone());
-            TerraneMutableCallable::new(move |
-                (delta,): (terrane_int_support::Int,),
-            | -> std::pin::Pin<
-                Box<dyn Future<Output = terrane_int_support::Int> + Send>,
-            > {
-                let async_counter = async_counter.share();
-                Box::pin(async move {
-                    {
-                        let callable_capture_value = async_counter.snapshot()
-                            + delta.clone();
-                        async_counter.replace(callable_capture_value);
-                    }
-                    return async_counter.snapshot();
-                })
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(2_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(3_i128),))). await)
-        );
-        let async_copy: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = async_step.clone();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(1_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_copy
-            .call((terrane_int_support::Int::from(10_i128),))). await)
-        );
-        let asynchronous: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = TerraneMutableCallable::new(move |
-            (argument_0,): (terrane_int_support::Int,),
-        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-            Box::pin(double_later(argument_0))
-        });
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(asynchronous
-            .call((terrane_int_support::Int::from(7_i128),))). await)
-        );
-        let value: Accumulator = Accumulator::terrane_construct();
+        let value: GatedAccumulator = GatedAccumulator::terrane_construct();
         let bound: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let mut receiver = value.clone();
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            receiver.add(argument_0))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&bound
-            .call((terrane_int_support::Int::from(5_i128),)))
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&bound
-            .call((terrane_int_support::Int::from(7_i128),)))
-        );
-        let _ = &value;
-        let value: Ticket = Ticket::terrane_construct();
-        let redemption: TerraneConsumingCallable<(), String> = {
-            let receiver = value.clone();
-            TerraneConsumingCallable::new(move |(): ()| receiver.redeem())
-        };
-        println!("{}", terrane_scalar_support::scalar_text(&redemption.call(())));
-        let shared: std::sync::Arc<
-            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-        > = {
-            std::sync::Arc::new(move |
-                value: terrane_int_support::Int,
-            | -> terrane_int_support::Int {
-                return value.clone() + terrane_int_support::Int::from(1_i128);
-            })
-        };
-        let adapted: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let callable = shared.clone();
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            callable(argument_0))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&adapted
-            .call((terrane_int_support::Int::from(8_i128),)))
-        );
-        let async_value: AsyncAccumulator = AsyncAccumulator::terrane_construct();
-        let async_bound: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = {
-            let receiver = TerraneAsyncMutableState::new(async_value);
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,),
-            | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-                let receiver = receiver.share();
-                Box::pin(async move {
-                    receiver
-                        .with_receiver(move |receiver| Box::pin(async move {
-                            receiver.add(argument_0).await
-                        }))
-                        .await
-                })
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_bound
-            .call((terrane_int_support::Int::from(2_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_bound
-            .call((terrane_int_support::Int::from(3_i128),))). await)
-        );
-        let one_shot: TerraneConsumingCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let callable = adapted.clone();
-            TerraneConsumingCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            callable.call((argument_0,)))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&one_shot
-            .call((terrane_int_support::Int::from(10_i128),)))
-        );
-        let declared_mutable: TerraneMutableCallable<(), terrane_int_support::Int> = {
-            TerraneMutableCallable::new(move |(): ()| -> terrane_int_support::Int {
-                return terrane_int_support::Int::from(9_i128);
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = declared_mutable;
-            "mutable".to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = declared_mutable;
-            "shared".to_owned() })
-        );
-        println!("{}", terrane_scalar_support::scalar_text(&declared_mutable.call(())));
-        let gate: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
-            terrane_collection_support::index_from_int(
-                    &terrane_int_support::Int::from(1_i128),
-                )
-                .expect("semantic channel capacity"),
-            TerraneChannelOverflow::Block,
-        );
-        let started: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
-            terrane_collection_support::index_from_int(
-                    &terrane_int_support::Int::from(1_i128),
-                )
-                .expect("semantic channel capacity"),
-            TerraneChannelOverflow::Block,
-        );
-        let gated_value: GatedAccumulator = GatedAccumulator::terrane_construct();
-        let gated_bound: TerraneMutableCallable<
             (
                 terrane_int_support::Int,
                 TerraneChannelSender<terrane_int_support::Int>,
@@ -1749,7 +1472,7 @@ fn main() {
             ),
             std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
         > = {
-            let receiver = TerraneAsyncMutableState::new(gated_value);
+            let receiver = TerraneAsyncMutableState::new(value.clone());
             TerraneMutableCallable::new(move |
                 (
                     argument_0,
@@ -1772,15 +1495,15 @@ fn main() {
             })
         };
         let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<terrane_int_support::Int> = {
+        let first: TerraneScopedTask<terrane_int_support::Int> = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
-            let __terrane_spawned_task = gated_bound
+            let __terrane_spawned_task = bound
                 .call((
-                    terrane_int_support::Int::from(4_i128),
-                    started.sender,
-                    gate.receiver,
+                    terrane_int_support::Int::from(1_i128),
+                    started_a.sender,
+                    gate_a.receiver,
                 ));
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
@@ -1795,39 +1518,98 @@ fn main() {
                 }
             })
         };
-        let observed: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-                started.receiver.receive(),
+        let first_start: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
+                started_a.receiver.receive(),
             )
             .await;
-        println!("{}", terrane_scalar_support::scalar_text(&observed.available));
-        let gated_copy: TerraneMutableCallable<
-            (
-                terrane_int_support::Int,
-                TerraneChannelSender<terrane_int_support::Int>,
-                TerraneChannelReceiver<terrane_int_support::Int>,
-            ),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = gated_bound.clone();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = gated_copy; "mutable"
-            .to_owned() })
-        );
-        let released: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                gate.sender.send(terrane_int_support::Int::from(1_i128)),
+        if !first_start.available {
+            return ();
+        }
+        let second: TerraneScopedTask<terrane_int_support::Int> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = bound
+                .call((
+                    terrane_int_support::Int::from(10_i128),
+                    started_b.sender,
+                    gate_b.receiver,
+                ));
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let first_release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                gate_a.sender.send(terrane_int_support::Int::from(1_i128)),
             )
             .await;
-        println!("{}", terrane_scalar_support::scalar_text(&released.accepted));
-        let outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(child),
+        if !first_release.accepted {
+            return ();
+        }
+        let first_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                scope.join(first),
             )
             .await;
-        let result: Option<terrane_int_support::Int> = outcome.value.clone();
-        if result.is_some() {
+        let second_start: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
+                started_b.receiver.receive(),
+            )
+            .await;
+        if !second_start.available {
+            return ();
+        }
+        let second_release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                gate_b.sender.send(terrane_int_support::Int::from(1_i128)),
+            )
+            .await;
+        if !second_release.accepted {
+            return ();
+        }
+        let second_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                scope.join(second),
+            )
+            .await;
+        let third_release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                gate_c.sender.send(terrane_int_support::Int::from(1_i128)),
+            )
+            .await;
+        if !third_release.accepted {
+            return ();
+        }
+        let third: terrane_int_support::Int = __terrane_await(
+                bound
+                    .call((
+                        terrane_int_support::Int::from(100_i128),
+                        started_c.sender,
+                        gate_c.receiver,
+                    )),
+            )
+            .await;
+        let first_value: Option<terrane_int_support::Int> = first_outcome.value.clone();
+        let second_value: Option<terrane_int_support::Int> = second_outcome
+            .value
+            .clone();
+        if first_value.is_some() {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* result.as_ref()
+                "{}", terrane_scalar_support::scalar_text(&* first_value.as_ref()
                 .expect("semantic optional narrowing"))
             );
         }
+        if second_value.is_some() {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* second_value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
+        println!("{}", terrane_scalar_support::scalar_text(&third));
     });
 }
 // Source: core/concurrency.trn

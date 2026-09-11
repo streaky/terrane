@@ -195,6 +195,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = compilation.requires_async_runtime;
+    // Mutable async callable receiver transactions use `tokio::sync::Mutex` to
+    // serialize overlapping invocations without coupling separated copies.
     let uses_tokio_sync = rust_files
         .iter()
         .any(|file| file.contents.contains("tokio::sync::"));
