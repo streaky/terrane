@@ -28,7 +28,7 @@ class tls-stream
         raw = await host-tls-shutdown-async; this.handle, options.deadline-ms, cancellation
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function destruct;
+    consuming function destruct;
         host-close; this.handle
 
 class tls-result

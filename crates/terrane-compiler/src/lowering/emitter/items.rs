@@ -1045,10 +1045,14 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = match contract.written_invocation_mode {
-            InvocationMode::Consuming => "self",
-            InvocationMode::Mutable => "&mut self",
-            InvocationMode::Shared => "&self",
+        let receiver = if contract.name == "destruct" {
+            "&mut self"
+        } else {
+            match contract.written_invocation_mode {
+                InvocationMode::Consuming => "self",
+                InvocationMode::Mutable => "&mut self",
+                InvocationMode::Shared => "&self",
+            }
         };
         self.emit_function_as(node, Some(receiver), None);
     }
@@ -1073,10 +1077,14 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = match contract.written_invocation_mode {
-            InvocationMode::Consuming => "self",
-            InvocationMode::Mutable => "&mut self",
-            InvocationMode::Shared => "&self",
+        let receiver = if contract.name == "destruct" {
+            "&mut self"
+        } else {
+            match contract.written_invocation_mode {
+                InvocationMode::Consuming => "self",
+                InvocationMode::Mutable => "&mut self",
+                InvocationMode::Shared => "&self",
+            }
         };
         self.emit_function_as(node, Some(receiver), Some(name));
     }

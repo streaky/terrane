@@ -9,7 +9,7 @@ class counter implements readable
     function read int;
         return this.value
 
-    function destruct;
+    consuming function destruct;
         print; 'destruct'
 
 function main;

@@ -161,7 +161,7 @@ class tcp-stream
         raw = host-close; this.handle
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function destruct;
+    consuming function destruct;
         host-close; this.handle
 
 class stream-result
@@ -204,7 +204,7 @@ class tcp-listener
         raw = host-close; this.handle
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function destruct;
+    consuming function destruct;
         host-close; this.handle
 
 class listener-result
@@ -249,7 +249,7 @@ class udp-socket
         raw = host-close; this.handle
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function destruct;
+    consuming function destruct;
         host-close; this.handle
 
 class udp-result

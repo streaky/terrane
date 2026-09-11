@@ -434,11 +434,12 @@ pub(super) fn analyze_function_contract(
     let is_static = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "static"
     });
-    let written_invocation_mode = if name_node
-        .is_some_and(|name| node_text(&unit.source, name) == "destruct")
-    {
-        InvocationMode::Consuming
-    } else if node.children.iter().any(|child| {
+    let lifecycle_mode = name_node.and_then(|name| match node_text(&unit.source, name) {
+        "construct" => Some(InvocationMode::Mutable),
+        "destruct" => Some(InvocationMode::Consuming),
+        _ => None,
+    });
+    let written_invocation_mode = if node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier
             && node_text(&unit.source, child) == "consuming"
     }) {
@@ -448,10 +449,11 @@ pub(super) fn analyze_function_contract(
     }) {
         InvocationMode::Mutable
     } else {
-        InvocationMode::Shared
+        lifecycle_mode.unwrap_or(InvocationMode::Shared)
     };
-    let mutates_receiver = mutates_object_receiver(unit, node);
-    let exact_invocation_mode = if mutates_receiver {
+    let exact_invocation_mode = if let Some(mode) = lifecycle_mode {
+        mode
+    } else if mutates_object_receiver(unit, node) {
         InvocationMode::Mutable
     } else {
         InvocationMode::Shared

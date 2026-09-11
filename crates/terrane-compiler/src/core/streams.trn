@@ -114,7 +114,7 @@ class byte-reader
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function destruct;
+    consuming function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
@@ -171,7 +171,7 @@ class byte-writer
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function destruct;
+    consuming function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
@@ -238,7 +238,7 @@ class text-reader
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function destruct;
+    consuming function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
@@ -298,7 +298,7 @@ class text-writer
         raw = host-close; this.handle
         return instance stream-operation-result; raw.failed, raw.message
 
-    function destruct;
+    consuming function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
