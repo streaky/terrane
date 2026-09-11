@@ -428,7 +428,7 @@ fn restore_terrane_site_rows(rendered: &str) -> String {
         write!(
             restored,
             "/* terrane-site-row: {} */\n{indentation}{{ {expression} }}",
-            comment.value().replace("*/", "* /")
+            comment.value()
         )
         .expect("writing to a String cannot fail");
         remaining = &remaining[end + 1..];

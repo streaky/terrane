@@ -581,7 +581,9 @@ successful and failing async paths with canonical generated Rust and reflection 
 `callable-throwable-broad-to-narrow`, `callable-throwable-argument-broad-to-narrow`,
 `callable-throwable-return-broad-to-narrow`, `callable-throwable-field-broad-to-narrow`,
 `callable-throwable-field-assignment`, and `callable-throwable-to-unbounded` preserve source-oriented
-compatibility diagnostics. `callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
+compatibility diagnostics. The pre-existing scalar form is independently pinned by
+`member-assignment-type-mismatch`, so all writable class-field assignments cross the same typed
+destination boundary. `callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
 `callable-throws-repeated-bound` cover malformed contracts, including a dedicated repeated-bound
 diagnostic.
 
