@@ -5,6 +5,7 @@ pub mod diagnostic;
 mod execution;
 pub mod highlight;
 pub mod lexer;
+mod invocation;
 mod lowering;
 pub mod package;
 pub mod parser;
@@ -22,6 +23,7 @@ pub use compiler::{
     compile_package_with_options, compile_with_options,
 };
 pub use diagnostic::{Diagnostic, Severity};
+pub use invocation::InvocationMode;
 pub use package::{
     BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
     Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,

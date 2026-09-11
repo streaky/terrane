@@ -67,6 +67,18 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         .iter()
         .flat_map(|unit| &unit.functions)
         .any(|function| function.name == "main" && function.is_async);
+    let has_stateful_callables = package.units.iter().any(|unit| {
+        unit.functions.iter().any(|function| {
+            function.written_invocation_mode != InvocationMode::Shared
+        }) || unit.typed_bindings.iter().any(|binding| {
+            matches!(
+                &binding.value_type,
+                ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects)
+                    if effects.modes.written != InvocationMode::Shared
+            )
+        })
+    });
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(
@@ -89,6 +101,12 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     if has_dependency {
         registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
+    }
+    if has_stateful_callables {
+        runtime.push(GeneratedModule {
+            name: "callables",
+            items: vec![Item::generated(include_str!("../../runtime/callables.rs"))],
+        });
     }
     if has_async {
         let mut support = if native_cancellation {

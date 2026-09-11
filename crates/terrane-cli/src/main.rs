@@ -751,7 +751,7 @@ fn write_generated_crate(
     }
     if options.uses_async_runtime {
         manifest.push_str(
-            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }\n",
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }\n",
         );
     }
     for dependency in rust_dependencies
@@ -1259,7 +1259,7 @@ mod tests {
         )));
         assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
         assert!(manifest.contains(
-            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }"
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }"
         ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         let string_support =

@@ -1,5 +1,50 @@
 use super::super::prelude::*;
 
+fn callable_adapter_parameters(
+    package: &SemanticPackage,
+    parameters: &[ElementType],
+    mode: InvocationMode,
+) -> (String, String, String) {
+    let names = (0..parameters.len())
+        .map(|index| format!("argument_{index}"))
+        .collect::<Vec<_>>();
+    let types = parameters
+        .iter()
+        .cloned()
+        .map(|parameter| rust_element_type(package, parameter))
+        .collect::<Vec<_>>();
+    let declarations = names
+        .iter()
+        .zip(&types)
+        .map(|(name, ty)| format!("{name}: {ty}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let tuple_names = match names.as_slice() {
+        [] => "()".to_owned(),
+        [name] => format!("({name},)"),
+        _ => format!("({})", names.join(", ")),
+    };
+    let tuple_types = match types.as_slice() {
+        [] => "()".to_owned(),
+        [ty] => format!("({ty},)"),
+        _ => format!("({})", types.join(", ")),
+    };
+    let closure_parameters = if mode == InvocationMode::Shared {
+        declarations
+    } else {
+        format!("{tuple_names}: {tuple_types}")
+    };
+    (closure_parameters, names.join(", "), tuple_names)
+}
+
+fn callable_constructor(mode: InvocationMode) -> &'static str {
+    match mode {
+        InvocationMode::Shared => "std::sync::Arc::new",
+        InvocationMode::Mutable => "TerraneMutableCallable::new",
+        InvocationMode::Consuming => "TerraneConsumingCallable::new",
+    }
+}
+
 impl Emitter<'_> {
     pub(super) fn descriptor_expression(&self, value_type: &ValueType) -> String {
         let descriptor = crate::semantics::materialized_descriptor(self.unit, value_type)
@@ -105,8 +150,18 @@ impl Emitter<'_> {
                 self.descriptor_expression(&ValueType::Object(identity.clone()))
             }
             SyntaxKind::Name => {
+                let name = self.text(node);
+                if self.async_mutable_captures.contains(name) {
+                    let name = rust_name(name);
+                    if self.assignment_target {
+                        return format!("*{name}.lock().expect(\"callable capture lock poisoned\")");
+                    }
+                    return format!(
+                        "{name}.lock().expect(\"callable capture lock poisoned\").clone()"
+                    );
+                }
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
-                    binding.name == self.text(node)
+                    binding.name == name
                         && binding.is_visible_at(self.unit.source.id(), node.span.start)
                 });
                 match self.value_type(node) {
@@ -573,52 +628,67 @@ impl Emitter<'_> {
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
                 if node.kind == SyntaxKind::Name =>
             {
-                let declarations = parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(index, parameter)| {
-                        format!(
-                            "argument_{index}: {}",
-                            rust_element_type(self.package, parameter.clone())
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let arguments = (0..parameters.len())
-                    .map(|index| format!("argument_{index}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let expected_mode = expected_effects.modes.written;
+                let (declarations, arguments, tuple_arguments) =
+                    callable_adapter_parameters(self.package, &parameters, expected_mode);
+                let constructor = callable_constructor(expected_mode);
                 let send = if transferability == TaskTransferability::Transferable {
                     " + Send"
                 } else {
                     ""
                 };
                 let expected_throws = expected_effects.requires_throwing_abi();
-                let value_requires_throwing_abi = matches!(
-                    self.value_type(node),
-                    Some(ValueType::AsyncFunction(_, _, _, effects))
-                        if effects.requires_throwing_abi()
-                );
+                let actual = self.value_type(node);
+                let (actual_mode, value_requires_throwing_abi) = match &actual {
+                    Some(ValueType::AsyncFunction(_, _, _, effects)) => (
+                        effects.modes.written,
+                        effects.requires_throwing_abi(),
+                    ),
+                    _ => (InvocationMode::Shared, false),
+                };
                 if let Some(contract) = self.contract_for_call(node) {
                     let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
-                    if expected_throws && !actual_throws {
+                    let future = if expected_throws && !actual_throws {
                         format!(
-                            "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin(async move {{ Ok({function}({arguments}).await) }}) }})"
+                            "Box::pin(async move {{ Ok({function}({arguments}).await) }})"
                         )
                     } else {
-                        format!(
-                            "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin({function}({arguments})) }})"
-                        )
-                    }
-                } else if expected_throws && !value_requires_throwing_abi {
-                    let callable = self.expression(node);
+                        format!("Box::pin({function}({arguments}))")
+                    };
                     format!(
-                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
+                        "{constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {future} }})"
                     )
+                } else if actual_mode == expected_mode
+                    && (!expected_throws || value_requires_throwing_abi)
+                {
+                    let callable = self.expression(node);
+                    if expected_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    }
                 } else {
-                    format!("({}).clone()", self.expression(node))
+                    let callable = self.expression(node);
+                    let capture = if actual_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    };
+                    let invocation = if actual_mode == InvocationMode::Shared {
+                        format!("callable({arguments})")
+                    } else {
+                        format!("callable.call({tuple_arguments})")
+                    };
+                    let future = if expected_throws && !value_requires_throwing_abi {
+                        format!("Box::pin(async move {{ Ok({invocation}.await) }})")
+                    } else {
+                        format!("Box::pin({invocation})")
+                    };
+                    format!(
+                        "{{ let callable = {capture}; {constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {future} }}) }}"
+                    )
                 }
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
@@ -631,51 +701,59 @@ impl Emitter<'_> {
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type);
-                let declarations = parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(index, parameter)| {
-                        format!(
-                            "argument_{index}: {}",
-                            rust_element_type(self.package, parameter.clone())
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let expected_mode = expected_effects.modes.written;
+                let method_contract = self.contract_for_call(node);
+                let actual_mode = method_contract.map_or(InvocationMode::Shared, |contract| {
+                    contract.written_invocation_mode
+                });
+                let (declarations, arguments, _) =
+                    callable_adapter_parameters(self.package, &parameters, expected_mode);
+                let constructor = callable_constructor(expected_mode);
                 let send = if transferability == TaskTransferability::Transferable {
                     " + Send"
                 } else {
                     ""
                 };
-                let arguments = (0..parameters.len())
-                    .map(|index| format!("argument_{index}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let value_requires_throwing_abi = matches!(
                     self.value_type(node),
                     Some(ValueType::AsyncFunction(_, _, _, effects))
                         if effects.requires_throwing_abi()
                 );
-                let actual_throws =
-                    self.contract_for_call(node)
-                        .map_or(value_requires_throwing_abi, |contract| {
-                            self.contract_requires_throwing_abi(
-                                contract,
-                                value_requires_throwing_abi,
-                            )
-                        });
-                let call = format!(
-                    "receiver.{}({arguments}).await",
-                    rust_name(self.text(member))
+                let actual_throws = method_contract.map_or(
+                    value_requires_throwing_abi,
+                    |contract| {
+                        self.contract_requires_throwing_abi(
+                            contract,
+                            value_requires_throwing_abi,
+                        )
+                    },
                 );
+                let method = rust_name(self.text(member));
+                let (capture, invocation, call) = match actual_mode {
+                    InvocationMode::Shared => (
+                        format!("std::sync::Arc::new({receiver})"),
+                        "let receiver = receiver.clone(); ",
+                        format!("receiver.{method}({arguments}).await"),
+                    ),
+                    InvocationMode::Mutable => (
+                        format!("std::sync::Arc::new(tokio::sync::Mutex::new({receiver}))"),
+                        "let receiver = receiver.clone(); ",
+                        format!("receiver.lock().await.{method}({arguments}).await"),
+                    ),
+                    InvocationMode::Consuming => (
+                        receiver,
+                        "",
+                        format!("receiver.{method}({arguments}).await"),
+                    ),
+                };
                 let body = if expected_throws && !actual_throws {
                     format!("Ok({call})")
                 } else {
                     call
                 };
                 format!(
-                    "{{ let receiver = std::sync::Arc::new({receiver}); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ {body} }}) }}) }}"
+                    "{{ let receiver = {capture}; {constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {invocation}Box::pin(async move {{ {body} }}) }}) }}"
                 )
             }
             ValueType::Function(parameters, _, expected_effects)
@@ -685,38 +763,45 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let callable_field = self.callable_object_field(receiver, self.text(member));
+                let value_type = self.value_type(node);
                 let value_requires_throwing_abi = matches!(
-                    self.value_type(node),
+                    &value_type,
                     Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
                 );
-                let actual_throws =
-                    self.contract_for_call(node)
-                        .map_or(value_requires_throwing_abi, |contract| {
-                            self.contract_requires_throwing_abi(
-                                contract,
-                                value_requires_throwing_abi,
-                            )
-                        });
+                let method_contract = self.contract_for_call(node);
+                let actual_throws = method_contract.map_or(
+                    value_requires_throwing_abi,
+                    |contract| {
+                        self.contract_requires_throwing_abi(
+                            contract,
+                            value_requires_throwing_abi,
+                        )
+                    },
+                );
+                let actual_mode = method_contract.map_or_else(
+                    || match &value_type {
+                        Some(ValueType::Function(_, _, effects)) => effects.modes.written,
+                        _ => InvocationMode::Shared,
+                    },
+                    |contract| contract.written_invocation_mode,
+                );
+                let expected_mode = expected_effects.modes.written;
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type.clone());
-                let declarations = parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(index, parameter)| {
-                        format!(
-                            "argument_{index}: {}",
-                            rust_element_type(self.package, parameter.clone())
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let (declarations, arguments, tuple_arguments) =
+                    callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>();
-                let arguments = argument_values.join(", ");
+                let constructor = callable_constructor(expected_mode);
+                let mutable = if actual_mode == InvocationMode::Mutable {
+                    "mut "
+                } else {
+                    ""
+                };
                 if let ValueType::Scalar(float_type @ (ScalarType::Float32 | ScalarType::Float64)) =
                     receiver_type
                     && let Some(body) = self.float_call(
@@ -733,10 +818,15 @@ impl Emitter<'_> {
                         body
                     };
                     return format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                        "{{ let {mutable}receiver = {receiver}; {constructor}(move |{declarations}| {body}) }}"
                     );
                 }
-                let call = if callable_field {
+                let call = if callable_field && actual_mode != InvocationMode::Shared {
+                    format!(
+                        "receiver.{}.call({tuple_arguments})",
+                        rust_name(self.text(member))
+                    )
+                } else if callable_field {
                     format!("(receiver.{})({arguments})", rust_name(self.text(member)))
                 } else {
                     format!("receiver.{}({arguments})", rust_name(self.text(member)))
@@ -747,113 +837,151 @@ impl Emitter<'_> {
                     call
                 };
                 format!(
-                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                    "{{ let {mutable}receiver = {receiver}; {constructor}(move |{declarations}| {body}) }}"
                 )
             }
             ValueType::Function(parameters, _, expected_effects)
                 if node.kind == SyntaxKind::Name =>
             {
-                let declarations = parameters
-                    .iter()
-                    .enumerate()
-                    .map(|(index, parameter)| {
-                        format!(
-                            "argument_{index}: {}",
-                            rust_element_type(self.package, parameter.clone())
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let arguments = (0..parameters.len())
-                    .map(|index| format!("argument_{index}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let expected_mode = expected_effects.modes.written;
+                let (declarations, arguments, tuple_arguments) =
+                    callable_adapter_parameters(self.package, &parameters, expected_mode);
+                let constructor = callable_constructor(expected_mode);
                 let expected_throws = expected_effects.requires_throwing_abi();
-                let value_requires_throwing_abi = matches!(
-                    self.value_type(node),
-                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
-                );
+                let actual = self.value_type(node);
+                let (actual_mode, value_requires_throwing_abi) = match &actual {
+                    Some(ValueType::Function(_, _, effects)) => (
+                        effects.modes.written,
+                        effects.requires_throwing_abi(),
+                    ),
+                    _ => (InvocationMode::Shared, false),
+                };
                 if let Some(contract) = self.contract_for_call(node) {
                     let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
-                    if expected_throws && !actual_throws {
-                        format!(
-                            "std::sync::Arc::new(move |{declarations}| Ok({function}({arguments})))"
-                        )
-                    } else {
+                    if expected_mode == InvocationMode::Shared
+                        && (!expected_throws || actual_throws)
+                    {
                         format!("std::sync::Arc::new({function})")
+                    } else {
+                        let call = format!("{function}({arguments})");
+                        let body = if expected_throws && !actual_throws {
+                            format!("Ok({call})")
+                        } else {
+                            call
+                        };
+                        format!("{constructor}(move |{declarations}| {body})")
                     }
-                } else if expected_throws && !value_requires_throwing_abi {
+                } else if actual_mode == expected_mode
+                    && (!expected_throws || value_requires_throwing_abi)
+                {
                     let callable = self.expression(node);
-                    format!(
-                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
-                    )
+                    if expected_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    }
                 } else {
-                    format!("({}).clone()", self.expression(node))
+                    let callable = self.expression(node);
+                    let capture = if actual_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    };
+                    let call = if actual_mode == InvocationMode::Shared {
+                        format!("callable({arguments})")
+                    } else {
+                        format!("callable.call({tuple_arguments})")
+                    };
+                    let body = if expected_throws && !value_requires_throwing_abi {
+                        format!("Ok({call})")
+                    } else {
+                        call
+                    };
+                    format!(
+                        "{{ let callable = {capture}; {constructor}(move |{declarations}| {body}) }}"
+                    )
                 }
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects) => {
                 let callable = self.expression(node);
-                let actual_throws = matches!(
-                    self.value_type(node),
-                    Some(ValueType::AsyncFunction(_, _, _, effects))
-                        if effects.requires_throwing_abi()
-                );
-                if !expected_effects.requires_throwing_abi() || actual_throws {
+                let actual = self.value_type(node);
+                let (actual_mode, actual_throws) = match &actual {
+                    Some(ValueType::AsyncFunction(_, _, _, effects)) => (
+                        effects.modes.written,
+                        effects.requires_throwing_abi(),
+                    ),
+                    _ => (InvocationMode::Shared, false),
+                };
+                let expected_mode = expected_effects.modes.written;
+                let expected_throws = expected_effects.requires_throwing_abi();
+                if actual_mode == expected_mode && (!expected_throws || actual_throws) {
                     callable
                 } else {
-                    let declarations = parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(index, parameter)| {
-                            format!(
-                                "argument_{index}: {}",
-                                rust_element_type(self.package, parameter.clone())
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let arguments = (0..parameters.len())
-                        .map(|index| format!("argument_{index}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
+                    let (declarations, arguments, tuple_arguments) =
+                        callable_adapter_parameters(self.package, &parameters, expected_mode);
+                    let constructor = callable_constructor(expected_mode);
+                    let capture = if actual_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    };
+                    let invocation = if actual_mode == InvocationMode::Shared {
+                        format!("callable({arguments})")
+                    } else {
+                        format!("callable.call({tuple_arguments})")
+                    };
+                    let future = if expected_throws && !actual_throws {
+                        format!("Box::pin(async move {{ Ok({invocation}.await) }})")
+                    } else {
+                        format!("Box::pin({invocation})")
+                    };
                     let send = if transferability == TaskTransferability::Transferable {
                         " + Send"
                     } else {
                         ""
                     };
                     format!(
-                        "{{ let callable = {callable}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
+                        "{{ let callable = {capture}; {constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {future} }}) }}"
                     )
                 }
             }
             ValueType::Function(parameters, _, expected_effects) => {
                 let callable = self.expression(node);
-                let actual_throws = matches!(
-                    self.value_type(node),
-                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
-                );
-                if !expected_effects.requires_throwing_abi() || actual_throws {
+                let actual = self.value_type(node);
+                let (actual_mode, actual_throws) = match &actual {
+                    Some(ValueType::Function(_, _, effects)) => (
+                        effects.modes.written,
+                        effects.requires_throwing_abi(),
+                    ),
+                    _ => (InvocationMode::Shared, false),
+                };
+                let expected_mode = expected_effects.modes.written;
+                let expected_throws = expected_effects.requires_throwing_abi();
+                if actual_mode == expected_mode && (!expected_throws || actual_throws) {
                     callable
                 } else {
-                    let declarations = parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(index, parameter)| {
-                            format!(
-                                "argument_{index}: {}",
-                                rust_element_type(self.package, parameter.clone())
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let arguments = (0..parameters.len())
-                        .map(|index| format!("argument_{index}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
+                    let (declarations, arguments, tuple_arguments) =
+                        callable_adapter_parameters(self.package, &parameters, expected_mode);
+                    let constructor = callable_constructor(expected_mode);
+                    let capture = if actual_mode == InvocationMode::Consuming {
+                        callable
+                    } else {
+                        format!("({callable}).clone()")
+                    };
+                    let call = if actual_mode == InvocationMode::Shared {
+                        format!("callable({arguments})")
+                    } else {
+                        format!("callable.call({tuple_arguments})")
+                    };
+                    let body = if expected_throws && !actual_throws {
+                        format!("Ok({call})")
+                    } else {
+                        call
+                    };
                     format!(
-                        "{{ let callable = {callable}; std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
+                        "{{ let callable = {capture}; {constructor}(move |{declarations}| {body}) }}"
                     )
                 }
             }
@@ -903,6 +1031,9 @@ impl Emitter<'_> {
     pub(super) fn adaptive_expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => adaptive_literal(self.text(node)),
+            SyntaxKind::Name if self.async_mutable_captures.contains(self.text(node)) => {
+                self.expression(node)
+            }
             SyntaxKind::Name if self.lazy_namespace_binding_type(node).is_some() => {
                 format!("(*{}).clone()", self.namespace_name(node))
             }

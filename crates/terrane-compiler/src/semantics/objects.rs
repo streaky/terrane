@@ -422,6 +422,10 @@ pub(super) fn value_type_owns_resource(
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => true,
+        ValueType::Function(_, _, effects)
+        | ValueType::AsyncFunction(_, _, _, effects) => {
+            effects.modes.written == InvocationMode::Consuming
+        }
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Iterator(item)
@@ -1357,6 +1361,35 @@ pub(super) fn infer_and_validate_invocation_modes(
                     contract.span,
                 ));
             }
+        }
+    }
+    let binding_modes = package
+        .units
+        .iter()
+        .enumerate()
+        .flat_map(|(unit_index, unit)| {
+            unit.typed_bindings
+                .iter()
+                .enumerate()
+                .filter_map(move |(binding_index, binding)| {
+                    let node = find_node_by_span(&unit.tree.root, binding.span)?;
+                    let value = node.children.last()?;
+                    let actual = infer_value_type(unit, value, &unit.typed_bindings).ok()??;
+                    match actual {
+                        ValueType::Function(_, _, effects)
+                        | ValueType::AsyncFunction(_, _, _, effects) => {
+                            Some((unit_index, binding_index, effects.modes.exact))
+                        }
+                        _ => None,
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
+    for (unit_index, binding_index, exact) in binding_modes {
+        match &mut package.units[unit_index].typed_bindings[binding_index].value_type {
+            ValueType::Function(_, _, effects)
+            | ValueType::AsyncFunction(_, _, _, effects) => effects.modes.exact = exact,
+            _ => {}
         }
     }
     Ok(())

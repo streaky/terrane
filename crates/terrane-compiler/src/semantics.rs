@@ -1,3 +1,4 @@
+pub use crate::invocation::InvocationMode;
 // Compiler-owned semantic data and the ordered package analysis pipeline.
 mod analysis;
 mod model;
@@ -38,7 +39,8 @@ mod prelude {
 
     pub(super) use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
     pub(super) use crate::{
-        Diagnostic, Package, ScalarType, SourceFile, Span, TypeCategory, lexer, parser,
+        Diagnostic, InvocationMode, Package, ScalarType, SourceFile, Span, TypeCategory, lexer,
+        parser,
     };
 
     pub(super) use super::analysis::*;
@@ -75,9 +77,9 @@ pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
     DescriptorContract, ElementType, EvaluationKind, EvaluationStep, FunctionContract,
-    InvocationMode, MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity,
-    ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
-    SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity, ObjectKind,
+    ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol, SymbolKind,
+    TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,

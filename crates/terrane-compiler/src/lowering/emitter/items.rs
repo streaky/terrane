@@ -1303,6 +1303,32 @@ impl<'a> Emitter<'a> {
             })
             .collect::<Vec<_>>()
             .join(", ");
+        let parameter_names = contract
+            .parameters
+            .iter()
+            .map(|parameter| rust_name(&parameter.name))
+            .collect::<Vec<_>>();
+        let parameter_types = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter.value_type.clone().map_or_else(
+                    || "i128".to_owned(),
+                    |value_type| rust_value_type(self.package, value_type),
+                )
+            })
+            .collect::<Vec<_>>();
+        let tuple_pattern = match parameter_names.as_slice() {
+            [] => "()".to_owned(),
+            [name] => format!("({name},)"),
+            _ => format!("({})", parameter_names.join(", ")),
+        };
+        let tuple_type = match parameter_types.as_slice() {
+            [] => "()".to_owned(),
+            [ty] => format!("({ty},)"),
+            _ => format!("({})", parameter_types.join(", ")),
+        };
+        let stateful_parameters = format!("{tuple_pattern}: {tuple_type}");
         let result = contract
             .return_type
             .clone()
@@ -1333,6 +1359,14 @@ impl<'a> Emitter<'a> {
                 })
                 .collect(),
         );
+        let outer_async_mutable_captures =
+            std::mem::take(&mut self.async_mutable_captures);
+        if contract.is_async
+            && contract.written_invocation_mode == InvocationMode::Mutable
+        {
+            self.async_mutable_captures
+                .extend(contract.captures.iter().cloned());
+        }
         self.closure_depth += 1;
         self.indent = outer_indent + 1;
         if let Some(block) = node
@@ -1352,15 +1386,26 @@ impl<'a> Emitter<'a> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
+        self.async_mutable_captures = outer_async_mutable_captures;
         let (captures, invocation_captures) = self.anonymous_function_captures(node, contract);
+        let constructor = match contract.written_invocation_mode {
+            InvocationMode::Shared => "std::sync::Arc::new",
+            InvocationMode::Mutable => "TerraneMutableCallable::new",
+            InvocationMode::Consuming => "TerraneConsumingCallable::new",
+        };
+        let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
+            parameters
+        } else {
+            stateful_parameters
+        };
         if contract.is_async {
             format!(
-                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{body}{}}}) }}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{body}{}}}) }}) }}",
                 "    ".repeat(outer_indent)
             )
         } else {
             format!(
-                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> {result_type} {{\n{body}{}}}) }}",
                 "    ".repeat(outer_indent)
             )
         }
@@ -1375,6 +1420,12 @@ impl<'a> Emitter<'a> {
         let mut invocation_captures = String::new();
         for capture in &contract.captures {
             let name = rust_name(capture);
+            let mutable =
+                if contract.written_invocation_mode == InvocationMode::Mutable {
+                    "mut "
+                } else {
+                    ""
+                };
             let source = if capture == "this" { "self" } else { &name };
             let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                 binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
@@ -1391,19 +1442,34 @@ impl<'a> Emitter<'a> {
                             !self.reference_owner_uses_shared_storage(provenance.owner)
                         })
             });
+            if contract.is_async
+                && contract.written_invocation_mode == InvocationMode::Mutable
+            {
+                write!(
+                    captures,
+                    "let {name} = std::sync::Arc::new(std::sync::Mutex::new({source}.clone())); "
+                )
+                .expect("writing to a String cannot fail");
+                write!(invocation_captures, "let {name} = {name}.clone(); ")
+                    .expect("writing to a String cannot fail");
+                continue;
+            }
             if transfer || borrowed {
-                write!(captures, "let {name} = {source}; ")
+                write!(captures, "let {mutable}{name} = {source}; ")
                     .expect("writing to a String cannot fail");
             } else {
-                write!(captures, "let {name} = {source}.clone(); ")
+                write!(captures, "let {mutable}{name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
             if borrowed {
-                write!(invocation_captures, "let {name} = {name}; ")
+                write!(invocation_captures, "let {mutable}{name} = {name}; ")
                     .expect("writing to a String cannot fail");
             } else {
-                write!(invocation_captures, "let {name} = {name}.clone(); ")
-                    .expect("writing to a String cannot fail");
+                write!(
+                    invocation_captures,
+                    "let {mutable}{name} = {name}.clone(); "
+                )
+                .expect("writing to a String cannot fail");
             }
         }
         (captures, invocation_captures)

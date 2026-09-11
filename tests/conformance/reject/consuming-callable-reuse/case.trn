@@ -1,0 +1,8 @@
+namespace consuming-callable-reuse
+
+function main;
+  message = >finished
+  finish = consuming function string;
+    return move message
+  first = finish;
+  second = finish;

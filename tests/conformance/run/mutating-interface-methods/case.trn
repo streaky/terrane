@@ -1,13 +1,13 @@
 namespace mutating-interface-methods
 
 interface adjustable
-    function increase int; amount int
+    mutable function increase int; amount int
     function read int;
 
 class counter implements adjustable
     value int = 1
 
-    function increase int; amount int
+    mutable function increase int; amount int
         this.value = this.value + amount
         return this.value
 

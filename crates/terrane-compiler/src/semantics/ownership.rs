@@ -124,6 +124,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, callee), callee.span.start)
+            && matches!(
+                &unit.typed_bindings[binding].value_type,
+                ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects)
+                    if effects.modes.written == InvocationMode::Consuming
+            )
+        {
+            for child in &node.children {
+                visit(package, unit, child, moved, false, resource_objects)?;
+            }
+            moved.insert(binding);
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()

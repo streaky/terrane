@@ -14,10 +14,10 @@ use rustdoc_types::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::RustDependency;
+use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "25";
+const PROJECTION_SCHEMA: &str = "26";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -289,12 +289,6 @@ pub enum Receiver {
     Move,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum CallbackKind {
-    Shared,
-    Mutable,
-    Once,
-}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
@@ -339,7 +333,7 @@ pub enum ProjectedType {
         rust_name: String,
         parameters: Vec<ProjectedType>,
         result: Box<ProjectedType>,
-        kind: CallbackKind,
+        invocation_mode: InvocationMode,
         is_async: bool,
         retained: bool,
         send: bool,
@@ -1055,14 +1049,15 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
         ProjectedType::Callback {
             parameters,
             result,
+            invocation_mode,
             is_async,
             ..
         } => {
-            let mut rendered = if *is_async {
-                "async function".to_owned()
-            } else {
-                "function".to_owned()
-            };
+            let mut rendered = format!(
+                "{}{}function",
+                invocation_mode.source_prefix(),
+                if *is_async { "async " } else { "" }
+            );
             if !parameters.is_empty() {
                 write!(
                     rendered,
@@ -3482,16 +3477,16 @@ fn project_callback_generic(
     let bounds = generic_bounds(parameter, function);
     let callback = bounds.iter().find_map(|bound| {
         let (trait_, generic_params) = trait_bound_name(bound)?;
-        let kind = if trait_.path.ends_with("FnOnce") {
-            CallbackKind::Once
+        let invocation_mode = if trait_.path.ends_with("FnOnce") {
+            InvocationMode::Consuming
         } else if trait_.path.ends_with("FnMut") {
-            CallbackKind::Mutable
+            InvocationMode::Mutable
         } else if trait_.path.ends_with("Fn") {
-            CallbackKind::Shared
+            InvocationMode::Shared
         } else {
             return None;
         };
-        Some((trait_, generic_params, kind))
+        Some((trait_, generic_params, invocation_mode))
     });
     let Some((trait_, generic_params, kind)) = callback else {
         return Ok(None);
@@ -3534,7 +3529,7 @@ fn project_callback_generic(
         rust_name: parameter.name.clone(),
         parameters,
         result: Box::new(result),
-        kind,
+        invocation_mode: kind,
         is_async,
         retained,
         send: has_trait("Send"),
@@ -4547,7 +4542,7 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, CallbackKind, Containment, DeclinedItem, ProjectedBoundDependency,
+        ArtifactDependency, Containment, DeclinedItem, InvocationMode, ProjectedBoundDependency,
         ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
         Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource,
         Receiver, ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
@@ -4626,7 +4621,7 @@ mod tests {
             rust_name: "F".to_owned(),
             parameters: vec![ProjectedType::String, ProjectedType::Bool],
             result: Box::new(ProjectedType::Int),
-            kind: CallbackKind::Shared,
+            invocation_mode: InvocationMode::Shared,
             is_async: true,
             retained: true,
             send: true,

@@ -283,34 +283,6 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum InvocationMode {
-    Shared,
-    Mutable,
-    Consuming,
-}
-
-impl InvocationMode {
-    pub(crate) fn accepts(self, actual: Self) -> bool {
-        actual <= self
-    }
-
-    pub(crate) fn source_prefix(self) -> &'static str {
-        match self {
-            Self::Shared => "",
-            Self::Mutable => "mutable ",
-            Self::Consuming => "consuming ",
-        }
-    }
-
-    pub(crate) fn reflection_name(self) -> &'static str {
-        match self {
-            Self::Shared => "shared",
-            Self::Mutable => "mutable",
-            Self::Consuming => "consuming",
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CallableModes {

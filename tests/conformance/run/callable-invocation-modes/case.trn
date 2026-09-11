@@ -1,0 +1,73 @@
+namespace callable-invocation-modes
+
+function double int; value int
+  return value * 2
+
+async function double-later int; value int
+  return value * 2
+
+class accumulator
+  total int = 0
+
+  mutable function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+class ticket
+  message string = >redeemed
+
+  consuming function redeem string;
+    return this.message
+
+class async-accumulator
+  total int = 0
+
+  mutable async function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+async function main;
+  counter = 0
+  step = mutable function int; delta int
+    counter = counter + delta
+    return counter
+  message = >finished
+  finish = consuming function string;
+    return move message
+  print; (step; 1)
+  print; (step; 2)
+  copy = step
+  print; step.invocation-mode
+  print; step.exact-invocation-mode
+  print; (step; 1)
+  print; (copy; 10)
+  print; finish.invocation-mode
+  print; finish.exact-invocation-mode
+  print; (finish;)
+  operation mutable function from int to int = double
+  print; (operation; 6)
+  async-counter = 0
+  async-step = mutable async function int; delta int
+    async-counter = async-counter + delta
+    return async-counter
+  print; await (async-step; 2)
+  print; await (async-step; 3)
+  asynchronous mutable async function from int to int = double-later
+  print; await (asynchronous; 7)
+  value accumulator = instance accumulator;
+  bound mutable function from int to int = value.add
+  print; (bound; 5)
+  print; (bound; 7)
+  value ticket = instance ticket;
+  redemption consuming function to string = value.redeem
+  print; (redemption;)
+  shared = function int; value int
+    return value + 1
+  adapted mutable function from int to int = shared
+  print; (adapted; 8)
+  async-value async-accumulator = instance async-accumulator;
+  async-bound mutable async function from int to int = async-value.add
+  print; await (async-bound; 2)
+  print; await (async-bound; 3)
+  one-shot consuming function from int to int = adapted
+  print; (one-shot; 10)

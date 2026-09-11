@@ -1408,7 +1408,7 @@ fn validate_projected_callback_contract(
     consumed_once: &mut BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
     let crate::projection::ProjectedType::Callback {
-        kind,
+        invocation_mode,
         retained,
         send,
         ..
@@ -1448,31 +1448,19 @@ fn validate_projected_callback_contract(
             "projected callback requires transferable captured values",
         );
     }
-    if matches!(kind, crate::projection::CallbackKind::Mutable)
-        && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                package
-                    .binding_events
-                    .get(&span_key(binding.span))
-                    .is_some_and(|events| {
-                        events.iter().any(|event| {
-                            matches!(
-                                event,
-                                BindingEvent::Write { span, .. }
-                                    if span.start >= contract.span.start
-                                        && span.end <= contract.span.end
-                            )
-                        })
-                    })
-            })
-        })
-    {
-        return reject(
+    if !invocation_mode.accepts(contract.written_invocation_mode) {
+        return Err(failure(
+            &unit.source,
             "T0085",
-            "projected mutable callback cannot alias captured mutable state",
-        );
+            format!(
+                "projected {} callback cannot accept a {} callable",
+                invocation_mode.reflection_name(),
+                contract.written_invocation_mode.reflection_name()
+            ),
+            value.span,
+        ));
     }
-    if matches!(kind, crate::projection::CallbackKind::Once)
+    if *invocation_mode == InvocationMode::Consuming
         && value.kind == SyntaxKind::Name
         && let Some(declaration) = package
             .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))

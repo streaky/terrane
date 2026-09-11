@@ -91,6 +91,7 @@ fn projected_callback_argument(
     name: &str,
     parameters: &[crate::projection::ProjectedType],
     result: &crate::projection::ProjectedType,
+    invocation_mode: InvocationMode,
     is_async: bool,
 ) -> String {
     let rust_parameters = parameters
@@ -105,17 +106,22 @@ fn projected_callback_argument(
         .map(|(index, parameter)| {
             projected_callback_input_expression(&format!("callback_argument_{index}"), parameter)
         })
-        .collect::<Vec<_>>()
-        .join(", ");
+        .collect::<Vec<_>>();
+    let direct_arguments = terrane_arguments.join(", ");
+    let tuple_arguments = match terrane_arguments.as_slice() {
+        [] => "()".to_owned(),
+        [argument] => format!("({argument},)"),
+        _ => format!("({direct_arguments})"),
+    };
     let converted_result = projected_callback_output_expression("callback_value", result);
-    let invoke = if is_async {
-        format!("(callback)({terrane_arguments}).await")
+    let invoke = if invocation_mode == InvocationMode::Shared {
+        format!("(callback)({direct_arguments})")
     } else {
-        format!("(callback)({terrane_arguments})")
+        format!("callback.call({tuple_arguments})")
     };
     let fallible_body = if is_async {
         format!(
-            "async {{ let callback_value = {invoke}; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
+            "async {{ let callback_value = callback_future.await; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
         )
     } else {
         format!(
@@ -125,12 +131,23 @@ fn projected_callback_argument(
     let body = format!(
         "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
     );
-    if is_async {
-        format!(
-            "{{ let callback = {name}.clone(); move |{rust_parameters}| {{ let callback = callback.clone(); Box::pin(async move {{ {body} }}) }} }}"
-        )
+    let capture = if invocation_mode == InvocationMode::Consuming {
+        name.to_owned()
     } else {
-        format!("{{ let callback = {name}.clone(); move |{rust_parameters}| {{ {body} }} }}")
+        format!("{name}.clone()")
+    };
+    if is_async {
+        if invocation_mode == InvocationMode::Shared {
+            format!(
+                "{{ let callback = {capture}; move |{rust_parameters}| {{ let callback = callback.clone(); let callback_future = callback({direct_arguments}); Box::pin(async move {{ {body} }}) }} }}"
+            )
+        } else {
+            format!(
+                "{{ let callback = {capture}; move |{rust_parameters}| {{ let callback_future = {invoke}; Box::pin(async move {{ {body} }}) }} }}"
+            )
+        }
+    } else {
+        format!("{{ let callback = {capture}; move |{rust_parameters}| {{ {body} }} }}")
     }
 }
 
@@ -151,9 +168,16 @@ pub(super) fn projected_argument_expression(
         crate::projection::ProjectedType::Callback {
             parameters,
             result,
+            invocation_mode,
             is_async,
             ..
-        } => projected_callback_argument(name, parameters, result, *is_async),
+        } => projected_callback_argument(
+            name,
+            parameters,
+            result,
+            *invocation_mode,
+            *is_async,
+        ),
         crate::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 name.to_owned()
