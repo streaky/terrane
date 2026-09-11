@@ -22,7 +22,7 @@ class formatter
 function invoke string; operation function from int to string throws throwable, value int
   return operation; value
 
-function safe-render string throws coercion-error; value int
+function safe-render string; value int
   return 'safe'
 
 function invoke-infallible string; operation function from int to string, value int

@@ -756,11 +756,11 @@ generic effect system. The compiler retains a callable declaration's written thr
 separately from its exact escaping set. Infallible and narrower implementations satisfy a broader
 destination; broader or unrelated sets are rejected. Omitting `throws` declares an infallible
 callable type. Named functions, closures, bound methods, and inferred aliases keep exact metadata;
-explicitly typed bindings and class fields retain their written storage contract. Source callables
-never acquire an implicit broad `throwable` fallback. Exact infallible callable values use an
-infallible generated ABI with no result propagation or registered error site; widening into a
-compatible written contract inserts an adapter at that destination. The compiler also infers
-receiver mutation, distinguishes sync and async callable types, and validates suspension through
+explicitly typed bindings and class fields retain both the exact initializer summary for reflection
+and their written storage ABI and invocation bound. Source callables never acquire an implicit broad
+`throwable` fallback. ABI selection follows the written bound independently, so widening a proven
+infallible implementation creates result-bearing storage without falsifying the empty reflected set.
+The compiler also infers receiver mutation, distinguishes sync and async callable types, and validates suspension through
 explicit `await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not function
 qualifiers. Concrete unsafe Rust and foreign interoperability belong to explicit Rust, runtime,
 adapter, import, or ABI constructs. Callable reflection exposes retained `.contracts`,

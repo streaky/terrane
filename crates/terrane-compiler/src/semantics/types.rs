@@ -11,18 +11,18 @@ pub(super) fn analyze_binding_node(
     scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::Assignment
-        && let [target, _] = node.children.as_slice()
+        && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = target.children.as_slice()
     {
         infer_member_value_type(unit, target, bindings)?;
-        let writable = matches!(
-            infer_receiver_value_type(unit, receiver, bindings)?,
-            Some(ValueType::Object(identity))
-                if object_field_type(unit, &identity, node_text(&unit.source, member), false)
-                    .is_some()
-        );
-        if !writable {
+        let expected = match infer_receiver_value_type(unit, receiver, bindings)? {
+            Some(ValueType::Object(identity)) => {
+                object_field_type(unit, &identity, node_text(&unit.source, member), false)
+            }
+            _ => None,
+        };
+        let Some(expected) = expected else {
             return Err(failure(
                 &unit.source,
                 "T0072",
@@ -32,6 +32,17 @@ pub(super) fn analyze_binding_node(
                 ),
                 member.span,
             ));
+        };
+        if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                node_text(&unit.source, member),
+                expected,
+                actual,
+                value,
+                "T0077",
+            )?;
         }
         return Ok(());
     }
@@ -236,13 +247,9 @@ pub(super) fn analyze_binding_node(
         } else {
             return Ok(());
         };
-    let value_type = if declared.is_none() {
-        inferred.as_ref().map_or(value_type.clone(), |actual| {
-            merge_callable_destination_effects(value_type, actual)
-        })
-    } else {
-        value_type
-    };
+    let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
+        merge_callable_destination_effects(value_type, actual)
+    });
     let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
@@ -534,20 +541,7 @@ pub(super) fn declared_value_type_with_visible_objects(
 }
 
 fn is_builtin_error_type(type_name: &str) -> bool {
-    matches!(
-        type_name,
-        "throwable"
-            | "arithmetic-overflow"
-            | "division-by-zero"
-            | "integer-conversion-overflow"
-            | "negative-shift-count"
-            | "coercion-error"
-            | "decode-error"
-            | "index-error"
-            | "missing-key"
-            | "dependency-error"
-            | "dependency-panic"
-    )
+    type_name == "throwable" || BUILTIN_ERROR_NAMES.contains(&type_name)
 }
 
 fn parse_single_argument_value_type(
@@ -915,18 +909,23 @@ fn callable_effects_compatible(
     expected: &CallableEffects,
     actual: &CallableEffects,
 ) -> bool {
-    actual.escaping.iter().all(|identity| {
-        throwable_identity_type(identity).is_some_and(|actual| {
-            expected
-                .upper_bound
-                .as_deref()
-                .is_some_and(|bound| value_types_compatible(objects, bound, &actual))
-                || expected.escaping.iter().any(|bound| {
-                    throwable_identity_type(bound)
-                        .is_some_and(|bound| value_types_compatible(objects, &bound, &actual))
-                })
-        })
-    })
+    let accepts = |actual: &ValueType| {
+        expected
+            .upper_bound
+            .as_deref()
+            .is_some_and(|bound| value_types_compatible(objects, bound, actual))
+            || expected.escaping.iter().any(|bound| {
+                throwable_identity_type(bound)
+                    .is_some_and(|bound| value_types_compatible(objects, &bound, actual))
+            })
+    };
+    if let Some(actual) = actual.upper_bound.as_deref() {
+        return accepts(actual);
+    }
+    actual
+        .escaping
+        .iter()
+        .all(|identity| throwable_identity_type(identity).is_some_and(|actual| accepts(&actual)))
 }
 
 pub(super) fn validate_value_destination(

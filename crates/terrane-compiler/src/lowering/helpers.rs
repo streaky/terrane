@@ -489,10 +489,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
         ValueType::Function(parameters, result, effects) => {
             let result = rust_element_type(package, result);
-            let output = if effects.escaping.is_empty() {
-                result
-            } else {
+            let output = if effects.requires_throwing_abi() {
                 format!("Result<{result}, TerraneError>")
+            } else {
+                result
             };
             format!(
                 "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
@@ -506,10 +506,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         }
         ValueType::AsyncFunction(parameters, result, transferability, effects) => {
             let result = rust_element_type(package, result);
-            let output = if effects.escaping.is_empty() {
-                result
-            } else {
+            let output = if effects.requires_throwing_abi() {
                 format!("Result<{result}, TerraneError>")
+            } else {
+                result
             };
             format!(
                 "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>{}>> + Send + Sync>",

@@ -75,7 +75,7 @@ impl Emitter<'_> {
         let function_value_throws = callee
             .and_then(|callee| self.value_type(callee))
             .is_some_and(|value_type| match value_type {
-                ValueType::AsyncFunction(_, _, _, effects) => !effects.escaping.is_empty(),
+                ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
                 _ => false,
             });
         let throws =
@@ -593,10 +593,17 @@ impl Emitter<'_> {
                 } else {
                     ""
                 };
-                let expected_throws = !expected_effects.escaping.is_empty();
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::AsyncFunction(_, _, _, effects))
+                        if effects.requires_throwing_abi()
+                );
                 if let Some(contract) = self.contract_for_call(node) {
                     let function = function_name(self.package, contract);
-                    if expected_throws && !contract.throws {
+                    let actual_throws =
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    if expected_throws && !actual_throws {
                         format!(
                             "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin(async move {{ Ok({function}({arguments}).await) }}) }})"
                         )
@@ -605,20 +612,13 @@ impl Emitter<'_> {
                             "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin({function}({arguments})) }})"
                         )
                     }
+                } else if expected_throws && !value_requires_throwing_abi {
+                    let callable = self.expression(node);
+                    format!(
+                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
+                    )
                 } else {
-                    let actual_throws = matches!(
-                        self.value_type(node),
-                        Some(ValueType::AsyncFunction(_, _, _, effects))
-                            if !effects.escaping.is_empty()
-                    );
-                    if expected_throws && !actual_throws {
-                        let callable = self.expression(node);
-                        format!(
-                            "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
-                        )
-                    } else {
-                        format!("({}).clone()", self.expression(node))
-                    }
+                    format!("({}).clone()", self.expression(node))
                 }
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
@@ -651,10 +651,20 @@ impl Emitter<'_> {
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let expected_throws = !expected_effects.escaping.is_empty();
-                let actual_throws = self
-                    .contract_for_call(node)
-                    .is_some_and(|contract| contract.throws);
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::AsyncFunction(_, _, _, effects))
+                        if effects.requires_throwing_abi()
+                );
+                let actual_throws =
+                    self.contract_for_call(node)
+                        .map_or(value_requires_throwing_abi, |contract| {
+                            self.contract_requires_throwing_abi(
+                                contract,
+                                value_requires_throwing_abi,
+                            )
+                        });
                 let call = format!(
                     "receiver.{}({arguments}).await",
                     rust_name(self.text(member))
@@ -675,15 +685,19 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let callable_field = self.callable_object_field(receiver, self.text(member));
-                let actual_throws = self
-                    .contract_for_call(node)
-                    .is_some_and(|contract| contract.throws)
-                    || matches!(
-                        self.value_type(node),
-                        Some(ValueType::Function(_, _, effects))
-                            if !effects.escaping.is_empty()
-                    );
-                let expected_throws = !expected_effects.escaping.is_empty();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
+                );
+                let actual_throws =
+                    self.contract_for_call(node)
+                        .map_or(value_requires_throwing_abi, |contract| {
+                            self.contract_requires_throwing_abi(
+                                contract,
+                                value_requires_throwing_abi,
+                            )
+                        });
+                let expected_throws = expected_effects.requires_throwing_abi();
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
@@ -754,29 +768,29 @@ impl Emitter<'_> {
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let expected_throws = !expected_effects.escaping.is_empty();
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
+                );
                 if let Some(contract) = self.contract_for_call(node) {
                     let function = function_name(self.package, contract);
-                    if expected_throws && !contract.throws {
+                    let actual_throws =
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    if expected_throws && !actual_throws {
                         format!(
                             "std::sync::Arc::new(move |{declarations}| Ok({function}({arguments})))"
                         )
                     } else {
                         format!("std::sync::Arc::new({function})")
                     }
+                } else if expected_throws && !value_requires_throwing_abi {
+                    let callable = self.expression(node);
+                    format!(
+                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
+                    )
                 } else {
-                    let actual_throws = matches!(
-                        self.value_type(node),
-                        Some(ValueType::Function(_, _, effects)) if !effects.escaping.is_empty()
-                    );
-                    if expected_throws && !actual_throws {
-                        let callable = self.expression(node);
-                        format!(
-                            "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
-                        )
-                    } else {
-                        format!("({}).clone()", self.expression(node))
-                    }
+                    format!("({}).clone()", self.expression(node))
                 }
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects) => {
@@ -784,9 +798,9 @@ impl Emitter<'_> {
                 let actual_throws = matches!(
                     self.value_type(node),
                     Some(ValueType::AsyncFunction(_, _, _, effects))
-                        if !effects.escaping.is_empty()
+                        if effects.requires_throwing_abi()
                 );
-                if expected_effects.escaping.is_empty() || actual_throws {
+                if !expected_effects.requires_throwing_abi() || actual_throws {
                     callable
                 } else {
                     let declarations = parameters
@@ -818,9 +832,9 @@ impl Emitter<'_> {
                 let callable = self.expression(node);
                 let actual_throws = matches!(
                     self.value_type(node),
-                    Some(ValueType::Function(_, _, effects)) if !effects.escaping.is_empty()
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
                 );
-                if expected_effects.escaping.is_empty() || actual_throws {
+                if !expected_effects.requires_throwing_abi() || actual_throws {
                     callable
                 } else {
                     let declarations = parameters

@@ -416,7 +416,7 @@ fn main() {
     let value: terrane_int_support::Int = fallible();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&value),
-        terrane_scalar_support::scalar_text(&{ let _ = fallible; "".to_owned() })
+        terrane_scalar_support::scalar_text(&{ let _ = fallible; "throws".to_owned() })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = fallible; "throwable"

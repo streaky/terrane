@@ -957,7 +957,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             match infer_value_type(unit, callable, &unit.typed_bindings) {
                 Ok(Some(
                     ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
-                )) => effects.escaping,
+                )) => effects.possible_throwables(),
                 _ => BTreeSet::new(),
             }
         }
@@ -1051,7 +1051,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                 _ => None,
             }
         {
-            let mut errors = effects.escaping;
+            let mut errors = effects.possible_throwables();
             errors.extend(local_errors);
             errors.extend(
                 node.children

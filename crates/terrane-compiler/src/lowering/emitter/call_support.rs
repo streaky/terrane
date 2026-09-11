@@ -379,7 +379,7 @@ impl Emitter<'_> {
             let source = self.expression_as(receiver, source_type);
             let callback_throws = matches!(
                 &callback_type,
-                ValueType::Function(_, _, effects) if !effects.escaping.is_empty()
+                ValueType::Function(_, _, effects) if effects.requires_throwing_abi()
             );
             let callback_expression = self.expression_as(callback, callback_type);
             let invocation = format!("({callback_expression})({source})");
@@ -634,5 +634,17 @@ impl Emitter<'_> {
             .iter()
             .flat_map(|unit| &unit.functions)
             .find(|contract| contract.span == span)
+    }
+
+    pub(super) fn contract_requires_throwing_abi(
+        &self,
+        contract: &FunctionContract,
+        value_requires_throwing_abi: bool,
+    ) -> bool {
+        contract.throws
+            || (value_requires_throwing_abi
+                && self.package.units.iter().any(|unit| {
+                    unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
+                }))
     }
 }

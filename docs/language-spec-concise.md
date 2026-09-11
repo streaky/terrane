@@ -704,9 +704,10 @@ coercion-error               coercion has no compatible result outside the overf
   `function from A to function from B to R throws Inner throws Outer`, `Inner` constrains the result
   callable and `Outer` constrains the outer callable. `async function` uses the same postfix rule.
 - Exact named-function, closure, bound-method, and inferred-binding metadata survives callable
-  conversion. An explicitly typed binding retains its written contract as its storage ABI. A proven
-  empty set uses an infallible callable ABI and adds neither result propagation nor an error site;
-  widening into a broader written destination inserts the result-bearing adapter there.
+  conversion. An explicitly typed binding retains both that exact initializer summary for reflection
+  and its written contract as the storage ABI and invocation bound. ABI selection follows the written
+  bound independently, so widening a proven-empty implementation does not falsify its exact escaping
+  set even though storage becomes result-bearing.
 - Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml

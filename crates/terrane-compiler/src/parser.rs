@@ -538,6 +538,16 @@ impl Parser<'_> {
                     parts,
                 ));
             }
+            if self.eat_text("throws") {
+                self.error_at(
+                    self.position - 1,
+                    "S1039",
+                    "function declaration accepts only one `throws` upper bound",
+                );
+                if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
+                    self.parse_type_expression();
+                }
+            }
         }
         self.expect(
             TokenKind::Semicolon,

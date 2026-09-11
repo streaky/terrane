@@ -401,7 +401,7 @@ mod __terrane_trace {
         "/callable-throwable-contracts::invoke-async",
         "/callable-throwable-contracts::main",
     ];
-    pub static SITES: [Site; 21] = [
+    pub static SITES: [Site; 22] = [
         /* terrane-site-row: site 0: /callable-throwable-contracts::render (case.trn:16:7-16:27) */
         { Site { function: 0, file: 0, line: 16, column: 7, end_line: 16, end_column: 27 } },
         /* terrane-site-row: site 1: /callable-throwable-contracts::invoke (case.trn:20:12-20:28) */
@@ -440,9 +440,11 @@ mod __terrane_trace {
         { Site { function: 7, file: 0, line: 111, column: 11, end_line: 111, end_column: 39 } },
         /* terrane-site-row: site 18: /callable-throwable-contracts::main (case.trn:112:11-112:35) */
         { Site { function: 7, file: 0, line: 112, column: 11, end_line: 112, end_column: 35 } },
-        /* terrane-site-row: site 19: /callable-throwable-contracts::main (case.trn:116:11-116:30) */
+        /* terrane-site-row: site 19: /callable-throwable-contracts::main (case.trn:114:16-114:39) */
+        { Site { function: 7, file: 0, line: 114, column: 16, end_line: 114, end_column: 39 } },
+        /* terrane-site-row: site 20: /callable-throwable-contracts::main (case.trn:116:11-116:30) */
         { Site { function: 7, file: 0, line: 116, column: 11, end_line: 116, end_column: 30 } },
-        /* terrane-site-row: site 20: /callable-throwable-contracts::main (case.trn:121:13-121:31) */
+        /* terrane-site-row: site 21: /callable-throwable-contracts::main (case.trn:121:13-121:31) */
         { Site { function: 7, file: 0, line: 121, column: 13, end_line: 121, end_column: 31 } },
     ];
     #[cold]
@@ -798,11 +800,13 @@ fn main() {
         let async_safe_operation: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
-            ) -> std::pin::Pin<Box<dyn Future<Output = String> + Send>> + Send + Sync,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
+                > + Send + Sync,
         > = std::sync::Arc::new(move |
             argument_0: terrane_int_support::Int,
         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-            Box::pin(async_safe_render(argument_0))
+            Box::pin(async move { Ok(async_safe_render(argument_0).await) })
         });
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let _ = bound; "coercion-error"
@@ -825,7 +829,7 @@ fn main() {
             .to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad; "throwable"
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad; "coercion-error"
             .to_owned() })
         );
         println!(
@@ -842,7 +846,7 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let _ = async_operation;
-            "throwable".to_owned() })
+            "coercion-error".to_owned() })
         );
         let custom: std::sync::Arc<
             dyn Fn(
@@ -952,13 +956,13 @@ fn main() {
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_await(async_safe_operation(terrane_int_support::Int::from(1_i128)))
-            . await)
+            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(async_safe_operation(terrane_int_support::Int::from(1_i128)))
+            . await, 19 /* terrane-site: case.trn:114:16-114:39 */))
         );
         let holder: OperationHolder = OperationHolder::terrane_construct();
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced((holder
-            .operation) (terrane_int_support::Int::from(1_i128)), 19 /* terrane-site: case.trn:116:11-116:30 */))
+            .operation) (terrane_int_support::Int::from(1_i128)), 20 /* terrane-site: case.trn:116:11-116:30 */))
         );
         let mut callable: CallableHolder = CallableHolder::terrane_construct();
         callable.render = std::sync::Arc::new(loud_render);
@@ -972,7 +976,7 @@ fn main() {
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_traced_completion!(invoke(custom
                     .clone(), terrane_int_support::Int::from(- 1_i128)),
-                    20 /* terrane-site: case.trn:121:13-121:31 */))
+                    21 /* terrane-site: case.trn:121:13-121:31 */))
                 );
                 TerraneCompletion::Normal
             })();

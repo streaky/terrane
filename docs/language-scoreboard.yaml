@@ -703,7 +703,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/functions/callable-types.yaml
-  notes: Postfix bounds associate with the nearest sync or async function type. Exact inferred sets survive named functions, closures, bound methods, and inferred aliases; explicitly typed bindings and fields retain their written storage contract. Compatibility admits infallible and narrower implementations across bindings, arguments, returns, and class fields, and exact infallible invocation has no Result propagation or error site.
+  notes: Postfix bounds associate with the nearest sync or async function type. Exact inferred sets survive named functions, closures, bound methods, and inferred aliases; explicitly typed bindings and fields retain both exact initializer metadata and their written storage ABI and invocation bound. Compatibility covers bindings, arguments, returns, class-field initialization, and later assignment; ABI selection follows the bound without falsifying exact reflection.
   sources:
   - docs/language-spec-concise.md#ERROR / CALLABLE
   - docs/language-spec-and-compiler-architecture-draft.md#Inference, optional contracts, and lowering

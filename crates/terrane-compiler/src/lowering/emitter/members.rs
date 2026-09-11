@@ -455,7 +455,7 @@ impl Emitter<'_> {
                     .as_deref()
                     .map(ToString::to_string)
                     .unwrap_or_default(),
-                _ if !effects.escaping.is_empty() => "throws".to_owned(),
+                _ if effects.requires_throwing_abi() => "throws".to_owned(),
                 _ => String::new(),
             };
             return format!(

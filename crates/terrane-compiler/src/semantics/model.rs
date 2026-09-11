@@ -296,6 +296,17 @@ impl CallableEffects {
             escaping: BTreeSet::new(),
         }
     }
+    pub(crate) fn requires_throwing_abi(&self) -> bool {
+        self.upper_bound.is_some() || !self.escaping.is_empty()
+    }
+
+    pub(crate) fn possible_throwables(&self) -> BTreeSet<String> {
+        match self.upper_bound.as_deref() {
+            Some(ValueType::Object(identity)) => BTreeSet::from([identity.qualified()]),
+            Some(_) => unreachable!("callable throwable upper bound must be an object"),
+            None => self.escaping.clone(),
+        }
+    }
 
     pub(crate) fn from_contract(contract: &FunctionContract) -> Self {
         let upper_bound = match contract.thrown_types.as_slice() {

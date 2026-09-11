@@ -200,15 +200,20 @@ impl Emitter<'_> {
             return match self.text(member) {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
+                    let callable_type = self.value_type(callable);
                     let throws = self
                         .contract_for_call(callable)
-                        .is_some_and(|contract| contract.throws);
+                        .is_some_and(|contract| contract.throws)
+                        || matches!(
+                            callable_type,
+                            Some(ValueType::AsyncFunction(_, _, _, ref effects))
+                                if effects.requires_throwing_abi()
+                        );
                     let foreign_error = callable.kind == SyntaxKind::Name
                         && self
                             .package
                             .resolve_name_at(self.unit, callable.span.start, self.text(callable))
                             .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
-                    let callable_type = self.value_type(callable);
                     let callable = if let Some(value_type) = callable_type.clone() {
                         self.expression_as(callable, value_type)
                     } else {
@@ -1508,7 +1513,7 @@ impl Emitter<'_> {
         let function_value_call = contract.is_none()
             && matches!(
                 self.value_type(callee),
-                Some(ValueType::Function(_, _, effects)) if !effects.escaping.is_empty()
+                Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
             )
             && (callee.kind == SyntaxKind::Name
                 || matches!(

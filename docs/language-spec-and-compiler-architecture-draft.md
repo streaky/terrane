@@ -3101,12 +3101,13 @@ not part of the grammar; use a named intermediate callable type or binding when 
 form would be unclear. Omitting `throws` declares an infallible callable type.
 
 Named functions, closures, and stored bound methods preserve exact metadata. An inferred callable
-binding retains that exact contract; a binding with a written callable type instead retains the
-written contract as its storage ABI. A destination may widen an implementation to a compatible
-upper bound, but it may not narrow or replace the inferred set. The same compatibility check applies
-to bindings, arguments, returned callables, and class fields. A callable proven infallible uses an
-infallible generated ABI; conversion to a broader result-bearing callable introduces an adapter at
-that destination.
+binding retains that exact contract; a binding with a written callable type retains both the exact
+initializer summary and the written contract as its storage ABI and invocation bound. A destination
+may widen an implementation to a compatible upper bound, but it may not narrow or replace the
+inferred set. The same compatibility check applies to bindings, arguments, returned callables,
+class-field initializers, and later field assignments. ABI selection follows the written contract,
+so widening an exact infallible implementation uses result-bearing storage without changing its
+empty reflected escaping set.
 Consequently invocation through the exact value needs neither error propagation nor a semantic
 error-site record.
 

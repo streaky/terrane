@@ -205,7 +205,7 @@ This section contains only work that remains required by the settled version-one
 
 
 
-### Milestone 27.1 — Terrane-native testing framework
+### Milestone 30 — Terrane-native testing framework
 
 Terrane programs need a first-party way to test Terrane behavior without translating their
 contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
@@ -563,26 +563,27 @@ This appendix keeps delivered milestone contracts and evidence out of the active
 Function types now accept postfix `throws T`, with the clause binding to the callable introduced by
 the nearest `function` or `async function`; nested result callables consume their own clause before
 an outer callable clause. The written upper bound and exact inferred escaping set remain distinct
-metadata on source declarations and exact callable values. Omitting `throws` declares an infallible
+metadata on source declarations and callable values. Omitting `throws` declares an infallible
 callable type. Named functions, closures, bound methods, and inferred callable bindings retain the
-exact set the compiler proves; an explicitly typed binding retains its written storage contract.
+exact set the compiler proves; an explicitly typed binding also retains its written storage ABI.
 
 Callable compatibility is covariant in failure: infallible and narrower implementations satisfy a
-broader destination, while broader or unrelated throwables fail at binding, argument, return, and
-class-field initializer boundaries. Invocation through an exact callable contributes its inferred
-set, while invocation through explicitly typed storage contributes its written bound. Exact
-infallible callable values lower to a non-`Result` callable ABI with no propagation operator or
-registered error site; adapters add the broader result-bearing ABI when a compatible written
-destination requires it. Synchronous and asynchronous callables use the same rule.
+broader destination, while broader or unrelated throwables fail at binding, argument, return,
+class-field initializer, and member-assignment boundaries. Invocation through an exact callable
+contributes its inferred set, while invocation through explicitly typed storage contributes its
+written bound. ABI selection independently follows that written bound, so widening an exact
+infallible implementation still receives a result-bearing representation without falsifying its
+empty reflected escaping set. Synchronous and asynchronous callables use the same rule.
 
 Evidence: `callable-throwable-contracts` runs exact and written-bound storage, infallible, nested,
 closure, bound-method, class-method, class-field invocation and reassignment, custom throwable, and
 successful and failing async paths with canonical generated Rust and reflection output.
 `callable-throwable-broad-to-narrow`, `callable-throwable-argument-broad-to-narrow`,
-`callable-throwable-return-broad-to-narrow`, `callable-throwable-field-broad-to-narrow`, and
-`callable-throwable-to-unbounded` preserve source-oriented compatibility diagnostics.
-`callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
-`callable-throws-repeated-bound` cover malformed contracts.
+`callable-throwable-return-broad-to-narrow`, `callable-throwable-field-broad-to-narrow`,
+`callable-throwable-field-assignment`, and `callable-throwable-to-unbounded` preserve source-oriented
+compatibility diagnostics. `callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
+`callable-throws-repeated-bound` cover malformed contracts, including a dedicated repeated-bound
+diagnostic.
 
 ### Milestone 17 — Complete references, provenance, and lowering
 
@@ -798,7 +799,7 @@ S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
 S1035 malformed object clause             S1036 multiple object bases
 S1037 assignment in condition             S1038 missing function parameter marker
-S1039 missing throwable upper bound       S1040 unclosed function parameter list
+S1039 missing or repeated throwable bound  S1040 unclosed function parameter list
 S1041 missing object clause name          S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
@@ -824,10 +825,10 @@ T0067 incompatible interface signature    T0068 escaping non-owning reference
 T0070 reflection unavailable in profile     T0074 invalid task-core operation
 T0071 unavailable reflected member          T0075 child deadline extension
 T0072 read-only member assignment            T0076 unconsumed task
-T0073 value live across suspension           T0078 parameterized program entrypoint
-```
+T0073 value live across suspension           T0077 incompatible member assignment
+T0078 parameterized program entrypoint
 
-`T0056`, `T0057`, `T0060`, `T0069`, and `T0077` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, and `T0069` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
