@@ -356,7 +356,19 @@ pub(super) fn declared_value_type_with_visible_objects(
                 declared_value_type_with_visible_objects(unit, bound, aliases, visible_objects)
             })
             .transpose()?;
+        let source = node_text(&unit.source, function);
+        let written = if source.starts_with("consuming ") {
+            InvocationMode::Consuming
+        } else if source.starts_with("mutable ") {
+            InvocationMode::Mutable
+        } else {
+            InvocationMode::Shared
+        };
         let mut effects = CallableEffects {
+            modes: CallableModes {
+                written,
+                exact: written,
+            },
             upper_bound: upper_bound.clone().map(Box::new),
             escaping: BTreeSet::new(),
         };
@@ -375,7 +387,11 @@ pub(super) fn declared_value_type_with_visible_objects(
             };
             effects.escaping.insert(identity.qualified());
         }
-        return Ok(if node_text(&unit.source, function).starts_with("async") {
+        return Ok(if source
+            .split_whitespace()
+            .take_while(|part| *part != "function")
+            .any(|part| part == "async")
+        {
             ValueType::AsyncFunction(
                 parameters,
                 result,
@@ -851,11 +867,15 @@ pub(super) fn diagnostic_value_type(
         ValueType::UnorderedSet(item) => format!("unordered-set of {}", nested(item)),
         ValueType::Function(parameters, result, effects)
         | ValueType::AsyncFunction(parameters, result, _, effects) => {
-            let prefix = if matches!(value_type, ValueType::AsyncFunction(..)) {
-                "async function"
+            let asynchronous = if matches!(value_type, ValueType::AsyncFunction(..)) {
+                "async "
             } else {
-                "function"
+                ""
             };
+            let prefix = format!(
+                "{}{asynchronous}function",
+                effects.modes.written.source_prefix()
+            );
             let parameters = parameters.iter().map(nested).collect::<Vec<_>>().join(", ");
             let from = if parameters.is_empty() {
                 String::new()
@@ -886,6 +906,7 @@ fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -
             ValueType::Function(_, _, actual_effects),
         ) => {
             effects.escaping.clone_from(&actual_effects.escaping);
+            effects.modes.exact = actual_effects.modes.exact;
             ValueType::Function(parameters, result, effects)
         }
         (
@@ -893,6 +914,7 @@ fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -
             ValueType::AsyncFunction(_, _, _, actual_effects),
         ) => {
             effects.escaping.clone_from(&actual_effects.escaping);
+            effects.modes.exact = actual_effects.modes.exact;
             ValueType::AsyncFunction(parameters, result, transferability, effects)
         }
         (expected, _) => expected,
@@ -989,7 +1011,11 @@ fn callable_types_compatible(
     actual_result: &ElementType,
     actual_effects: &CallableEffects,
 ) -> bool {
-    expected_parameters == actual_parameters
+    expected_effects
+        .modes
+        .written
+        .accepts(actual_effects.modes.written)
+        && expected_parameters == actual_parameters
         && expected_result == actual_result
         && callable_effects_compatible(objects, expected_effects, actual_effects)
 }

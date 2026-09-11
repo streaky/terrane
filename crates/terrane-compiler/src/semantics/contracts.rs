@@ -434,6 +434,28 @@ pub(super) fn analyze_function_contract(
     let is_static = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "static"
     });
+    let written_invocation_mode = if name_node
+        .is_some_and(|name| node_text(&unit.source, name) == "destruct")
+    {
+        InvocationMode::Consuming
+    } else if node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier
+            && node_text(&unit.source, child) == "consuming"
+    }) {
+        InvocationMode::Consuming
+    } else if node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "mutable"
+    }) {
+        InvocationMode::Mutable
+    } else {
+        InvocationMode::Shared
+    };
+    let mutates_receiver = mutates_object_receiver(unit, node);
+    let exact_invocation_mode = if mutates_receiver {
+        InvocationMode::Mutable
+    } else {
+        InvocationMode::Shared
+    };
     let throws = !thrown_types.is_empty();
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
@@ -470,7 +492,9 @@ pub(super) fn analyze_function_contract(
             crate::execution::ExecutionRequirements::default()
         },
         is_static,
-        mutates_receiver: mutates_object_receiver(unit, node),
+        written_invocation_mode,
+        exact_invocation_mode,
+        mutates_receiver,
         consumes_receiver: false,
         exported,
     })

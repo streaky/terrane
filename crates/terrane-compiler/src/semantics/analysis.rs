@@ -230,12 +230,15 @@ pub(super) fn apply_projected_method_contracts(
                 continue;
             };
             contract.throws = true;
-            contract.mutates_receiver = matches!(
-                method.receiver,
-                Some(crate::projection::Receiver::MutableBorrow)
-            );
-            contract.consumes_receiver =
-                matches!(method.receiver, Some(crate::projection::Receiver::Move));
+            let invocation_mode = match method.receiver {
+                Some(crate::projection::Receiver::Move) => InvocationMode::Consuming,
+                Some(crate::projection::Receiver::MutableBorrow) => InvocationMode::Mutable,
+                _ => InvocationMode::Shared,
+            };
+            contract.written_invocation_mode = invocation_mode;
+            contract.exact_invocation_mode = invocation_mode;
+            contract.mutates_receiver = invocation_mode == InvocationMode::Mutable;
+            contract.consumes_receiver = invocation_mode == InvocationMode::Consuming;
         }
     }
 }

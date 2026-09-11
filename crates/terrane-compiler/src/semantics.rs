@@ -73,11 +73,11 @@ pub(crate) use descriptors::{
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
-    ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, DescriptorContract,
-    ElementType, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily, Namespace,
-    ObjectField, ObjectFieldMetadata, ObjectIdentity, ObjectKind, ParameterContract,
-    SemanticFailure, SemanticPackage, SemanticUnit, Symbol, SymbolKind, TaskTransferability,
-    TextUnit, TypedBinding, ValueType, Visibility,
+    ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
+    DescriptorContract, ElementType, EvaluationKind, EvaluationStep, FunctionContract,
+    InvocationMode, MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity,
+    ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
+    SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,

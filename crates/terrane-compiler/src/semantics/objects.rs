@@ -785,6 +785,8 @@ pub(super) fn validate_object_conformance(
                         execution_requirements: crate::execution::ExecutionRequirements::default(),
                         throws: false,
                         is_async: false,
+                        written_invocation_mode: InvocationMode::Shared,
+                        exact_invocation_mode: InvocationMode::Shared,
                         mutates_receiver: false,
                         consumes_receiver: false,
                     };
@@ -1070,6 +1072,8 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
                 method.name.clone(),
             )) {
                 method.mutates_receiver = true;
+                method.written_invocation_mode = InvocationMode::Mutable;
+                method.exact_invocation_mode = InvocationMode::Mutable;
             }
         }
     }
@@ -1289,6 +1293,8 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     contract.span.end,
                 )) {
                     contract.consumes_receiver = true;
+                    contract.written_invocation_mode = InvocationMode::Consuming;
+                    contract.exact_invocation_mode = InvocationMode::Consuming;
                 }
             }
         }
@@ -1346,6 +1352,8 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     })
             }) {
                 method.consumes_receiver = true;
+                method.written_invocation_mode = InvocationMode::Consuming;
+                method.exact_invocation_mode = InvocationMode::Consuming;
             }
         }
     }

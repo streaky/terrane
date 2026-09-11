@@ -431,7 +431,11 @@ impl Emitter<'_> {
             Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
         ) && matches!(
             self.text(member),
-            "contracts" | "throwable-contract" | "escaping-throwables"
+            "contracts"
+                | "throwable-contract"
+                | "escaping-throwables"
+                | "invocation-mode"
+                | "exact-invocation-mode"
         ) {
             let Some(
                 ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
@@ -455,6 +459,8 @@ impl Emitter<'_> {
                     .as_deref()
                     .map(ToString::to_string)
                     .unwrap_or_default(),
+                "invocation-mode" => effects.modes.written.reflection_name().to_owned(),
+                "exact-invocation-mode" => effects.modes.exact.reflection_name().to_owned(),
                 _ if effects.requires_throwing_abi() => "throws".to_owned(),
                 _ => String::new(),
             };
