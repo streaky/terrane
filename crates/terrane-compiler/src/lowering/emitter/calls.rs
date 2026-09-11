@@ -1221,7 +1221,14 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
-                let expression = if let Some(ty) = parameter.value_type.clone() {
+                let projected_parameter = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index));
+                let expression = if projected_parameter
+                    .is_some_and(|parameter| parameter.generic_parameter.is_some())
+                {
+                    self.expression(value)
+                } else if let Some(ty) = parameter.value_type.clone() {
                     self.expression_as(value, ty)
                 } else {
                     self.expression(value)
@@ -1229,9 +1236,10 @@ impl Emitter<'_> {
                 let expression = if let Some(projected) = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
-                    .filter(|_| {
-                        projected_chain_role.is_some()
-                            || callee.kind == SyntaxKind::MemberExpression
+                    .filter(|parameter| {
+                        parameter.generic_parameter.is_none()
+                            && (projected_chain_role.is_some()
+                                || callee.kind == SyntaxKind::MemberExpression)
                     }) {
                     projected_chain_argument_expression(&expression, &projected.ty)
                 } else {

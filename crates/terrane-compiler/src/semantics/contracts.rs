@@ -461,6 +461,7 @@ pub(super) fn analyze_function_contract(
         owner,
         owner_identity,
         is_anonymous: name_node.is_none(),
+        projected_provided: false,
         parameters,
         captures: Vec::new(),
         return_type,

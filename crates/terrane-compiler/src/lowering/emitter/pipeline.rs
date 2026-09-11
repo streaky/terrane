@@ -450,7 +450,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         .iter()
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
-                let rust = emit_dependency_unit(package, unit);
+                let mut emitter = Emitter::new(&registry, package, unit);
+                for node in &unit.tree.root.children {
+                    if node.kind == SyntaxKind::InterfaceDeclaration {
+                        emitter.object(node);
+                    }
+                }
+                let mut rust = emitter.output;
+                rust.push_str(&emit_dependency_unit(package, unit));
                 return Ok(Module {
                     source_path: unit.source_path.clone(),
                     namespace: unit.namespace.clone(),

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "26";
+const PROJECTION_SCHEMA: &str = "29";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -223,10 +223,25 @@ pub enum ProjectedKind {
         #[serde(default)]
         static_methods: Vec<ProjectedFunction>,
     },
+    Interface(ProjectedInterface),
     Enum {
         data_carrying: bool,
         comparable: bool,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedInterface {
+    pub methods: Vec<ProjectedInterfaceMethod>,
+    pub send: bool,
+    pub sync: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedInterfaceMethod {
+    pub function: ProjectedFunction,
+    pub provided: bool,
+    pub docs: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -280,6 +295,8 @@ pub struct ProjectedParameter {
     pub ty: ProjectedType,
     pub borrowed: bool,
     pub mutable_borrow: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generic_parameter: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -614,7 +631,9 @@ impl Projection {
             .filter(|item| {
                 matches!(
                     item.kind,
-                    ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+                    ProjectedKind::ForeignType { .. }
+                        | ProjectedKind::Interface(_)
+                        | ProjectedKind::Enum { .. }
                 )
             })
             .map(|item| item.rust_path.as_str())
@@ -641,8 +660,40 @@ impl Projection {
                     let candidates = if is_static { static_methods } else { methods };
                     candidates.iter().find(|method| method.name == method_name)
                 }
+                ProjectedKind::Interface(interface) if !is_static => interface
+                    .methods
+                    .iter()
+                    .find(|method| method.function.name == method_name)
+                    .map(|method| &method.function),
                 _ => None,
             })
+    }
+    #[must_use]
+    pub(crate) fn interface_method(
+        &self,
+        namespace: &str,
+        type_name: &str,
+        method_name: &str,
+    ) -> Option<&ProjectedInterfaceMethod> {
+        let item = self.item(namespace, type_name).or_else(|| {
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .find(|item| {
+                    item.namespace == namespace
+                        && matches!(&item.kind, ProjectedKind::Interface(interface) if interface
+                            .methods
+                            .iter()
+                            .any(|method| method.function.name == method_name))
+                })
+        })?;
+        let ProjectedKind::Interface(interface) = &item.kind else {
+            return None;
+        };
+        interface
+            .methods
+            .iter()
+            .find(|method| method.function.name == method_name)
     }
 
     #[must_use]
@@ -802,6 +853,12 @@ fn collect_source_foreign(
                     collect_foreign_function(method, &mut foreign);
                 }
             }
+            ProjectedKind::Interface(interface) => {
+                foreign.insert(item.rust_path.clone(), item.name.clone());
+                for method in &interface.methods {
+                    collect_foreign_function(&method.function, &mut foreign);
+                }
+            }
             ProjectedKind::Enum { .. } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
             }
@@ -906,21 +963,76 @@ fn render_foreign_declaration(
         output.push('\n');
         return;
     }
-    writeln!(output, "class {name}").expect("writing to a string cannot fail");
-    if let Some(ProjectedItem {
-        kind:
-            ProjectedKind::ForeignType {
+    match projected_item.map(|item| &item.kind) {
+        Some(ProjectedKind::Interface(interface)) => {
+            writeln!(output, "interface {name}").expect("writing to a string cannot fail");
+            for method in &interface.methods {
+                render_interface_method(output, method, aliases);
+            }
+        }
+        projected_kind => {
+            writeln!(output, "class {name}").expect("writing to a string cannot fail");
+            if let Some(ProjectedKind::ForeignType {
                 methods,
                 static_methods,
-            },
-        ..
-    }) = projected_item
-    {
-        for method in methods {
-            render_function(output, method, false, 4, aliases, None);
+            }) = projected_kind
+            {
+                for method in methods {
+                    render_function(output, method, false, 4, aliases, None);
+                }
+                for method in static_methods {
+                    render_function(output, method, false, 4, aliases, Some(name));
+                }
+            }
         }
-        for method in static_methods {
-            render_function(output, method, false, 4, aliases, Some(name));
+    }
+    output.push('\n');
+}
+
+fn render_interface_method(
+    output: &mut String,
+    method: &ProjectedInterfaceMethod,
+    foreign_aliases: &BTreeMap<String, String>,
+) {
+    if let Some(docs) = &method.docs {
+        for line in docs.lines() {
+            writeln!(output, "  ## {}", line.trim()).expect("writing to a string cannot fail");
+        }
+    }
+    let function = &method.function;
+    let mode = match function.receiver {
+        Some(Receiver::MutableBorrow) => "mutable ",
+        Some(Receiver::Move) => "consuming ",
+        _ => "",
+    };
+    let asynchronous = if function.is_async { "async " } else { "" };
+    write!(output, "  {mode}{asynchronous}function {}", function.name)
+        .expect("writing to a string cannot fail");
+    if function.result != ProjectedType::None {
+        write!(
+            output,
+            " {}",
+            projected_type_name(&function.result, foreign_aliases)
+        )
+        .expect("writing to a string cannot fail");
+    }
+    if function.error.is_some() {
+        output.push_str(" throws dependency-error");
+    }
+    output.push(';');
+    if !function.parameters.is_empty() {
+        output.push(' ');
+        for (index, parameter) in function.parameters.iter().enumerate() {
+            if index > 0 {
+                output.push_str(", ");
+            }
+            write!(
+                output,
+                "{} {}",
+                parameter.name,
+                projected_type_name(&parameter.ty, foreign_aliases)
+            )
+            .expect("writing to a string cannot fail");
         }
     }
     output.push('\n');
@@ -1966,6 +2078,11 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
                 methods,
                 static_methods,
             } => methods.iter_mut().chain(static_methods).collect(),
+            ProjectedKind::Interface(interface) => interface
+                .methods
+                .iter_mut()
+                .map(|method| &mut method.function)
+                .collect(),
             ProjectedKind::Enum { .. } => Vec::new(),
         };
         for function in functions {
@@ -2163,6 +2280,17 @@ fn decline_unnameable_bound_owners(
                         *method_list = kept;
                     }
                 }
+                ProjectedKind::Interface(interface) => {
+                    if let Some((method, reason)) = interface.methods.iter().find_map(|method| {
+                        reason(&method.function).map(|reason| (&method.function, reason))
+                    }) {
+                        dependency.declined.push(DeclinedItem {
+                            rust_path: format!("{}::{}", item.rust_path, method.name),
+                            reason,
+                        });
+                        continue;
+                    }
+                }
                 ProjectedKind::Enum { .. } => {}
             }
             retained.push(item);
@@ -2193,6 +2321,11 @@ fn projected_bound_dependencies(
                 methods,
                 static_methods,
             } => methods.iter().chain(static_methods).collect(),
+            ProjectedKind::Interface(interface) => interface
+                .methods
+                .iter()
+                .map(|method| &method.function)
+                .collect(),
             ProjectedKind::Enum { .. } => Vec::new(),
         })
         .filter_map(|function| function.destination_result.as_ref())
@@ -2318,6 +2451,10 @@ fn item_undeclared_owner<'a>(
         .filter(|owner| !owner_is_reachable(owner, declared))
         .or_else(|| match &item.kind {
             ProjectedKind::Function(function) => function_undeclared_owner(function, declared),
+            ProjectedKind::Interface(interface) => interface
+                .methods
+                .iter()
+                .find_map(|method| function_undeclared_owner(&method.function, declared)),
             ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => None,
         })
 }
@@ -2379,6 +2516,11 @@ fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
             methods,
             static_methods,
         } => methods.iter().chain(static_methods).collect(),
+        ProjectedKind::Interface(interface) => interface
+            .methods
+            .iter()
+            .map(|method| &method.function)
+            .collect(),
         ProjectedKind::Enum { .. } => Vec::new(),
     };
     for function in functions {
@@ -2597,6 +2739,67 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
     }
 }
 
+fn project_interface(
+    declaration: &rustdoc_types::Trait,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<ProjectedInterface, String> {
+    if declaration.is_unsafe {
+        return Err("unsafe trait".to_owned());
+    }
+    if !declaration.generics.params.is_empty() {
+        return Err("trait has generic or lifetime parameters".to_owned());
+    }
+    let mut send = false;
+    let mut sync = false;
+    for bound in &declaration.bounds {
+        let GenericBound::TraitBound { trait_, .. } = bound else {
+            return Err("trait has an unsupported lifetime supertrait".to_owned());
+        };
+        match paths
+            .get(&trait_.id)
+            .map(|summary| summary.path.join("::"))
+            .as_deref()
+        {
+            Some("core::marker::Send" | "std::marker::Send") => send = true,
+            Some("core::marker::Sync" | "std::marker::Sync") => sync = true,
+            Some(path) => return Err(format!("non-marker supertrait `{path}` is deferred")),
+            None => return Err("trait has an unresolved supertrait".to_owned()),
+        }
+    }
+    let mut methods = Vec::new();
+    for id in &declaration.items {
+        let Some(item) = index.get(id) else {
+            return Err("trait member is missing from rustdoc".to_owned());
+        };
+        let name = item
+            .name
+            .as_deref()
+            .ok_or_else(|| "trait has an unnamed member".to_owned())?;
+        let ItemEnum::Function(function) = &item.inner else {
+            return Err(format!("trait member `{name}` is not a receiver method"));
+        };
+        let projected = project_function(function, index, paths, Some(name))
+            .map_err(|reason| format!("trait member `{name}`: {reason}"))?;
+        if projected.receiver.is_none() {
+            return Err(format!("trait member `{name}` is an associated function"));
+        }
+        methods.push(ProjectedInterfaceMethod {
+            function: projected,
+            provided: function.has_body,
+            docs: item.docs.clone(),
+        });
+    }
+    if methods.is_empty() {
+        return Err("trait has no projectable receiver methods".to_owned());
+    }
+    Ok(ProjectedInterface {
+        methods,
+        send,
+        sync,
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one rustdoc item pass records admitted and declined public items together"
@@ -2796,7 +2999,9 @@ fn project_rustdoc(
                     })
                 }
             }
-            ItemEnum::Trait(_) => continue,
+            ItemEnum::Trait(declaration) => {
+                project_interface(declaration, index, paths).map(ProjectedKind::Interface)
+            }
             _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
@@ -2933,6 +3138,11 @@ fn project_rustdoc(
             } => {
                 for method in methods.iter_mut().chain(static_methods) {
                     normalize(method);
+                }
+            }
+            ProjectedKind::Interface(interface) => {
+                for method in &mut interface.methods {
+                    normalize(&mut method.function);
                 }
             }
             ProjectedKind::Enum { .. } => {}
@@ -3106,6 +3316,7 @@ fn project_methods(
                                         .to_owned(),
                                     arguments: Vec::new(),
                                 },
+                                generic_parameter: None,
                                 borrowed: receiver != Receiver::Move,
                                 mutable_borrow: receiver == Receiver::MutableBorrow,
                             },
@@ -3297,6 +3508,11 @@ fn project_function_inner(
             ty: projected_type,
             borrowed,
             mutable_borrow,
+            generic_parameter: generic_types.iter().find_map(|(name, projected)| {
+                (matches!(projected, ProjectedType::Foreign { .. })
+                    && type_mentions_generic(ty, name))
+                .then(|| name.clone())
+            }),
         });
     }
     let mut error = None;
@@ -3789,6 +4005,42 @@ fn generic_monomorphisations(
                     .collect(),
                 rust_bounds,
             });
+            continue;
+        }
+        let caller_chosen_input = function
+            .sig
+            .inputs
+            .iter()
+            .any(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            && !function
+                .sig
+                .output
+                .as_ref()
+                .is_some_and(|output| type_mentions_generic(output, &parameter.name));
+        if caller_chosen_input
+            && bounds.len() == 1
+            && let GenericBound::TraitBound { trait_, .. } = &bounds[0]
+            && let Some(Item {
+                inner: ItemEnum::Trait(declaration),
+                ..
+            }) = index.get(&trait_.id)
+            && project_interface(declaration, index, paths).is_ok()
+        {
+            let rust_path = render_resolved_path(trait_, index, paths, &result)?;
+            result.insert(
+                parameter.name.clone(),
+                ProjectedType::Foreign {
+                    name: trait_
+                        .path
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(&trait_.path)
+                        .to_owned(),
+                    base_rust_path: rust_path.clone(),
+                    rust_path,
+                    arguments: Vec::new(),
+                },
+            );
             continue;
         }
         let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {

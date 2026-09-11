@@ -779,6 +779,7 @@ pub(super) fn validate_object_conformance(
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
                         is_anonymous: false,
+                        projected_provided: false,
                         captures: Vec::new(),
                         parameters: Vec::new(),
                         is_static: false,
@@ -829,6 +830,18 @@ pub(super) fn validate_object_conformance(
                 {
                     let Some(actual) = effective_method(declaration_unit, object, &required.name)
                     else {
+                        if required.projected_provided
+                            || package
+                                .projection
+                                .interface_method(
+                                    &interface.identity.namespace,
+                                    &interface.identity.name,
+                                    &required.name,
+                                )
+                                .is_some_and(|method| method.provided)
+                        {
+                            continue;
+                        }
                         return Err(failure(
                             &declaration_unit.source,
                             "T0062",

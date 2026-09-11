@@ -215,7 +215,6 @@ pub(super) fn apply_projected_method_contracts(
             let Some(owner) = contract.owner.as_deref() else {
                 continue;
             };
-            contract.throws = true;
             let type_name = unit
                 .descriptors
                 .iter()
@@ -229,7 +228,7 @@ pub(super) fn apply_projected_method_contracts(
             ) else {
                 continue;
             };
-            contract.throws = true;
+            contract.throws = method.error.is_some();
             let invocation_mode = match method.receiver {
                 Some(crate::projection::Receiver::Move) => InvocationMode::Consuming,
                 Some(crate::projection::Receiver::MutableBorrow) => InvocationMode::Mutable,
@@ -237,6 +236,9 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.written_invocation_mode = invocation_mode;
             contract.exact_invocation_mode = invocation_mode;
+            contract.projected_provided = projection
+                .interface_method(&unit.namespace, type_name, &contract.name)
+                .is_some_and(|method| method.provided);
         }
     }
 }

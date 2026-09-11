@@ -369,6 +369,59 @@ pub(crate) enum ClosureWrites {
     Exclude,
 }
 
+fn projected_call_mutates_binding(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    target_span: Span,
+) -> bool {
+    let [callee, arguments] = call.children.as_slice() else {
+        return false;
+    };
+    if callee.kind != SyntaxKind::Name {
+        return false;
+    }
+    let Some(symbol) =
+        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+    else {
+        return false;
+    };
+    let Some(callee_span) = symbol.declaration_span else {
+        return false;
+    };
+    let Some((owner, contract)) = package.units.iter().find_map(|owner| {
+        owner
+            .functions
+            .iter()
+            .find(|contract| contract.span == callee_span)
+            .map(|contract| (owner, contract))
+    }) else {
+        return false;
+    };
+    let Some(item) = package.projection.item(&owner.namespace, &contract.name) else {
+        return false;
+    };
+    let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
+        return false;
+    };
+    arguments
+        .children
+        .iter()
+        .zip(&projected.parameters)
+        .any(|(argument, parameter)| {
+            parameter.generic_parameter.is_some()
+                && parameter.mutable_borrow
+                && argument.children.last().unwrap_or(argument).kind == SyntaxKind::Name
+                && package
+                    .resolve_name_at(
+                        unit,
+                        argument.span.start,
+                        node_text(&unit.source, argument.children.last().unwrap_or(argument)),
+                    )
+                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+        })
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -440,7 +493,11 @@ pub(crate) fn binding_span_is_mutated(
         let iterator_advance = iterator_binding
             && node.kind == SyntaxKind::ForStatement
             && node.children.get(1).is_some_and(resolves_to_binding);
-        let writes_here = usize::from(direct_write || mutator_call || iterator_advance);
+        let projected_argument_write = node.kind == SyntaxKind::CallExpression
+            && projected_call_mutates_binding(package, unit, node, declaration_span);
+        let writes_here = usize::from(
+            direct_write || mutator_call || iterator_advance || projected_argument_write,
+        );
         writes_here
             + node
                 .children
