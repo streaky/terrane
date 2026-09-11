@@ -1,3 +1,31 @@
+struct TerraneAsyncInvocationGate {
+    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+
+impl TerraneAsyncInvocationGate {
+    fn new() -> Self {
+        Self {
+            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+
+    fn share(&self) -> Self {
+        Self {
+            invocation: self.invocation.clone(),
+        }
+    }
+
+    async fn enter(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.invocation.clone().lock_owned().await
+    }
+}
+
+impl Clone for TerraneAsyncInvocationGate {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
+
 pub struct TerraneAsyncMutableState<Value> {
     value: std::sync::Arc<std::sync::Mutex<Value>>,
     invocation: std::sync::Arc<tokio::sync::Mutex<()>>,

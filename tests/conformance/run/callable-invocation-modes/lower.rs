@@ -437,6 +437,29 @@ impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
         }
     }
 }
+struct TerraneAsyncInvocationGate {
+    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+impl TerraneAsyncInvocationGate {
+    fn new() -> Self {
+        Self {
+            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+    fn share(&self) -> Self {
+        Self {
+            invocation: self.invocation.clone(),
+        }
+    }
+    async fn enter(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.invocation.clone().lock_owned().await
+    }
+}
+impl Clone for TerraneAsyncInvocationGate {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
 pub struct TerraneAsyncMutableState<Value> {
     value: std::sync::Arc<std::sync::Mutex<Value>>,
     invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
@@ -1577,13 +1600,16 @@ fn main() {
             std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
         > = {
             let async_counter = TerraneAsyncMutableState::new(async_counter.clone());
+            let __terrane_invocation = TerraneAsyncInvocationGate::new();
             TerraneMutableCallable::new(move |
                 (delta,): (terrane_int_support::Int,),
             | -> std::pin::Pin<
                 Box<dyn Future<Output = terrane_int_support::Int> + Send>,
             > {
                 let async_counter = async_counter.share();
+                let __terrane_invocation = __terrane_invocation.share();
                 Box::pin(async move {
+                    let _invocation = __terrane_invocation.enter().await;
                     {
                         let callable_capture_value = async_counter.snapshot()
                             + delta.clone();

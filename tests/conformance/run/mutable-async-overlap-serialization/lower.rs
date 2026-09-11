@@ -437,6 +437,29 @@ impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
         }
     }
 }
+struct TerraneAsyncInvocationGate {
+    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+impl TerraneAsyncInvocationGate {
+    fn new() -> Self {
+        Self {
+            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+    fn share(&self) -> Self {
+        Self {
+            invocation: self.invocation.clone(),
+        }
+    }
+    async fn enter(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.invocation.clone().lock_owned().await
+    }
+}
+impl Clone for TerraneAsyncInvocationGate {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
 pub struct TerraneAsyncMutableState<Value> {
     value: std::sync::Arc<std::sync::Mutex<Value>>,
     invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
@@ -1610,6 +1633,216 @@ fn main() {
             );
         }
         println!("{}", terrane_scalar_support::scalar_text(&third));
+        let counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+        let step: TerraneMutableCallable<
+            (
+                terrane_int_support::Int,
+                TerraneChannelSender<terrane_int_support::Int>,
+                TerraneChannelReceiver<terrane_int_support::Int>,
+            ),
+            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
+        > = {
+            let counter = TerraneAsyncMutableState::new(counter.clone());
+            let __terrane_invocation = TerraneAsyncInvocationGate::new();
+            TerraneMutableCallable::new(move |
+                (
+                    delta,
+                    started,
+                    gate,
+                ): (
+                    terrane_int_support::Int,
+                    TerraneChannelSender<terrane_int_support::Int>,
+                    TerraneChannelReceiver<terrane_int_support::Int>,
+                ),
+            | -> std::pin::Pin<
+                Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+            > {
+                let counter = counter.share();
+                let __terrane_invocation = __terrane_invocation.share();
+                Box::pin(async move {
+                    let _invocation = __terrane_invocation.enter().await;
+                    let seen: terrane_int_support::Int = counter.snapshot();
+                    let sent: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                            Box::pin(started.send(delta.clone())),
+                        )
+                        .await;
+                    if !sent.accepted {
+                        return terrane_int_support::Int::from(-1_i128);
+                    }
+                    let released: TerraneChannelReceiveOutcome<
+                        terrane_int_support::Int,
+                    > = __terrane_await(Box::pin(gate.receive())).await;
+                    if !released.available {
+                        return terrane_int_support::Int::from(-2_i128);
+                    }
+                    {
+                        let callable_capture_value = seen.clone() + delta.clone();
+                        counter.replace(callable_capture_value);
+                    }
+                    return counter.snapshot();
+                })
+            })
+        };
+        let closure_gate_a: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_gate_b: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_gate_c: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_started_a: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_started_b: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_started_c: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let closure_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let closure_first: TerraneScopedTask<terrane_int_support::Int> = {
+            let __terrane_scope = closure_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = step
+                .call((
+                    terrane_int_support::Int::from(1_i128),
+                    closure_started_a.sender,
+                    closure_gate_a.receiver,
+                ));
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let closure_first_start: TerraneChannelReceiveOutcome<
+            terrane_int_support::Int,
+        > = __terrane_await(closure_started_a.receiver.receive()).await;
+        if !closure_first_start.available {
+            return ();
+        }
+        let closure_second: TerraneScopedTask<terrane_int_support::Int> = {
+            let __terrane_scope = closure_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = step
+                .call((
+                    terrane_int_support::Int::from(10_i128),
+                    closure_started_b.sender,
+                    closure_gate_b.receiver,
+                ));
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let closure_first_release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                closure_gate_a.sender.send(terrane_int_support::Int::from(1_i128)),
+            )
+            .await;
+        if !closure_first_release.accepted {
+            return ();
+        }
+        let closure_first_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                closure_scope.join(closure_first),
+            )
+            .await;
+        let closure_second_start: TerraneChannelReceiveOutcome<
+            terrane_int_support::Int,
+        > = __terrane_await(closure_started_b.receiver.receive()).await;
+        if !closure_second_start.available {
+            return ();
+        }
+        let closure_second_release: TerraneChannelSendOutcome<
+            terrane_int_support::Int,
+        > = __terrane_await(
+                closure_gate_b.sender.send(terrane_int_support::Int::from(1_i128)),
+            )
+            .await;
+        if !closure_second_release.accepted {
+            return ();
+        }
+        let closure_second_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                closure_scope.join(closure_second),
+            )
+            .await;
+        let closure_third_release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+                closure_gate_c.sender.send(terrane_int_support::Int::from(1_i128)),
+            )
+            .await;
+        if !closure_third_release.accepted {
+            return ();
+        }
+        let closure_third: terrane_int_support::Int = __terrane_await(
+                step
+                    .call((
+                        terrane_int_support::Int::from(100_i128),
+                        closure_started_c.sender,
+                        closure_gate_c.receiver,
+                    )),
+            )
+            .await;
+        let closure_first_value: Option<terrane_int_support::Int> = closure_first_outcome
+            .value
+            .clone();
+        let closure_second_value: Option<terrane_int_support::Int> = closure_second_outcome
+            .value
+            .clone();
+        if closure_first_value.is_some() {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* closure_first_value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
+        if closure_second_value.is_some() {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* closure_second_value
+                .as_ref().expect("semantic optional narrowing"))
+            );
+        }
+        println!("{}", terrane_scalar_support::scalar_text(&closure_third));
     });
 }
 // Source: core/concurrency.trn

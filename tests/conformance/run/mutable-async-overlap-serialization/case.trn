@@ -55,3 +55,52 @@ async function main;
   if second-value != none
     print; second-value
   print; third
+  counter = 0
+  step = mutable async function int; (
+    delta int,
+    started (channel-sender of int),
+    gate (channel-receiver of int)
+  )
+    seen = counter
+    sent = await started.send; delta
+    if not sent.accepted
+      return -1
+    released = await gate.receive;
+    if not released.available
+      return -2
+    counter = seen + delta
+    return counter
+  closure-gate-a = channel; int, 1, channel-block
+  closure-gate-b = channel; int, 1, channel-block
+  closure-gate-c = channel; int, 1, channel-block
+  closure-started-a = channel; int, 1, channel-block
+  closure-started-b = channel; int, 1, channel-block
+  closure-started-c = channel; int, 1, channel-block
+  closure-scope = task-scope;
+  closure-first = closure-scope.spawn; (step; 1, closure-started-a.sender, closure-gate-a.receiver)
+  closure-first-start = await closure-started-a.receiver.receive;
+  if not closure-first-start.available
+    return
+  closure-second = closure-scope.spawn; (step; 10, closure-started-b.sender, closure-gate-b.receiver)
+  closure-first-release = await closure-gate-a.sender.send; 1
+  if not closure-first-release.accepted
+    return
+  closure-first-outcome = await closure-scope.join; closure-first
+  closure-second-start = await closure-started-b.receiver.receive;
+  if not closure-second-start.available
+    return
+  closure-second-release = await closure-gate-b.sender.send; 1
+  if not closure-second-release.accepted
+    return
+  closure-second-outcome = await closure-scope.join; closure-second
+  closure-third-release = await closure-gate-c.sender.send; 1
+  if not closure-third-release.accepted
+    return
+  closure-third = await (step; 100, closure-started-c.sender, closure-gate-c.receiver)
+  closure-first-value = closure-first-outcome.value
+  closure-second-value = closure-second-outcome.value
+  if closure-first-value != none
+    print; closure-first-value
+  if closure-second-value != none
+    print; closure-second-value
+  print; closure-third

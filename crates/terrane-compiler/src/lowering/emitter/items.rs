@@ -1409,7 +1409,17 @@ impl<'a> Emitter<'a> {
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
         self.async_mutable_captures = outer_async_mutable_captures;
-        let (captures, invocation_captures) = self.anonymous_function_captures(node, contract);
+        let (mut captures, mut invocation_captures) =
+            self.anonymous_function_captures(node, contract);
+        let invocation_guard =
+            if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+                captures.push_str("let __terrane_invocation = TerraneAsyncInvocationGate::new(); ");
+                invocation_captures
+                    .push_str("let __terrane_invocation = __terrane_invocation.share(); ");
+                "let _invocation = __terrane_invocation.enter().await;\n"
+            } else {
+                ""
+            };
         let constructor = match contract.written_invocation_mode {
             InvocationMode::Shared => "std::sync::Arc::new",
             InvocationMode::Mutable => "TerraneMutableCallable::new",
@@ -1422,7 +1432,7 @@ impl<'a> Emitter<'a> {
         };
         if contract.is_async {
             format!(
-                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{body}{}}}) }}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
                 "    ".repeat(outer_indent)
             )
         } else {

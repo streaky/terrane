@@ -685,9 +685,9 @@ weakening its retention, transfer, or thread contracts.
 Evidence: `callable-invocation-modes`, `mutable-async-overlap-serialization`,
 `callable-mode-fields-only`, `callable-mode-throwable-composition`, and
 `interface-invocation-mode-widening` exercise storage, invocation, active async separation,
-serialized same-value mutable invocation, written-versus-exact reflection, orthogonal throwable
-effects, defaulted interface parameters, field layout, and every legal interface receiver-mode
-widening.
+serialized same-value mutable bound-method and anonymous-closure invocation, written-versus-exact
+reflection, orthogonal throwable effects, defaulted interface parameters, field layout, and every
+legal interface receiver-mode widening.
 `callable-qualifier-order`, `static-function-invocation-mode`,
 `callable-mutable-to-shared`, `callable-consuming-to-mutable`,
 `shared-closure-assigns-capture`, `shared-method-calls-mutable-member`,
