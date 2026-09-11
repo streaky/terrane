@@ -75,12 +75,31 @@ fn parses_callable_invocation_modes_in_every_function_form() {
     );
     assert_eq!(
         count(&tree.root, SyntaxKind::DeclarationQualifier),
-        4,
+        5,
         "{}",
         tree.normalized()
     );
     assert_eq!(count(&tree.root, SyntaxKind::FunctionType), 1);
     assert_eq!(count(&tree.root, SyntaxKind::AnonymousFunction), 1);
+}
+
+#[test]
+fn parses_callable_invocation_modes_in_class_fields() {
+    let tree = parse_source(
+        "class operations\n  change mutable function to none = noop\n  finish consuming function to none = noop\n",
+    );
+    assert_eq!(
+        count(&tree.root, SyntaxKind::FunctionType),
+        2,
+        "{}",
+        tree.normalized()
+    );
+    assert_eq!(
+        count(&tree.root, SyntaxKind::DeclarationQualifier),
+        2,
+        "{}",
+        tree.normalized()
+    );
 }
 
 #[test]
@@ -528,6 +547,13 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("async async function work;\n", "S1029");
     rejected("mutable consuming function work;\n", "S1029");
     rejected("consuming mutable function work;\n", "S1029");
+    rejected("async mutable function work;\n", "S1029");
+    rejected("callback async mutable function to none = noop\n", "S1029");
+    rejected("callback = async mutable function;\n", "S1029");
+    rejected(
+        "callback mutable mutable function to none = noop\n",
+        "S1029",
+    );
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("catch problem\n", "S1090");

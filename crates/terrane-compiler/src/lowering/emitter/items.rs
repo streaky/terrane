@@ -976,12 +976,23 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let receiver =
-                            if method.written_invocation_mode == InvocationMode::Consuming {
-                                "*self"
-                            } else {
-                                "self"
-                            };
+                        let implementation = effective_object_methods(self.unit, object)
+                            .into_iter()
+                            .find(|candidate| candidate.name == method.name && !candidate.is_static)
+                            .expect("validated interface implementation");
+                        let receiver = match (
+                            method.written_invocation_mode,
+                            implementation.written_invocation_mode,
+                        ) {
+                            (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
+                            (InvocationMode::Consuming, InvocationMode::Mutable) => "&mut *self",
+                            (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
+                            (_, InvocationMode::Shared) => "&*self",
+                            (_, InvocationMode::Mutable) => "&mut *self",
+                            (_, InvocationMode::Consuming) => {
+                                unreachable!("validated interface mode compatibility")
+                            }
+                        };
                         self.line(&format!(
                             "{class_type}::{}({receiver}, {arguments})",
                             rust_name(&method.name)
@@ -1449,10 +1460,10 @@ impl<'a> Emitter<'a> {
             if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
                 write!(
                     captures,
-                    "let {name} = std::sync::Arc::new(std::sync::Mutex::new({source}.clone())); "
+                    "let {name} = TerraneAsyncMutableState::new({source}.clone()); "
                 )
                 .expect("writing to a String cannot fail");
-                write!(invocation_captures, "let {name} = {name}.clone(); ")
+                write!(invocation_captures, "let {name} = {name}.share(); ")
                     .expect("writing to a String cannot fail");
                 continue;
             }

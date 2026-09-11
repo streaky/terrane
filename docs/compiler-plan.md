@@ -682,6 +682,14 @@ use-after-consumption, async/throwable composition, and receiver modes have focu
 rejected evidence; and every existing projected callback maps to the common callable model without
 weakening its retention, transfer, or thread contracts.
 
+Evidence: `callable-invocation-modes`, `callable-mode-fields-only`, and
+`interface-invocation-mode-widening` exercise storage, invocation, separation, reflection, field
+layout, async state, and interface dispatch. `callable-qualifier-order`,
+`shared-method-calls-mutable-member`, `mutable-closure-calls-consuming-capture`,
+`consuming-callable-field-reuse`, and `consuming-callable-argument-reuse` cover the corresponding
+syntax, authority, and ownership rejections. `rust-dependency-callbacks` and
+`projected-callback-mutable-state` retain the projected `Fn`/`FnMut`/`FnOnce` boundary evidence.
+
 ### Milestone 26.2 — Throwable contracts for function types
 
 Function types now accept postfix `throws T`, with the clause binding to the callable introduced by

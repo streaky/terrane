@@ -72,7 +72,7 @@ pub(crate) use contracts::{descriptor_expression_category, descriptor_expression
 pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
-pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
+pub(crate) use diagnostics::{ClosureWrites, binding_span_is_mutated, warnings};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,

@@ -324,7 +324,7 @@ pub(super) fn declared_value_type_with_visible_objects(
         let mut signature = function
             .children
             .iter()
-            .filter(|child| child.kind != SyntaxKind::EffectClause)
+            .filter(|child| child.kind == SyntaxKind::TypeExpression)
             .collect::<Vec<_>>();
         let Some(result) = signature.pop() else {
             return Err(failure(
@@ -356,10 +356,15 @@ pub(super) fn declared_value_type_with_visible_objects(
                 declared_value_type_with_visible_objects(unit, bound, aliases, visible_objects)
             })
             .transpose()?;
-        let source = node_text(&unit.source, function);
-        let written = if source.starts_with("consuming ") {
+        let has_qualifier = |qualifier| {
+            function.children.iter().any(|child| {
+                child.kind == SyntaxKind::DeclarationQualifier
+                    && node_text(&unit.source, child) == qualifier
+            })
+        };
+        let written = if has_qualifier("consuming") {
             InvocationMode::Consuming
-        } else if source.starts_with("mutable ") {
+        } else if has_qualifier("mutable") {
             InvocationMode::Mutable
         } else {
             InvocationMode::Shared
@@ -387,22 +392,16 @@ pub(super) fn declared_value_type_with_visible_objects(
             };
             effects.escaping.insert(identity.qualified());
         }
-        return Ok(
-            if source
-                .split_whitespace()
-                .take_while(|part| *part != "function")
-                .any(|part| part == "async")
-            {
-                ValueType::AsyncFunction(
-                    parameters,
-                    result,
-                    TaskTransferability::Transferable,
-                    effects,
-                )
-            } else {
-                ValueType::Function(parameters, result, effects)
-            },
-        );
+        return Ok(if has_qualifier("async") {
+            ValueType::AsyncFunction(
+                parameters,
+                result,
+                TaskTransferability::Transferable,
+                effects,
+            )
+        } else {
+            ValueType::Function(parameters, result, effects)
+        });
     }
     if let Some(union) = type_node
         .children

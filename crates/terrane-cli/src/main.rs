@@ -195,6 +195,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = compilation.requires_async_runtime;
+    let uses_tokio_sync = rust_files
+        .iter()
+        .any(|file| file.contents.contains("tokio::sync::"));
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
@@ -212,6 +215,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             panic: package.profile.panic,
             uses_platform_support,
             uses_async_runtime,
+            uses_tokio_sync,
             build_toolchain: package.build_toolchain,
         },
     )?;
@@ -715,6 +719,7 @@ struct GeneratedCrateOptions {
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
     uses_async_runtime: bool,
+    uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
 }
 
@@ -750,9 +755,14 @@ fn write_generated_crate(
         );
     }
     if options.uses_async_runtime {
-        manifest.push_str(
-            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }\n",
-        );
+        let sync = if options.uses_tokio_sync {
+            ", \"sync\""
+        } else {
+            ""
+        };
+        manifest.push_str(&format!(
+            "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}\n"
+        ));
     }
     for dependency in rust_dependencies
         .iter()
@@ -1241,6 +1251,7 @@ mod tests {
                     panic: terrane_compiler::PanicProfile::Abort,
                     uses_platform_support: false,
                     uses_async_runtime: true,
+                    uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                 },
             )
@@ -1285,6 +1296,7 @@ mod tests {
                     panic: terrane_compiler::PanicProfile::Abort,
                     uses_platform_support: false,
                     uses_async_runtime: false,
+                    uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                 },
             )

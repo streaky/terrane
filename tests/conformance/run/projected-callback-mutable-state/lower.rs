@@ -438,7 +438,9 @@ mod __terrane_trace {
 }
 trait TerraneMutableCallableBody<Arguments, Output>: Send {
     fn call(&mut self, arguments: Arguments) -> Output;
-    fn clone_box(&self) -> Box<dyn TerraneMutableCallableBody<Arguments, Output>>;
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>;
 }
 impl<Arguments, Output, Function> TerraneMutableCallableBody<Arguments, Output>
 for Function
@@ -448,12 +450,16 @@ where
     fn call(&mut self, arguments: Arguments) -> Output {
         self(arguments)
     }
-    fn clone_box(&self) -> Box<dyn TerraneMutableCallableBody<Arguments, Output>> {
-        Box::new(self.clone())
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>> {
+        std::boxed::Box::new(self.clone())
     }
 }
 pub struct TerraneMutableCallable<Arguments, Output> {
-    body: std::sync::Mutex<Box<dyn TerraneMutableCallableBody<Arguments, Output>>>,
+    body: std::sync::Mutex<
+        std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>,
+    >,
 }
 impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
     fn new<Function>(function: Function) -> Self
@@ -461,7 +467,7 @@ impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
         Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
     {
         Self {
-            body: std::sync::Mutex::new(Box::new(function)),
+            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
     fn call(&self, arguments: Arguments) -> Output {

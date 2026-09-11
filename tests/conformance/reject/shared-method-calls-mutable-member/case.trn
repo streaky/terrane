@@ -1,0 +1,8 @@
+namespace shared-method-calls-mutable-member
+
+class sample
+  mutable function update;
+    return
+
+  function run;
+    this.update;

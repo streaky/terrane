@@ -1,0 +1,15 @@
+namespace callable-mode-fields-only
+
+function noop;
+  return
+
+class operations
+  change mutable function to none = noop
+  finish consuming function to none = noop
+
+function main;
+  value operations = instance operations;
+  value.change;
+  print; >changed
+  value.finish;
+  print; >finished

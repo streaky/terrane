@@ -1575,7 +1575,7 @@ impl LogValueProtocol for CountedValue {
         Box::new(self.clone())
     }
     fn render(&self) -> DocumentValue {
-        CountedValue::render(self)
+        CountedValue::render(&*self)
     }
 }
 impl From<CountedValue> for LogValue {
@@ -2576,7 +2576,7 @@ impl SerializableProtocol for DocumentValue {
         Box::new(self.clone())
     }
     fn to_document(&self) -> DocumentValue {
-        DocumentValue::to_document(self)
+        DocumentValue::to_document(&*self)
     }
 }
 impl From<DocumentValue> for Serializable {
@@ -2683,7 +2683,7 @@ impl DeserializableProtocol for DocumentMapping {
         Box::new(self.clone())
     }
     fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        DocumentMapping::from_document(self, value)
+        DocumentMapping::from_document(&*self, value)
     }
 }
 impl From<DocumentMapping> for Deserializable {
@@ -3110,7 +3110,7 @@ impl LogValueProtocol for DocumentLogValue {
         Box::new(self.clone())
     }
     fn render(&self) -> DocumentValue {
-        DocumentLogValue::render(self)
+        DocumentLogValue::render(&*self)
     }
 }
 impl From<DocumentLogValue> for LogValue {
@@ -3143,7 +3143,7 @@ impl LogValueProtocol for TextLogValue {
         Box::new(self.clone())
     }
     fn render(&self) -> DocumentValue {
-        TextLogValue::render(self)
+        TextLogValue::render(&*self)
     }
 }
 impl From<TextLogValue> for LogValue {
@@ -3176,7 +3176,7 @@ impl LogValueProtocol for ErrorLogValue {
         Box::new(self.clone())
     }
     fn render(&self) -> DocumentValue {
-        ErrorLogValue::render(self)
+        ErrorLogValue::render(&*self)
     }
 }
 impl From<ErrorLogValue> for LogValue {

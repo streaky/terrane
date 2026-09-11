@@ -612,7 +612,7 @@ impl SerializableProtocol for Note {
         Box::new(self.clone())
     }
     fn to_document(&self) -> DocumentValue {
-        Note::to_document(self)
+        Note::to_document(&*self)
     }
 }
 impl From<Note> for Serializable {
@@ -1139,7 +1139,7 @@ impl SerializableProtocol for DocumentValue {
         Box::new(self.clone())
     }
     fn to_document(&self) -> DocumentValue {
-        DocumentValue::to_document(self)
+        DocumentValue::to_document(&*self)
     }
 }
 impl From<DocumentValue> for Serializable {
@@ -1246,7 +1246,7 @@ impl DeserializableProtocol for DocumentMapping {
         Box::new(self.clone())
     }
     fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        DocumentMapping::from_document(self, value)
+        DocumentMapping::from_document(&*self, value)
     }
 }
 impl From<DocumentMapping> for Deserializable {

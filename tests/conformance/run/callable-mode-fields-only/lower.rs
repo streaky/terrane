@@ -437,31 +437,6 @@ impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
         }
     }
 }
-pub struct TerraneAsyncMutableState<Value> {
-    value: std::sync::Arc<tokio::sync::Mutex<Value>>,
-}
-impl<Value> TerraneAsyncMutableState<Value> {
-    fn new(value: Value) -> Self {
-        Self {
-            value: std::sync::Arc::new(tokio::sync::Mutex::new(value)),
-        }
-    }
-    fn share(&self) -> std::sync::Arc<tokio::sync::Mutex<Value>> {
-        self.value.clone()
-    }
-}
-impl<Value: Clone> Clone for TerraneAsyncMutableState<Value> {
-    fn clone(&self) -> Self {
-        let value = self
-            .value
-            .try_lock()
-            .expect(
-                "mutable async callable cannot be separated during an active invocation",
-            )
-            .clone();
-        Self::new(value)
-    }
-}
 trait TerraneConsumingCallableBody<Arguments, Output>: Send {
     fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output;
 }
@@ -490,295 +465,27 @@ impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
         self.body.call(arguments)
     }
 }
-async fn __terrane_await<F: Future>(future: F) -> F::Output {
-    struct YieldOnce(bool);
-    impl Future for YieldOnce {
-        type Output = ();
-        fn poll(
-            mut self: std::pin::Pin<&mut Self>,
-            context: &mut std::task::Context<'_>,
-        ) -> std::task::Poll<Self::Output> {
-            if self.0 {
-                std::task::Poll::Ready(())
-            } else {
-                self.0 = true;
-                context.waker().wake_by_ref();
-                std::task::Poll::Pending
-            }
-        }
-    }
-    YieldOnce(false).await;
-    let output = future.await;
-    YieldOnce(false).await;
-    output
-}
-fn __terrane_run<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Terrane async runtime must initialize")
-        .block_on(future)
-}
 // Source: case.trn
-// Namespace: callable-invocation-modes
-fn double(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+// Namespace: callable-mode-fields-only
+fn noop() {
+    return ();
 }
-async fn double_later(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+pub struct Operations {
+    pub change: TerraneMutableCallable<(), ()>,
+    pub finish: TerraneConsumingCallable<(), ()>,
 }
-#[derive(Clone)]
-pub struct Accumulator {
-    pub total: terrane_int_support::Int,
-}
-impl Accumulator {
+impl Operations {
     pub fn terrane_construct() -> Self {
         Self {
-            total: terrane_int_support::Int::from(0_i128),
+            change: TerraneMutableCallable::new(move |(): ()| noop()),
+            finish: TerraneConsumingCallable::new(move |(): ()| noop()),
         }
-    }
-    pub fn add(&mut self, delta: terrane_int_support::Int) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
-        return self.total.clone();
-    }
-}
-#[derive(Clone)]
-pub struct Ticket {
-    pub message: String,
-}
-impl Ticket {
-    pub fn terrane_construct() -> Self {
-        Self {
-            message: String::from("redeemed"),
-        }
-    }
-    pub fn redeem(self) -> String {
-        return self.message.clone();
-    }
-}
-#[derive(Clone)]
-pub struct AsyncAccumulator {
-    pub total: terrane_int_support::Int,
-}
-impl AsyncAccumulator {
-    pub fn terrane_construct() -> Self {
-        Self {
-            total: terrane_int_support::Int::from(0_i128),
-        }
-    }
-    pub async fn add(
-        &mut self,
-        delta: terrane_int_support::Int,
-    ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
-        return self.total.clone();
     }
 }
 fn main() {
-    __terrane_run(async move {
-        let counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        let step: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let mut counter = counter.clone();
-            TerraneMutableCallable::new(move |
-                (delta,): (terrane_int_support::Int,),
-            | -> terrane_int_support::Int {
-                counter = counter.clone() + delta.clone();
-                return counter.clone();
-            })
-        };
-        let message: String = String::from("finished");
-        let finish: TerraneConsumingCallable<(), String> = {
-            let message = message.clone();
-            TerraneConsumingCallable::new(move |(): ()| -> String {
-                return message;
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(1_i128),)))
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(2_i128),)))
-        );
-        let copy: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = step.clone();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = step; "mutable"
-            .to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = step; "mutable"
-            .to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&step
-            .call((terrane_int_support::Int::from(1_i128),)))
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&copy
-            .call((terrane_int_support::Int::from(10_i128),)))
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = finish; "consuming"
-            .to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = finish; "consuming"
-            .to_owned() })
-        );
-        println!("{}", terrane_scalar_support::scalar_text(&finish.call(())));
-        let operation: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = TerraneMutableCallable::new(move |
-            (argument_0,): (terrane_int_support::Int,)|
-        double(argument_0));
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&operation
-            .call((terrane_int_support::Int::from(6_i128),)))
-        );
-        let async_counter: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let async_step: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = {
-            let async_counter = TerraneAsyncMutableState::new(async_counter.clone());
-            TerraneMutableCallable::new(move |
-                (delta,): (terrane_int_support::Int,),
-            | -> std::pin::Pin<
-                Box<dyn Future<Output = terrane_int_support::Int> + Send>,
-            > {
-                let async_counter = async_counter.share();
-                Box::pin(async move {
-                    {
-                        let callable_capture_value = async_counter.lock().await.clone()
-                            + delta.clone();
-                        *async_counter.lock().await = callable_capture_value;
-                    }
-                    return async_counter.lock().await.clone();
-                })
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(2_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(3_i128),))). await)
-        );
-        let async_copy: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = async_step.clone();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_step
-            .call((terrane_int_support::Int::from(1_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_copy
-            .call((terrane_int_support::Int::from(10_i128),))). await)
-        );
-        let asynchronous: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = TerraneMutableCallable::new(move |
-            (argument_0,): (terrane_int_support::Int,),
-        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-            Box::pin(double_later(argument_0))
-        });
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(asynchronous
-            .call((terrane_int_support::Int::from(7_i128),))). await)
-        );
-        let value: Accumulator = Accumulator::terrane_construct();
-        let bound: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let mut receiver = value.clone();
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            receiver.add(argument_0))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&bound
-            .call((terrane_int_support::Int::from(5_i128),)))
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&bound
-            .call((terrane_int_support::Int::from(7_i128),)))
-        );
-        let _ = &value;
-        let value: Ticket = Ticket::terrane_construct();
-        let redemption: TerraneConsumingCallable<(), String> = {
-            let receiver = value;
-            TerraneConsumingCallable::new(move |(): ()| receiver.redeem())
-        };
-        println!("{}", terrane_scalar_support::scalar_text(&redemption.call(())));
-        let shared: std::sync::Arc<
-            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-        > = {
-            std::sync::Arc::new(move |
-                value: terrane_int_support::Int,
-            | -> terrane_int_support::Int {
-                return value.clone() + terrane_int_support::Int::from(1_i128);
-            })
-        };
-        let adapted: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let callable = shared.clone();
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            callable(argument_0))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&adapted
-            .call((terrane_int_support::Int::from(8_i128),)))
-        );
-        let async_value: AsyncAccumulator = AsyncAccumulator::terrane_construct();
-        let async_bound: TerraneMutableCallable<
-            (terrane_int_support::Int,),
-            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
-        > = {
-            let receiver = TerraneAsyncMutableState::new(async_value);
-            TerraneMutableCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,),
-            | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
-                let receiver = receiver.share();
-                Box::pin(async move { receiver.lock().await.add(argument_0).await })
-            })
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_bound
-            .call((terrane_int_support::Int::from(2_i128),))). await)
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_await(async_bound
-            .call((terrane_int_support::Int::from(3_i128),))). await)
-        );
-        let one_shot: TerraneConsumingCallable<
-            (terrane_int_support::Int,),
-            terrane_int_support::Int,
-        > = {
-            let callable = adapted.clone();
-            TerraneConsumingCallable::new(move |
-                (argument_0,): (terrane_int_support::Int,)|
-            callable.call((argument_0,)))
-        };
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&one_shot
-            .call((terrane_int_support::Int::from(10_i128),)))
-        );
-    });
+    let value: Operations = Operations::terrane_construct();
+    value.change.call(());
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("changed")));
+    value.finish.call(());
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("finished")));
 }

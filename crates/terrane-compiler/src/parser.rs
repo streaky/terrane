@@ -487,17 +487,28 @@ impl Parser<'_> {
         self.node(SyntaxKind::FieldMetadata, start, self.position, entries)
     }
 
-    fn parse_function(&mut self) -> SyntaxNode {
-        let start = self.position;
+    fn parse_function_qualifiers(&mut self, allow_static: bool) -> Vec<SyntaxNode> {
         let mut children = Vec::new();
-        self.parse_visibility(&mut children);
-        if self.text() == "static" && self.block_depth != self.class_body_depth {
-            self.error_here("S1029", "`static` functions are only valid in class bodies");
-        }
         let mut qualifiers = std::collections::BTreeSet::new();
-        while matches!(self.text(), "static" | "mutable" | "consuming" | "async") {
+        let mut previous_rank = 0;
+        while matches!(self.text(), "static" | "mutable" | "consuming" | "async")
+            && (allow_static || self.text() != "static")
+        {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
+            let rank = match qualifier.as_str() {
+                "static" => 0,
+                "mutable" | "consuming" => 1,
+                "async" => 2,
+                _ => unreachable!("matched function qualifier"),
+            };
+            if rank < previous_rank {
+                self.error_here(
+                    "S1029",
+                    "function qualifiers must be ordered `static`, invocation mode, then `async`",
+                );
+            }
+            previous_rank = rank;
             if !qualifiers.insert(qualifier.clone()) {
                 self.error_here("S1029", "duplicate function qualifier");
             }
@@ -516,6 +527,17 @@ impl Parser<'_> {
                 Vec::new(),
             ));
         }
+        children
+    }
+
+    fn parse_function(&mut self) -> SyntaxNode {
+        let start = self.position;
+        let mut children = Vec::new();
+        self.parse_visibility(&mut children);
+        if self.text() == "static" && self.block_depth != self.class_body_depth {
+            self.error_here("S1029", "`static` functions are only valid in class bodies");
+        }
+        children.extend(self.parse_function_qualifiers(true));
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
             self.reject_contextual_declaration_name();
@@ -577,13 +599,7 @@ impl Parser<'_> {
 
     fn parse_anonymous_function(&mut self) -> SyntaxNode {
         let start = self.position;
-        let mut children = Vec::new();
-        if matches!(self.text(), "mutable" | "consuming") {
-            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
-        }
-        if self.at_text("async") {
-            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
-        }
+        let mut children = self.parse_function_qualifiers(false);
         self.expect_text("function", "S1005", "expected `function`");
         if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
             children.push(self.parse_type_expression());
@@ -1232,15 +1248,8 @@ impl Parser<'_> {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
         }
-        if matches!(self.text(), "mutable" | "consuming") {
-            self.bump();
-        }
-        let async_function = self.at_text("async") && self.peek_text(1) == Some("function");
-        if async_function {
-            self.bump();
-        }
+        let mut children = self.parse_function_qualifiers(false);
         if self.eat_text("function") {
-            let mut children = Vec::new();
             if self.eat_text("from") {
                 loop {
                     children.push(self.parse_type_expression());
@@ -1477,10 +1486,10 @@ impl Parser<'_> {
 
     fn looks_like_anonymous_function(&self) -> bool {
         let mut offset = 0usize;
-        if matches!(self.peek_text(offset), Some("mutable" | "consuming")) {
-            offset += 1;
-        }
-        if self.peek_text(offset) == Some("async") {
+        while matches!(
+            self.peek_text(offset),
+            Some("mutable" | "consuming" | "async")
+        ) {
             offset += 1;
         }
         self.peek_text(offset) == Some("function")

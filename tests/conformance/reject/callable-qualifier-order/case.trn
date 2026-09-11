@@ -1,0 +1,4 @@
+namespace callable-qualifier-order
+
+async mutable function work;
+  return

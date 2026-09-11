@@ -154,13 +154,9 @@ impl Emitter<'_> {
                 if self.async_mutable_captures.contains(name) {
                     let name = rust_name(name);
                     if self.assignment_target {
-                        return format!(
-                            "*{name}.lock().expect(\"callable capture lock poisoned\")"
-                        );
+                        return format!("*{name}.lock().await");
                     }
-                    return format!(
-                        "{name}.lock().expect(\"callable capture lock poisoned\").clone()"
-                    );
+                    return format!("{name}.lock().await.clone()");
                 }
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                     binding.name == name
@@ -733,8 +729,8 @@ impl Emitter<'_> {
                         format!("receiver.{method}({arguments}).await"),
                     ),
                     InvocationMode::Mutable => (
-                        format!("std::sync::Arc::new(tokio::sync::Mutex::new({receiver}))"),
-                        "let receiver = receiver.clone(); ",
+                        format!("TerraneAsyncMutableState::new({receiver})"),
+                        "let receiver = receiver.share(); ",
                         format!("receiver.lock().await.{method}({arguments}).await"),
                     ),
                     InvocationMode::Consuming => (

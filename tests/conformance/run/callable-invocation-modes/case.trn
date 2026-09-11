@@ -52,6 +52,9 @@ async function main;
     return async-counter
   print; await (async-step; 2)
   print; await (async-step; 3)
+  async-copy = async-step
+  print; await (async-step; 1)
+  print; await (async-copy; 10)
   asynchronous mutable async function from int to int = double-later
   print; await (asynchronous; 7)
   value accumulator = instance accumulator;

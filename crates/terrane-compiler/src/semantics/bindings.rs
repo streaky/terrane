@@ -373,7 +373,13 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                 .map(|binding| {
                     let initially_assigned =
                         unit.source.text()[binding.span.start..binding.span.end].contains('=');
-                    binding_span_is_mutated(package, unit, binding.span, initially_assigned, true)
+                    binding_span_is_mutated(
+                        package,
+                        unit,
+                        binding.span,
+                        initially_assigned,
+                        ClosureWrites::Include,
+                    )
                 })
                 .collect::<Vec<_>>()
         })
@@ -389,7 +395,13 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                         .parameters
                         .iter()
                         .map(|parameter| {
-                            binding_span_is_mutated(package, unit, parameter.span, true, true)
+                            binding_span_is_mutated(
+                                package,
+                                unit,
+                                parameter.span,
+                                true,
+                                ClosureWrites::Include,
+                            )
                         })
                         .collect::<Vec<_>>()
                 })
@@ -1447,18 +1459,6 @@ fn validate_projected_callback_contract(
             "T0084",
             "projected callback requires transferable captured values",
         );
-    }
-    if !invocation_mode.accepts(contract.written_invocation_mode) {
-        return Err(failure(
-            &unit.source,
-            "T0085",
-            format!(
-                "projected {} callback cannot accept a {} callable",
-                invocation_mode.reflection_name(),
-                contract.written_invocation_mode.reflection_name()
-            ),
-            value.span,
-        ));
     }
     if *invocation_mode == InvocationMode::Consuming
         && value.kind == SyntaxKind::Name

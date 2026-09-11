@@ -1,0 +1,20 @@
+namespace interface-invocation-mode-widening
+
+interface mutable-counter
+  mutable function value int;
+
+interface consuming-label
+  consuming function label string;
+
+class sample implements mutable-counter, consuming-label
+  function value int;
+    return 7
+
+  function label string;
+    return >ready
+
+function main;
+  mutable-view mutable-counter = instance sample;
+  consuming-view consuming-label = instance sample;
+  print; (mutable-view.value;)
+  print; (consuming-view.label;)

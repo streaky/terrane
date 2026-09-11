@@ -517,7 +517,7 @@ impl Emitter<'_> {
                                 self.unit,
                                 binding.span,
                                 true,
-                                true,
+                                ClosureWrites::Include,
                             )
                     })
                     .and_then(|binding| binding.storage_type)

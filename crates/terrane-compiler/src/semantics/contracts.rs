@@ -299,21 +299,6 @@ pub(super) fn collect_typed_bindings(
     Ok(())
 }
 
-pub(super) fn mutates_object_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-    if node.kind == SyntaxKind::Assignment
-        && let Some(target) = node.children.first()
-        && target.kind == SyntaxKind::MemberExpression
-        && target.children.first().is_some_and(|receiver| {
-            receiver.kind == SyntaxKind::Name && node_text(&unit.source, receiver) == "this"
-        })
-    {
-        return true;
-    }
-    node.children
-        .iter()
-        .any(|child| mutates_object_receiver(unit, child))
-}
-
 #[expect(
     clippy::too_many_lines,
     reason = "callable signature analysis keeps parameter and result contracts in source order"
@@ -452,13 +437,7 @@ pub(super) fn analyze_function_contract(
     } else {
         lifecycle_mode.unwrap_or(InvocationMode::Shared)
     };
-    let exact_invocation_mode = if let Some(mode) = lifecycle_mode {
-        mode
-    } else if mutates_object_receiver(unit, node) {
-        InvocationMode::Mutable
-    } else {
-        InvocationMode::Shared
-    };
+    let exact_invocation_mode = lifecycle_mode.unwrap_or(InvocationMode::Shared);
     let throws = !thrown_types.is_empty();
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
@@ -469,11 +448,15 @@ pub(super) fn analyze_function_contract(
     let owner_identity = owner
         .as_ref()
         .map(|owner| ObjectIdentity::new(&unit.namespace, owner));
+    let name = name_node.map_or_else(
+        || {
+            let (line, column) = unit.source.line_column(node.span.start);
+            format!("anonymous function at {}:{line}:{column}", unit.source_path)
+        },
+        |name| node_text(&unit.source, name).to_owned(),
+    );
     Ok(FunctionContract {
-        name: name_node.map_or_else(
-            || format!("closure@{}", node.span.start),
-            |name| node_text(&unit.source, name).to_owned(),
-        ),
+        name,
         span: node.span,
         owner,
         owner_identity,

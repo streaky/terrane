@@ -57,10 +57,10 @@ impl AdjustableProtocol for Counter {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        Counter::increase(self, amount)
+        Counter::increase(&mut *self, amount)
     }
     fn read(&self) -> terrane_int_support::Int {
-        Counter::read(self)
+        Counter::read(&*self)
     }
 }
 impl From<Counter> for Adjustable {

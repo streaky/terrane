@@ -1,0 +1,12 @@
+namespace consuming-callable-argument-reuse
+
+function accept; operation consuming function to none
+  return
+
+function noop;
+  return
+
+function main;
+  finish consuming function to none = noop
+  accept; finish
+  accept; finish

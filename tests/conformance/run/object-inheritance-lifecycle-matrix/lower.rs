@@ -490,7 +490,7 @@ impl NamedProtocol for Base {
         Box::new(self.terrane_separate())
     }
     fn report(&self) -> terrane_int_support::Int {
-        Base::report(self)
+        Base::report(&*self)
     }
 }
 impl From<Base> for Named {
@@ -549,7 +549,7 @@ impl NamedProtocol for Child {
         Box::new(self.terrane_separate())
     }
     fn report(&self) -> terrane_int_support::Int {
-        Child::report(self)
+        Child::report(&*self)
     }
 }
 impl From<Child> for Named {

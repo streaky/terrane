@@ -53,7 +53,7 @@ impl ReadableProtocol for Counter {
         Box::new(self.terrane_separate())
     }
     fn read(&self) -> terrane_int_support::Int {
-        Counter::read(self)
+        Counter::read(&*self)
     }
 }
 impl From<Counter> for Readable {

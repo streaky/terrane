@@ -49,6 +49,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         matches!(
             &unit.typed_bindings[binding].value_type,
             ValueType::Task(_, _) | ValueType::ScopedTask(_, _) | ValueType::Iterator(_)
+        ) || matches!(
+            &unit.typed_bindings[binding].value_type,
+            ValueType::Function(_, _, effects)
+                | ValueType::AsyncFunction(_, _, _, effects)
+                if effects.modes.written == InvocationMode::Consuming
         ) || resource_binding(package, unit, binding, resource_objects)
             || matches!(
                 &unit.typed_bindings[binding].value_type,
@@ -132,6 +137,34 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     | ValueType::AsyncFunction(_, _, _, effects)
                     if effects.modes.written == InvocationMode::Consuming
             )
+        {
+            for child in &node.children {
+                visit(package, unit, child, moved, false, resource_objects)?;
+            }
+            moved.insert(binding);
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && let Ok(Some(ValueType::Object(identity))) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+            && matches!(
+                object_field_type(
+                    unit,
+                    &identity,
+                    node_text(&unit.source, member),
+                    false,
+                ),
+                Some(
+                    ValueType::Function(_, _, effects)
+                        | ValueType::AsyncFunction(_, _, _, effects)
+                ) if effects.modes.written == InvocationMode::Consuming
+            )
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
                 visit(package, unit, child, moved, false, resource_objects)?;
@@ -251,13 +284,19 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 let Some(expected) = parameter.value_type.as_ref() else {
                     continue;
                 };
+                let Some(value) = argument.children.last() else {
+                    continue;
+                };
                 let expects_named_resource = match expected {
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
                     ValueType::Object(name) => resolved_object_span(package, name)
                         .is_some_and(|span| resource_objects.contains(&span_key(span))),
+                    ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects) => {
+                        effects.modes.written == InvocationMode::Consuming
+                    }
                     _ => false,
                 };
-                let value = argument.children.last().unwrap_or(argument);
                 if expects_named_resource
                     && matches!(
                         value.kind,
@@ -290,8 +329,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                 ValueType::PlatformStreamHandle
                                     | ValueType::PlatformResourceHandle
                                     | ValueType::Object(_)
-                                    | ValueType::Task(_, _)
-                                    | ValueType::ScopedTask(_, _)
+                                    | ValueType::Function(_, _, _)
+                                    | ValueType::AsyncFunction(_, _, _, _)
                             )
                         })
                         .and_then(|_| argument.children.last())
@@ -494,6 +533,7 @@ fn span_is_parameter(node: &SyntaxNode, span: Span) -> bool {
 }
 
 fn first_owner_lifetime_end(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     owner: Span,
@@ -512,6 +552,7 @@ fn first_owner_lifetime_end(
     }
 
     fn mutating_call_receiver<'a>(
+        package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &'a SyntaxNode,
     ) -> Option<&'a SyntaxNode> {
@@ -524,30 +565,16 @@ fn first_owner_lifetime_end(
         let [receiver, member] = callee.children.as_slice() else {
             return None;
         };
-        let member_name = node_text(&unit.source, member);
-        let builtin_mutation = matches!(
-            member_name,
-            "set"
-                | "append"
-                | "extend"
-                | "insert"
-                | "remove"
-                | "pop"
-                | "clear"
-                | "reverse"
-                | "sort"
-        );
-        let source_mutation = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+        let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
-            .flatten()
-            .and_then(|value_type| match value_type {
-                ValueType::Object(identity) => {
-                    object_method_contract(unit, &identity, member_name, false)
-                }
-                _ => None,
-            })
-            .is_some_and(|contract| contract.written_invocation_mode == InvocationMode::Mutable);
-        (builtin_mutation || source_mutation).then_some(receiver)
+            .flatten()?;
+        (member_invocation_mode(
+            package,
+            unit,
+            &receiver_type,
+            node_text(&unit.source, member),
+        ) == InvocationMode::Mutable)
+            .then_some(receiver)
     }
 
     let target = match node.kind {
@@ -559,7 +586,7 @@ fn first_owner_lifetime_end(
         {
             node.children.last()
         }
-        SyntaxKind::CallExpression => mutating_call_receiver(unit, node),
+        SyntaxKind::CallExpression => mutating_call_receiver(package, unit, node),
         _ => None,
     };
     if node.span.start > after
@@ -572,7 +599,7 @@ fn first_owner_lifetime_end(
     }
     node.children
         .iter()
-        .find_map(|child| first_owner_lifetime_end(unit, child, owner, after))
+        .find_map(|child| first_owner_lifetime_end(package, unit, child, owner, after))
 }
 
 type FunctionKey = (u32, usize, usize);
@@ -919,7 +946,8 @@ fn validate_reference_return(
         })
         .map(|binding| binding.span);
     let provenance = expression_provenance(package, unit, value, proven, return_lenders);
-    let closure_lender = contract.is_some_and(|contract| contract.name.starts_with("closure@"))
+    let closure_lender = contract
+        .is_some_and(|contract| contract.name.starts_with("anonymous function at "))
         && provenance
             .as_ref()
             .is_some_and(|provenance| provenance.external_lender);
@@ -1046,8 +1074,13 @@ pub(super) fn analyze_reference_provenance(
                 &return_lenders,
             )?;
             for (&(created_at, _), provenance) in &mut proven {
-                provenance.lifetime_end =
-                    first_owner_lifetime_end(unit, &unit.tree.root, provenance.owner, created_at);
+                provenance.lifetime_end = first_owner_lifetime_end(
+                    package,
+                    unit,
+                    &unit.tree.root,
+                    provenance.owner,
+                    created_at,
+                );
             }
             proven
         };

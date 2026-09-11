@@ -727,6 +727,8 @@ purity: no `pure` qualifier; a future contract requires independently defined ob
 - Reflection may group retained contracts and derived facts for inspection, but compatibility and
   validation apply each contract's own rules. Ordinary I/O requires no compiler-issued authority
   token.
+- Reflection is ordinary value access: invoking a consuming callable consumes that value, so its
+  contract metadata must be inspected before invocation or through a separate owning value.
 - Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
   traceback/details after translation to a declared throwable class.
 

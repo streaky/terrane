@@ -671,23 +671,22 @@ pub(super) fn validate_resource_collection_types(
 pub(super) fn validate_object_conformance(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    fn same_signature(left: &FunctionContract, right: &FunctionContract) -> bool {
-        left.parameters.len() == right.parameters.len()
-            && left
+    fn implementation_satisfies_requirement(
+        requirement: &FunctionContract,
+        implementation: &FunctionContract,
+    ) -> bool {
+        requirement.parameters.len() == implementation.parameters.len()
+            && requirement
                 .parameters
                 .iter()
-                .zip(&right.parameters)
-                .all(|(left, right)| {
-                    left.value_type == right.value_type
-                        && left.optional == right.optional
-                        && left.mutable == right.mutable
-                })
-            && left.return_type == right.return_type
-            && (!right.throws || left.throws)
-            && left.is_async == right.is_async
-            && left
+                .zip(&implementation.parameters)
+                .all(|(left, right)| left.value_type == right.value_type)
+            && requirement.return_type == implementation.return_type
+            && (!implementation.throws || requirement.throws)
+            && requirement.is_async == implementation.is_async
+            && requirement
                 .written_invocation_mode
-                .accepts(right.written_invocation_mode)
+                .accepts(implementation.written_invocation_mode)
     }
 
     fn effective_method<'a>(
@@ -793,7 +792,7 @@ pub(super) fn validate_object_conformance(
                         written_invocation_mode: InvocationMode::Shared,
                         exact_invocation_mode: InvocationMode::Shared,
                     };
-                    if !same_signature(&required_render, render) {
+                    if !implementation_satisfies_requirement(&required_render, render) {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
@@ -839,7 +838,7 @@ pub(super) fn validate_object_conformance(
                             object.span,
                         ));
                     };
-                    if !same_signature(required, actual) {
+                    if !implementation_satisfies_requirement(required, actual) {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
@@ -1236,6 +1235,7 @@ pub(super) fn infer_and_validate_invocation_modes(
     }
 
     fn call_mode(
+        package: &SemanticPackage,
         unit: &SemanticUnit,
         contract: &FunctionContract,
         call: &SyntaxNode,
@@ -1257,31 +1257,21 @@ pub(super) fn infer_and_validate_invocation_modes(
         if !tracked_receiver(unit, contract, receiver) {
             return InvocationMode::Shared;
         }
-        let member_name = node_text(&unit.source, member);
-        if matches!(
-            member_name,
-            "set"
-                | "append"
-                | "extend"
-                | "insert"
-                | "remove"
-                | "pop"
-                | "clear"
-                | "reverse"
-                | "sort"
-        ) {
-            return InvocationMode::Mutable;
-        }
-        if let Ok(Some(ValueType::Object(identity))) =
+        let Ok(Some(receiver_type)) =
             infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-            && let Some(method) = object_method_contract(unit, &identity, member_name, false)
-        {
-            return method.written_invocation_mode;
-        }
-        InvocationMode::Shared
+        else {
+            return InvocationMode::Shared;
+        };
+        member_invocation_mode(
+            package,
+            unit,
+            &receiver_type,
+            node_text(&unit.source, member),
+        )
     }
 
     fn required_mode(
+        package: &SemanticPackage,
         unit: &SemanticUnit,
         contract: &FunctionContract,
         node: &SyntaxNode,
@@ -1312,11 +1302,11 @@ pub(super) fn infer_and_validate_invocation_modes(
             {
                 InvocationMode::Consuming
             }
-            SyntaxKind::CallExpression => call_mode(unit, contract, node),
+            SyntaxKind::CallExpression => call_mode(package, unit, contract, node),
             _ => InvocationMode::Shared,
         };
         node.children.iter().fold(local, |mode, child| {
-            mode.max(required_mode(unit, contract, child))
+            mode.max(required_mode(package, unit, contract, child))
         })
     }
 
@@ -1330,7 +1320,7 @@ pub(super) fn infer_and_validate_invocation_modes(
                         span_key(contract.span),
                         contract
                             .exact_invocation_mode
-                            .max(required_mode(unit, contract, node)),
+                            .max(required_mode(package, unit, contract, node)),
                     )
                 })
             })
@@ -2305,7 +2295,7 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         let captures = unit
             .functions
             .iter()
-            .filter(|contract| contract.name.starts_with("closure@"))
+            .filter(|contract| contract.name.starts_with("anonymous function at "))
             .map(|contract| {
                 let mut captures = BTreeSet::new();
                 if let Some(node) = closure_node(&unit.tree.root, contract.span) {

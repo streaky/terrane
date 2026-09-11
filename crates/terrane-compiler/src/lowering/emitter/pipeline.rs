@@ -7,6 +7,50 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
         ModuleDestination::Application
     }
 }
+
+fn value_type_contains_callable(
+    value_type: &ValueType,
+    predicate: &impl Fn(bool, &CallableEffects) -> bool,
+) -> bool {
+    match value_type {
+        ValueType::Function(parameters, result, effects)
+        | ValueType::AsyncFunction(parameters, result, _, effects) => {
+            predicate(matches!(value_type, ValueType::AsyncFunction(..)), effects)
+                || parameters.iter().any(|parameter| {
+                    value_type_contains_callable(parameter.value_type_ref(), predicate)
+                })
+                || value_type_contains_callable(result.value_type_ref(), predicate)
+        }
+        ValueType::Optional(value) => value_type_contains_callable(value, predicate),
+        ValueType::Iterator(value)
+        | ValueType::IterationStep(value)
+        | ValueType::AsyncIterationStep(value)
+        | ValueType::ChannelPair(value)
+        | ValueType::ChannelSender(value)
+        | ValueType::ChannelReceiver(value)
+        | ValueType::ChannelSendOutcome(value)
+        | ValueType::ChannelReceiveOutcome(value)
+        | ValueType::DocumentDecodeOutcome(value)
+        | ValueType::List(value)
+        | ValueType::Set(value)
+        | ValueType::Tuple(value, _)
+        | ValueType::UnorderedSet(value)
+        | ValueType::Task(value, _)
+        | ValueType::ScopedTask(value, _)
+        | ValueType::TaskOutcome(value)
+        | ValueType::Reference(value)
+        | ValueType::SharedReference(value) => {
+            value_type_contains_callable(value.value_type_ref(), predicate)
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_callable(key.value_type_ref(), predicate)
+                || value_type_contains_callable(value.value_type_ref(), predicate)
+        }
+        _ => false,
+    }
+}
 fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
     fn contains_materialized_descriptor(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         let member_materializes_descriptor = if let [receiver, member] = node.children.as_slice() {
@@ -67,20 +111,35 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         .iter()
         .flat_map(|unit| &unit.functions)
         .any(|function| function.name == "main" && function.is_async);
-    let package_has_invocation_mode = |mode| {
+    let package_has_callable = |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
         package.units.iter().any(|unit| {
-            unit.typed_bindings.iter().any(|binding| {
-                matches!(
-                    &binding.value_type,
-                    ValueType::Function(_, _, effects)
-                        | ValueType::AsyncFunction(_, _, _, effects)
-                        if effects.modes.written == mode
-                )
-            })
+            unit.typed_bindings
+                .iter()
+                .any(|binding| value_type_contains_callable(&binding.value_type, &predicate))
+                || unit.descriptors.iter().any(|descriptor| {
+                    descriptor
+                        .fields
+                        .iter()
+                        .any(|field| value_type_contains_callable(&field.value_type, &predicate))
+                })
+                || unit.functions.iter().any(|function| {
+                    function.parameters.iter().any(|parameter| {
+                        parameter.value_type.as_ref().is_some_and(|value_type| {
+                            value_type_contains_callable(value_type, &predicate)
+                        })
+                    }) || function.return_type.as_ref().is_some_and(|value_type| {
+                        value_type_contains_callable(value_type, &predicate)
+                    })
+                })
         })
     };
-    let has_mutable_callables = package_has_invocation_mode(InvocationMode::Mutable);
-    let has_consuming_callables = package_has_invocation_mode(InvocationMode::Consuming);
+    let has_mutable_callables =
+        package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Mutable);
+    let has_consuming_callables =
+        package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Consuming);
+    let has_async_mutable_callables = package_has_callable(&|is_async, effects| {
+        is_async && effects.modes.written == InvocationMode::Mutable
+    });
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(
@@ -109,6 +168,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             name: "mutable-callable",
             items: vec![Item::generated(include_str!(
                 "../../runtime/mutable_callable.rs"
+            ))],
+        });
+    }
+    if has_async_mutable_callables {
+        runtime.push(GeneratedModule {
+            name: "async-mutable-state",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/async_mutable_state.rs"
             ))],
         });
     }
