@@ -1371,10 +1371,12 @@ impl Emitter<'_> {
                         format!("&{receiver_expression}")
                     }
                     Some(crate::projection::Receiver::Move) => receiver_expression,
-                    _ if !contract.consumes_receiver && contract.mutates_receiver => {
+                    _ if contract.written_invocation_mode == InvocationMode::Mutable => {
                         format!("&mut {receiver_expression}")
                     }
-                    _ if !contract.consumes_receiver => format!("&{receiver_expression}"),
+                    _ if contract.written_invocation_mode == InvocationMode::Shared => {
+                        format!("&{receiver_expression}")
+                    }
                     _ => receiver_expression,
                 }
             } else {

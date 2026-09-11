@@ -162,7 +162,7 @@ pub(super) fn iterable_item_type(
                     ))?;
             if iterator.is_async
                 || iterator.throws
-                || iterator.mutates_receiver
+                || iterator.written_invocation_mode != InvocationMode::Shared
                 || !iterator.parameters.is_empty()
             {
                 return Err((
@@ -1161,8 +1161,6 @@ pub struct FunctionContract {
     pub is_static: bool,
     pub written_invocation_mode: InvocationMode,
     pub exact_invocation_mode: InvocationMode,
-    pub mutates_receiver: bool,
-    pub consumes_receiver: bool,
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
 }
 

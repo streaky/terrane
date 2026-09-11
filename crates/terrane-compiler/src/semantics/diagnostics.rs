@@ -289,7 +289,7 @@ pub(super) fn object_method_mutates(
         if let Some(method) = unit.functions.iter().find(|method| {
             method.owner_identity.as_ref() == Some(object_identity) && method.name == method_name
         }) {
-            return method.mutates_receiver;
+            return method.written_invocation_mode == InvocationMode::Mutable;
         }
         unit.descriptors
             .iter()

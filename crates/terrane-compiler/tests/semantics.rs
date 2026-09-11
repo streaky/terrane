@@ -115,6 +115,40 @@ fn retains_written_callable_invocation_modes_in_semantic_types() {
 }
 
 #[test]
+fn rejects_callable_bodies_needing_stronger_invocation_modes() {
+    for (source, expected) in [
+        (
+            "namespace app\ncounter = 0\nstep = function int;\n  counter = counter + 1\n  return counter\n",
+            "requires mutable invocation",
+        ),
+        (
+            "namespace app\nmessage = >ready\ntake = mutable function string;\n  return move message\n",
+            "requires consuming invocation",
+        ),
+    ] {
+        let failure = analyze(&package(false, &[("mode.trn", source)])).unwrap_err();
+        assert_eq!(failure.diagnostics[0].code, "T0120");
+        assert!(
+            failure.diagnostics[0].message.contains(expected),
+            "{:#?}",
+            failure.diagnostics
+        );
+    }
+}
+
+#[test]
+fn accepts_explicit_mutable_and_consuming_closure_modes() {
+    analyze(&package(
+        false,
+        &[(
+            "mode.trn",
+            "namespace app\ncounter = 0\nstep = mutable function int;\n  counter = counter + 1\n  return counter\nmessage = >ready\ntake = consuming function string;\n  return move message\n",
+        )],
+    ))
+    .unwrap();
+}
+
+#[test]
 fn namespace_diagnostics_use_source_spelling() {
     let failure = analyze(&package(
         false,

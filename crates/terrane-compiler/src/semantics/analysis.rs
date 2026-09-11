@@ -237,8 +237,6 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.written_invocation_mode = invocation_mode;
             contract.exact_invocation_mode = invocation_mode;
-            contract.mutates_receiver = invocation_mode == InvocationMode::Mutable;
-            contract.consumes_receiver = invocation_mode == InvocationMode::Consuming;
         }
     }
 }

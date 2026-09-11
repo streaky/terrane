@@ -23,9 +23,10 @@ mod prelude {
         semantics::{
             ArithmeticFamily, BuiltinDescriptor, CanonicalDefault, CoercionPolicy,
             ContextualConstant, DescriptorContract, EffectiveObjectField, ElementType,
-            FloatMemberArgument, FloatMemberOperation, FunctionContract, MemberFamily,
-            ObjectIdentity, ObjectKind, SemanticPackage, SemanticUnit, StringFamily, SymbolKind,
-            TaskTransferability, TypedBinding, ValueType, binding_read_value_is_reused,
+            FloatMemberArgument, FloatMemberOperation, FunctionContract, InvocationMode,
+            MemberFamily, ObjectIdentity, ObjectKind, SemanticPackage, SemanticUnit, StringFamily,
+            SymbolKind, TaskTransferability, TypedBinding, ValueType,
+            binding_read_value_is_reused,
             binding_span_is_mutated, binding_store_value_is_read, bound_method, canonical_default,
             contextual_constant, descriptor_binding_is_materialized,
             descriptor_contract_by_identity, effective_object_fields, float_member_contract,

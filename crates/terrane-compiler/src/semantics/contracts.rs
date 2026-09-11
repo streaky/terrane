@@ -494,8 +494,6 @@ pub(super) fn analyze_function_contract(
         is_static,
         written_invocation_mode,
         exact_invocation_mode,
-        mutates_receiver,
-        consumes_receiver: false,
         exported,
     })
 }

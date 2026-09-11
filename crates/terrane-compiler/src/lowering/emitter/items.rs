@@ -418,12 +418,10 @@ impl<'a> Emitter<'a> {
                 self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.consumes_receiver {
-                        "self: Box<Self>"
-                    } else if method.mutates_receiver {
-                        "&mut self"
-                    } else {
-                        "&self"
+                    let receiver = match method.written_invocation_mode {
+                        InvocationMode::Consuming => "self: Box<Self>",
+                        InvocationMode::Mutable => "&mut self",
+                        InvocationMode::Shared => "&self",
                     };
                     write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
@@ -460,12 +458,10 @@ impl<'a> Emitter<'a> {
                 self.indent += 1;
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.consumes_receiver {
-                        "self"
-                    } else if method.mutates_receiver {
-                        "&mut self"
-                    } else {
-                        "&self"
+                    let receiver = match method.written_invocation_mode {
+                        InvocationMode::Consuming => "self",
+                        InvocationMode::Mutable => "&mut self",
+                        InvocationMode::Shared => "&self",
                     };
                     write!(self.output, "pub fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
@@ -807,12 +803,10 @@ impl<'a> Emitter<'a> {
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
                         self.line_start();
-                        let receiver = if method.consumes_receiver {
-                            "self"
-                        } else if method.mutates_receiver {
-                            "&mut self"
-                        } else {
-                            "&self"
+                        let receiver = match method.written_invocation_mode {
+                            InvocationMode::Consuming => "self",
+                            InvocationMode::Mutable => "&mut self",
+                            InvocationMode::Shared => "&self",
                         };
                         write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
                             .unwrap();
@@ -957,12 +951,10 @@ impl<'a> Emitter<'a> {
                     }
                     for method in effective_object_methods(interface_unit, interface) {
                         self.line_start();
-                        let receiver = if method.consumes_receiver {
-                            "self: Box<Self>"
-                        } else if method.mutates_receiver {
-                            "&mut self"
-                        } else {
-                            "&self"
+                        let receiver = match method.written_invocation_mode {
+                            InvocationMode::Consuming => "self: Box<Self>",
+                            InvocationMode::Mutable => "&mut self",
+                            InvocationMode::Shared => "&self",
                         };
                         write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                         for parameter in &method.parameters {
@@ -984,11 +976,12 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let receiver = if method.consumes_receiver {
-                            "*self"
-                        } else {
-                            "self"
-                        };
+                        let receiver =
+                            if method.written_invocation_mode == InvocationMode::Consuming {
+                                "*self"
+                            } else {
+                                "self"
+                            };
                         self.line(&format!(
                             "{class_type}::{}({receiver}, {arguments})",
                             rust_name(&method.name)
@@ -1052,12 +1045,10 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.consumes_receiver {
-            "self"
-        } else if contract.mutates_receiver {
-            "&mut self"
-        } else {
-            "&self"
+        let receiver = match contract.written_invocation_mode {
+            InvocationMode::Consuming => "self",
+            InvocationMode::Mutable => "&mut self",
+            InvocationMode::Shared => "&self",
         };
         self.emit_function_as(node, Some(receiver), None);
     }
@@ -1082,12 +1073,10 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.consumes_receiver {
-            "self"
-        } else if contract.mutates_receiver {
-            "&mut self"
-        } else {
-            "&self"
+        let receiver = match contract.written_invocation_mode {
+            InvocationMode::Consuming => "self",
+            InvocationMode::Mutable => "&mut self",
+            InvocationMode::Shared => "&self",
         };
         self.emit_function_as(node, Some(receiver), Some(name));
     }
