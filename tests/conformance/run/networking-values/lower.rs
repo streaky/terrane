@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["core/networking.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/core/networking::lookup-dns"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 319,
-                column: 28,
-                end_line: 319,
-                end_column: 49,
-            }
-        },
+        /* terrane-site-row: site 0: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
+        { Site { function: 0, file: 0, line: 319, column: 28, end_line: 319, end_column: 49 } },
     ];
     #[cold]
     #[inline(never)]

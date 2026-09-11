@@ -382,28 +382,10 @@ mod __terrane_trace {
         "/typed-effect-reflection::main",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /typed-effect-reflection::exact (case.trn:8:3-8:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 3,
-                end_line: 8,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /typed-effect-reflection::main (case.trn:19:5-19:11) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 19,
-                column: 5,
-                end_line: 19,
-                end_column: 11,
-            }
-        },
+        /* terrane-site-row: site 0: /typed-effect-reflection::exact (case.trn:8:3-8:23) */
+        { Site { function: 0, file: 0, line: 8, column: 3, end_line: 8, end_column: 23 } },
+        /* terrane-site-row: site 1: /typed-effect-reflection::main (case.trn:19:5-19:11) */
+        { Site { function: 1, file: 0, line: 19, column: 5, end_line: 19, end_column: 11 } },
     ];
     #[cold]
     #[inline(never)]
@@ -434,7 +416,7 @@ fn main() {
     let value: terrane_int_support::Int = fallible();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&value),
-        terrane_scalar_support::scalar_text(&{ let _ = fallible; "".to_owned() })
+        terrane_scalar_support::scalar_text(&{ let _ = fallible; "throws".to_owned() })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = fallible; "throwable"

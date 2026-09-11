@@ -421,17 +421,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:6:9-6:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 9,
-                end_line: 6,
-                end_column: 37,
-            }
-        },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:9-6:37) */
+        { Site { function: 0, file: 0, line: 6, column: 9, end_line: 6, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/nested-collection-for-binding::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /nested-collection-for-binding::main (case.trn:8:24-8:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 24,
-                end_line: 8,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /nested-collection-for-binding::main (case.trn:11:12-11:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 12,
-                end_line: 11,
-                end_column: 26,
-            }
-        },
+        /* terrane-site-row: site 0: /nested-collection-for-binding::main (case.trn:8:24-8:30) */
+        { Site { function: 0, file: 0, line: 8, column: 24, end_line: 8, end_column: 30 } },
+        /* terrane-site-row: site 1: /nested-collection-for-binding::main (case.trn:11:12-11:26) */
+        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]

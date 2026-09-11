@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0002"
+contains = "requires `function from int to string throws coercion-error`, found `function from int to string throws throwable`"

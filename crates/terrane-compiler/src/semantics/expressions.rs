@@ -104,10 +104,11 @@ pub(super) fn infer_value_type(
                 .clone()
                 .unwrap_or(ValueType::Scalar(ScalarType::None)),
         );
+        let effects = CallableEffects::from_contract(contract);
         return Ok(Some(if contract.is_async {
-            ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+            ValueType::AsyncFunction(parameters, result, contract.task_transferability, effects)
         } else {
-            ValueType::Function(parameters, result)
+            ValueType::Function(parameters, result, effects)
         }));
     }
     if node.kind == SyntaxKind::GroupExpression {
@@ -179,10 +180,16 @@ pub(super) fn infer_value_type(
                         .clone()
                         .unwrap_or(ValueType::Scalar(ScalarType::None)),
                 );
+                let effects = CallableEffects::from_contract(contract);
                 return Ok(Some(if contract.is_async {
-                    ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+                    ValueType::AsyncFunction(
+                        parameters,
+                        result,
+                        contract.task_transferability,
+                        effects,
+                    )
                 } else {
-                    ValueType::Function(parameters, result)
+                    ValueType::Function(parameters, result, effects)
                 }));
             }
         }
@@ -199,10 +206,16 @@ pub(super) fn infer_value_type(
                         .clone()
                         .unwrap_or(ValueType::Scalar(ScalarType::None)),
                 );
+                let effects = CallableEffects::from_contract(contract);
                 return Ok(Some(if contract.is_async {
-                    ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+                    ValueType::AsyncFunction(
+                        parameters,
+                        result,
+                        contract.task_transferability,
+                        effects,
+                    )
                 } else {
-                    ValueType::Function(parameters, result)
+                    ValueType::Function(parameters, result, effects)
                 }));
             }
         }
@@ -358,7 +371,7 @@ pub(super) fn infer_value_type(
                     object_member_type(unit, &identity, node_text(&unit.source, member), true)
                         .ok_or_else(|| missing_static_member_failure(unit, &identity, member))?;
                 return match member_type {
-                    ValueType::Function(_, result) => {
+                    ValueType::Function(_, result, _) => {
                         let result = result.value_type();
                         let result = object_method_contract(
                             unit,
@@ -376,7 +389,7 @@ pub(super) fn infer_value_type(
                         .map_or(result, |_| ValueType::Object(identity));
                         Ok(Some(result))
                     }
-                    ValueType::AsyncFunction(_, result, transferability) => {
+                    ValueType::AsyncFunction(_, result, transferability, _) => {
                         Ok(Some(ValueType::Task(result, transferability)))
                     }
                     _ => Err(failure(
@@ -809,7 +822,7 @@ pub(super) fn infer_value_type(
                         let callable = callable.children.last().unwrap_or(callable);
                         match infer_value_type(unit, callable, bindings)? {
                             Some(
-                                ValueType::AsyncFunction(_, result, transferability)
+                                ValueType::AsyncFunction(_, result, transferability, _)
                                 | ValueType::Task(result, transferability),
                             ) => Ok(Some(ValueType::ScopedTask(result, transferability))),
                             _ => Err(failure(
@@ -940,8 +953,8 @@ pub(super) fn infer_value_type(
             && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
         {
             return match member_type {
-                ValueType::Function(_, result) => Ok(Some(result.value_type())),
-                ValueType::AsyncFunction(_, result, transferability) => {
+                ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result, transferability, _) => {
                     Ok(Some(ValueType::Task(result, transferability)))
                 }
                 _ => Err(failure(
@@ -991,8 +1004,8 @@ pub(super) fn infer_value_type(
                 binding.name == name && binding.is_visible_at(unit.source.id(), callee.span.start)
             }) {
                 return match &binding.value_type {
-                    ValueType::Function(_, result) => Ok(Some(result.value_type())),
-                    ValueType::AsyncFunction(_, result, transferability) => {
+                    ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
+                    ValueType::AsyncFunction(_, result, transferability, _) => {
                         Ok(Some(ValueType::Task(result.clone(), *transferability)))
                     }
                     _ => Err(failure(

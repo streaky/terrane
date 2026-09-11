@@ -202,42 +202,129 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
+### Milestone 28 — Exact callable and object contracts for projected conformance
 
+Projected Rust traits must enter Terrane through its existing object model rather than importing
+Rust's vocabulary as a parallel source model. An admissible Rust trait therefore projects as a
+Terrane `interface`: it has nominal identity, may be used as a type, and is satisfied explicitly
+through `implements`. Terrane `trait` remains source implementation composition through `uses`, and
+an unnamed structural `protocol` remains implicitly satisfied from a descriptor's operation shape.
+The detailed rationale and implementation inventory remain in
+`docs/dump/trait-projection.md`; this milestone family is the authoritative delivery contract.
 
-### Milestone 26.2 — Throwable contracts for function types
+Before emitting a foreign implementation, make those boundaries exact throughout the language and
+give callable receivers the source contract that projected methods need:
 
-Milestone 15 established one sound result-bearing ABI for synchronous callable values but
-deliberately erased their precise throwable sets. Milestone 26.1 establishes stable structured-error
-identity and propagation. This milestone joins those contracts at the language surface; it does not
-weaken the broad `throwable` fallback for a callable whose contract is genuinely unavailable.
+- normalize the full and concise specifications, surface documents, scoreboard, and manual around
+  four distinct terms: structural protocol, nominal interface, implementation-composing trait, and
+  compiler-owned descriptor operation. Remove prose implying a source `protocol` declaration or a
+  structural named interface; no user-declared protocol feature is added;
+- support shared, mutable, and consuming invocation modes wherever a function declaration or type
+  appears. Plain `function` remains the shared form; `mutable function` and `consuming function`
+  state exclusive-repeatable and one-shot invocation respectively, and compose with `async` and
+  `throws`;
+- retain the written invocation mode separately from the exact mode inferred from the body and
+  captures. Enforce it through receiver checking, capture analysis, callable compatibility,
+  storage, invocation, interface conformance, trait composition, ownership, and reflection;
+- normalize projected `Fn`, `FnMut`, and `FnOnce` callback contracts onto those three ordinary
+  Terrane modes, removing their separate semantic multiplicity path while retaining the existing
+  call-site adapters and boundary conversions; and
+- make `destruct` a fixed consuming lifecycle operation without changing the established
+  one-lineage destruction contract.
 
-Deliver:
+Exit criterion: either language specification answers the protocol/interface/trait distinction
+without inference; Terrane source declares, stores, invokes, and reflects all three callable modes
+without a Rust dependency; all compatibility directions, mutation and move restrictions,
+use-after-consumption, async/throwable composition, and receiver modes have focused accepted and
+rejected evidence; and every existing projected callback maps to the common callable model without
+weakening its retention, transfer, or thread contracts.
 
-- settle and implement function-type syntax for a declared throwable upper bound, including its
-  association and grouping within nested `function from ... to ...` types and its interaction with
-  `async`;
-- retain the written upper bound and inferred concrete escaping set as distinct callable-type
-  metadata, consistent with ordinary function declarations and reflection;
-- make callable compatibility accept an infallible or narrower implementation and reject an
-  incompatible or broader implementation at the assignment, argument, return, or object-member
-  boundary;
-- make invocation through a typed callable value contribute its declared bound instead of the broad
-  `throwable` set, while an unbounded erased callable remains broad;
-- preserve exact throwable metadata for named functions, closures, and bound-method values, removing
-  result propagation and error-site registration where the selected callable contract proves the
-  invocation infallible;
-- add accepted and rejected conformance for nonthrowing, exact-bound, narrower-bound, broader-bound,
-  nested-function, bound-method, and async callable types before documenting a canonical spelling.
+### Milestone 28.1 — Concrete projected interfaces and class implementations
 
-Exit criterion: a higher-order function can state the throwable contract required of its callback;
-passing and invoking callbacks preserves that contract across binding, parameter, return, member,
-closure, and bound-method boundaries; incompatible effects receive a source-oriented diagnostic at
-the compatibility boundary; a provably infallible callable-value invocation lowers without an error
-site or `?`; reflection distinguishes the written bound from the inferred concrete set; and all
-accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
-and runtime evidence.
+Project a representable Rust trait as an imported Terrane interface with no new declaration kind or
+conformance clause. The projection artifact records the trait's canonical identity, required and
+provided methods, receiver modes, signatures, throwable/result shapes, transfer and thread
+obligations, documentation, and a stable reason for every declined trait or member. Default methods
+are provided interface members: callable and overridable, but not required from every implementor.
 
-### Milestone 27.1 — Terrane-native testing framework
+`implements` admits source-declared, compiler-owned, and projected interface identities through one
+descriptor rule. Conformance reads requirements from the descriptor, checks each matching class
+method after type projection, permits unrelated inherent class methods, and diagnoses receiver,
+signature, throwable, lifetime, and ownership mismatches at Terrane source spans. Generic methods,
+higher-ranked lifetimes, unresolved associated types, static requirements, and unprojectable method
+types remain precise declines.
+
+Lower each accepted class-interface pair to one readable `impl ForeignTrait for LocalClass` whose
+methods delegate to the lowered Terrane bodies through the existing callback conversion layer.
+Extend the projection oracle with an impl-shaped question and prove the complete generated
+implementation against the resolved dependency. Admit immediate concrete generic or `impl Trait`
+input calls by selecting the exact generated class from one written argument and proving the
+substituted call; borrowed calls are accepted only when the borrow cannot escape. Rust dyn
+compatibility is checked only at a boundary that actually asks for a Rust trait object. A foreign
+type cannot be named as the implementor.
+
+Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
+logic; Terrane classes implement their fixed-signature traits, use the projected identities as
+ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
+provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
+every unsupported trait shape and conformance mismatch, and every public trait omitted from
+projection has a tooling-visible reason.
+
+### Milestone 28.2 — Owned, erased, and asynchronous dependency entry
+
+Make projected conformance usable at framework and plugin boundaries after the registering call has
+returned. An owned class passed into Rust follows ordinary Terrane copy, separation, move, resource,
+reference, and lifecycle rules; the dependency-held representation owns that lineage until it is
+returned or dropped. Extend argument-directed specialization to retained generic inputs, supported
+`Box<dyn Trait>` inputs, and the exact generated Terrane interface wrapper when erased delegation is
+coherent and oracle-proven. Other owning containers require their own projected construction path.
+
+Each retained method adapter is a later-entry boundary carrying only owned state. Check the actual
+`'static`, `Send`, `Sync`, unwind, runtime, and destruction obligations and reject borrowed escape or
+unavailable execution context. Canonical Rust `Drop` maps to Terrane `destruct` as a lifecycle
+special case and shares the existing lineage-aware lowering; direct import of canonical `Drop` is
+declined with source guidance, and no duplicate Rust `Drop` implementation may be emitted.
+
+Async projected methods preserve Terrane cancellation and cleanup semantics when Rust drops their
+future. Reuse the existing operation/cleanup split, allow post-drop cleanup only when its state can
+be separated from any ended Rust receiver borrow, and keep an owning scope or runtime alive until
+required cleanup finishes. Throwable results use the existing projected `Result` mapping; an
+otherwise throwing implementation is rejected when the Rust result cannot carry the error.
+
+Exit criterion: a controlled dependency accepts both a concrete generic implementor and a supported
+boxed trait object, invokes them after registration on same-thread and `Send`/`Sync` paths, and
+releases or returns their ownership with the correct one-lineage destruction behavior. Separate
+async witnesses prove cancellation, nested `finally`, and destruction order for shared, mutable,
+and consuming receivers. Rejections cover borrowed escape, missing lifetime/thread/runtime bounds,
+incoherent erased wrappers, unavailable dyn dispatch, unrepresentable throwables, and cleanup that
+cannot be separated safely.
+
+### Milestone 28.3 — Closed associated types and supertrait chains
+
+Extend projected interfaces only where an author can close the remaining trait obligations without
+source-declared generics. A projected trait with exactly one associated type may become an interface
+type constructor; `Interface of ConcreteType` supplies the explicit binding for `implements` and
+annotations. The applied interface has a complete canonical nominal identity containing the foreign
+trait, associated slot, and concrete type. Substitute that binding recursively through method
+contracts and reflection before ordinary conformance and lowering, emit the corresponding Rust
+associated type, and prove the complete implementation. Bare applications, inference from method
+shapes, multiple associated types, generic associated types, and unresolved or failed bounds remain
+declined.
+
+Admit a supertrait chain only when every member is independently projectable and implementable under
+the same rules. Conformance composes its requirements, emits each required foreign implementation
+once, and observes the canonical `Drop` lifecycle special case from milestone 28.2. Each associated
+or supertrait extension is entered only with an exercised dependency witness; this milestone does
+not introduce source type parameters or generic declarations.
+
+Exit criterion: one associated-type dependency supports an explicit closed binding, Terrane
+interface annotation and dispatch across two conforming classes with the same binding, concrete and
+coherent erased Rust crossings, reflection, and deterministic warning-free generated Rust. A second
+witness proves a complete supertrait chain. Focused rejects cover open or ambiguous application,
+multiple or generic associated slots, failed associated bounds, mismatched substitution,
+unprojectable supertraits, and an erased wrapper whose obligations cease to be coherent.
+
+### Milestone 30 — Terrane-native testing framework
 
 Terrane programs need a first-party way to test Terrane behavior without translating their
 contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
@@ -246,8 +333,8 @@ logic are bundled Terrane source under `/core/testing`; Rust remains limited to 
 process isolation/capture, clocks, and host filesystem operations that cannot be expressed above
 the existing platform ABI.
 
-Milestone 26.2 precedes this work because `assert-throws` and throwing test callbacks must retain an
-exact callable throwable bound. Milestones 19, 22, and 26 already provide the async, filesystem,
+Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
+test callbacks. Milestones 19, 22, and 26 already provide the async, filesystem,
 process, profile, and system foundations needed by isolated integration and end-to-end tests.
 
 #### Test discovery and tiers
@@ -560,8 +647,11 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - complete reference provenance, target-aware cycle handling, and borrow-oriented lowering
   (milestone 17);
 - implement destination-directed specialization of closed projected results (milestone 25.4);
-- add throwable bounds to function types (milestone 26.2);
-- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
+- establish exact callable and object contracts for projected conformance (milestone 28);
+- project concrete Rust traits as Terrane interfaces implemented by local classes (milestone 28.1);
+- support owned, erased, retained, and asynchronous projected-interface crossings (milestone 28.2);
+- close one associated type explicitly and admit implementable supertrait chains (milestone 28.3);
+- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 30);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
@@ -590,6 +680,35 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 26.2 — Throwable contracts for function types
+
+Function types now accept postfix `throws T`, with the clause binding to the callable introduced by
+the nearest `function` or `async function`; nested result callables consume their own clause before
+an outer callable clause. The written upper bound and exact inferred escaping set remain distinct
+metadata on source declarations and callable values. Omitting `throws` declares an infallible
+callable type. Named functions, closures, bound methods, and inferred callable bindings retain the
+exact set the compiler proves; an explicitly typed binding also retains its written storage ABI.
+
+Callable compatibility is covariant in failure: infallible and narrower implementations satisfy a
+broader destination, while broader or unrelated throwables fail at binding, argument, return,
+class-field initializer, and member-assignment boundaries. Invocation through an exact callable
+contributes its inferred set, while invocation through explicitly typed storage contributes its
+written bound. ABI selection independently follows that written bound, so widening an exact
+infallible implementation still receives a result-bearing representation without falsifying its
+empty reflected escaping set. Synchronous and asynchronous callables use the same rule.
+
+Evidence: `callable-throwable-contracts` runs exact and written-bound storage, infallible, nested,
+closure, bound-method, class-method, class-field invocation and reassignment, custom throwable, and
+successful and failing async paths with canonical generated Rust and reflection output.
+`callable-throwable-broad-to-narrow`, `callable-throwable-argument-broad-to-narrow`,
+`callable-throwable-return-broad-to-narrow`, `callable-throwable-field-broad-to-narrow`,
+`callable-throwable-field-assignment`, and `callable-throwable-to-unbounded` preserve source-oriented
+compatibility diagnostics. The pre-existing scalar form is independently pinned by
+`member-assignment-type-mismatch`, so all writable class-field assignments cross the same typed
+destination boundary. `callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
+`callable-throws-repeated-bound` cover malformed contracts, including a dedicated repeated-bound
+diagnostic.
 
 ### Milestone 17 — Complete references, provenance, and lowering
 
@@ -805,7 +924,7 @@ S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
 S1035 malformed object clause             S1036 multiple object bases
 S1037 assignment in condition             S1038 missing function parameter marker
-S1039 missing throwable upper bound       S1040 unclosed function parameter list
+S1039 missing or repeated throwable bound  S1040 unclosed function parameter list
 S1041 missing object clause name          S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
@@ -831,10 +950,10 @@ T0067 incompatible interface signature    T0068 escaping non-owning reference
 T0070 reflection unavailable in profile     T0074 invalid task-core operation
 T0071 unavailable reflected member          T0075 child deadline extension
 T0072 read-only member assignment            T0076 unconsumed task
-T0073 value live across suspension           T0078 parameterized program entrypoint
-```
+T0073 value live across suspension           T0077 incompatible member assignment
+T0078 parameterized program entrypoint
 
-`T0056`, `T0057`, `T0060`, `T0069`, and `T0077` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, and `T0069` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 

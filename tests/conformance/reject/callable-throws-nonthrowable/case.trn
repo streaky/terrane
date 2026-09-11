@@ -1,0 +1,4 @@
+namespace callable-throws-nonthrowable
+
+function main;
+  operation function from int to string throws string = none

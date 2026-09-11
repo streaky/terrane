@@ -915,8 +915,52 @@ pub(super) fn validate_class_field_initializers(
     {
         for effective in effective_object_fields(package, object) {
             let field = effective.field;
-            if field.initializer_span.is_some()
-                || canonical_default(&field.value_type).is_some()
+            if let Some(initializer_span) = field.initializer_span {
+                if !matches!(
+                    field.value_type,
+                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                ) {
+                    continue;
+                }
+                let initializer = find_node_by_span(&effective.unit.tree.root, initializer_span)
+                    .ok_or_else(|| {
+                        failure(
+                            &effective.unit.source,
+                            "T0060",
+                            "class field initializer is unavailable",
+                            field.span,
+                        )
+                    })?;
+                let actual =
+                    infer_value_type(effective.unit, initializer, &effective.unit.typed_bindings)?
+                        .ok_or_else(|| {
+                            failure(
+                                &effective.unit.source,
+                                "T0060",
+                                format!(
+                                    "class field `{}` initializer type cannot be inferred",
+                                    field.name
+                                ),
+                                initializer.span,
+                            )
+                        })?;
+                if !value_types_compatible(&effective.unit.descriptors, &field.value_type, &actual)
+                {
+                    return Err(failure(
+                        &effective.unit.source,
+                        "T0060",
+                        format!(
+                            "class field `{}` requires `{}`, found `{}`",
+                            field.name,
+                            diagnostic_value_type(&effective.unit.descriptors, &field.value_type),
+                            diagnostic_value_type(&effective.unit.descriptors, &actual)
+                        ),
+                        initializer.span,
+                    ));
+                }
+                continue;
+            }
+            if canonical_default(&field.value_type).is_some()
                 || matches!(
                     field.value_type,
                     ValueType::PlatformStreamHandle
@@ -1367,6 +1411,30 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     propagate_interface_receiver_mutability(package);
     validate_descriptor_value_uses(package)?;
 
+    collect_initial_typed_bindings(package)?;
+    specialize_projected_results(package)?;
+    for unit in &package.units {
+        validate_invocation_only_members(unit)?;
+    }
+    validate_resource_collection_types(package)?;
+    infer_receiver_consumption(package);
+    validate_object_conformance(package)?;
+    populate_closure_captures(package);
+    Ok(())
+}
+pub(super) fn collect_initial_typed_bindings(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    rebuild_typed_bindings(package)
+}
+
+pub(super) fn refresh_typed_bindings_after_effect_inference(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    rebuild_typed_bindings(package)
+}
+
+fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut visible_bindings = Vec::new();
@@ -1380,17 +1448,9 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         )?;
         package.units[index].typed_bindings = bindings;
     }
-    specialize_projected_results(package)?;
-    for unit in &package.units {
-        validate_invocation_only_members(unit)?;
-    }
-    validate_resource_collection_types(package)?;
-    infer_receiver_consumption(package);
-    validate_object_conformance(package)?;
-    validate_class_field_initializers(package)?;
-    populate_closure_captures(package);
     Ok(())
 }
+
 #[derive(Clone)]
 struct PendingProjectedSpecialization {
     unit: usize,
@@ -1722,7 +1782,8 @@ fn collect_projected_destinations(
         )?;
         let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
             Ok(Some(
-                ValueType::Function(parameters, _) | ValueType::AsyncFunction(parameters, _, _),
+                ValueType::Function(parameters, _, _)
+                | ValueType::AsyncFunction(parameters, _, _, _),
             )) => parameters,
             Ok(_) | Err(_) => Vec::new(),
         };

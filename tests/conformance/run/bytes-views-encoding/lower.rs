@@ -379,61 +379,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/bytes-views-encoding::main"];
     pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /bytes-views-encoding::main (case.trn:19:20-19:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 20,
-                end_line: 19,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /bytes-views-encoding::main (case.trn:21:25-21:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 25,
-                end_line: 21,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /bytes-views-encoding::main (case.trn:22:25-22:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 22,
-                column: 25,
-                end_line: 22,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /bytes-views-encoding::main (case.trn:23:25-23:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 25,
-                end_line: 23,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /bytes-views-encoding::main (case.trn:24:25-24:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 25,
-                end_line: 24,
-                end_column: 65,
-            }
-        },
+        /* terrane-site-row: site 0: /bytes-views-encoding::main (case.trn:19:20-19:40) */
+        { Site { function: 0, file: 0, line: 19, column: 20, end_line: 19, end_column: 40 } },
+        /* terrane-site-row: site 1: /bytes-views-encoding::main (case.trn:21:25-21:65) */
+        { Site { function: 0, file: 0, line: 21, column: 25, end_line: 21, end_column: 65 } },
+        /* terrane-site-row: site 2: /bytes-views-encoding::main (case.trn:22:25-22:65) */
+        { Site { function: 0, file: 0, line: 22, column: 25, end_line: 22, end_column: 65 } },
+        /* terrane-site-row: site 3: /bytes-views-encoding::main (case.trn:23:25-23:65) */
+        { Site { function: 0, file: 0, line: 23, column: 25, end_line: 23, end_column: 65 } },
+        /* terrane-site-row: site 4: /bytes-views-encoding::main (case.trn:24:25-24:65) */
+        { Site { function: 0, file: 0, line: 24, column: 25, end_line: 24, end_column: 65 } },
     ];
     #[cold]
     #[inline(never)]

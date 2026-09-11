@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/loop-shadowing-scope::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /loop-shadowing-scope::main (case.trn:24:10-24:20) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 10,
-                end_line: 24,
-                end_column: 20,
-            }
-        },
+        /* terrane-site-row: site 0: /loop-shadowing-scope::main (case.trn:24:10-24:20) */
+        { Site { function: 0, file: 0, line: 24, column: 10, end_line: 24, end_column: 20 } },
     ];
     #[cold]
     #[inline(never)]

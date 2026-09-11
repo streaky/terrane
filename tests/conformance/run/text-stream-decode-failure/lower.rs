@@ -386,72 +386,18 @@ mod __terrane_trace {
         "/core/streams::read-async",
     ];
     pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /text-stream-decode-failure::read-all (case.trn:6:15-6:33) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 15,
-                end_line: 6,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /text-stream-decode-failure::main (case.trn:14:17-14:37) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 14,
-                column: 17,
-                end_line: 14,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 188,
-                column: 23,
-                end_line: 188,
-                end_column: 50,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 210,
-                column: 23,
-                end_line: 210,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /core/streams::read-all (core/streams.trn:229:23-229:46) */
-            Site {
-                function: 4,
-                file: 1,
-                line: 229,
-                column: 23,
-                end_line: 229,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /core/streams::read-async (core/streams.trn:234:23-234:50) */
-            Site {
-                function: 5,
-                file: 1,
-                line: 234,
-                column: 23,
-                end_line: 234,
-                end_column: 50,
-            }
-        },
+        /* terrane-site-row: site 0: /text-stream-decode-failure::read-all (case.trn:6:15-6:33) */
+        { Site { function: 0, file: 0, line: 6, column: 15, end_line: 6, end_column: 33 } },
+        /* terrane-site-row: site 1: /text-stream-decode-failure::main (case.trn:14:17-14:37) */
+        { Site { function: 1, file: 0, line: 14, column: 17, end_line: 14, end_column: 37 } },
+        /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
+        { Site { function: 2, file: 1, line: 188, column: 23, end_line: 188, end_column: 50 } },
+        /* terrane-site-row: site 3: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
+        { Site { function: 3, file: 1, line: 210, column: 23, end_line: 210, end_column: 46 } },
+        /* terrane-site-row: site 4: /core/streams::read-all (core/streams.trn:229:23-229:46) */
+        { Site { function: 4, file: 1, line: 229, column: 23, end_line: 229, end_column: 46 } },
+        /* terrane-site-row: site 5: /core/streams::read-async (core/streams.trn:234:23-234:50) */
+        { Site { function: 5, file: 1, line: 234, column: 23, end_line: 234, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]

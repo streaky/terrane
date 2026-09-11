@@ -421,50 +421,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:6:25-6:67) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 25,
-                end_line: 6,
-                end_column: 67,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:8:21-8:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 21,
-                end_line: 8,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:10:26-10:44) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 26,
-                end_line: 10,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:19:29-19:50) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 29,
-                end_line: 19,
-                end_column: 50,
-            }
-        },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:25-6:67) */
+        { Site { function: 0, file: 0, line: 6, column: 25, end_line: 6, end_column: 67 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:21-8:38) */
+        { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 38 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:26-10:44) */
+        { Site { function: 0, file: 0, line: 10, column: 26, end_line: 10, end_column: 44 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:19:29-19:50) */
+        { Site { function: 0, file: 0, line: 19, column: 29, end_line: 19, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]

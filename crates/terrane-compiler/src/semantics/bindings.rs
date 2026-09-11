@@ -810,7 +810,7 @@ fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
             value_type_is_task_transferable(key.value_type_ref())
                 && value_type_is_task_transferable(value.value_type_ref())
         }
-        ValueType::AsyncFunction(_, _, transferability)
+        ValueType::AsyncFunction(_, _, transferability, _)
         | ValueType::Task(_, transferability)
         | ValueType::ScopedTask(_, transferability) => {
             *transferability == TaskTransferability::Transferable
@@ -1160,7 +1160,7 @@ pub(super) fn validate_task_transferability(
             if matches!(
                 infer_value_type(unit, callable, &unit.typed_bindings)?,
                 Some(
-                    ValueType::AsyncFunction(_, _, TaskTransferability::Local)
+                    ValueType::AsyncFunction(_, _, TaskTransferability::Local, _)
                         | ValueType::Task(_, TaskTransferability::Local)
                 )
             ) {
@@ -1417,12 +1417,6 @@ fn validate_projected_callback_contract(
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
-    if contract.throws {
-        return reject(
-            "T0080",
-            "projected Rust callback cannot receive a callable with an escaping throwable",
-        );
-    }
     if *send && contract.task_transferability == TaskTransferability::Local {
         return reject(
             "T0081",

@@ -379,39 +379,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/mixed-value-reference-sequence::main"];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /mixed-value-reference-sequence::main (case.trn:20:10-20:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 10,
-                end_line: 20,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /mixed-value-reference-sequence::main (case.trn:20:28-20:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 28,
-                end_line: 20,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /mixed-value-reference-sequence::main (case.trn:20:38-20:54) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 38,
-                end_line: 20,
-                end_column: 54,
-            }
-        },
+        /* terrane-site-row: site 0: /mixed-value-reference-sequence::main (case.trn:20:10-20:26) */
+        { Site { function: 0, file: 0, line: 20, column: 10, end_line: 20, end_column: 26 } },
+        /* terrane-site-row: site 1: /mixed-value-reference-sequence::main (case.trn:20:28-20:36) */
+        { Site { function: 0, file: 0, line: 20, column: 28, end_line: 20, end_column: 36 } },
+        /* terrane-site-row: site 2: /mixed-value-reference-sequence::main (case.trn:20:38-20:54) */
+        { Site { function: 0, file: 0, line: 20, column: 38, end_line: 20, end_column: 54 } },
     ];
     #[cold]
     #[inline(never)]

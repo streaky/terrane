@@ -382,28 +382,10 @@ mod __terrane_trace {
         "/uncaught-detailed-coercion::main",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /uncaught-detailed-coercion::narrow (case.trn:4:10-4:15) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 10,
-                end_line: 4,
-                end_column: 15,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:6:11-6:22) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 6,
-                column: 11,
-                end_line: 6,
-                end_column: 22,
-            }
-        },
+        /* terrane-site-row: site 0: /uncaught-detailed-coercion::narrow (case.trn:4:10-4:15) */
+        { Site { function: 0, file: 0, line: 4, column: 10, end_line: 4, end_column: 15 } },
+        /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:6:11-6:22) */
+        { Site { function: 1, file: 0, line: 6, column: 11, end_line: 6, end_column: 22 } },
     ];
     #[cold]
     #[inline(never)]

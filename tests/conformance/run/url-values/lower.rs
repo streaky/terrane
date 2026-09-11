@@ -379,50 +379,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["core/urls.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/core/urls::get", "/core/urls::get-all"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /core/urls::get (core/urls.trn:23:16-23:32) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 16,
-                end_line: 23,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /core/urls::get (core/urls.trn:24:24-24:42) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 24,
-                end_line: 24,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /core/urls::get-all (core/urls.trn:32:16-32:32) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 32,
-                column: 16,
-                end_line: 32,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /core/urls::get-all (core/urls.trn:33:32-33:50) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 33,
-                column: 32,
-                end_line: 33,
-                end_column: 50,
-            }
-        },
+        /* terrane-site-row: site 0: /core/urls::get (core/urls.trn:23:16-23:32) */
+        { Site { function: 0, file: 0, line: 23, column: 16, end_line: 23, end_column: 32 } },
+        /* terrane-site-row: site 1: /core/urls::get (core/urls.trn:24:24-24:42) */
+        { Site { function: 0, file: 0, line: 24, column: 24, end_line: 24, end_column: 42 } },
+        /* terrane-site-row: site 2: /core/urls::get-all (core/urls.trn:32:16-32:32) */
+        { Site { function: 1, file: 0, line: 32, column: 16, end_line: 32, end_column: 32 } },
+        /* terrane-site-row: site 3: /core/urls::get-all (core/urls.trn:33:32-33:50) */
+        { Site { function: 1, file: 0, line: 33, column: 32, end_line: 33, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]

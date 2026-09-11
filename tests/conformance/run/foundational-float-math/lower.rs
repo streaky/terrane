@@ -378,95 +378,15 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/foundational-float-math::main"];
-    pub static SITES: [Site; 8] = [
-        {
-            /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:9:11-9:18) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 11,
-                end_line: 9,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:13:30-13:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 30,
-                end_line: 13,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:13:48-13:57) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 48,
-                end_line: 13,
-                end_column: 57,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:24:30-24:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 30,
-                end_line: 24,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /foundational-float-math::main (case.trn:24:48-24:57) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 48,
-                end_line: 24,
-                end_column: 57,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /foundational-float-math::main (case.trn:59:11-59:28) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 59,
-                column: 11,
-                end_line: 59,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /foundational-float-math::main (case.trn:59:39-59:56) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 59,
-                column: 39,
-                end_line: 59,
-                end_column: 56,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /foundational-float-math::main (case.trn:59:67-59:94) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 59,
-                column: 67,
-                end_line: 59,
-                end_column: 94,
-            }
-        },
+    pub static SITES: [Site; 4] = [
+        /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:13:30-13:39) */
+        { Site { function: 0, file: 0, line: 13, column: 30, end_line: 13, end_column: 39 } },
+        /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:13:48-13:57) */
+        { Site { function: 0, file: 0, line: 13, column: 48, end_line: 13, end_column: 57 } },
+        /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:24:30-24:39) */
+        { Site { function: 0, file: 0, line: 24, column: 30, end_line: 24, end_column: 39 } },
+        /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:24:48-24:57) */
+        { Site { function: 0, file: 0, line: 24, column: 48, end_line: 24, end_column: 57 } },
     ];
     #[cold]
     #[inline(never)]
@@ -486,14 +406,11 @@ fn main() {
     let zero32: f32 = 0.0_f32;
     let one32: f32 = 1.0_f32;
     let nine32: f32 = 9.0_f32;
-    let root32: std::sync::Arc<dyn Fn() -> Result<f32, TerraneError> + Send + Sync> = {
+    let root32: std::sync::Arc<dyn Fn() -> f32 + Send + Sync> = {
         let receiver = nine32;
-        std::sync::Arc::new(move || Ok(receiver.sqrt()))
+        std::sync::Arc::new(move || receiver.sqrt())
     };
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(__terrane_traced(root32(),
-        0 /* terrane-site: case.trn:9:11-9:18 */) == 3.0_f32))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&(root32() == 3.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.sin() == 0.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.cos() == 1.0_f32)));
     let pair32: terrane_collection_support::Tuple<f32> = {
@@ -508,10 +425,10 @@ fn main() {
         .length())) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:13:30-13:39 */)), 1 /* terrane-site: case.trn:13:30-13:39 */) == 0.0_f32)),
+        0 /* terrane-site: case.trn:13:30-13:39 */)), 0 /* terrane-site: case.trn:13:30-13:39 */) == 0.0_f32)),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        2 /* terrane-site: case.trn:13:48-13:57 */)), 2 /* terrane-site: case.trn:13:48-13:57 */) == 1.0_f32))
+        1 /* terrane-site: case.trn:13:48-13:57 */)), 1 /* terrane-site: case.trn:13:48-13:57 */) == 1.0_f32))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one32.ln() == 0.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.exp() == 1.0_f32)));
@@ -533,10 +450,10 @@ fn main() {
         .length())) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        3 /* terrane-site: case.trn:24:30-24:39 */)), 3 /* terrane-site: case.trn:24:30-24:39 */) == 0.0)),
+        2 /* terrane-site: case.trn:24:30-24:39 */)), 2 /* terrane-site: case.trn:24:30-24:39 */) == 0.0)),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        4 /* terrane-site: case.trn:24:48-24:57 */)), 4 /* terrane-site: case.trn:24:48-24:57 */) == 1.0))
+        3 /* terrane-site: case.trn:24:48-24:57 */)), 3 /* terrane-site: case.trn:24:48-24:57 */) == 1.0))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one64.ln() == 0.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero64.exp() == 1.0)));
@@ -595,11 +512,9 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&(low64.mul_add(high64, 1.0) == 11.0))
     );
-    let minimum64: std::sync::Arc<
-        dyn Fn(f64) -> Result<f64, TerraneError> + Send + Sync,
-    > = {
+    let minimum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
         let receiver = low64;
-        std::sync::Arc::new(move |argument_0: f64| Ok({
+        std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
             let terrane_argument: f64 = argument_0;
             if terrane_receiver == 0.0 && terrane_argument == 0.0 {
@@ -613,13 +528,11 @@ fn main() {
             } else {
                 terrane_receiver.min(terrane_argument)
             }
-        }))
+        })
     };
-    let maximum64: std::sync::Arc<
-        dyn Fn(f64) -> Result<f64, TerraneError> + Send + Sync,
-    > = {
+    let maximum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
         let receiver = low64;
-        std::sync::Arc::new(move |argument_0: f64| Ok({
+        std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
             let terrane_argument: f64 = argument_0;
             if terrane_receiver == 0.0 && terrane_argument == 0.0 {
@@ -633,24 +546,18 @@ fn main() {
             } else {
                 terrane_receiver.max(terrane_argument)
             }
-        }))
+        })
     };
-    let multiply_add64: std::sync::Arc<
-        dyn Fn(f64, f64) -> Result<f64, TerraneError> + Send + Sync,
-    > = {
+    let multiply_add64: std::sync::Arc<dyn Fn(f64, f64) -> f64 + Send + Sync> = {
         let receiver = low64;
-        std::sync::Arc::new(move |argument_0: f64, argument_1: f64| Ok(
-            receiver.mul_add(argument_0, argument_1),
-        ))
+        std::sync::Arc::new(move |argument_0: f64, argument_1: f64| {
+            receiver.mul_add(argument_0, argument_1)
+        })
     };
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&(__terrane_traced(minimum64(high64),
-        5 /* terrane-site: case.trn:59:11-59:28 */) == 2.0)),
-        terrane_scalar_support::scalar_text(&(__terrane_traced(maximum64(high64),
-        6 /* terrane-site: case.trn:59:39-59:56 */) == 5.0)),
-        terrane_scalar_support::scalar_text(&(__terrane_traced(multiply_add64(high64,
-        1.0), 7 /* terrane-site: case.trn:59:67-59:94 */) == 11.0))
+        "{}{}{}", terrane_scalar_support::scalar_text(&(minimum64(high64) == 2.0)),
+        terrane_scalar_support::scalar_text(&(maximum64(high64) == 5.0)),
+        terrane_scalar_support::scalar_text(&(multiply_add64(high64, 1.0) == 11.0))
     );
     println!("{}", terrane_scalar_support::scalar_text(&low64.is_finite()));
     println!("{}", terrane_scalar_support::scalar_text(&not_a_number.is_nan()));

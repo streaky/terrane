@@ -904,39 +904,65 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         callable: &SyntaxNode,
         inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
     ) -> BTreeSet<String> {
-        if callable.kind == SyntaxKind::Name
-            && let Some(contract) = resolved_function_contract(
-                unit,
-                node_text(&unit.source, callable),
-                callable.span.start,
-            )
-        {
-            return inferred
-                .get(&key(contract.span))
-                .cloned()
-                .unwrap_or_else(|| contract.escaping_throwables.clone());
+        fn resolve(
+            unit: &SemanticUnit,
+            callable: &SyntaxNode,
+            inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+            visited: &mut BTreeSet<FunctionKey>,
+        ) -> BTreeSet<String> {
+            if !visited.insert(key(callable.span)) {
+                return BTreeSet::new();
+            }
+            if callable.kind == SyntaxKind::Name {
+                let name = node_text(&unit.source, callable);
+                if let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                    binding.name == name
+                        && binding.is_visible_at(unit.source.id(), callable.span.start)
+                }) && let Some(initializer) =
+                    find_binding_initializer(&unit.tree.root, binding.span)
+                {
+                    return resolve(unit, initializer, inferred, visited);
+                }
+                if let Some(contract) = resolved_function_contract(unit, name, callable.span.start)
+                {
+                    return inferred
+                        .get(&key(contract.span))
+                        .cloned()
+                        .unwrap_or_else(|| contract.escaping_throwables.clone());
+                }
+            }
+            if callable.kind == SyntaxKind::AnonymousFunction
+                && let Some(contract) = unit
+                    .functions
+                    .iter()
+                    .find(|contract| contract.span == callable.span)
+            {
+                return inferred
+                    .get(&key(contract.span))
+                    .cloned()
+                    .unwrap_or_else(|| contract.escaping_throwables.clone());
+            }
+            if callable.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callable.children.as_slice()
+                && let Ok(Some(ValueType::Object(identity))) =
+                    infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                && let Some(contract) =
+                    object_method_contract(unit, &identity, node_text(&unit.source, member), false)
+            {
+                return inferred
+                    .get(&key(contract.span))
+                    .cloned()
+                    .unwrap_or_else(|| contract.escaping_throwables.clone());
+            }
+            match infer_value_type(unit, callable, &unit.typed_bindings) {
+                Ok(Some(
+                    ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+                )) => effects.possible_throwables(),
+                _ => BTreeSet::new(),
+            }
         }
-        if callable.kind == SyntaxKind::MemberExpression
-            && let [receiver, member] = callable.children.as_slice()
-            && let Ok(Some(ValueType::Object(identity))) =
-                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-            && let Some(contract) =
-                object_method_contract(unit, &identity, node_text(&unit.source, member), false)
-        {
-            return inferred
-                .get(&key(contract.span))
-                .cloned()
-                .unwrap_or_else(|| contract.escaping_throwables.clone());
-        }
-        if matches!(
-            infer_value_type(unit, callable, &unit.typed_bindings),
-            Ok(Some(
-                ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _)
-            ))
-        ) {
-            return BTreeSet::from(["/core/errors::throwable".to_owned()]);
-        }
-        BTreeSet::new()
+
+        resolve(unit, callable, inferred, &mut BTreeSet::new())
     }
 
     fn escaping_errors(
@@ -1016,13 +1042,16 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
-            && callee.kind == SyntaxKind::Name
-            && matches!(
-                infer_value_type(unit, callee, &unit.typed_bindings),
-                Ok(Some(ValueType::Function(_, _)))
-            )
+            && matches!(callee.kind, SyntaxKind::Name | SyntaxKind::MemberExpression)
+            && let Ok(Some(callable)) = infer_value_type(unit, callee, &unit.typed_bindings)
+            && let Some(effects) = match callable {
+                ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+                    Some(effects)
+                }
+                _ => None,
+            }
         {
-            let mut errors = BTreeSet::from(["/core/errors::throwable".to_owned()]);
+            let mut errors = effects.possible_throwables();
             errors.extend(local_errors);
             errors.extend(
                 node.children

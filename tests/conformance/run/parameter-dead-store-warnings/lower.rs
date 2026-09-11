@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/parameter-dead-store-warnings::take"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /parameter-dead-store-warnings::take (case.trn:6:10-6:14) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 10,
-                end_line: 6,
-                end_column: 14,
-            }
-        },
+        /* terrane-site-row: site 0: /parameter-dead-store-warnings::take (case.trn:6:10-6:14) */
+        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 14 } },
     ];
     #[cold]
     #[inline(never)]

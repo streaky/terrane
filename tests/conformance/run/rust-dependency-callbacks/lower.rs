@@ -425,138 +425,30 @@ mod __terrane_trace {
         "/app::main",
     ];
     pub static SITES: [Site; 12] = [
-        {
-            /* terrane-site-row: site 0: /app::stay-pending (src/main.trn:18:24-18:44) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 24,
-                end_line: 18,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::run-retained (src/main.trn:23:22-23:51) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 23,
-                column: 22,
-                end_line: 23,
-                end_column: 51,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:34:13-34:38) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 34,
-                column: 13,
-                end_line: 34,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:35:13-35:39) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 35,
-                column: 13,
-                end_line: 35,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /app::main (src/main.trn:36:13-36:45) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 36,
-                column: 13,
-                end_line: 36,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /app::main (src/main.trn:37:28-37:67) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 37,
-                column: 28,
-                end_line: 37,
-                end_column: 67,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /app::main (src/main.trn:42:28-42:68) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 42,
-                column: 28,
-                end_line: 42,
-                end_column: 68,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /app::main (src/main.trn:44:25-44:35) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 44,
-                column: 25,
-                end_line: 44,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /app::main (src/main.trn:45:13-45:48) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 45,
-                column: 13,
-                end_line: 45,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /app::main (src/main.trn:47:13-47:49) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 47,
-                column: 13,
-                end_line: 47,
-                end_column: 49,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /app::main (src/main.trn:50:25-50:63) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 50,
-                column: 25,
-                end_line: 50,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:53:49-53:77) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 53,
-                column: 49,
-                end_line: 53,
-                end_column: 77,
-            }
-        },
+        /* terrane-site-row: site 0: /app::stay-pending (src/main.trn:18:24-18:44) */
+        { Site { function: 0, file: 0, line: 18, column: 24, end_line: 18, end_column: 44 } },
+        /* terrane-site-row: site 1: /app::run-retained (src/main.trn:23:22-23:51) */
+        { Site { function: 1, file: 0, line: 23, column: 22, end_line: 23, end_column: 51 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:34:13-34:38) */
+        { Site { function: 2, file: 0, line: 34, column: 13, end_line: 34, end_column: 38 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:35:13-35:39) */
+        { Site { function: 2, file: 0, line: 35, column: 13, end_line: 35, end_column: 39 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:36:13-36:45) */
+        { Site { function: 2, file: 0, line: 36, column: 13, end_line: 36, end_column: 45 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:37:28-37:67) */
+        { Site { function: 2, file: 0, line: 37, column: 28, end_line: 37, end_column: 67 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:42:28-42:68) */
+        { Site { function: 2, file: 0, line: 42, column: 28, end_line: 42, end_column: 68 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:44:25-44:35) */
+        { Site { function: 2, file: 0, line: 44, column: 25, end_line: 44, end_column: 35 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:45:13-45:48) */
+        { Site { function: 2, file: 0, line: 45, column: 13, end_line: 45, end_column: 48 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:47:13-47:49) */
+        { Site { function: 2, file: 0, line: 47, column: 13, end_line: 47, end_column: 49 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:50:25-50:63) */
+        { Site { function: 2, file: 0, line: 50, column: 25, end_line: 50, end_column: 63 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:53:49-53:77) */
+        { Site { function: 2, file: 0, line: 53, column: 49, end_line: 53, end_column: 77 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1046,20 +938,17 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_shared(terrane_int_support::Int::from(40_i128),
-            std::sync::Arc::new(move | argument_0 : terrane_int_support::Int |
-            Ok(add_two(argument_0)))), 2 /* terrane-site: src/main.trn:34:13-34:38 */))
+            std::sync::Arc::new(add_two)), 2 /* terrane-site: src/main.trn:34:13-34:38 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_mutable(terrane_int_support::Int::from(10_i128),
-            std::sync::Arc::new(move | argument_0 : terrane_int_support::Int |
-            Ok(add_two(argument_0)))), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
+            std::sync::Arc::new(add_two)), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_once(String::from("HELLO"),
-            std::sync::Arc::new(move | argument_0 : String |
-            Ok(keep_string(argument_0)))), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
+            std::sync::Arc::new(keep_string)), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
         );
         let changed: String = __terrane_traced(
             __terrane_await({
@@ -1133,26 +1022,23 @@ fn main() {
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }, match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(move |
-            argument_0 : terrane_int_support::Int | Ok(add_two(argument_0))).clone();
-            move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(add_two)
+            .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
             ::TerraneForeignError > { let callback_value =
-            callback(terrane_int_support::Int::from(i128::from(callback_argument_0)))
-            .map_err(crate ::TerraneForeignError) ?; Ok(terrane_int_support::coerce:: <
-            i64 > (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
-            ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } () { Ok(value)
-            => value, Err(error) => std::panic::panic_any(error.0) } } }) } () {
-            Ok(value) => value, Err(error) => std::panic::panic_any(error) }))) {
-            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_callback_witness", "terrane_callback_witness::Registrar::apply")) },
-            8 /* terrane-site: src/main.trn:45:13-45:48 */))
+            callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
+            Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
+            crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+            ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+            std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error)
+            => std::panic::panic_any(error) }))) { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
+            "terrane_callback_witness::Registrar::apply")) }, 8 /* terrane-site: src/main.trn:45:13-45:48 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(dispatch(String::from("dissimilar"),
-            true, std::sync::Arc::new(move | argument_0 : String, argument_1 : bool |
-            Ok(render(argument_0, argument_1)))), 9 /* terrane-site: src/main.trn:47:13-47:49 */))
+            true, std::sync::Arc::new(render)), 9 /* terrane-site: src/main.trn:47:13-47:49 */))
         );
         let retained_scope: TerraneTaskScope = TerraneTaskScope::new(None);
         let retained_child: TerraneScopedTask<terrane_int_support::Int> = {
@@ -1329,9 +1215,7 @@ pub async fn apply_async_concurrently(
 pub fn apply_mutable(
     value: terrane_int_support::Int,
     callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = terrane_int_support::coerce::<i64>(&value)
@@ -1343,9 +1227,8 @@ pub fn apply_mutable(
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(
-                        terrane_int_support::Int::from(i128::from(callback_argument_0)),
-                    )
-                    .map_err(crate::TerraneForeignError)?;
+                    terrane_int_support::Int::from(i128::from(callback_argument_0)),
+                );
                 Ok(
                     terrane_int_support::coerce::<i64>(&callback_value)
                         .map_err(|error| crate::TerraneForeignError(
@@ -1378,17 +1261,14 @@ pub fn apply_mutable(
 }
 pub fn apply_once(
     value: String,
-    callback: std::sync::Arc<
-        dyn Fn(String) -> Result<String, TerraneError> + Send + Sync,
-    >,
+    callback: std::sync::Arc<dyn Fn(String) -> String + Send + Sync>,
 ) -> Result<String, crate::TerraneForeignError> {
     let value = value;
     let callback = {
         let callback = callback.clone();
         move |callback_argument_0: String| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(callback_argument_0)
-                    .map_err(crate::TerraneForeignError)?;
+                let callback_value = callback(callback_argument_0);
                 Ok(callback_value)
             }() {
                 Ok(value) => value,
@@ -1417,9 +1297,7 @@ pub fn apply_once(
 pub fn apply_shared(
     value: terrane_int_support::Int,
     callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = terrane_int_support::coerce::<i64>(&value)
@@ -1431,9 +1309,8 @@ pub fn apply_shared(
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(
-                        terrane_int_support::Int::from(i128::from(callback_argument_0)),
-                    )
-                    .map_err(crate::TerraneForeignError)?;
+                    terrane_int_support::Int::from(i128::from(callback_argument_0)),
+                );
                 Ok(
                     terrane_int_support::coerce::<i64>(&callback_value)
                         .map_err(|error| crate::TerraneForeignError(
@@ -1586,9 +1463,7 @@ pub async fn wait_until_retained_invocation_active() -> Result<
 pub fn dispatch(
     label_: String,
     enabled: bool,
-    callback: std::sync::Arc<
-        dyn Fn(String, bool) -> Result<String, TerraneError> + Send + Sync,
-    >,
+    callback: std::sync::Arc<dyn Fn(String, bool) -> String + Send + Sync>,
 ) -> Result<String, crate::TerraneForeignError> {
     let label_ = label_;
     let enabled = enabled;
@@ -1596,8 +1471,7 @@ pub fn dispatch(
         let callback = callback.clone();
         move |callback_argument_0: String, callback_argument_1: bool| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(callback_argument_0, callback_argument_1)
-                    .map_err(crate::TerraneForeignError)?;
+                let callback_value = callback(callback_argument_0, callback_argument_1);
                 Ok(callback_value)
             }() {
                 Ok(value) => value,

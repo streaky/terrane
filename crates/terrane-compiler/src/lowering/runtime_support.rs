@@ -132,8 +132,8 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
             value_type_contains_throwable(key.value_type_ref())
                 || value_type_contains_throwable(value.value_type_ref())
         }
-        ValueType::Function(parameters, result)
-        | ValueType::AsyncFunction(parameters, result, _) => {
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
             parameters
                 .iter()
                 .any(|parameter| value_type_contains_throwable(parameter.value_type_ref()))
@@ -740,14 +740,17 @@ pub(super) fn emit_site_tables(output: &mut String, registry: &LoweringRegistry)
         let file = &files[usize::try_from(site.file).expect("u32 must fit usize")];
         writeln!(
             output,
-            "        {{\n            __terrane_site_comment!({:?});\n            Site {{ function: {}, file: {}, line: {}, column: {}, end_line: {}, end_column: {} }}\n        }},",
+            "        __terrane_site_row!({:?}; {:?}),",
             format!("site {id}: {function} ({file}:{}:{}-{}:{})", site.line, site.column, site.end_line, site.end_column),
-            site.function,
-            site.file,
-            site.line,
-            site.column,
-            site.end_line,
-            site.end_column,
+            format!(
+                "Site {{ function: {}, file: {}, line: {}, column: {}, end_line: {}, end_column: {} }}",
+                site.function,
+                site.file,
+                site.line,
+                site.column,
+                site.end_line,
+                site.end_column,
+            ),
         )
         .expect("writing to a String cannot fail");
     }

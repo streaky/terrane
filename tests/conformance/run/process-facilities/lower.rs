@@ -384,171 +384,36 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 15] = [
-        {
-            /* terrane-site-row: site 0: /conformance/process-facilities::main (case.trn:10:27-10:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 27,
-                end_line: 10,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /conformance/process-facilities::main (case.trn:10:43-10:52) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 43,
-                end_line: 10,
-                end_column: 52,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /conformance/process-facilities::main (case.trn:10:59-10:68) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 59,
-                end_line: 10,
-                end_column: 68,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /conformance/process-facilities::main (case.trn:10:78-10:87) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 78,
-                end_line: 10,
-                end_column: 87,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /conformance/process-facilities::main (case.trn:17:61-17:84) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 61,
-                end_line: 17,
-                end_column: 84,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /conformance/process-facilities::main (case.trn:18:39-18:60) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 39,
-                end_line: 18,
-                end_column: 60,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /conformance/process-facilities::main (case.trn:19:48-19:78) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 48,
-                end_line: 19,
-                end_column: 78,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /conformance/process-facilities::main (case.trn:19:80-19:109) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 80,
-                end_line: 19,
-                end_column: 109,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /conformance/process-facilities::main (case.trn:20:12-20:42) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 12,
-                end_line: 20,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:20:44-20:73) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 44,
-                end_line: 20,
-                end_column: 73,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:44:49-44:63) */
-            Site {
-                function: 1,
-                file: 1,
-                line: 44,
-                column: 49,
-                end_line: 44,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /core/process::environment (core/process.trn:53:40-53:54) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 53,
-                column: 40,
-                end_line: 53,
-                end_column: 54,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /core/process::environment (core/process.trn:54:41-54:59) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 54,
-                column: 41,
-                end_line: 54,
-                end_column: 59,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 89,
-                column: 20,
-                end_line: 89,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 104,
-                column: 43,
-                end_line: 104,
-                end_column: 62,
-            }
-        },
+        /* terrane-site-row: site 0: /conformance/process-facilities::main (case.trn:10:27-10:36) */
+        { Site { function: 0, file: 0, line: 10, column: 27, end_line: 10, end_column: 36 } },
+        /* terrane-site-row: site 1: /conformance/process-facilities::main (case.trn:10:43-10:52) */
+        { Site { function: 0, file: 0, line: 10, column: 43, end_line: 10, end_column: 52 } },
+        /* terrane-site-row: site 2: /conformance/process-facilities::main (case.trn:10:59-10:68) */
+        { Site { function: 0, file: 0, line: 10, column: 59, end_line: 10, end_column: 68 } },
+        /* terrane-site-row: site 3: /conformance/process-facilities::main (case.trn:10:78-10:87) */
+        { Site { function: 0, file: 0, line: 10, column: 78, end_line: 10, end_column: 87 } },
+        /* terrane-site-row: site 4: /conformance/process-facilities::main (case.trn:17:61-17:84) */
+        { Site { function: 0, file: 0, line: 17, column: 61, end_line: 17, end_column: 84 } },
+        /* terrane-site-row: site 5: /conformance/process-facilities::main (case.trn:18:39-18:60) */
+        { Site { function: 0, file: 0, line: 18, column: 39, end_line: 18, end_column: 60 } },
+        /* terrane-site-row: site 6: /conformance/process-facilities::main (case.trn:19:48-19:78) */
+        { Site { function: 0, file: 0, line: 19, column: 48, end_line: 19, end_column: 78 } },
+        /* terrane-site-row: site 7: /conformance/process-facilities::main (case.trn:19:80-19:109) */
+        { Site { function: 0, file: 0, line: 19, column: 80, end_line: 19, end_column: 109 } },
+        /* terrane-site-row: site 8: /conformance/process-facilities::main (case.trn:20:12-20:42) */
+        { Site { function: 0, file: 0, line: 20, column: 12, end_line: 20, end_column: 42 } },
+        /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:20:44-20:73) */
+        { Site { function: 0, file: 0, line: 20, column: 44, end_line: 20, end_column: 73 } },
+        /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:44:49-44:63) */
+        { Site { function: 1, file: 1, line: 44, column: 49, end_line: 44, end_column: 63 } },
+        /* terrane-site-row: site 11: /core/process::environment (core/process.trn:53:40-53:54) */
+        { Site { function: 2, file: 1, line: 53, column: 40, end_line: 53, end_column: 54 } },
+        /* terrane-site-row: site 12: /core/process::environment (core/process.trn:54:41-54:59) */
+        { Site { function: 2, file: 1, line: 54, column: 41, end_line: 54, end_column: 59 } },
+        /* terrane-site-row: site 13: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
+        { Site { function: 3, file: 1, line: 89, column: 20, end_line: 89, end_column: 35 } },
+        /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
+        { Site { function: 3, file: 1, line: 104, column: 43, end_line: 104, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]

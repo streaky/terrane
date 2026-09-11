@@ -379,237 +379,48 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/bounded-arithmetic-families::main"];
     pub static SITES: [Site; 21] = [
-        {
-            /* terrane-site-row: site 0: /bounded-arithmetic-families::main (case.trn:8:10-8:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 10,
-                end_line: 8,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /bounded-arithmetic-families::main (case.trn:14:11-14:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 11,
-                end_line: 14,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /bounded-arithmetic-families::main (case.trn:14:30-14:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 30,
-                end_line: 14,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /bounded-arithmetic-families::main (case.trn:17:11-17:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 11,
-                end_line: 17,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /bounded-arithmetic-families::main (case.trn:18:3-18:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 3,
-                end_line: 18,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /bounded-arithmetic-families::main (case.trn:20:3-20:10) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 20,
-                column: 3,
-                end_line: 20,
-                end_column: 10,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /bounded-arithmetic-families::main (case.trn:21:3-21:10) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 3,
-                end_line: 21,
-                end_column: 10,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /bounded-arithmetic-families::main (case.trn:31:11-31:34) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 31,
-                column: 11,
-                end_line: 31,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /bounded-arithmetic-families::main (case.trn:31:38-31:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 31,
-                column: 38,
-                end_line: 31,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /bounded-arithmetic-families::main (case.trn:32:18-32:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 32,
-                column: 18,
-                end_line: 32,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /bounded-arithmetic-families::main (case.trn:33:56-33:82) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 33,
-                column: 56,
-                end_line: 33,
-                end_column: 82,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /bounded-arithmetic-families::main (case.trn:34:18-34:51) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 34,
-                column: 18,
-                end_line: 34,
-                end_column: 51,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /bounded-arithmetic-families::main (case.trn:35:11-35:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 35,
-                column: 11,
-                end_line: 35,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /bounded-arithmetic-families::main (case.trn:35:41-35:71) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 35,
-                column: 41,
-                end_line: 35,
-                end_column: 71,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /bounded-arithmetic-families::main (case.trn:36:56-36:85) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 36,
-                column: 56,
-                end_line: 36,
-                end_column: 85,
-            }
-        },
-        {
-            /* terrane-site-row: site 15: /bounded-arithmetic-families::main (case.trn:37:11-37:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 37,
-                column: 11,
-                end_line: 37,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /bounded-arithmetic-families::main (case.trn:37:30-37:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 37,
-                column: 30,
-                end_line: 37,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 17: /bounded-arithmetic-families::main (case.trn:38:11-38:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 38,
-                column: 11,
-                end_line: 38,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 18: /bounded-arithmetic-families::main (case.trn:38:29-38:46) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 38,
-                column: 29,
-                end_line: 38,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 19: /bounded-arithmetic-families::main (case.trn:39:11-39:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 39,
-                column: 11,
-                end_line: 39,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 20: /bounded-arithmetic-families::main (case.trn:39:31-39:50) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 39,
-                column: 31,
-                end_line: 39,
-                end_column: 50,
-            }
-        },
+        /* terrane-site-row: site 0: /bounded-arithmetic-families::main (case.trn:8:10-8:26) */
+        { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 26 } },
+        /* terrane-site-row: site 1: /bounded-arithmetic-families::main (case.trn:14:11-14:26) */
+        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 26 } },
+        /* terrane-site-row: site 2: /bounded-arithmetic-families::main (case.trn:14:30-14:48) */
+        { Site { function: 0, file: 0, line: 14, column: 30, end_line: 14, end_column: 48 } },
+        /* terrane-site-row: site 3: /bounded-arithmetic-families::main (case.trn:17:11-17:35) */
+        { Site { function: 0, file: 0, line: 17, column: 11, end_line: 17, end_column: 35 } },
+        /* terrane-site-row: site 4: /bounded-arithmetic-families::main (case.trn:18:3-18:31) */
+        { Site { function: 0, file: 0, line: 18, column: 3, end_line: 18, end_column: 31 } },
+        /* terrane-site-row: site 5: /bounded-arithmetic-families::main (case.trn:20:3-20:10) */
+        { Site { function: 0, file: 0, line: 20, column: 3, end_line: 20, end_column: 10 } },
+        /* terrane-site-row: site 6: /bounded-arithmetic-families::main (case.trn:21:3-21:10) */
+        { Site { function: 0, file: 0, line: 21, column: 3, end_line: 21, end_column: 10 } },
+        /* terrane-site-row: site 7: /bounded-arithmetic-families::main (case.trn:31:11-31:34) */
+        { Site { function: 0, file: 0, line: 31, column: 11, end_line: 31, end_column: 34 } },
+        /* terrane-site-row: site 8: /bounded-arithmetic-families::main (case.trn:31:38-31:65) */
+        { Site { function: 0, file: 0, line: 31, column: 38, end_line: 31, end_column: 65 } },
+        /* terrane-site-row: site 9: /bounded-arithmetic-families::main (case.trn:32:18-32:48) */
+        { Site { function: 0, file: 0, line: 32, column: 18, end_line: 32, end_column: 48 } },
+        /* terrane-site-row: site 10: /bounded-arithmetic-families::main (case.trn:33:56-33:82) */
+        { Site { function: 0, file: 0, line: 33, column: 56, end_line: 33, end_column: 82 } },
+        /* terrane-site-row: site 11: /bounded-arithmetic-families::main (case.trn:34:18-34:51) */
+        { Site { function: 0, file: 0, line: 34, column: 18, end_line: 34, end_column: 51 } },
+        /* terrane-site-row: site 12: /bounded-arithmetic-families::main (case.trn:35:11-35:37) */
+        { Site { function: 0, file: 0, line: 35, column: 11, end_line: 35, end_column: 37 } },
+        /* terrane-site-row: site 13: /bounded-arithmetic-families::main (case.trn:35:41-35:71) */
+        { Site { function: 0, file: 0, line: 35, column: 41, end_line: 35, end_column: 71 } },
+        /* terrane-site-row: site 14: /bounded-arithmetic-families::main (case.trn:36:56-36:85) */
+        { Site { function: 0, file: 0, line: 36, column: 56, end_line: 36, end_column: 85 } },
+        /* terrane-site-row: site 15: /bounded-arithmetic-families::main (case.trn:37:11-37:26) */
+        { Site { function: 0, file: 0, line: 37, column: 11, end_line: 37, end_column: 26 } },
+        /* terrane-site-row: site 16: /bounded-arithmetic-families::main (case.trn:37:30-37:48) */
+        { Site { function: 0, file: 0, line: 37, column: 30, end_line: 37, end_column: 48 } },
+        /* terrane-site-row: site 17: /bounded-arithmetic-families::main (case.trn:38:11-38:25) */
+        { Site { function: 0, file: 0, line: 38, column: 11, end_line: 38, end_column: 25 } },
+        /* terrane-site-row: site 18: /bounded-arithmetic-families::main (case.trn:38:29-38:46) */
+        { Site { function: 0, file: 0, line: 38, column: 29, end_line: 38, end_column: 46 } },
+        /* terrane-site-row: site 19: /bounded-arithmetic-families::main (case.trn:39:11-39:27) */
+        { Site { function: 0, file: 0, line: 39, column: 11, end_line: 39, end_column: 27 } },
+        /* terrane-site-row: site 20: /bounded-arithmetic-families::main (case.trn:39:31-39:50) */
+        { Site { function: 0, file: 0, line: 39, column: 31, end_line: 39, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]

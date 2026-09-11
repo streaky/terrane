@@ -119,7 +119,7 @@ fn projected_callback_argument(
         )
     } else {
         format!(
-            "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}.map_err(crate::TerraneForeignError)?; Ok({converted_result}) }})()"
+            "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}; Ok({converted_result}) }})()"
         )
     };
     let body = format!(

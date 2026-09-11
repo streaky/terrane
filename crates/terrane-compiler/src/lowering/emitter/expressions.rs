@@ -72,7 +72,14 @@ impl Emitter<'_> {
                 .method(&identity.namespace, &identity.name, &contract.name, false)
                 .is_some()
         });
-        let throws = projected || contract.is_some_and(|contract| contract.throws);
+        let function_value_throws = callee
+            .and_then(|callee| self.value_type(callee))
+            .is_some_and(|value_type| match value_type {
+                ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
+                _ => false,
+            });
+        let throws =
+            projected || contract.is_some_and(|contract| contract.throws) || function_value_throws;
         if !throws {
             return awaited;
         }
@@ -563,39 +570,58 @@ impl Emitter<'_> {
             {
                 self.expression(node)
             }
-            ValueType::AsyncFunction(parameters, _, transferability)
+            ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
                 if node.kind == SyntaxKind::Name =>
             {
+                let declarations = parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        format!(
+                            "argument_{index}: {}",
+                            rust_element_type(self.package, parameter.clone())
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let arguments = (0..parameters.len())
+                    .map(|index| format!("argument_{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let send = if transferability == TaskTransferability::Transferable {
+                    " + Send"
+                } else {
+                    ""
+                };
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::AsyncFunction(_, _, _, effects))
+                        if effects.requires_throwing_abi()
+                );
                 if let Some(contract) = self.contract_for_call(node) {
-                    let declarations = parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(index, parameter)| {
-                            format!(
-                                "argument_{index}: {}",
-                                rust_element_type(self.package, parameter.clone())
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let arguments = (0..parameters.len())
-                        .map(|index| format!("argument_{index}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let send = if transferability == TaskTransferability::Transferable {
-                        " + Send"
+                    let function = function_name(self.package, contract);
+                    let actual_throws =
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    if expected_throws && !actual_throws {
+                        format!(
+                            "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin(async move {{ Ok({function}({arguments}).await) }}) }})"
+                        )
                     } else {
-                        ""
-                    };
+                        format!(
+                            "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin({function}({arguments})) }})"
+                        )
+                    }
+                } else if expected_throws && !value_requires_throwing_abi {
+                    let callable = self.expression(node);
                     format!(
-                        "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin({}({arguments})) }})",
-                        function_name(self.package, contract)
+                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
                     )
                 } else {
                     format!("({}).clone()", self.expression(node))
                 }
             }
-            ValueType::AsyncFunction(parameters, _, transferability)
+            ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {
@@ -625,19 +651,53 @@ impl Emitter<'_> {
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!(
-                    "{{ let receiver = std::sync::Arc::new({receiver}); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::AsyncFunction(_, _, _, effects))
+                        if effects.requires_throwing_abi()
+                );
+                let actual_throws =
+                    self.contract_for_call(node)
+                        .map_or(value_requires_throwing_abi, |contract| {
+                            self.contract_requires_throwing_abi(
+                                contract,
+                                value_requires_throwing_abi,
+                            )
+                        });
+                let call = format!(
+                    "receiver.{}({arguments}).await",
                     rust_name(self.text(member))
+                );
+                let body = if expected_throws && !actual_throws {
+                    format!("Ok({call})")
+                } else {
+                    call
+                };
+                format!(
+                    "{{ let receiver = std::sync::Arc::new({receiver}); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ {body} }}) }}) }}"
                 )
             }
-            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+            ValueType::Function(parameters, _, expected_effects)
+                if node.kind == SyntaxKind::MemberExpression =>
+            {
                 let [receiver, member] = node.children.as_slice() else {
                     return String::new();
                 };
                 let callable_field = self.callable_object_field(receiver, self.text(member));
-                let throws = self
-                    .contract_for_call(node)
-                    .is_some_and(|contract| contract.throws);
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
+                );
+                let actual_throws =
+                    self.contract_for_call(node)
+                        .map_or(value_requires_throwing_abi, |contract| {
+                            self.contract_requires_throwing_abi(
+                                contract,
+                                value_requires_throwing_abi,
+                            )
+                        });
+                let expected_throws = expected_effects.requires_throwing_abi();
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
@@ -667,53 +727,134 @@ impl Emitter<'_> {
                         node,
                     )
                 {
+                    let body = if expected_throws {
+                        format!("Ok({body})")
+                    } else {
+                        body
+                    };
                     return format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| Ok({body})) }}"
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
                     );
                 }
-                if callable_field {
+                let call = if callable_field {
+                    format!("(receiver.{})({arguments})", rust_name(self.text(member)))
+                } else {
+                    format!("receiver.{}({arguments})", rust_name(self.text(member)))
+                };
+                let body = if expected_throws && !actual_throws {
+                    format!("Ok({call})")
+                } else {
+                    call
+                };
+                format!(
+                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                )
+            }
+            ValueType::Function(parameters, _, expected_effects)
+                if node.kind == SyntaxKind::Name =>
+            {
+                let declarations = parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        format!(
+                            "argument_{index}: {}",
+                            rust_element_type(self.package, parameter.clone())
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let arguments = (0..parameters.len())
+                    .map(|index| format!("argument_{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let expected_throws = expected_effects.requires_throwing_abi();
+                let value_requires_throwing_abi = matches!(
+                    self.value_type(node),
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
+                );
+                if let Some(contract) = self.contract_for_call(node) {
+                    let function = function_name(self.package, contract);
+                    let actual_throws =
+                        self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    if expected_throws && !actual_throws {
+                        format!(
+                            "std::sync::Arc::new(move |{declarations}| Ok({function}({arguments})))"
+                        )
+                    } else {
+                        format!("std::sync::Arc::new({function})")
+                    }
+                } else if expected_throws && !value_requires_throwing_abi {
+                    let callable = self.expression(node);
                     format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| (receiver.{})({arguments})) }}",
-                        rust_name(self.text(member))
+                        "{{ let callable = ({callable}).clone(); std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
                     )
                 } else {
-                    let call = format!("receiver.{}({arguments})", rust_name(self.text(member)));
-                    let body = if throws { call } else { format!("Ok({call})") };
+                    format!("({}).clone()", self.expression(node))
+                }
+            }
+            ValueType::AsyncFunction(parameters, _, transferability, expected_effects) => {
+                let callable = self.expression(node);
+                let actual_throws = matches!(
+                    self.value_type(node),
+                    Some(ValueType::AsyncFunction(_, _, _, effects))
+                        if effects.requires_throwing_abi()
+                );
+                if !expected_effects.requires_throwing_abi() || actual_throws {
+                    callable
+                } else {
+                    let declarations = parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, parameter)| {
+                            format!(
+                                "argument_{index}: {}",
+                                rust_element_type(self.package, parameter.clone())
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let arguments = (0..parameters.len())
+                        .map(|index| format!("argument_{index}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let send = if transferability == TaskTransferability::Transferable {
+                        " + Send"
+                    } else {
+                        ""
+                    };
                     format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                        "{{ let callable = {callable}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let callable = callable.clone(); Box::pin(async move {{ Ok(callable({arguments}).await) }}) }}) }}"
                     )
                 }
             }
-            ValueType::Function(parameters, _) if node.kind == SyntaxKind::Name => {
-                if let Some(contract) = self.contract_for_call(node) {
-                    if contract.throws {
-                        format!(
-                            "std::sync::Arc::new({})",
-                            function_name(self.package, contract)
-                        )
-                    } else {
-                        let declarations = parameters
-                            .iter()
-                            .enumerate()
-                            .map(|(index, parameter)| {
-                                format!(
-                                    "argument_{index}: {}",
-                                    rust_element_type(self.package, parameter.clone())
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        let arguments = (0..parameters.len())
-                            .map(|index| format!("argument_{index}"))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        format!(
-                            "std::sync::Arc::new(move |{declarations}| Ok({}({arguments})))",
-                            function_name(self.package, contract)
-                        )
-                    }
+            ValueType::Function(parameters, _, expected_effects) => {
+                let callable = self.expression(node);
+                let actual_throws = matches!(
+                    self.value_type(node),
+                    Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
+                );
+                if !expected_effects.requires_throwing_abi() || actual_throws {
+                    callable
                 } else {
-                    format!("({}).clone()", self.expression(node))
+                    let declarations = parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, parameter)| {
+                            format!(
+                                "argument_{index}: {}",
+                                rust_element_type(self.package, parameter.clone())
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let arguments = (0..parameters.len())
+                        .map(|index| format!("argument_{index}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!(
+                        "{{ let callable = {callable}; std::sync::Arc::new(move |{declarations}| Ok(callable({arguments}))) }}"
+                    )
                 }
             }
             _ => self.expression(node),

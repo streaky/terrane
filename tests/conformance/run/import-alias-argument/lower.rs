@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/later-coercion-alias-argument::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /later-coercion-alias-argument::main (case.trn:6:11-6:16) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 11,
-                end_line: 6,
-                end_column: 16,
-            }
-        },
+        /* terrane-site-row: site 0: /later-coercion-alias-argument::main (case.trn:6:11-6:16) */
+        { Site { function: 0, file: 0, line: 6, column: 11, end_line: 6, end_column: 16 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/nan-float-narrowing::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /nan-float-narrowing::main (case.trn:5:20-5:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 20,
-                end_line: 5,
-                end_column: 26,
-            }
-        },
+        /* terrane-site-row: site 0: /nan-float-narrowing::main (case.trn:5:20-5:26) */
+        { Site { function: 0, file: 0, line: 5, column: 20, end_line: 5, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]

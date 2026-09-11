@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-lookup-errors::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /collection-lookup-errors::main (case.trn:7:12-7:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 7,
-                column: 12,
-                end_line: 7,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /collection-lookup-errors::main (case.trn:14:12-14:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 12,
-                end_line: 14,
-                end_column: 35,
-            }
-        },
+        /* terrane-site-row: site 0: /collection-lookup-errors::main (case.trn:7:12-7:21) */
+        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 21 } },
+        /* terrane-site-row: site 1: /collection-lookup-errors::main (case.trn:14:12-14:35) */
+        { Site { function: 0, file: 0, line: 14, column: 12, end_line: 14, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]

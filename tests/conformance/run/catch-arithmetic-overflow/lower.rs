@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/catch-arithmetic-overflow::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /catch-arithmetic-overflow::main (case.trn:6:13-6:22) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 13,
-                end_line: 6,
-                end_column: 22,
-            }
-        },
+        /* terrane-site-row: site 0: /catch-arithmetic-overflow::main (case.trn:6:13-6:22) */
+        { Site { function: 0, file: 0, line: 6, column: 13, end_line: 6, end_column: 22 } },
     ];
     #[cold]
     #[inline(never)]

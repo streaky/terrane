@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "S1039"
+contains = "`throws` requires a throwable upper bound"

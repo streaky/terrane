@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/references-provenance::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /references-provenance::main (case.trn:10:25-10:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 25,
-                end_line: 10,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /references-provenance::main (case.trn:13:10-13:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 10,
-                end_line: 13,
-                end_column: 24,
-            }
-        },
+        /* terrane-site-row: site 0: /references-provenance::main (case.trn:10:25-10:36) */
+        { Site { function: 0, file: 0, line: 10, column: 25, end_line: 10, end_column: 36 } },
+        /* terrane-site-row: site 1: /references-provenance::main (case.trn:13:10-13:24) */
+        { Site { function: 0, file: 0, line: 13, column: 10, end_line: 13, end_column: 24 } },
     ];
     #[cold]
     #[inline(never)]

@@ -6,12 +6,16 @@ function render string throws coercion-error; value int
     throw coercion-error
   return 'ok'
 
-function apply string; operation function from int to string, value int
+function apply string; operation function from int to string throws coercion-error, value int
   return operation; value
 
 function main;
+  operation function from int to string throws coercion-error = render
+  print; operation.contracts
+  print; operation.throwable-contract
+  print; operation.escaping-throwables
   try
-    print; (apply; render, -1)
+    print; (apply; operation, -1)
   catch coercion-error
     print; 'caught'
-  print; (apply; render, 4)
+  print; (apply; operation, 4)

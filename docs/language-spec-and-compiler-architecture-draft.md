@@ -3084,8 +3084,32 @@ function load config throws config-error; path string
 Callable compatibility compares the declared upper bound when one exists and the inferred escaping
 set otherwise. An implementation may expose fewer compatible throwable classes than its interface
 contract, never an incompatible one. A direct call proven to have an empty escaping set is
-non-throwing. A call through an erased callable whose throwable metadata is unavailable is rejected
-at a constrained boundary rather than optimistically assumed safe.
+non-throwing. Every source callable carries either exact inferred metadata or an explicit written
+storage contract; absence of metadata is not represented by an implicit broad fallback.
+
+Function types use the same postfix contract:
+
+```terrane
+function from request to response throws request-error
+async function from request to response throws request-error
+```
+
+The clause belongs to the callable introduced by the nearest `function`. Function results associate
+right, so `function from A to function from B to R throws Inner throws Outer` constrains the result
+callable with `Inner` and the outer callable with `Outer`. Parenthesized callable-type grouping is
+not part of the grammar; use a named intermediate callable type or binding when the inward-binding
+form would be unclear. Omitting `throws` declares an infallible callable type.
+
+Named functions, closures, and stored bound methods preserve exact metadata. An inferred callable
+binding retains that exact contract; a binding with a written callable type retains both the exact
+initializer summary and the written contract as its storage ABI and invocation bound. A destination
+may widen an implementation to a compatible upper bound, but it may not narrow or replace the
+inferred set. The same compatibility check applies to bindings, arguments, returned callables,
+class-field initializers, and later field assignments. ABI selection follows the written contract,
+so widening an exact infallible implementation uses result-bearing storage without changing its
+empty reflected escaping set.
+Consequently invocation through the exact value needs neither error propagation nor a semantic
+error-site record.
 
 Reflection preserves two distinct facts: `throwable-contract`, containing the optional written
 upper bound, and `escaping-throwables`, containing the compiler-inferred concrete set for the current

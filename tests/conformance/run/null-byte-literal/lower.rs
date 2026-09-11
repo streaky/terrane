@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/null-byte-literal::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /null-byte-literal::main (case.trn:6:23-6:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 23,
-                end_line: 6,
-                end_column: 39,
-            }
-        },
+        /* terrane-site-row: site 0: /null-byte-literal::main (case.trn:6:23-6:39) */
+        { Site { function: 0, file: 0, line: 6, column: 23, end_line: 6, end_column: 39 } },
     ];
     #[cold]
     #[inline(never)]

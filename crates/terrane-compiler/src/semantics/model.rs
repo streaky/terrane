@@ -283,6 +283,44 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CallableEffects {
+    pub upper_bound: Option<Box<ValueType>>,
+    pub escaping: BTreeSet<String>,
+}
+
+impl CallableEffects {
+    pub(crate) fn infallible() -> Self {
+        Self {
+            upper_bound: None,
+            escaping: BTreeSet::new(),
+        }
+    }
+    pub(crate) fn requires_throwing_abi(&self) -> bool {
+        self.upper_bound.is_some() || !self.escaping.is_empty()
+    }
+
+    pub(crate) fn possible_throwables(&self) -> BTreeSet<String> {
+        match self.upper_bound.as_deref() {
+            Some(ValueType::Object(identity)) => BTreeSet::from([identity.qualified()]),
+            Some(_) => unreachable!("callable throwable upper bound must be an object"),
+            None => self.escaping.clone(),
+        }
+    }
+
+    pub(crate) fn from_contract(contract: &FunctionContract) -> Self {
+        let upper_bound = match contract.thrown_types.as_slice() {
+            [] => None,
+            [bound] => Some(Box::new(bound.clone())),
+            _ => unreachable!("function declarations admit at most one throwable upper bound"),
+        };
+        Self {
+            upper_bound,
+            escaping: contract.escaping_throwables.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TaskTransferability {
     Local,
@@ -323,8 +361,13 @@ pub enum ValueType {
     UnorderedMap(ElementType, ElementType),
     UnorderedSet(ElementType),
     Encoding,
-    Function(Vec<ElementType>, ElementType),
-    AsyncFunction(Vec<ElementType>, ElementType, TaskTransferability),
+    Function(Vec<ElementType>, ElementType, CallableEffects),
+    AsyncFunction(
+        Vec<ElementType>,
+        ElementType,
+        TaskTransferability,
+        CallableEffects,
+    ),
     Descriptor(String),
     Task(ElementType, TaskTransferability),
     ScopedTask(ElementType, TaskTransferability),
@@ -416,8 +459,8 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::Range
         | ValueType::Entry(_, _)
         | ValueType::Encoding
-        | ValueType::Function(_, _)
-        | ValueType::AsyncFunction(_, _, _)
+        | ValueType::Function(..)
+        | ValueType::AsyncFunction(..)
         | ValueType::Descriptor(_)
         | ValueType::Task(_, _)
         | ValueType::ScopedTask(_, _)
@@ -572,7 +615,7 @@ impl std::fmt::Display for ValueType {
             }
             Self::UnorderedSet(item) => write!(formatter, "unordered-set of {item}"),
             Self::Encoding => formatter.write_str("encoding"),
-            Self::Function(parameters, result) => {
+            Self::Function(parameters, result, effects) => {
                 formatter.write_str("function")?;
                 if !parameters.is_empty() {
                     formatter.write_str(" from ")?;
@@ -583,9 +626,13 @@ impl std::fmt::Display for ValueType {
                         parameter.fmt(formatter)?;
                     }
                 }
-                write!(formatter, " to {result}")
+                write!(formatter, " to {result}")?;
+                if let Some(bound) = &effects.upper_bound {
+                    write!(formatter, " throws {bound}")?;
+                }
+                Ok(())
             }
-            Self::AsyncFunction(parameters, result, _) => {
+            Self::AsyncFunction(parameters, result, _, effects) => {
                 formatter.write_str("async function")?;
                 if !parameters.is_empty() {
                     formatter.write_str(" from ")?;
@@ -596,7 +643,11 @@ impl std::fmt::Display for ValueType {
                         parameter.fmt(formatter)?;
                     }
                 }
-                write!(formatter, " to {result}")
+                write!(formatter, " to {result}")?;
+                if let Some(bound) = &effects.upper_bound {
+                    write!(formatter, " throws {bound}")?;
+                }
+                Ok(())
             }
             Self::Task(result, _) => write!(formatter, "task of {result}"),
             Self::Descriptor(_) => formatter.write_str("descriptor"),
@@ -876,6 +927,7 @@ impl FloatMemberContract {
                     })
                     .collect(),
                 ElementType::new(result),
+                CallableEffects::infallible(),
             )
         })
     }

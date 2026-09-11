@@ -379,72 +379,18 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/tuple-type-boundaries::main"];
     pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /tuple-type-boundaries::main (case.trn:13:27-13:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 27,
-                end_line: 13,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /tuple-type-boundaries::main (case.trn:13:40-13:51) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 40,
-                end_line: 13,
-                end_column: 51,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /tuple-type-boundaries::main (case.trn:18:25-18:34) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 25,
-                end_line: 18,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /tuple-type-boundaries::main (case.trn:18:25-18:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 25,
-                end_line: 18,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /tuple-type-boundaries::main (case.trn:18:39-18:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 39,
-                end_line: 18,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /tuple-type-boundaries::main (case.trn:18:39-18:51) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 39,
-                end_line: 18,
-                end_column: 51,
-            }
-        },
+        /* terrane-site-row: site 0: /tuple-type-boundaries::main (case.trn:13:27-13:38) */
+        { Site { function: 0, file: 0, line: 13, column: 27, end_line: 13, end_column: 38 } },
+        /* terrane-site-row: site 1: /tuple-type-boundaries::main (case.trn:13:40-13:51) */
+        { Site { function: 0, file: 0, line: 13, column: 40, end_line: 13, end_column: 51 } },
+        /* terrane-site-row: site 2: /tuple-type-boundaries::main (case.trn:18:25-18:34) */
+        { Site { function: 0, file: 0, line: 18, column: 25, end_line: 18, end_column: 34 } },
+        /* terrane-site-row: site 3: /tuple-type-boundaries::main (case.trn:18:25-18:37) */
+        { Site { function: 0, file: 0, line: 18, column: 25, end_line: 18, end_column: 37 } },
+        /* terrane-site-row: site 4: /tuple-type-boundaries::main (case.trn:18:39-18:48) */
+        { Site { function: 0, file: 0, line: 18, column: 39, end_line: 18, end_column: 48 } },
+        /* terrane-site-row: site 5: /tuple-type-boundaries::main (case.trn:18:39-18:51) */
+        { Site { function: 0, file: 0, line: 18, column: 39, end_line: 18, end_column: 51 } },
     ];
     #[cold]
     #[inline(never)]

@@ -376,65 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["app/main.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/app::apply", "/app::main"];
-    pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /app::apply (app/main.trn:9:12-9:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 12,
-                end_line: 9,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::main (app/main.trn:12:13-12:31) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 12,
-                column: 13,
-                end_line: 12,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (app/main.trn:13:13-13:32) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 13,
-                column: 13,
-                end_line: 13,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::main (app/main.trn:14:13-14:29) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 14,
-                column: 13,
-                end_line: 14,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /app::main (app/main.trn:15:13-15:31) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 15,
-                column: 13,
-                end_line: 15,
-                end_column: 31,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -449,36 +393,25 @@ mod __terrane_trace {
 }
 // Source: app/main.trn
 // Namespace: app
-fn apply(
-    callback: std::sync::Arc<dyn Fn() -> Result<String, TerraneError> + Send + Sync>,
-) -> Result<String, TerraneError> {
-    return Ok(
-        __terrane_traced_err(
-            callback(),
-            0 /* terrane-site: app/main.trn:9:12-9:21 */,
-        )?,
-    );
+fn apply(callback: std::sync::Arc<dyn Fn() -> String + Send + Sync>) -> String {
+    return callback();
 }
 fn main() {
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(move
-        | | Ok(render_terrane_left()))), 1 /* terrane-site: app/main.trn:12:13-12:31 */))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_left)))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(move
-        | | Ok(render_terrane_right()))), 2 /* terrane-site: app/main.trn:13:13-13:32 */))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_right)))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(move
-        | | Ok(pick_terrane_z_left_f4()))), 3 /* terrane-site: app/main.trn:14:13-14:29 */))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(pick_terrane_z_left_f4)))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(move
-        | | Ok(pick_terrane_z_left()))), 4 /* terrane-site: app/main.trn:15:13-15:31 */))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(pick_terrane_z_left)))
     );
 }
 // Source: left/value.trn

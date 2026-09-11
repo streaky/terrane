@@ -349,7 +349,7 @@ abstract: number, integer, fixed-integer, signed-fixed-integer, unsigned-fixed-i
 abstract_roots: value, object (identity/ownership categories; carry no numeric members)
 union: 'T|U'; none is ordinary union member
 constructor: 'list of string'; arguments classified semantically as type or compile-time value
-function_type: 'function from A, B to R'; associates right
+function_type: 'function from A, B to R [throws T]' | 'async function from A, B to R [throws T]'; associates right, and each postfix throws clause binds to the nearest function type
 ```
 
 - Values always have types; an unconstrained binding may be dynamic without weakening values. Numeric constant expressions are the exception before context: their spelling denotes a mathematical constant but a destination or typed operand selects its numeric type and arithmetic.
@@ -696,6 +696,18 @@ coercion-error               coercion has no compatible result outside the overf
 - Reflection separately exposes `throwable-contract` (written upper bound, if any) and
   `escaping-throwables` (current inferred concrete set), even when private bodies are stripped.
 - Callable compatibility admits fewer compatible throwables, never an incompatible one.
+- A written callable type with `throws T` admits only implementations whose exact escaping set
+  conforms to `T`. An implementation may be infallible or narrower. Omitting `throws` declares an
+  infallible callable type. Every source callable has either exact inferred metadata or an explicit
+  written storage contract; no implicit broad fallback is introduced.
+- Nested callable results associate right. In
+  `function from A to function from B to R throws Inner throws Outer`, `Inner` constrains the result
+  callable and `Outer` constrains the outer callable. `async function` uses the same postfix rule.
+- Exact named-function, closure, bound-method, and inferred-binding metadata survives callable
+  conversion. An explicitly typed binding retains both that exact initializer summary for reflection
+  and its written contract as the storage ABI and invocation bound. ABI selection follows the written
+  bound independently, so widening a proven-empty implementation does not falsify its exact escaping
+  set even though storage becomes result-bearing.
 - Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml

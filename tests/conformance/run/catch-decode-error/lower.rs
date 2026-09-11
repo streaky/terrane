@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/catch-decode-error::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /catch-decode-error::main (case.trn:6:15-6:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 15,
-                end_line: 6,
-                end_column: 31,
-            }
-        },
+        /* terrane-site-row: site 0: /catch-decode-error::main (case.trn:6:15-6:31) */
+        { Site { function: 0, file: 0, line: 6, column: 15, end_line: 6, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]

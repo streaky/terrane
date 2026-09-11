@@ -1,0 +1,17 @@
+namespace callable-throwable-field-assignment
+from /core/errors import coercion-error, division-by-zero
+
+function safe-render string; value int
+  return 'safe'
+
+function divide string throws division-by-zero; value int
+  if value == 0
+    throw division-by-zero
+  return 'divided'
+
+class holder
+  operation function from int to string throws coercion-error = safe-render
+
+function main;
+  value = instance holder;
+  value.operation = divide

@@ -428,37 +428,36 @@ impl Emitter<'_> {
         }
         if matches!(
             receiver_type,
-            Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))
+            Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
         ) && matches!(
             self.text(member),
             "contracts" | "throwable-contract" | "escaping-throwables"
         ) {
-            let reflected = self
-                .unit
-                .functions
-                .iter()
-                .find(|contract| contract.name == self.text(receiver))
-                .map(|contract| match self.text(member) {
-                    "escaping-throwables" => contract
-                        .escaping_throwables
-                        .iter()
-                        .map(|identity| {
-                            identity
-                                .rsplit_once("::")
-                                .map_or(identity.as_str(), |(_, name)| name)
-                        })
-                        .collect::<Vec<_>>()
-                        .join("|"),
-                    "throwable-contract" => contract
-                        .thrown_types
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join("|"),
-                    _ if contract.throws => "throws".to_owned(),
-                    _ => String::new(),
-                })
-                .unwrap_or_default();
+            let Some(
+                ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+            ) = receiver_type.as_ref()
+            else {
+                unreachable!("callable reflection requires callable effects");
+            };
+            let reflected = match self.text(member) {
+                "escaping-throwables" => effects
+                    .escaping
+                    .iter()
+                    .map(|identity| {
+                        identity
+                            .rsplit_once("::")
+                            .map_or(identity.as_str(), |(_, name)| name)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("|"),
+                "throwable-contract" => effects
+                    .upper_bound
+                    .as_deref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+                _ if effects.requires_throwing_abi() => "throws".to_owned(),
+                _ => String::new(),
+            };
             return format!(
                 "{{ let _ = {}; {:?}.to_owned() }}",
                 self.expression(receiver),
@@ -531,7 +530,7 @@ impl Emitter<'_> {
         if self.text(member) == "length"
             && matches!(
                 self.value_type(node),
-                Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))
+                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
             )
         {
             return format!("({receiver}).length");

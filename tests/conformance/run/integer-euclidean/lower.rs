@@ -379,50 +379,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/integer-euclidean::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /integer-euclidean::main (case.trn:4:10-4:16) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 10,
-                end_line: 4,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /integer-euclidean::main (case.trn:5:10-5:16) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 10,
-                end_line: 5,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /integer-euclidean::main (case.trn:6:10-6:16) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 10,
-                end_line: 6,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /integer-euclidean::main (case.trn:7:10-7:16) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 7,
-                column: 10,
-                end_line: 7,
-                end_column: 16,
-            }
-        },
+        /* terrane-site-row: site 0: /integer-euclidean::main (case.trn:4:10-4:16) */
+        { Site { function: 0, file: 0, line: 4, column: 10, end_line: 4, end_column: 16 } },
+        /* terrane-site-row: site 1: /integer-euclidean::main (case.trn:5:10-5:16) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 16 } },
+        /* terrane-site-row: site 2: /integer-euclidean::main (case.trn:6:10-6:16) */
+        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 16 } },
+        /* terrane-site-row: site 3: /integer-euclidean::main (case.trn:7:10-7:16) */
+        { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 16 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,72 +379,18 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-identity-lifetime::release-order"];
     pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:18:3-18:50) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 3,
-                end_line: 18,
-                end_column: 50,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /collection-identity-lifetime::release-order (case.trn:21:22-21:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 22,
-                end_line: 21,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /collection-identity-lifetime::release-order (case.trn:25:5-25:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 25,
-                column: 5,
-                end_line: 25,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /collection-identity-lifetime::release-order (case.trn:34:3-34:57) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 34,
-                column: 3,
-                end_line: 34,
-                end_column: 57,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /collection-identity-lifetime::release-order (case.trn:35:10-35:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 35,
-                column: 10,
-                end_line: 35,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /collection-identity-lifetime::release-order (case.trn:35:28-35:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 35,
-                column: 28,
-                end_line: 35,
-                end_column: 40,
-            }
-        },
+        /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:18:3-18:50) */
+        { Site { function: 0, file: 0, line: 18, column: 3, end_line: 18, end_column: 50 } },
+        /* terrane-site-row: site 1: /collection-identity-lifetime::release-order (case.trn:21:22-21:38) */
+        { Site { function: 0, file: 0, line: 21, column: 22, end_line: 21, end_column: 38 } },
+        /* terrane-site-row: site 2: /collection-identity-lifetime::release-order (case.trn:25:5-25:21) */
+        { Site { function: 0, file: 0, line: 25, column: 5, end_line: 25, end_column: 21 } },
+        /* terrane-site-row: site 3: /collection-identity-lifetime::release-order (case.trn:34:3-34:57) */
+        { Site { function: 0, file: 0, line: 34, column: 3, end_line: 34, end_column: 57 } },
+        /* terrane-site-row: site 4: /collection-identity-lifetime::release-order (case.trn:35:10-35:21) */
+        { Site { function: 0, file: 0, line: 35, column: 10, end_line: 35, end_column: 21 } },
+        /* terrane-site-row: site 5: /collection-identity-lifetime::release-order (case.trn:35:28-35:40) */
+        { Site { function: 0, file: 0, line: 35, column: 28, end_line: 35, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]

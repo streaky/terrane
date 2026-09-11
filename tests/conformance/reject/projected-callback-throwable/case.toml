@@ -1,5 +1,5 @@
 phase = "check"
 status = "reject"
 entrypoint = "package.toml"
-code = "T0080"
-contains = "cannot receive a callable with an escaping throwable"
+code = "T0012"
+contains = "`callback` requires `function from int to int`, found `function from int to int throws throwable`"

@@ -1,2 +1,5 @@
+throws
+coercion-error
+coercion-error
 caught
 ok

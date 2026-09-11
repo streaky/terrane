@@ -382,39 +382,12 @@ mod __terrane_trace {
         "/complete-float-surface::exercise64",
     ];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /complete-float-surface::exercise32 (case.trn:50:29-50:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 50,
-                column: 29,
-                end_line: 50,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /complete-float-surface::exercise32 (case.trn:50:67-50:84) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 50,
-                column: 67,
-                end_line: 50,
-                end_column: 84,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /complete-float-surface::exercise64 (case.trn:115:69-115:86) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 115,
-                column: 69,
-                end_line: 115,
-                end_column: 86,
-            }
-        },
+        /* terrane-site-row: site 0: /complete-float-surface::exercise32 (case.trn:50:29-50:38) */
+        { Site { function: 0, file: 0, line: 50, column: 29, end_line: 50, end_column: 38 } },
+        /* terrane-site-row: site 1: /complete-float-surface::exercise32 (case.trn:50:67-50:84) */
+        { Site { function: 0, file: 0, line: 50, column: 67, end_line: 50, end_column: 84 } },
+        /* terrane-site-row: site 2: /complete-float-surface::exercise64 (case.trn:115:69-115:86) */
+        { Site { function: 1, file: 0, line: 115, column: 69, end_line: 115, end_column: 86 } },
     ];
     #[cold]
     #[inline(never)]

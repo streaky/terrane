@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/loop-carried-store-reads::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /loop-carried-store-reads::main (case.trn:8:13-8:22) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 13,
-                end_line: 8,
-                end_column: 22,
-            }
-        },
+        /* terrane-site-row: site 0: /loop-carried-store-reads::main (case.trn:8:13-8:22) */
+        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 22 } },
     ];
     #[cold]
     #[inline(never)]

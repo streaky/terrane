@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "S1039"
+contains = "function declaration accepts only one `throws` upper bound"

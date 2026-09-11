@@ -382,28 +382,10 @@ mod __terrane_trace {
         "/catch-propagated-coercion::main",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /catch-propagated-coercion::narrow (case.trn:5:10-5:15) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 10,
-                end_line: 5,
-                end_column: 15,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /catch-propagated-coercion::main (case.trn:9:13-9:24) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 9,
-                column: 13,
-                end_line: 9,
-                end_column: 24,
-            }
-        },
+        /* terrane-site-row: site 0: /catch-propagated-coercion::narrow (case.trn:5:10-5:15) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 15 } },
+        /* terrane-site-row: site 1: /catch-propagated-coercion::main (case.trn:9:13-9:24) */
+        { Site { function: 1, file: 0, line: 9, column: 13, end_line: 9, end_column: 24 } },
     ];
     #[cold]
     #[inline(never)]

@@ -416,12 +416,8 @@ fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
 }
 fn main() {
     let callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
-        increment(argument_0),
-    ));
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    > = std::sync::Arc::new(increment);
     let optional: Option<String> = Some(String::from("value"));
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = &callback; TerraneDescriptor

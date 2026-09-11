@@ -311,8 +311,8 @@ fn infer_callback_coercion_type(
     })?;
     let callback = infer_value_type(unit, callback_node, bindings)?;
     let (parameters, result) = match callback {
-        Some(ValueType::Function(parameters, result)) => (parameters, result),
-        Some(ValueType::AsyncFunction(_, _, _)) => {
+        Some(ValueType::Function(parameters, result, _)) => (parameters, result),
+        Some(ValueType::AsyncFunction(..)) => {
             return Err(failure(
                 &unit.source,
                 "T0104",

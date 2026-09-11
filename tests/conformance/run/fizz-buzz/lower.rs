@@ -379,39 +379,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/fizz-buzz::main"];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /fizz-buzz::main (case.trn:6:8-6:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 8,
-                end_line: 6,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /fizz-buzz::main (case.trn:8:13-8:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 13,
-                end_line: 8,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /fizz-buzz::main (case.trn:10:13-10:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 13,
-                end_line: 10,
-                end_column: 23,
-            }
-        },
+        /* terrane-site-row: site 0: /fizz-buzz::main (case.trn:6:8-6:19) */
+        { Site { function: 0, file: 0, line: 6, column: 8, end_line: 6, end_column: 19 } },
+        /* terrane-site-row: site 1: /fizz-buzz::main (case.trn:8:13-8:23) */
+        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 23 } },
+        /* terrane-site-row: site 2: /fizz-buzz::main (case.trn:10:13-10:23) */
+        { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]

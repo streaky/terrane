@@ -383,50 +383,14 @@ mod __terrane_trace {
         "/finally-error-replacement::main",
     ];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /finally-error-replacement::error-then-return (case.trn:5:5-5:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 5,
-                end_line: 5,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /finally-error-replacement::return-then-error (case.trn:12:5-12:25) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 12,
-                column: 5,
-                end_line: 12,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /finally-error-replacement::main (case.trn:14:15-14:33) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 14,
-                column: 15,
-                end_line: 14,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /finally-error-replacement::main (case.trn:17:18-17:36) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 17,
-                column: 18,
-                end_line: 17,
-                end_column: 36,
-            }
-        },
+        /* terrane-site-row: site 0: /finally-error-replacement::error-then-return (case.trn:5:5-5:30) */
+        { Site { function: 0, file: 0, line: 5, column: 5, end_line: 5, end_column: 30 } },
+        /* terrane-site-row: site 1: /finally-error-replacement::return-then-error (case.trn:12:5-12:25) */
+        { Site { function: 1, file: 0, line: 12, column: 5, end_line: 12, end_column: 25 } },
+        /* terrane-site-row: site 2: /finally-error-replacement::main (case.trn:14:15-14:33) */
+        { Site { function: 2, file: 0, line: 14, column: 15, end_line: 14, end_column: 33 } },
+        /* terrane-site-row: site 3: /finally-error-replacement::main (case.trn:17:18-17:36) */
+        { Site { function: 2, file: 0, line: 17, column: 18, end_line: 17, end_column: 36 } },
     ];
     #[cold]
     #[inline(never)]

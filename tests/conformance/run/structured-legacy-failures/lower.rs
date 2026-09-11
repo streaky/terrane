@@ -387,138 +387,30 @@ mod __terrane_trace {
         "/structured-legacy-failures::main",
     ];
     pub static SITES: [Site; 12] = [
-        {
-            /* terrane-site-row: site 0: /structured-legacy-failures::narrow-fixed (case.trn:5:10-5:14) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 10,
-                end_line: 5,
-                end_column: 14,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /structured-legacy-failures::narrow-float (case.trn:8:10-8:20) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 8,
-                column: 10,
-                end_line: 8,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /structured-legacy-failures::divide (case.trn:12:10-12:33) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 12,
-                column: 10,
-                end_line: 12,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /structured-legacy-failures::remainder (case.trn:16:10-16:33) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 16,
-                column: 10,
-                end_line: 16,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:21:10-21:25) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 21,
-                column: 10,
-                end_line: 21,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /structured-legacy-failures::narrow-argument (case.trn:26:26-26:30) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 26,
-                column: 26,
-                end_line: 26,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /structured-legacy-failures::main (case.trn:29:13-29:26) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 29,
-                column: 13,
-                end_line: 29,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /structured-legacy-failures::main (case.trn:33:13-33:26) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 33,
-                column: 13,
-                end_line: 33,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /structured-legacy-failures::main (case.trn:37:13-37:20) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 37,
-                column: 13,
-                end_line: 37,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /structured-legacy-failures::main (case.trn:41:13-41:23) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 41,
-                column: 13,
-                end_line: 41,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /structured-legacy-failures::main (case.trn:45:13-45:25) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 45,
-                column: 13,
-                end_line: 45,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /structured-legacy-failures::main (case.trn:49:13-49:29) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 49,
-                column: 13,
-                end_line: 49,
-                end_column: 29,
-            }
-        },
+        /* terrane-site-row: site 0: /structured-legacy-failures::narrow-fixed (case.trn:5:10-5:14) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 14 } },
+        /* terrane-site-row: site 1: /structured-legacy-failures::narrow-float (case.trn:8:10-8:20) */
+        { Site { function: 1, file: 0, line: 8, column: 10, end_line: 8, end_column: 20 } },
+        /* terrane-site-row: site 2: /structured-legacy-failures::divide (case.trn:12:10-12:33) */
+        { Site { function: 2, file: 0, line: 12, column: 10, end_line: 12, end_column: 33 } },
+        /* terrane-site-row: site 3: /structured-legacy-failures::remainder (case.trn:16:10-16:33) */
+        { Site { function: 3, file: 0, line: 16, column: 10, end_line: 16, end_column: 33 } },
+        /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:21:10-21:25) */
+        { Site { function: 4, file: 0, line: 21, column: 10, end_line: 21, end_column: 25 } },
+        /* terrane-site-row: site 5: /structured-legacy-failures::narrow-argument (case.trn:26:26-26:30) */
+        { Site { function: 5, file: 0, line: 26, column: 26, end_line: 26, end_column: 30 } },
+        /* terrane-site-row: site 6: /structured-legacy-failures::main (case.trn:29:13-29:26) */
+        { Site { function: 6, file: 0, line: 29, column: 13, end_line: 29, end_column: 26 } },
+        /* terrane-site-row: site 7: /structured-legacy-failures::main (case.trn:33:13-33:26) */
+        { Site { function: 6, file: 0, line: 33, column: 13, end_line: 33, end_column: 26 } },
+        /* terrane-site-row: site 8: /structured-legacy-failures::main (case.trn:37:13-37:20) */
+        { Site { function: 6, file: 0, line: 37, column: 13, end_line: 37, end_column: 20 } },
+        /* terrane-site-row: site 9: /structured-legacy-failures::main (case.trn:41:13-41:23) */
+        { Site { function: 6, file: 0, line: 41, column: 13, end_line: 41, end_column: 23 } },
+        /* terrane-site-row: site 10: /structured-legacy-failures::main (case.trn:45:13-45:25) */
+        { Site { function: 6, file: 0, line: 45, column: 13, end_line: 45, end_column: 25 } },
+        /* terrane-site-row: site 11: /structured-legacy-failures::main (case.trn:49:13-49:29) */
+        { Site { function: 6, file: 0, line: 49, column: 13, end_line: 49, end_column: 29 } },
     ];
     #[cold]
     #[inline(never)]

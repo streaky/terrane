@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/map-entry-destructuring::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /map-entry-destructuring::main (case.trn:11:10-11:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 10,
-                end_line: 11,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /map-entry-destructuring::main (case.trn:11:28-11:45) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 28,
-                end_line: 11,
-                end_column: 45,
-            }
-        },
+        /* terrane-site-row: site 0: /map-entry-destructuring::main (case.trn:11:10-11:26) */
+        { Site { function: 0, file: 0, line: 11, column: 10, end_line: 11, end_column: 26 } },
+        /* terrane-site-row: site 1: /map-entry-destructuring::main (case.trn:11:28-11:45) */
+        { Site { function: 0, file: 0, line: 11, column: 28, end_line: 11, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]

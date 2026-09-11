@@ -487,29 +487,45 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             )
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
-        ValueType::Function(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> Result<{}, TerraneError> + Send + Sync>",
-            parameters
-                .into_iter()
-                .map(|parameter| rust_element_type(package, parameter))
-                .collect::<Vec<_>>()
-                .join(", "),
-            rust_element_type(package, result)
-        ),
-        ValueType::AsyncFunction(parameters, result, transferability) => format!(
-            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>{}>> + Send + Sync>",
-            parameters
-                .into_iter()
-                .map(|parameter| rust_element_type(package, parameter))
-                .collect::<Vec<_>>()
-                .join(", "),
-            rust_element_type(package, result),
-            if transferability == TaskTransferability::Transferable {
-                " + Send"
+        ValueType::Function(parameters, result, effects) => {
+            let result = rust_element_type(package, result);
+            let output = if effects.requires_throwing_abi() {
+                format!("Result<{result}, TerraneError>")
             } else {
-                ""
-            }
-        ),
+                result
+            };
+            format!(
+                "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
+                parameters
+                    .into_iter()
+                    .map(|parameter| rust_element_type(package, parameter))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                output
+            )
+        }
+        ValueType::AsyncFunction(parameters, result, transferability, effects) => {
+            let result = rust_element_type(package, result);
+            let output = if effects.requires_throwing_abi() {
+                format!("Result<{result}, TerraneError>")
+            } else {
+                result
+            };
+            format!(
+                "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>{}>> + Send + Sync>",
+                parameters
+                    .into_iter()
+                    .map(|parameter| rust_element_type(package, parameter))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                output,
+                if transferability == TaskTransferability::Transferable {
+                    " + Send"
+                } else {
+                    ""
+                }
+            )
+        }
         ValueType::Task(result, transferability) => {
             format!(
                 "std::pin::Pin<Box<dyn Future<Output = {}>{}>>",

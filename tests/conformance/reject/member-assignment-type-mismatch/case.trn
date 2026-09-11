@@ -1,0 +1,8 @@
+namespace member-assignment-type-mismatch
+
+class holder
+  title string = 'ready'
+
+function main;
+  value = instance holder;
+  value.title = 42

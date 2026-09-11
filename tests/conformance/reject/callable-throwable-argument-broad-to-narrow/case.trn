@@ -1,0 +1,11 @@
+namespace callable-throwable-argument-broad-to-narrow
+from /core/errors import coercion-error, division-by-zero, throwable
+
+function divide string throws throwable; value int
+  throw division-by-zero
+
+function invoke string throws coercion-error; operation function from int to string throws coercion-error, value int
+  return operation; value
+
+function main;
+  result = invoke; divide, 1

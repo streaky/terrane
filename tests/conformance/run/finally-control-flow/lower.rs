@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/finally-control-flow::caught"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /finally-control-flow::caught (case.trn:10:5-10:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 5,
-                end_line: 10,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /finally-control-flow::caught (case.trn:10:5-10:30) */
+        { Site { function: 0, file: 0, line: 10, column: 5, end_line: 10, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

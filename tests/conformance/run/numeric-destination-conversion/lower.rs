@@ -379,39 +379,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/numeric-destination-conversion::main"];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /numeric-destination-conversion::main (case.trn:11:23-11:28) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 23,
-                end_line: 11,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /numeric-destination-conversion::main (case.trn:13:19-13:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 19,
-                end_line: 13,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /numeric-destination-conversion::main (case.trn:27:10-27:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 27,
-                column: 10,
-                end_line: 27,
-                end_column: 19,
-            }
-        },
+        /* terrane-site-row: site 0: /numeric-destination-conversion::main (case.trn:11:23-11:28) */
+        { Site { function: 0, file: 0, line: 11, column: 23, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 1: /numeric-destination-conversion::main (case.trn:13:19-13:24) */
+        { Site { function: 0, file: 0, line: 13, column: 19, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 2: /numeric-destination-conversion::main (case.trn:27:10-27:19) */
+        { Site { function: 0, file: 0, line: 27, column: 10, end_line: 27, end_column: 19 } },
     ];
     #[cold]
     #[inline(never)]

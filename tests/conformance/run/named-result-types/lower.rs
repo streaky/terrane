@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/named-result-types::divide"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /named-result-types::divide (case.trn:9:10-9:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 10,
-                end_line: 9,
-                end_column: 26,
-            }
-        },
+        /* terrane-site-row: site 0: /named-result-types::divide (case.trn:9:10-9:26) */
+        { Site { function: 0, file: 0, line: 9, column: 10, end_line: 9, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]

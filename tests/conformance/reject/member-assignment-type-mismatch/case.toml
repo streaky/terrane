@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0077"
+contains = "cannot assign `int` to `title` of type `string`"

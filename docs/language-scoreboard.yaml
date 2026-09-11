@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-10'
+  as_of: '2026-09-11'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -696,16 +696,17 @@ features:
 - id: callable-throwable-types
   name: Throwable contracts on function types
   category: callables
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '26.2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/functions/callable-types.yaml
-    - manual/reference/records/language/errors/contracts.yaml
-  notes: Will preserve precise declared throwable bounds across higher-order compatibility and invocation.
+  notes: Postfix bounds associate with the nearest sync or async function type. Exact inferred sets survive named functions, closures, bound methods, and inferred aliases; explicitly typed bindings and fields retain both exact initializer metadata and their written storage ABI and invocation bound. Compatibility covers bindings, arguments, returns, class-field initialization, and later assignment; ABI selection follows the bound without falsifying exact reflection.
   sources:
+  - docs/language-spec-concise.md#ERROR / CALLABLE
+  - docs/language-spec-and-compiler-architecture-draft.md#Inference, optional contracts, and lowering
   - docs/compiler-plan.md#Milestone 26.2
 - id: match-expression
   name: Pattern matching
@@ -1512,6 +1513,19 @@ features:
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25
+- id: projected-interface-conformance
+  name: Projected Rust trait conformance
+  category: interop
+  status: planned
+  completion: 0
+  milestone: 28-28.3
+  reference:
+    state: partial
+    paths:
+    - manual/reference/records/packages/rust-dependencies.yaml
+  notes: Admissible Rust traits will project as nominal Terrane interfaces that local classes can implement, including exact receiver modes, retained and asynchronous entry, one explicit closed associated type, and implementable supertrait chains.
+  sources:
+  - docs/compiler-plan.md#Milestone 28
 - id: projection-identity
   name: Namespace-qualified projected identity
   category: interop

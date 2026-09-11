@@ -421,50 +421,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::blocked", "/app::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /app::blocked (src/main.trn:8:22-8:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 22,
-                end_line: 8,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::blocked (src/main.trn:10:9-10:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 9,
-                end_line: 10,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:13:5-13:27) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 13,
-                column: 5,
-                end_line: 13,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:16:26-16:55) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 16,
-                column: 26,
-                end_line: 16,
-                end_column: 55,
-            }
-        },
+        /* terrane-site-row: site 0: /app::blocked (src/main.trn:8:22-8:35) */
+        { Site { function: 0, file: 0, line: 8, column: 22, end_line: 8, end_column: 35 } },
+        /* terrane-site-row: site 1: /app::blocked (src/main.trn:10:9-10:29) */
+        { Site { function: 0, file: 0, line: 10, column: 9, end_line: 10, end_column: 29 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:13:5-13:27) */
+        { Site { function: 1, file: 0, line: 13, column: 5, end_line: 13, end_column: 27 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:16:26-16:55) */
+        { Site { function: 1, file: 0, line: 16, column: 26, end_line: 16, end_column: 55 } },
     ];
     #[cold]
     #[inline(never)]

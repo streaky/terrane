@@ -1,0 +1,13 @@
+namespace callable-throwable-to-unbounded
+from /core/errors import coercion-error
+
+function render string throws coercion-error; value int
+  if value < 0
+    throw coercion-error
+  return 'rendered'
+
+function invoke string; operation function from int to string, value int
+  return operation; value
+
+function main;
+  result = invoke; render, 1

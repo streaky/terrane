@@ -383,61 +383,16 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /core/process::arguments (core/process.trn:44:49-44:63) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 44,
-                column: 49,
-                end_line: 44,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /core/process::environment (core/process.trn:53:40-53:54) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 53,
-                column: 40,
-                end_line: 53,
-                end_column: 54,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /core/process::environment (core/process.trn:54:41-54:59) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 54,
-                column: 41,
-                end_line: 54,
-                end_column: 59,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 89,
-                column: 20,
-                end_line: 89,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 104,
-                column: 43,
-                end_line: 104,
-                end_column: 62,
-            }
-        },
+        /* terrane-site-row: site 0: /core/process::arguments (core/process.trn:44:49-44:63) */
+        { Site { function: 0, file: 0, line: 44, column: 49, end_line: 44, end_column: 63 } },
+        /* terrane-site-row: site 1: /core/process::environment (core/process.trn:53:40-53:54) */
+        { Site { function: 1, file: 0, line: 53, column: 40, end_line: 53, end_column: 54 } },
+        /* terrane-site-row: site 2: /core/process::environment (core/process.trn:54:41-54:59) */
+        { Site { function: 1, file: 0, line: 54, column: 41, end_line: 54, end_column: 59 } },
+        /* terrane-site-row: site 3: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
+        { Site { function: 2, file: 0, line: 89, column: 20, end_line: 89, end_column: 35 } },
+        /* terrane-site-row: site 4: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
+        { Site { function: 2, file: 0, line: 104, column: 43, end_line: 104, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]

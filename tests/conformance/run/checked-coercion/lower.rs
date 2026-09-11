@@ -382,50 +382,14 @@ mod __terrane_trace {
         "/checked-coercion::main",
     ];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /checked-coercion::convert (case.trn:9:14-9:18) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 14,
-                end_line: 9,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /checked-coercion::main (case.trn:19:13-19:19) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 19,
-                column: 13,
-                end_line: 19,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /checked-coercion::main (case.trn:21:20-21:33) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 21,
-                column: 20,
-                end_line: 21,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /checked-coercion::main (case.trn:22:23-22:38) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 22,
-                column: 23,
-                end_line: 22,
-                end_column: 38,
-            }
-        },
+        /* terrane-site-row: site 0: /checked-coercion::convert (case.trn:9:14-9:18) */
+        { Site { function: 0, file: 0, line: 9, column: 14, end_line: 9, end_column: 18 } },
+        /* terrane-site-row: site 1: /checked-coercion::main (case.trn:19:13-19:19) */
+        { Site { function: 1, file: 0, line: 19, column: 13, end_line: 19, end_column: 19 } },
+        /* terrane-site-row: site 2: /checked-coercion::main (case.trn:21:20-21:33) */
+        { Site { function: 1, file: 0, line: 21, column: 20, end_line: 21, end_column: 33 } },
+        /* terrane-site-row: site 3: /checked-coercion::main (case.trn:22:23-22:38) */
+        { Site { function: 1, file: 0, line: 22, column: 23, end_line: 22, end_column: 38 } },
     ];
     #[cold]
     #[inline(never)]

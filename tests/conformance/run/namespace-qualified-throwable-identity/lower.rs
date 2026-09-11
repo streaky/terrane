@@ -393,28 +393,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 2] = ["app/main.trn", "left/error.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::main", "/left::fail"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /app::main (app/main.trn:8:5-8:10) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 5,
-                end_line: 8,
-                end_column: 10,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /left::fail (left/error.trn:12:3-12:45) */
-            Site {
-                function: 1,
-                file: 1,
-                line: 12,
-                column: 3,
-                end_line: 12,
-                end_column: 45,
-            }
-        },
+        /* terrane-site-row: site 0: /app::main (app/main.trn:8:5-8:10) */
+        { Site { function: 0, file: 0, line: 8, column: 5, end_line: 8, end_column: 10 } },
+        /* terrane-site-row: site 1: /left::fail (left/error.trn:12:3-12:45) */
+        { Site { function: 1, file: 1, line: 12, column: 3, end_line: 12, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]

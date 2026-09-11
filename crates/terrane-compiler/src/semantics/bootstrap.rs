@@ -1,4 +1,16 @@
 use super::prelude::*;
+pub(super) const BUILTIN_ERROR_NAMES: &[&str] = &[
+    "arithmetic-overflow",
+    "division-by-zero",
+    "integer-conversion-overflow",
+    "negative-shift-count",
+    "coercion-error",
+    "decode-error",
+    "index-error",
+    "missing-key",
+    "dependency-error",
+    "dependency-panic",
+];
 
 #[expect(
     clippy::too_many_lines,
@@ -457,18 +469,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     );
     let mut errors = namespace_with_objects(
         "/core/errors",
-        [
-            "arithmetic-overflow",
-            "division-by-zero",
-            "integer-conversion-overflow",
-            "negative-shift-count",
-            "coercion-error",
-            "decode-error",
-            "index-error",
-            "missing-key",
-            "dependency-error",
-            "dependency-panic",
-        ],
+        BUILTIN_ERROR_NAMES.iter().copied(),
         SymbolKind::ErrorObject,
     );
     errors.symbols.insert(

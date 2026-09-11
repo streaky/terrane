@@ -382,73 +382,13 @@ mod __terrane_trace {
         "/coercion-callback::wrap",
         "/coercion-callback::main",
     ];
-    pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /coercion-callback::fail (case.trn:17:3-17:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 3,
-                end_line: 17,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /coercion-callback::wrap (case.trn:20:11-20:19) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 20,
-                column: 11,
-                end_line: 20,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /coercion-callback::main (case.trn:23:11-23:27) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 23,
-                column: 11,
-                end_line: 23,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /coercion-callback::main (case.trn:28:11-28:19) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 28,
-                column: 11,
-                end_line: 28,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /coercion-callback::main (case.trn:29:11-29:19) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 29,
-                column: 11,
-                end_line: 29,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /coercion-callback::main (case.trn:31:13-31:18) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 31,
-                column: 13,
-                end_line: 31,
-                end_column: 18,
-            }
-        },
+    pub static SITES: [Site; 3] = [
+        /* terrane-site-row: site 0: /coercion-callback::fail (case.trn:17:3-17:23) */
+        { Site { function: 0, file: 0, line: 17, column: 3, end_line: 17, end_column: 23 } },
+        /* terrane-site-row: site 1: /coercion-callback::wrap (case.trn:20:11-20:19) */
+        { Site { function: 1, file: 0, line: 20, column: 11, end_line: 20, end_column: 19 } },
+        /* terrane-site-row: site 2: /coercion-callback::main (case.trn:31:13-31:18) */
+        { Site { function: 2, file: 0, line: 31, column: 13, end_line: 31, end_column: 18 } },
     ];
     #[cold]
     #[inline(never)]
@@ -502,43 +442,41 @@ fn wrap() -> Result<String, TerraneError> {
 }
 fn main() {
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(std::sync::Arc::new(move |
-        argument_0 : terrane_int_support::Int | Ok(render(argument_0))) (source()),
-        2 /* terrane-site: case.trn:23:11-23:27 */))
+        "{}", terrane_scalar_support::scalar_text(&std::sync::Arc::new(render)
+        (source()))
     );
     let closure: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
     > = {
         std::sync::Arc::new(move |
             __trn_5f76616c7565: terrane_int_support::Int,
-        | -> Result<String, TerraneError> {
-            return Ok(String::from("closure"));
+        | -> String {
+            return String::from("closure");
         })
     };
     let service: Renderer = Renderer::terrane_construct();
     let bound: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
     > = {
         let receiver = service;
-        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
-            receiver.render(argument_0),
-        ))
+        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
+            receiver.render(argument_0)
+        })
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(closure.clone()
-        (terrane_int_support::Int::from(8_i128)), 3 /* terrane-site: case.trn:28:11-28:19 */))
+        "{}", terrane_scalar_support::scalar_text(&closure.clone()
+        (terrane_int_support::Int::from(8_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(bound.clone()
-        (terrane_int_support::Int::from(9_i128)), 4 /* terrane-site: case.trn:29:11-29:19 */))
+        "{}", terrane_scalar_support::scalar_text(&bound.clone()
+        (terrane_int_support::Int::from(9_i128)))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_traced_completion!(wrap(),
-                5 /* terrane-site: case.trn:31:13-31:18 */))
+                2 /* terrane-site: case.trn:31:13-31:18 */))
             );
             TerraneCompletion::Normal
         })();

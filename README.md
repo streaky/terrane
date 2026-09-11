@@ -51,6 +51,7 @@ The principal unfinished areas are:
 
 - destination-directed specialization for closed generic results projected from Rust dependencies;
 - precise throwable bounds on function types;
+- Rust traits projected as Terrane interfaces that local classes can implement;
 - a Terrane-native unit, integration, and end-to-end testing framework;
 - the remaining release hardening and cross-platform release gate; and
 - bundled, vendorable, relocatable projection artifacts for fully offline dependency builds.

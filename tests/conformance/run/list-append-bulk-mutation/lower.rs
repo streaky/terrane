@@ -387,270 +387,54 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 24] = [
-        {
-            /* terrane-site-row: site 0: /list-append-bulk-mutation::validate-return (case.trn:23:14-23:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 14,
-                end_line: 23,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /list-append-bulk-mutation::validate-return (case.trn:24:5-24:12) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 5,
-                end_line: 24,
-                end_column: 12,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /list-append-bulk-mutation::validate-exit (case.trn:34:14-34:23) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 34,
-                column: 14,
-                end_line: 34,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /list-append-bulk-mutation::validate-exit (case.trn:36:5-36:12) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 36,
-                column: 5,
-                end_line: 36,
-                end_column: 12,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /list-append-bulk-mutation::validate-throw (case.trn:46:16-46:25) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 46,
-                column: 16,
-                end_line: 46,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /list-append-bulk-mutation::validate-throw (case.trn:47:9-47:34) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 47,
-                column: 9,
-                end_line: 47,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /list-append-bulk-mutation::validate-throw (case.trn:48:7-48:14) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 48,
-                column: 7,
-                end_line: 48,
-                end_column: 14,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /list-append-bulk-mutation::main (case.trn:59:5-59:12) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 59,
-                column: 5,
-                end_line: 59,
-                end_column: 12,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /list-append-bulk-mutation::main (case.trn:69:41-69:52) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 69,
-                column: 41,
-                end_line: 69,
-                end_column: 52,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /list-append-bulk-mutation::main (case.trn:71:31-71:46) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 71,
-                column: 31,
-                end_line: 71,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /list-append-bulk-mutation::main (case.trn:78:37-78:58) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 78,
-                column: 37,
-                end_line: 78,
-                end_column: 58,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /list-append-bulk-mutation::main (case.trn:95:5-95:19) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 95,
-                column: 5,
-                end_line: 95,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /list-append-bulk-mutation::main (case.trn:93:47-93:61) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 93,
-                column: 47,
-                end_line: 93,
-                end_column: 61,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /list-append-bulk-mutation::main (case.trn:101:23-101:39) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 101,
-                column: 23,
-                end_line: 101,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /list-append-bulk-mutation::main (case.trn:131:5-131:18) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 131,
-                column: 5,
-                end_line: 131,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 15: /list-append-bulk-mutation::main (case.trn:148:28-148:40) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 148,
-                column: 28,
-                end_line: 148,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /list-append-bulk-mutation::main (case.trn:152:22-152:37) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 152,
-                column: 22,
-                end_line: 152,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 17: /list-append-bulk-mutation::main (case.trn:153:10-153:21) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 153,
-                column: 10,
-                end_line: 153,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 18: /list-append-bulk-mutation::main (case.trn:160:28-160:40) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 160,
-                column: 28,
-                end_line: 160,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 19: /core/process::arguments (core/process.trn:44:49-44:63) */
-            Site {
-                function: 4,
-                file: 1,
-                line: 44,
-                column: 49,
-                end_line: 44,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 20: /core/process::environment (core/process.trn:53:40-53:54) */
-            Site {
-                function: 5,
-                file: 1,
-                line: 53,
-                column: 40,
-                end_line: 53,
-                end_column: 54,
-            }
-        },
-        {
-            /* terrane-site-row: site 21: /core/process::environment (core/process.trn:54:41-54:59) */
-            Site {
-                function: 5,
-                file: 1,
-                line: 54,
-                column: 41,
-                end_line: 54,
-                end_column: 59,
-            }
-        },
-        {
-            /* terrane-site-row: site 22: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
-            Site {
-                function: 6,
-                file: 1,
-                line: 89,
-                column: 20,
-                end_line: 89,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 23: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
-            Site {
-                function: 6,
-                file: 1,
-                line: 104,
-                column: 43,
-                end_line: 104,
-                end_column: 62,
-            }
-        },
+        /* terrane-site-row: site 0: /list-append-bulk-mutation::validate-return (case.trn:23:14-23:23) */
+        { Site { function: 0, file: 0, line: 23, column: 14, end_line: 23, end_column: 23 } },
+        /* terrane-site-row: site 1: /list-append-bulk-mutation::validate-return (case.trn:24:5-24:12) */
+        { Site { function: 0, file: 0, line: 24, column: 5, end_line: 24, end_column: 12 } },
+        /* terrane-site-row: site 2: /list-append-bulk-mutation::validate-exit (case.trn:34:14-34:23) */
+        { Site { function: 1, file: 0, line: 34, column: 14, end_line: 34, end_column: 23 } },
+        /* terrane-site-row: site 3: /list-append-bulk-mutation::validate-exit (case.trn:36:5-36:12) */
+        { Site { function: 1, file: 0, line: 36, column: 5, end_line: 36, end_column: 12 } },
+        /* terrane-site-row: site 4: /list-append-bulk-mutation::validate-throw (case.trn:46:16-46:25) */
+        { Site { function: 2, file: 0, line: 46, column: 16, end_line: 46, end_column: 25 } },
+        /* terrane-site-row: site 5: /list-append-bulk-mutation::validate-throw (case.trn:47:9-47:34) */
+        { Site { function: 2, file: 0, line: 47, column: 9, end_line: 47, end_column: 34 } },
+        /* terrane-site-row: site 6: /list-append-bulk-mutation::validate-throw (case.trn:48:7-48:14) */
+        { Site { function: 2, file: 0, line: 48, column: 7, end_line: 48, end_column: 14 } },
+        /* terrane-site-row: site 7: /list-append-bulk-mutation::main (case.trn:59:5-59:12) */
+        { Site { function: 3, file: 0, line: 59, column: 5, end_line: 59, end_column: 12 } },
+        /* terrane-site-row: site 8: /list-append-bulk-mutation::main (case.trn:69:41-69:52) */
+        { Site { function: 3, file: 0, line: 69, column: 41, end_line: 69, end_column: 52 } },
+        /* terrane-site-row: site 9: /list-append-bulk-mutation::main (case.trn:71:31-71:46) */
+        { Site { function: 3, file: 0, line: 71, column: 31, end_line: 71, end_column: 46 } },
+        /* terrane-site-row: site 10: /list-append-bulk-mutation::main (case.trn:78:37-78:58) */
+        { Site { function: 3, file: 0, line: 78, column: 37, end_line: 78, end_column: 58 } },
+        /* terrane-site-row: site 11: /list-append-bulk-mutation::main (case.trn:95:5-95:19) */
+        { Site { function: 3, file: 0, line: 95, column: 5, end_line: 95, end_column: 19 } },
+        /* terrane-site-row: site 12: /list-append-bulk-mutation::main (case.trn:93:47-93:61) */
+        { Site { function: 3, file: 0, line: 93, column: 47, end_line: 93, end_column: 61 } },
+        /* terrane-site-row: site 13: /list-append-bulk-mutation::main (case.trn:101:23-101:39) */
+        { Site { function: 3, file: 0, line: 101, column: 23, end_line: 101, end_column: 39 } },
+        /* terrane-site-row: site 14: /list-append-bulk-mutation::main (case.trn:131:5-131:18) */
+        { Site { function: 3, file: 0, line: 131, column: 5, end_line: 131, end_column: 18 } },
+        /* terrane-site-row: site 15: /list-append-bulk-mutation::main (case.trn:148:28-148:40) */
+        { Site { function: 3, file: 0, line: 148, column: 28, end_line: 148, end_column: 40 } },
+        /* terrane-site-row: site 16: /list-append-bulk-mutation::main (case.trn:152:22-152:37) */
+        { Site { function: 3, file: 0, line: 152, column: 22, end_line: 152, end_column: 37 } },
+        /* terrane-site-row: site 17: /list-append-bulk-mutation::main (case.trn:153:10-153:21) */
+        { Site { function: 3, file: 0, line: 153, column: 10, end_line: 153, end_column: 21 } },
+        /* terrane-site-row: site 18: /list-append-bulk-mutation::main (case.trn:160:28-160:40) */
+        { Site { function: 3, file: 0, line: 160, column: 28, end_line: 160, end_column: 40 } },
+        /* terrane-site-row: site 19: /core/process::arguments (core/process.trn:44:49-44:63) */
+        { Site { function: 4, file: 1, line: 44, column: 49, end_line: 44, end_column: 63 } },
+        /* terrane-site-row: site 20: /core/process::environment (core/process.trn:53:40-53:54) */
+        { Site { function: 5, file: 1, line: 53, column: 40, end_line: 53, end_column: 54 } },
+        /* terrane-site-row: site 21: /core/process::environment (core/process.trn:54:41-54:59) */
+        { Site { function: 5, file: 1, line: 54, column: 41, end_line: 54, end_column: 59 } },
+        /* terrane-site-row: site 22: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
+        { Site { function: 6, file: 1, line: 89, column: 20, end_line: 89, end_column: 35 } },
+        /* terrane-site-row: site 23: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
+        { Site { function: 6, file: 1, line: 104, column: 43, end_line: 104, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]

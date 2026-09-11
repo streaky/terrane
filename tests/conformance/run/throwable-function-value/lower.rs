@@ -383,50 +383,14 @@ mod __terrane_trace {
         "/throwable-function-value::main",
     ];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 10,
-                column: 10,
-                end_line: 10,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:14:13-14:30) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 14,
-                column: 13,
-                end_line: 14,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:17:11-17:27) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 17,
-                column: 11,
-                end_line: 17,
-                end_column: 27,
-            }
-        },
+        /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 25 } },
+        /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
+        { Site { function: 1, file: 0, line: 10, column: 10, end_line: 10, end_column: 26 } },
+        /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:18:13-18:33) */
+        { Site { function: 2, file: 0, line: 18, column: 13, end_line: 18, end_column: 33 } },
+        /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:21:11-21:30) */
+        { Site { function: 2, file: 0, line: 21, column: 11, end_line: 21, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]
@@ -467,12 +431,28 @@ fn apply(
     );
 }
 fn main() {
+    let operation: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
+    > = std::sync::Arc::new(render);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "throws"
+        .to_owned() })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
+        .to_owned() })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
+        .to_owned() })
+    );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(std::sync::Arc::new(render),
-                terrane_int_support::Int::from(- 1_i128)), 2 /* terrane-site: case.trn:14:13-14:30 */))
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(operation
+                .clone(), terrane_int_support::Int::from(- 1_i128)),
+                2 /* terrane-site: case.trn:18:13-18:33 */))
             );
             TerraneCompletion::Normal
         })();
@@ -508,8 +488,7 @@ fn main() {
         }
     }
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(render),
-        terrane_int_support::Int::from(4_i128)), 3 /* terrane-site: case.trn:17:11-17:27 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(apply(operation
+        .clone(), terrane_int_support::Int::from(4_i128)), 3 /* terrane-site: case.trn:21:11-21:30 */))
     );
 }

@@ -382,28 +382,10 @@ mod __terrane_trace {
         "/return-tail-block-strings::main",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /return-tail-block-strings::render (case.trn:6:5-6:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /return-tail-block-strings::main (case.trn:15:11-15:20) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 15,
-                column: 11,
-                end_line: 15,
-                end_column: 20,
-            }
-        },
+        /* terrane-site-row: site 0: /return-tail-block-strings::render (case.trn:6:5-6:25) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 25 } },
+        /* terrane-site-row: site 1: /return-tail-block-strings::main (case.trn:15:11-15:20) */
+        { Site { function: 1, file: 0, line: 15, column: 11, end_line: 15, end_column: 20 } },
     ];
     #[cold]
     #[inline(never)]

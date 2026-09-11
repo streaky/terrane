@@ -538,6 +538,16 @@ impl Parser<'_> {
                     parts,
                 ));
             }
+            if self.eat_text("throws") {
+                self.error_at(
+                    self.position - 1,
+                    "S1039",
+                    "function declaration accepts only one `throws` upper bound",
+                );
+                if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
+                    self.parse_type_expression();
+                }
+            }
         }
         self.expect(
             TokenKind::Semicolon,
@@ -1231,6 +1241,26 @@ impl Parser<'_> {
             }
             self.expect_text("to", "S1020", "function type requires `to`");
             children.push(self.parse_type_expression());
+            if self.eat_text("throws") {
+                let effect_start = self.position - 1;
+                let parts = if self.at(TokenKind::Semicolon)
+                    || self.at(TokenKind::Assign)
+                    || self.at(TokenKind::Comma)
+                    || self.at(TokenKind::CloseParen)
+                    || self.at_line_end()
+                {
+                    self.error_here("S1039", "`throws` requires a throwable upper bound");
+                    Vec::new()
+                } else {
+                    vec![self.parse_type_expression()]
+                };
+                children.push(self.node(
+                    SyntaxKind::EffectClause,
+                    effect_start,
+                    self.position,
+                    parts,
+                ));
+            }
             return self.node(SyntaxKind::FunctionType, start, self.position, children);
         }
         let mut base = if self.at(TokenKind::Identifier) {
