@@ -3680,10 +3680,12 @@ fn project_function_inner(
             borrowed,
             mutable_borrow,
             generic_parameter: impl_trait_parameter.or_else(|| {
-                generic_types.iter().find_map(|(name, projected)| {
-                    (matches!(projected, ProjectedType::Foreign { .. })
-                        && type_mentions_generic(ty, name))
-                    .then(|| name.clone())
+                function.generics.params.iter().find_map(|parameter| {
+                    generic_types.get(&parameter.name).and_then(|projected| {
+                        (matches!(projected, ProjectedType::Foreign { .. })
+                            && type_mentions_generic(ty, &parameter.name))
+                        .then(|| parameter.name.clone())
+                    })
                 })
             }),
         });
