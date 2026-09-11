@@ -264,18 +264,6 @@
         ],
         [
           "/deps/reqwest",
-          "Proxy::all"
-        ],
-        [
-          "/deps/reqwest",
-          "Proxy::http"
-        ],
-        [
-          "/deps/reqwest",
-          "Proxy::https"
-        ],
-        [
-          "/deps/reqwest",
           "Request"
         ],
         [
@@ -684,7 +672,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "36",
+  "projection_schema": "38",
   "removed": [],
   "resolution": {
     "events": [

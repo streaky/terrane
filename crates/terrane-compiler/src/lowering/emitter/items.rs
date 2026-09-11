@@ -432,13 +432,8 @@ impl<'a> Emitter<'a> {
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
-                    if let Some(result) = method
-                        .return_type
-                        .clone()
-                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                    {
-                        write!(self.output, " -> {}", rust_value_type(self.package, result))
-                            .unwrap();
+                    if let Some(result) = forwarded_method_return_type(self.package, method) {
+                        write!(self.output, " -> {result}").unwrap();
                     }
                     self.output.push_str(";\n");
                 }
@@ -472,13 +467,8 @@ impl<'a> Emitter<'a> {
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
-                    if let Some(result) = method
-                        .return_type
-                        .clone()
-                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                    {
-                        write!(self.output, " -> {}", rust_value_type(self.package, result))
-                            .unwrap();
+                    if let Some(result) = forwarded_method_return_type(self.package, method) {
+                        write!(self.output, " -> {result}").unwrap();
                     }
                     self.output.push_str(" {\n");
                     self.indent += 1;
@@ -1031,10 +1021,18 @@ impl<'a> Emitter<'a> {
                                 .iter()
                                 .zip(&method.parameters)
                                 .map(|(projected, parameter)| {
-                                    projected_callback_output_expression(
+                                    let converted = projected_callback_output_expression(
                                         &rust_name(&parameter.name),
                                         &projected.ty,
-                                    )
+                                    );
+                                    if projected.borrowed {
+                                        format!(
+                                            "&{}{converted}",
+                                            if projected.mutable_borrow { "mut " } else { "" }
+                                        )
+                                    } else {
+                                        converted
+                                    }
                                 })
                                 .collect::<Vec<_>>()
                                 .join(", ");
@@ -1048,17 +1046,38 @@ impl<'a> Emitter<'a> {
                                 projected_item.rust_path,
                                 rust_name(&method.name)
                             );
+                            let call = if projected_method.function.error.is_some() {
+                                format!(
+                                    "match {call} {{ Ok(value) => value, Err(error) => return Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}",
+                                    projected_item.rust_path, projected_method.function.name
+                                )
+                            } else {
+                                call
+                            };
                             let converted = projected_callback_input_expression(
                                 "__terrane_default",
                                 &projected_method.function.result,
                             );
-                            let result_type = forwarded_method_return_type(self.package, method)
-                                .unwrap_or_else(|| "()".to_owned());
-                            write!(
-                                self.output,
-                                "(|| -> Result<{result_type}, crate::TerraneForeignError> {{ let __terrane_default = {call}; Ok({converted}) }})().unwrap_or_else(|error| panic!(\"{{}}\", error.render()))"
-                            )
-                            .expect("writing to a string cannot fail");
+                            let result_type = method.return_type.clone().map_or_else(
+                                || "()".to_owned(),
+                                |value_type| rust_value_type(self.package, value_type),
+                            );
+                            let boundary = format!(
+                                "(|| -> Result<{result_type}, crate::TerraneForeignError> {{ let __terrane_default = {call}; Ok({converted}) }})()"
+                            );
+                            if method.throws {
+                                write!(
+                                    self.output,
+                                    "{boundary}.map_err(|error| error.raised(crate::TERRANE_NO_SITE))"
+                                )
+                                .expect("writing to a string cannot fail");
+                            } else {
+                                write!(
+                                    self.output,
+                                    "{boundary}.unwrap_or_else(|error| panic!(\"{{}}\", error.render()))"
+                                )
+                                .expect("writing to a string cannot fail");
+                            }
                         }
                         self.output.push('\n');
                         self.indent -= 1;

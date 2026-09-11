@@ -96,6 +96,10 @@
         ],
         [
           "/deps/terrane-render-witness",
+          "render_impl"
+        ],
+        [
+          "/deps/terrane-render-witness",
           "render_value"
         ]
       ],
@@ -104,7 +108,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "36",
+  "projection_schema": "38",
   "removed": [],
   "resolution": {
     "events": [

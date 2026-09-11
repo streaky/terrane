@@ -5,7 +5,7 @@ from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_on
 from /deps/terrane-callback-witness import invoke_retained, wait_until_retained_invocation_active, active_retained_invocations, pending_value
 from /core/errors import dependency-panic
 from /deps/terrane-dispatch-witness import dispatch
-from /deps/terrane-render-witness import Renderable as renderable, render_value, render_decorated
+from /deps/terrane-render-witness import Renderable as renderable, render_value, render_decorated, render_impl
 
 function add-two int; value int
     return value + 2
@@ -70,5 +70,11 @@ async function main;
     message = instance projected-message;
     print; (render_value; message, 'interface')
     print; (render_decorated; message, 'default')
+    interface-message renderable = message
+    print; (interface-message.decorated; 'provided')
+    print; (interface-message.borrowed; 'borrowed')
+    print; (interface-message.parsed; '7')
+    impl-message = instance projected-message;
+    print; (render_impl; impl-message, 'opaque')
     counter = instance projected-counter;
     print; (adjust_value; counter, 7)

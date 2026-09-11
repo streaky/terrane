@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "36";
+const PROJECTION_SCHEMA: &str = "38";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -235,6 +235,8 @@ pub struct ProjectedInterface {
     pub methods: Vec<ProjectedInterfaceMethod>,
     pub send: bool,
     pub sync: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub declined_methods: Vec<DeclinedItem>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -675,18 +677,7 @@ impl Projection {
         type_name: &str,
         method_name: &str,
     ) -> Option<&ProjectedInterfaceMethod> {
-        let item = self.item(namespace, type_name).or_else(|| {
-            self.dependencies
-                .iter()
-                .flat_map(|dependency| &dependency.items)
-                .find(|item| {
-                    item.namespace == namespace
-                        && matches!(&item.kind, ProjectedKind::Interface(interface) if interface
-                            .methods
-                            .iter()
-                            .any(|method| method.function.name == method_name))
-                })
-        })?;
+        let item = self.item(namespace, type_name)?;
         let ProjectedKind::Interface(interface) = &item.kind else {
             return None;
         };
@@ -1214,6 +1205,33 @@ impl std::error::Error for ProjectionError {}
     clippy::too_many_lines,
     reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
 )]
+fn decline_unproven_projected_interfaces(
+    projected: &mut [ProjectedDependency],
+    evidence: &[crate::projection_oracle::ImplProbeEvidence],
+) {
+    for evidence in evidence
+        .iter()
+        .filter(|evidence| evidence.answer != crate::ProbeAnswer::Yes)
+    {
+        for dependency in &mut *projected {
+            let Some(index) = dependency
+                .items
+                .iter()
+                .position(|item| item.rust_path == evidence.question.label)
+            else {
+                continue;
+            };
+            let item = dependency.items.remove(index);
+            dependency.declined.push(DeclinedItem {
+                rust_path: item.rust_path,
+                reason:
+                    "trait implementation signature is not representable against the resolved dependency"
+                        .to_owned(),
+            });
+            break;
+        }
+    }
+}
 pub fn resolve(
     root: &Path,
     dependencies: &[RustDependency],
@@ -1415,18 +1433,7 @@ pub fn resolve(
         let report =
             crate::projection_oracle::ProjectionOracle::new(&workspace, &identity, sandbox)
                 .prove_impls(&impl_questions)?;
-        if let Some(failed) = report
-            .evidence
-            .iter()
-            .find(|evidence| evidence.answer != crate::ProbeAnswer::Yes)
-        {
-            return Err(ProjectionError {
-                message: format!(
-                    "projected interface implementation witness `{}` did not compile against the resolved dependency",
-                    failed.question.label
-                ),
-            });
-        }
+        decline_unproven_projected_interfaces(&mut projected, &report.evidence);
     }
     resolution_events.push(ResolutionEvent {
         source: ResolutionSource::LocalRustdoc,
@@ -2798,6 +2805,7 @@ fn project_interface(
         }
     }
     let mut methods = Vec::new();
+    let mut declined_methods = Vec::new();
     for id in &declaration.items {
         let Some(item) = index.get(id) else {
             return Err("trait member is missing from rustdoc".to_owned());
@@ -2813,20 +2821,60 @@ fn project_interface(
             }
             _ => return Err(format!("trait member `{name}` is not a receiver method")),
         };
+        let provided = function.has_body;
+        let member_path = format!("trait::{name}");
+        if provided && !function.generics.where_predicates.is_empty() {
+            declined_methods.push(DeclinedItem {
+                rust_path: member_path,
+                reason: "provided method has unsupported where predicates".to_owned(),
+            });
+            continue;
+        }
         if function
             .sig
             .inputs
             .first()
             .is_none_or(|(name, _)| name != "self")
         {
+            if provided {
+                declined_methods.push(DeclinedItem {
+                    rust_path: member_path,
+                    reason: "provided associated function is not a receiver method".to_owned(),
+                });
+                continue;
+            }
             return Err(format!("trait member `{name}` is an associated function"));
         }
-        let projected = project_function(function, index, paths, Some(name))
-            .map_err(|reason| format!("trait member `{name}`: {reason}"))?;
+        let projected = match project_function(function, index, paths, Some(name)) {
+            Ok(projected) => projected,
+            Err(reason) if provided => {
+                declined_methods.push(DeclinedItem {
+                    rust_path: member_path,
+                    reason,
+                });
+                continue;
+            }
+            Err(reason) => return Err(format!("trait member `{name}`: {reason}")),
+        };
+        if !provided && projected.error.is_some() {
+            return Err(format!(
+                "trait member `{name}`: required Result-returning methods are deferred"
+            ));
+        }
+        if !provided
+            && projected
+                .parameters
+                .iter()
+                .any(|parameter| parameter.borrowed)
+        {
+            return Err(format!(
+                "trait member `{name}`: required borrowed parameters are deferred"
+            ));
+        }
         debug_assert!(projected.receiver.is_some());
         methods.push(ProjectedInterfaceMethod {
             function: projected,
-            provided: function.has_body,
+            provided,
             docs: item.docs.clone(),
         });
     }
@@ -2838,6 +2886,7 @@ fn project_interface(
         methods,
         send,
         sync,
+        declined_methods,
     })
 }
 fn projected_interface_impl_question(
@@ -3578,18 +3627,46 @@ fn project_function_inner(
     }
     let mut parameters = Vec::new();
     let mut receiver = None;
-    for (name, ty) in &function.sig.inputs {
+    for (parameter_index, (name, ty)) in function.sig.inputs.iter().enumerate() {
         if name == "self" {
             receiver = Some(receiver_kind(ty)?);
             continue;
         }
-        if !matches!(ty, Type::BorrowedRef { .. })
-            && render_rust_type(ty, index, paths, &generic_types)
-                .is_ok_and(|rendered| rendered.contains('&'))
-        {
+        if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
             return Err("nested borrowed parameter cannot cross a projected boundary".to_owned());
         }
-        let projected_type = project_type(ty, index, paths, &generic_types)?;
+        let (projected_type, impl_trait_parameter) = if let Some(bounds) = impl_trait_bounds(ty) {
+            let [GenericBound::TraitBound { trait_, .. }] = bounds else {
+                return Err("`impl Trait` input requires one projectable trait bound".to_owned());
+            };
+            let Some(Item {
+                inner: ItemEnum::Trait(declaration),
+                ..
+            }) = index.get(&trait_.id)
+            else {
+                return Err("`impl Trait` input has an unresolved trait bound".to_owned());
+            };
+            if project_interface(declaration, index, paths).is_err() {
+                return Err("`impl Trait` input bound is not a projectable interface".to_owned());
+            }
+            let rust_path = render_resolved_path(trait_, index, paths, &generic_types)?;
+            (
+                ProjectedType::Foreign {
+                    name: trait_
+                        .path
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(&trait_.path)
+                        .to_owned(),
+                    base_rust_path: rust_path.clone(),
+                    rust_path,
+                    arguments: Vec::new(),
+                },
+                Some(format!("TerraneImpl{parameter_index}")),
+            )
+        } else {
+            (project_type(ty, index, paths, &generic_types)?, None)
+        };
         let (borrowed, mutable_borrow) = match ty {
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
             _ => (false, false),
@@ -3602,10 +3679,12 @@ fn project_function_inner(
             ty: projected_type,
             borrowed,
             mutable_borrow,
-            generic_parameter: generic_types.iter().find_map(|(name, projected)| {
-                (matches!(projected, ProjectedType::Foreign { .. })
-                    && type_mentions_generic(ty, name))
-                .then(|| name.clone())
+            generic_parameter: impl_trait_parameter.or_else(|| {
+                generic_types.iter().find_map(|(name, projected)| {
+                    (matches!(projected, ProjectedType::Foreign { .. })
+                        && type_mentions_generic(ty, name))
+                    .then(|| name.clone())
+                })
             }),
         });
     }
@@ -4063,9 +4142,17 @@ fn generic_monomorphisations(
             result.insert(parameter.name.clone(), ProjectedType::None);
             continue;
         }
-        let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
+        let GenericParamDefKind::Type {
+            bounds,
+            is_synthetic,
+            ..
+        } = &parameter.kind
+        else {
             continue;
         };
+        if *is_synthetic {
+            continue;
+        }
         let caller_chosen_result = function
             .sig
             .output
@@ -4101,16 +4188,29 @@ fn generic_monomorphisations(
             });
             continue;
         }
-        let caller_chosen_input = function
+        let caller_chosen_inputs = function
             .sig
             .inputs
             .iter()
-            .any(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            .filter(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            .collect::<Vec<_>>();
+        let caller_chosen_input = !caller_chosen_inputs.is_empty()
             && !function
                 .sig
                 .output
                 .as_ref()
                 .is_some_and(|output| type_mentions_generic(output, &parameter.name));
+        if caller_chosen_input
+            && (caller_chosen_inputs.len() != 1
+                || !caller_chosen_inputs
+                    .iter()
+                    .all(|(_, ty)| immediate_generic_input(ty, &parameter.name)))
+        {
+            return Err(format!(
+                "generic bound `{}` must appear in exactly one immediate input",
+                parameter.name
+            ));
+        }
         if caller_chosen_input
             && bounds.len() == 1
             && let GenericBound::TraitBound { trait_, .. } = &bounds[0]
@@ -4609,11 +4709,54 @@ fn resolved_path_name(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> S
         .filter(|path| !path.is_empty())
         .unwrap_or_else(|| path.path.replace("crate::", ""))
 }
+fn impl_trait_bounds(ty: &Type) -> Option<&[GenericBound]> {
+    match ty {
+        Type::ImplTrait(bounds) => Some(bounds),
+        Type::BorrowedRef { type_, .. } => match type_.as_ref() {
+            Type::ImplTrait(bounds) => Some(bounds),
+            _ => None,
+        },
+        _ => None,
+    }
+}
 
 fn resolved_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<String> {
     match ty {
         Type::ResolvedPath(path) => Some(resolved_path_name(path, paths)),
         _ => None,
+    }
+}
+
+fn immediate_generic_input(ty: &Type, generic: &str) -> bool {
+    match ty {
+        Type::Generic(name) => name == generic,
+        Type::BorrowedRef { type_, .. } => {
+            matches!(type_.as_ref(), Type::Generic(name) if name == generic)
+        }
+        _ => false,
+    }
+}
+
+fn type_contains_borrowed_ref(ty: &Type) -> bool {
+    match ty {
+        Type::BorrowedRef { .. } => true,
+        Type::ResolvedPath(_) => type_arguments(ty)
+            .into_iter()
+            .any(type_contains_borrowed_ref),
+        Type::Tuple(items) => items.iter().any(type_contains_borrowed_ref),
+        Type::Slice(item)
+        | Type::Array { type_: item, .. }
+        | Type::Pat { type_: item, .. }
+        | Type::RawPointer { type_: item, .. } => type_contains_borrowed_ref(item),
+        // Borrowed values inside callable signatures are governed by the
+        // callable boundary rather than escaping through the outer parameter.
+        Type::FunctionPointer(_) => false,
+        Type::QualifiedPath { self_type, .. } => type_contains_borrowed_ref(self_type),
+        Type::DynTrait(_)
+        | Type::Generic(_)
+        | Type::Primitive(_)
+        | Type::ImplTrait(_)
+        | Type::Infer => false,
     }
 }
 
@@ -4897,9 +5040,10 @@ mod tests {
 
     use super::{
         ArtifactDependency, Containment, DeclinedItem, InvocationMode, ProjectedBoundDependency,
-        ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
-        Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource,
-        Receiver, ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
+        ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
+        ProjectedType, Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution,
+        ProjectionSource, Receiver, ResolutionOutcome, apply_projection_history,
+        decline_unproven_projected_interfaces, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
         projection_content_hash, prune_projection_cache, receiver_kind, resolve,
         rewrite_rust_bound_root, selected_target, validate_projection_artifact,
@@ -5084,6 +5228,58 @@ mod tests {
             Receiver::Move
         );
         assert!(receiver_kind(&Type::Primitive("str".to_owned())).is_err());
+    }
+
+    #[test]
+    fn failed_impl_witness_declines_only_the_unproven_interface() {
+        let mut dependencies = vec![ProjectedDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "1.0.0".to_owned(),
+            items: vec![
+                ProjectedItem {
+                    namespace: "/deps/witness".to_owned(),
+                    name: "Rejected".to_owned(),
+                    rust_path: "witness::Rejected".to_owned(),
+                    docs: None,
+                    kind: ProjectedKind::Interface(ProjectedInterface {
+                        methods: Vec::new(),
+                        send: false,
+                        sync: false,
+                        declined_methods: Vec::new(),
+                    }),
+                },
+                ProjectedItem {
+                    namespace: "/deps/witness".to_owned(),
+                    name: "Proven".to_owned(),
+                    rust_path: "witness::Proven".to_owned(),
+                    docs: None,
+                    kind: ProjectedKind::Interface(ProjectedInterface {
+                        methods: Vec::new(),
+                        send: false,
+                        sync: false,
+                        declined_methods: Vec::new(),
+                    }),
+                },
+            ],
+            declined: Vec::new(),
+        }];
+        let evidence = vec![crate::projection_oracle::ImplProbeEvidence {
+            question: crate::projection_oracle::ImplQuestion {
+                label: "witness::Rejected".to_owned(),
+                source: "compile_error!(\"witness failure\");".to_owned(),
+            },
+            answer: crate::ProbeAnswer::No,
+        }];
+
+        decline_unproven_projected_interfaces(&mut dependencies, &evidence);
+
+        assert_eq!(dependencies[0].items[0].rust_path, "witness::Proven");
+        assert_eq!(dependencies[0].declined[0].rust_path, "witness::Rejected");
+        assert_eq!(
+            dependencies[0].declined[0].reason,
+            "trait implementation signature is not representable against the resolved dependency"
+        );
     }
 
     #[test]

@@ -1267,18 +1267,6 @@
         ],
         [
           "/deps/reqwest",
-          "Proxy::all"
-        ],
-        [
-          "/deps/reqwest",
-          "Proxy::http"
-        ],
-        [
-          "/deps/reqwest",
-          "Proxy::https"
-        ],
-        [
-          "/deps/reqwest",
           "Request"
         ],
         [
@@ -3790,10 +3778,6 @@
       "members": [
         [
           "/deps/utoipa",
-          "Modify"
-        ],
-        [
-          "/deps/utoipa",
           "Number"
         ],
         [
@@ -4845,11 +4829,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "2ea8030bdd9b2ed499903a6b594a1fc86a49d210292146e302c95b65a129539d",
+  "cache_identity": "a1e3b20948ce2ef60d1c27929505a5f6528dfa7f336d1aa11951dc17c7527753",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "36",
-  "content_hash": "1778d57763f273b7891b7f55531557779a85bba06f10af8e9677c9be4ecfbd1b",
+  "projection_schema": "38",
+  "content_hash": "3662bd9fb35cd01e748f65a271b59525e4baa322fdff4cf3fd30c77e3a4de6ac",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -1,0 +1,9 @@
+namespace app
+from /deps/terrane-render-witness import Renderable as renderable, render_value
+class sample implements renderable
+  function render string; label string
+    return label
+function main;
+  concrete = instance sample;
+  erased renderable = concrete
+  print; (render_value; erased, 'bad')

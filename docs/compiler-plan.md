@@ -626,31 +626,43 @@ are provided interface members: callable and overridable, but not required from 
 descriptor rule. Conformance reads requirements from the descriptor, checks each matching class
 method after type projection, permits unrelated inherent class methods, and diagnoses receiver,
 signature, throwable, lifetime, and ownership mismatches at Terrane source spans. Generic methods,
-higher-ranked lifetimes, unresolved associated types, static requirements, and unprojectable method
-types remain precise declines.
+higher-ranked lifetimes, unresolved associated types, required `Result` methods at this milestone,
+static requirements, and unprojectable method types remain precise declines.
 
-Lower each accepted class-interface pair to one readable `impl ForeignTrait for LocalClass` whose
+For each candidate projected interface, first extend the projection oracle with an impl-shaped
+question for the complete generated witness and compile it against the resolved dependency. Only
+interfaces with a successful witness enter the admitted projection artifact; a failed witness
+declines that interface with a stable tooling-visible reason and does not block unrelated proven
+interfaces.
+
+Lower each admitted class-interface pair to one readable `impl ForeignTrait for LocalClass` whose
 methods delegate to the lowered Terrane bodies through the existing callback conversion layer.
-Extend the projection oracle with an impl-shaped question and prove the complete generated
-implementation against the resolved dependency. Admit immediate concrete generic or `impl Trait`
-input calls by selecting the exact generated class from one written argument and proving the
-substituted call; borrowed calls are accepted only when the borrow cannot escape. Rust dyn
-compatibility is checked only at a boundary that actually asks for a Rust trait object. A foreign
-type cannot be named as the implementor.
+Admit immediate concrete generic or `impl Trait` input calls only when exactly one written argument
+selects the concrete class and the substituted call is independently proven. Borrowed parameters
+use non-escaping Rust borrows at the foreign boundary. Rust dyn compatibility is checked only at a
+boundary that actually asks for a Rust trait object. A foreign type cannot be named as the
+implementor.
 
 Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
 logic; Terrane classes implement their fixed-signature traits, use the projected identities as
 ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
 provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
-every unsupported trait shape and conformance mismatch, and every public trait omitted from
+missing methods, receiver-mode mismatches, parameter/result mismatches, throwable mismatches,
+interface-typed generic arguments, non-immediate or ambiguous generic bounds, foreign implementors,
+and every unsupported trait shape. A focused oracle-failure regression proves that one failed
+witness declines only that candidate interface, and every public trait or member omitted from
 projection has a tooling-visible reason.
 
 Evidence: `rust-dependency-callbacks` uses two deliberately dissimilar local witness crates. A
-Terrane class implements their mutable and shared projected interfaces, calls required and provided
-methods through interface values, and crosses an immediate generic bound. The projection artifact
-retains canonical trait identity, receiver authority, provided-member metadata, and stable declines;
-the impl-shaped projection oracle compiles complete witness implementations against the resolved
-dependency graph.
+Terrane class implements their mutable and shared projected interfaces, calls required and
+provided/default methods through interface values, passes a borrowed projected parameter, and
+crosses an immediate generic bound. `projected-interface-missing-member`,
+`projected-interface-receiver-mismatch`, `projected-interface-signature-mismatch`,
+`projected-interface-throwable-mismatch`, `projected-generic-interface-argument`, and
+`projected-generic-non-immediate-bound` provide the matching conformance rejects. The projection
+artifact retains canonical trait identity, receiver authority, provided-member metadata, and
+stable declines; the impl-shaped projection oracle gates interface admission with complete witness
+implementations compiled against the resolved dependency graph.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 

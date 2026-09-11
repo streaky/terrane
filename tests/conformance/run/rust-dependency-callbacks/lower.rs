@@ -424,7 +424,7 @@ mod __terrane_trace {
         "/app::run-retained",
         "/app::main",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 17] = [
         /* terrane-site-row: site 0: /app::stay-pending (src/main.trn:20:24-20:44) */
         { Site { function: 0, file: 0, line: 20, column: 24, end_line: 20, end_column: 44 } },
         /* terrane-site-row: site 1: /app::run-retained (src/main.trn:25:22-25:51) */
@@ -453,8 +453,12 @@ mod __terrane_trace {
         { Site { function: 2, file: 0, line: 71, column: 13, end_line: 71, end_column: 47 } },
         /* terrane-site-row: site 13: /app::main (src/main.trn:72:13-72:49) */
         { Site { function: 2, file: 0, line: 72, column: 13, end_line: 72, end_column: 49 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:74:13-74:37) */
-        { Site { function: 2, file: 0, line: 74, column: 13, end_line: 74, end_column: 37 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:76:13-76:42) */
+        { Site { function: 2, file: 0, line: 76, column: 13, end_line: 76, end_column: 42 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:78:13-78:48) */
+        { Site { function: 2, file: 0, line: 78, column: 13, end_line: 78, end_column: 48 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:80:13-80:37) */
+        { Site { function: 2, file: 0, line: 80, column: 13, end_line: 80, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1043,6 +1047,41 @@ impl RenderableProtocol for ProjectedMessage {
         }()
             .unwrap_or_else(|error| panic!("{}", error.render()))
     }
+    fn borrowed(&self, label_: String) -> String {
+        || -> Result<String, crate::TerraneForeignError> {
+            let __terrane_default = <ProjectedMessage as terrane_render_witness::Renderable>::borrowed(
+                &*self,
+                &label_,
+            );
+            Ok(__terrane_default)
+        }()
+            .unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn parsed(&self, text: String) -> Result<terrane_int_support::Int, TerraneError> {
+        || -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+            let __terrane_default = match <ProjectedMessage as terrane_render_witness::Renderable>::parsed(
+                &*self,
+                text,
+            ) {
+                Ok(value) => value,
+                Err(error) => {
+                    return Err(
+                        crate::TerraneForeignError(
+                            crate::TerraneError::custom_raised(
+                                crate::TERRANE_DEPENDENCY_ERROR,
+                                format!(
+                                    "Rust dependency `terrane_render_witness::Renderable` member `parsed` failed: {error}"
+                                ),
+                                crate::TERRANE_NO_SITE,
+                            ),
+                        ),
+                    );
+                }
+            };
+            Ok(terrane_int_support::Int::from(i128::from(__terrane_default)))
+        }()
+            .map_err(|error| error.raised(crate::TERRANE_NO_SITE))
+    }
 }
 impl From<ProjectedMessage> for Renderable {
     fn from(value: ProjectedMessage) -> Self {
@@ -1291,10 +1330,29 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message,
             String::from("default")), 13 /* terrane-site: src/main.trn:72:13-72:49 */))
         );
+        let interface_message: Renderable = Renderable::from(message.clone());
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&interface_message
+            .decorated(String::from("provided")))
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&interface_message
+            .borrowed(String::from("borrowed")))
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced(interface_message
+            .parsed(String::from("7")), 14 /* terrane-site: src/main.trn:76:13-76:42 */))
+        );
+        let impl_message: ProjectedMessage = ProjectedMessage::terrane_construct();
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&__terrane_raised(render_impl(&impl_message,
+            String::from("opaque")), 15 /* terrane-site: src/main.trn:78:13-78:48 */))
+        );
         let mut counter: ProjectedCounter = ProjectedCounter::terrane_construct();
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(adjust_value(&mut
-            counter, terrane_int_support::Int::from(7_i128)), 14 /* terrane-site: src/main.trn:74:13-74:37 */))
+            counter, terrane_int_support::Int::from(7_i128)), 16 /* terrane-site: src/main.trn:80:13-80:37 */))
         );
     });
 }
@@ -1766,6 +1824,8 @@ pub trait RenderableProtocol {
     fn separate_box(&self) -> Box<dyn RenderableProtocol>;
     fn render(&self, label_: String) -> String;
     fn decorated(&self, label_: String) -> String;
+    fn borrowed(&self, label_: String) -> String;
+    fn parsed(&self, text: String) -> Result<terrane_int_support::Int, TerraneError>;
 }
 impl Clone for Box<dyn RenderableProtocol> {
     fn clone(&self) -> Self {
@@ -1780,6 +1840,15 @@ impl Renderable {
     }
     pub fn decorated(&self, label_: String) -> String {
         self.0.decorated(label_)
+    }
+    pub fn borrowed(&self, label_: String) -> String {
+        self.0.borrowed(label_)
+    }
+    pub fn parsed(
+        &self,
+        text: String,
+    ) -> Result<terrane_int_support::Int, TerraneError> {
+        self.0.parsed(text)
     }
 }
 pub fn render_decorated<T: terrane_render_witness::Renderable>(
@@ -1800,6 +1869,29 @@ pub fn render_decorated<T: terrane_render_witness::Renderable>(
                     payload,
                     "terrane-render-witness",
                     "terrane_render_witness::render_decorated",
+                ),
+            )
+        }
+    }
+}
+pub fn render_impl<TerraneImpl0: terrane_render_witness::Renderable>(
+    value: &TerraneImpl0,
+    label_: String,
+) -> Result<String, crate::TerraneForeignError> {
+    let label_ = label_;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_render_witness::render_impl(
+            value,
+            label_,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-render-witness",
+                    "terrane_render_witness::render_impl",
                 ),
             )
         }

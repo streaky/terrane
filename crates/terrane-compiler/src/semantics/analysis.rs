@@ -220,12 +220,19 @@ pub(super) fn apply_projected_method_contracts(
                 .iter()
                 .find(|object| object.identity.name == owner)
                 .map_or(owner, |object| object.name.as_str());
-            let Some(method) = projection.method(
-                &unit.namespace,
-                type_name,
-                &contract.name,
-                contract.is_static,
-            ) else {
+            let projected_interface_method =
+                projection.interface_method(&unit.namespace, type_name, &contract.name);
+            let Some(method) = projected_interface_method
+                .map(|method| &method.function)
+                .or_else(|| {
+                    projection.method(
+                        &unit.namespace,
+                        type_name,
+                        &contract.name,
+                        contract.is_static,
+                    )
+                })
+            else {
                 continue;
             };
             contract.throws = method.error.is_some();
@@ -236,9 +243,8 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.written_invocation_mode = invocation_mode;
             contract.exact_invocation_mode = invocation_mode;
-            contract.projected_provided = projection
-                .interface_method(&unit.namespace, type_name, &contract.name)
-                .is_some_and(|method| method.provided);
+            contract.projected_provided =
+                projected_interface_method.is_some_and(|method| method.provided);
         }
     }
 }
@@ -503,6 +509,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     analyze_reference_provenance(&mut semantic)?;
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
+    apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
