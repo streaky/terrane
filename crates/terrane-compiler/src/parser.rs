@@ -495,11 +495,18 @@ impl Parser<'_> {
             self.error_here("S1029", "`static` functions are only valid in class bodies");
         }
         let mut qualifiers = std::collections::BTreeSet::new();
-        while matches!(self.text(), "static" | "async") {
+        while matches!(self.text(), "static" | "mutable" | "consuming" | "async") {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
-            if !qualifiers.insert(qualifier) {
+            if !qualifiers.insert(qualifier.clone()) {
                 self.error_here("S1029", "duplicate function qualifier");
+            }
+            if matches!(qualifier.as_str(), "mutable" | "consuming")
+                && qualifiers
+                    .iter()
+                    .any(|existing| existing != &qualifier && matches!(existing.as_str(), "mutable" | "consuming"))
+            {
+                self.error_here("S1029", "conflicting function invocation qualifiers");
             }
             self.bump();
             children.push(self.node(
@@ -571,6 +578,9 @@ impl Parser<'_> {
     fn parse_anonymous_function(&mut self) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
+        if matches!(self.text(), "mutable" | "consuming") {
+            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+        }
         if self.at_text("async") {
             children.push(self.leaf(SyntaxKind::DeclarationQualifier));
         }
@@ -1130,10 +1140,7 @@ impl Parser<'_> {
             TokenKind::Identifier if self.at_text("true") || self.at_text("false") => {
                 self.leaf(SyntaxKind::Literal)
             }
-            TokenKind::Identifier
-                if self.at_text("function")
-                    || self.at_text("async") && self.peek_text(1) == Some("function") =>
-            {
+            TokenKind::Identifier if self.looks_like_anonymous_function() => {
                 self.parse_anonymous_function()
             }
             TokenKind::Identifier if self.at_text("instance") => {
@@ -1224,6 +1231,9 @@ impl Parser<'_> {
         if self.eat_text("ref") {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
+        if matches!(self.text(), "mutable" | "consuming") {
+            self.bump();
         }
         let async_function = self.at_text("async") && self.peek_text(1) == Some("function");
         if async_function {
@@ -1452,7 +1462,7 @@ impl Parser<'_> {
         }
         loop {
             match self.peek_text(offset) {
-                Some("static" | "async") => offset += 1,
+                Some("static" | "mutable" | "consuming" | "async") => offset += 1,
                 Some("throws") => {
                     offset += 1;
                     if self.peek_text(offset) != Some("function") {
@@ -1461,6 +1471,17 @@ impl Parser<'_> {
                 }
                 _ => break,
             }
+        }
+        self.peek_text(offset) == Some("function")
+    }
+
+    fn looks_like_anonymous_function(&self) -> bool {
+        let mut offset = 0usize;
+        if matches!(self.peek_text(offset), Some("mutable" | "consuming")) {
+            offset += 1;
+        }
+        if self.peek_text(offset) == Some("async") {
+            offset += 1;
         }
         self.peek_text(offset) == Some("function")
     }
