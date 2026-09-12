@@ -239,6 +239,9 @@ impl<'a> ProjectionOracle<'a> {
     }
 
     /// Proves complete impl-shaped witnesses against the resolved dependency graph.
+    ///
+    /// # Errors
+    /// Returns a projection error when the complete witness probe cannot be compiled or cached.
     pub fn prove_impls(
         &self,
         questions: &[ImplQuestion],

@@ -762,9 +762,11 @@ fn write_generated_crate(
         } else {
             ""
         };
-        manifest.push_str(&format!(
-            "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}\n"
-        ));
+        writeln!(
+            manifest,
+            "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}"
+        )
+        .expect("writing to a string cannot fail");
     }
     for dependency in rust_dependencies
         .iter()

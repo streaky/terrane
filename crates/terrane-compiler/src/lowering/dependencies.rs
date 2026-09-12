@@ -62,7 +62,6 @@ fn projected_type_is_identity(ty: &crate::projection::ProjectedType) -> bool {
         | crate::projection::ProjectedType::String
         | crate::projection::ProjectedType::Bytes
         | crate::projection::ProjectedType::Foreign { .. } => true,
-        crate::projection::ProjectedType::BoxedInterface { .. } => false,
         _ => false,
     }
 }

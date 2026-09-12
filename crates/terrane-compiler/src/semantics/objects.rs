@@ -1363,6 +1363,10 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "invocation-mode inference and conformance validation form one fixed-point pass"
+)]
 pub(super) fn infer_and_validate_invocation_modes(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -1528,7 +1532,7 @@ pub(super) fn infer_and_validate_invocation_modes(
     for (unit_index, binding_index, exact) in binding_modes {
         match &mut package.units[unit_index].typed_bindings[binding_index].value_type {
             ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
-                effects.modes.exact = exact
+                effects.modes.exact = exact;
             }
             _ => {}
         }

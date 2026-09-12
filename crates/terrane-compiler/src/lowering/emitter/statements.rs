@@ -197,6 +197,10 @@ impl Emitter<'_> {
         true
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "assignment lowering keeps ownership-sensitive target forms in one dispatch"
+    )]
     pub(super) fn assignment(&mut self, node: &SyntaxNode) {
         if self.global_assignment(node) {
             return;

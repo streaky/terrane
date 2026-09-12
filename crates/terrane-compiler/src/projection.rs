@@ -403,8 +403,8 @@ impl ProjectedType {
             Self::Sequence { rust_path, .. }
             | Self::Mapping { rust_path, .. }
             | Self::Set { rust_path, .. }
-            | Self::Foreign { rust_path, .. } => rust_path.clone(),
-            Self::BoxedInterface { rust_path, .. } => rust_path.clone(),
+            | Self::Foreign { rust_path, .. }
+            | Self::BoxedInterface { rust_path, .. } => rust_path.clone(),
             Self::AsyncIterationStep(item) => {
                 format!("Option<{}>", item.rust_type())
             }
@@ -447,7 +447,9 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
-            Self::BoxedInterface { name, .. } => name.clone(),
+            Self::BoxedInterface { name, .. }
+            | Self::Generic(name)
+            | Self::Foreign { name, .. } => name.clone(),
             Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
             Self::Mapping {
                 key,
@@ -469,7 +471,6 @@ impl ProjectedType {
                 format!("tuple of {}", items[0].terrane_name())
             }
             Self::Tuple(_) => "heterogeneous tuple".to_owned(),
-            Self::Generic(name) | Self::Foreign { name, .. } => name.clone(),
             Self::Callback {
                 parameters,
                 result,
@@ -1237,15 +1238,6 @@ impl std::fmt::Display for ProjectionError {
 
 impl std::error::Error for ProjectionError {}
 
-/// Resolves every declared Rust package and derives the shared Terrane projection.
-///
-/// # Errors
-/// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
-/// projection of the resolved metadata fails.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
-)]
 fn decline_unproven_projected_interfaces(
     projected: &mut [ProjectedDependency],
     evidence: &[crate::projection_oracle::ImplProbeEvidence],
@@ -1273,6 +1265,15 @@ fn decline_unproven_projected_interfaces(
         }
     }
 }
+/// Resolves every declared Rust package and derives the shared Terrane projection.
+///
+/// # Errors
+/// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
+/// projection of the resolved metadata fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
+)]
 pub fn resolve(
     root: &Path,
     dependencies: &[RustDependency],
@@ -2268,6 +2269,10 @@ fn is_crates_io_lock_source(source: &str) -> bool {
     source == "registry+https://github.com/rust-lang/crates.io-index"
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "bound-owner validation reports the complete resolved dependency conflict"
+)]
 fn decline_unnameable_bound_owners(
     projected: &mut [ProjectedDependency],
     declared: &[RustDependency],
@@ -2721,6 +2726,10 @@ fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
     public_paths
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected Rust root rewriting exhaustively traverses the closed type model"
+)]
 fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, dependency_root: &str) {
     let rewrite = |path: &str| {
         if path == package_root {
@@ -2828,6 +2837,10 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "interface admission keeps trait-level and member-level evidence together"
+)]
 fn project_interface(
     declaration: &rustdoc_types::Trait,
     index: &HashMap<Id, Item>,
@@ -2857,7 +2870,7 @@ fn project_interface(
             Some("core::marker::Send" | "std::marker::Send") => send = true,
             Some("core::marker::Sync" | "std::marker::Sync") => sync = true,
             Some("core::ops::Drop" | "core::ops::drop::Drop" | "std::ops::Drop") => {
-                requires_drop = true
+                requires_drop = true;
             }
             Some(path) => return Err(format!("non-marker supertrait `{path}` is deferred")),
             None => return Err("trait has an unresolved supertrait".to_owned()),
@@ -3697,6 +3710,10 @@ fn project_function(
     project_function_inner(function, index, paths, method_name, &BTreeMap::new())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "function projection keeps generic selection and exact parameter contracts together"
+)]
 fn project_function_inner(
     function: &Function,
     index: &HashMap<Id, Item>,
@@ -4529,10 +4546,6 @@ fn project_type(
         _ => Err("type has no stable Rust path".to_owned()),
     }
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "resolved Rust type classification keeps canonical paths and recursive shape checks together"
-)]
 fn project_dyn_interface(
     dynamic: &rustdoc_types::DynTrait,
     index: &HashMap<Id, Item>,
@@ -4569,6 +4582,10 @@ fn project_dyn_interface(
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "resolved Rust type classification keeps canonical paths and recursive shape checks together"
+)]
 fn project_resolved_type(
     ty: &Type,
     path: &RustdocPath,
@@ -4978,13 +4995,13 @@ fn type_contains_borrowed_ref(ty: &Type) -> bool {
         | Type::RawPointer { type_: item, .. } => type_contains_borrowed_ref(item),
         // Borrowed values inside callable signatures are governed by the
         // callable boundary rather than escaping through the outer parameter.
-        Type::FunctionPointer(_) => false,
-        Type::QualifiedPath { self_type, .. } => type_contains_borrowed_ref(self_type),
-        Type::DynTrait(_)
+        Type::FunctionPointer(_)
+        | Type::DynTrait(_)
         | Type::Generic(_)
         | Type::Primitive(_)
         | Type::ImplTrait(_)
         | Type::Infer => false,
+        Type::QualifiedPath { self_type, .. } => type_contains_borrowed_ref(self_type),
     }
 }
 
@@ -5475,6 +5492,7 @@ mod tests {
                         methods: Vec::new(),
                         send: false,
                         sync: false,
+                        requires_drop: false,
                         declined_methods: Vec::new(),
                     }),
                 },
@@ -5487,6 +5505,7 @@ mod tests {
                         methods: Vec::new(),
                         send: false,
                         sync: false,
+                        requires_drop: false,
                         declined_methods: Vec::new(),
                     }),
                 },

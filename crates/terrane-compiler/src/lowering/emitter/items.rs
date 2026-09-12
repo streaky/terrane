@@ -971,7 +971,7 @@ impl<'a> Emitter<'a> {
                             matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
                         });
                     if object.resource_owning && projected_interface {
-                        self.projected_interface_implementation(object, &interface_identity);
+                        self.projected_interface_implementation(object, interface_identity);
                         continue;
                     }
                     let interface_unit = self
@@ -1059,19 +1059,15 @@ impl<'a> Emitter<'a> {
                             self.output.push_str("Box::pin(async move { ");
                         }
                         if let Some(implementation) = implementation {
-                            let receiver = match (
-                                method.written_invocation_mode,
-                                implementation.written_invocation_mode,
-                            ) {
-                                (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
-                                (InvocationMode::Consuming, InvocationMode::Mutable) => {
-                                    "&mut *self"
-                                }
-                                (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
-                                (_, InvocationMode::Shared) => "&*self",
-                                (_, InvocationMode::Mutable) => "&mut *self",
-                                (_, InvocationMode::Consuming) => {
-                                    unreachable!("validated interface mode compatibility")
+                            let receiver = match implementation.written_invocation_mode {
+                                InvocationMode::Shared => "&*self",
+                                InvocationMode::Mutable => "&mut *self",
+                                InvocationMode::Consuming => {
+                                    debug_assert_eq!(
+                                        method.written_invocation_mode,
+                                        InvocationMode::Consuming
+                                    );
+                                    "*self"
                                 }
                             };
                             write!(
@@ -1218,6 +1214,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "foreign interface method signatures and boundary conversions are emitted together"
+    )]
     fn projected_interface_implementation(
         &mut self,
         object: &DescriptorContract,
@@ -1597,6 +1597,10 @@ impl<'a> Emitter<'a> {
         self.line("}");
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "closure ownership, contracts, captures, and body lowering form one emission path"
+    )]
     pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
         let contract = self
             .unit

@@ -315,6 +315,10 @@ pub(super) fn validate_call_nodes<'a>(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected source-generic and boxed-interface obligations share one argument pass"
+)]
 fn validate_projected_generic_arguments(
     package: &SemanticPackage,
     unit: &SemanticUnit,
