@@ -311,29 +311,29 @@ impl<T: Clone> List<T> {
 
 #[must_use]
 pub fn compare_float32_ascending(left: &f32, right: &f32) -> Ordering {
-    compare_float_ascending(*left, *right)
+    compare_float_ascending(left, right)
 }
 
 #[must_use]
 pub fn compare_float32_descending(left: &f32, right: &f32) -> Ordering {
-    compare_float_descending(*left, *right)
+    compare_float_descending(left, right)
 }
 
 #[must_use]
 pub fn compare_float64_ascending(left: &f64, right: &f64) -> Ordering {
-    compare_float_ascending(*left, *right)
+    compare_float_ascending(left, right)
 }
 
 #[must_use]
 pub fn compare_float64_descending(left: &f64, right: &f64) -> Ordering {
-    compare_float_descending(*left, *right)
+    compare_float_descending(left, right)
 }
 
-fn compare_float_ascending<T: PartialOrd>(left: T, right: T) -> Ordering {
-    match left.partial_cmp(&right) {
+fn compare_float_ascending<T: PartialOrd>(left: &T, right: &T) -> Ordering {
+    match left.partial_cmp(right) {
         Some(ordering) => ordering,
-        None if left.partial_cmp(&left).is_none() => {
-            if right.partial_cmp(&right).is_none() {
+        None if left.partial_cmp(left).is_none() => {
+            if right.partial_cmp(right).is_none() {
                 Ordering::Equal
             } else {
                 Ordering::Greater
@@ -343,13 +343,13 @@ fn compare_float_ascending<T: PartialOrd>(left: T, right: T) -> Ordering {
     }
 }
 
-fn compare_float_descending<T: PartialOrd>(left: T, right: T) -> Ordering {
-    match (left.partial_cmp(&left), right.partial_cmp(&right)) {
+fn compare_float_descending<T: PartialOrd>(left: &T, right: &T) -> Ordering {
+    match (left.partial_cmp(left), right.partial_cmp(right)) {
         (None, None) => Ordering::Equal,
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
         (Some(_), Some(_)) => right
-            .partial_cmp(&left)
+            .partial_cmp(left)
             .expect("non-NaN floating values are totally ordered"),
     }
 }
@@ -501,11 +501,10 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
         if let Some(map) = Arc::get_mut(&mut self.0) {
             return map.shift_remove(key);
         }
-        self.0.contains_key(key).then(|| {
-            Arc::make_mut(&mut self.0)
-                .shift_remove(key)
-                .expect("key presence was checked before copy-on-write separation")
-        })
+        if !self.0.contains_key(key) {
+            return None;
+        }
+        Arc::make_mut(&mut self.0).shift_remove(key)
     }
     #[must_use]
     pub fn keys(&self) -> List<K> {
@@ -592,18 +591,39 @@ fn insert_by_stable_hash<T: Hash>(items: &mut Vec<T>, item: T) -> usize {
     index
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// Values carry their iteration positions so removal needs no parallel key-index map.
+///
+/// Before a reordering removal, keys are stable-hash sorted. A `swap_remove` that moves the final
+/// key clears `hash_sorted`; later insertions append rather than applying `partition_point` to an
+/// unsorted vector. Iteration order is therefore deterministic for the operation history but is
+/// not content-derived. Keys remain unique and every stored position indexes the same key in
+/// `iteration_keys`.
+#[derive(Clone, Debug)]
 struct UnorderedMapData<K: Eq + Hash, V> {
-    values: HashMap<K, V, FixedState>,
+    values: HashMap<K, (usize, V), FixedState>,
     iteration_keys: Vec<K>,
-    iteration_positions: HashMap<K, usize, FixedState>,
+    hash_sorted: bool,
 }
 
 impl<K: Eq + Hash, V> UnorderedMapData<K, V> {
     fn indexed_value(&self, key: &K) -> &V {
-        self.values.get(key).expect("indexed key must exist")
+        &self.values.get(key).expect("indexed key must exist").1
     }
 }
+
+impl<K: Eq + Hash, V: PartialEq> PartialEq for UnorderedMapData<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.values.len() == other.values.len()
+            && self.values.iter().all(|(key, (_, value))| {
+                other
+                    .values
+                    .get(key)
+                    .is_some_and(|(_, other)| value == other)
+            })
+    }
+}
+
+impl<K: Eq + Hash, V: Eq> Eq for UnorderedMapData<K, V> {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnorderedMap<K: Eq + Hash, V>(Arc<UnorderedMapData<K, V>>);
@@ -617,19 +637,18 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             if !values.contains_key(&entry.key) {
                 iteration_keys.push(entry.key.clone());
             }
-            values.insert(entry.key, entry.value);
+            values.insert(entry.key, (0, entry.value));
         }
         iteration_keys.sort_by_key(stable_hash);
-        let iteration_positions = iteration_keys
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(index, key)| (key, index))
-            .collect();
+        for (index, key) in iteration_keys.iter().enumerate() {
+            if let Some((position, _)) = values.get_mut(key) {
+                *position = index;
+            }
+        }
         Self(Arc::new(UnorderedMapData {
             values,
             iteration_keys,
-            iteration_positions,
+            hash_sorted: true,
         }))
     }
     #[must_use]
@@ -638,7 +657,7 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     }
     #[must_use]
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.0.values.get(key)
+        self.0.values.get(key).map(|(_, value)| value)
     }
     /// Returns the mapped value or an error when the key is absent.
     ///
@@ -649,14 +668,24 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     }
     pub fn set(&mut self, key: K, value: V) {
         let data = Arc::make_mut(&mut self.0);
-        if !data.values.contains_key(&key) {
+        if let Some((_, existing)) = data.values.get_mut(&key) {
+            *existing = value;
+            return;
+        }
+        let index = if data.hash_sorted {
             let index = insert_by_stable_hash(&mut data.iteration_keys, key.clone());
             for (position, existing) in data.iteration_keys[index..].iter().enumerate() {
-                data.iteration_positions
-                    .insert(existing.clone(), index + position);
+                if let Some((stored_position, _)) = data.values.get_mut(existing) {
+                    *stored_position = index + position;
+                }
             }
-        }
-        data.values.insert(key, value);
+            index
+        } else {
+            let index = data.iteration_keys.len();
+            data.iteration_keys.push(key.clone());
+            index
+        };
+        data.values.insert(key, (index, value));
     }
     /// Removes and returns the mapped value without separating shared storage on a miss.
     ///
@@ -670,14 +699,14 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             return None;
         }
         let data = Arc::make_mut(&mut self.0);
-        let value = data.values.remove(key)?;
-        let index = data
-            .iteration_positions
-            .remove(key)
-            .expect("indexed key must retain its iteration position");
+        let (index, value) = data.values.remove(key)?;
+        let last_index = data.iteration_keys.len() - 1;
         data.iteration_keys.swap_remove(index);
-        if let Some(moved) = data.iteration_keys.get(index) {
-            data.iteration_positions.insert(moved.clone(), index);
+        data.hash_sorted &= index == last_index;
+        if let Some(moved) = data.iteration_keys.get(index)
+            && let Some((position, _)) = data.values.get_mut(moved)
+        {
+            *position = index;
         }
         Some(value)
     }
@@ -960,6 +989,90 @@ pub fn bytes_iterator(value: &[u8]) -> Iterator<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+
+    #[derive(Debug)]
+    struct CloneProbe {
+        value: usize,
+        clones: Arc<AtomicUsize>,
+    }
+
+    impl Clone for CloneProbe {
+        fn clone(&self) -> Self {
+            self.clones.fetch_add(1, AtomicOrdering::Relaxed);
+            Self {
+                value: self.value,
+                clones: Arc::clone(&self.clones),
+            }
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    struct HashProbe {
+        value: usize,
+        hashes: Arc<AtomicUsize>,
+    }
+
+    impl PartialEq for HashProbe {
+        fn eq(&self, other: &Self) -> bool {
+            self.value == other.value
+        }
+    }
+
+    impl Eq for HashProbe {}
+
+    impl Hash for HashProbe {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.hashes.fetch_add(1, AtomicOrdering::Relaxed);
+            self.value.hash(state);
+        }
+    }
+
+    fn removal_hashes(length: usize) -> usize {
+        let hashes = Arc::new(AtomicUsize::new(0));
+        let mut values = UnorderedMap::new(
+            (0..length)
+                .map(|value| {
+                    Entry::new(
+                        HashProbe {
+                            value,
+                            hashes: Arc::clone(&hashes),
+                        },
+                        value,
+                    )
+                })
+                .collect(),
+        );
+        hashes.store(0, AtomicOrdering::Relaxed);
+        values
+            .remove(&HashProbe {
+                value: length / 2,
+                hashes: Arc::clone(&hashes),
+            })
+            .expect("representative key is present");
+        hashes.load(AtomicOrdering::Relaxed)
+    }
+
+    fn sort_work(length: usize) -> (usize, usize) {
+        let clones = Arc::new(AtomicUsize::new(0));
+        let comparisons = AtomicUsize::new(0);
+        let mut values = List::new(
+            (0..length)
+                .map(|value| CloneProbe {
+                    value: (value * 7_919) % length,
+                    clones: Arc::clone(&clones),
+                })
+                .collect(),
+        );
+        values.sort_by(|left, right| {
+            comparisons.fetch_add(1, AtomicOrdering::Relaxed);
+            left.value.cmp(&right.value)
+        });
+        (
+            comparisons.load(AtomicOrdering::Relaxed),
+            clones.load(AtomicOrdering::Relaxed),
+        )
+    }
 
     #[test]
     fn sticky_end_never_revisits_source() {
@@ -1091,6 +1204,21 @@ mod tests {
         assert_eq!(map.length(), 2);
         assert_eq!(map.entries().length(), 2);
         assert_eq!(alias.length(), 3);
+        map.set("second", 4);
+        map.set("fourth", 5);
+        for (index, key) in map.0.iteration_keys.iter().enumerate() {
+            assert_eq!(
+                map.0.values.get(key).map(|(position, _)| *position),
+                Some(index)
+            );
+        }
+        let same_contents = UnorderedMap::new(vec![
+            Entry::new("first", 1),
+            Entry::new("second", 4),
+            Entry::new("third", 3),
+            Entry::new("fourth", 5),
+        ]);
+        assert_eq!(map, same_contents);
     }
 
     #[test]
@@ -1132,24 +1260,7 @@ mod tests {
     }
 
     #[test]
-    fn collection_algorithmic_performance_witness() {
-        use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-
-        #[derive(Debug)]
-        struct CloneProbe {
-            value: usize,
-            clones: Arc<AtomicUsize>,
-        }
-        impl Clone for CloneProbe {
-            fn clone(&self) -> Self {
-                self.clones.fetch_add(1, AtomicOrdering::Relaxed);
-                Self {
-                    value: self.value,
-                    clones: Arc::clone(&self.clones),
-                }
-            }
-        }
-
+    fn removal_clone_performance_witness() {
         let clones = Arc::new(AtomicUsize::new(0));
         let mut ordered = Map::new(
             (0..4_096)
@@ -1171,49 +1282,10 @@ mod tests {
         assert!(ordered.remove_checked(&usize::MAX).is_none());
         assert!(Arc::ptr_eq(&ordered.0, &preserved.0));
         assert_eq!(clones.load(AtomicOrdering::Relaxed), 0);
+    }
 
-        #[derive(Clone, Debug)]
-        struct HashProbe {
-            value: usize,
-            hashes: Arc<AtomicUsize>,
-        }
-        impl PartialEq for HashProbe {
-            fn eq(&self, other: &Self) -> bool {
-                self.value == other.value
-            }
-        }
-        impl Eq for HashProbe {}
-        impl Hash for HashProbe {
-            fn hash<H: Hasher>(&self, state: &mut H) {
-                self.hashes.fetch_add(1, AtomicOrdering::Relaxed);
-                self.value.hash(state);
-            }
-        }
-
-        fn removal_hashes(length: usize) -> usize {
-            let hashes = Arc::new(AtomicUsize::new(0));
-            let mut values = UnorderedMap::new(
-                (0..length)
-                    .map(|value| {
-                        Entry::new(
-                            HashProbe {
-                                value,
-                                hashes: Arc::clone(&hashes),
-                            },
-                            value,
-                        )
-                    })
-                    .collect(),
-            );
-            hashes.store(0, AtomicOrdering::Relaxed);
-            values
-                .remove(&HashProbe {
-                    value: length / 2,
-                    hashes: Arc::clone(&hashes),
-                })
-                .expect("representative key is present");
-            hashes.load(AtomicOrdering::Relaxed)
-        }
+    #[test]
+    fn unordered_removal_hash_performance_witness() {
         let small_removal = removal_hashes(32);
         let large_removal = removal_hashes(4_096);
         assert!(
@@ -1224,27 +1296,10 @@ mod tests {
             large_removal <= 8,
             "{large_removal} hashes for large removal"
         );
+    }
 
-        fn sort_work(length: usize) -> (usize, usize) {
-            let clones = Arc::new(AtomicUsize::new(0));
-            let comparisons = AtomicUsize::new(0);
-            let mut values = List::new(
-                (0..length)
-                    .map(|value| CloneProbe {
-                        value: (value * 7_919) % length,
-                        clones: Arc::clone(&clones),
-                    })
-                    .collect(),
-            );
-            values.sort_by(|left, right| {
-                comparisons.fetch_add(1, AtomicOrdering::Relaxed);
-                left.value.cmp(&right.value)
-            });
-            (
-                comparisons.load(AtomicOrdering::Relaxed),
-                clones.load(AtomicOrdering::Relaxed),
-            )
-        }
+    #[test]
+    fn stable_sort_performance_witness() {
         let (small_comparisons, small_clones) = sort_work(32);
         let (large_comparisons, large_clones) = sort_work(4_096);
         assert!(small_comparisons <= 32 * 10);
