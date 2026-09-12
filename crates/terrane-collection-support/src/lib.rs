@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::sync::Arc;
@@ -298,6 +299,58 @@ impl<T: Clone> List<T> {
     #[inline]
     pub fn clear(&mut self) {
         self.make_unique().clear();
+    }
+    /// Stably orders the list in place after separating shared storage once.
+    pub fn sort_by<F>(&mut self, compare: F)
+    where
+        F: FnMut(&T, &T) -> Ordering,
+    {
+        self.make_unique().sort_by(compare);
+    }
+}
+
+#[must_use]
+pub fn compare_float32_ascending(left: &f32, right: &f32) -> Ordering {
+    compare_float_ascending(*left, *right)
+}
+
+#[must_use]
+pub fn compare_float32_descending(left: &f32, right: &f32) -> Ordering {
+    compare_float_descending(*left, *right)
+}
+
+#[must_use]
+pub fn compare_float64_ascending(left: &f64, right: &f64) -> Ordering {
+    compare_float_ascending(*left, *right)
+}
+
+#[must_use]
+pub fn compare_float64_descending(left: &f64, right: &f64) -> Ordering {
+    compare_float_descending(*left, *right)
+}
+
+fn compare_float_ascending<T: PartialOrd>(left: T, right: T) -> Ordering {
+    match left.partial_cmp(&right) {
+        Some(ordering) => ordering,
+        None if left.partial_cmp(&left).is_none() => {
+            if right.partial_cmp(&right).is_none() {
+                Ordering::Equal
+            } else {
+                Ordering::Greater
+            }
+        }
+        None => Ordering::Less,
+    }
+}
+
+fn compare_float_descending<T: PartialOrd>(left: T, right: T) -> Ordering {
+    match (left.partial_cmp(&left), right.partial_cmp(&right)) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(_), None) => Ordering::Less,
+        (Some(_), Some(_)) => right
+            .partial_cmp(&left)
+            .expect("non-NaN floating values are totally ordered"),
     }
 }
 
@@ -1039,5 +1092,42 @@ mod tests {
         assert_eq!(map.entries().length(), 2);
         assert_eq!(alias.length(), 3);
     }
-}
 
+    #[test]
+    fn stable_sort_separates_shared_storage_once_and_retains_equal_order() {
+        let original = List::new(vec![(2, 'a'), (1, 'b'), (2, 'c'), (1, 'd')]);
+        let mut ascending = original.clone();
+        ascending.sort_by(|left, right| left.0.cmp(&right.0));
+        assert_eq!(
+            ascending.into_vec(),
+            [(1, 'b'), (1, 'd'), (2, 'a'), (2, 'c')]
+        );
+        assert_eq!(
+            original.into_vec(),
+            [(2, 'a'), (1, 'b'), (2, 'c'), (1, 'd')]
+        );
+    }
+
+    #[test]
+    fn floating_sort_keeps_nan_last_and_signed_zero_stable() {
+        let first_nan = f64::from_bits(0x7ff8_0000_0000_0001);
+        let second_nan = f64::from_bits(0xfff8_0000_0000_0002);
+        let values = vec![first_nan, -0.0, 2.0, 0.0, -1.0, second_nan];
+
+        let mut ascending = List::new(values.clone());
+        ascending.sort_by(compare_float64_ascending);
+        let ascending = ascending.into_vec();
+        assert_eq!(&ascending[..4], &[-1.0, -0.0, 0.0, 2.0]);
+        assert_eq!(ascending[1].to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(ascending[4].to_bits(), first_nan.to_bits());
+        assert_eq!(ascending[5].to_bits(), second_nan.to_bits());
+
+        let mut descending = List::new(values);
+        descending.sort_by(compare_float64_descending);
+        let descending = descending.into_vec();
+        assert_eq!(&descending[..4], &[2.0, -0.0, 0.0, -1.0]);
+        assert_eq!(descending[1].to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(descending[4].to_bits(), first_nan.to_bits());
+        assert_eq!(descending[5].to_bits(), second_nan.to_bits());
+    }
+}
