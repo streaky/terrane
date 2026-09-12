@@ -922,8 +922,12 @@ A layer is Rust only when it is a syscall or ABI boundary, requires a guarantee 
 
 ```text
 instant
-+-- compare / subtract
-+-- elapsed; later instant -> duration
++-- unix-seconds / nanoseconds
++-- compare
+
+monotonic-instant
++-- compare
++-- duration-until; later monotonic-instant -> duration
 
 duration
 +-- exact seconds and subsecond component

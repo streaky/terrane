@@ -882,6 +882,19 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 14
+- id: collection-removal-and-ordering
+  name: Efficient map removal and ordered list traversal
+  category: text-data
+  status: planned
+  completion: 0
+  milestone: '29.0'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/standard-library/collections.yaml
+  notes: Will add default and checked keyed removal for ordered and unordered maps plus stable ascending and descending in-place ordering for numeric and string lists.
+  sources:
+  - docs/compiler-plan.md#Milestone 29.0
 - id: iterator-protocol
   name: Structural iterator protocol
   category: text-data
@@ -1166,6 +1179,33 @@ features:
   sources:
   - docs/language-spec-concise.md#ASYNC
   - docs/compiler-plan.md#Milestone 19
+- id: heterogeneous-async-selection
+  name: Heterogeneous asynchronous selection
+  category: async
+  status: planned
+  completion: 0
+  milestone: '29.1'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/language/functions/asynchronous.yaml
+  notes: Will add a typed select statement with deterministic round-robin fairness, wake-driven polling, and structured loser cancellation and cleanup.
+  sources:
+  - docs/compiler-plan.md#Milestone 29.1
+- id: native-time-and-process-signals
+  name: Native clocks, timers, tickers, and process signals
+  category: async
+  status: planned
+  completion: 0
+  milestone: '29.2'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/language/functions/asynchronous.yaml
+  notes: Will add exact duration and wall/monotonic values, wake-driven sleep and aligned tickers, typed deadlines, and bounded semantic interrupt/termination subscriptions.
+  sources:
+  - docs/surface-v1.md#13.1 Date and time
+  - docs/compiler-plan.md#Milestone 29.2
 - id: byte-text-streams
   name: Byte and text streams
   category: async
@@ -1457,12 +1497,25 @@ features:
   sources:
   - docs/language-spec-concise.md#LOGGING
   - docs/compiler-plan.md#Milestone 27
+- id: compiler-source-intelligence
+  name: Compiler-backed source intelligence and structural tooling
+  category: syntax
+  status: planned
+  completion: 0
+  milestone: '30.0'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/tooling/source-intelligence.yaml
+  notes: Will expose versioned lossless syntax and canonical semantic queries, snapshot-safe edits, source formatting, and shared language-server analysis without a second parser or resolver.
+  sources:
+  - docs/compiler-plan.md#Milestone 30.0
 - id: terrane-testing-framework
   name: Terrane-native testing framework
   category: stdlib
   status: planned
   completion: 0
-  milestone: '27.1'
+  milestone: '30.1'
   reference:
     state: planned
     paths:
@@ -1470,7 +1523,20 @@ features:
   notes: Will provide Terrane-authored unit, integration, and end-to-end testing with typed assertions, deterministic discovery/reporting, and process-isolated execution through terrane test rather than Rust libtest.
   sources:
   - docs/language-spec-concise.md#TESTING
-  - docs/compiler-plan.md#Milestone 27.1
+  - docs/compiler-plan.md#Milestone 30.1
+- id: lldb-source-debugging
+  name: LLDB-backed Terrane source debugging
+  category: interop
+  status: planned
+  completion: 0
+  milestone: '30.2'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/tooling/debugging.yaml
+  notes: Will provide build-bound source provenance, breakpoints, mapped frames, sequence-point stepping, bounded value views, and shared DAP/CLI translation over LLDB.
+  sources:
+  - docs/compiler-plan.md#Milestone 30.2
 - id: rust-lowering
   name: Deterministic readable Rust lowering
   category: interop
@@ -1682,7 +1748,7 @@ features:
   category: interop
   status: partial
   completion: 20
-  milestone: '28'
+  milestone: '32'
   reference:
     state: planned
     paths:

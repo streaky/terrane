@@ -5829,9 +5829,12 @@ terrane test
 terrane dev
 terrane rust
 terrane rust-name
+terrane query
+terrane tooling
 terrane explain
 terrane explain-error
 terrane debug
+terrane debug-adapter
 terrane trace
 terrane profile
 terrane package

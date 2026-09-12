@@ -202,21 +202,796 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
+### Milestone 29.0 — Efficient removal and ordered collection traversal
 
+Stateful services need to delete keyed state and traverse scalar values in
+value order without rebuilding whole collections or moving policy into a Rust adapter. Extend the
+existing value-semantic collection surface rather than introducing another collection family.
 
+#### Source contract
 
-### Milestone 30 — Terrane-native testing framework
+Add map removal to both `map of Key, Value` and `unordered-map of Key, Value`:
+
+```terrane
+removed Value = values.remove; key
+maybe-removed Value|none = values.remove.checked; key
+```
+
+The default child removes and returns the stored value or throws `missing-key` without mutating the
+map. The `checked` child removes and returns the value when present and returns `none` without
+mutation when absent. Neither form performs a separate source-visible lookup. A successful removal
+transfers the removed value to the caller; discarding the result releases it at that site.
+
+The existing collection admissibility boundary remains: a collection whose item graph is
+resource-owning is rejected before lowering, so this milestone does not create copyable/COW aliases
+of linear resources. Removal transfers an admitted stored logical value under the existing
+collection release rules; lifting the resource-owning collection restriction is separate work.
+
+An ordered `map` retains the relative insertion order of every remaining entry. Removing and later
+reinserting the same key is a new insertion at the end. An `unordered-map` retains its existing
+deterministic-unordered contract. A miss must not trigger copy-on-write separation. A successful
+mutation separates shared backing storage exactly once, while a uniquely held map mutates its
+existing backing storage. Removal is admitted only when the borrow checker can prove that every
+outstanding element reference remains valid; otherwise it rejects the call. The language does not
+declare that removal invalidates all element references merely because one backing representation
+might move unrelated entries. An initial conservative proof may reject when it cannot establish
+stability, but must leave room for more precise disjoint-key/path reasoning without a language
+change.
+
+Add stable in-place scalar ordering to `list`:
+
+```terrane
+values.sort;
+values.sort.descending;
+```
+
+Both methods mutate and return the resulting list, matching existing copy-on-write list mutators.
+Returning the receiver's resulting value is deliberate: it follows the language-wide collection
+mutator rule rather than making sort a one-off in-place exception. In
+`other = values.sort;`, `values` is mutated and `other` receives the same logical sorted value;
+neither binding aliases source-visible collection identity, and a later mutation separates them
+under ordinary copy-on-write semantics. The result is not the pre-sort value and sort does not
+return `none`.
+The default child orders ascending and `descending` orders descending. The admitted item
+descriptors are exactly:
+
+```text
+int
+int8, int16, int32, int64, int128
+uint8, uint16, uint32, uint64, uint128
+float32, float64
+string
+```
+
+`float` is accepted because it resolves to the canonical `float64` descriptor; it is not an
+additional admitted type. Even when every arm is numeric, optional and finite-union item types
+reject. `bool`, collections, objects, references, resources, and caller-supplied comparator
+callbacks also reject statically. This is an intentionally closed first contract, not permission
+to route unsupported values through dynamic comparison.
+
+Sorting is stable: values equal under the selected ordering retain their prior relative order.
+Strings compare lexicographically by Unicode scalar sequence without normalization, locale, or case
+folding; canonically equivalent strings with different scalar sequences may therefore sort
+differently. Integers compare by mathematical value. Floating values use this explicit
+deterministic policy:
+
+- negative infinity, finite values, and positive infinity retain their numeric order;
+- negative and positive zero compare equal, so stability preserves their input order;
+- every NaN compares as one equivalent unordered category and is placed after all non-NaN values
+  in both ascending and descending results; and
+- NaN sign and payload never affect ordering because those details are not source contracts.
+
+This policy must be shared by constant evaluation, semantic documentation, runtime support, and
+generated Rust. It must not inherit host `partial_cmp` failure or expose Rust's NaN payload order.
+
+`sort.descending` applies the descending comparison directly. It must not sort ascending and then
+reverse: reversal would invert stable equal-value groups and move the NaN bucket to the front.
+No non-mutating `.sorted` alias, map-by-key sorting method, ordered-tree collection, custom
+comparator, collation object, or generalized ordering protocol belongs to this milestone.
+
+#### Compiler and lowering work
+
+Deliver:
+
+- canonical `DescriptorContract` members and operation identities for `remove`,
+  `remove.checked`, `sort`, and `sort.descending`; do not add a parallel collection-member table;
+- receiver-, key-, item-, result-, and throwable-aware semantic checking, including static
+  rejection of sorting unsupported item types and ordinary optional refinement of checked removal;
+- effect summaries in which default removal can throw `missing-key`, checked removal is
+  non-throwing, and sorting is non-throwing under the total policy above;
+- borrow/reference validity proof, copy-on-write separation, move/release, reflection, and generated
+  member metadata consistent with existing list removal and map mutation, without making one
+  backing representation's blanket reference invalidation a source contract;
+- ordered-map lowering that performs exactly one structural removal from the separated backing
+  container while preserving the remaining insertion order, and unordered-map lowering with
+  expected amortized constant-time removal;
+- stable list sorting that mutates unique backing storage directly, separates shared storage once,
+  performs no per-comparison allocation, cloning, formatting, boxing, or dynamic dispatch, and
+  compares adaptive integers directly in their adaptive representation without narrowing or
+  stringifying them; and
+- readable source-mapped Rust whose helper selection is monomorphic for each admitted item type.
+
+“One structural removal” does not mean one physical hash probe across the complete copy-on-write
+path. Shared storage may be probed for presence before separation so a miss avoids cloning, then
+removed once from the separated container. That internal probe is not a second source-visible
+lookup or removal. Unique storage should proceed directly to the one removal.
+
+Preserving ordered-map insertion order may require shifting the suffix after removal; that cost is
+part of the ordered representation contract. It must not be implemented by reconstructing and
+rehashing the whole map. Sorting may use linear temporary storage required by a stable
+$O(n \log n)$ algorithm, but must not clone logical items per comparison or silently select an
+unstable algorithm.
+
+#### Evidence and boundaries
+
+Add focused accepted cases for:
+
+- present and absent default/checked removal on ordered and unordered maps;
+- removal followed by reinsertion, ordered map views, iteration, and entry destructuring;
+- removed destructor-bearing copyable values, observable destruction, copy-on-write aliases, and a
+  unique map;
+- ascending and descending integer, adaptive-integer, string, and floating lists;
+- duplicate/equal values, signed zero, infinities, multiple NaNs, empty lists, and one-item lists,
+  including a regression proving descending comparison is direct rather than ascending-plus-reverse;
+- sorting a separated list without changing its preserved pre-sort alias, assigning the returned
+  sorted value to another binding, and proving a later mutation separates the two sorted values; and
+- using sorted map keys to drive deterministic ascending and descending lookup traversal.
+
+Add focused rejected cases for unsupported sort item types—including all optional and union item
+types—unknown sort children or arguments, wrong removal keys/destinations, resource-owning map
+values under the existing collection restriction, removal when the compiler cannot prove
+outstanding element references remain valid, and default removal without an admitted `missing-key`
+effect. Retain the current diagnostics that tuples cannot mutate and maps do not expose list-only
+members.
+
+Record a reproducible performance witness over representative small and large maps/lists. It must
+show that an absent removal performs no full collection clone, unique unordered removal is expected
+amortized $O(1)$, ordered removal preserves order without rebuilding the whole map, and stable sort
+scales as $O(n \log n)$ without per-comparison allocation. The witness establishes algorithmic and
+allocation behavior, not a machine-specific latency threshold.
+
+Exit criterion: source check, lowering, canonical generated Rust, runtime conformance, reflection,
+documentation/reference synchronization, strict Clippy, the complete conformance matrix, and the
+measured workspace suite all agree on the removal, ordering, lifetime, and performance contracts.
+
+### Milestone 29.1 — Heterogeneous asynchronous selection
+
+Terrane async code needs to wait efficiently for the first of several differently typed operations
+without polling, erasing results into a universal value, or hiding an application event loop in
+Rust. Add a structured `select` statement whose cases retain their own result types and lexical
+scopes.
+
+#### Source contract
+
+The initial syntax is:
+
+```terrane
+select
+  case value int = await integer-task
+    print; value
+  case message = await receiver.receive;
+    print; message.available
+  case await shutdown-task
+    return
+```
+
+`select` is a statement and contains at least two `case` clauses. Each case header contains exactly
+one top-level `await` in one of two forms: `case await expression` or
+`case binding = await expression`, where `binding` uses the ordinary binding grammar and may carry
+an explicit type. Forms such as `case value = prefix + await operation` are not case headers. The
+optional binding is initialized only in that case body and has the awaited result type; cases
+therefore need no common result type or synthesized union. Omitting the binding explicitly
+discards that case's successful value.
+`select` is permitted only in an async function. Guards, an `else`/immediate
+default, nested boolean combinations of awaits, priority annotations, and select-as-expression are
+outside this milestone. Timeouts and process signals participate as ordinary task-producing APIs,
+not special syntax.
+
+All case awaitables and their ordinary argument effects are constructed exactly once in source
+order before polling begins. On a construction-time failure, transition every already constructed
+operation into cancellation before awaiting any cleanup, then drain those operations in reverse
+source order; later cases are not constructed. If cleanup succeeds, the construction failure
+propagates. If cleanup throws, its error replaces the construction failure under the ordinary
+`finally` rule, while every constructed operation is still drained. A task binding moved into a
+case is consumed when the select is constructed, regardless of which case wins.
+Receiver/argument borrows and mutations retain their existing contracts; cases whose simultaneously
+live futures require overlapping incompatible borrows or duplicate a linear value are rejected
+before lowering.
+
+Selection is wake-driven and deterministic. Each dynamic select site owns a cursor in its enclosing
+function activation. The cursor is initialized to case zero. The first execution therefore begins
+polling in source order. When a case is selected, the cursor immediately advances to the following
+case and wraps; it advances before loser cleanup begins and remains advanced even if that cleanup
+later fails. Construction failure, enclosing cancellation before selection, and a poll in which
+every case remains pending do not advance it. Recursion and concurrent calls have independent
+cursors.
+
+During one selection poll, cases are visited from the cursor in wrapped source order. The compiler
+supplies the same current task `Context` and waker to every case it polls. A conforming Rust future
+that returns `Pending` remains responsible for arranging an appropriate wake; Terrane does not
+claim that an opaque future registered one. The first ready case wins and later cases are not
+polled. If every case is pending, the select remains pending without spinning. The rotated order is
+the documented simultaneous-ready tie break and provides deterministic branch-selection fairness
+among repeatedly ready cases at that one dynamic select site. It does not promise fairness between
+executor tasks or make externally driven readiness deterministic. A loop that repeatedly selects
+an immediately ready case need not suspend; executor scheduling and cooperative yielding retain
+their existing runtime contracts.
+
+A terminal successful, throwing, cancelled, or deadline outcome makes a case ready and advances the
+cursor. Before awaiting any loser cleanup, transition every losing operation into cancellation so
+one loser's finalizer cannot wait forever for another loser whose cancellation was never requested.
+The transition step is non-throwing and does not await. After every loser has received that request,
+drain them in reverse source order. Cleanup continues through every loser even after a
+failure so no operation remains detached. A failure from losing cleanup replaces the pending winner
+completion under the ordinary `finally` replacement rule. If multiple loser cleanups fail, each
+later failure in reverse-source drain order replaces the prior pending completion; the final
+replacement propagates deterministically and the winning case body is not entered.
+
+The winning completion remains owned by select state until loser draining resolves. If cleanup
+failure supersedes a successful resource-owning result, the case binding is never initialized and
+the pending result is released exactly once. Any projected asynchronous finalization attached to
+that release joins the same structured drain; its failure participates in the ordinary deterministic
+replacement order rather than being dropped or detached.
+
+Loser draining is shielded from repeated cancellation. An enclosing cancellation request arriving
+after a winner was selected is recorded but cannot interrupt or re-enter the drain and does not
+replace the already selected winner merely by arriving in this interval. If cleanup succeeds, a
+successful winner enters its case body with the selected value intact; a throwing, cancelled, or
+deadline winner propagates through the same path as ordinary `await`. The recorded request becomes
+observable at the next ordinary cancellation point under the existing cooperative-execution
+contract. If a successful body reaches terminal completion without another cancellation point, the
+existing completed-plus-cancelled task outcome rule applies. If loser cleanup fails, that failure
+replaces the winner while the cancellation request remains recorded. The cursor remains advanced
+in every case.
+
+If loser cleanup succeeds, the winning case otherwise uses exactly the result, error, cancellation,
+deadline, and source traceback semantics of an ordinary `await` of that expression. Cancellation
+of the enclosing select before any case wins does not advance the cursor: transition every case
+into cancellation before awaiting cleanup, then drain them in reverse source order before
+propagating. Cleanup failure applies the existing ordinary cancellation/`finally` replacement rule.
+Cleanup is structured: no losing future, waiter registration, child, or projected finalizer may
+remain detached after the statement resolves.
+
+Structured cleanup is not transaction rollback. Selection preserves each operation's existing
+cancellation contract and does not undo application or I/O effects performed before that operation
+returned `Pending`. Compiler-owned operations document consumption and waiter behavior individually.
+Projected operations reuse Milestone 28.2's operation/cleanup split and post-drop finalizer rules;
+a shape that requires asynchronous post-drop cleanup but cannot separate its cleanup state or retain
+the required runtime is declined before selection lowering. A plain Rust `Future` contract alone
+does not imply rollback or asynchronous finalization.
+
+Only the selected case body executes. Its binding and declarations are case-local. `return`,
+`throw`, `break`, and `continue` have their ordinary meaning. Definite assignment after the select
+uses the same all-reachable-branches rule as other branching control flow; assignment in only some
+cases does not initialize an outer binding. An empty case body is valid.
+
+#### Compiler and lowering work
+
+Deliver:
+
+- lexer/parser/formatter support for the structural `select` and `case` form, preserving exact
+  indentation, source spans, and stable source-oriented diagnostics;
+- semantic case result typing, case-local scopes, effect propagation, control-flow/reachability,
+  definite assignment, ownership transfer, borrow overlap, and task/runtime requirement analysis;
+- one semantic selection IR node containing ordered cases, each case's await expression, optional
+  binding, body, source sites, result type, exact throwable set, and cleanup obligations;
+- runtime-neutral lowering over `Future::poll`/`poll_fn` or an equivalently direct primitive rather
+  than hard-coding Tokio syntax into semantic IR;
+- monomorphic generated branch-result storage, stack pinning where the concrete future permits it,
+  and no universal boxed value, heterogeneous result vector, serialization, random choice, busy
+  loop, blocking thread, or avoidable heap allocation;
+- one waker path and an explicit per-activation round-robin cursor initialized to zero, advanced
+  immediately after selection only, and retained across repeated execution of the same select site
+  without becoming program-global;
+- two-phase cancellation lowering that first transitions every affected operation into cancellation
+  without awaiting, then drains cleanup in deterministic reverse source order;
+- pending-completion state that owns a selected result through loser draining, releases a
+  superseded result exactly once, and applies deterministic ordinary-`finally` replacement for
+  construction, winner, cancellation, and cleanup failures;
+- shielded loser draining that records repeated/enclosing cancellation without re-entry and exposes
+  a post-selection request only at the next ordinary cancellation point after the winning body
+  begins;
+- explicit per-operation cancellation semantics rather than a false selection-wide rollback
+  guarantee, reusing Milestone 28.2's projected operation/cleanup separation and admission rules;
+- deterministic loser cancellation and finalizer draining integrated with the existing
+  cancellation context, task scopes, channel waiter removal, deadlines, dependency futures, and
+  projected async finalizers; and
+- source maps and trace frames that identify the selected await and failing cleanup/release sites
+  and preserve failures from construction, polling, cleanup, result release, and the winning body.
+
+The compiler may generate a local enum whose variants carry each case's concrete success value, but
+that enum is lowering-only and never becomes a Terrane union or reflection-visible type. Polling
+must stop at the first ready case so a losing receive cannot consume data in the same poll after a
+winner is known.
+
+#### Evidence and boundaries
+
+Use controlled Terrane and projected-Rust fixture operations rather than depending on wall-clock
+timing. Add accepted runtime cases for:
+
+- every constructed operation receiving cancellation before the first drain after construction
+  failure, and every case receiving it before the first drain after pre-selection enclosing
+  cancellation;
+- differently typed success results with case-local bindings;
+- channel receive versus task completion, including a genuinely pending wakeup;
+- first-run source-order ties and repeated always-ready cases proving branch-selection rotation,
+  without claiming executor-task fairness;
+- cursor advancement immediately on successful/error/cancelled/deadline selection, including when
+  later cleanup fails;
+- no cursor advancement on construction failure, all-pending polls, or enclosing cancellation
+  before selection;
+- exactly-once case construction, the same supplied poll `Context`/waker, and no polling of later
+  cases after a winner;
+- every loser receiving cancellation before the first loser drain, including a finalizer that waits
+  for a sibling to observe cancellation;
+- cancellation and reverse-order cleanup of losers before the winner body;
+- one and multiple throwing loser cleanups proving replacement order, continued draining, skipped
+  winner bodies, and retained cursor advancement;
+- cancellation arriving after selection while loser cleanup is pending, proving shielded drain,
+  intact winner delivery, and observation at the next ordinary cancellation point;
+- a resource-owning winning result followed by loser-cleanup failure, proving the uninitialized
+  binding and exactly-once release/finalization of the superseded result;
+- a cancellation-unsafe fixture that performs visible partial work before `Pending`, proving that
+  structured drain does not promise rollback;
+- a throwing winner, a cancelled winner, a deadline winner, and cancellation of the enclosing
+  select while every case is pending;
+- projected futures with asynchronous finalizers and no finalizer/runtime shutdown race;
+- branch-local `return`, `throw`, `break`, and `continue`, plus outer definite assignment only when
+  every reachable case initializes the binding; and
+- nested selects and independent cursors across recursion and concurrent function activations.
+
+Add rejected cases for fewer than two cases, use outside async code, a case without exactly one
+top-level await in either permitted header form, invalid binding destinations, incompatible
+simultaneous borrows, duplicated linear inputs, post-select use of moved task bindings, unsupported
+guards/defaults, and attempts to use `select` as an expression.
+Diagnostics must point to the case and the conflicting declaration/use rather than
+to generated runtime support.
+
+The runtime witness must prove zero progress without a wakeup, bounded poll counts under repeated
+wakes, removal of losing channel/socket waiters, deterministic tie behavior, and completion of all
+cleanup before executor shutdown. Exercise the feature under both the dependency-free cooperative
+path and the selected native runtime when projected futures require it.
+
+Exit criterion: heterogeneous cases execute through one structured source construct with exact
+typing, deterministic fair wake-driven selection, complete ownership/cancellation/finalizer
+behavior, readable canonical generated Rust, focused accepted/rejected coverage, synchronized
+specification and manual reference material, strict Clippy, the complete conformance matrix, and
+the measured workspace suite.
+
+### Milestone 29.2 — Native clocks, timers, tickers, and process signals
+
+Terrane needs one portable service-time surface whose public values, policies, cancellation, and
+diagnostics belong to the language rather than to whichever Rust runtime an application happens to
+project. Implement `/core/time` and `/core/process-signals` as bundled Terrane packages over the
+smallest irreducible clock, timer-registration, signal-registration, and wakeup host boundary.
+This is language infrastructure in its own right, not an adapter for one application.
+
+Milestone 29.1 supplies composition: sleeps, ticker waits, and signal waits are ordinary typed tasks
+which participate in `select` without timer-, timeout-, or signal-specific control-flow syntax.
+
+#### Exact time values
+
+Deliver three distinct identity-less values:
+
+- `duration`: an exact non-negative elapsed quantity stored canonically as arbitrary-precision whole
+  seconds plus a nanosecond component in `0..999_999_999`;
+- `monotonic-instant`: an opaque, comparable point in the current program runtime's monotonic clock
+  domain, never serializable or interpretable as civil time; and
+- `instant`: a UTC wall-clock point represented as signed Unix seconds plus a canonical nanosecond
+  component, suitable for persistence and structured output but never for scheduling.
+
+The initial duration construction surface is:
+
+```terrane
+one-second duration = duration.seconds; 1
+quarter-second duration = duration.milliseconds; 250
+precise duration = duration.microseconds; 50
+minimum duration = duration.nanoseconds; 1
+```
+
+Each factory takes one exact `int`. A negative input rejects statically when constant and otherwise
+throws `invalid-duration`; no factory accepts floating values or silently rounds. Duration exposes
+whole `.seconds`, canonical `.nanoseconds`, exact `.total-nanoseconds`, `.add; other`,
+`.subtract.checked; other`, and `.multiply; non-negative-int`. A negative multiplier follows the
+same rule: reject when statically known and otherwise throw `invalid-duration` without producing a
+value. Addition and non-negative multiplication remain exact. Checked subtraction returns `none`
+rather than constructing a negative duration. Zero is a valid duration, sleep input, and multiplier,
+but not a valid ticker period.
+
+Monotonic instants compare and support `.duration-until; later -> duration`; reversed dynamic
+operands throw `invalid-duration`. Wall instants compare and expose signed Unix seconds plus a
+canonical nanosecond component.
+Wall and monotonic instants never compare, subtract, or convert to one another. Monotonic values are
+valid only within the runtime activation that produced them. Ordinary in-memory calls and returns
+between Terrane packages in that same activation may carry them, as may compiler-owned core/runtime
+support. Persistence, document encoding, arbitrary foreign projection/ABI crossing, and use by
+another program/runtime activation reject.
+
+No calendar date, local time, time zone, daylight-saving rule, leap-second presentation, parsing, or
+formatting belongs to this milestone. Those remain the separate civil-time surface anticipated by
+`docs/surface-v1.md`.
+
+#### Clock, sleep, and deadline contract
+
+`/core/time` exports an explicit imported `clock` object:
+
+```text
+clock.wall;                           -> instant
+clock.monotonic;                      -> monotonic-instant
+clock.sleep; duration                 -> async none
+clock.sleep-until; monotonic-instant  -> async none
+clock.interval; duration              -> ticker throws invalid-duration
+clock.deadline; duration              -> deadline
+clock.deadline.at; monotonic-instant  -> deadline
+```
+
+A `deadline` is an identity-less, copyable, reusable value containing one exact
+`monotonic-instant` target in the same runtime domain:
+
+```text
+deadline.expires-at -> monotonic-instant
+deadline.remaining; -> duration|none
+deadline.expired    -> bool
+```
+
+`clock.deadline; duration` reads the monotonic clock and captures its exact target immediately when
+called; later use never recomputes `now + duration`. `clock.deadline.at` retains the supplied target
+after proving the runtime domain. A past or exactly current target is valid, reports `expired` true
+and no remaining duration, and makes an attached operation immediately eligible to observe its
+deadline. Deadline values inherit monotonic instants' runtime-domain, persistence, document, and
+foreign-ABI restrictions.
+
+The deadline stores its exact semantic target independently of any bounded host `Instant`.
+Comparison, `.remaining`, child-deadline combination, ticker `scheduled-at`, and expiration checks
+operate on that exact target. Only the next wake registration converts a bounded chunk to a host
+timer, so chunking cannot overflow the semantic deadline or alter ordering.
+
+A sleep deadline is captured when its async task is constructed, before first poll. Zero-duration
+sleep becomes ready on its first poll without registering a timer or spinning. A positive pending
+sleep registers one wake-driven timer operation. Cancellation removes that registration before
+ordinary Terrane `finally` processing; a ready sleep selected before cancellation is completed
+work. `sleep-until` completes immediately when its authored monotonic instant is not later than the
+current monotonic time.
+
+Every timer and deadline uses monotonic time. Moving the wall clock backward or forward cannot
+alter its readiness. The runtime may break a duration larger than one host registration range into
+chunks, but may not narrow, wrap, clamp, poll periodically, or surface target-dependent maximum
+durations. No sleep receives one blocking thread.
+
+Replace provisional integer-millisecond deadline parameters throughout compiler-owned APIs with
+`duration` or `deadline`, including task-scope/child-scope construction and network/process
+operation options. This is a clean cutover: migrate every caller, fixture, descriptor, reflection
+record, and manual entry and remove the integer aliases. A child's effective deadline remains the
+earlier of its inherited and requested monotonic deadlines.
+
+#### Ticker contract
+
+`clock.interval; period` constructs a linear `ticker`, anchored at construction time. Its first tick
+is scheduled one period after that anchor:
+
+```text
+ticker.next; -> async tick
+ticker.close;
+
+tick.scheduled-at -> monotonic-instant
+tick.observed-at  -> monotonic-instant
+tick.lateness     -> duration
+```
+
+The first contract has one fixed missed-tick policy: skip missed emissions while retaining the
+original schedule. When observation is late by one or more periods, `.next` returns the most recent
+tick not later than observation, reports its lateness, and schedules the following tick from the
+original anchor. It never emits an immediate burst merely to replay every missed period. Ticker
+index and schedule arithmetic remain exact even when an interval spans more than one bounded host
+timer registration: lowering registers successive wake chunks toward the exact scheduled instant
+without narrowing the period, accumulating repeated-addition drift, or changing which tick is due.
+
+Only one `.next` may borrow one ticker at a time. Cancelling a pending `.next` unregisters its waiter
+without advancing the schedule or consuming a not-yet-ready tick. Once `.next` is ready and selected,
+that tick is completed work. `close` consumes the ticker, removes its registration, and runs no
+detached cleanup. Drop is a non-graceful resource release that still unregisters; authored orderly
+shutdown uses `close`.
+
+Burst, delay-from-observation, cron, wall-clock alignment, jitter, retry, and backoff policies are
+outside this milestone.
+
+#### Process-signal contract
+
+`/core/process-signals` exports `process-signals;`, producing a linear single-consumer subscription:
+
+```text
+process-signals;            -> process-signal-subscription throws process-signal-error
+subscription.next;          -> async process-signal throws process-signal-error
+subscription.close;
+
+process-signal.interrupt    -> bool
+process-signal.termination  -> bool
+process-signal.count        -> int
+process-signal.overflowed   -> bool
+process-signal.observed-at  -> monotonic-instant
+```
+
+Exactly one kind flag is true. `interrupt` means POSIX `SIGINT` or the target's corresponding console
+interrupt. `termination` means POSIX `SIGTERM` or the target's corresponding service-stop request.
+Arbitrary signal numbers, synchronous source callbacks, and platform-specific signal-handler
+objects are not source surface.
+
+A subscription observes only later broker events. Operating systems may coalesce standard signals
+before invoking Terrane's host handler, so neither the broker nor `count` claims to reconstruct how
+many signals another process attempted to generate. Cross-kind order before host observation is
+likewise unspecified.
+
+The named counting boundary is admission into the host adapter's fixed-width, async-signal-safe
+per-kind counter. Each successfully admitted handler notification contributes one. If that counter
+saturates before the broker drains it, the handler performs no unbounded work: it retains the
+saturated count, sets the corresponding overflow flag, and wakes the broker. `overflowed` therefore
+means that at least one additional host-handler notification was not represented in `count`.
+
+The broker fans each drained notification batch to every active subscription. Per subscription it
+retains at most one pending event slot for each kind. Repeated admitted batches increment that
+slot's arbitrary-precision Terrane `count`; this remains exact for notifications admitted at the
+named boundary. The storage bound is two event slots plus counters whose byte size may grow
+logarithmically with a delayed consumer—it is not a constant-byte promise.
+
+The delivered count is the number of admitted notifications represented by that event.
+`observed-at` is the monotonic time at which the broker first admitted a notification into that
+pending subscription slot; later coalescing does not change it. Once `.next` successfully delivers
+the event, that kind's count and overflow flag reset. A later notification starts a new pending
+event and is never folded retroactively into the delivered one. `.next` chooses the kind with the
+earlier first broker-observation time, using the broker's deterministic sequence to break an equal
+timestamp. Host observation remains external input; controlled test adapters supply it
+deterministically.
+
+Constructing the first subscription captures the current host dispositions and installs Terrane's
+handlers. Closing one subscription cannot affect another; closing the last restores exactly the
+dispositions captured by that first installation. Foreign code that mutates either disposition
+while Terrane owns the broker crosses an unsupported interoperation boundary: Terrane does not
+promise to preserve or merge that later mutation. Such integration must be mediated through an
+explicit future Terrane-managed facility.
+An upstream runtime signal stream whose drop leaves the process disposition installed does not
+satisfy this contract; the selected adapter must deliberately own capture, installation, and
+restoration.
+
+Cancelling a pending `.next` removes only its waiter and does not consume its retained event. The
+host handler itself may
+only perform async-signal-safe notification; it never allocates, takes an ordinary lock, executes
+Terrane code, runs cleanup, or decides application shutdown policy. The broker transfers notification
+onto the selected runtime before constructing Terrane values or waking subscriptions.
+
+Receipt never implicitly cancels a task scope and a repeated signal never hard-exits by language
+policy. Programs decide whether the first event starts graceful shutdown and whether a later count
+escalates. With no active subscription, the target's normal process behavior applies.
+
+#### Capabilities, implementation, and lowering
+
+`/core/time` requires the existing `clocks` target capability. `/core/process-signals` requires a
+new narrow `process-signals` capability rather than the broader process-spawn capability.
+Unsupported targets reject the import/use statically; they do not return fabricated time, create a
+forever-pending task, or silently omit one signal kind.
+
+Implement and commit this milestone in three evidence-bearing checkpoints: exact duration/instant
+values plus typed deadlines and caller migration; wake-driven sleep plus ticker scheduling; then
+the separately failure-prone process-signal broker. Do not hide an unfinished later checkpoint
+behind a completed earlier surface or mark 29.2 done until all three share the final contracts.
+
+Rust/platform support is justified only at the syscall/ABI and executor-wakeup boundary. It owns:
+
+- reading wall and monotonic clocks;
+- registering, cancelling, and waking runtime timers;
+- async-signal-safe target handler installation and restoration;
+- fixed-width saturating per-kind host notification counters plus overflow flags;
+- funneling admitted process notifications onto the selected executor; and
+- the two pending event slots and arbitrary-precision subscription counts whose update cannot
+  safely live in a signal callback.
+
+Bundled Terrane source owns constructors, checked arithmetic, ticker scheduling policy, signal
+classification/coalescing policy, object interfaces, capability diagnostics, and integration with
+tasks, scopes, `select`, structured errors, and logging. Core packages use the ordinary dependency
+mechanism and receive no privileged projection path.
+
+Semantic IR records generic requirements—clock access, wake support, local/transferable execution,
+and process-signal support—without naming Tokio or another runtime. Native lowering selects exactly
+one adapter already chosen for the program. Sleep, ticker, and signal tasks use one current
+`Context`/waker, never a polling loop, one-thread-per-operation fallback, hidden second runtime, or
+unbounded queue. All public types and members come from canonical descriptor contracts shared by
+semantic checking, reflection, lowering, completion, and hover.
+
+#### Deterministic evidence and boundaries
+
+Provide a compiler-controlled clock and signal adapter for conformance; the suite must not use real
+delays as its primary oracle. Add accepted cases for:
+
+- every duration factory, normalization boundary, exact arithmetic, checked negative subtraction,
+  and constant/dynamic rejection of negative construction or multiplication;
+- immediate deadline capture, reuse, expired/past targets, exact target comparison beyond one host
+  registration range, same-runtime package passage, and rejected foreign/runtime-domain crossing;
+- wall time moving backward and forward while monotonic sleep, deadlines, and tickers remain
+  unaffected;
+- zero, positive, already-expired, cancelled, and host-registration-spanning sleeps with no early
+  completion;
+- timer registration removal, no progress without a wake, bounded poll counts, and cleanup before
+  executor shutdown;
+- ticker first-fire alignment, late observation, multi-period skip, exact long-run alignment across
+  bounded host wake chunks, cancellation, close, and drop;
+- controlled interrupt and termination delivery, operating-system pre-handler coalescing,
+  host-counter saturation/overflow, broker-admitted counts, first-observation timestamps,
+  post-delivery count/overflow reset, cross-kind ordering, multiple subscriptions, cancellation,
+  close, and exact restoration of the initially captured disposition after the last close;
+- `select` across task completion, sleep, ticker, and signal cases, including simultaneous readiness
+  and losing-operation cleanup;
+- migration of task-scope, child-scope, networking, process, and test timeout callers from
+  provisional integer milliseconds to `duration`/`deadline`; and
+- compile-time capability rejection plus one real subprocess SIGINT/SIGTERM smoke scenario on each
+  supported host family.
+
+Add rejected cases for float or negative duration construction, zero ticker periods, mixed
+wall/monotonic operations, cross-runtime or persisted monotonic instants, overlapping ticker or
+subscription waits, use after close/move, unavailable capabilities, arbitrary signal numbers, and
+attempts to use signal handlers as source callbacks.
+
+The controlled adapter must expose explicit advancement and signal injection to compiler and
+Milestone-30 test infrastructure without becoming an ambient production clock. Production builds
+must not contain test-control entry points. A runtime witness must demonstrate that the selected
+native timer and signal adapter introduces no busy polling, detached tasks, leaked registrations,
+or shutdown race.
+
+Exit criterion: exact time values, wake-driven sleeps, typed deadlines, aligned tickers, and semantic
+interrupt/termination subscriptions compose with ordinary `await`, task scopes, cancellation,
+`finally`, and Milestone-29.1 `select`; all provisional integer timeout callers are migrated; source
+and full/concise specifications, implemented surface, manual reference, capability tables,
+reflection, and tooling agree; focused conformance, real-host smoke coverage, strict Clippy, the
+complete conformance matrix, and the measured workspace suite all pass.
+
+### Milestone 30.0 — Compiler-backed source intelligence and structural tooling
+
+Terrane already owns recovered syntax, retained tokens/trivia and byte spans, canonical semantic
+descriptors, generated-Rust source associations, and an initial language server. Turn that internal
+foundation into one versioned source-intelligence service used by the compiler CLI, language
+server, test discovery, editors, refactoring tools, and coding agents. Do not introduce a second
+parser, resolver, formatter authority, or public serialization of internal Rust structs.
+
+#### Public trees, snapshots, and identities
+
+Expose two deliberately different read-only projections:
+
+- a lossless syntax tree containing exact tokens, trivia, indentation, punctuation, named child
+  fields, byte spans, and explicit complete/error/recovery state, available even when semantic
+  analysis cannot complete; and
+- a compact semantic tree containing resolved declarations/references, canonical symbol and
+  descriptor identities, authored and inferred types/effects/invocation modes, ownership and
+  capability facts, diagnostics, and optional build-bound generated-Rust associations.
+
+Neither tree is lowering IR. Generated Rust remains the readable public realization, while the
+public schemas remain independently versioned projections whose fields are chosen for consumers.
+`SyntaxTree::normalized` remains a parser-golden representation and is not promoted accidentally
+into the compatibility contract.
+
+Every response carries compiler version, public schema version, immutable snapshot ID, logical
+source URI, source content hash, and canonical UTF-8 byte offsets. A package-semantic snapshot also
+identifies manifest and lock inputs, target, profile/capabilities, dependency projection artifacts,
+and analysis options. Unsaved editor overlays are explicit snapshot inputs; a query never silently
+substitutes disk contents for an open overlay.
+
+Syntax-node IDs are deterministic only within one snapshot. Canonical semantic symbol and
+descriptor identities are distinct from positional node IDs and retain namespace-qualified owners,
+aliases, applied interfaces, and inherited/projected members. Generated spans carry a separate
+build identity and are unavailable in parse-only snapshots. No public promise makes node IDs stable
+through arbitrary edits.
+
+Facts report `known`, `unresolved`, `invalid`, `not-yet-analyzed`, or `unsupported` availability.
+Unavailable types, exact throwable sets, reference indexes, ownership facts, or generated spans are
+never represented as empty/default values. Semantic queries reuse the compiler's canonical
+`DescriptorContract` and package analysis rather than rebuilding member inventories from names.
+
+#### Query protocol and language-server consolidation
+
+Provide one shared in-process query engine plus:
+
+- a versioned JSON-lines stdio service, initially invoked as `terrane tooling --stdio`, for
+  long-lived external clients; and
+- a one-shot `terrane query --request <json-file>` wrapper using the identical request/response
+  schemas for scripts and agent harnesses.
+
+Initial operations are: open/close snapshot, return syntax diagnostics/tree or one node, locate the
+syntax/semantic object at a position, resolve declaration/definition/references, return type,
+ownership, effect, capability and member facts, find syntax nodes by structured selector, map a
+source node to generated Rust for an exact build, and propose validated source edits. Transport
+request IDs, cancellation, schema negotiation, error envelopes, and snapshot expiry are explicit;
+stdout carries protocol frames only and logs use stderr.
+
+Start structural matching with bounded selectors for node kind, named child field, containing
+span, text/token constraints, and canonical symbol/descriptor identity. Do not begin with a
+second general pattern language or executable query DSL. Matching recovery nodes is opt-in, and
+damaged syntax cannot produce successful semantic matches merely by spelling resemblance.
+
+Results use deterministic logical-path/byte-offset ordering, bounded pages, explicit completeness,
+and opaque continuation tokens tied to snapshot and query. Cancellation or a result limit is not
+“no matches”. Expired tokens request a fresh query and never resume against changed source. Bound
+retained snapshots by count/bytes and evict deterministically. Syntax-only queries never invoke
+Cargo, fetch dependencies, or execute extensions; semantic dependency resolution is explicit and
+uses the normal locked compiler pipeline.
+
+Extend the existing language server to consume this shared snapshot/query engine. Preserve and
+complete standard LSP diagnostics, synchronization, semantic tokens, completion, hover, signature
+help, symbols, definitions, implementations, references, rename, code actions, and source/Rust
+navigation. LSP positions convert at the negotiated encoding boundary while compiler spans remain
+UTF-8 bytes. The server and CLI must not maintain independent parser or resolver state.
+
+#### Structural edits and source formatting
+
+The first mutation surface returns edits rather than a mutable public AST. An edit proposal records
+its snapshot, every affected file hash, non-overlapping byte replacements, preview diagnostics, and
+whether semantic reanalysis completed. Apply validates every precondition before writing.
+
+The CLI owns disk edits; LSP returns a versioned workspace edit for the editor to apply. Reparse all
+changed files in a candidate snapshot. Semantic refactors—especially rename, imports, and member
+migration—use canonical identity, reanalyze affected packages, and reject capture or changed
+targets. Already-invalid input reports remaining errors rather than claiming compilation success.
+Preserve untouched bytes, comments, multiline text, and newline style.
+
+Add the compiler-owned Terrane source formatter through the same lossless tree, exposed explicitly
+through `terrane fmt` and LSP formatting. Formatting is idempotent, preserves meaning/comments
+and malformed regions it cannot safely format, and never treats generated-Rust canonicalization as
+a source formatter. `--check` reports drift without writing. Generated Rust and dependency/cache
+source remain read-only by default.
+
+Multi-file disk apply validates every file before its first write and uses same-directory temporary
+replacement where supported. Do not promise crash-atomicity across filesystems; on partial host
+failure report every committed/uncommitted file and retain recovery bytes rather than continuing
+best-effort writes.
+
+#### Implementation and evidence
+
+Refactor existing source/lexer/token/syntax/parser, semantic-package, language-server, and
+`rust_ir::SourceAssociation` data behind compiler-owned snapshot/query interfaces. Preserve the one
+`check`/`rust`/`build`/`run` frontend. Extend generated associations only through final rendered
+output; do not infer source identity from encoded Rust names. Public schema compatibility is
+additive within a schema major version; unknown enum values/fields remain rejectable or ignorable
+according to negotiated client capability, never silently reinterpreted.
+
+Prove the milestone with real external clients:
+
+- parse valid, incomplete, and malformed Unicode/CRLF/multiline source and preserve exact spans,
+  trivia, recovery state, and diagnostics;
+- query aliases, shadowing, inheritance, applied projected interfaces, ownership, and exact
+  throwable facts, distinguishing unavailable from empty;
+- page and cancel corpus queries, expire snapshots, change dependencies and overlays, and reject
+  stale continuations;
+- propose/apply a local structural rewrite and multi-file semantic rename, proving comment
+  preservation, capture rejection, full preflight, and stale-write refusal;
+- format representative valid and recovered files twice with byte-identical second output;
+- exercise the same analysis through CLI and LSP, including negotiated position encoding; and
+- navigate one exact compiled snapshot to final generated application/support Rust while refusing a
+  mismatched build.
+
+The initial milestone excludes arbitrary executable query languages, a mutable AST, public compiler
+Rust layouts, evaluation of extensions during syntax inspection, editing generated Rust, and a
+Tree-sitter grammar as semantic authority. A secondary advisory grammar or generic-tool adapter may
+follow only after the compiler-native contract is proven.
+
+Exit criterion: the public syntax/semantic schemas, snapshot and build identities, bounded query
+protocol, validated edits, source formatter, and shared LSP analysis work end to end through the
+real compiler; no consumer reparses or re-resolves Terrane independently; the external-client
+fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
+suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
+
+### Milestone 30.1 — Terrane-native testing framework
 
 Terrane programs need a first-party way to test Terrane behavior without translating their
 contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
 `terrane test` path over the ordinary compiler pipeline. The public framework and case execution
 logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
-process isolation/capture, clocks, and host filesystem operations that cannot be expressed above
-the existing platform ABI.
+process isolation/capture, host filesystem operations, and the controlled host-clock adapter
+defined by Milestone 29.2.
 
 Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
-test callbacks. Milestones 19, 22, and 26 already provide the async, filesystem,
-process, profile, and system foundations needed by isolated integration and end-to-end tests.
+test callbacks. Milestones 19, 22, 26, 29.1, and 29.2 provide the async, filesystem, process,
+profile, system, selection, controlled-time, and signal foundations needed by deterministic unit,
+isolated integration, and end-to-end tests.
+
+Test discovery and execution consume the shared in-process snapshot/query service from Milestone
+30.0; they do not serialize the public AST schema internally or create a test-only parser,
+resolver, symbol identity, or source-location model.
 
 #### Test discovery and tiers
 
@@ -311,6 +1086,130 @@ one crashing or exiting test does not suppress later results. The framework's ow
 must be Terrane tests run by `terrane test`, while compiler discovery/lowering and the narrow host
 adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
 and accepted framework cases carry canonical generated-Rust evidence.
+
+### Milestone 30.2 — LLDB-backed Terrane source debugging
+
+Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
+Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
+native process control, unwinding, registers, memory, and machine breakpoints to a selected
+`lldb-dap`/LLDB backend.
+
+Milestone 30.0 supplies snapshot, symbol/descriptor, query, and source-to-final-Rust identities.
+Milestone 30.1 supplies repeatable executable fixtures, process isolation, and test discovery.
+Existing runtime source sites and `rust_ir::SourceAssociation` ranges are inputs, not sufficient
+debugger metadata: this milestone adds build identity, user-visible sequence points, lexical
+scopes, binding recipes, and async/internal provenance roles.
+
+#### Commands, build identity, and provenance
+
+Deliver:
+
+- `terrane debug <source-or-package> [-- program-arguments]` to build an unoptimized
+  debug-information-bearing artifact and launch it through the translation engine;
+- `terrane debug-adapter --stdio` for DAP clients, with protocol stdout isolated from debuggee
+  stdout/stderr and adapter/backend logs;
+- explicit attach support only on hosts where LLDB and permissions are exercised, with launch and
+  attach termination policy reported rather than inferred; and
+- transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
+  registers, and backend LLDB requests.
+
+Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
+compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
+projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
+native executable/module identity. Record relocation/path-prefix mappings separately from identity.
+Native addresses are resolved by LLDB against the loaded module and load address, never stored as
+portable addresses.
+
+Extend final `RenderedFile` source associations so entries can represent one-to-many source/Rust
+ranges, generated code with multiple source causes, source-free plumbing, stable snapshot-scoped
+function/binding/type identities, lexical scopes, user-visible sequence points, and generated,
+runtime, cleanup, or hidden roles. Associations must describe the final application and support
+files compiled by rustc, not pre-format offsets.
+
+On launch or attach, validate executable/module and generated-file identities before translation.
+A missing or mismatched sidecar disables Terrane translation with a clear diagnostic while
+preserving raw native debugging. Changed source is reported as stale or displayed from an
+explicitly selected build-time snapshot; never place current-source breakpoints through an older
+binary's plausible-looking map. Embedding source is opt-in because source and build paths may be
+sensitive.
+
+#### Breakpoints, frames, and stepping
+
+Map one requested Terrane source breakpoint to every executable native location for its documented
+sequence point. A non-executable line may adjust only to a declared nearby sequence point in the
+same function/scope, reporting requested and resolved locations, or remain unverified with a useful
+reason. Preserve unresolved breakpoints for later module loads. User breakpoints and fatal/native
+stops are never hidden or removed by source-level stepping.
+
+Translate stopped frames to logical Terrane source paths, spans, namespace-qualified function
+identity, and inlining status. Generated/runtime-only frames are hidden by default but remain
+inspectable. The first complete profile is unoptimized; optimized or stripped artifacts report
+precise limitations instead of fabricating source frames.
+
+`step over`, `step in`, and `step out` operate on executed sequence-point transitions and selected
+thread/frame depth, not merely changed line numbers. Loop re-entry at the same source point may
+therefore stop again. Temporary native breakpoints belong to one step request and are removed on
+completion, interruption, exception, disconnect, or exit. Bound repeated raw stepping; if no
+source progress is available, expose the native stop instead of hanging behind frame filtering.
+
+Native frames are not logical Terrane task stacks. An `await` may resume in another poll frame or
+executor thread. The initial debugger provides honest mapped stops in async code but does not
+invent a logical continuation stack. Task-aware async stepping requires explicit compiler/runtime
+task and continuation identities and a measured debug-profile cost before it is advertised.
+Authored `finally`/`destruct` and projected finalizer code remains user-visible where sourced.
+When Milestones 29.1–29.2 are implemented, `select` construction, winner, loser drain, deferred
+cancellation, timer, and signal regions receive distinct provenance roles.
+
+#### Variables, privacy, and DAP lifecycle
+
+Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
+finite unions, value/COW collections, references, and projected values only as exact layouts are
+proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
+location recipes. Report `moved`, `out of scope`, `optimized out`, `unsupported layout`, or
+`unavailable debug information`; never substitute `none`, zero, or a guessed Rust temporary.
+
+Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
+`truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
+detection, and lazy children. Honor secret metadata in ordinary summaries. Raw memory/native views
+are an explicit privileged escape hatch, not a promise to conceal secrets from someone controlling
+the debugger.
+
+The DAP layer owns initialization order, request/response correlation, advertised capabilities,
+cancellation, stopped/continued/terminated events, and lifetime of source/frame/variable handles.
+Client disconnect never implicitly kills an attached process; launched-process policy is explicit.
+Only operations exercised end to end with the selected backend are advertised. CLI and DAP share
+one translation engine.
+
+#### Delivery evidence and exclusions
+
+Deliver in staged vertical slices:
+
+1. prove final-file provenance and build/stale identity without changing program behavior;
+2. launch one unoptimized fixture, hit a Terrane source breakpoint, inspect a scalar, and open the
+   exact generated Rust;
+3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
+   native stops, and temporary-breakpoint cleanup;
+4. add bounded structured values plus explicit unavailable/moved states, attach, relocation, and
+   reconnect; and
+5. add async continuation/task presentation only after explicit identity instrumentation exists.
+
+Run the actual selected debugger against disposable compiled fixtures for each advertised
+host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
+paths, shadowed/moved locals, stripped and optimized output, a runtime/internal fatal stop, client
+disconnect during a step, and debuggee output while DAP traffic remains valid. At minimum the first
+slice must run on the release's Linux debugger host; macOS/Windows support is advertised only after
+equivalent end-to-end evidence exists.
+
+The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
+Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
+backend. Conditional breakpoints/logpoints remain unavailable until their expression language and
+side-effect contract are separately settled.
+
+Exit criterion: source breakpoints, mapped stack frames, sequence-point stepping, honest bounded
+value inspection, stale-artifact rejection, raw native escape hatches, and DAP/CLI lifecycle work
+against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
+debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
+suite pass; and optimized/unsupported cases report limitations rather than false fidelity.
 
 ### Milestone 32 — First-version hardening and release gate
 
@@ -519,18 +1418,16 @@ prototype evidence because their surrounding unsupported constructs confound the
 
 Section 7 is the authoritative remaining-work list. In milestone order, the open work is:
 
-- finish byte indexing/slicing and the compiler-profile Unicode data pin (milestone 11);
-- admit source-defined iterators through the existing protocol (milestone 13);
-- complete observable collection lifetime and identity behavior (milestone 14);
-- add caller-supplied conversion callbacks for undeclared pairs (milestone 15);
-- unify class, interface, trait, protocol, and reflection semantics on the descriptor model
-  (milestone 16);
-- complete reference provenance, target-aware cycle handling, and borrow-oriented lowering
-  (milestone 17);
-- implement destination-directed specialization of closed projected results (milestone 25.4);
-- establish exact callable and object contracts for projected conformance (milestone 28);
-- project concrete Rust traits as Terrane interfaces implemented by local classes (milestone 28.1);
-- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 30);
+- add efficient keyed map removal and stable ordered list traversal (milestone 29.0);
+- add deterministic, fair, heterogeneous asynchronous selection with structured loser cleanup
+  (milestone 29.1);
+- add native exact clocks, wake-driven timers/tickers, typed deadlines, and semantic process-signal
+  subscriptions (milestone 29.2);
+- establish compiler-backed source intelligence, structural querying/editing, source formatting,
+  and consolidated language-server analysis (milestone 30.0);
+- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 30.1);
+- add LLDB-backed Terrane source debugging with build-bound provenance and shared DAP/CLI
+  translation (milestone 30.2);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
