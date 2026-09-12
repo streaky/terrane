@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-render-witness import Renderable as renderable
+from /core/errors import throwable
+class sample implements renderable
+  function render string throws throwable; label string
+    return label

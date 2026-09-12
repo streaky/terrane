@@ -10,6 +10,13 @@ pub(super) fn emit_dependency_imports(
         if object.identity.namespace != unit.namespace {
             continue;
         }
+        if package
+            .projection
+            .item(&object.identity.namespace, &object.identity.name)
+            .is_some_and(|item| matches!(item.kind, crate::projection::ProjectedKind::Interface(_)))
+        {
+            continue;
+        }
         if let Some(path) = package
             .projection
             .foreign_rust_path(&object.identity.namespace, &object.identity.name)
@@ -63,7 +70,7 @@ fn projected_sequence_is_vec(path: &str) -> bool {
     path.starts_with("alloc::vec::Vec<") || path.starts_with("std::vec::Vec<")
 }
 
-fn projected_callback_input_expression(
+pub(super) fn projected_callback_input_expression(
     value: &str,
     ty: &crate::projection::ProjectedType,
 ) -> String {
@@ -75,7 +82,7 @@ fn projected_callback_input_expression(
     }
 }
 
-fn projected_callback_output_expression(
+pub(super) fn projected_callback_output_expression(
     value: &str,
     ty: &crate::projection::ProjectedType,
 ) -> String {
@@ -372,10 +379,12 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             .iter()
             .zip(&projected.parameters)
             .map(|(parameter, projected)| {
-                let value_type = parameter.value_type.clone().map_or_else(
-                    || "()".to_owned(),
-                    |value_type| rust_value_type(package, value_type),
-                );
+                let value_type = projected.generic_parameter.clone().unwrap_or_else(|| {
+                    parameter.value_type.clone().map_or_else(
+                        || "()".to_owned(),
+                        |value_type| rust_value_type(package, value_type),
+                    )
+                });
                 let preserves_identity = projected.borrowed
                     && matches!(
                         projected.ty,
@@ -447,21 +456,38 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             )
             .expect("writing to a string cannot fail");
         }
-        let generic_declaration =
-            projected
-                .destination_result
-                .as_ref()
-                .map_or_else(String::new, |destination| {
-                    if destination.rust_bounds.is_empty() {
-                        format!("<{}>", destination.parameter)
-                    } else {
-                        format!(
-                            "<{}: {}>",
-                            destination.parameter,
-                            destination.rust_bounds.join(" + ")
-                        )
-                    }
-                });
+        let mut generic_parameters = projected
+            .parameters
+            .iter()
+            .filter_map(|parameter| {
+                parameter
+                    .generic_parameter
+                    .as_ref()
+                    .map(|name| format!("{name}: {}", parameter.ty.rust_type()))
+            })
+            .collect::<BTreeSet<_>>();
+        if let Some(destination) = &projected.destination_result {
+            generic_parameters.insert(if destination.rust_bounds.is_empty() {
+                destination.parameter.clone()
+            } else {
+                format!(
+                    "{}: {}",
+                    destination.parameter,
+                    destination.rust_bounds.join(" + ")
+                )
+            });
+        }
+        let generic_declaration = if generic_parameters.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "<{}>",
+                generic_parameters
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
         writeln!(
             output,
             "pub {}fn {}{generic_declaration}({}) -> {result} {{",

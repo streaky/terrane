@@ -1,0 +1,7 @@
+package = "projected-interface-throwable-mismatch"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-render-witness]
+package = "terrane-render-witness"
+version = "=0.1.0"
+effects = ["build"]

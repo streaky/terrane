@@ -1,0 +1,7 @@
+package = "projected-interface-provided-override-result"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-provided-witness]
+package = "terrane-provided-witness"
+version = "=0.1.0"
+effects = ["build"]

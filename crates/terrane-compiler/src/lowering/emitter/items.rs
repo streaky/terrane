@@ -432,13 +432,8 @@ impl<'a> Emitter<'a> {
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
-                    if let Some(result) = method
-                        .return_type
-                        .clone()
-                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                    {
-                        write!(self.output, " -> {}", rust_value_type(self.package, result))
-                            .unwrap();
+                    if let Some(result) = forwarded_method_return_type(self.package, method) {
+                        write!(self.output, " -> {result}").unwrap();
                     }
                     self.output.push_str(";\n");
                 }
@@ -472,13 +467,8 @@ impl<'a> Emitter<'a> {
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
-                    if let Some(result) = method
-                        .return_type
-                        .clone()
-                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                    {
-                        write!(self.output, " -> {}", rust_value_type(self.package, result))
-                            .unwrap();
+                    if let Some(result) = forwarded_method_return_type(self.package, method) {
+                        write!(self.output, " -> {result}").unwrap();
                     }
                     self.output.push_str(" {\n");
                     self.indent += 1;
@@ -952,13 +942,15 @@ impl<'a> Emitter<'a> {
                     for method in effective_object_methods(interface_unit, interface) {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
-                            .find(|candidate| candidate.name == method.name && !candidate.is_static)
-                            .expect("validated interface implementation");
+                            .find(|candidate| {
+                                candidate.name == method.name && !candidate.is_static
+                            });
                         self.line_start();
-                        let receiver = match (
-                            method.written_invocation_mode,
-                            implementation.written_invocation_mode,
-                        ) {
+                        let implementation_mode = implementation
+                            .map_or(method.written_invocation_mode, |implementation| {
+                                implementation.written_invocation_mode
+                            });
+                        let receiver = match (method.written_invocation_mode, implementation_mode) {
                             (InvocationMode::Consuming, InvocationMode::Mutable) => {
                                 "mut self: Box<Self>"
                             }
@@ -986,23 +978,108 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let receiver = match (
-                            method.written_invocation_mode,
-                            implementation.written_invocation_mode,
-                        ) {
-                            (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
-                            (InvocationMode::Consuming, InvocationMode::Mutable) => "&mut *self",
-                            (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
-                            (_, InvocationMode::Shared) => "&*self",
-                            (_, InvocationMode::Mutable) => "&mut *self",
-                            (_, InvocationMode::Consuming) => {
-                                unreachable!("validated interface mode compatibility")
+                        if let Some(implementation) = implementation {
+                            let receiver = match (
+                                method.written_invocation_mode,
+                                implementation.written_invocation_mode,
+                            ) {
+                                (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
+                                (InvocationMode::Consuming, InvocationMode::Mutable) => {
+                                    "&mut *self"
+                                }
+                                (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
+                                (_, InvocationMode::Shared) => "&*self",
+                                (_, InvocationMode::Mutable) => "&mut *self",
+                                (_, InvocationMode::Consuming) => {
+                                    unreachable!("validated interface mode compatibility")
+                                }
+                            };
+                            write!(
+                                self.output,
+                                "{class_type}::{}({receiver}, {arguments})",
+                                rust_name(&implementation.name)
+                            )
+                            .unwrap();
+                        } else {
+                            let projected_item = self
+                                .package
+                                .projection
+                                .item(&interface.identity.namespace, &interface.identity.name)
+                                .expect("projected default interface");
+                            let projected_method = self
+                                .package
+                                .projection
+                                .interface_method(
+                                    &interface.identity.namespace,
+                                    &interface.identity.name,
+                                    &method.name,
+                                )
+                                .expect("projected default method");
+                            let rust_arguments = projected_method
+                                .function
+                                .parameters
+                                .iter()
+                                .zip(&method.parameters)
+                                .map(|(projected, parameter)| {
+                                    let converted = projected_callback_output_expression(
+                                        &rust_name(&parameter.name),
+                                        &projected.ty,
+                                    );
+                                    if projected.borrowed {
+                                        format!(
+                                            "&{}{converted}",
+                                            if projected.mutable_borrow { "mut " } else { "" }
+                                        )
+                                    } else {
+                                        converted
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            let receiver = match method.written_invocation_mode {
+                                InvocationMode::Shared => "&*self",
+                                InvocationMode::Mutable => "&mut *self",
+                                InvocationMode::Consuming => "*self",
+                            };
+                            let call = format!(
+                                "<{class_type} as {}>::{}({receiver}, {rust_arguments})",
+                                projected_item.rust_path,
+                                rust_name(&method.name)
+                            );
+                            let call = if projected_method.function.error.is_some() {
+                                format!(
+                                    "match {call} {{ Ok(value) => value, Err(error) => return Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}",
+                                    projected_item.rust_path, projected_method.function.name
+                                )
+                            } else {
+                                call
+                            };
+                            let converted = projected_callback_input_expression(
+                                "__terrane_default",
+                                &projected_method.function.result,
+                            );
+                            let result_type = method.return_type.clone().map_or_else(
+                                || "()".to_owned(),
+                                |value_type| rust_value_type(self.package, value_type),
+                            );
+                            let boundary = format!(
+                                "(|| -> Result<{result_type}, crate::TerraneForeignError> {{ let __terrane_default = {call}; Ok({converted}) }})()"
+                            );
+                            if method.throws {
+                                write!(
+                                    self.output,
+                                    "{boundary}.map_err(|error| error.raised(crate::TERRANE_NO_SITE))"
+                                )
+                                .expect("writing to a string cannot fail");
+                            } else {
+                                write!(
+                                    self.output,
+                                    "{boundary}.unwrap_or_else(|error| panic!(\"{{}}\", error.render()))"
+                                )
+                                .expect("writing to a string cannot fail");
                             }
-                        };
-                        self.line(&format!(
-                            "{class_type}::{}({receiver}, {arguments})",
-                            rust_name(&method.name)
-                        ));
+                        }
+                        self.output.push('\n');
                         self.indent -= 1;
                         self.line("}");
                     }
@@ -1011,6 +1088,7 @@ impl<'a> Emitter<'a> {
                     self.line(&format!(
                         "impl From<{class_type}> for {interface_type} {{ fn from(value: {class_type}) -> Self {{ Self(Box::new(value)) }} }}"
                     ));
+                    self.projected_interface_implementation(object, interface_identity);
                 }
                 if has_destructor {
                     self.line(&format!("impl Drop for {storage_type} {{"));
@@ -1049,6 +1127,106 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
+    }
+
+    fn projected_interface_implementation(
+        &mut self,
+        object: &DescriptorContract,
+        interface_identity: &ObjectIdentity,
+    ) {
+        let Some(projected_item) = self
+            .package
+            .projection
+            .item(&interface_identity.namespace, &interface_identity.name)
+        else {
+            return;
+        };
+        let crate::projection::ProjectedKind::Interface(interface) = &projected_item.kind else {
+            return;
+        };
+        let trait_path = projected_item.rust_path.clone();
+        let interface = interface.clone();
+        let class_type = rust_object_type_name(self.package, &object.identity);
+        self.line(&format!("impl {trait_path} for {class_type} {{"));
+        self.indent += 1;
+        for projected in interface.methods {
+            let method = projected.function;
+            let Some(implementation) = effective_object_methods(self.unit, object)
+                .into_iter()
+                .find(|candidate| candidate.name == method.name && !candidate.is_static)
+            else {
+                continue;
+            };
+            self.line_start();
+            if method.is_async {
+                self.output.push_str("async ");
+            }
+            let receiver = match (method.receiver, implementation.written_invocation_mode) {
+                (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => "mut self",
+                (Some(crate::projection::Receiver::Move), _) => "self",
+                (Some(crate::projection::Receiver::MutableBorrow), _) => "&mut self",
+                _ => "&self",
+            };
+            write!(self.output, "fn {}({receiver}", rust_name(&method.name))
+                .expect("writing to a string cannot fail");
+            for parameter in &method.parameters {
+                let mut ty = parameter.ty.rust_type();
+                if parameter.borrowed {
+                    ty = format!(
+                        "&{}{}",
+                        if parameter.mutable_borrow { "mut " } else { "" },
+                        ty
+                    );
+                }
+                write!(self.output, ", {}: {ty}", rust_name(&parameter.name))
+                    .expect("writing to a string cannot fail");
+            }
+            self.output.push(')');
+            let rust_result = method.result.rust_type();
+            if method.result != crate::projection::ProjectedType::None {
+                write!(self.output, " -> {rust_result}").expect("writing to a string cannot fail");
+            }
+            self.output.push_str(" {\n");
+            self.indent += 1;
+            let arguments = method
+                .parameters
+                .iter()
+                .map(|parameter| {
+                    projected_callback_input_expression(&rust_name(&parameter.name), &parameter.ty)
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            let receiver = match (method.receiver, implementation.written_invocation_mode) {
+                (Some(crate::projection::Receiver::Move), InvocationMode::Shared) => "&self",
+                (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => "&mut self",
+                (Some(crate::projection::Receiver::Move), InvocationMode::Consuming) => "self",
+                (_, InvocationMode::Shared) => "&*self",
+                (_, InvocationMode::Mutable) => "&mut *self",
+                (_, InvocationMode::Consuming) => {
+                    unreachable!("validated projected interface mode compatibility")
+                }
+            };
+            let await_ = if method.is_async { ".await" } else { "" };
+            let terrane_call = format!(
+                "{class_type}::{}({receiver}, {arguments}){await_}",
+                rust_name(&method.name)
+            );
+            let converted = projected_callback_output_expression("__terrane_value", &method.result);
+            if method.is_async {
+                self.line(&format!(
+                    "let __terrane_boundary: Result<{rust_result}, crate::TerraneForeignError> = async {{ let __terrane_value = {terrane_call}; Ok({converted}) }}.await;"
+                ));
+            } else {
+                self.line(&format!(
+                    "let __terrane_boundary: Result<{rust_result}, crate::TerraneForeignError> = (|| {{ let __terrane_value = {terrane_call}; Ok({converted}) }})();"
+                ));
+            }
+            self.line("__terrane_boundary.unwrap_or_else(|error| panic!(\"{}\", error.render()))");
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.indent -= 1;
+        self.line("}");
     }
 
     pub(super) fn function(&mut self, node: &SyntaxNode) {

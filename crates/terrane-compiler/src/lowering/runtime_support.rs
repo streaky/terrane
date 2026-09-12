@@ -207,7 +207,9 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
             crate::projection::ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } => !methods.is_empty() || !static_methods.is_empty(),
+            crate::projection::ProjectedKind::Interface(interface) => !interface.methods.is_empty(),
             crate::projection::ProjectedKind::Enum { .. } => false,
         })
     })

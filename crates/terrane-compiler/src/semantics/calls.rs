@@ -86,6 +86,9 @@ pub(super) fn validate_call_nodes<'a>(
         }
     }
     if node.kind == SyntaxKind::CallExpression {
+        validate_projected_generic_arguments(package, unit, node, scoped_bindings)?;
+    }
+    if node.kind == SyntaxKind::CallExpression {
         let inferred = infer_value_type(unit, node, scoped_bindings)?;
         if inferred.is_none()
             && let Some(callee) = node.children.first()
@@ -308,6 +311,82 @@ pub(super) fn validate_call_nodes<'a>(
             active_function,
             scoped_bindings,
         )?;
+    }
+    Ok(())
+}
+
+fn validate_projected_generic_arguments(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    let [callee, arguments] = node.children.as_slice() else {
+        return Ok(());
+    };
+    let Some(projected) = projected_function_for_call(package, unit, callee) else {
+        return Ok(());
+    };
+    for (argument, parameter) in arguments.children.iter().zip(&projected.parameters) {
+        if parameter.generic_parameter.is_none() {
+            continue;
+        }
+        let value = argument.children.last().unwrap_or(argument);
+        let Some(ValueType::Object(identity)) = infer_value_type(unit, value, bindings)? else {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                "immediate projected generic bounds require a concrete source class argument",
+                value.span,
+            ));
+        };
+        let Some((_, class)) = package.units.iter().find_map(|owner| {
+            owner
+                .descriptors
+                .iter()
+                .find(|descriptor| descriptor.identity == identity)
+                .map(|descriptor| (owner, descriptor))
+        }) else {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                "immediate projected generic bounds require a concrete source class argument",
+                value.span,
+            ));
+        };
+        if class.kind != ObjectKind::Class {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                "interface-typed values cannot select an immediate projected generic bound",
+                value.span,
+            ));
+        }
+        let expected_rust_path = parameter.ty.rust_type();
+        let required = package
+            .projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| {
+                item.rust_path == expected_rust_path
+                    && matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+            })
+            .map(|item| ObjectIdentity {
+                namespace: item.namespace.clone(),
+                name: item.name.clone(),
+            });
+        if required.is_some_and(|required| !class.interfaces.contains(&required)) {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                format!(
+                    "class `{}` does not implement the projected bound `{expected_rust_path}`",
+                    class.identity.name
+                ),
+                value.span,
+            ));
+        }
     }
     Ok(())
 }

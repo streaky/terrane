@@ -4488,9 +4488,24 @@ returning a bounded `Future` projects as a Terrane `async function`. Projection 
 contracts to shared, mutable, and consuming invocation modes respectively, while retaining
 retention and required `Send`/`Sync` as independent boundary facts. Generated shims construct the
 exact Rust closure type at free-function or projected-method call boundaries and convert arguments
-and results there. A projected Rust trait is likewise a named contract, so its source-side
-projection target is an interface rather than a Terrane trait: Terrane traits compose source
-implementation and do not represent foreign nominal conformance.
+and results there.
+
+An eligible fixed-signature Rust trait projects as a named Terrane interface, never as a Terrane
+trait: Rust traits and Terrane interfaces are named conformance contracts, while Terrane traits
+compose reusable source implementation through `uses`. Plain Rust `&self`, `&mut self`, and `self`
+receivers become shared, mutable, and consuming interface requirements; wrapped receivers such as
+`Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>` decline. Required methods demand a matching class
+method. Provided methods remain callable defaults and may be overridden only when their foreign
+signature uses supported owned, non-`Result` parameters and results. Required borrowed parameters,
+required `Result` methods, static requirements, generic methods, unresolved associated types,
+higher-ranked lifetimes, and unprojectable member types decline with stable artifact reasons
+rather than being erased.
+
+A local class adopts the projected identity with ordinary `implements`, and lowering emits one
+foreign Rust impl that delegates into its Terrane methods. Immediate concrete generic and
+`impl Trait` inputs may specialize from the written class argument. Projected error metadata
+contributes the callable's throwable contract, so foreign methods participate in the same
+throwable protocol eligibility and conformance checks as source callables.
 
 Mutable Terrane callables own repeatable state and value separation copies the current environment
 rather than aliasing it. Consuming callbacks transfer their environment into the one-shot Rust
@@ -4593,6 +4608,11 @@ Rust borrow and mutable binding. On unwinding profiles, a panic crossing a gener
 `panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
 `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
 rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
+
+Projection records whether a foreign Rust type implements `Clone`. When a source class stores a
+non-`Clone` foreign value in a field, that class becomes resource-owning transitively and generated
+lowering does not derive `Clone` for it. Assignment therefore transfers the enclosing class value
+instead of inventing target-language cloning that the Rust field type does not support.
 
 A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
 constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits

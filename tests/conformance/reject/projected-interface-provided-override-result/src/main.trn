@@ -1,0 +1,9 @@
+namespace app
+from /deps/terrane-provided-witness import Parser as parser
+
+class thing implements parser
+  function label string;
+    return >base
+
+  function parsed int; text string
+    return 1

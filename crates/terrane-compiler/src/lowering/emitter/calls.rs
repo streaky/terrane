@@ -1189,12 +1189,15 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("format!(\"{format}\", {})", values.join(", "));
         }
-        let projected_parameters = self
+        let (projected_parameters, projected_chain_role, projected_error) = self
             .projected_function_for_call(callee)
-            .map(|function| function.parameters.clone());
-        let projected_chain_role = self
-            .projected_function_for_call(callee)
-            .and_then(|function| function.chain_role);
+            .map_or((None, None, false), |function| {
+                (
+                    Some(function.parameters.clone()),
+                    function.chain_role,
+                    function.error.is_some(),
+                )
+            });
         let projected_chain_root = projected_chain_role == Some(crate::projection::ChainRole::Root);
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
@@ -1221,7 +1224,14 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
-                let expression = if let Some(ty) = parameter.value_type.clone() {
+                let projected_parameter = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index));
+                let expression = if projected_parameter
+                    .is_some_and(|parameter| parameter.generic_parameter.is_some())
+                {
+                    self.expression(value)
+                } else if let Some(ty) = parameter.value_type.clone() {
                     self.expression_as(value, ty)
                 } else {
                     self.expression(value)
@@ -1229,9 +1239,10 @@ impl Emitter<'_> {
                 let expression = if let Some(projected) = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
-                    .filter(|_| {
-                        projected_chain_role.is_some()
-                            || callee.kind == SyntaxKind::MemberExpression
+                    .filter(|parameter| {
+                        parameter.generic_parameter.is_none()
+                            && (projected_chain_role.is_some()
+                                || callee.kind == SyntaxKind::MemberExpression)
                     }) {
                     projected_chain_argument_expression(&expression, &projected.ty)
                 } else {
@@ -1416,6 +1427,24 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
+        let projected_interface_dispatch = callee
+            .children
+            .first()
+            .and_then(|receiver| self.value_type(receiver))
+            .and_then(|value_type| match value_type {
+                ValueType::Object(identity) => Some(identity),
+                _ => None,
+            })
+            .is_some_and(|identity| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .any(|descriptor| {
+                        descriptor.identity == identity
+                            && descriptor.kind == crate::semantics::ObjectKind::Interface
+                    })
+            });
         let foreign_method = contract.as_ref().and_then(|contract| {
             let [receiver, _member] = callee.children.as_slice() else {
                 return None;
@@ -1423,6 +1452,9 @@ impl Emitter<'_> {
             let ValueType::Object(identity) = self.value_type(receiver)? else {
                 return None;
             };
+            if projected_interface_dispatch {
+                return None;
+            }
             self.package.projection.method(
                 &identity.namespace,
                 &identity.name,
@@ -1544,11 +1576,13 @@ impl Emitter<'_> {
                         if self.callable_object_field(receiver, self.text(member))
                 ));
         let dependency_contract = contract.as_ref().is_some_and(|contract| {
-            self.package.units.iter().any(|unit| {
-                unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
-            })
+            !projected_interface_dispatch
+                && self.package.units.iter().any(|unit| {
+                    unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
+                })
         });
         let needs_error_mapping = contract.as_ref().is_some_and(|contract| contract.throws)
+            || projected_error
             || dependency_contract
             || foreign_error
             || function_value_call;

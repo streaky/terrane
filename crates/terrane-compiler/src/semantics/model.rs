@@ -1121,6 +1121,7 @@ pub struct FunctionContract {
     /// Canonical owner identity for methods; aliases never rewrite it.
     pub(crate) owner_identity: Option<ObjectIdentity>,
     pub(crate) is_anonymous: bool,
+    pub(crate) projected_provided: bool,
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,

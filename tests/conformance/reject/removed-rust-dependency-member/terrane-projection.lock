@@ -24,7 +24,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "26",
+  "projection_schema": "39",
   "removed": [
     {
       "current_version": "1.0.3",

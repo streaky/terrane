@@ -1,9 +1,11 @@
 namespace app
 
+from /deps/terrane-callback-witness import Adjustable as adjustable, adjust_value
 from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently, registrar
 from /deps/terrane-callback-witness import invoke_retained, wait_until_retained_invocation_active, active_retained_invocations, pending_value
 from /core/errors import dependency-panic
 from /deps/terrane-dispatch-witness import dispatch
+from /deps/terrane-render-witness import Renderable as renderable, render_value, render_decorated, render_impl
 
 function add-two int; value int
     return value + 2
@@ -30,6 +32,23 @@ function render string; label string, enabled bool
         return label.upper;
     return label
 
+class projected-message implements renderable
+    function render string; label string
+        return label.upper;
+
+class projected-counter implements adjustable
+    total int = 0
+
+    mutable function adjust int; delta int
+        this.total = this.total + delta
+        return this.total
+
+    function current int;
+        return this.total
+
+class projected-counter-holder
+    inner projected-counter = instance projected-counter;
+
 async function main;
     print; (apply_shared; 40, add-two)
     print; (apply_mutable; 10, add-two)
@@ -51,3 +70,16 @@ async function main;
     retained-scope.cancel;
     retained-outcome = await retained-scope.join; retained-child
     print; active, retained-outcome.cancelled, (active_retained_invocations;)
+    message = instance projected-message;
+    print; (render_value; message, 'interface')
+    print; (render_decorated; message, 'default')
+    interface-message renderable = message
+    print; (interface-message.decorated; 'provided')
+    print; (interface-message.borrowed; 'borrowed')
+    print; (interface-message.parsed; '7')
+    impl-message = instance projected-message;
+    print; (render_impl; impl-message, 'opaque')
+    counter = instance projected-counter;
+    print; (adjust_value; counter, 7)
+    holder = instance projected-counter-holder;
+    print; (adjust_value; holder.inner, 9)

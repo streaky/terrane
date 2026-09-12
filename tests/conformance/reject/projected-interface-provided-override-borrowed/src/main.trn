@@ -1,0 +1,9 @@
+namespace app
+from /deps/terrane-provided-witness import Labelled as labelled
+
+class thing implements labelled
+  function label string;
+    return >base
+
+  function shout string; suffix string
+    return suffix

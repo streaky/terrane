@@ -1,0 +1,9 @@
+package = "rust-dependency-nonclone-field"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-nonclone-witness]
+package = "terrane-nonclone-witness"
+version = "=0.1.0"
+effects = ["build"]

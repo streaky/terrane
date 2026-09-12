@@ -505,6 +505,40 @@ pub(super) fn refresh_source_descriptor_members(units: &mut [SemanticUnit]) {
     }
 }
 
+fn value_type_contains_nonclone_foreign(
+    projection: &crate::projection::Projection,
+    value_type: &ValueType,
+) -> bool {
+    match value_type {
+        ValueType::Object(identity) => projection
+            .foreign_is_cloneable(&identity.namespace, &identity.name)
+            .is_some_and(|cloneable| !cloneable),
+        ValueType::Optional(inner) => value_type_contains_nonclone_foreign(projection, inner),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            value_type_contains_nonclone_foreign(projection, &item.value_type())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_nonclone_foreign(projection, &key.value_type())
+                || value_type_contains_nonclone_foreign(projection, &value.value_type())
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn value_type_is_resource_container(
     value_type: &ValueType,
     resource_identities: &BTreeSet<String>,
@@ -520,34 +554,41 @@ pub(super) fn value_type_is_resource_container(
     ) && value_type_owns_resource(value_type, resource_identities)
 }
 
+fn resource_identities(package: &SemanticPackage) -> BTreeSet<String> {
+    package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.descriptors
+                .iter()
+                .filter(|object| object.resource_owning)
+                .filter_map(|object| {
+                    package
+                        .resolve_name_at(unit, object.span.start, &object.name)
+                        .map(|symbol| symbol.identity.clone())
+                })
+        })
+        .collect()
+}
+
 pub(super) fn propagate_resource_ownership(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     loop {
-        let resource_identities = package
-            .units
-            .iter()
-            .flat_map(|unit| {
-                unit.descriptors
-                    .iter()
-                    .filter(|object| object.resource_owning)
-                    .filter_map(|object| {
-                        package
-                            .resolve_name_at(unit, object.span.start, &object.name)
-                            .map(|symbol| symbol.identity.clone())
-                    })
-            })
-            .collect::<BTreeSet<_>>();
+        let resource_identities = resource_identities(package);
         let mut newly_resource_owning = Vec::new();
         for (unit_index, unit) in package.units.iter().enumerate() {
             for (object_index, object) in unit.descriptors.iter().enumerate() {
                 if object.kind != ObjectKind::Class || object.resource_owning {
                     continue;
                 }
-                let owns_field_resource = object
-                    .fields
-                    .iter()
-                    .any(|field| value_type_owns_resource(&field.value_type, &resource_identities));
+                let owns_field_resource = object.fields.iter().any(|field| {
+                    value_type_owns_resource(&field.value_type, &resource_identities)
+                        || value_type_contains_nonclone_foreign(
+                            &package.projection,
+                            &field.value_type,
+                        )
+                });
                 let owns_base_resource = object
                     .base
                     .as_ref()
@@ -565,20 +606,7 @@ pub(super) fn propagate_resource_ownership(
         }
     }
 
-    let resource_identities = package
-        .units
-        .iter()
-        .flat_map(|unit| {
-            unit.descriptors
-                .iter()
-                .filter(|object| object.resource_owning)
-                .filter_map(|object| {
-                    package
-                        .resolve_name_at(unit, object.span.start, &object.name)
-                        .map(|symbol| symbol.identity.clone())
-                })
-        })
-        .collect::<BTreeSet<_>>();
+    let resource_identities = resource_identities(package);
 
     for unit in &package.units {
         for object in &unit.descriptors {
@@ -779,6 +807,7 @@ pub(super) fn validate_object_conformance(
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
                         is_anonymous: false,
+                        projected_provided: false,
                         captures: Vec::new(),
                         parameters: Vec::new(),
                         is_static: false,
@@ -829,6 +858,18 @@ pub(super) fn validate_object_conformance(
                 {
                     let Some(actual) = effective_method(declaration_unit, object, &required.name)
                     else {
+                        if required.projected_provided
+                            || package
+                                .projection
+                                .interface_method(
+                                    &interface.identity.namespace,
+                                    &interface.identity.name,
+                                    &required.name,
+                                )
+                                .is_some_and(|method| method.provided)
+                        {
+                            continue;
+                        }
                         return Err(failure(
                             &declaration_unit.source,
                             "T0062",
@@ -839,6 +880,39 @@ pub(super) fn validate_object_conformance(
                             object.span,
                         ));
                     };
+                    if let Some(reason) = package
+                        .projection
+                        .interface_method(
+                            &interface.identity.namespace,
+                            &interface.identity.name,
+                            &required.name,
+                        )
+                        .filter(|method| method.provided)
+                        .and_then(|method| {
+                            if method
+                                .function
+                                .parameters
+                                .iter()
+                                .any(|parameter| parameter.borrowed)
+                            {
+                                Some("borrowed parameters are deferred")
+                            } else if method.function.error.is_some() {
+                                Some("Result-returning methods are deferred")
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        return Err(failure(
+                            &declaration_unit.source,
+                            "T0067",
+                            format!(
+                                "provided member `{}.{}` cannot be overridden: {reason}",
+                                interface.name, required.name
+                            ),
+                            actual.span,
+                        ));
+                    }
                     if !implementation_satisfies_requirement(required, actual) {
                         return Err(failure(
                             &declaration_unit.source,

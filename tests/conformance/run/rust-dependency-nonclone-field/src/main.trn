@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-nonclone-witness import NonClone as non-clone, make_non_clone as make-non-clone
+
+class holder
+  item non-clone = make-non-clone; 7
+
+  function read int;
+    return this.item.value;
+
+function main;
+  value holder = instance holder;
+  print; (value.read;)

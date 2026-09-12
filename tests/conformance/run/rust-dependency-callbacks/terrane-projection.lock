@@ -4,6 +4,10 @@
       "members": [
         [
           "/deps/terrane-callback-witness",
+          "Adjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "Marker"
         ],
         [
@@ -21,6 +25,10 @@
         [
           "/deps/terrane-callback-witness",
           "active_retained_invocations"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "adjust_value"
         ],
         [
           "/deps/terrane-callback-witness",
@@ -75,10 +83,32 @@
       ],
       "name": "terrane-dispatch-witness",
       "version": "0.1.0"
+    },
+    {
+      "members": [
+        [
+          "/deps/terrane-render-witness",
+          "Renderable"
+        ],
+        [
+          "/deps/terrane-render-witness",
+          "render_decorated"
+        ],
+        [
+          "/deps/terrane-render-witness",
+          "render_impl"
+        ],
+        [
+          "/deps/terrane-render-witness",
+          "render_value"
+        ]
+      ],
+      "name": "terrane-render-witness",
+      "version": "0.1.0"
     }
   ],
   "format": 3,
-  "projection_schema": "26",
+  "projection_schema": "39",
   "removed": [],
   "resolution": {
     "events": [

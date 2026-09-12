@@ -651,8 +651,10 @@ class instance
 - Protocols are unnamed structural operation shapes, not declarations or nominal types. Interfaces
   are named nominal contracts and dispatch type objects adopted with `implements`.
 - Traits compose source fields and methods through `uses`; they are not subtyping and are not the
-  analogue of Rust traits. Rust traits project toward Terrane interfaces because both name
-  conformance contracts.
+  analogue of Rust traits. Eligible fixed-signature Rust traits project as Terrane interfaces
+  because both name conformance contracts. Their receiver modes and required/provided members are
+  preserved; local classes use ordinary `implements`, and immediate concrete generic inputs can
+  specialize from the written class argument.
 - Single class inheritance preserves complete subclass state; multiple class inheritance and implicit signature overloading are later/non-v1.
 - Default/named/variadic parameters, typed returns, closures, recursion, and early return are v1.
 - Source-declared type parameters are later; v1 uses concrete types, unions, interfaces, and compiler/package-supplied type constructors.

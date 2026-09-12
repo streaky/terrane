@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-render-witness import Renderable as renderable
+class sample implements renderable
+  mutable function render string; label string
+    return label
