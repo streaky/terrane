@@ -4512,12 +4512,15 @@ not promise the required auto traits decline before lowering.
 
 A projected trait closure may contain exactly one non-generic associated type. Its Terrane
 interface is then a type constructor: `Interface of ConcreteType` is required everywhere a value
-type or `implements` clause uses it. That explicit application is part of nominal identity.
-Semantic analysis materializes the closed descriptor, substitutes its argument recursively through
-method contracts and inherited requirements, validates the retained Rust bounds, and never infers
-the slot from matching method shapes. Lowering emits `type Slot = RustType` in every corresponding
-foreign implementation. Owning `Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the
-same binding and remain subject to the ordinary erased auto-trait proof.
+type or `implements` clause uses it. The concrete argument must currently be a closed
+boundary-representable scalar, aggregate, or projected foreign type; source-class arguments remain
+deferred until an explicit Rust boundary conversion contract exists. That application is part of
+nominal identity. Semantic analysis materializes the closed descriptor, substitutes its argument
+recursively through method contracts and inherited requirements, validates the retained Rust
+bounds, and never infers the slot from matching method shapes. Lowering emits
+`type Slot = RustType` in every corresponding foreign implementation. Owning
+`Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the same binding and remain subject
+to the ordinary erased auto-trait proof.
 
 Non-marker supertraits are projected recursively only when every ancestor is independently
 admissible. Import expansion carries the complete closure, conformance includes every inherited
