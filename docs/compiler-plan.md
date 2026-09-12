@@ -241,8 +241,8 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-associated-mismatch`, `projected-associated-bound`,
 `projected-associated-unprojectable`, `projected-associated-two-slots`,
 `projected-associated-gat`, `projected-associated-erased-binding`, and
-`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 42 records
-structural call bindings and complete supertrait identities.
+`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 43 records
+structural call bindings, complete supertrait identities, and final-admission bound filtering.
 
 ### Milestone 30 — Terrane-native testing framework
 

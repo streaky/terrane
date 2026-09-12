@@ -4509,6 +4509,8 @@ projection retains every `Send`/`Sync` object bound, and the shim boxes either a
 the exact generated interface wrapper. Bare or borrowed trait objects, non-interface `Box<T>`,
 multiple non-auto trait-object principals, boxed trait-object results, and erased wrappers that do
 not promise the required auto traits decline before lowering.
+An applied projected subinterface wrapper also satisfies an ancestor's owning erased boundary when
+the inherited associated binding and auto-trait obligations agree.
 
 A projected trait closure may contain exactly one non-generic associated type. Its Terrane
 interface is then a type constructor: `Interface of ConcreteType` is required everywhere a value
@@ -4521,6 +4523,8 @@ bounds, and never infers the slot from matching method shapes. Lowering emits
 `type Slot = RustType` in every corresponding foreign implementation. Owning
 `Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the same binding and remain subject
 to the ordinary erased auto-trait proof.
+The closed-application requirement is recursive through aggregate and callable annotations; an
+unapplied projected interface nested in any such type is rejected before lowering.
 
 Non-marker supertraits are projected recursively only when every ancestor is independently
 admissible. Import expansion carries the complete closure, conformance includes every inherited
@@ -4528,6 +4532,8 @@ requirement, and lowering emits one Rust implementation for each distinct ancest
 closure may expose only one associated slot. Bare or mismatched applications, multiple or generic
 slots, failed bounds, unprojectable ancestors, and incoherent erased bindings decline before Rust
 lowering.
+After the final oracle admission pass, a generic function is retained only when every
+interface-shaped input bound still names an admitted projected interface.
 
 The projection oracle records `Send` and `Sync` separately for each closed foreign type. Semantic
 conformance walks the complete effective local-class field graph, including nested source classes

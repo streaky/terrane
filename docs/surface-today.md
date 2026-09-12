@@ -992,7 +992,7 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 42 retains these contracts alongside explicit root, continuation, and terminal
+Projection schema 43 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument
