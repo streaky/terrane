@@ -1,0 +1,25 @@
+namespace app
+
+from /deps/terrane-supertrait-witness import Child as child, Diamond as diamond, child_total as child-total, diamond_total as diamond-total, erased_child_total as erased-child-total
+
+class values implements child
+    function middle int;
+        return 12
+
+    function child int;
+        return 20
+
+class diamond-values implements diamond
+    function left int;
+        return 1
+
+    function right int;
+        return 2
+
+    function diamond int;
+        return 3
+
+function main;
+    print; (child-total; (instance values;))
+    print; (erased-child-total; (instance values;))
+    print; (diamond-total; (instance diamond-values;))

@@ -1,0 +1,71 @@
+{
+  "dependencies": [
+    {
+      "members": [
+        [
+          "/deps/terrane-associated-witness",
+          "NamedSequence"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "Nested"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "Nested.value"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "Sequence"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "erased_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "list_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "named_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "nested_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "sequence_total"
+        ]
+      ],
+      "name": "terrane-associated-witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 3,
+  "projection_schema": "43",
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

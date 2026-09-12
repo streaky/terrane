@@ -184,27 +184,6 @@ pub(super) fn object_descendants<'a>(
         .collect()
 }
 
-pub(super) fn effective_object_interfaces<'a>(
-    unit: &'a SemanticUnit,
-    object: &'a DescriptorContract,
-) -> Vec<&'a ObjectIdentity> {
-    let mut interfaces = object
-        .base
-        .as_ref()
-        .and_then(|identity| {
-            unit.descriptors
-                .iter()
-                .find(|candidate| candidate.identity == *identity)
-        })
-        .map_or_else(Vec::new, |base| effective_object_interfaces(unit, base));
-    for interface in &object.interfaces {
-        if !interfaces.contains(&interface) {
-            interfaces.push(interface);
-        }
-    }
-    interfaces
-}
-
 pub(super) fn object_destructor_chain<'a>(
     unit: &'a SemanticUnit,
     object: &'a DescriptorContract,
@@ -605,6 +584,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::Reference(item) => {
             format!("&{}", rust_element_type(package, item))
         }
+        ValueType::ProjectedAssociated => "TerraneAssociated".to_owned(),
     }
 }
 
@@ -816,15 +796,22 @@ pub(super) fn rust_object_type_name(
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         > 1;
-    if !collides {
-        return rust_object_name(&identity.name);
-    }
-    let mut namespace = String::new();
-    for segment in identity.namespace.trim_start_matches('/').split('/') {
-        write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
-            .expect("writing to a string cannot fail");
-    }
-    format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+    let base = if collides {
+        let mut namespace = String::new();
+        for segment in identity.namespace.trim_start_matches('/').split('/') {
+            write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
+                .expect("writing to a string cannot fail");
+        }
+        format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+    } else {
+        rust_object_name(&identity.name)
+    };
+    identity
+        .application
+        .as_deref()
+        .map_or(base.clone(), |application| {
+            format!("{base}<{}>", rust_value_type(package, application.clone()))
+        })
 }
 
 pub(super) fn rust_static_field_name(

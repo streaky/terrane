@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import Sequence as sequence
+
+class callable-items implements sequence of function from int to int
+
+function main;

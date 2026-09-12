@@ -1243,7 +1243,7 @@ impl From<ProjectedMessage> for Renderable {
 impl terrane_render_witness::Renderable for ProjectedMessage {
     fn render(&self, label_: String) -> String {
         let __terrane_boundary: Result<String, crate::TerraneForeignError> = (|| {
-            let __terrane_value = ProjectedMessage::render(&*self, label_);
+            let __terrane_value = <ProjectedMessage>::render(&*self, label_);
             Ok(__terrane_value)
         })();
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
@@ -1292,7 +1292,7 @@ impl From<ProjectedCounter> for Adjustable {
 impl terrane_callback_witness::Adjustable for ProjectedCounter {
     fn adjust(&mut self, delta: i64) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = ProjectedCounter::adjust(
+            let __terrane_value = <ProjectedCounter>::adjust(
                 &mut *self,
                 terrane_int_support::Int::from(i128::from(delta)),
             );
@@ -1307,7 +1307,7 @@ impl terrane_callback_witness::Adjustable for ProjectedCounter {
     }
     fn current(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = ProjectedCounter::current(&*self);
+            let __terrane_value = <ProjectedCounter>::current(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -1361,7 +1361,7 @@ impl From<ProjectedLocalCounter> for LocalAdjustable {
 impl terrane_callback_witness::LocalAdjustable for ProjectedLocalCounter {
     fn adjust(&mut self, delta: i64) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = ProjectedLocalCounter::adjust(
+            let __terrane_value = <ProjectedLocalCounter>::adjust(
                 &mut *self,
                 terrane_int_support::Int::from(i128::from(delta)),
             );
@@ -1376,7 +1376,7 @@ impl terrane_callback_witness::LocalAdjustable for ProjectedLocalCounter {
     }
     fn current(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = ProjectedLocalCounter::current(&*self);
+            let __terrane_value = <ProjectedLocalCounter>::current(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -1412,7 +1412,7 @@ impl DropAwareValue {
 impl terrane_callback_witness::DropAware for DropAwareValue {
     fn label(&self) -> String {
         let __terrane_boundary: Result<String, crate::TerraneForeignError> = (|| {
-            let __terrane_value = DropAwareValue::label(&*self);
+            let __terrane_value = <DropAwareValue>::label(&*self);
             Ok(__terrane_value)
         })();
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
@@ -1909,7 +1909,7 @@ impl terrane_callback_witness::AsyncEntry for ProjectedAsyncEntry {
             let __terrane_value = {
                 let __terrane_receiver = self.clone();
                 __terrane_projected_async_entry(async move {
-                        ProjectedAsyncEntry::shared(&__terrane_receiver).await
+                        <ProjectedAsyncEntry>::shared(&__terrane_receiver).await
                     })
                     .await
             };
@@ -1928,7 +1928,7 @@ impl terrane_callback_witness::AsyncEntry for ProjectedAsyncEntry {
             let __terrane_value = {
                 let mut __terrane_receiver = self.clone();
                 let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {
-                        let __terrane_output = ProjectedAsyncEntry::mutable(
+                        let __terrane_output = <ProjectedAsyncEntry>::mutable(
                                 &mut __terrane_receiver,
                             )
                             .await;
@@ -1951,7 +1951,7 @@ impl terrane_callback_witness::AsyncEntry for ProjectedAsyncEntry {
     async fn consuming(self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = async {
             let __terrane_value = __terrane_projected_async_entry(async move {
-                    ProjectedAsyncEntry::consuming(self).await
+                    <ProjectedAsyncEntry>::consuming(self).await
                 })
                 .await;
             Ok(
@@ -2147,7 +2147,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message,
             String::from("default")), 24 /* terrane-site: src/main.trn:125:13-125:49 */))
         );
-        let interface_message: Renderable = Renderable::from(message.clone());
+        let interface_message: Renderable = <Renderable>::from(message.clone());
         println!(
             "{}", terrane_scalar_support::scalar_text(&interface_message
             .decorated(String::from("provided")))
@@ -2227,7 +2227,7 @@ fn main() {
             "terrane_callback_witness::AdjustableOwner::current")) },
             34 /* terrane-site: src/main.trn:140:39-140:59 */))
         );
-        let erased_boxed: Adjustable = Adjustable::from(
+        let erased_boxed: Adjustable = <Adjustable>::from(
             ProjectedCounter::terrane_construct(),
         );
         let mut erased_owner: AdjustableOwner = __terrane_raised(
@@ -2306,8 +2306,12 @@ impl Clone for Box<dyn AdjustableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Adjustable(Box<dyn AdjustableProtocol>);
+impl Clone for Adjustable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Adjustable {
     pub fn adjust(
         &mut self,
@@ -2322,7 +2326,7 @@ impl Adjustable {
 impl terrane_callback_witness::Adjustable for Adjustable {
     fn adjust(&mut self, delta: i64) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = Adjustable::adjust(
+            let __terrane_value = <Adjustable>::adjust(
                 &mut *self,
                 terrane_int_support::Int::from(i128::from(delta)),
             );
@@ -2337,7 +2341,7 @@ impl terrane_callback_witness::Adjustable for Adjustable {
     }
     fn current(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = Adjustable::current(&*self);
+            let __terrane_value = <Adjustable>::current(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -2372,8 +2376,12 @@ impl Clone for Box<dyn AsyncEntryProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct AsyncEntry(Box<dyn AsyncEntryProtocol>);
+impl Clone for AsyncEntry {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl AsyncEntry {
     pub async fn shared(&self) -> terrane_int_support::Int {
         self.0.shared().await
@@ -2391,7 +2399,7 @@ impl terrane_callback_witness::AsyncEntry for AsyncEntry {
             let __terrane_value = {
                 let __terrane_receiver = self.clone();
                 __terrane_projected_async_entry(async move {
-                        AsyncEntry::shared(&__terrane_receiver).await
+                        <AsyncEntry>::shared(&__terrane_receiver).await
                     })
                     .await
             };
@@ -2410,7 +2418,7 @@ impl terrane_callback_witness::AsyncEntry for AsyncEntry {
             let __terrane_value = {
                 let mut __terrane_receiver = self.clone();
                 let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {
-                        let __terrane_output = AsyncEntry::mutable(
+                        let __terrane_output = <AsyncEntry>::mutable(
                                 &mut __terrane_receiver,
                             )
                             .await;
@@ -2433,7 +2441,7 @@ impl terrane_callback_witness::AsyncEntry for AsyncEntry {
     async fn consuming(self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = async {
             let __terrane_value = __terrane_projected_async_entry(async move {
-                    AsyncEntry::consuming(self).await
+                    <AsyncEntry>::consuming(self).await
                 })
                 .await;
             Ok(
@@ -2457,8 +2465,12 @@ impl Clone for Box<dyn DropAwareProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct DropAware(Box<dyn DropAwareProtocol>);
+impl Clone for DropAware {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Drop for DropAware {
     fn drop(&mut self) {}
 }
@@ -2470,7 +2482,7 @@ impl DropAware {
 impl terrane_callback_witness::DropAware for DropAware {
     fn label(&self) -> String {
         let __terrane_boundary: Result<String, crate::TerraneForeignError> = (|| {
-            let __terrane_value = DropAware::label(&*self);
+            let __terrane_value = <DropAware>::label(&*self);
             Ok(__terrane_value)
         })();
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
@@ -2487,8 +2499,12 @@ impl Clone for Box<dyn LocalAdjustableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct LocalAdjustable(Box<dyn LocalAdjustableProtocol>);
+impl Clone for LocalAdjustable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl LocalAdjustable {
     pub fn adjust(
         &mut self,
@@ -2503,7 +2519,7 @@ impl LocalAdjustable {
 impl terrane_callback_witness::LocalAdjustable for LocalAdjustable {
     fn adjust(&mut self, delta: i64) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = LocalAdjustable::adjust(
+            let __terrane_value = <LocalAdjustable>::adjust(
                 &mut *self,
                 terrane_int_support::Int::from(i128::from(delta)),
             );
@@ -2518,7 +2534,7 @@ impl terrane_callback_witness::LocalAdjustable for LocalAdjustable {
     }
     fn current(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
-            let __terrane_value = LocalAdjustable::current(&*self);
+            let __terrane_value = <LocalAdjustable>::current(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -3137,8 +3153,12 @@ impl Clone for Box<dyn RenderableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Renderable(Box<dyn RenderableProtocol>);
+impl Clone for Renderable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Renderable {
     pub fn render(&self, label_: String) -> String {
         self.0.render(label_)
@@ -3159,7 +3179,7 @@ impl Renderable {
 impl terrane_render_witness::Renderable for Renderable {
     fn render(&self, label_: String) -> String {
         let __terrane_boundary: Result<String, crate::TerraneForeignError> = (|| {
-            let __terrane_value = Renderable::render(&*self, label_);
+            let __terrane_value = <Renderable>::render(&*self, label_);
             Ok(__terrane_value)
         })();
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))

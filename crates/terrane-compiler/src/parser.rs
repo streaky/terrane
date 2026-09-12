@@ -211,7 +211,11 @@ impl Parser<'_> {
             let mut names = Vec::new();
             loop {
                 if self.at(TokenKind::Identifier) {
-                    names.push(self.leaf(SyntaxKind::Name));
+                    names.push(if clause_kind == SyntaxKind::ImplementsClause {
+                        self.parse_prefix_type()
+                    } else {
+                        self.leaf(SyntaxKind::Name)
+                    });
                 } else {
                     self.error_here("S1041", "object clause requires a declared object name");
                     self.recover_line();
@@ -1471,11 +1475,39 @@ impl Parser<'_> {
         self.peek_kind(offset) == Some(TokenKind::Identifier)
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
             && (self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
+                || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
+                    && self.grouped_binding_type_precedes_assignment(offset + 1))
                 || (has_prefix
                     && matches!(
                         self.peek_kind(offset + 1),
                         Some(TokenKind::Assign | TokenKind::Newline)
                     )))
+    }
+
+    fn grouped_binding_type_precedes_assignment(&self, offset: usize) -> bool {
+        let mut depth = 0usize;
+        let mut cursor = offset;
+        while let Some(kind) = self.peek_kind(cursor) {
+            match kind {
+                TokenKind::OpenParen => depth += 1,
+                TokenKind::CloseParen => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        cursor += 1;
+                        while self.peek_kind(cursor) == Some(TokenKind::Pipe)
+                            && self.peek_kind(cursor + 1) == Some(TokenKind::Identifier)
+                        {
+                            cursor += 2;
+                        }
+                        return self.peek_kind(cursor) == Some(TokenKind::Assign);
+                    }
+                }
+                TokenKind::Newline | TokenKind::Eof => return false,
+                _ => {}
+            }
+            cursor += 1;
+        }
+        false
     }
 
     fn looks_like_function_declaration(&self) -> bool {

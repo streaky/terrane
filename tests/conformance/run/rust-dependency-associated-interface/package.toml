@@ -1,0 +1,9 @@
+package = "rust-dependency-associated-interface"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-associated-witness]
+package = "terrane-associated-witness"
+version = "=0.1.0"
+effects = ["build"]

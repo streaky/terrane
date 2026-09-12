@@ -11,8 +11,12 @@ impl Clone for Box<dyn DescribableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Describable(Box<dyn DescribableProtocol>);
+impl Clone for Describable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Describable {
     pub fn describe(&self, prefix: String) -> String {
         self.0.describe(prefix)
@@ -105,7 +109,7 @@ impl From<Child> for Describable {
 }
 fn main() {
     let value: Child = Child::terrane_construct();
-    let view: Describable = Describable::from(value.clone());
+    let view: Describable = <Describable>::from(value.clone());
     let base_view: Base = Base::Child(value.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.describe(String::from("a-")))

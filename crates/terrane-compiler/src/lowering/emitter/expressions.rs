@@ -467,7 +467,7 @@ impl Emitter<'_> {
             };
             if destination.kind == ObjectKind::Interface {
                 return format!(
-                    "{}::from({expression})",
+                    "<{}>::from({expression})",
                     rust_object_type_name(self.package, expected)
                 );
             }

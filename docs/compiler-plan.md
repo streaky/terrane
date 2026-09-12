@@ -206,21 +206,24 @@ This section contains only work that remains required by the settled version-one
 
 ### Milestone 28.3 — Closed associated types and supertrait chains
 
-Extend projected interfaces only where an author can close the remaining trait obligations without
-source-declared generics. A projected trait with exactly one associated type may become an interface
-type constructor; `Interface of ConcreteType` supplies the explicit binding for `implements` and
-annotations. The applied interface has a complete canonical nominal identity containing the foreign
-trait, associated slot, and concrete type. Substitute that binding recursively through method
-contracts and reflection before ordinary conformance and lowering, emit the corresponding Rust
-associated type, and prove the complete implementation. Bare applications, inference from method
-shapes, multiple associated types, generic associated types, and unresolved or failed bounds remain
-declined.
+Projected interfaces admit one associated slot when a Terrane author can close every remaining
+obligation without source generics. `Interface of ConcreteType` supplies the explicit binding for
+`implements`, annotations, interface dispatch, concrete generic calls, and coherent owning erased
+crossings. `ConcreteType` is currently a closed boundary-representable scalar, aggregate, or
+projected foreign type; source-class bindings remain deferred until they have an explicit Rust
+boundary conversion contract. The applied interface has a canonical nominal identity containing
+the foreign trait and concrete Terrane type. Projection retains the slot name and bounds; semantic
+analysis substitutes the binding recursively through inherited method contracts, materializes its
+reflected descriptor, validates the bound, and lowering emits the corresponding Rust associated
+type.
 
-Admit a supertrait chain only when every member is independently projectable and implementable under
-the same rules. Conformance composes its requirements, emits each required foreign implementation
-once, and observes the canonical `Drop` lifecycle special case from milestone 28.2. Each associated
-or supertrait extension is entered only with an exercised dependency witness; this milestone does
-not introduce source type parameters or generic declarations.
+Supertrait closure is admitted recursively when every member is independently projectable and
+implementable. Import expansion brings the complete closure into the generated dependency source;
+conformance composes inherited requirements, and lowering emits each required foreign
+implementation once. Canonical `Drop` remains the lifecycle special case from milestone 28.2.
+Bare applications, shape inference, source-class bindings, multiple associated slots, generic
+associated types, failed bounds, unprojectable supertraits, and incoherent erased wrappers decline
+before lowering.
 
 Exit criterion: one associated-type dependency supports an explicit closed binding, Terrane
 interface annotation and dispatch across two conforming classes with the same binding, concrete and
@@ -228,6 +231,19 @@ coherent erased Rust crossings, reflection, and deterministic warning-free gener
 witness proves a complete supertrait chain. Focused rejects cover open or ambiguous application,
 multiple or generic associated slots, failed associated bounds, mismatched substitution,
 unprojectable supertraits, and an erased wrapper whose obligations cease to be coherent.
+
+Evidence: `rust-dependency-associated-interface` closes `Sequence::Item` as `int`, a projected
+foreign object, and `list of int`; implements and dispatches those applications through local
+classes; accepts inherited conformance from a subclass; and crosses concrete, applied-interface,
+and erased Rust inputs. `rust-dependency-supertrait-interface`
+proves a recursive and diamond supertrait closure, including an inherited provided method, without
+explicit source imports for the ancestors. `projected-associated-bare`,
+`projected-associated-open-value`, `projected-associated-open-local`,
+`projected-associated-mismatch`, `projected-associated-bound`,
+`projected-associated-unprojectable`, `projected-associated-two-slots`,
+`projected-associated-gat`, `projected-associated-erased-binding`, and
+`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 43 records
+structural call bindings, complete supertrait identities, and final-admission bound filtering.
 
 ### Milestone 30 — Terrane-native testing framework
 

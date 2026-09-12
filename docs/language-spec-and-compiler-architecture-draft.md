@@ -2087,7 +2087,7 @@ Repeated union arms denote one semantic alternative rather than distinct runtime
 normalizes them by canonical type identity and reports each repeated authored arm as `W4003`; aliases
 of the same descriptor therefore duplicate one another even when their spellings differ.
 Where a destination type is a union, an exact type match wins. Otherwise the compiler selects the unique arm that admits the value under the contextual-constant or numeric destination rules. If two or more arms admit it, the destination is ambiguous and compilation fails naming those arms; source order never breaks the tie. Thus an `int8` value selects `int8` from `int8|int`, while the constant `5` is ambiguous in `int8|int32`.
-A `T|none` destination is valid wherever a declared source type is valid, including binding declarations, parameter types, and function return types. It is not restricted to inferred results or compiler-owned checked operations.
+A `T|none` destination is valid wherever a declared source type is valid, including aggregate and callable `T`, binding declarations, parameter types, and function return types. It is not restricted to inferred results, scalar/object arms, or compiler-owned checked operations.
 
 The word `of` applies a parameterised type constructor using the language's fixed constructor-application grammar:
 
@@ -2095,6 +2095,8 @@ The word `of` applies a parameterised type constructor using the language's fixe
 items list of string = list;
 stacks array of vm-struct|none, nr-cached-stacks
 callback function from int, ref opaque to int
+projected-items list of sequence of int = list;
+maybe-sequence (sequence of int)|none = none
 ```
 
 Packages may supply type-constructor objects, but they cannot add type-expression grammar. Every constructor argument is parsed into the same unified constructor-argument syntax node; the parser does not guess whether an identifier denotes a type or a compile-time value. Semantic analysis resolves each argument against the constructor's declared signature and reports whether a type, constant value, or other permitted compile-time object was required. Thus `array of vm-struct|none, nr-cached-stacks` can accept a type followed by a constant extent without lexer or parser knowledge of `array`.
@@ -4509,6 +4511,38 @@ projection retains every `Send`/`Sync` object bound, and the shim boxes either a
 the exact generated interface wrapper. Bare or borrowed trait objects, non-interface `Box<T>`,
 multiple non-auto trait-object principals, boxed trait-object results, and erased wrappers that do
 not promise the required auto traits decline before lowering.
+An applied projected subinterface wrapper also satisfies an ancestor's owning erased boundary when
+the inherited associated binding and auto-trait obligations agree.
+A source subclass inherits the complete effective projected-interface set of its base classes.
+Semantic generic-bound selection and generated foreign implementations consume that same closure,
+including every closed associated binding; neither stage inspects only the leaf declaration.
+
+A projected trait closure may contain exactly one non-generic associated type. Its Terrane
+interface is then a type constructor: `Interface of ConcreteType` is required everywhere a value
+type or `implements` clause uses it. The concrete argument must currently be a closed
+boundary-representable scalar, aggregate, or projected foreign type; source-class arguments remain
+deferred until an explicit Rust boundary conversion contract exists. That application is part of
+nominal identity. Semantic analysis recursively resolves applied types used as aggregate arguments,
+so `list of Interface of ConcreteType` retains the applied identity as its item type. Because `|`
+belongs to the current `of` argument, `(Interface of ConcreteType)|none` uses grouping when the
+completed application rather than its argument is optional. The binding classifier recognizes
+that grouped type before the following assignment. Semantic analysis materializes the closed
+descriptor, substitutes its argument recursively through method contracts and inherited
+requirements, validates the retained Rust bounds, and never infers the slot from matching method
+shapes. Lowering emits `type Slot = RustType` in every corresponding foreign implementation.
+Owning `Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the same binding and remain
+subject to the ordinary erased auto-trait proof. The closed-application requirement is recursive
+through aggregate and callable annotations; an unapplied projected interface nested in any such
+type is rejected before lowering.
+
+Non-marker supertraits are projected recursively only when every ancestor is independently
+admissible. Import expansion carries the complete closure, conformance includes every inherited
+requirement, and lowering emits one Rust implementation for each distinct ancestor. The whole
+closure may expose only one associated slot. Bare or mismatched applications, multiple or generic
+slots, failed bounds, unprojectable ancestors, and incoherent erased bindings decline before Rust
+lowering.
+After the final oracle admission pass, a generic function is retained only when every
+interface-shaped input bound still names an admitted projected interface.
 
 The projection oracle records `Send` and `Sync` separately for each closed foreign type. Semantic
 conformance walks the complete effective local-class field graph, including nested source classes
@@ -5555,6 +5589,8 @@ Projected-interface boundary diagnostics reserve one contiguous source-semantic 
 - `T0125`: a projected async implementation has no asynchronous package entry/runtime context;
 - `T0126`: a retained or boxed projected call argument fails its written lifetime or auto-trait
   obligation.
+- `T0127`: a projected associated interface is used open, bound to an unrepresentable or
+  incompatible type, or fails an associated-type bound.
 
 These codes identify distinct proof failures and remain stable even when their implementation
 shares field-graph or projection metadata.

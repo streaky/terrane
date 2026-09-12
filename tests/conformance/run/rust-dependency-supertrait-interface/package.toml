@@ -1,0 +1,9 @@
+package = "rust-dependency-supertrait-interface"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-supertrait-witness]
+package = "terrane-supertrait-witness"
+version = "=0.1.0"
+effects = ["build"]

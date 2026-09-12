@@ -1,0 +1,9 @@
+package = "projected-unprojectable-supertrait"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-bad-supertrait-witness]
+package = "terrane-bad-supertrait-witness"
+version = "=0.1.0"
+effects = ["build"]

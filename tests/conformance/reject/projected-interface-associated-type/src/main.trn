@@ -1,2 +1,8 @@
 namespace app
 from /deps/terrane-render-witness import AssociatedValue
+
+class open-associated implements AssociatedValue
+    function value int;
+        return 1
+
+function main;

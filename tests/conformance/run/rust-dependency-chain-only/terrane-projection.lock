@@ -220,6 +220,10 @@
         ],
         [
           "/deps/sqlx-core/testing",
+          "TestFn"
+        ],
+        [
+          "/deps/sqlx-core/testing",
           "TestTermination"
         ],
         [
@@ -310,7 +314,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "40",
+  "projection_schema": "43",
   "removed": [],
   "resolution": {
     "events": [

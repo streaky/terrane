@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import Sequence as sequence
+
+class open-sequence implements sequence
+    function first int|none;
+        return none
+
+    function length int;
+        return 0
+
+function main;

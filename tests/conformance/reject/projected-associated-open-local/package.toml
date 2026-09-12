@@ -1,0 +1,9 @@
+package = "projected-associated-open-local"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-associated-reject-witness]
+package = "terrane-associated-reject-witness"
+version = "=0.1.0"
+effects = ["build"]

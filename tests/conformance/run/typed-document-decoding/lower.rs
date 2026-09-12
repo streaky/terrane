@@ -1841,8 +1841,12 @@ impl Clone for Box<dyn SerializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Serializable(Box<dyn SerializableProtocol>);
+impl Clone for Serializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Serializable {
     pub fn to_document(&self) -> DocumentValue {
         self.0.to_document()
@@ -1858,8 +1862,12 @@ impl Clone for Box<dyn DeserializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
+impl Clone for Deserializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Deserializable {
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         self.0.from_document(value)
@@ -1878,8 +1886,12 @@ impl Clone for Box<dyn DocumentDecodableProtocol> {
     dead_code,
     reason = "marker interface storage is materialized only when a value is erased to that marker"
 )]
-#[derive(Clone)]
 pub struct DocumentDecodable(Box<dyn DocumentDecodableProtocol>);
+impl Clone for DocumentDecodable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentDecodable {}
 pub trait DocumentValidatableProtocol {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
@@ -1891,8 +1903,12 @@ impl Clone for Box<dyn DocumentValidatableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
+impl Clone for DocumentValidatable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentValidatable {
     pub fn validate_document(&self) -> Option<String> {
         self.0.validate_document()

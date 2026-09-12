@@ -413,6 +413,25 @@ impl<'a> Emitter<'a> {
                         crate::projection::ProjectedKind::Interface(interface) => Some(interface),
                         _ => None,
                     });
+                let associated_bounds = projected_requirements
+                    .and_then(|interface| interface.associated_type.as_ref())
+                    .map(|associated| {
+                        let bounds = associated.bounds.join(" + ");
+                        if bounds.is_empty() {
+                            "'static".to_owned()
+                        } else {
+                            format!("'static + {bounds}")
+                        }
+                    });
+                let generic_declaration = associated_bounds
+                    .as_ref()
+                    .map_or_else(String::new, |bounds| {
+                        format!("<TerraneAssociated: {bounds}>")
+                    });
+                let generic_use = associated_bounds
+                    .as_ref()
+                    .map_or("", |_| "<TerraneAssociated>");
+                let protocol_use = format!("{protocol}{generic_use}");
                 let transfer_bounds = if projected_requirements
                     .is_some_and(|item| item.send && item.sync)
                     || object.identity.namespace == "/core/logging"
@@ -426,10 +445,14 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
-                self.line(&format!("pub trait {protocol}{transfer_bounds} {{"));
+                self.line(&format!(
+                    "pub trait {protocol}{generic_declaration}{transfer_bounds} {{"
+                ));
                 self.indent += 1;
-                self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol}>;"));
-                self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
+                self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol_use}>;"));
+                self.line(&format!(
+                    "fn separate_box(&self) -> Box<dyn {protocol_use}>;"
+                ));
                 for method in &methods {
                     self.line_start();
                     let receiver = match method.written_invocation_mode {
@@ -467,21 +490,25 @@ impl<'a> Emitter<'a> {
                 self.indent -= 1;
                 self.line("}");
                 self.line(&format!(
-                    "impl Clone for Box<dyn {protocol}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
+                    "impl{generic_declaration} Clone for Box<dyn {protocol_use}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
                 ));
                 if methods.is_empty() {
                     self.line(
                         "#[allow(dead_code, reason = \"marker interface storage is materialized only when a value is erased to that marker\")]",
                     );
                 }
-                self.line("#[derive(Clone)]");
-                self.line(&format!("pub struct {name}(Box<dyn {protocol}>);"));
+                self.line(&format!(
+                    "pub struct {name}{generic_declaration}(Box<dyn {protocol_use}>);"
+                ));
+                self.line(&format!(
+                    "impl{generic_declaration} Clone for {name}{generic_use} {{ fn clone(&self) -> Self {{ Self(self.0.clone()) }} }}"
+                ));
                 if projected_requirements.is_some_and(|item| item.requires_drop) {
                     self.line(&format!(
-                        "impl Drop for {name} {{ fn drop(&mut self) {{}} }}"
+                        "impl{generic_declaration} Drop for {name}{generic_use} {{ fn drop(&mut self) {{}} }}"
                     ));
                 }
-                self.line(&format!("impl {name} {{"));
+                self.line(&format!("impl{generic_declaration} {name}{generic_use} {{"));
                 self.indent += 1;
                 for method in &methods {
                     self.line_start();
@@ -529,15 +556,31 @@ impl<'a> Emitter<'a> {
                 }
                 self.indent -= 1;
                 self.line("}");
-                if self
+                if let Some(projected_item) = self
                     .package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
-                    .is_some_and(|item| {
-                        matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
-                    })
+                    && let crate::projection::ProjectedKind::Interface(interface) =
+                        &projected_item.kind
                 {
-                    self.projected_interface_implementation(object, &object.identity);
+                    if interface.associated_type.is_some() {
+                        let applications = self
+                            .unit
+                            .descriptors
+                            .iter()
+                            .filter(|candidate| {
+                                candidate.kind == ObjectKind::Interface
+                                    && candidate.identity.base() == object.identity
+                                    && candidate.identity.application.is_some()
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        for applied in applications {
+                            self.projected_interface_implementation(&applied, &applied.identity);
+                        }
+                    } else {
+                        self.projected_interface_implementation(object, &object.identity);
+                    }
                 }
             }
             ObjectKind::Trait => {}
@@ -957,7 +1000,9 @@ impl<'a> Emitter<'a> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                for interface_identity in effective_object_interfaces(self.unit, object) {
+                for interface_identity in
+                    crate::semantics::effective_object_interfaces(self.package, object)
+                {
                     if interface_identity.namespace == "/core/errors"
                         && interface_identity.name == "throwable"
                     {
@@ -986,7 +1031,18 @@ impl<'a> Emitter<'a> {
                         .find(|candidate| candidate.identity == *interface_identity)
                         .expect("validated interface contract");
                     let interface_type = rust_object_type_name(self.package, &interface.identity);
-                    let protocol = format!("{interface_type}Protocol");
+                    let interface_base =
+                        rust_object_type_name(self.package, &interface.identity.base());
+                    let protocol = format!(
+                        "{interface_base}Protocol{}",
+                        interface_identity.application.as_deref().map_or_else(
+                            String::new,
+                            |application| format!(
+                                "<{}>",
+                                rust_value_type(self.package, application.clone())
+                            )
+                        )
+                    );
                     let class_type = rust_object_type_name(self.package, &object.identity);
                     self.line(&format!("impl {protocol} for {class_type} {{"));
                     self.indent += 1;
@@ -1002,7 +1058,16 @@ impl<'a> Emitter<'a> {
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                         ));
                     }
-                    for method in effective_object_methods(interface_unit, interface) {
+                    let interface_methods = effective_object_methods(interface_unit, interface)
+                        .into_iter()
+                        .map(|method| {
+                            crate::semantics::bind_projected_requirement(
+                                method,
+                                interface_identity.application.as_deref(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    for method in &interface_methods {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
                             .find(|candidate| {
@@ -1118,9 +1183,12 @@ impl<'a> Emitter<'a> {
                                 InvocationMode::Mutable => "&mut *self",
                                 InvocationMode::Consuming => "*self",
                             };
+                            let owner_rust_path = projected_method
+                                .owner_rust_path
+                                .as_deref()
+                                .unwrap_or(&projected_item.rust_path);
                             let call = format!(
-                                "<{class_type} as {}>::{}({receiver}, {rust_arguments})",
-                                projected_item.rust_path,
+                                "<{class_type} as {owner_rust_path}>::{}({receiver}, {rust_arguments})",
                                 rust_name(&method.name)
                             );
                             let call = if method.is_async {
@@ -1234,109 +1302,188 @@ impl<'a> Emitter<'a> {
             return;
         };
         let trait_path = projected_item.rust_path.clone();
-        let interface = interface.clone();
-        let class_type = rust_object_type_name(self.package, &object.identity);
-        self.line(&format!("impl {trait_path} for {class_type} {{"));
-        self.indent += 1;
-        for projected in interface.methods {
-            if object.kind == ObjectKind::Interface && projected.provided {
-                continue;
-            }
-            let method = projected.function;
-            let Some(implementation) = effective_object_methods(self.unit, object)
-                .into_iter()
-                .find(|candidate| candidate.name == method.name && !candidate.is_static)
-            else {
-                continue;
-            };
-            self.line_start();
-            if method.is_async {
-                self.output.push_str("async ");
-            }
-            let receiver = match (method.receiver, implementation.written_invocation_mode) {
-                (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => "mut self",
-                (Some(crate::projection::Receiver::Move), _) => "self",
-                (Some(crate::projection::Receiver::MutableBorrow), _) => "&mut self",
-                _ => "&self",
-            };
-            write!(self.output, "fn {}({receiver}", rust_name(&method.name))
-                .expect("writing to a string cannot fail");
-            for parameter in &method.parameters {
-                let mut ty = parameter.ty.rust_type();
-                if parameter.borrowed {
-                    ty = format!(
-                        "&{}{}",
-                        if parameter.mutable_borrow { "mut " } else { "" },
-                        ty
-                    );
+        let mut interface = interface.clone();
+        let associated_application = interface_identity
+            .application
+            .as_deref()
+            .map(|application| {
+                crate::semantics::destination_projected_type(self.package, application)
+                    .expect("validated projected associated type")
+            });
+        if let Some(application) = &associated_application {
+            for method in &mut interface.methods {
+                for parameter in &mut method.function.parameters {
+                    parameter.ty.bind_associated(application);
                 }
-                write!(self.output, ", {}: {ty}", rust_name(&parameter.name))
-                    .expect("writing to a string cannot fail");
+                method.function.result.bind_associated(application);
             }
-            self.output.push(')');
-            let rust_result = method.result.rust_type();
-            if method.result != crate::projection::ProjectedType::None {
-                write!(self.output, " -> {rust_result}").expect("writing to a string cannot fail");
-            }
-            self.output.push_str(" {\n");
-            self.indent += 1;
-            let arguments = method
-                .parameters
-                .iter()
-                .map(|parameter| {
-                    projected_callback_input_expression(&rust_name(&parameter.name), &parameter.ty)
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            let receiver = match (method.receiver, implementation.written_invocation_mode) {
-                (Some(crate::projection::Receiver::Move), InvocationMode::Shared) => "&self",
-                (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => "&mut self",
-                (Some(crate::projection::Receiver::Move), InvocationMode::Consuming) => "self",
-                (_, InvocationMode::Shared) => "&*self",
-                (_, InvocationMode::Mutable) => "&mut *self",
-                (_, InvocationMode::Consuming) => {
-                    unreachable!("validated projected interface mode compatibility")
-                }
-            };
-            let await_ = if method.is_async { ".await" } else { "" };
-            let terrane_call = format!(
-                "{class_type}::{}({receiver}, {arguments}){await_}",
-                rust_name(&method.name)
-            );
-            let terrane_call = if method.is_async && interface.send {
-                match method.receiver {
-                    Some(crate::projection::Receiver::Borrow) => format!(
-                        "{{ let __terrane_receiver = self.clone(); __terrane_projected_async_entry(async move {{ {class_type}::{}(&__terrane_receiver, {arguments}).await }}).await }}",
-                        rust_name(&method.name)
-                    ),
-                    Some(crate::projection::Receiver::MutableBorrow) => format!(
-                        "{{ let mut __terrane_receiver = self.clone(); let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {{ let __terrane_output = {class_type}::{}(&mut __terrane_receiver, {arguments}).await; (__terrane_output, __terrane_receiver) }}).await; *self = __terrane_receiver; __terrane_output }}",
-                        rust_name(&method.name)
-                    ),
-                    Some(crate::projection::Receiver::Move) => format!(
-                        "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
-                    ),
-                    None => terrane_call,
-                }
+        }
+        let generic_bounds = interface.associated_type.as_ref().map(|associated| {
+            let bounds = associated.bounds.join(" + ");
+            if bounds.is_empty() {
+                "'static".to_owned()
             } else {
-                terrane_call
+                format!("'static + {bounds}")
+            }
+        });
+        let generic_declaration =
+            if object.kind == ObjectKind::Interface && interface_identity.application.is_none() {
+                generic_bounds.as_ref().map_or_else(String::new, |bounds| {
+                    format!("<TerraneAssociated: {bounds}>")
+                })
+            } else {
+                String::new()
             };
-            let converted = projected_callback_output_expression("__terrane_value", &method.result);
-            if method.is_async {
-                self.line(&format!(
+        let mut class_type = rust_object_type_name(self.package, &object.identity);
+        if !generic_declaration.is_empty() {
+            class_type.push_str("<TerraneAssociated>");
+        }
+        let implementation_paths = if object.kind == ObjectKind::Interface {
+            interface
+                .supertraits
+                .iter()
+                .map(|supertrait| supertrait.rust_path.clone())
+                .chain(std::iter::once(trait_path))
+                .collect::<Vec<_>>()
+        } else {
+            vec![trait_path]
+        };
+        for implementation_path in implementation_paths {
+            self.line(&format!(
+                "impl{generic_declaration} {implementation_path} for {class_type} {{"
+            ));
+            self.indent += 1;
+            if let Some(associated) = &interface.associated_type
+                && associated
+                    .rust_path
+                    .rsplit_once("::")
+                    .map(|(owner, _)| owner)
+                    == Some(implementation_path.as_str())
+            {
+                let application = associated_application.as_ref().map_or_else(
+                    || "TerraneAssociated".to_owned(),
+                    crate::projection::ProjectedType::rust_type,
+                );
+                self.line(&format!("type {} = {application};", associated.name));
+            }
+            for projected in interface
+                .methods
+                .iter()
+                .filter(|method| {
+                    method.owner_rust_path.as_deref() == Some(implementation_path.as_str())
+                })
+                .cloned()
+            {
+                if object.kind == ObjectKind::Interface && projected.provided {
+                    continue;
+                }
+                let method = projected.function;
+                let Some(implementation) = effective_object_methods(self.unit, object)
+                    .into_iter()
+                    .find(|candidate| candidate.name == method.name && !candidate.is_static)
+                else {
+                    continue;
+                };
+                self.line_start();
+                if method.is_async {
+                    self.output.push_str("async ");
+                }
+                let receiver = match (method.receiver, implementation.written_invocation_mode) {
+                    (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => {
+                        "mut self"
+                    }
+                    (Some(crate::projection::Receiver::Move), _) => "self",
+                    (Some(crate::projection::Receiver::MutableBorrow), _) => "&mut self",
+                    _ => "&self",
+                };
+                write!(self.output, "fn {}({receiver}", rust_name(&method.name))
+                    .expect("writing to a string cannot fail");
+                for parameter in &method.parameters {
+                    let mut ty = parameter.ty.rust_type();
+                    if parameter.borrowed {
+                        ty = format!(
+                            "&{}{}",
+                            if parameter.mutable_borrow { "mut " } else { "" },
+                            ty
+                        );
+                    }
+                    write!(self.output, ", {}: {ty}", rust_name(&parameter.name))
+                        .expect("writing to a string cannot fail");
+                }
+                self.output.push(')');
+                let rust_result = method.result.rust_type();
+                if method.result != crate::projection::ProjectedType::None {
+                    write!(self.output, " -> {rust_result}")
+                        .expect("writing to a string cannot fail");
+                }
+                self.output.push_str(" {\n");
+                self.indent += 1;
+                let arguments = method
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        projected_callback_input_expression(
+                            &rust_name(&parameter.name),
+                            &parameter.ty,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let receiver = match (method.receiver, implementation.written_invocation_mode) {
+                    (Some(crate::projection::Receiver::Move), InvocationMode::Shared) => "&self",
+                    (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => {
+                        "&mut self"
+                    }
+                    (Some(crate::projection::Receiver::Move), InvocationMode::Consuming) => "self",
+                    (_, InvocationMode::Shared) => "&*self",
+                    (_, InvocationMode::Mutable) => "&mut *self",
+                    (_, InvocationMode::Consuming) => {
+                        unreachable!("validated projected interface mode compatibility")
+                    }
+                };
+                let await_ = if method.is_async { ".await" } else { "" };
+                let terrane_call = format!(
+                    "<{class_type}>::{}({receiver}, {arguments}){await_}",
+                    rust_name(&method.name)
+                );
+                let terrane_call = if method.is_async && interface.send {
+                    match method.receiver {
+                        Some(crate::projection::Receiver::Borrow) => format!(
+                            "{{ let __terrane_receiver = self.clone(); __terrane_projected_async_entry(async move {{ <{class_type}>::{}(&__terrane_receiver, {arguments}).await }}).await }}",
+                            rust_name(&method.name)
+                        ),
+                        Some(crate::projection::Receiver::MutableBorrow) => format!(
+                            "{{ let mut __terrane_receiver = self.clone(); let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {{ let __terrane_output = <{class_type}>::{}(&mut __terrane_receiver, {arguments}).await; (__terrane_output, __terrane_receiver) }}).await; *self = __terrane_receiver; __terrane_output }}",
+                            rust_name(&method.name)
+                        ),
+                        Some(crate::projection::Receiver::Move) => format!(
+                            "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
+                        ),
+                        None => terrane_call,
+                    }
+                } else {
+                    terrane_call
+                };
+                let converted =
+                    projected_callback_output_expression("__terrane_value", &method.result);
+                if method.is_async {
+                    self.line(&format!(
                     "let __terrane_boundary: Result<{rust_result}, crate::TerraneForeignError> = async {{ let __terrane_value = {terrane_call}; Ok({converted}) }}.await;"
                 ));
-            } else {
-                self.line(&format!(
+                } else {
+                    self.line(&format!(
                     "let __terrane_boundary: Result<{rust_result}, crate::TerraneForeignError> = (|| {{ let __terrane_value = {terrane_call}; Ok({converted}) }})();"
                 ));
+                }
+                self.line(
+                    "__terrane_boundary.unwrap_or_else(|error| panic!(\"{}\", error.render()))",
+                );
+                self.indent -= 1;
+                self.line("}");
             }
-            self.line("__terrane_boundary.unwrap_or_else(|error| panic!(\"{}\", error.render()))");
             self.indent -= 1;
             self.line("}");
         }
-        self.indent -= 1;
-        self.line("}");
     }
 
     pub(super) fn function(&mut self, node: &SyntaxNode) {

@@ -11,8 +11,12 @@ impl Clone for Box<dyn ReadableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Readable(Box<dyn ReadableProtocol>);
+impl Clone for Readable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Readable {
     pub fn read(&self) -> terrane_int_support::Int {
         self.0.read()
@@ -69,7 +73,7 @@ impl Drop for Counter {
     }
 }
 fn main() {
-    let original: Readable = Readable::from(Counter::terrane_construct());
+    let original: Readable = <Readable>::from(Counter::terrane_construct());
     let copied: Readable = original.terrane_separate();
     println!("{}", terrane_scalar_support::scalar_text(&original.read()));
     println!("{}", terrane_scalar_support::scalar_text(&copied.read()));

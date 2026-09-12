@@ -734,8 +734,9 @@ clones remain within one lineage and cannot multiply the hook. Subclass values r
 directly declared state at arbitrary inheritance depth; methods access their flattened storage
 directly, while nested base wrappers recursively forward inherited instance-field reads and writes
 and overridden methods to the preserved concrete value. Static fields are never forwarded through
-instances. Subclasses inherit their bases' declared interface conformance. Declared named
-interfaces state complete method signatures and written invocation modes, require explicit
+instances. Subclasses inherit their bases' declared interface conformance; projected generic calls
+and generated foreign implementations use that same complete effective interface closure. Declared
+named interfaces state complete method signatures and written invocation modes, require explicit
 `implements`, and lower as typed dispatch contracts. Traits reuse source fields and methods through
 `uses`, are not type objects or Rust-style contracts, and reject unresolved multi-trait conflicts.
 
@@ -978,14 +979,23 @@ Projected async methods require a `Send` interface and async `main` runtime cont
 classes require consuming async receivers. Rust-owned cancellation detaches receiver state, runs
 nested `finally`, releases it, and is drained before executor shutdown. Packages without task
 scope, projected async entry, or async `finally` retain the small runtime; a sync main with an
-otherwise unused async function requires no Tokio runtime. Other wrapped receivers, static and
-generic methods, unresolved associated types, higher-ranked lifetimes, unsupported owning
-containers, and unprojectable members remain explicit stable declines.
+otherwise unused async function requires no Tokio runtime. One non-generic associated slot may be
+closed explicitly as `Interface of ConcreteType`; the concrete argument is currently limited to a
+closed boundary-representable scalar, aggregate, or projected foreign type, with source-class
+arguments deferred pending an explicit Rust boundary conversion contract. That applied nominal
+identity is retained recursively through permitted aggregate and optional annotations, reflection,
+conformance, generic and erased Rust crossings, and generated associated-type declarations.
+Grouping places optionality outside an application: `(Interface of ConcreteType)|none`.
+Independently projectable supertraits form a recursive, diamond-safe requirement and implementation
+closure. Bare or inferred applications,
+source-class arguments, multiple or generic associated slots, failed bounds, incoherent erased
+bindings, other wrapped receivers, static and generic methods, higher-ranked lifetimes, unsupported
+owning containers, and unprojectable members or supertraits remain explicit stable declines.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 40 retains these contracts alongside explicit root, continuation, and terminal
+Projection schema 43 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument

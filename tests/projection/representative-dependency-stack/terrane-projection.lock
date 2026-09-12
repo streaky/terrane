@@ -3443,6 +3443,10 @@
           "InvalidBackoff"
         ],
         [
+          "/deps/tower/retry/backoff",
+          "MakeBackoff"
+        ],
+        [
           "/deps/tower/retry/budget",
           "Budget"
         ],
@@ -4829,11 +4833,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "48260594af6eb0cc4764af1ba8324ea44be881c41fe1d3fdd90e9155b2129dd4",
+  "cache_identity": "b473591bc487b3e2941812f289aa1b7b5645473cd6ccd7f479835a773328837b",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "40",
-  "content_hash": "afc214dd7fd1ce3f63f1ac33c70b04f41f844a51fa32e3e5097ac2da41fcf5de",
+  "projection_schema": "43",
+  "content_hash": "f13389392bdf4b44f16c02b9e270f7ac46fdff9e8412b553dc5d93ad587c139a",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

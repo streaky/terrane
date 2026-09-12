@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 38; trait admission limited to self/&self/&mut self, declining wrapped receivers and reducing tokio/tower-http instance/static totals"
+reviewed-against = "projection schema 43; final oracle admission prunes orphaned bound functions while preserving structural associated bindings and complete supertrait identities"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"
@@ -111,15 +111,15 @@ classification = "destination-directed closed specialization is still required f
 [[dependency]]
 name = "tower"
 version = "0.5.3"
-projected-count = 17
-declined-count = 275
+projected-count = 18
+declined-count = 274
 instance-count = 0
 static-count = 3
 canonical-members = ["/deps/tower/limit::RateLimitLayer"]
 instance-members = []
 static-members = []
 required-gaps = ["tower::ServiceBuilder<Identity>::service: open generic S"]
-classification = "default generic identity is reusable; non-escaping builder chains still need specialization"
+classification = "default generic identity is reusable and one closed associated interface is projected; non-escaping builder chains still need specialization"
 
 [[dependency]]
 name = "tower-http"

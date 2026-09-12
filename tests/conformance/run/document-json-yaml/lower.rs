@@ -772,11 +772,11 @@ fn main() {
         terrane_scalar_support::scalar_text(&constructor_result.value.encoded)
     );
     let encoded_note: DocumentResult = encode_json(
-        Serializable::from(Note::terrane_construct(String::from("hello"))),
+        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
         options.clone(),
     );
     let encoded_yaml_note: DocumentResult = encode_yaml(
-        Serializable::from(Note::terrane_construct(String::from("hello"))),
+        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&encoded_note.value.encoded),
@@ -835,7 +835,7 @@ fn main() {
     );
     let decoded_through_interface: DocumentResult = decode_json(
         String::from("{\"name\":\"Ada\"}"),
-        Deserializable::from(mapping.clone()),
+        <Deserializable>::from(mapping.clone()),
         options.clone(),
     );
     println!(
@@ -896,7 +896,7 @@ fn main() {
     );
     let yaml_decoded: DocumentResult = decode_yaml(
         String::from("name: Ada"),
-        Deserializable::from(mapping.clone()),
+        <Deserializable>::from(mapping.clone()),
         make_yaml_options(
             terrane_int_support::Int::from(32_i128),
             terrane_int_support::Int::from(1024_i128),
@@ -1008,8 +1008,12 @@ impl Clone for Box<dyn SerializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Serializable(Box<dyn SerializableProtocol>);
+impl Clone for Serializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Serializable {
     pub fn to_document(&self) -> DocumentValue {
         self.0.to_document()
@@ -1025,8 +1029,12 @@ impl Clone for Box<dyn DeserializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
+impl Clone for Deserializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Deserializable {
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         self.0.from_document(value)
@@ -1045,8 +1053,12 @@ impl Clone for Box<dyn DocumentDecodableProtocol> {
     dead_code,
     reason = "marker interface storage is materialized only when a value is erased to that marker"
 )]
-#[derive(Clone)]
 pub struct DocumentDecodable(Box<dyn DocumentDecodableProtocol>);
+impl Clone for DocumentDecodable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentDecodable {}
 pub trait DocumentValidatableProtocol {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
@@ -1058,8 +1070,12 @@ impl Clone for Box<dyn DocumentValidatableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
+impl Clone for DocumentValidatable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentValidatable {
     pub fn validate_document(&self) -> Option<String> {
         self.0.validate_document()

@@ -86,5 +86,8 @@ pub(crate) use model::{
     FloatMemberOperation, StringFamily, canonical_default, float_member_contract,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
-pub(crate) use objects::{EffectiveObjectField, effective_object_fields};
+pub(crate) use objects::{
+    EffectiveObjectField, bind_projected_requirement, destination_projected_type,
+    effective_object_fields, effective_object_interfaces,
+};
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

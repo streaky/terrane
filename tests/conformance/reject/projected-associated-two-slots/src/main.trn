@@ -1,0 +1,5 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import TwoSlots as two-slots
+
+function main;

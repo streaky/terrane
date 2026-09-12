@@ -1,5 +1,49 @@
 use super::prelude::*;
 
+fn open_projected_associated_interface(unit: &SemanticUnit, value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Object(identity) => {
+            identity.application.is_none()
+                && unit
+                    .projected_interfaces_requiring_application
+                    .contains(&identity.base())
+        }
+        ValueType::Optional(inner) => open_projected_associated_interface(unit, inner),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::AsyncIterationStep(item)
+        | ValueType::ChannelPair(item)
+        | ValueType::ChannelSender(item)
+        | ValueType::ChannelReceiver(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::DocumentDecodeOutcome(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            open_projected_associated_interface(unit, item.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            open_projected_associated_interface(unit, key.value_type_ref())
+                || open_projected_associated_interface(unit, value.value_type_ref())
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            parameters.iter().any(|parameter| {
+                open_projected_associated_interface(unit, parameter.value_type_ref())
+            }) || open_projected_associated_interface(unit, result.value_type_ref())
+        }
+        _ => false,
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "binding analysis keeps destination selection and initialization validation together"
@@ -155,6 +199,19 @@ pub(super) fn analyze_binding_node(
             })
         })
         .transpose()?;
+    if declared_value
+        .as_ref()
+        .is_some_and(|value_type| open_projected_associated_interface(unit, value_type))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0127",
+            "a projected interface annotation requires one closed associated type",
+            declared
+                .expect("declared value type has a syntax node")
+                .span,
+        ));
+    }
     if declared_value.is_none()
         && let Some(initializer) = initializer
         && let Some(identity) = empty_collection_identity(unit, initializer, bindings)
@@ -435,15 +492,102 @@ pub(super) fn declared_value_type_with_visible_objects(
                     union.span,
                 ));
             }
-            if !matches!(inner, ValueType::Scalar(_) | ValueType::Object(_)) {
+            return Ok(ValueType::Optional(Box::new(inner)));
+        }
+    }
+    if shape.kind == SyntaxKind::GroupExpression
+        && let Some(inner) = shape.children.first()
+    {
+        return declared_value_type_with_visible_objects(unit, inner, aliases, visible_objects);
+    }
+    if shape.kind == SyntaxKind::AppliedType
+        && let Some((base, arguments)) = shape.children.split_first()
+    {
+        let base_name = node_text(&unit.source, base).trim();
+        let resolve_argument = |argument: &SyntaxNode| {
+            declared_value_type_with_visible_objects(unit, argument, aliases, visible_objects)
+        };
+        if let [argument] = arguments {
+            let construct = match base_name {
+                "list" => Some(ValueType::List as fn(ElementType) -> ValueType),
+                "tuple" => {
+                    Some((|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType)
+                }
+                "set" => Some(ValueType::Set as fn(ElementType) -> ValueType),
+                "unordered-set" => Some(ValueType::UnorderedSet as fn(ElementType) -> ValueType),
+                "channel-sender" => Some(ValueType::ChannelSender as fn(ElementType) -> ValueType),
+                "channel-receiver" => {
+                    Some(ValueType::ChannelReceiver as fn(ElementType) -> ValueType)
+                }
+                "iterator" => Some(ValueType::Iterator as fn(ElementType) -> ValueType),
+                "iteration-step" => Some(ValueType::IterationStep as fn(ElementType) -> ValueType),
+                "async-iteration-step" => {
+                    Some(ValueType::AsyncIterationStep as fn(ElementType) -> ValueType)
+                }
+                _ => None,
+            };
+            if let Some(construct) = construct {
+                let item = ElementType::new(resolve_argument(argument)?);
+                if matches!(base_name, "set" | "unordered-set") && item.scalar().is_none() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0001",
+                        format!("`{base_name}` requires a scalar item type"),
+                        argument.span,
+                    ));
+                }
+                return Ok(construct(item));
+            }
+        }
+        if let [key_node, value_node] = arguments
+            && let Some(construct) = match base_name {
+                "map" => Some(ValueType::Map as fn(ElementType, ElementType) -> ValueType),
+                "unordered-map" => {
+                    Some(ValueType::UnorderedMap as fn(ElementType, ElementType) -> ValueType)
+                }
+                "entry" => Some(ValueType::Entry as fn(ElementType, ElementType) -> ValueType),
+                _ => None,
+            }
+        {
+            let key = ElementType::new(resolve_argument(key_node)?);
+            if key.scalar().is_none() {
                 return Err(failure(
                     &unit.source,
                     "T0001",
-                    "a general optional type requires a scalar or object value",
-                    union.span,
+                    format!("`{base_name}` requires a scalar key type"),
+                    key_node.span,
                 ));
             }
-            return Ok(ValueType::Optional(Box::new(inner)));
+            return Ok(construct(
+                key,
+                ElementType::new(resolve_argument(value_node)?),
+            ));
+        }
+        if let [argument] = arguments {
+            let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
+                scope.symbols.get(base_name).and_then(|symbols| {
+                    symbols.iter().rev().find_map(|symbol| {
+                        matches!(
+                            symbol.kind,
+                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        )
+                        .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+                    })
+                })
+            });
+            let object_identity = lexical_identity
+                .or_else(|| visible_objects.get(base_name).cloned())
+                .or_else(|| {
+                    unit.descriptors
+                        .iter()
+                        .find(|object| object.builtin.is_none() && object.name == base_name)
+                        .map(|object| object.identity.clone())
+                });
+            if let Some(identity) = object_identity {
+                return Ok(ValueType::Object(
+                    identity.with_application(resolve_argument(argument)?),
+                ));
+            }
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -474,67 +618,8 @@ pub(super) fn declared_value_type_with_visible_objects(
     if let Some(identity) = object_identity {
         return Ok(ValueType::Object(identity));
     }
-    for (constructor, construct) in [
-        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
-        (
-            "tuple of ",
-            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
-        ),
-        (
-            "channel-sender of ",
-            ValueType::ChannelSender as fn(ElementType) -> ValueType,
-        ),
-        (
-            "channel-receiver of ",
-            ValueType::ChannelReceiver as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iterator of ",
-            ValueType::Iterator as fn(ElementType) -> ValueType,
-        ),
-    ] {
-        if let Some(argument) = type_name.strip_prefix(constructor) {
-            let argument = argument.trim();
-            let lexical_identity =
-                lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
-                    scope.symbols.get(argument).and_then(|symbols| {
-                        symbols.iter().rev().find_map(|symbol| {
-                            matches!(
-                                symbol.kind,
-                                SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
-                            )
-                            .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
-                        })
-                    })
-                });
-            let object_identity = lexical_identity
-                .or_else(|| visible_objects.get(argument).cloned())
-                .or_else(|| {
-                    unit.descriptors
-                        .iter()
-                        .find(|object| object.builtin.is_none() && object.name == argument)
-                        .map(|object| object.identity.clone())
-                });
-            if let Some(identity) = object_identity {
-                return Ok(construct(ElementType::new(ValueType::Object(identity))));
-            }
-            if let Some(inner_name) = argument.strip_prefix("shared ref ") {
-                let inner_name = inner_name.trim();
-                let identity = visible_objects.get(inner_name).cloned().or_else(|| {
-                    unit.descriptors
-                        .iter()
-                        .find(|object| object.builtin.is_none() && object.name == inner_name)
-                        .map(|object| object.identity.clone())
-                });
-                if let Some(identity) = identity {
-                    return Ok(construct(ElementType::new(ValueType::SharedReference(
-                        ElementType::new(ValueType::Object(identity)),
-                    ))));
-                }
-            }
-        }
-    }
     match type_name {
+        "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
         "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
         "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
@@ -1021,7 +1106,7 @@ fn callable_types_compatible(
         && callable_effects_compatible(objects, expected_effects, actual_effects)
 }
 
-fn object_types_compatible(
+pub(super) fn object_types_compatible(
     objects: &[DescriptorContract],
     expected: &ObjectIdentity,
     actual: &ObjectIdentity,
@@ -1037,7 +1122,11 @@ fn object_types_compatible(
         .iter()
         .find(|object| object.identity == *actual)
         .is_some_and(|object| {
-            if object.interfaces.contains(expected) {
+            if object
+                .interfaces
+                .iter()
+                .any(|interface| interface == expected || interface.base() == *expected)
+            {
                 return true;
             }
             let mut base = object.base.as_ref();
@@ -1046,7 +1135,12 @@ fn object_types_compatible(
                 else {
                     break;
                 };
-                if base_object.identity == *expected || base_object.interfaces.contains(expected) {
+                if base_object.identity == *expected
+                    || base_object
+                        .interfaces
+                        .iter()
+                        .any(|interface| interface == expected || interface.base() == *expected)
+                {
                     return true;
                 }
                 base = base_object.base.as_ref();

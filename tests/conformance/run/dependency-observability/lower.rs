@@ -904,8 +904,12 @@ impl Clone for Box<dyn LogValueProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct LogValue(Box<dyn LogValueProtocol>);
+impl Clone for LogValue {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl LogValue {
     pub fn render(&self) -> DocumentValue {
         self.0.render()
@@ -1013,13 +1017,13 @@ impl From<ErrorLogValue> for LogValue {
     }
 }
 pub fn log_document(value: DocumentValue) -> LogValue {
-    return LogValue::from(DocumentLogValue::terrane_construct(value.clone()));
+    return <LogValue>::from(DocumentLogValue::terrane_construct(value.clone()));
 }
 pub fn log_text(value: String) -> LogValue {
-    return LogValue::from(TextLogValue::terrane_construct(value));
+    return <LogValue>::from(TextLogValue::terrane_construct(value));
 }
 pub fn log_error(value: TerraneError) -> LogValue {
-    return LogValue::from(ErrorLogValue::terrane_construct(value.render()));
+    return <LogValue>::from(ErrorLogValue::terrane_construct(value.render()));
 }
 #[derive(Clone)]
 pub struct LogField {
@@ -1037,7 +1041,7 @@ impl LogField {
     ) -> Self {
         let mut value = Self {
             name: String::from(""),
-            value: LogValue::from(TextLogValue::terrane_construct(String::from(""))),
+            value: <LogValue>::from(TextLogValue::terrane_construct(String::from(""))),
             secret: false,
             source: String::from(""),
         };
@@ -1766,8 +1770,12 @@ impl Clone for Box<dyn SerializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Serializable(Box<dyn SerializableProtocol>);
+impl Clone for Serializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Serializable {
     pub fn to_document(&self) -> DocumentValue {
         self.0.to_document()
@@ -1783,8 +1791,12 @@ impl Clone for Box<dyn DeserializableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
+impl Clone for Deserializable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Deserializable {
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         self.0.from_document(value)
@@ -1803,8 +1815,12 @@ impl Clone for Box<dyn DocumentDecodableProtocol> {
     dead_code,
     reason = "marker interface storage is materialized only when a value is erased to that marker"
 )]
-#[derive(Clone)]
 pub struct DocumentDecodable(Box<dyn DocumentDecodableProtocol>);
+impl Clone for DocumentDecodable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentDecodable {}
 pub trait DocumentValidatableProtocol {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
@@ -1816,8 +1832,12 @@ impl Clone for Box<dyn DocumentValidatableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
+impl Clone for DocumentValidatable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl DocumentValidatable {
     pub fn validate_document(&self) -> Option<String> {
         self.0.validate_document()

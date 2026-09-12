@@ -12,8 +12,12 @@ impl Clone for Box<dyn AdjustableProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Adjustable(Box<dyn AdjustableProtocol>);
+impl Clone for Adjustable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Adjustable {
     pub fn increase(
         &mut self,
@@ -69,7 +73,7 @@ impl From<Counter> for Adjustable {
     }
 }
 fn main() {
-    let mut value: Adjustable = Adjustable::from(Counter::terrane_construct());
+    let mut value: Adjustable = <Adjustable>::from(Counter::terrane_construct());
     println!(
         "{}", terrane_scalar_support::scalar_text(&value
         .increase(terrane_int_support::Int::from(4_i128)))
