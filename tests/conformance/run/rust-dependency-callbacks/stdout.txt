@@ -14,3 +14,9 @@ BORROWED
 OPAQUE
 7
 9
+1212
+1111
+drop-aware-destruct
+drop-aware
+async-entry-destruct
+6

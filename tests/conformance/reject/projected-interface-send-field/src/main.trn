@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-send-witness import Foreign as foreign, Worker as worker, foreign as make-foreign
+
+class unsafe-worker implements worker
+    item foreign = make-foreign;
+
+    function value int;
+        return 1
