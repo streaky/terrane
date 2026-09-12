@@ -1,0 +1,9 @@
+package = "projected-interface-sync-field"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-sync-witness]
+package = "terrane-sync-witness"
+version = "=0.1.0"
+effects = ["build"]

@@ -16,7 +16,9 @@ OPAQUE
 9
 1212
 1111
+44
+33
 drop-aware-destruct
 drop-aware
-async-entry-destruct
 6
+true

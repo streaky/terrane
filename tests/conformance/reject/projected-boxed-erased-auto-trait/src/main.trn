@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-erased-reject-witness import LocalWorker as local-worker, retain_boxed_send
+
+class local-value implements local-worker
+    function run int;
+        return 1
+
+function main;
+    erased local-worker = instance local-value;
+    retain_boxed_send; erased

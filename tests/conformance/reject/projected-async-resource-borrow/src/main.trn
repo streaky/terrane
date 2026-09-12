@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import UniqueToken as unique-token, AsyncWorker as async-worker, unique_token as make-unique-token
+
+class resource-async implements async-worker
+    token unique-token = make-unique-token;
+
+    async function run int;
+        return 1
+
+async function main;

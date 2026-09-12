@@ -106,7 +106,7 @@ pub fn open_callback<T, F: Fn(T) -> T>(value: T, callback: F) -> T {
     callback(value)
 }
 
-pub trait Adjustable: Send {
+pub trait Adjustable: Send + Sync {
     fn adjust(&mut self, delta: i64) -> i64;
     fn current(&self) -> i64;
 }
@@ -135,8 +135,33 @@ pub fn retain_adjustable<T: Adjustable + 'static>(value: T) -> AdjustableOwner {
     }
 }
 
-pub fn retain_boxed_adjustable(value: Box<dyn Adjustable>) -> AdjustableOwner {
+pub fn retain_boxed_adjustable(value: Box<dyn Adjustable + Send + Sync>) -> AdjustableOwner {
     AdjustableOwner { value }
+}
+
+pub trait LocalAdjustable {
+    fn adjust(&mut self, delta: i64) -> i64;
+    fn current(&self) -> i64;
+}
+
+pub struct LocalAdjustableOwner {
+    value: Box<dyn LocalAdjustable>,
+}
+
+impl LocalAdjustableOwner {
+    pub fn adjust(&mut self, delta: i64) -> i64 {
+        self.value.adjust(delta)
+    }
+
+    pub fn current(&self) -> i64 {
+        self.value.current()
+    }
+}
+
+pub fn retain_local_adjustable<T: LocalAdjustable + 'static>(value: T) -> LocalAdjustableOwner {
+    LocalAdjustableOwner {
+        value: Box::new(value),
+    }
 }
 
 pub struct DropToken;
@@ -175,6 +200,10 @@ pub fn record_async_entry_cleanup() {
     ASYNC_ENTRY_CLEANED.fetch_add(1, Ordering::SeqCst);
 }
 
+pub fn async_entry_cleanup_count() -> usize {
+    ASYNC_ENTRY_CLEANED.load(Ordering::SeqCst)
+}
+
 async fn poll_once_and_drop<F: std::future::Future>(future: F) {
     let mut future = Box::pin(future);
     std::future::poll_fn(|context| {
@@ -184,23 +213,30 @@ async fn poll_once_and_drop<F: std::future::Future>(future: F) {
     .await;
 }
 
-async fn wait_for_cleanups(expected: usize) {
-    for _ in 0..128 {
-        if ASYNC_ENTRY_CLEANED.load(Ordering::SeqCst) >= expected {
-            tokio::task::yield_now().await;
-            return;
-        }
-        tokio::task::yield_now().await;
-    }
-}
-
-pub async fn cancel_async_entry<T: AsyncEntry + 'static>(mut value: T) -> usize {
+pub async fn cancel_async_entry<T: AsyncEntry + 'static>(mut value: T) -> bool {
     ASYNC_ENTRY_CLEANED.store(0, Ordering::SeqCst);
     poll_once_and_drop(value.shared()).await;
-    wait_for_cleanups(2).await;
     poll_once_and_drop(value.mutable()).await;
-    wait_for_cleanups(4).await;
     poll_once_and_drop(value.consuming()).await;
-    wait_for_cleanups(6).await;
-    ASYNC_ENTRY_CLEANED.load(Ordering::SeqCst)
+    true
+}
+
+pub fn borrowed_adjustable(value: &dyn Adjustable) -> i64 {
+    value.current()
+}
+
+pub fn boxed_string(value: Box<String>) -> usize {
+    value.len()
+}
+
+pub fn return_boxed_adjustable() -> Box<dyn Adjustable + Send + Sync> {
+    panic!("projection-only boxed result witness")
+}
+
+#[allow(
+    async_fn_in_trait,
+    reason = "the witness records rejection of non-Send asynchronous projected interfaces"
+)]
+pub trait LocalAsyncEntry {
+    async fn run(&self) -> i64;
 }

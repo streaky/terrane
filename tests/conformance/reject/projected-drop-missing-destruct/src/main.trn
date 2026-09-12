@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import UniqueToken as unique-token, DropWorker as drop-worker, unique_token as make-unique-token
+
+class missing-destruct implements drop-worker
+    token unique-token = make-unique-token;
+
+    function run int;
+        return 1
+
+function main;

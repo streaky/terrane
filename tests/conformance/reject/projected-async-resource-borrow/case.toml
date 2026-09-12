@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0124"
+contains = "cancellation cleanup cannot be separated"

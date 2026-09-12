@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-sync-witness import SyncForeign as sync-foreign, Worker as worker, sync_foreign as make-sync-foreign
+
+class unsafe-worker implements worker
+    item sync-foreign = make-sync-foreign;
+
+    function value int;
+        return 1

@@ -32,6 +32,22 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "LocalAdjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner.adjust"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner.current"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "Marker"
         ],
         [
@@ -76,6 +92,10 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "async_entry_cleanup_count"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "cancel_async_entry"
         ],
         [
@@ -113,6 +133,10 @@
         [
           "/deps/terrane-callback-witness",
           "retain_boxed_adjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "retain_local_adjustable"
         ],
         [
           "/deps/terrane-callback-witness",
@@ -156,7 +180,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "39",
+  "projection_schema": "40",
   "removed": [],
   "resolution": {
     "events": [

@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import AsyncWorker as async-worker
+
+class contextless-async implements async-worker
+    async function run int;
+        return 1
+
+function main;

@@ -1,0 +1,9 @@
+package = "projected-drop-missing-destruct"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-boundary-reject-witness]
+package = "terrane-boundary-reject-witness"
+version = "=0.1.0"
+effects = ["build"]

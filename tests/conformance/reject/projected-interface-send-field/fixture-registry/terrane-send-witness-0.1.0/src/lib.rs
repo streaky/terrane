@@ -1,8 +1,8 @@
 #[derive(Clone)]
-pub struct Foreign;
+pub struct Foreign(std::rc::Rc<()>);
 
 pub fn foreign() -> Foreign {
-    Foreign
+    Foreign(std::rc::Rc::new(()))
 }
 
 pub trait Worker: Send {
