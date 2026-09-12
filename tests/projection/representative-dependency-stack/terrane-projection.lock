@@ -4833,11 +4833,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "4a97efb4163023c69955787b5914cf7226e82a846f96445b8ed4f7027bdc8f1d",
+  "cache_identity": "b473591bc487b3e2941812f289aa1b7b5645473cd6ccd7f479835a773328837b",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "42",
-  "content_hash": "94e84ca263bcd780bdd8037cabd284c382a063a102206c1da690e46e3838227a",
+  "projection_schema": "43",
+  "content_hash": "f13389392bdf4b44f16c02b9e270f7ac46fdff9e8412b553dc5d93ad587c139a",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

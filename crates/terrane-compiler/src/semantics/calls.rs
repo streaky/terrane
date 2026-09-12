@@ -381,17 +381,17 @@ fn validate_projected_generic_arguments(
             parameter.ty,
             crate::projection::ProjectedType::BoxedInterface { .. }
         );
+        let interface_matches_required = required.as_ref().is_some_and(|required| {
+            boxed_interface
+                && implementor.kind == ObjectKind::Interface
+                && implementor.identity.base() == *required
+        });
         let implemented = required.as_ref().and_then(|required| {
             implementor.interfaces.iter().find(|implemented| {
                 implemented.namespace == required.namespace && implemented.name == required.name
             })
         });
-        let implements_required = implemented.is_some()
-            || required.as_ref().is_some_and(|required| {
-                boxed_interface
-                    && implementor.kind == ObjectKind::Interface
-                    && implementor.identity.base() == *required
-            });
+        let implements_required = implemented.is_some() || interface_matches_required;
         if !implements_required {
             return Err(failure(
                 &unit.source,
@@ -411,15 +411,9 @@ fn validate_projected_generic_arguments(
             let application = implemented
                 .and_then(|implemented| implemented.application.as_deref())
                 .or_else(|| {
-                    (boxed_interface
-                        && implementor.kind == ObjectKind::Interface
-                        && implementor.identity.base()
-                            == required
-                                .as_ref()
-                                .expect("resolved projected interface")
-                                .base())
-                    .then_some(implementor.identity.application.as_deref())
-                    .flatten()
+                    interface_matches_required
+                        .then_some(implementor.identity.application.as_deref())
+                        .flatten()
                 });
             let actual = application
                 .map(|application| destination_projected_type(package, application))

@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 42; structural associated bindings and complete supertrait identities preserve the reviewed dependency surface"
+reviewed-against = "projection schema 43; final oracle admission prunes orphaned bound functions while preserving structural associated bindings and complete supertrait identities"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"

@@ -1,13 +1,48 @@
 use super::prelude::*;
 
 fn open_projected_associated_interface(unit: &SemanticUnit, value_type: &ValueType) -> bool {
-    let ValueType::Object(identity) = value_type else {
-        return false;
-    };
-    identity.application.is_none()
-        && unit
-            .projected_interfaces_requiring_application
-            .contains(&identity.base())
+    match value_type {
+        ValueType::Object(identity) => {
+            identity.application.is_none()
+                && unit
+                    .projected_interfaces_requiring_application
+                    .contains(&identity.base())
+        }
+        ValueType::Optional(inner) => open_projected_associated_interface(unit, inner),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::AsyncIterationStep(item)
+        | ValueType::ChannelPair(item)
+        | ValueType::ChannelSender(item)
+        | ValueType::ChannelReceiver(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::DocumentDecodeOutcome(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            open_projected_associated_interface(unit, item.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            open_projected_associated_interface(unit, key.value_type_ref())
+                || open_projected_associated_interface(unit, value.value_type_ref())
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            parameters.iter().any(|parameter| {
+                open_projected_associated_interface(unit, parameter.value_type_ref())
+            }) || open_projected_associated_interface(unit, result.value_type_ref())
+        }
+        _ => false,
+    }
 }
 #[expect(
     clippy::too_many_lines,

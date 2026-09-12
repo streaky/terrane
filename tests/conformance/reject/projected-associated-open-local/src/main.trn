@@ -1,6 +1,7 @@
 namespace app
 
 from /deps/terrane-associated-reject-witness import Sequence as sequence
+from /core/collections import list
 
 class closed-sequence implements sequence of int
     function first int|none;
@@ -10,4 +11,4 @@ class closed-sequence implements sequence of int
         return 0
 
 function main;
-    item sequence = instance closed-sequence;
+    items list of sequence = list; (instance closed-sequence;)

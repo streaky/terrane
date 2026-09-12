@@ -41,5 +41,7 @@ function main;
     print; (erased-total; (instance named-ints;))
     applied sequence of int = instance ints;
     print; (erased-total; applied)
+    applied-named named-sequence of int = instance named-ints;
+    print; (erased-total; applied-named)
     print; (interface-length; (instance ints;))
     print; (interface-length; (instance named-ints;))

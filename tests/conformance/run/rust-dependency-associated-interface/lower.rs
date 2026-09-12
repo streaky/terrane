@@ -420,7 +420,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 6] = [
+    pub static SITES: [Site; 7] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:37:13-37:45) */
         { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 45 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:38:13-38:52) */
@@ -433,6 +433,8 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 49 } },
         /* terrane-site-row: site 5: /app::main (src/main.trn:43:13-43:34) */
         { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 34 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:45:13-45:40) */
+        { Site { function: 0, file: 0, line: 45, column: 13, end_line: 45, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -764,6 +766,16 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
         5 /* terrane-site: src/main.trn:43:13-43:34 */))
+    );
+    let applied_named: TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
+        terrane_int_support::Int,
+    > = <TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
+        terrane_int_support::Int,
+    >>::from(NamedInts::terrane_construct());
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied_named),
+        6 /* terrane-site: src/main.trn:45:13-45:40 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&interface_length(<

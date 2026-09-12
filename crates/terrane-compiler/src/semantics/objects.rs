@@ -1962,6 +1962,22 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
         let Some(application) = identity.application.as_deref() else {
             continue;
         };
+        let inherited_interfaces = package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .and_then(|item| match &item.kind {
+                crate::projection::ProjectedKind::Interface(interface) => Some(interface),
+                _ => None,
+            })
+            .into_iter()
+            .flat_map(|interface| &interface.supertraits)
+            .map(|supertrait| ObjectIdentity {
+                namespace: supertrait.namespace.clone(),
+                name: supertrait.name.clone(),
+                application: identity.application.clone(),
+                application_key: identity.application_key.clone(),
+            })
+            .collect::<Vec<_>>();
         let projectable = package
             .projection
             .item(&identity.namespace, &identity.name)
@@ -1997,6 +2013,11 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
             let mut bound_interface = interface;
             bound_interface.identity = identity.clone();
             bound_interface.name = identity.to_string();
+            for inherited in &inherited_interfaces {
+                if !bound_interface.interfaces.contains(inherited) {
+                    bound_interface.interfaces.push(inherited.clone());
+                }
+            }
             let methods = projected_methods
                 .get(&base)
                 .into_iter()

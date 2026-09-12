@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "42";
+const PROJECTION_SCHEMA: &str = "43";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1364,6 +1364,37 @@ fn decline_unproven_projected_interfaces(
         }
     }
 }
+fn decline_functions_with_missing_generic_interfaces(projected: &mut [ProjectedDependency]) {
+    let projected_interfaces = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
+        .map(|item| item.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    for dependency in projected {
+        let mut retained = Vec::with_capacity(dependency.items.len());
+        for item in std::mem::take(&mut dependency.items) {
+            let declined_bound = match &item.kind {
+                ProjectedKind::Function(function) => function
+                    .parameters
+                    .iter()
+                    .filter_map(|parameter| parameter.generic_interface.as_ref())
+                    .find(|bound| !projected_interfaces.contains(*bound))
+                    .cloned(),
+                _ => None,
+            };
+            if let Some(bound) = declined_bound {
+                dependency.declined.push(DeclinedItem {
+                    rust_path: item.rust_path,
+                    reason: format!("generic input references declined interface `{bound}`"),
+                });
+            } else {
+                retained.push(item);
+            }
+        }
+        dependency.items = retained;
+    }
+}
 /// Resolves every declared Rust package and derives the shared Terrane projection.
 ///
 /// # Errors
@@ -1616,6 +1647,7 @@ pub fn resolve(
         reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
     });
     decline_unnameable_bound_owners(&mut projected, dependencies, &workspace)?;
+    decline_functions_with_missing_generic_interfaces(&mut projected);
     let bound_dependencies = projected_bound_dependencies(&projected, dependencies, &workspace)?;
     let mut projection = Projection {
         cache_identity: identity,
@@ -3709,6 +3741,9 @@ fn project_rustdoc(
             rewrite_projected_rust_root(&mut parameter.ty, &package_root, &dependency_root);
             if let Some(associated) = &mut parameter.associated_type {
                 rewrite_projected_rust_root(&mut associated.ty, &package_root, &dependency_root);
+            }
+            if let Some(interface) = &mut parameter.generic_interface {
+                *interface = rewrite_rust_bound_root(interface, &package_root, &dependency_root);
             }
         }
         rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
@@ -5875,8 +5910,9 @@ mod tests {
     use super::{
         ArtifactDependency, Containment, DeclinedItem, InvocationMode, ProjectedBoundDependency,
         ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
-        ProjectedType, Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution,
-        ProjectionSource, Receiver, ResolutionOutcome, apply_projection_history,
+        ProjectedParameter, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
+        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
+        apply_projection_history, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
         projectable_interface_bound, projection_content_hash, prune_projection_cache,
@@ -6068,7 +6104,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_impl_witness_declines_only_the_unproven_interface() {
+    fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
         let mut dependencies = vec![ProjectedDependency {
             name: "witness".to_owned(),
             package: "witness".to_owned(),
@@ -6104,6 +6140,32 @@ mod tests {
                         declined_methods: Vec::new(),
                     }),
                 },
+                ProjectedItem {
+                    namespace: "/deps/witness".to_owned(),
+                    name: "rejected_total".to_owned(),
+                    rust_path: "witness::rejected_total".to_owned(),
+                    docs: None,
+                    kind: ProjectedKind::Function(ProjectedFunction {
+                        name: "rejected_total".to_owned(),
+                        parameters: vec![ProjectedParameter {
+                            name: "value".to_owned(),
+                            ty: ProjectedType::Generic("T".to_owned()),
+                            borrowed: false,
+                            mutable_borrow: false,
+                            generic_parameter: Some("T".to_owned()),
+                            generic_bounds: vec!["witness::Rejected".to_owned()],
+                            generic_interface: Some("witness::Rejected".to_owned()),
+                            associated_type: None,
+                        }],
+                        result: ProjectedType::Int,
+                        destination_result: None,
+                        error: None,
+                        is_async: false,
+                        execution_requirements: None,
+                        chain_role: None,
+                        receiver: None,
+                    }),
+                },
             ],
             declined: Vec::new(),
         }];
@@ -6116,12 +6178,21 @@ mod tests {
         }];
 
         decline_unproven_projected_interfaces(&mut dependencies, &evidence);
+        decline_functions_with_missing_generic_interfaces(&mut dependencies);
 
         assert_eq!(dependencies[0].items[0].rust_path, "witness::Proven");
         assert_eq!(dependencies[0].declined[0].rust_path, "witness::Rejected");
         assert_eq!(
             dependencies[0].declined[0].reason,
             "trait implementation signature is not representable against the resolved dependency"
+        );
+        assert_eq!(
+            dependencies[0].declined[1],
+            DeclinedItem {
+                rust_path: "witness::rejected_total".to_owned(),
+                reason: "generic input references declined interface `witness::Rejected`"
+                    .to_owned(),
+            }
         );
     }
 
