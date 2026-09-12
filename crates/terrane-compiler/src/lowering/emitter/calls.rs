@@ -1227,9 +1227,13 @@ impl Emitter<'_> {
                 let projected_parameter = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index));
-                let expression = if projected_parameter
-                    .is_some_and(|parameter| parameter.generic_parameter.is_some())
-                {
+                let expression = if projected_parameter.is_some_and(|parameter| {
+                    parameter.generic_parameter.is_some()
+                        || matches!(
+                            parameter.ty,
+                            crate::projection::ProjectedType::BoxedInterface { .. }
+                        )
+                }) {
                     self.expression(value)
                 } else if let Some(ty) = parameter.value_type.clone() {
                     self.expression_as(value, ty)

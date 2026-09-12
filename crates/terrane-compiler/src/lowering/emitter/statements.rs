@@ -424,14 +424,7 @@ impl Emitter<'_> {
             .children
             .iter()
             .any(|child| child.kind == SyntaxKind::FinallyClause);
-        let cancellation_aware = asynchronous
-            && has_finally
-            && package_uses_task_scope(self.package)
-            && self.package.units.iter().any(|unit| {
-                unit.functions
-                    .iter()
-                    .any(|function| function.name == "main" && function.is_async)
-            });
+        let cancellation_aware = asynchronous && has_finally;
         let closure_start = if asynchronous { "async {" } else { "(|| {" };
         let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;

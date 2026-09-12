@@ -610,15 +610,21 @@ pub(super) fn propagate_resource_ownership(
 
     for unit in &package.units {
         for object in &unit.descriptors {
-            if object.resource_owning
-                && (object.base.is_some()
-                    || !object.interfaces.is_empty()
-                    || !object.traits.is_empty())
-            {
+            let has_copyable_object_contract = object.base.is_some()
+                || !object.traits.is_empty()
+                || object.interfaces.iter().any(|interface| {
+                    !package
+                        .projection
+                        .item(&interface.namespace, &interface.name)
+                        .is_some_and(|item| {
+                            matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                        })
+                });
+            if object.resource_owning && has_copyable_object_contract {
                 return Err(failure(
                     &unit.source,
                     "T0098",
-                    "a resource-owning class cannot extend, implement, or use copyable object contracts",
+                    "a resource-owning class cannot extend or use a copyable object contract",
                     object.span,
                 ));
             }
@@ -774,6 +780,78 @@ pub(super) fn validate_object_conformance(
                         object.span,
                     ));
                 };
+                if let Some(crate::projection::ProjectedKind::Interface(projected)) = package
+                    .projection
+                    .item(&resolved_interface.namespace, &resolved_interface.name)
+                    .map(|item| &item.kind)
+                    && (projected.send || projected.sync)
+                    && let Some(field) =
+                        effective_object_fields(package, object)
+                            .into_iter()
+                            .find(|field| {
+                                !field.is_static
+                                    && !value_type_is_task_transferable(&field.value_type)
+                            })
+                {
+                    let requirement = if projected.sync { "`Sync`" } else { "`Send`" };
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0122",
+                        format!(
+                            "class `{}` cannot implement `{}` because field `{}` does not satisfy the projected {requirement} obligation",
+                            object.name, resolved_interface.name, field.name
+                        ),
+                        field.span,
+                    ));
+                }
+                if package
+                    .projection
+                    .item(&resolved_interface.namespace, &resolved_interface.name)
+                    .and_then(|item| match &item.kind {
+                        crate::projection::ProjectedKind::Interface(projected) => {
+                            Some(projected.requires_drop)
+                        }
+                        _ => None,
+                    })
+                    == Some(true)
+                    && effective_method(declaration_unit, object, "destruct").is_none()
+                {
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0123",
+                        format!(
+                            "class `{}` must declare `consuming destruct` to implement projected interface `{}` because it requires canonical Rust `Drop`",
+                            object.name, resolved_interface.name
+                        ),
+                        object.span,
+                    ));
+                }
+                if object.resource_owning
+                    && package
+                        .projection
+                        .item(&resolved_interface.namespace, &resolved_interface.name)
+                        .and_then(|item| match &item.kind {
+                            crate::projection::ProjectedKind::Interface(projected) => {
+                                projected.methods.iter().find(|method| {
+                                    method.function.is_async
+                                        && method.function.receiver
+                                            != Some(crate::projection::Receiver::Move)
+                                })
+                            }
+                            _ => None,
+                        })
+                        .is_some()
+                {
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0124",
+                        format!(
+                            "resource-owning class `{}` cannot implement projected asynchronous borrowed receiver `{}` because cancellation cleanup cannot be separated from the ended Rust borrow",
+                            object.name, resolved_interface.name
+                        ),
+                        object.span,
+                    ));
+                }
                 if resolved_interface.identity == "/core/errors::throwable" {
                     let has_message = object.fields.iter().any(|field| {
                         field.name == "message"

@@ -340,7 +340,7 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
-        let Some((_, class)) = package.units.iter().find_map(|owner| {
+        let Some((_, implementor)) = package.units.iter().find_map(|owner| {
             owner
                 .descriptors
                 .iter()
@@ -350,19 +350,16 @@ fn validate_projected_generic_arguments(
             return Err(failure(
                 &unit.source,
                 "T0121",
-                "immediate projected generic bounds require a concrete source class argument",
+                "projected interface bounds require a source object argument",
                 value.span,
             ));
         };
-        if class.kind != ObjectKind::Class {
-            return Err(failure(
-                &unit.source,
-                "T0121",
-                "interface-typed values cannot select an immediate projected generic bound",
-                value.span,
-            ));
-        }
-        let expected_rust_path = parameter.ty.rust_type();
+        let expected_rust_path = match &parameter.ty {
+            crate::projection::ProjectedType::BoxedInterface { trait_path, .. } => {
+                trait_path.clone()
+            }
+            _ => parameter.ty.rust_type(),
+        };
         let required = package
             .projection
             .dependencies
@@ -376,13 +373,60 @@ fn validate_projected_generic_arguments(
                 namespace: item.namespace.clone(),
                 name: item.name.clone(),
             });
-        if required.is_some_and(|required| !class.interfaces.contains(&required)) {
+        let boxed_interface = matches!(
+            parameter.ty,
+            crate::projection::ProjectedType::BoxedInterface { .. }
+        );
+        let implements_required = required.as_ref().is_some_and(|required| {
+            implementor.interfaces.contains(required)
+                || boxed_interface
+                    && implementor.kind == ObjectKind::Interface
+                    && implementor.identity == *required
+        });
+        if !implements_required {
             return Err(failure(
                 &unit.source,
                 "T0121",
                 format!(
-                    "class `{}` does not implement the projected bound `{expected_rust_path}`",
-                    class.identity.name
+                    "object `{}` does not implement the projected bound `{expected_rust_path}`",
+                    implementor.identity.name
+                ),
+                value.span,
+            ));
+        }
+        if implementor.kind != ObjectKind::Class && !boxed_interface {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                "interface-typed values cannot select a projected source generic bound",
+                value.span,
+            ));
+        }
+        let requires_static = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| matches!(bound.as_str(), "'static" | "static"));
+        let requires_thread_safe = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| bound.ends_with("::Send") || bound.ends_with("::Sync"));
+        if implementor.kind == ObjectKind::Class
+            && (requires_static || requires_thread_safe)
+            && let Some(field) = effective_object_fields(package, implementor)
+                .into_iter()
+                .find(|field| {
+                    !field.is_static
+                        && (requires_static && !value_type_is_owned_static(&field.value_type)
+                            || requires_thread_safe
+                                && !value_type_is_task_transferable(&field.value_type))
+                })
+        {
+            return Err(failure(
+                &unit.source,
+                "T0122",
+                format!(
+                    "class `{}` cannot cross the retained projected boundary because field `{}` does not satisfy its lifetime and thread obligations",
+                    implementor.identity.name, field.name
                 ),
                 value.span,
             ));

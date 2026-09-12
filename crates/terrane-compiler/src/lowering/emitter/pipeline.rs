@@ -150,7 +150,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             )
         })
     });
-    let native_cancellation = package_uses_task_scope(package) && has_async_entry;
+    let native_cancellation = has_async;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.descriptors.iter().any(|object| {

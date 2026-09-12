@@ -801,7 +801,7 @@ pub(super) fn reference_has_stable_local_owner(
         })
 }
 
-fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
+pub(super) fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
     match value_type {
         ValueType::Reference(_) => false,
         ValueType::Object(identity) => !identity.namespace.starts_with("/deps/"),
@@ -826,6 +826,28 @@ fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
         | ValueType::Task(_, transferability)
         | ValueType::ScopedTask(_, transferability) => {
             *transferability == TaskTransferability::Transferable
+        }
+        _ => true,
+    }
+}
+
+pub(super) fn value_type_is_owned_static(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Reference(_) => false,
+        ValueType::Optional(inner) => value_type_is_owned_static(inner),
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::SharedReference(inner) => value_type_is_owned_static(inner.value_type_ref()),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_is_owned_static(key.value_type_ref())
+                && value_type_is_owned_static(value.value_type_ref())
         }
         _ => true,
     }
