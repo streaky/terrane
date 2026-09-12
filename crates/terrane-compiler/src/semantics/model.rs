@@ -262,7 +262,7 @@ pub(super) fn iteration_target_bindings(
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
-    pub application: Option<Box<ValueType>>,
+    pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
 }
 

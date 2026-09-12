@@ -3001,7 +3001,7 @@ fn project_interface(
     paths: &HashMap<Id, ItemSummary>,
     rust_path: &str,
 ) -> Result<ProjectedInterface, String> {
-    project_interface_inner(declaration, index, paths, rust_path, false)
+    project_interface_inner(declaration, index, paths, rust_path)
 }
 
 #[expect(
@@ -3013,7 +3013,6 @@ fn project_interface_inner(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     rust_path: &str,
-    _inherited: bool,
 ) -> Result<ProjectedInterface, String> {
     if declaration.is_unsafe {
         return Err("unsafe trait".to_owned());
@@ -3056,7 +3055,7 @@ fn project_interface_inner(
                 let supertrait_rust_path =
                     render_resolved_path(trait_, index, paths, &BTreeMap::new())?;
                 let projected =
-                    project_interface_inner(supertrait, index, paths, &supertrait_rust_path, true)?;
+                    project_interface_inner(supertrait, index, paths, &supertrait_rust_path)?;
                 send |= projected.send;
                 sync |= projected.sync;
                 requires_drop |= projected.requires_drop;
