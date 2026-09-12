@@ -3727,17 +3727,17 @@ measured workspace suite all agree on the removal, ordering, lifetime, and perfo
 Implemented evidence: compiler-owned descriptors, inference, effect validation, ownership
 diagnostics, and canonical Rust lowering now cover `map`/`unordered-map` `.remove` and
 `.remove.checked`, plus stable `list.sort` and `list.sort.descending`. The collection runtime checks
-a shared miss before copy-on-write separation, uses ordered `shift_remove`, maintains an unordered
-iteration-position index for expected amortized constant-time deletion, and calls Rust's stable
-slice sort with monomorphic scalar comparators.
+a shared miss before copy-on-write separation, uses ordered `shift_remove`, stores each unordered
+key's iteration position beside its value for expected amortized constant-time deletion, and calls
+Rust's stable slice sort with monomorphic scalar comparators.
 
 The `map-key-removal` and `stable-list-sorting` run cases cover returned and discarded values,
 checked and throwing absence, ordered reinsertion and views, deterministic unordered traversal,
 copy-on-write aliases, destructor-bearing values, every admitted scalar family, infinities, signed
 zeroes, multiple NaNs, empty and singleton lists, expression results, and sorting map-key views.
 Focused rejected fixtures cover argument and key errors, wrong destinations, missing throwable
-admission, outstanding references, resource-owning maps, unsupported list items, and unknown sort
-children. The `collection_algorithmic_performance_witness` runtime test compares small and large
-collections while asserting absent shared removal does not separate, unique removal does not clone
-values, unordered removal has size-independent hash work, and stable sorting has bounded
-$O(n \log n)$ comparisons with no item clones.
+admission, outstanding references, resource-owning maps, unsupported list items, and unknown
+collection-member children. The removal-clone, unordered-removal-hash, and stable-sort performance
+witnesses compare small and large collections while asserting absent shared removal does not
+separate, unique removal does not clone values, unordered removal has size-independent hash work,
+and stable sorting has bounded $O(n \log n)$ comparisons with no item clones.
