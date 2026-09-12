@@ -232,9 +232,10 @@ witness proves a complete supertrait chain. Focused rejects cover open or ambigu
 multiple or generic associated slots, failed associated bounds, mismatched substitution,
 unprojectable supertraits, and an erased wrapper whose obligations cease to be coherent.
 
-Evidence: `rust-dependency-associated-interface` closes `Sequence::Item` as both `int` and a
-projected foreign object, implements and dispatches applied interfaces through local classes, and
-crosses concrete, applied-interface, and erased Rust inputs. `rust-dependency-supertrait-interface`
+Evidence: `rust-dependency-associated-interface` closes `Sequence::Item` as `int`, a projected
+foreign object, and `list of int`; implements and dispatches those applications through local
+classes; accepts inherited conformance from a subclass; and crosses concrete, applied-interface,
+and erased Rust inputs. `rust-dependency-supertrait-interface`
 proves a recursive and diamond supertrait closure, including an inherited provided method, without
 explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-associated-open-value`, `projected-associated-open-local`,

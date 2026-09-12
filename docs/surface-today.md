@@ -734,8 +734,9 @@ clones remain within one lineage and cannot multiply the hook. Subclass values r
 directly declared state at arbitrary inheritance depth; methods access their flattened storage
 directly, while nested base wrappers recursively forward inherited instance-field reads and writes
 and overridden methods to the preserved concrete value. Static fields are never forwarded through
-instances. Subclasses inherit their bases' declared interface conformance. Declared named
-interfaces state complete method signatures and written invocation modes, require explicit
+instances. Subclasses inherit their bases' declared interface conformance; projected generic calls
+and generated foreign implementations use that same complete effective interface closure. Declared
+named interfaces state complete method signatures and written invocation modes, require explicit
 `implements`, and lower as typed dispatch contracts. Traits reuse source fields and methods through
 `uses`, are not type objects or Rust-style contracts, and reject unresolved multi-trait conflicts.
 

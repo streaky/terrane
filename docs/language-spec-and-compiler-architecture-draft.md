@@ -2087,7 +2087,7 @@ Repeated union arms denote one semantic alternative rather than distinct runtime
 normalizes them by canonical type identity and reports each repeated authored arm as `W4003`; aliases
 of the same descriptor therefore duplicate one another even when their spellings differ.
 Where a destination type is a union, an exact type match wins. Otherwise the compiler selects the unique arm that admits the value under the contextual-constant or numeric destination rules. If two or more arms admit it, the destination is ambiguous and compilation fails naming those arms; source order never breaks the tie. Thus an `int8` value selects `int8` from `int8|int`, while the constant `5` is ambiguous in `int8|int32`.
-A `T|none` destination is valid wherever a declared source type is valid, including binding declarations, parameter types, and function return types. It is not restricted to inferred results or compiler-owned checked operations.
+A `T|none` destination is valid wherever a declared source type is valid, including aggregate and callable `T`, binding declarations, parameter types, and function return types. It is not restricted to inferred results, scalar/object arms, or compiler-owned checked operations.
 
 The word `of` applies a parameterised type constructor using the language's fixed constructor-application grammar:
 
@@ -4513,6 +4513,9 @@ multiple non-auto trait-object principals, boxed trait-object results, and erase
 not promise the required auto traits decline before lowering.
 An applied projected subinterface wrapper also satisfies an ancestor's owning erased boundary when
 the inherited associated binding and auto-trait obligations agree.
+A source subclass inherits the complete effective projected-interface set of its base classes.
+Semantic generic-bound selection and generated foreign implementations consume that same closure,
+including every closed associated binding; neither stage inspects only the leaf declaration.
 
 A projected trait closure may contain exactly one non-generic associated type. Its Terrane
 interface is then a type constructor: `Interface of ConcreteType` is required everywhere a value
