@@ -315,10 +315,9 @@ fn with_compilation_dependencies(
 
 #[test]
 fn every_manifest_drives_a_conformance_case() {
-    let manifests = manifests_below(&corpus());
+    let manifests = selected_manifests();
     let build = ConformanceBuild::new();
     let mut deferred_generated_cases = Vec::new();
-    assert!(!manifests.is_empty());
     for (case_index, manifest_path) in manifests.into_iter().enumerate() {
         let binary_name = format!("terrane_conformance_case_{case_index}");
         let case = manifest_path.parent().unwrap();
@@ -826,6 +825,35 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .collect()
 }
 
+fn selected_manifests() -> Vec<PathBuf> {
+    let filter = std::env::var("TERRANE_CONFORMANCE_FILTER").ok();
+    let manifests = filtered_manifests(manifests_below(&corpus()), filter.as_deref());
+    assert!(
+        !manifests.is_empty(),
+        "no conformance cases matched {}",
+        filter.as_deref().unwrap_or("the corpus")
+    );
+    manifests
+}
+
+fn filtered_manifests(manifests: Vec<PathBuf>, filter: Option<&str>) -> Vec<PathBuf> {
+    let Some(filter) = filter else {
+        return manifests;
+    };
+    let patterns = filter
+        .split(',')
+        .map(str::trim)
+        .filter(|pattern| !pattern.is_empty())
+        .collect::<Vec<_>>();
+    manifests
+        .into_iter()
+        .filter(|manifest| {
+            let path = manifest.to_string_lossy();
+            patterns.iter().any(|pattern| path.contains(pattern))
+        })
+        .collect()
+}
+
 fn manifests_below(root: &Path) -> Vec<PathBuf> {
     let mut manifests = Vec::new();
     for entry in fs::read_dir(root).unwrap() {
@@ -896,6 +924,22 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
         "{record:?}"
     );
     fs::remove_file(output).unwrap();
+}
+
+#[test]
+fn conformance_filter_accepts_comma_separated_path_fragments() {
+    let manifests = vec![
+        PathBuf::from("run/map-key-removal/case.toml"),
+        PathBuf::from("run/stable-list-sorting/case.toml"),
+        PathBuf::from("reject/map-removal-key-type/case.toml"),
+    ];
+    assert_eq!(
+        filtered_manifests(manifests, Some("run/map-key-removal, map-removal-key-type")),
+        [
+            PathBuf::from("run/map-key-removal/case.toml"),
+            PathBuf::from("reject/map-removal-key-type/case.toml"),
+        ]
+    );
 }
 
 #[test]
