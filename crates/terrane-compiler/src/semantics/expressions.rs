@@ -1018,6 +1018,22 @@ pub(super) fn infer_value_type(
             }
             return Ok(None);
         }
+        if let Some(callee) = node.children.first()
+            && let Some(callee_type) = infer_value_type(unit, callee, bindings)?
+        {
+            return match callee_type {
+                ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result, transferability, _) => {
+                    Ok(Some(ValueType::Task(result, transferability)))
+                }
+                _ => Err(failure(
+                    &unit.source,
+                    "T0039",
+                    format!("`{callee_type}` value cannot be called"),
+                    callee.span,
+                )),
+            };
+        }
         return Ok(None);
     }
     Ok(None)

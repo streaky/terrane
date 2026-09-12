@@ -1,0 +1,6 @@
+namespace non-callable-field-initializer
+
+class holder
+    value string = 'ready';
+
+function main;
