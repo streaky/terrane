@@ -305,7 +305,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "41",
+  "projection_schema": "42",
   "removed": [],
   "resolution": {
     "events": [

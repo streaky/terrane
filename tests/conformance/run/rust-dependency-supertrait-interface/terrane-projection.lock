@@ -12,11 +12,27 @@
         ],
         [
           "/deps/terrane-supertrait-witness",
+          "Diamond"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
+          "Left"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
           "Middle"
         ],
         [
           "/deps/terrane-supertrait-witness",
+          "Right"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
           "child_total"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
+          "diamond_total"
         ],
         [
           "/deps/terrane-supertrait-witness",
@@ -28,7 +44,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "41",
+  "projection_schema": "42",
   "removed": [],
   "resolution": {
     "events": [

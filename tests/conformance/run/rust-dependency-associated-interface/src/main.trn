@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, sequence_total as sequence-total, named_total as named-total, erased_total as erased-total
+from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, Nested as nested, sequence_total as sequence-total, nested_total as nested-total, named_total as named-total, erased_total as erased-total
 
 class ints implements sequence of int
     value int = 40
@@ -10,6 +10,13 @@ class ints implements sequence of int
 
     function length int;
         return 2
+
+class nested-values implements sequence of nested
+    function first nested|none;
+        return none
+
+    function length int;
+        return 1
 
 class named-ints implements named-sequence of int
     value int = 30
@@ -28,8 +35,11 @@ function interface-length int; value sequence of int
 
 function main;
     print; (sequence-total; (instance ints;))
+    print; (nested-total; (instance nested-values;))
     print; (named-total; (instance named-ints;))
     print; (erased-total; (instance ints;))
     print; (erased-total; (instance named-ints;))
+    applied sequence of int = instance ints;
+    print; (erased-total; applied)
     print; (interface-length; (instance ints;))
     print; (interface-length; (instance named-ints;))

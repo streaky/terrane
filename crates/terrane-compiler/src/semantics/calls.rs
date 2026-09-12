@@ -403,35 +403,25 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         }
-        let expected_associated = match &parameter.ty {
-            crate::projection::ProjectedType::BoxedInterface {
-                associated_type: Some(binding),
-                ..
-            } => Some(binding.ty.rust_type()),
-            _ => required_item
-                .and_then(|item| match &item.kind {
-                    crate::projection::ProjectedKind::Interface(interface) => {
-                        interface.associated_type.as_ref()
-                    }
-                    _ => None,
-                })
-                .and_then(|associated| {
-                    let marker = format!("{} = ", associated.name);
-                    parameter.generic_bounds.iter().find_map(|bound| {
-                        bound
-                            .split_once(&marker)
-                            .and_then(|(_, value)| value.strip_suffix('>'))
-                            .map(str::to_owned)
-                    })
-                }),
-        };
         if let Some(crate::projection::ProjectedKind::Interface(interface)) =
             required_item.map(|item| &item.kind)
             && let Some(associated) = &interface.associated_type
-            && let Some(expected) = expected_associated.as_deref()
+            && let Some(expected) = parameter.associated_type.as_ref()
         {
-            let actual = implemented
+            let application = implemented
                 .and_then(|implemented| implemented.application.as_deref())
+                .or_else(|| {
+                    (boxed_interface
+                        && implementor.kind == ObjectKind::Interface
+                        && implementor.identity.base()
+                            == required
+                                .as_ref()
+                                .expect("resolved projected interface")
+                                .base())
+                    .then(|| implementor.identity.application.as_deref())
+                    .flatten()
+                });
+            let actual = application
                 .map(|application| destination_projected_type(package, application))
                 .transpose()
                 .map_err(|_| {
@@ -442,17 +432,15 @@ fn validate_projected_generic_arguments(
                         value.span,
                     )
                 })?;
-            if actual
-                .as_ref()
-                .map(crate::projection::ProjectedType::rust_type)
-                != Some(expected.to_owned())
-            {
+            if actual.as_ref() != Some(expected.ty.as_ref()) {
                 return Err(failure(
                     &unit.source,
                     "T0121",
                     format!(
-                        "object `{}` binds projected associated type `{}` incompatibly with `{expected}`",
-                        implementor.identity.name, associated.name
+                        "object `{}` binds projected associated type `{}` incompatibly with `{}`",
+                        implementor.identity.name,
+                        associated.name,
+                        expected.ty.rust_type()
                     ),
                     value.span,
                 ));

@@ -8,6 +8,14 @@
         ],
         [
           "/deps/terrane-associated-witness",
+          "Nested"
+        ],
+        [
+          "/deps/terrane-associated-witness",
+          "Nested.value"
+        ],
+        [
+          "/deps/terrane-associated-witness",
           "Sequence"
         ],
         [
@@ -20,6 +28,10 @@
         ],
         [
           "/deps/terrane-associated-witness",
+          "nested_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
           "sequence_total"
         ]
       ],
@@ -28,7 +40,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "41",
+  "projection_schema": "42",
   "removed": [],
   "resolution": {
     "events": [

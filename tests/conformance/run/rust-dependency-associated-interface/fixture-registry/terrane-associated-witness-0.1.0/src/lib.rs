@@ -16,6 +16,22 @@ where
     value.first().unwrap_or_default() + value.length()
 }
 
+#[derive(Clone)]
+pub struct Nested;
+
+impl Nested {
+    pub fn value(&self) -> i64 {
+        0
+    }
+}
+
+pub fn nested_total<T>(value: T) -> i64
+where
+    T: Sequence<Item = Nested>,
+{
+    value.first().map(|item| item.value()).unwrap_or_default()
+}
+
 pub fn named_total<T>(value: T) -> i64
 where
     T: NamedSequence<Item = i64>,

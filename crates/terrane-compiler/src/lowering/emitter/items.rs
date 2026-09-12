@@ -1181,9 +1181,12 @@ impl<'a> Emitter<'a> {
                                 InvocationMode::Mutable => "&mut *self",
                                 InvocationMode::Consuming => "*self",
                             };
+                            let owner_rust_path = projected_method
+                                .owner_rust_path
+                                .as_deref()
+                                .unwrap_or(&projected_item.rust_path);
                             let call = format!(
-                                "<{class_type} as {}>::{}({receiver}, {rust_arguments})",
-                                projected_item.rust_path,
+                                "<{class_type} as {owner_rust_path}>::{}({receiver}, {rust_arguments})",
                                 rust_name(&method.name)
                             );
                             let call = if method.is_async {

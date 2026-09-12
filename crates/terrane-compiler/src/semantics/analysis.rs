@@ -68,6 +68,7 @@ pub(super) fn parse_unit(
         descriptors: Vec::new(),
         builtin_descriptors: builtin_descriptor_contracts(),
         comparable_foreign_objects: BTreeSet::new(),
+        projected_interfaces_requiring_application: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
@@ -337,6 +338,19 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 )
             })
             .map(|item| ObjectIdentity::new(&item.namespace, &item.name))
+            .collect();
+        unit.projected_interfaces_requiring_application = projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter_map(|item| match &item.kind {
+                crate::projection::ProjectedKind::Interface(interface)
+                    if interface.associated_type.is_some() =>
+                {
+                    Some(ObjectIdentity::new(&item.namespace, &item.name))
+                }
+                _ => None,
+            })
             .collect();
     }
     validate_compiler_owned_names(&units)?;

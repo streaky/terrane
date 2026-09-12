@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import Sequence as sequence
+
+class closed-sequence implements sequence of int
+    function first int|none;
+        return none
+
+    function length int;
+        return 0
+
+function main;
+    item sequence = instance closed-sequence;

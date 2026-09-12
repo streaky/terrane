@@ -1237,6 +1237,7 @@ pub struct SemanticUnit {
     pub descriptors: Vec<DescriptorContract>,
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
+    pub(super) projected_interfaces_requiring_application: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     pub(super) enclosing_function_spans: BTreeMap<usize, Option<Span>>,

@@ -420,15 +420,19 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 4] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:30:13-30:45) */
-        { Site { function: 0, file: 0, line: 30, column: 13, end_line: 30, end_column: 45 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:31:13-31:48) */
-        { Site { function: 0, file: 0, line: 31, column: 13, end_line: 31, end_column: 48 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:32:13-32:43) */
-        { Site { function: 0, file: 0, line: 32, column: 13, end_line: 32, end_column: 43 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:33:13-33:49) */
-        { Site { function: 0, file: 0, line: 33, column: 13, end_line: 33, end_column: 49 } },
+    pub static SITES: [Site; 6] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:37:13-37:45) */
+        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 45 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:38:13-38:52) */
+        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 52 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:39:13-39:48) */
+        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 48 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:40:13-40:43) */
+        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 43 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:41:13-41:49) */
+        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 49 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:43:13-43:34) */
+        { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 34 } },
     ];
     #[cold]
     #[inline(never)]
@@ -517,6 +521,67 @@ impl terrane_associated_witness::Sequence for Ints {
     fn length(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
             let __terrane_value = <Ints>::length(&*self);
+            Ok(
+                terrane_int_support::coerce::<i64>(&__terrane_value)
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+}
+#[derive(Clone)]
+pub struct NestedValues {}
+impl NestedValues {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn first(&self) -> Option<Nested> {
+        return None;
+    }
+    pub fn length(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(1_i128);
+    }
+}
+impl TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<Nested> for NestedValues {
+    fn clone_box(
+        &self,
+    ) -> Box<dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<Nested>> {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<Nested>> {
+        Box::new(self.clone())
+    }
+    fn first(&self) -> Option<Nested> {
+        NestedValues::first(&*self)
+    }
+    fn length(&self) -> terrane_int_support::Int {
+        NestedValues::length(&*self)
+    }
+}
+impl From<NestedValues> for TerraneNs4Deps26TerraneAssociatedWitnessSequence<Nested> {
+    fn from(value: NestedValues) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl terrane_associated_witness::Sequence for NestedValues {
+    type Item = terrane_associated_witness::Nested;
+    fn first(&self) -> Option<terrane_associated_witness::Nested> {
+        let __terrane_boundary: Result<
+            Option<terrane_associated_witness::Nested>,
+            crate::TerraneForeignError,
+        > = (|| {
+            let __terrane_value = <NestedValues>::first(&*self);
+            Ok(__terrane_value)
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn length(&self) -> i64 {
+        let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <NestedValues>::length(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -668,22 +733,37 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(Ints::terrane_construct()),
-        0 /* terrane-site: src/main.trn:30:13-30:45 */))
+        0 /* terrane-site: src/main.trn:37:13-37:45 */))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(nested_total(NestedValues::terrane_construct()),
+        1 /* terrane-site: src/main.trn:38:13-38:52 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(named_total(NamedInts::terrane_construct()),
-        1 /* terrane-site: src/main.trn:31:13-31:48 */))
+        2 /* terrane-site: src/main.trn:39:13-39:48 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(Ints::terrane_construct()),
-        2 /* terrane-site: src/main.trn:32:13-32:43 */))
+        3 /* terrane-site: src/main.trn:40:13-40:43 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(NamedInts::terrane_construct()),
-        3 /* terrane-site: src/main.trn:33:13-33:49 */))
+        4 /* terrane-site: src/main.trn:41:13-41:49 */))
+    );
+    let applied: TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+        terrane_int_support::Int,
+    > = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+        terrane_int_support::Int,
+    >>::from(Ints::terrane_construct());
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
+        5 /* terrane-site: src/main.trn:43:13-43:34 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&interface_length(<
@@ -867,6 +947,36 @@ impl<
     }
 }
 impl terrane_associated_witness::Sequence
+for TerraneNs4Deps26TerraneAssociatedWitnessSequence<Nested> {
+    type Item = terrane_associated_witness::Nested;
+    fn first(&self) -> Option<terrane_associated_witness::Nested> {
+        let __terrane_boundary: Result<
+            Option<terrane_associated_witness::Nested>,
+            crate::TerraneForeignError,
+        > = (|| {
+            let __terrane_value = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+                Nested,
+            >>::first(&*self);
+            Ok(__terrane_value)
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn length(&self) -> i64 {
+        let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+                Nested,
+            >>::length(&*self);
+            Ok(
+                terrane_int_support::coerce::<i64>(&__terrane_value)
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+}
+impl terrane_associated_witness::Sequence
 for TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int> {
     type Item = i64;
     fn first(&self) -> Option<i64> {
@@ -904,6 +1014,7 @@ for TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int> {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
+pub use terrane_associated_witness::Nested;
 pub fn erased_total<
     TerraneBoxed0: terrane_associated_witness::Sequence<Item = i64> + 'static,
 >(value: TerraneBoxed0) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
@@ -937,6 +1048,25 @@ pub fn named_total<T: terrane_associated_witness::NamedSequence<Item = i64>>(
                     payload,
                     "terrane-associated-witness",
                     "terrane_associated_witness::named_total",
+                ),
+            )
+        }
+    }
+}
+pub fn nested_total<
+    T: terrane_associated_witness::Sequence<Item = terrane_associated_witness::Nested>,
+>(value: T) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    let value = value;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_associated_witness::nested_total(value)),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-associated-witness",
+                    "terrane_associated_witness::nested_total",
                 ),
             )
         }

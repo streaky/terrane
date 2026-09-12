@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "41";
+const PROJECTION_SCHEMA: &str = "42";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -331,6 +331,10 @@ pub struct ProjectedParameter {
     pub generic_parameter: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_bounds: Vec<String>,
+    #[serde(skip)]
+    pub generic_interface: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub associated_type: Option<ProjectedAssociatedBinding>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -3056,15 +3060,26 @@ fn project_interface_inner(
                 sync |= projected.sync;
                 requires_drop |= projected.requires_drop;
                 if let Some(inherited_type) = projected.associated_type {
-                    if associated_type.is_some() {
-                        return Err(
-                            "trait closure contains more than one associated type".to_owned()
-                        );
+                    match &associated_type {
+                        None => associated_type = Some(inherited_type),
+                        Some(existing) if existing == &inherited_type => {}
+                        Some(_) => {
+                            return Err(
+                                "trait closure contains more than one associated type".to_owned()
+                            );
+                        }
                     }
-                    associated_type = Some(inherited_type);
                 }
-                methods.extend(projected.methods);
-                declined_methods.extend(projected.declined_methods);
+                for method in projected.methods {
+                    if !methods.contains(&method) {
+                        methods.push(method);
+                    }
+                }
+                for declined in projected.declined_methods {
+                    if !declined_methods.contains(&declined) {
+                        declined_methods.push(declined);
+                    }
+                }
                 let direct = ProjectedSupertrait {
                     namespace: String::new(),
                     name: trait_
@@ -3661,11 +3676,40 @@ fn project_rustdoc(
             );
         }
     }
+    let projected_interfaces = items
+        .iter()
+        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
+        .map(|item| item.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    let mut retained_items = Vec::with_capacity(items.len());
+    for item in items {
+        let declined_bound = match &item.kind {
+            ProjectedKind::Function(function) => function
+                .parameters
+                .iter()
+                .filter_map(|parameter| parameter.generic_interface.as_ref())
+                .find(|bound| !projected_interfaces.contains(*bound))
+                .cloned(),
+            _ => None,
+        };
+        if let Some(bound) = declined_bound {
+            declined.push(DeclinedItem {
+                rust_path: item.rust_path,
+                reason: format!("generic input references declined interface `{bound}`"),
+            });
+        } else {
+            retained_items.push(item);
+        }
+    }
+    let mut items = retained_items;
     let package_root = dependency.package.replace('-', "_");
     let dependency_root = dependency.name.replace('-', "_");
     let normalize = |function: &mut ProjectedFunction| {
         for parameter in &mut function.parameters {
             rewrite_projected_rust_root(&mut parameter.ty, &package_root, &dependency_root);
+            if let Some(associated) = &mut parameter.associated_type {
+                rewrite_projected_rust_root(&mut associated.ty, &package_root, &dependency_root);
+            }
         }
         rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
         if let Some(error) = &mut function.error {
@@ -3682,6 +3726,16 @@ fn project_rustdoc(
             }
         }
     };
+    let interface_identities = items
+        .iter()
+        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
+        .map(|item| {
+            (
+                item.rust_path.clone(),
+                (item.namespace.clone(), item.name.clone()),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     for item in &mut items {
         match &mut item.kind {
             ProjectedKind::Function(function) => normalize(function),
@@ -3712,6 +3766,11 @@ fn project_rustdoc(
                     }
                 }
                 for supertrait in &mut interface.supertraits {
+                    if let Some((namespace, name)) = interface_identities.get(&supertrait.rust_path)
+                    {
+                        supertrait.namespace.clone_from(namespace);
+                        supertrait.name.clone_from(name);
+                    }
                     supertrait.rust_path = rewrite_rust_bound_root(
                         &supertrait.rust_path,
                         &package_root,
@@ -3891,7 +3950,9 @@ fn project_methods(
                                     arguments: Vec::new(),
                                 },
                                 generic_parameter: None,
+                                generic_interface: None,
                                 generic_bounds: Vec::new(),
+                                associated_type: None,
                                 borrowed: receiver != Receiver::Move,
                                 mutable_borrow: receiver == Receiver::MutableBorrow,
                             },
@@ -4155,7 +4216,7 @@ fn project_function_inner(
                     })
                 })
             });
-        let generic_bounds = if let Some((_, bounds)) = &boxed_adapter {
+        let rendered_generic_bounds = if let Some((_, bounds)) = &boxed_adapter {
             bounds.clone()
         } else if let Some(name) = &generic_parameter {
             if name.starts_with("TerraneImpl") {
@@ -4188,13 +4249,70 @@ fn project_function_inner(
         } else {
             Vec::new()
         };
+        let associated_type = if let ProjectedType::BoxedInterface {
+            associated_type, ..
+        } = &projected_type
+        {
+            associated_type.clone()
+        } else if let Some(name) = &generic_parameter {
+            let bounds = if name.starts_with("TerraneImpl") {
+                impl_trait_bounds(ty).map(<[_]>::to_vec)
+            } else {
+                function
+                    .generics
+                    .params
+                    .iter()
+                    .find(|parameter| parameter.name == *name)
+                    .map(|parameter| generic_bounds(parameter, function))
+            };
+            bounds
+                .as_deref()
+                .and_then(|bounds| projectable_interface_bound(bounds, index, paths).ok())
+                .map(|trait_| project_associated_binding(trait_, index, paths, &generic_types))
+                .transpose()?
+                .flatten()
+        } else {
+            None
+        };
+        let generic_interface = if let Some(name) = &generic_parameter {
+            let bounds = if name.starts_with("TerraneImpl") {
+                impl_trait_bounds(ty).map(<[_]>::to_vec)
+            } else {
+                function
+                    .generics
+                    .params
+                    .iter()
+                    .find(|parameter| parameter.name == *name)
+                    .map(|parameter| generic_bounds(parameter, function))
+            };
+            bounds
+                .as_deref()
+                .and_then(|bounds| projectable_interface_bound(bounds, index, paths).ok())
+                .and_then(|trait_| {
+                    let Item {
+                        inner: ItemEnum::Trait(declaration),
+                        ..
+                    } = index.get(&trait_.id)?
+                    else {
+                        return None;
+                    };
+                    project_interface(declaration, index, paths, &trait_.path)
+                        .is_ok()
+                        .then(|| paths.get(&trait_.id).map(|summary| summary.path.join("::")))
+                        .flatten()
+                })
+        } else {
+            None
+        };
         parameters.push(ProjectedParameter {
             name: safe_parameter_name(name),
             ty: projected_type,
             borrowed,
             mutable_borrow,
             generic_parameter,
-            generic_bounds,
+            generic_interface,
+            generic_bounds: rendered_generic_bounds,
+            associated_type,
         });
     }
     let mut error = None;
@@ -4924,6 +5042,36 @@ fn project_type(
     clippy::too_many_lines,
     reason = "trait-object admission validates principal, associated, lifetime, and auto-trait bounds together"
 )]
+fn project_associated_binding(
+    trait_: &RustdocPath,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedAssociatedBinding>, String> {
+    let Some(GenericArgs::AngleBracketed { constraints, .. }) = trait_.args.as_deref() else {
+        return Ok(None);
+    };
+    let mut bindings = constraints.iter().map(|constraint| {
+        if constraint.args.is_some() {
+            return Err("generic associated type bindings are not supported".to_owned());
+        }
+        match &constraint.binding {
+            AssocItemConstraintKind::Equality(Term::Type(ty)) => {
+                project_type(ty, index, paths, generics).map(|ty| ProjectedAssociatedBinding {
+                    name: constraint.name.clone(),
+                    ty: Box::new(ty),
+                })
+            }
+            _ => Err("associated types require an exact type binding".to_owned()),
+        }
+    });
+    let binding = bindings.next().transpose()?;
+    if bindings.next().is_some() {
+        return Err("more than one associated binding is not supported".to_owned());
+    }
+    Ok(binding)
+}
+
 fn project_dyn_interface(
     dynamic: &rustdoc_types::DynTrait,
     index: &HashMap<Id, Item>,
@@ -4951,39 +5099,7 @@ fn project_dyn_interface(
     let principal_rust_path = render_resolved_path(trait_, index, paths, generics)?;
     base_trait.args = None;
     let trait_path = render_resolved_path(&base_trait, index, paths, generics)?;
-    let associated_type = match trait_.args.as_deref() {
-        Some(GenericArgs::AngleBracketed { constraints, .. }) => {
-            let mut bindings = constraints.iter().map(|constraint| {
-                if constraint.args.is_some() {
-                    return Err(
-                        "generic associated trait-object bindings are not supported".to_owned()
-                    );
-                }
-                match &constraint.binding {
-                    rustdoc_types::AssocItemConstraintKind::Equality(
-                        rustdoc_types::Term::Type(ty),
-                    ) => project_type(ty, index, paths, generics).map(|ty| {
-                        ProjectedAssociatedBinding {
-                            name: constraint.name.clone(),
-                            ty: Box::new(ty),
-                        }
-                    }),
-                    _ => Err(
-                        "trait-object associated types require an exact type binding".to_owned(),
-                    ),
-                }
-            });
-            let binding = bindings.next().transpose()?;
-            if bindings.next().is_some() {
-                return Err(
-                    "trait objects with more than one associated binding are not supported"
-                        .to_owned(),
-                );
-            }
-            binding
-        }
-        _ => None,
-    };
+    let associated_type = project_associated_binding(trait_, index, paths, generics)?;
     let Some(Item {
         inner: ItemEnum::Trait(declaration),
         ..

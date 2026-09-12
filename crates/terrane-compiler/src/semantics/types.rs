@@ -1,5 +1,14 @@
 use super::prelude::*;
 
+fn open_projected_associated_interface(unit: &SemanticUnit, value_type: &ValueType) -> bool {
+    let ValueType::Object(identity) = value_type else {
+        return false;
+    };
+    identity.application.is_none()
+        && unit
+            .projected_interfaces_requiring_application
+            .contains(&identity.base())
+}
 #[expect(
     clippy::too_many_lines,
     reason = "binding analysis keeps destination selection and initialization validation together"
@@ -155,6 +164,19 @@ pub(super) fn analyze_binding_node(
             })
         })
         .transpose()?;
+    if declared_value
+        .as_ref()
+        .is_some_and(|value_type| open_projected_associated_interface(unit, value_type))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0127",
+            "a projected interface annotation requires one closed associated type",
+            declared
+                .expect("declared value type has a syntax node")
+                .span,
+        ));
+    }
     if declared_value.is_none()
         && let Some(initializer) = initializer
         && let Some(identity) = empty_collection_identity(unit, initializer, bindings)

@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 41; closed associated interfaces and recursive supertrait imports admit tower::retry::backoff::MakeBackoff while preserving prior receiver declines"
+reviewed-against = "projection schema 42; structural associated bindings and complete supertrait identities preserve the reviewed dependency surface"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"
