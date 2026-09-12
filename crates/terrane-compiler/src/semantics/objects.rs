@@ -784,25 +784,34 @@ pub(super) fn validate_object_conformance(
                     .projection
                     .item(&resolved_interface.namespace, &resolved_interface.name)
                     .map(|item| &item.kind)
-                    && (projected.send || projected.sync)
-                    && let Some(field) =
-                        effective_object_fields(package, object)
-                            .into_iter()
-                            .find(|field| {
-                                !field.is_static
-                                    && !value_type_is_task_transferable(&field.value_type)
-                            })
                 {
-                    let requirement = if projected.sync { "`Sync`" } else { "`Send`" };
-                    return Err(failure(
-                        &declaration_unit.source,
-                        "T0122",
-                        format!(
-                            "class `{}` cannot implement `{}` because field `{}` does not satisfy the projected {requirement} obligation",
-                            object.name, resolved_interface.name, field.name
-                        ),
-                        field.span,
-                    ));
+                    for (required, obligation, requirement) in [
+                        (projected.send, AutoTraitObligation::Send, "`Send`"),
+                        (projected.sync, AutoTraitObligation::Sync, "`Sync`"),
+                    ] {
+                        if required
+                            && let Some(field) = effective_object_fields(package, object)
+                                .into_iter()
+                                .find(|field| {
+                                    !field.is_static
+                                        && !value_type_satisfies_auto_trait(
+                                            package,
+                                            &field.value_type,
+                                            obligation,
+                                        )
+                                })
+                        {
+                            return Err(failure(
+                                &declaration_unit.source,
+                                "T0122",
+                                format!(
+                                    "class `{}` cannot implement `{}` because field `{}` does not satisfy the projected {requirement} obligation",
+                                    object.name, resolved_interface.name, field.name
+                                ),
+                                field.span,
+                            ));
+                        }
+                    }
                 }
                 if package
                     .projection
@@ -847,6 +856,32 @@ pub(super) fn validate_object_conformance(
                         "T0124",
                         format!(
                             "resource-owning class `{}` cannot implement projected asynchronous borrowed receiver `{}` because cancellation cleanup cannot be separated from the ended Rust borrow",
+                            object.name, resolved_interface.name
+                        ),
+                        object.span,
+                    ));
+                }
+                let projected_async = package
+                    .projection
+                    .item(&resolved_interface.namespace, &resolved_interface.name)
+                    .is_some_and(|item| {
+                        matches!(
+                            &item.kind,
+                            crate::projection::ProjectedKind::Interface(projected)
+                                if projected.methods.iter().any(|method| method.function.is_async)
+                        )
+                    });
+                let has_async_entry = package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.functions)
+                    .any(|function| function.name == "main" && function.is_async);
+                if projected_async && !has_async_entry {
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0125",
+                        format!(
+                            "class `{}` cannot implement projected asynchronous interface `{}` without an asynchronous `main` runtime context",
                             object.name, resolved_interface.name
                         ),
                         object.span,

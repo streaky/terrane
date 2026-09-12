@@ -406,34 +406,72 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         }
+        if implementor.kind == ObjectKind::Interface
+            && let crate::projection::ProjectedType::BoxedInterface { auto_traits, .. } =
+                &parameter.ty
+            && let Some((send, sync)) = package
+                .projection
+                .foreign_auto_traits(&implementor.identity.namespace, &implementor.identity.name)
+            && let Some(requirement) = auto_traits.iter().find(|requirement| {
+                requirement.ends_with("::Send") && !send || requirement.ends_with("::Sync") && !sync
+            })
+        {
+            return Err(failure(
+                &unit.source,
+                "T0126",
+                format!(
+                    "interface `{}` cannot cross the boxed projected boundary because its erased wrapper does not satisfy `{requirement}`",
+                    implementor.identity.name
+                ),
+                value.span,
+            ));
+        }
         let requires_static = parameter
             .generic_bounds
             .iter()
             .any(|bound| matches!(bound.as_str(), "'static" | "static"));
-        let requires_thread_safe = parameter
+        let requires_send = parameter
             .generic_bounds
             .iter()
-            .any(|bound| bound.ends_with("::Send") || bound.ends_with("::Sync"));
-        if implementor.kind == ObjectKind::Class
-            && (requires_static || requires_thread_safe)
-            && let Some(field) = effective_object_fields(package, implementor)
-                .into_iter()
-                .find(|field| {
-                    !field.is_static
-                        && (requires_static && !value_type_is_owned_static(&field.value_type)
-                            || requires_thread_safe
-                                && !value_type_is_task_transferable(&field.value_type))
-                })
-        {
-            return Err(failure(
-                &unit.source,
-                "T0122",
-                format!(
-                    "class `{}` cannot cross the retained projected boundary because field `{}` does not satisfy its lifetime and thread obligations",
-                    implementor.identity.name, field.name
-                ),
-                value.span,
-            ));
+            .any(|bound| bound.ends_with("::Send") || bound == "Send");
+        let requires_sync = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| bound.ends_with("::Sync") || bound == "Sync");
+        if implementor.kind == ObjectKind::Class {
+            for (required, requirement, obligation) in [
+                (requires_send, "`Send`", Some(AutoTraitObligation::Send)),
+                (requires_sync, "`Sync`", Some(AutoTraitObligation::Sync)),
+                (requires_static, "`'static`", None),
+            ] {
+                if required
+                    && let Some(field) = effective_object_fields(package, implementor)
+                        .into_iter()
+                        .find(|field| {
+                            !field.is_static
+                                && obligation.map_or_else(
+                                    || !value_type_is_owned_static(&field.value_type),
+                                    |obligation| {
+                                        !value_type_satisfies_auto_trait(
+                                            package,
+                                            &field.value_type,
+                                            obligation,
+                                        )
+                                    },
+                                )
+                        })
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0126",
+                        format!(
+                            "class `{}` cannot cross the retained projected boundary because field `{}` does not satisfy its {requirement} obligation",
+                            implementor.identity.name, field.name
+                        ),
+                        value.span,
+                    ));
+                }
+            }
         }
     }
     Ok(())

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "39";
+const PROJECTION_SCHEMA: &str = "40";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -224,6 +224,10 @@ pub enum ProjectedKind {
         static_methods: Vec<ProjectedFunction>,
         #[serde(default)]
         cloneable: bool,
+        #[serde(default)]
+        send: bool,
+        #[serde(default)]
+        sync: bool,
     },
     Interface(ProjectedInterface),
     Enum {
@@ -357,6 +361,8 @@ pub enum ProjectedType {
         rust_path: String,
         trait_path: String,
         name: String,
+        #[serde(default)]
+        auto_traits: Vec<String>,
     },
     Callback {
         rust_name: String,
@@ -721,6 +727,17 @@ impl Projection {
         self.item(namespace, name)
             .and_then(|item| match &item.kind {
                 ProjectedKind::ForeignType { cloneable, .. } => Some(*cloneable),
+                _ => None,
+            })
+    }
+
+    #[must_use]
+    pub(crate) fn foreign_auto_traits(&self, namespace: &str, name: &str) -> Option<(bool, bool)> {
+        self.item(namespace, name)
+            .and_then(|item| match &item.kind {
+                ProjectedKind::ForeignType { send, sync, .. } => Some((*send, *sync)),
+                ProjectedKind::Interface(interface) => Some((interface.send, interface.sync)),
+                ProjectedKind::Enum { .. } => Some((true, true)),
                 _ => None,
             })
     }
@@ -1461,6 +1478,40 @@ pub fn resolve(
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
     validate_unique_projected_type_identities(&projected)?;
+    let auto_trait_questions = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter(|item| matches!(item.kind, ProjectedKind::ForeignType { .. }))
+        .flat_map(|item| {
+            ["Send", "Sync"]
+                .into_iter()
+                .map(|rust_bound| crate::projection_oracle::BoundQuestion {
+                    rust_type: item.rust_path.clone(),
+                    rust_bound: rust_bound.to_owned(),
+                })
+        })
+        .collect::<Vec<_>>();
+    if !auto_trait_questions.is_empty() {
+        let report =
+            crate::projection_oracle::ProjectionOracle::new(&workspace, &identity, sandbox)
+                .prove_bounds(&auto_trait_questions)?;
+        for evidence in report.evidence {
+            let satisfied = evidence.answer == crate::projection_oracle::ProbeAnswer::Yes;
+            for item in projected
+                .iter_mut()
+                .flat_map(|dependency| &mut dependency.items)
+                .filter(|item| item.rust_path == evidence.question.rust_type)
+            {
+                if let ProjectedKind::ForeignType { send, sync, .. } = &mut item.kind {
+                    match evidence.question.rust_bound.as_str() {
+                        "Send" => *send = satisfied,
+                        "Sync" => *sync = satisfied,
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
     let impl_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -2809,10 +2860,20 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
         ProjectedType::BoxedInterface {
             rust_path,
             trait_path,
+            auto_traits,
             ..
         } => {
             *trait_path = rewrite(trait_path);
-            *rust_path = format!("Box<dyn {trait_path}>");
+            for auto_trait in auto_traits.iter_mut() {
+                *auto_trait = rewrite(auto_trait);
+            }
+            *rust_path = format!(
+                "Box<dyn {}>",
+                std::iter::once(trait_path.as_str())
+                    .chain(auto_traits.iter().map(String::as_str))
+                    .collect::<Vec<_>>()
+                    .join(" + ")
+            );
         }
         ProjectedType::Callback {
             parameters, result, ..
@@ -2950,6 +3011,12 @@ fn project_interface(
             docs: item.docs.clone(),
         });
     }
+    if methods.iter().any(|method| method.function.is_async) && !send {
+        return Err(
+            "asynchronous projected methods require a `Send` interface so cancellation cleanup can own and detach receiver state"
+                .to_owned(),
+        );
+    }
 
     if methods.is_empty() {
         return Err("trait has no projectable receiver methods".to_owned());
@@ -3048,7 +3115,26 @@ fn project_rustdoc(
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
     for (id, path) in candidates {
-        let Some(item) = index.get(&id) else { continue };
+        let Some(item) = index.get(&id) else {
+            if original_paths
+                .get(&id)
+                .map(|summary| summary.path.join("::"))
+                .as_deref()
+                .is_some_and(|path| {
+                    matches!(
+                        path,
+                        "core::ops::Drop" | "core::ops::drop::Drop" | "std::ops::Drop"
+                    )
+                })
+            {
+                declined.push(DeclinedItem {
+                    rust_path: extern_rust_path(dependency, &path.join("::")),
+                    reason: "canonical Rust `Drop` is declared with Terrane `consuming destruct`"
+                        .to_owned(),
+                });
+            }
+            continue;
+        };
         if item.visibility != Visibility::Public {
             continue;
         }
@@ -3163,6 +3249,8 @@ fn project_rustdoc(
                             paths,
                             "core::clone::Clone",
                         ),
+                        send: false,
+                        sync: false,
                     })
                 }
             }
@@ -3687,6 +3775,8 @@ fn project_chain_owner(
             methods,
             static_methods: Vec::new(),
             cloneable: false,
+            send: false,
+            sync: false,
         },
     })
 }
@@ -3782,9 +3872,16 @@ fn project_function_inner(
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
         let boxed_adapter = match &projected_type {
-            ProjectedType::BoxedInterface { trait_path, .. } => Some((
+            ProjectedType::BoxedInterface {
+                trait_path,
+                auto_traits,
+                ..
+            } => Some((
                 format!("TerraneBoxed{parameter_index}"),
-                vec![trait_path.clone(), "'static".to_owned()],
+                std::iter::once(trait_path.clone())
+                    .chain(auto_traits.iter().cloned())
+                    .chain(std::iter::once("'static".to_owned()))
+                    .collect::<Vec<_>>(),
             )),
             _ => None,
         };
@@ -3872,6 +3969,9 @@ fn project_function_inner(
     } else {
         ProjectedType::None
     };
+    if matches!(result, ProjectedType::BoxedInterface { .. }) {
+        return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
+    }
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
@@ -4542,7 +4642,9 @@ fn project_type(
             Err("higher-ranked function type is not projectable".to_owned())
         }
         Type::ResolvedPath(path) => project_resolved_type(ty, path, index, paths, generics),
-        Type::DynTrait(dynamic) => project_dyn_interface(dynamic, index, paths, generics),
+        Type::DynTrait(_) => {
+            Err("trait objects require an owning `Box<dyn Trait>` parameter".to_owned())
+        }
         _ => Err("type has no stable Rust path".to_owned()),
     }
 }
@@ -4570,8 +4672,29 @@ fn project_dyn_interface(
         .collect::<Vec<_>>();
     let trait_ = projectable_interface_bound(&bounds, index, paths)?;
     let trait_path = render_resolved_path(trait_, index, paths, generics)?;
+    let mut auto_traits = dynamic
+        .traits
+        .iter()
+        .filter_map(|poly| {
+            let canonical = paths.get(&poly.trait_.id)?.path.join("::");
+            matches!(
+                canonical.as_str(),
+                "core::marker::Send"
+                    | "std::marker::Send"
+                    | "core::marker::Sync"
+                    | "std::marker::Sync"
+            )
+            .then(|| canonical)
+        })
+        .collect::<Vec<_>>();
+    auto_traits.sort();
+    auto_traits.dedup();
+    let dynamic_bounds = std::iter::once(trait_path.as_str())
+        .chain(auto_traits.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(" + ");
     Ok(ProjectedType::BoxedInterface {
-        rust_path: format!("dyn {trait_path}"),
+        rust_path: format!("dyn {dynamic_bounds}"),
         trait_path: trait_path.clone(),
         name: trait_
             .path
@@ -4579,6 +4702,7 @@ fn project_dyn_interface(
             .next()
             .unwrap_or(&trait_.path)
             .to_owned(),
+        auto_traits,
     })
 }
 
@@ -4636,18 +4760,23 @@ fn project_resolved_type(
         let inner = arguments
             .first()
             .ok_or_else(|| "Box has no value type".to_owned())?;
+        let Type::DynTrait(dynamic) = inner else {
+            return Err("only owning projected interface boxes are supported".to_owned());
+        };
         let ProjectedType::BoxedInterface {
             rust_path: dynamic,
             trait_path,
             name,
-        } = project_type(inner, index, paths, generics)?
+            auto_traits,
+        } = project_dyn_interface(dynamic, index, paths, generics)?
         else {
-            return Err("only owning projected interface boxes are supported".to_owned());
+            unreachable!("dynamic interface projection returns its boxed-interface shape");
         };
         return Ok(ProjectedType::BoxedInterface {
             rust_path: format!("Box<{dynamic}>"),
             trait_path,
             name,
+            auto_traits,
         });
     }
     if matches!(resolved.as_str(), "alloc::vec::Vec" | "std::vec::Vec") {
@@ -5278,8 +5407,8 @@ mod tests {
     use std::fs;
 
     use rustdoc_types::{
-        GenericArg, GenericArgs, GenericParamDef, GenericParamDefKind, Id, ItemKind, ItemSummary,
-        Path as RustdocPath, Type,
+        GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Id, ItemKind,
+        ItemSummary, Path as RustdocPath, TraitBoundModifier, Type,
     };
     use serde_json::json;
 
@@ -5290,9 +5419,9 @@ mod tests {
         ProjectionSource, Receiver, ResolutionOutcome, apply_projection_history,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
-        projection_content_hash, prune_projection_cache, receiver_kind, resolve,
-        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
-        validate_unique_projected_type_identities,
+        projectable_interface_bound, projection_content_hash, prune_projection_cache,
+        receiver_kind, resolve, rewrite_rust_bound_root, selected_target,
+        validate_projection_artifact, validate_unique_projected_type_identities,
     };
     use crate::RustDependency;
 
@@ -5431,6 +5560,8 @@ mod tests {
                     methods: Vec::new(),
                     static_methods: Vec::new(),
                     cloneable: false,
+                    send: false,
+                    sync: false,
                 },
             }],
             declined: Vec::new(),
@@ -6125,6 +6256,8 @@ mod tests {
                     receiver: None,
                 }],
                 cloneable: false,
+                send: false,
+                sync: false,
             },
         };
         let mut old = Projection {
@@ -6296,5 +6429,24 @@ mod tests {
         assert!(retained.exists());
         assert!(unrelated.exists());
         fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn dynamic_trait_shape_rejects_multiple_non_auto_traits() {
+        let bound = |id, path: &str| GenericBound::TraitBound {
+            trait_: RustdocPath {
+                path: path.to_owned(),
+                id: Id(id),
+                args: None,
+            },
+            generic_params: Vec::new(),
+            modifier: TraitBoundModifier::None,
+        };
+        let bounds = [bound(1, "witness::One"), bound(2, "witness::Two")];
+        let error =
+            projectable_interface_bound(&bounds, &HashMap::new(), &HashMap::new()).unwrap_err();
+        assert_eq!(
+            error,
+            "generic input requires one projectable interface bound"
+        );
     }
 }

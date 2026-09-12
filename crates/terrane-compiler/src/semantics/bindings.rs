@@ -801,6 +801,108 @@ pub(super) fn reference_has_stable_local_owner(
         })
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum AutoTraitObligation {
+    Send,
+    Sync,
+}
+
+pub(super) fn value_type_satisfies_auto_trait(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    obligation: AutoTraitObligation,
+) -> bool {
+    fn satisfies(
+        package: &SemanticPackage,
+        value_type: &ValueType,
+        obligation: AutoTraitObligation,
+        visiting: &mut BTreeSet<String>,
+    ) -> bool {
+        match value_type {
+            ValueType::Reference(_) => false,
+            ValueType::Object(identity) => {
+                if let Some((send, sync)) = package
+                    .projection
+                    .foreign_auto_traits(&identity.namespace, &identity.name)
+                {
+                    return match obligation {
+                        AutoTraitObligation::Send => send,
+                        AutoTraitObligation::Sync => sync,
+                    };
+                }
+                let key = format!("{}::{}", identity.namespace, identity.name);
+                if !visiting.insert(key.clone()) {
+                    return true;
+                }
+                let result = package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .find(|object| object.identity == *identity)
+                    .is_some_and(|object| {
+                        object.kind == ObjectKind::Class
+                            && effective_object_fields(package, object)
+                                .into_iter()
+                                .all(|field| {
+                                    field.is_static
+                                        || satisfies(
+                                            package,
+                                            &field.value_type,
+                                            obligation,
+                                            visiting,
+                                        )
+                                })
+                    });
+                visiting.remove(&key);
+                result
+            }
+            ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting),
+            ValueType::Iterator(inner)
+            | ValueType::IterationStep(inner)
+            | ValueType::List(inner)
+            | ValueType::Set(inner)
+            | ValueType::Tuple(inner, _)
+            | ValueType::UnorderedSet(inner)
+            | ValueType::TaskOutcome(inner) => {
+                satisfies(package, inner.value_type_ref(), obligation, visiting)
+            }
+            ValueType::SharedReference(inner) => match obligation {
+                AutoTraitObligation::Send => {
+                    satisfies(
+                        package,
+                        inner.value_type_ref(),
+                        AutoTraitObligation::Send,
+                        visiting,
+                    ) && satisfies(
+                        package,
+                        inner.value_type_ref(),
+                        AutoTraitObligation::Sync,
+                        visiting,
+                    )
+                }
+                AutoTraitObligation::Sync => {
+                    satisfies(package, inner.value_type_ref(), obligation, visiting)
+                }
+            },
+            ValueType::Map(key, value)
+            | ValueType::Entry(key, value)
+            | ValueType::UnorderedMap(key, value) => {
+                satisfies(package, key.value_type_ref(), obligation, visiting)
+                    && satisfies(package, value.value_type_ref(), obligation, visiting)
+            }
+            ValueType::AsyncFunction(_, _, transferability, _)
+            | ValueType::Task(_, transferability)
+            | ValueType::ScopedTask(_, transferability) => match obligation {
+                AutoTraitObligation::Send => *transferability == TaskTransferability::Transferable,
+                AutoTraitObligation::Sync => false,
+            },
+            _ => true,
+        }
+    }
+
+    satisfies(package, value_type, obligation, &mut BTreeSet::new())
+}
+
 pub(super) fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
     match value_type {
         ValueType::Reference(_) => false,
