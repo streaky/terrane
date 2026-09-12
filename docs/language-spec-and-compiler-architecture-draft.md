@@ -4510,6 +4510,22 @@ the exact generated interface wrapper. Bare or borrowed trait objects, non-inter
 multiple non-auto trait-object principals, boxed trait-object results, and erased wrappers that do
 not promise the required auto traits decline before lowering.
 
+A projected trait closure may contain exactly one non-generic associated type. Its Terrane
+interface is then a type constructor: `Interface of ConcreteType` is required everywhere a value
+type or `implements` clause uses it. That explicit application is part of nominal identity.
+Semantic analysis materializes the closed descriptor, substitutes its argument recursively through
+method contracts and inherited requirements, validates the retained Rust bounds, and never infers
+the slot from matching method shapes. Lowering emits `type Slot = RustType` in every corresponding
+foreign implementation. Owning `Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the
+same binding and remain subject to the ordinary erased auto-trait proof.
+
+Non-marker supertraits are projected recursively only when every ancestor is independently
+admissible. Import expansion carries the complete closure, conformance includes every inherited
+requirement, and lowering emits one Rust implementation for each distinct ancestor. The whole
+closure may expose only one associated slot. Bare or mismatched applications, multiple or generic
+slots, failed bounds, unprojectable ancestors, and incoherent erased bindings decline before Rust
+lowering.
+
 The projection oracle records `Send` and `Sync` separately for each closed foreign type. Semantic
 conformance walks the complete effective local-class field graph, including nested source classes
 and those foreign facts, for each required auto trait. Retained generic calls repeat the same
@@ -5555,6 +5571,8 @@ Projected-interface boundary diagnostics reserve one contiguous source-semantic 
 - `T0125`: a projected async implementation has no asynchronous package entry/runtime context;
 - `T0126`: a retained or boxed projected call argument fails its written lifetime or auto-trait
   obligation.
+- `T0127`: a projected associated interface is used open, bound to an unrepresentable or
+  incompatible type, or fails an associated-type bound.
 
 These codes identify distinct proof failures and remain stable even when their implementation
 shares field-graph or projection metadata.

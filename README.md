@@ -37,9 +37,9 @@ executables. Implemented, executable behavior includes:
   typed channels, synchronization cells, and projected Rust futures, sequences, and sinks;
 - capability-gated filesystem and process facilities, document values, JSON, safe YAML, URLs,
   randomness, codecs, digests, compression, UUIDs, TCP, UDP, DNS, TLS, and structured logging;
-- projected Rust dependencies, generated Cargo projects, source-projected backend diagnostics,
-  executable scripts, target profiles, system and C ABI packages, and VS Code language-server
-  support.
+- projected Rust dependencies, including closed associated interfaces and recursive supertrait
+  conformance, generated Cargo projects, source-projected backend diagnostics, executable scripts,
+  target profiles, system and C ABI packages, and VS Code language-server support.
 
 These are supported claims only where executable conformance evidence exists. The specification also
 describes settled destination behavior that has not all shipped yet, and `demos/` deliberately
@@ -51,7 +51,6 @@ The principal unfinished areas are:
 
 - destination-directed specialization for closed generic results projected from Rust dependencies;
 - precise throwable bounds on function types;
-- Rust traits projected as Terrane interfaces that local classes can implement;
 - a Terrane-native unit, integration, and end-to-end testing framework;
 - the remaining release hardening and cross-platform release gate; and
 - bundled, vendorable, relocatable projection artifacts for fully offline dependency builds.

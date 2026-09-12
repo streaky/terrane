@@ -978,14 +978,19 @@ Projected async methods require a `Send` interface and async `main` runtime cont
 classes require consuming async receivers. Rust-owned cancellation detaches receiver state, runs
 nested `finally`, releases it, and is drained before executor shutdown. Packages without task
 scope, projected async entry, or async `finally` retain the small runtime; a sync main with an
-otherwise unused async function requires no Tokio runtime. Other wrapped receivers, static and
-generic methods, unresolved associated types, higher-ranked lifetimes, unsupported owning
-containers, and unprojectable members remain explicit stable declines.
+otherwise unused async function requires no Tokio runtime. One
+non-generic associated slot may be closed explicitly as `Interface of ConcreteType`; that applied
+nominal identity is retained through annotations, reflection, conformance, generic and erased Rust
+crossings, and generated associated-type declarations. Independently projectable supertraits form
+a recursive requirement and implementation closure. Bare or inferred applications, multiple or
+generic associated slots, failed bounds, incoherent erased bindings, other wrapped receivers,
+static and generic methods, higher-ranked lifetimes, unsupported owning containers, and
+unprojectable members or supertraits remain explicit stable declines.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 40 retains these contracts alongside explicit root, continuation, and terminal
+Projection schema 41 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument
