@@ -274,6 +274,45 @@ pub(super) fn collection_constructor_identity<'a>(
     .then_some(identity)
 }
 
+fn sortable_list_item(item: &ElementType) -> Option<ScalarType> {
+    match item.value_type() {
+        ValueType::Scalar(scalar)
+            if scalar.is_integer()
+                || matches!(
+                    scalar,
+                    ScalarType::Float32 | ScalarType::Float64 | ScalarType::String
+                ) =>
+        {
+            Some(scalar)
+        }
+        _ => None,
+    }
+}
+
+fn validate_list_sort(
+    unit: &SemanticUnit,
+    item: &ElementType,
+    arguments: &SyntaxNode,
+    method: &str,
+) -> Result<(), SemanticFailure> {
+    if !arguments.children.is_empty() {
+        return Err(failure(
+            &unit.source,
+            "T0045",
+            format!("`.{method}` accepts no arguments"),
+            arguments.span,
+        ));
+    }
+    sortable_list_item(item).map(|_| ()).ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0013",
+            format!("`.{method}` requires a list of non-optional integers, floats, or strings"),
+            arguments.span,
+        )
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "collection construction inference centralizes one compiler-owned object family"
@@ -291,19 +330,63 @@ pub(super) fn infer_collection_call_type(
         && node_text(&unit.source, child) == "checked"
         && family.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = family.children.as_slice()
-        && node_text(&unit.source, member) == "get"
+        && let member_name = node_text(&unit.source, member)
+        && matches!(member_name, "get" | "remove")
         && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
-        && descriptor_has_member(unit, &receiver_type, "get.checked")
+        && descriptor_has_member(unit, &receiver_type, &format!("{member_name}.checked"))
     {
-        return Ok(match receiver_type {
-            ValueType::List(item) | ValueType::Tuple(item, _) => {
-                Some(ValueType::Optional(Box::new(item.value_type())))
+        let [argument] = arguments.children.as_slice() else {
+            return Err(failure(
+                &unit.source,
+                "T0045",
+                format!("`.{member_name}.checked` requires exactly one argument"),
+                arguments.span,
+            ));
+        };
+        let argument = argument.children.last().unwrap_or(argument);
+        return match receiver_type {
+            ValueType::List(item) | ValueType::Tuple(item, _) if member_name == "get" => {
+                validate_collection_constructor_value(
+                    unit,
+                    argument,
+                    &ValueType::Scalar(ScalarType::Int),
+                    "collection index",
+                    bindings,
+                )?;
+                Ok(Some(ValueType::Optional(Box::new(item.value_type()))))
             }
-            ValueType::Map(_, value) | ValueType::UnorderedMap(_, value) => {
-                Some(ValueType::Optional(Box::new(value.value_type())))
+            ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+                validate_collection_constructor_value(
+                    unit,
+                    argument,
+                    &key.value_type(),
+                    "map key",
+                    bindings,
+                )?;
+                Ok(Some(ValueType::Optional(Box::new(value.value_type()))))
             }
-            _ => None,
-        });
+            _ => Ok(None),
+        };
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let [family, child] = callee.children.as_slice()
+        && family.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = family.children.as_slice()
+        && node_text(&unit.source, member) == "sort"
+        && let Some(ValueType::List(item)) = infer_receiver_value_type(unit, receiver, bindings)?
+    {
+        let child = node_text(&unit.source, child);
+        let operation = format!("sort.{child}");
+        if !descriptor_has_member(unit, &ValueType::List(item.clone()), &operation) {
+            return Err(failure(
+                &unit.source,
+                "T0031",
+                format!("list has no member `.{operation}`"),
+                callee.span,
+            ));
+        }
+        validate_list_sort(unit, &item, arguments, &operation)?;
+        return Ok(Some(ValueType::List(item)));
     }
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
@@ -369,17 +452,51 @@ pub(super) fn infer_collection_call_type(
             }
             return Ok(None);
         }
+        if operation == Some("collection.remove")
+            && matches!(
+                receiver_type,
+                ValueType::Map(_, _) | ValueType::UnorderedMap(_, _)
+            )
+        {
+            let [argument] = arguments.children.as_slice() else {
+                return Err(failure(
+                    &unit.source,
+                    "T0045",
+                    "map `.remove` requires exactly one key",
+                    arguments.span,
+                ));
+            };
+            let (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) = &receiver_type else {
+                unreachable!("map removal receiver was validated");
+            };
+            validate_collection_constructor_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+                &key.value_type(),
+                "map removal key",
+                bindings,
+            )?;
+        }
+        if operation == Some("collection.sort")
+            && let ValueType::List(item) = &receiver_type
+        {
+            validate_list_sort(unit, item, arguments, "sort")?;
+        }
         return Ok(
             match (receiver_type, operation.expect("validated operation")) {
                 (
                     ValueType::List(item),
-                    "collection.append" | "collection.set" | "collection.clear",
+                    "collection.append" | "collection.set" | "collection.clear" | "collection.sort",
                 ) => Some(ValueType::List(item)),
                 (ValueType::List(item), "collection.remove") => Some(item.value_type()),
                 (ValueType::Map(key, value), "collection.set") => Some(ValueType::Map(key, value)),
                 (ValueType::UnorderedMap(key, value), "collection.set") => {
                     Some(ValueType::UnorderedMap(key, value))
                 }
+                (
+                    ValueType::Map(_, value) | ValueType::UnorderedMap(_, value),
+                    "collection.remove",
+                ) => Some(value.value_type()),
                 (ValueType::Set(item), "collection.add") => Some(ValueType::Set(item)),
                 (ValueType::UnorderedSet(item), "collection.add") => {
                     Some(ValueType::UnorderedSet(item))

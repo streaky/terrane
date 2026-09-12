@@ -565,15 +565,25 @@ fn first_owner_lifetime_end(
         let [receiver, member] = callee.children.as_slice() else {
             return None;
         };
+        if callee.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let child = node_text(&unit.source, member);
+        let (receiver, member_name) = if receiver.kind == SyntaxKind::MemberExpression
+            && let [base, family] = receiver.children.as_slice()
+            && matches!(
+                (node_text(&unit.source, family), child),
+                ("remove", "checked") | ("sort", "descending")
+            ) {
+            (base, node_text(&unit.source, family))
+        } else {
+            (receiver, child)
+        };
         let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
             .flatten()?;
-        (member_invocation_mode(
-            package,
-            unit,
-            &receiver_type,
-            node_text(&unit.source, member),
-        ) == InvocationMode::Mutable)
+        (member_invocation_mode(package, unit, &receiver_type, member_name)
+            == InvocationMode::Mutable)
             .then_some(receiver)
     }
 

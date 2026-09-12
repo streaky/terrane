@@ -1,0 +1,45 @@
+namespace map-key-removal
+from /core/collections import map, unordered-map
+from /core/errors import missing-key
+
+class marker
+  name string
+  function construct; name string
+    this.name = name
+  consuming function destruct;
+    print; 'drop-', this.name
+
+function main;
+  ordered = map; first=1, second=2, third=3
+  preserved = ordered
+  removed int = ordered.remove; 'second'
+  print; removed, ordered.length, preserved.length
+  absent int|none = ordered.remove.checked; 'missing'
+  print; absent == none, ordered.length
+  ordered.set; 'second', 4
+  for key in ordered.keys;
+    print; key
+  for key, value in ordered
+    print; key, value
+  try
+    ordered.remove; 'missing'
+  catch missing-key
+    print; 'missing'
+
+  unordered = unordered-map; first=1, second=2, third=3
+  unordered-preserved = unordered
+  print; (unordered.remove; 'second')
+  print; (unordered.remove.checked; 'missing') == none
+  print; unordered.length, unordered-preserved.length
+  for pair in unordered.entries;
+    print; pair.key, pair.value
+
+  unique map of string, marker = map; item=(instance marker; 'unique')
+  unique.remove; 'item'
+  print; 'after-unique'
+  shared map of string, marker = map; item=(instance marker; 'shared')
+  shared-alias = shared
+  if true
+    removed-marker marker = shared.remove; 'item'
+    print; 'removed-', removed-marker.name
+  print; 'alias-', shared-alias['item'].name

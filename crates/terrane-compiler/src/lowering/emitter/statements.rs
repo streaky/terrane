@@ -83,8 +83,19 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::MemberExpression {
             return None;
         }
+        let child = self.text(member);
+        let (receiver, operation) = if receiver.kind == SyntaxKind::MemberExpression
+            && let [base, family] = receiver.children.as_slice()
+            && matches!(
+                (self.text(family), child),
+                ("remove", "checked") | ("sort", "descending")
+            ) {
+            (base, format!("{}.{}", self.text(family), child))
+        } else {
+            (receiver, child.to_owned())
+        };
         let receiver_type = self.receiver_value_type(receiver)?;
-        let list_append_vector = (self.text(member) == "append")
+        let list_append_vector = (operation == "append")
             .then(|| self.local_typed_binding(receiver))
             .flatten()
             .and_then(|binding| {
@@ -100,7 +111,7 @@ impl Emitter<'_> {
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        let mutation = match (receiver_type, self.text(member)) {
+        let mutation = match (receiver_type, operation.as_str()) {
             (ValueType::List(item), "append") => {
                 let value = self.expression_as(values[0], item.value_type());
                 Some(list_append_vector.map_or_else(
@@ -118,11 +129,29 @@ impl Emitter<'_> {
                 Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
             }
             (ValueType::List(_), "clear") => Some(format!("({receiver_value}).clear()")),
+            (ValueType::List(item), "sort" | "sort.descending") => {
+                let comparator =
+                    super::calls::list_sort_comparator(&item, operation == "sort.descending");
+                Some(format!("({receiver_value}).sort_by({comparator})"))
+            }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
                     "({receiver_value}).set({}, {})",
                     self.expression_as(values[0], key.value_type()),
                     self.expression_as(values[1], value.value_type())
+                ))
+            }
+            (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove.checked") => {
+                Some(format!(
+                    "let _ = ({receiver_value}).remove_checked(&({}))",
+                    self.expression_as(values[0], key.value_type())
+                ))
+            }
+            (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
+                let key = self.expression_as(values[0], key.value_type());
+                Some(format!(
+                    "let _ = {}",
+                    self.fallible(format!("({receiver_value}).remove(&({key}))"), node)
                 ))
             }
             (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(

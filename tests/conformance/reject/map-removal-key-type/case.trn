@@ -1,0 +1,6 @@
+namespace map-removal-key-type
+from /core/collections import map
+
+function main;
+  values = map; answer=42
+  values.remove.checked; 1

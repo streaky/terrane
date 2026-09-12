@@ -1,0 +1,78 @@
+namespace stable-list-sorting
+from /core/collections import list, map
+
+function main;
+  adaptive list of int = list; 900000000000000000000000000000000000000, -2, 7, 7
+  adaptive.sort;
+  print; adaptive[0], adaptive[3]
+  adaptive.sort.descending;
+  print; adaptive[0], adaptive[3]
+
+  int8s list of int8 = list; 2, -1
+  int16s list of int16 = list; 2, -1
+  int32s list of int32 = list; 2, -1
+  int64s list of int64 = list; 2, -1
+  int128s list of int128 = list; 2, -1
+  uint8s list of uint8 = list; 2, 1
+  uint16s list of uint16 = list; 2, 1
+  uint32s list of uint32 = list; 2, 1
+  uint64s list of uint64 = list; 2, 1
+  uint128s list of uint128 = list; 2, 1
+  int8s.sort;
+  int16s.sort;
+  int32s.sort;
+  int64s.sort;
+  int128s.sort;
+  uint8s.sort;
+  uint16s.sort;
+  uint32s.sort;
+  uint64s.sort;
+  uint128s.sort;
+  print; int8s[0], int16s[0], int32s[0], int64s[0], int128s[0]
+  print; uint8s[0], uint16s[0], uint32s[0], uint64s[0], uint128s[0]
+
+  words = list; 'é', 'e', 'z'
+  words.sort;
+  print; words[0], words[1], words[2]
+  words.sort.descending;
+  print; words[0], words[1], words[2]
+
+  zero float64 = 0.0
+  negative-zero float64 = -0.0
+  one float64 = 1.0
+  negative-one float64 = -1.0
+  infinity float64 = one / zero
+  negative-infinity float64 = negative-one / zero
+  first-nan float64 = zero / zero
+  second-nan float64 = negative-zero / zero
+  floats list of float64 = list; first-nan, negative-zero, infinity, zero, negative-infinity, second-nan
+  floats.sort;
+  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[4].not-a-number, floats[4].negative-sign, floats[5].not-a-number, floats[5].negative-sign
+  floats.sort.descending;
+  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[3].negative-sign, floats[4].not-a-number, floats[4].negative-sign, floats[5].not-a-number, floats[5].negative-sign
+
+  narrow list of float32 = list; 2.0, -1.0
+  narrow.sort;
+  print; narrow[0], narrow[1]
+
+  values = list; 3, 1, 2
+  preserved = values
+  returned = values.sort;
+  print; preserved[0], values[0], returned[0]
+  returned.append; 4
+  print; values.length, returned.length
+
+  indexed = map; c=3, a=1, b=2
+  keys = indexed.keys;
+  ascending = keys.sort;
+  for key in ascending
+    print; key, indexed[key]
+  descending = keys.sort.descending;
+  for key in descending
+    print; key, indexed[key]
+
+  empty list of int = list
+  empty.sort;
+  single = list; 1
+  single.sort.descending;
+  print; empty.length, single[0]

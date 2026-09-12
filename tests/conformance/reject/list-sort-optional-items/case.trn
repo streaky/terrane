@@ -1,0 +1,6 @@
+namespace list-sort-optional-items
+from /core/collections import list
+
+function main;
+  values list of int|none = list; 2, none, 1
+  values.sort;

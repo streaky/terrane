@@ -191,6 +191,8 @@ fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
             "get.checked",
             "remove",
             "clear",
+            "sort",
+            "sort.descending",
         ],
         BuiltinDescriptor::Map | BuiltinDescriptor::UnorderedMap => &[
             "type",
@@ -199,6 +201,8 @@ fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
             "set",
             "get",
             "get.checked",
+            "remove",
+            "remove.checked",
             "keys",
             "values",
             "entries",

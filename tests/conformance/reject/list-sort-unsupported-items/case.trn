@@ -1,0 +1,6 @@
+namespace list-sort-unsupported-items
+from /core/collections import list
+
+function main;
+  values = list; true, false
+  values.sort;

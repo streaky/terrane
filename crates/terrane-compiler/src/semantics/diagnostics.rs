@@ -470,31 +470,35 @@ pub(crate) fn binding_span_is_mutated(
                 let [receiver, member] = callee.children.as_slice() else {
                     return false;
                 };
-                callee.kind == SyntaxKind::MemberExpression
-                    && infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-                        .ok()
-                        .flatten()
-                        .is_some_and(|receiver_type| {
-                            let callable_field = match &receiver_type {
-                                ValueType::Object(identity) => matches!(
-                                    object_field_type(
-                                        unit,
-                                        identity,
-                                        node_text(&unit.source, member),
-                                        false,
-                                    ),
-                                    Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-                                ),
-                                _ => false,
-                            };
-                            member_invocation_mode(
-                                package,
-                                unit,
-                                &receiver_type,
-                                node_text(&unit.source, member),
-                            ) == InvocationMode::Mutable
-                                && (closure_writes == ClosureWrites::Include || !callable_field)
-                        })
+                if callee.kind != SyntaxKind::MemberExpression {
+                    return false;
+                }
+                let child = node_text(&unit.source, member);
+                let (receiver, member_name) = if receiver.kind == SyntaxKind::MemberExpression
+                    && let [base, family] = receiver.children.as_slice()
+                    && matches!(
+                        (node_text(&unit.source, family), child),
+                        ("remove", "checked") | ("sort", "descending")
+                    ) {
+                    (base, node_text(&unit.source, family))
+                } else {
+                    (receiver, child)
+                };
+                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|receiver_type| {
+                        let callable_field = match &receiver_type {
+                            ValueType::Object(identity) => matches!(
+                                object_field_type(unit, identity, member_name, false),
+                                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                            ),
+                            _ => false,
+                        };
+                        member_invocation_mode(package, unit, &receiver_type, member_name)
+                            == InvocationMode::Mutable
+                            && (closure_writes == ClosureWrites::Include || !callable_field)
+                    })
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding
