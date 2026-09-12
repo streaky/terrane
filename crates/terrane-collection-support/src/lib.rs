@@ -437,6 +437,23 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     pub fn set(&mut self, key: K, value: V) {
         Arc::make_mut(&mut self.0).insert(key, value);
     }
+    /// Removes and returns the mapped value without separating shared storage on a miss.
+    ///
+    /// # Errors
+    /// Returns [`MissingKey`] when `key` is absent.
+    pub fn remove(&mut self, key: &K) -> Result<V, MissingKey> {
+        self.remove_checked(key).ok_or(MissingKey)
+    }
+    pub fn remove_checked(&mut self, key: &K) -> Option<V> {
+        if let Some(map) = Arc::get_mut(&mut self.0) {
+            return map.shift_remove(key);
+        }
+        self.0.contains_key(key).then(|| {
+            Arc::make_mut(&mut self.0)
+                .shift_remove(key)
+                .expect("key presence was checked before copy-on-write separation")
+        })
+    }
     #[must_use]
     pub fn keys(&self) -> List<K> {
         List::new(self.0.keys().cloned().collect())
@@ -515,16 +532,18 @@ fn stable_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-fn insert_by_stable_hash<T: Hash>(items: &mut Vec<T>, item: T) {
+fn insert_by_stable_hash<T: Hash>(items: &mut Vec<T>, item: T) -> usize {
     let hash = stable_hash(&item);
     let index = items.partition_point(|candidate| stable_hash(candidate) <= hash);
     items.insert(index, item);
+    index
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct UnorderedMapData<K: Eq + Hash, V> {
     values: HashMap<K, V, FixedState>,
     iteration_keys: Vec<K>,
+    iteration_positions: HashMap<K, usize, FixedState>,
 }
 
 impl<K: Eq + Hash, V> UnorderedMapData<K, V> {
@@ -548,9 +567,16 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             values.insert(entry.key, entry.value);
         }
         iteration_keys.sort_by_key(stable_hash);
+        let iteration_positions = iteration_keys
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, key)| (key, index))
+            .collect();
         Self(Arc::new(UnorderedMapData {
             values,
             iteration_keys,
+            iteration_positions,
         }))
     }
     #[must_use]
@@ -571,9 +597,36 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     pub fn set(&mut self, key: K, value: V) {
         let data = Arc::make_mut(&mut self.0);
         if !data.values.contains_key(&key) {
-            insert_by_stable_hash(&mut data.iteration_keys, key.clone());
+            let index = insert_by_stable_hash(&mut data.iteration_keys, key.clone());
+            for (position, existing) in data.iteration_keys[index..].iter().enumerate() {
+                data.iteration_positions
+                    .insert(existing.clone(), index + position);
+            }
         }
         data.values.insert(key, value);
+    }
+    /// Removes and returns the mapped value without separating shared storage on a miss.
+    ///
+    /// # Errors
+    /// Returns [`MissingKey`] when `key` is absent.
+    pub fn remove(&mut self, key: &K) -> Result<V, MissingKey> {
+        self.remove_checked(key).ok_or(MissingKey)
+    }
+    pub fn remove_checked(&mut self, key: &K) -> Option<V> {
+        if Arc::get_mut(&mut self.0).is_none() && !self.0.values.contains_key(key) {
+            return None;
+        }
+        let data = Arc::make_mut(&mut self.0);
+        let value = data.values.remove(key)?;
+        let index = data
+            .iteration_positions
+            .remove(key)
+            .expect("indexed key must retain its iteration position");
+        data.iteration_keys.swap_remove(index);
+        if let Some(moved) = data.iteration_keys.get(index) {
+            data.iteration_positions.insert(moved.clone(), index);
+        }
+        Some(value)
     }
     #[must_use]
     pub fn keys(&self) -> List<K> {
@@ -952,4 +1005,39 @@ mod tests {
         }
         assert_eq!(inserted_set, bulk_set);
     }
+
+    #[test]
+    fn map_removal_preserves_order_and_avoids_separating_misses() {
+        let mut map = Map::new(vec![
+            Entry::new("first", 1),
+            Entry::new("second", 2),
+            Entry::new("third", 3),
+        ]);
+        let alias = map.clone();
+        assert_eq!(map.remove_checked(&"absent"), None);
+        assert!(Arc::ptr_eq(&map.0, &alias.0));
+        assert_eq!(map.remove(&"second"), Ok(2));
+        assert!(!Arc::ptr_eq(&map.0, &alias.0));
+        map.set("second", 4);
+        assert_eq!(map.keys().into_vec(), ["first", "third", "second"]);
+        assert_eq!(alias.keys().into_vec(), ["first", "second", "third"]);
+    }
+
+    #[test]
+    fn unordered_map_removal_updates_constant_time_iteration_index() {
+        let mut map = UnorderedMap::new(vec![
+            Entry::new("first", 1),
+            Entry::new("second", 2),
+            Entry::new("third", 3),
+        ]);
+        let alias = map.clone();
+        assert_eq!(map.remove_checked(&"absent"), None);
+        assert!(Arc::ptr_eq(&map.0, &alias.0));
+        assert_eq!(map.remove(&"second"), Ok(2));
+        assert!(!Arc::ptr_eq(&map.0, &alias.0));
+        assert_eq!(map.length(), 2);
+        assert_eq!(map.entries().length(), 2);
+        assert_eq!(alias.length(), 3);
+    }
 }
+
