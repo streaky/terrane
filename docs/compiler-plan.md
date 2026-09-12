@@ -2376,6 +2376,27 @@ identity, custom output naming and disk writes, support/error separation, source
 generated-crate compilation, artifact reuse and eviction, and strict canonical-format rejection;
 compile/run conformance cases validate the generated crates with warnings denied.
 
+
+Longer-term cache consolidation should separate generated-program identity from Cargo dependency
+artifact reuse. Move generated builds into one bounded, content-addressed target pool shared by CLI
+commands and the conformance harness. The pool key must cover the Rust toolchain, target triple,
+profile and panic policy, relevant rustflags, bundled-support identities, and the complete external
+dependency closure. Generated packages and binaries need collision-free identity-derived names;
+concurrent builders must coordinate target mutation and capture the exact emitted executable before
+releasing that coordination, rather than racing on Cargo's conventional `target/debug/<name>` path.
+Final package executables remain cached under the existing full source identity, while dependency
+artifacts may be reused across different programs with the same pool key. A size-bounded,
+last-used eviction policy must retain active entries, expose inspection and pruning commands, and
+never turn a partial or merely similar key into a cache hit. Conformance and ordinary CLI builds
+should exercise the same pool so focused fixture runs do not recreate the runtime and dependency
+graph hundreds of times.
+
+Until that design is implemented, focused conformance work uses
+`TERRANE_CONFORMANCE_FILTER=<case-name>` with the canonical harness and its shared target rather
+than invoking `terrane run` inside tracked fixture directories. Workspace development and test
+profiles retain incremental compilation but emit line-table-only debug information to bound future
+artifact growth.
+
 Remaining milestone-5 work: lowering still initially constructs item bodies as Rust text before the
 mandatory parse and structural normalization boundary. A fully structural expression/statement
 builder and a named-intermediate nesting policy therefore remain assigned to this milestone. The
