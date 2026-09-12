@@ -321,6 +321,19 @@ impl From<i128> for Int {
     }
 }
 
+fn compare_big_to_i128(big: &BigInt, bounded: i128) -> Ordering {
+    big.to_i128().map_or_else(
+        || {
+            if big.sign() == num_bigint::Sign::Minus {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        },
+        |value| value.cmp(&bounded),
+    )
+}
+
 impl Ord for Int {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
@@ -329,7 +342,12 @@ impl Ord for Int {
             (Self::Wide(left), Self::Small(right)) => left.cmp(&i128::from(*right)),
             (Self::Wide(left), Self::Wide(right)) => left.cmp(right),
             (Self::Big(left), Self::Big(right)) => left.cmp(right),
-            _ => self.as_big().cmp(&other.as_big()),
+            (Self::Big(left), Self::Small(right)) => compare_big_to_i128(left, i128::from(*right)),
+            (Self::Big(left), Self::Wide(right)) => compare_big_to_i128(left, *right),
+            (Self::Small(left), Self::Big(right)) => {
+                compare_big_to_i128(right, i128::from(*left)).reverse()
+            }
+            (Self::Wide(left), Self::Big(right)) => compare_big_to_i128(right, *left).reverse(),
         }
     }
 }
