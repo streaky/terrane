@@ -898,6 +898,7 @@ features:
   - docs/compiler-plan.md#Milestone 29.0
   - tests/conformance/run/map-key-removal/case.trn
   - tests/conformance/run/stable-list-sorting/case.trn
+  - tests/conformance/run/collection-property-method-calls/case.trn
 - id: iterator-protocol
   name: Structural iterator protocol
   category: text-data

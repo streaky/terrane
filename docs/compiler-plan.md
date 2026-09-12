@@ -3731,13 +3731,16 @@ a shared miss before copy-on-write separation, uses ordered `shift_remove`, stor
 key's iteration position beside its value for expected amortized constant-time deletion, and calls
 Rust's stable slice sort with monomorphic scalar comparators.
 
-The `map-key-removal` and `stable-list-sorting` run cases cover returned and discarded values,
-checked and throwing absence, ordered reinsertion and views, deterministic unordered traversal,
-copy-on-write aliases, destructor-bearing values, every admitted scalar family, infinities, signed
-zeroes, multiple NaNs, empty and singleton lists, expression results, and sorting map-key views.
+The `map-key-removal`, `stable-list-sorting`, and `collection-property-method-calls` run cases cover
+returned and discarded values, checked and throwing absence, ordered reinsertion and views,
+deterministic unordered traversal, calls through entry properties, copy-on-write aliases,
+destructor-bearing values, every admitted scalar family, infinities, signed zeroes, multiple NaNs,
+empty and singleton lists, expression results, and sorting map-key views.
 Focused rejected fixtures cover argument and key errors, wrong destinations, missing throwable
 admission, outstanding references, resource-owning maps, unsupported list items, and unknown
 collection-member children. The removal-clone, unordered-removal-hash, and stable-sort performance
 witnesses compare small and large collections while asserting absent shared removal does not
 separate, unique removal does not clone values, unordered removal has size-independent hash work,
-and stable sorting has bounded $O(n \log n)$ comparisons with no item clones.
+and stable sorting has bounded $O(n \log n)$ comparisons with no item clones. The adaptive-integer
+unit witness additionally asserts that a mixed `Small`/`Wide`/`Big` sort performs no
+allocation-producing `as_big` materializations.

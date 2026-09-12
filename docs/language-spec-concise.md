@@ -749,6 +749,7 @@ lookup: default child THROWS (missing-key for map, index-error for sequence); ch
 lookup_rule: absence is always the checked spelling; no operation returns absence by default
 map_removal: remove; key -> Value or throws missing-key; remove.checked; key -> Value|none without mutation on absence
 map_removal_order: ordered map preserves remaining insertion order; reinserting a removed key appends it; an absent removal does not separate COW storage
+unordered_iteration: deterministic for the same operation history; content-equal values reached through different remove/insert histories may iterate differently
 list_sort: sort and sort.descending stably mutate and return the resulting list; supported items are int, fixed integers, float32/float64 (including float alias), and string only
 list_sort_order: strings use Unicode scalar sequence; integers use mathematical value; floating NaNs remain a stable final bucket in both directions, signed zeros compare equal, and descending compares directly rather than reversing
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
