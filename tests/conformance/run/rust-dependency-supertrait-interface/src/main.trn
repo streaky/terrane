@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-supertrait-witness import Child as child, child_total as child-total, erased_child_total as erased-child-total
+
+class values implements child
+    function base int;
+        return 20
+
+    function child int;
+        return 22
+
+function main;
+    print; (child-total; (instance values;))
+    print; (erased-child-total; (instance values;))

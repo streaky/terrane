@@ -472,14 +472,10 @@ pub(super) fn declared_value_type_with_visible_objects(
                     .find(|object| object.builtin.is_none() && object.name == base_name)
                     .map(|object| object.identity.clone())
             });
-        if let Some(mut identity) = object_identity {
-            identity.application = Some(Box::new(declared_value_type_with_visible_objects(
-                unit,
-                argument,
-                aliases,
-                visible_objects,
-            )?));
-            return Ok(ValueType::Object(identity));
+        if let Some(identity) = object_identity {
+            let application =
+                declared_value_type_with_visible_objects(unit, argument, aliases, visible_objects)?;
+            return Ok(ValueType::Object(identity.with_application(application)));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();

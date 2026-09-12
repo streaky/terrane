@@ -956,6 +956,9 @@ fn collect_source_foreign(
             }
             ProjectedKind::Interface(interface) => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
+                for supertrait in &interface.supertraits {
+                    foreign.insert(supertrait.rust_path.clone(), supertrait.name.clone());
+                }
                 for method in &interface.methods {
                     collect_foreign_function(&method.function, &mut foreign);
                 }

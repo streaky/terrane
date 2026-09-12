@@ -121,11 +121,7 @@ impl Emitter<'_> {
             let name = format!("({}).clone()", self.expression(values[0]));
             let value = self.expression_as(
                 values[1],
-                ValueType::Object(ObjectIdentity {
-                    namespace: "/core/logging".to_owned(),
-                    name: "log-value".to_owned(),
-                    application: None,
-                }),
+                ValueType::Object(ObjectIdentity::new("/core/logging", "log-value")),
             );
             let secret = identity.ends_with("::secret-field");
             let (line, column) = self.source.line_column(node.span.start);

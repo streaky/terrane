@@ -376,11 +376,7 @@ fn validate_projected_generic_arguments(
                 item.rust_path == expected_base
                     && matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
             });
-        let required = required_item.map(|item| ObjectIdentity {
-            namespace: item.namespace.clone(),
-            name: item.name.clone(),
-            application: None,
-        });
+        let required = required_item.map(|item| ObjectIdentity::new(&item.namespace, &item.name));
         let boxed_interface = matches!(
             parameter.ty,
             crate::projection::ProjectedType::BoxedInterface { .. }

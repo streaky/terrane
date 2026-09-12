@@ -263,14 +263,16 @@ pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
     pub application: Option<Box<ValueType>>,
+    pub(crate) application_key: Option<String>,
 }
 
 impl ObjectIdentity {
-    pub(super) fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+    pub(crate) fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             namespace: namespace.into(),
             name: name.into(),
             application: None,
+            application_key: None,
         }
     }
 
@@ -280,6 +282,12 @@ impl ObjectIdentity {
 
     pub(crate) fn base(&self) -> Self {
         Self::new(&self.namespace, &self.name)
+    }
+
+    pub(crate) fn with_application(mut self, application: ValueType) -> Self {
+        self.application_key = Some(format!("{application:?}"));
+        self.application = Some(Box::new(application));
+        self
     }
 }
 
@@ -295,21 +303,11 @@ impl std::fmt::Display for ObjectIdentity {
 
 impl Ord for ObjectIdentity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (
-            &self.namespace,
-            &self.name,
-            self.application
-                .as_deref()
-                .map(|value| format!("{value:?}")),
-        )
-            .cmp(&(
-                &other.namespace,
-                &other.name,
-                other
-                    .application
-                    .as_deref()
-                    .map(|value| format!("{value:?}")),
-            ))
+        (&self.namespace, &self.name, self.application_key.as_deref()).cmp(&(
+            &other.namespace,
+            &other.name,
+            other.application_key.as_deref(),
+        ))
     }
 }
 

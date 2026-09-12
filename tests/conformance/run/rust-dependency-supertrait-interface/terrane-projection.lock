@@ -1,0 +1,53 @@
+{
+  "format": 3,
+  "dependencies": [
+    {
+      "name": "terrane-supertrait-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-supertrait-witness",
+          "Base"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
+          "Child"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
+          "child_total"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
+          "erased_child_total"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "dc1bb544d20862637656826d87cf1f34c9ac94e8f816970c5c1fe2348588336b",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "41",
+  "content_hash": "eab203dabcd91bc112a152958ede5ff71139a5600f9ab188fce994ae3420d32a",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

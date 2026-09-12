@@ -23,7 +23,13 @@ class named-ints implements named-sequence of int
     function label string;
         return 'name'
 
+function interface-length int; value sequence of int
+    return value.length;
+
 function main;
     print; (sequence-total; (instance ints;))
     print; (named-total; (instance named-ints;))
     print; (erased-total; (instance ints;))
+    print; (erased-total; (instance named-ints;))
+    print; (interface-length; (instance ints;))
+    print; (interface-length; (instance named-ints;))
