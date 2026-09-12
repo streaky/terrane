@@ -289,7 +289,7 @@ pub(crate) fn collection_member_call<'a>(
         && let [base, family] = receiver.children.as_slice()
         && let Some(receiver_type) = infer_receiver_value_type(unit, base, bindings)?
         && descriptor_is_collection(unit, &receiver_type)
-        && descriptor_has_member(unit, &receiver_type, node_text(&unit.source, family))
+        && descriptor_has_method(unit, &receiver_type, node_text(&unit.source, family))
     {
         return Ok(Some((
             base,
