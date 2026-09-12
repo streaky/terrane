@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import Sequence as sequence, sequence_total as sequence-total
+
+class strings implements sequence of string
+    function first string|none;
+        return 'value'
+
+    function length int;
+        return 1
+
+function main;
+    sequence-total; (instance strings;)

@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import NonSend as non-send, non_send as make-non-send, SendItem as send-item
+
+class unsafe-item implements send-item of non-send
+    value non-send = make-non-send;
+
+    function item non-send;
+        return this.value
+
+function main;

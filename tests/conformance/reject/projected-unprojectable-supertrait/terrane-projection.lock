@@ -1,13 +1,8 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-render-witness",
-          "AssociatedValue"
-        ]
-      ],
-      "name": "terrane-render-witness",
+      "members": [],
+      "name": "terrane-bad-supertrait-witness",
       "version": "0.1.0"
     }
   ],

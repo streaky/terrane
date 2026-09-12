@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-associated-reject-witness import Sequence as sequence
+
+class holder
+    value sequence
+
+function main;

@@ -3,11 +3,27 @@
     {
       "members": [
         [
-          "/deps/terrane-render-witness",
-          "AssociatedValue"
+          "/deps/terrane-associated-reject-witness",
+          "NonSend"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness",
+          "SendItem"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness",
+          "Sequence"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness",
+          "non_send"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness",
+          "sequence_total"
         ]
       ],
-      "name": "terrane-render-witness",
+      "name": "terrane-associated-reject-witness",
       "version": "0.1.0"
     }
   ],

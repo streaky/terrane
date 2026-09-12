@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0121"
+contains = "binds projected associated type `Item` incompatibly with `i64`"
