@@ -1130,4 +1130,126 @@ mod tests {
         assert_eq!(descending[4].to_bits(), first_nan.to_bits());
         assert_eq!(descending[5].to_bits(), second_nan.to_bits());
     }
+
+    #[test]
+    fn collection_algorithmic_performance_witness() {
+        use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+
+        #[derive(Debug)]
+        struct CloneProbe {
+            value: usize,
+            clones: Arc<AtomicUsize>,
+        }
+        impl Clone for CloneProbe {
+            fn clone(&self) -> Self {
+                self.clones.fetch_add(1, AtomicOrdering::Relaxed);
+                Self {
+                    value: self.value,
+                    clones: Arc::clone(&self.clones),
+                }
+            }
+        }
+
+        let clones = Arc::new(AtomicUsize::new(0));
+        let mut ordered = Map::new(
+            (0..4_096)
+                .map(|key| {
+                    Entry::new(
+                        key,
+                        CloneProbe {
+                            value: key,
+                            clones: Arc::clone(&clones),
+                        },
+                    )
+                })
+                .collect(),
+        );
+        assert_eq!(ordered.remove(&2_048).map(|value| value.value), Ok(2_048));
+        assert_eq!(clones.load(AtomicOrdering::Relaxed), 0);
+
+        let preserved = ordered.clone();
+        assert!(ordered.remove_checked(&usize::MAX).is_none());
+        assert!(Arc::ptr_eq(&ordered.0, &preserved.0));
+        assert_eq!(clones.load(AtomicOrdering::Relaxed), 0);
+
+        #[derive(Clone, Debug)]
+        struct HashProbe {
+            value: usize,
+            hashes: Arc<AtomicUsize>,
+        }
+        impl PartialEq for HashProbe {
+            fn eq(&self, other: &Self) -> bool {
+                self.value == other.value
+            }
+        }
+        impl Eq for HashProbe {}
+        impl Hash for HashProbe {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                self.hashes.fetch_add(1, AtomicOrdering::Relaxed);
+                self.value.hash(state);
+            }
+        }
+
+        fn removal_hashes(length: usize) -> usize {
+            let hashes = Arc::new(AtomicUsize::new(0));
+            let mut values = UnorderedMap::new(
+                (0..length)
+                    .map(|value| {
+                        Entry::new(
+                            HashProbe {
+                                value,
+                                hashes: Arc::clone(&hashes),
+                            },
+                            value,
+                        )
+                    })
+                    .collect(),
+            );
+            hashes.store(0, AtomicOrdering::Relaxed);
+            values
+                .remove(&HashProbe {
+                    value: length / 2,
+                    hashes: Arc::clone(&hashes),
+                })
+                .expect("representative key is present");
+            hashes.load(AtomicOrdering::Relaxed)
+        }
+        let small_removal = removal_hashes(32);
+        let large_removal = removal_hashes(4_096);
+        assert!(
+            small_removal <= 8,
+            "{small_removal} hashes for small removal"
+        );
+        assert!(
+            large_removal <= 8,
+            "{large_removal} hashes for large removal"
+        );
+
+        fn sort_work(length: usize) -> (usize, usize) {
+            let clones = Arc::new(AtomicUsize::new(0));
+            let comparisons = AtomicUsize::new(0);
+            let mut values = List::new(
+                (0..length)
+                    .map(|value| CloneProbe {
+                        value: (value * 7_919) % length,
+                        clones: Arc::clone(&clones),
+                    })
+                    .collect(),
+            );
+            values.sort_by(|left, right| {
+                comparisons.fetch_add(1, AtomicOrdering::Relaxed);
+                left.value.cmp(&right.value)
+            });
+            (
+                comparisons.load(AtomicOrdering::Relaxed),
+                clones.load(AtomicOrdering::Relaxed),
+            )
+        }
+        let (small_comparisons, small_clones) = sort_work(32);
+        let (large_comparisons, large_clones) = sort_work(4_096);
+        assert!(small_comparisons <= 32 * 10);
+        assert!(large_comparisons <= 4_096 * 20);
+        assert_eq!(small_clones, 0);
+        assert_eq!(large_clones, 0);
+    }
 }
