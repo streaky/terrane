@@ -682,12 +682,18 @@ and consuming receivers. Rejections cover borrowed escape, missing lifetime/thre
 incoherent erased wrappers, unavailable dyn dispatch, unrepresentable throwables, and cleanup that
 cannot be separated safely.
 
-Evidence: `rust-dependency-callbacks` retains a concrete generic implementation and a supported
-boxed trait object, calls the dependency-owned values after registration, maps canonical Rust
-`Drop` through one Terrane destructor lineage, and has Rust poll then drop projected shared,
-mutable, and consuming async futures. Each async receiver runs nested `finally` cleanup before
-destruction, while the projected `Send + Sync` contract is checked from the complete class field
-graph. `projected-interface-send-field` provides the focused pre-lowering field-obligation reject.
+Evidence: `rust-dependency-callbacks` retains concrete and erased generic implementations on local
+and `Send + Sync` paths, preserves explicit boxed-object auto traits, maps canonical Rust `Drop`
+through one Terrane destructor lineage, and has Rust poll then drop projected shared, mutable, and
+consuming async futures without caller-side cleanup polling. Nested `finally` completes before
+receiver destruction and generated executor shutdown drains detached cleanup.
+`projected-interface-send-field` and `projected-interface-sync-field` exercise recursive, oracle-
+backed field obligations. `projected-retained-bound`, `projected-drop-missing-destruct`,
+`projected-async-resource-borrow`, `projected-async-runtime-context`,
+`projected-async-nonsend`, `projected-dyn-declines`, `projected-canonical-drop-import`, and
+`projected-boxed-erased-auto-trait` cover the accepted-boundary rejection matrix.
+`sync-main-later-async` preserves the small sync-main runtime path. Projection schema 40 records the
+new foreign auto-trait and boxed-object evidence.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
