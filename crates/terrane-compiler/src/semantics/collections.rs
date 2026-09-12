@@ -274,6 +274,44 @@ pub(super) fn collection_constructor_identity<'a>(
     .then_some(identity)
 }
 
+pub(crate) fn collection_member_call<'a>(
+    unit: &SemanticUnit,
+    callee: &'a SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<(&'a SyntaxNode, ValueType, String)>, SemanticFailure> {
+    let [receiver, member] = callee.children.as_slice() else {
+        return Ok(None);
+    };
+    if callee.kind != SyntaxKind::MemberExpression {
+        return Ok(None);
+    }
+    if receiver.kind == SyntaxKind::MemberExpression
+        && let [base, family] = receiver.children.as_slice()
+        && let Some(receiver_type) = infer_receiver_value_type(unit, base, bindings)?
+        && descriptor_is_collection(unit, &receiver_type)
+        && descriptor_has_member(unit, &receiver_type, node_text(&unit.source, family))
+    {
+        return Ok(Some((
+            base,
+            receiver_type,
+            format!(
+                "{}.{}",
+                node_text(&unit.source, family),
+                node_text(&unit.source, member)
+            ),
+        )));
+    }
+    Ok(infer_receiver_value_type(unit, receiver, bindings)?
+        .filter(|receiver_type| descriptor_is_collection(unit, receiver_type))
+        .map(|receiver_type| {
+            (
+                receiver,
+                receiver_type,
+                node_text(&unit.source, member).to_owned(),
+            )
+        }))
+}
+
 fn sortable_list_item(item: &ElementType) -> Option<ScalarType> {
     match item.value_type() {
         ValueType::Scalar(scalar)
@@ -293,6 +331,7 @@ fn validate_list_sort(
     unit: &SemanticUnit,
     item: &ElementType,
     arguments: &SyntaxNode,
+    callee_span: Span,
     method: &str,
 ) -> Result<(), SemanticFailure> {
     if !arguments.children.is_empty() {
@@ -308,7 +347,7 @@ fn validate_list_sort(
             &unit.source,
             "T0013",
             format!("`.{method}` requires a list of non-optional integers, floats, or strings"),
-            arguments.span,
+            callee_span,
         )
     })
 }
@@ -325,68 +364,61 @@ pub(super) fn infer_collection_call_type(
     let [callee, arguments] = node.children.as_slice() else {
         return Ok(None);
     };
-    if callee.kind == SyntaxKind::MemberExpression
-        && let [family, child] = callee.children.as_slice()
-        && node_text(&unit.source, child) == "checked"
-        && family.kind == SyntaxKind::MemberExpression
-        && let [receiver, member] = family.children.as_slice()
-        && let member_name = node_text(&unit.source, member)
-        && matches!(member_name, "get" | "remove")
-        && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
-        && descriptor_has_member(unit, &receiver_type, &format!("{member_name}.checked"))
+    if let Some((_receiver, receiver_type, member)) =
+        collection_member_call(unit, callee, bindings)?
+        && member.contains('.')
     {
-        let [argument] = arguments.children.as_slice() else {
-            return Err(failure(
-                &unit.source,
-                "T0045",
-                format!("`.{member_name}.checked` requires exactly one argument"),
-                arguments.span,
-            ));
-        };
-        let argument = argument.children.last().unwrap_or(argument);
-        return match receiver_type {
-            ValueType::List(item) | ValueType::Tuple(item, _) if member_name == "get" => {
-                validate_collection_constructor_value(
-                    unit,
-                    argument,
-                    &ValueType::Scalar(ScalarType::Int),
-                    "collection index",
-                    bindings,
-                )?;
-                Ok(Some(ValueType::Optional(Box::new(item.value_type()))))
-            }
-            ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
-                validate_collection_constructor_value(
-                    unit,
-                    argument,
-                    &key.value_type(),
-                    "map key",
-                    bindings,
-                )?;
-                Ok(Some(ValueType::Optional(Box::new(value.value_type()))))
-            }
-            _ => Ok(None),
-        };
-    }
-    if callee.kind == SyntaxKind::MemberExpression
-        && let [family, child] = callee.children.as_slice()
-        && family.kind == SyntaxKind::MemberExpression
-        && let [receiver, member] = family.children.as_slice()
-        && node_text(&unit.source, member) == "sort"
-        && let Some(ValueType::List(item)) = infer_receiver_value_type(unit, receiver, bindings)?
-    {
-        let child = node_text(&unit.source, child);
-        let operation = format!("sort.{child}");
-        if !descriptor_has_member(unit, &ValueType::List(item.clone()), &operation) {
+        if !descriptor_has_member(unit, &receiver_type, &member) {
             return Err(failure(
                 &unit.source,
                 "T0031",
-                format!("list has no member `.{operation}`"),
+                format!("collection has no member `.{member}`"),
                 callee.span,
             ));
         }
-        validate_list_sort(unit, &item, arguments, &operation)?;
-        return Ok(Some(ValueType::List(item)));
+        if matches!(member.as_str(), "get.checked" | "remove.checked") {
+            let [argument] = arguments.children.as_slice() else {
+                return Err(failure(
+                    &unit.source,
+                    "T0045",
+                    format!("`.{member}` requires exactly one argument"),
+                    arguments.span,
+                ));
+            };
+            let argument = argument.children.last().unwrap_or(argument);
+            return match (receiver_type, member.as_str()) {
+                (ValueType::List(item) | ValueType::Tuple(item, _), "get.checked") => {
+                    validate_collection_constructor_value(
+                        unit,
+                        argument,
+                        &ValueType::Scalar(ScalarType::Int),
+                        "collection index",
+                        bindings,
+                    )?;
+                    Ok(Some(ValueType::Optional(Box::new(item.value_type()))))
+                }
+                (
+                    ValueType::Map(key, value) | ValueType::UnorderedMap(key, value),
+                    "get.checked" | "remove.checked",
+                ) => {
+                    validate_collection_constructor_value(
+                        unit,
+                        argument,
+                        &key.value_type(),
+                        "map key",
+                        bindings,
+                    )?;
+                    Ok(Some(ValueType::Optional(Box::new(value.value_type()))))
+                }
+                _ => Ok(None),
+            };
+        }
+        if member == "sort.descending"
+            && let ValueType::List(item) = receiver_type
+        {
+            validate_list_sort(unit, &item, arguments, callee.span, &member)?;
+            return Ok(Some(ValueType::List(item)));
+        }
     }
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
@@ -480,7 +512,7 @@ pub(super) fn infer_collection_call_type(
         if operation == Some("collection.sort")
             && let ValueType::List(item) = &receiver_type
         {
-            validate_list_sort(unit, item, arguments, "sort")?;
+            validate_list_sort(unit, item, arguments, callee.span, "sort")?;
         }
         return Ok(
             match (receiver_type, operation.expect("validated operation")) {

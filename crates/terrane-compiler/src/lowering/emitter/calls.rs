@@ -302,59 +302,54 @@ impl Emitter<'_> {
             };
         }
 
-        if callee.kind == SyntaxKind::MemberExpression
-            && let [family, child] = callee.children.as_slice()
-            && self.text(child) == "checked"
-            && family.kind == SyntaxKind::MemberExpression
-            && let [receiver, member] = family.children.as_slice()
-            && let remove = self.text(member) == "remove"
-            && matches!(self.text(member), "get" | "remove")
-            && let Some(receiver_type) = self.receiver_value_type(receiver)
-            && let Some(argument) = arguments.children.first()
+        if let Ok(Some((receiver, receiver_type, member))) =
+            collection_member_call(self.unit, callee, &self.unit.typed_bindings)
+            && member.contains('.')
         {
-            let argument = argument.children.last().unwrap_or(argument);
-            let receiver_value = if remove {
-                self.receiver_guard_expression(receiver)
-            } else {
-                self.receiver_expression(receiver)
-            };
-            let call = match receiver_type {
-                ValueType::List(_) | ValueType::Tuple(_, _) => {
-                    let index = self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
-                    format!(
-                        "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
-                    )
-                }
-                ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
-                    let key = self.expression_as(argument, key.value_type());
-                    if remove {
-                        format!("({receiver_value}).remove_checked(&({key}))")
-                    } else {
-                        format!("({receiver_value}).get(&({key})).cloned()")
+            if matches!(member.as_str(), "get.checked" | "remove.checked")
+                && let Some(argument) = arguments.children.first()
+            {
+                let remove = member == "remove.checked";
+                let argument = argument.children.last().unwrap_or(argument);
+                let receiver_value = if remove {
+                    self.receiver_guard_expression(receiver)
+                } else {
+                    self.receiver_expression(receiver)
+                };
+                let call = match receiver_type {
+                    ValueType::List(_) | ValueType::Tuple(_, _) => {
+                        let index =
+                            self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
+                        format!(
+                            "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
+                        )
                     }
-                }
-                _ => String::new(),
-            };
-            return if remove {
-                self.wrap_receiver_guard(receiver, call)
-            } else {
-                call
-            };
-        }
-        if callee.kind == SyntaxKind::MemberExpression
-            && let [family, child] = callee.children.as_slice()
-            && self.text(child) == "descending"
-            && family.kind == SyntaxKind::MemberExpression
-            && let [receiver, member] = family.children.as_slice()
-            && self.text(member) == "sort"
-            && let Some(ValueType::List(item)) = self.receiver_value_type(receiver)
-        {
-            let receiver_value = self.receiver_guard_expression(receiver);
-            let comparator = list_sort_comparator(&item, true);
-            let call = format!(
-                "({{ let collection = &mut ({receiver_value}); collection.sort_by({comparator}); collection.clone() }})"
-            );
-            return self.wrap_receiver_guard(receiver, call);
+                    ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
+                        let key = self.expression_as(argument, key.value_type());
+                        if remove {
+                            format!("({receiver_value}).remove_checked(&({key}))")
+                        } else {
+                            format!("({receiver_value}).get(&({key})).cloned()")
+                        }
+                    }
+                    _ => String::new(),
+                };
+                return if remove {
+                    self.wrap_receiver_guard(receiver, call)
+                } else {
+                    call
+                };
+            }
+            if member == "sort.descending"
+                && let ValueType::List(item) = receiver_type
+            {
+                let receiver_value = self.receiver_guard_expression(receiver);
+                let comparator = list_sort_comparator(&item, true);
+                let call = format!(
+                    "({{ let collection = &mut ({receiver_value}); collection.sort_by({comparator}); collection.clone() }})"
+                );
+                return self.wrap_receiver_guard(receiver, call);
+            }
         }
         if let Some(string_call) = self.string_call(node, arguments) {
             return string_call;

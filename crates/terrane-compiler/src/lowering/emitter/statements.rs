@@ -77,24 +77,10 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return None;
         };
-        let [receiver, member] = callee.children.as_slice() else {
-            return None;
-        };
-        if callee.kind != SyntaxKind::MemberExpression {
-            return None;
-        }
-        let child = self.text(member);
-        let (receiver, operation) = if receiver.kind == SyntaxKind::MemberExpression
-            && let [base, family] = receiver.children.as_slice()
-            && matches!(
-                (self.text(family), child),
-                ("remove", "checked") | ("sort", "descending")
-            ) {
-            (base, format!("{}.{}", self.text(family), child))
-        } else {
-            (receiver, child.to_owned())
-        };
-        let receiver_type = self.receiver_value_type(receiver)?;
+        let (receiver, receiver_type, operation) =
+            collection_member_call(self.unit, callee, &self.unit.typed_bindings)
+                .ok()
+                .flatten()?;
         let list_append_vector = (operation == "append")
             .then(|| self.local_typed_binding(receiver))
             .flatten()

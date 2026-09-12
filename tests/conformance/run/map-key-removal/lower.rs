@@ -378,19 +378,21 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/map-key-removal::main"];
-    pub static SITES: [Site; 6] = [
+    pub static SITES: [Site; 7] = [
         /* terrane-site-row: site 0: /map-key-removal::main (case.trn:15:17-15:41) */
         { Site { function: 0, file: 0, line: 15, column: 17, end_line: 15, end_column: 41 } },
         /* terrane-site-row: site 1: /map-key-removal::main (case.trn:25:5-25:30) */
         { Site { function: 0, file: 0, line: 25, column: 5, end_line: 25, end_column: 30 } },
         /* terrane-site-row: site 2: /map-key-removal::main (case.trn:31:11-31:37) */
         { Site { function: 0, file: 0, line: 31, column: 11, end_line: 31, end_column: 37 } },
-        /* terrane-site-row: site 3: /map-key-removal::main (case.trn:38:3-38:24) */
-        { Site { function: 0, file: 0, line: 38, column: 3, end_line: 38, end_column: 24 } },
-        /* terrane-site-row: site 4: /map-key-removal::main (case.trn:43:29-43:50) */
-        { Site { function: 0, file: 0, line: 43, column: 29, end_line: 43, end_column: 50 } },
-        /* terrane-site-row: site 5: /map-key-removal::main (case.trn:45:20-45:40) */
-        { Site { function: 0, file: 0, line: 45, column: 20, end_line: 45, end_column: 40 } },
+        /* terrane-site-row: site 3: /map-key-removal::main (case.trn:40:3-40:35) */
+        { Site { function: 0, file: 0, line: 40, column: 3, end_line: 40, end_column: 35 } },
+        /* terrane-site-row: site 4: /map-key-removal::main (case.trn:44:3-44:24) */
+        { Site { function: 0, file: 0, line: 44, column: 3, end_line: 44, end_column: 24 } },
+        /* terrane-site-row: site 5: /map-key-removal::main (case.trn:49:29-49:50) */
+        { Site { function: 0, file: 0, line: 49, column: 29, end_line: 49, end_column: 50 } },
+        /* terrane-site-row: site 6: /map-key-removal::main (case.trn:51:20-51:40) */
+        { Site { function: 0, file: 0, line: 51, column: 20, end_line: 51, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -588,6 +590,40 @@ fn main() {
             terrane_scalar_support::scalar_text(&pair.value)
         );
     }
+    unordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
+    let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
+        &unordered.entries(),
+    );
+    loop {
+        let pair = match __terrane_iterator_3.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!(
+            "{}{}{}", terrane_scalar_support::scalar_text(&String::from("reinserted-")),
+            terrane_scalar_support::scalar_text(&pair.key),
+            terrane_scalar_support::scalar_text(&pair.value)
+        );
+    }
+    let mut unordered_markers: terrane_collection_support::UnorderedMap<
+        String,
+        Marker,
+    > = terrane_collection_support::UnorderedMap::<
+        String,
+        Marker,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("item"),
+            Marker::terrane_construct(String::from("unordered")))
+        ],
+    );
+    let _ = __terrane_raised(
+        unordered_markers.remove(&String::from("item")),
+        3 /* terrane-site: case.trn:40:3-40:35 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&String::from("after-unordered"))
+    );
     let mut unique: terrane_collection_support::Map<String, Marker> = terrane_collection_support::Map::<
         String,
         Marker,
@@ -599,7 +635,7 @@ fn main() {
     );
     let _ = __terrane_raised(
         unique.remove(&String::from("item")),
-        3 /* terrane-site: case.trn:38:3-38:24 */,
+        4 /* terrane-site: case.trn:44:3-44:24 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-unique")));
     let mut shared: terrane_collection_support::Map<String, Marker> = terrane_collection_support::Map::<
@@ -615,7 +651,7 @@ fn main() {
     if true {
         let removed_marker: Marker = __terrane_raised(
             shared.remove(&String::from("item")),
-            4 /* terrane-site: case.trn:43:29-43:50 */,
+            5 /* terrane-site: case.trn:49:29-49:50 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("removed-")),
@@ -625,6 +661,6 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("alias-")),
         terrane_scalar_support::scalar_text(&__terrane_raised(shared_alias
-        .get_or_error(&String::from("item")), 5 /* terrane-site: case.trn:45:20-45:40 */).name)
+        .get_or_error(&String::from("item")), 6 /* terrane-site: case.trn:51:20-51:40 */).name)
     );
 }

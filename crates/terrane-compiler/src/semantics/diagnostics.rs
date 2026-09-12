@@ -324,6 +324,31 @@ pub(super) fn object_method_mutates(
         })
 }
 
+pub(crate) fn typed_member_call<'a>(
+    unit: &SemanticUnit,
+    callee: &'a SyntaxNode,
+) -> Option<(&'a SyntaxNode, ValueType, String)> {
+    if let Ok(Some(call)) = collection_member_call(unit, callee, &unit.typed_bindings) {
+        return Some(call);
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    if callee.kind != SyntaxKind::MemberExpression {
+        return None;
+    }
+    infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+        .map(|receiver_type| {
+            (
+                receiver,
+                receiver_type,
+                node_text(&unit.source, member).to_owned(),
+            )
+        })
+}
+
 pub(crate) fn member_invocation_mode(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -467,38 +492,23 @@ pub(crate) fn binding_span_is_mutated(
             });
         let mutator_call = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
-                let [receiver, member] = callee.children.as_slice() else {
+                let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee)
+                else {
                     return false;
                 };
-                if callee.kind != SyntaxKind::MemberExpression {
-                    return false;
-                }
-                let child = node_text(&unit.source, member);
-                let (receiver, member_name) = if receiver.kind == SyntaxKind::MemberExpression
-                    && let [base, family] = receiver.children.as_slice()
-                    && matches!(
-                        (node_text(&unit.source, family), child),
-                        ("remove", "checked") | ("sort", "descending")
-                    ) {
-                    (base, node_text(&unit.source, family))
-                } else {
-                    (receiver, child)
+                let family = member
+                    .split_once('.')
+                    .map_or(member.as_str(), |(family, _)| family);
+                let callable_field = match &receiver_type {
+                    ValueType::Object(identity) => matches!(
+                        object_field_type(unit, identity, family, false),
+                        Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                    ),
+                    _ => false,
                 };
-                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|receiver_type| {
-                        let callable_field = match &receiver_type {
-                            ValueType::Object(identity) => matches!(
-                                object_field_type(unit, identity, member_name, false),
-                                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-                            ),
-                            _ => false,
-                        };
-                        member_invocation_mode(package, unit, &receiver_type, member_name)
-                            == InvocationMode::Mutable
-                            && (closure_writes == ClosureWrites::Include || !callable_field)
-                    })
+                member_invocation_mode(package, unit, &receiver_type, family)
+                    == InvocationMode::Mutable
+                    && (closure_writes == ClosureWrites::Include || !callable_field)
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding

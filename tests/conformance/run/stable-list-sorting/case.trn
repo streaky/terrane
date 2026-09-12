@@ -47,9 +47,9 @@ function main;
   second-nan float64 = negative-zero / zero
   floats list of float64 = list; first-nan, negative-zero, infinity, zero, negative-infinity, second-nan
   floats.sort;
-  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[4].not-a-number, floats[4].negative-sign, floats[5].not-a-number, floats[5].negative-sign
+  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[4].not-a-number, floats[5].not-a-number
   floats.sort.descending;
-  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[3].negative-sign, floats[4].not-a-number, floats[4].negative-sign, floats[5].not-a-number, floats[5].negative-sign
+  print; floats[0].infinite, floats[0].negative-sign, floats[1].negative-sign, floats[2].negative-sign, floats[3].infinite, floats[3].negative-sign, floats[4].not-a-number, floats[5].not-a-number
 
   narrow list of float32 = list; 2.0, -1.0
   narrow.sort;

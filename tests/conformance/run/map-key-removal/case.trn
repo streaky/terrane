@@ -33,6 +33,12 @@ function main;
   print; unordered.length, unordered-preserved.length
   for pair in unordered.entries;
     print; pair.key, pair.value
+  unordered.set; 'second', 4
+  for pair in unordered.entries;
+    print; 'reinserted-', pair.key, pair.value
+  unordered-markers unordered-map of string, marker = unordered-map; item=(instance marker; 'unordered')
+  unordered-markers.remove; 'item'
+  print; 'after-unordered'
 
   unique map of string, marker = map; item=(instance marker; 'unique')
   unique.remove; 'item'

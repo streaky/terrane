@@ -12,6 +12,11 @@ true
 23
 first1
 third3
+reinserted-first1
+reinserted-third3
+reinserted-second4
+drop-unordered
+after-unordered
 drop-unique
 after-unique
 removed-shared

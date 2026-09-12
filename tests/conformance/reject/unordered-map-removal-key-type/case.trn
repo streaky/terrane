@@ -1,0 +1,6 @@
+namespace unordered-map-removal-key-type
+from /core/collections import unordered-map
+
+function main;
+  values = unordered-map; answer=42
+  values.remove.checked; 1

@@ -378,7 +378,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/stable-list-sorting::main"];
-    pub static SITES: [Site; 47] = [
+    pub static SITES: [Site; 43] = [
         /* terrane-site-row: site 0: /stable-list-sorting::main (case.trn:7:10-7:21) */
         { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 21 } },
         /* terrane-site-row: site 1: /stable-list-sorting::main (case.trn:7:23-7:34) */
@@ -433,45 +433,37 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 50, column: 125, end_line: 50, end_column: 134 } },
         /* terrane-site-row: site 26: /stable-list-sorting::main (case.trn:50:149-50:158) */
         { Site { function: 0, file: 0, line: 50, column: 149, end_line: 50, end_column: 158 } },
-        /* terrane-site-row: site 27: /stable-list-sorting::main (case.trn:50:174-50:183) */
-        { Site { function: 0, file: 0, line: 50, column: 174, end_line: 50, end_column: 183 } },
-        /* terrane-site-row: site 28: /stable-list-sorting::main (case.trn:50:198-50:207) */
-        { Site { function: 0, file: 0, line: 50, column: 198, end_line: 50, end_column: 207 } },
-        /* terrane-site-row: site 29: /stable-list-sorting::main (case.trn:52:10-52:19) */
+        /* terrane-site-row: site 27: /stable-list-sorting::main (case.trn:52:10-52:19) */
         { Site { function: 0, file: 0, line: 52, column: 10, end_line: 52, end_column: 19 } },
-        /* terrane-site-row: site 30: /stable-list-sorting::main (case.trn:52:30-52:39) */
+        /* terrane-site-row: site 28: /stable-list-sorting::main (case.trn:52:30-52:39) */
         { Site { function: 0, file: 0, line: 52, column: 30, end_line: 52, end_column: 39 } },
-        /* terrane-site-row: site 31: /stable-list-sorting::main (case.trn:52:55-52:64) */
+        /* terrane-site-row: site 29: /stable-list-sorting::main (case.trn:52:55-52:64) */
         { Site { function: 0, file: 0, line: 52, column: 55, end_line: 52, end_column: 64 } },
-        /* terrane-site-row: site 32: /stable-list-sorting::main (case.trn:52:80-52:89) */
+        /* terrane-site-row: site 30: /stable-list-sorting::main (case.trn:52:80-52:89) */
         { Site { function: 0, file: 0, line: 52, column: 80, end_line: 52, end_column: 89 } },
-        /* terrane-site-row: site 33: /stable-list-sorting::main (case.trn:52:105-52:114) */
+        /* terrane-site-row: site 31: /stable-list-sorting::main (case.trn:52:105-52:114) */
         { Site { function: 0, file: 0, line: 52, column: 105, end_line: 52, end_column: 114 } },
-        /* terrane-site-row: site 34: /stable-list-sorting::main (case.trn:52:125-52:134) */
+        /* terrane-site-row: site 32: /stable-list-sorting::main (case.trn:52:125-52:134) */
         { Site { function: 0, file: 0, line: 52, column: 125, end_line: 52, end_column: 134 } },
-        /* terrane-site-row: site 35: /stable-list-sorting::main (case.trn:52:150-52:159) */
+        /* terrane-site-row: site 33: /stable-list-sorting::main (case.trn:52:150-52:159) */
         { Site { function: 0, file: 0, line: 52, column: 150, end_line: 52, end_column: 159 } },
-        /* terrane-site-row: site 36: /stable-list-sorting::main (case.trn:52:174-52:183) */
+        /* terrane-site-row: site 34: /stable-list-sorting::main (case.trn:52:174-52:183) */
         { Site { function: 0, file: 0, line: 52, column: 174, end_line: 52, end_column: 183 } },
-        /* terrane-site-row: site 37: /stable-list-sorting::main (case.trn:52:199-52:208) */
-        { Site { function: 0, file: 0, line: 52, column: 199, end_line: 52, end_column: 208 } },
-        /* terrane-site-row: site 38: /stable-list-sorting::main (case.trn:52:223-52:232) */
-        { Site { function: 0, file: 0, line: 52, column: 223, end_line: 52, end_column: 232 } },
-        /* terrane-site-row: site 39: /stable-list-sorting::main (case.trn:56:10-56:19) */
+        /* terrane-site-row: site 35: /stable-list-sorting::main (case.trn:56:10-56:19) */
         { Site { function: 0, file: 0, line: 56, column: 10, end_line: 56, end_column: 19 } },
-        /* terrane-site-row: site 40: /stable-list-sorting::main (case.trn:56:21-56:30) */
+        /* terrane-site-row: site 36: /stable-list-sorting::main (case.trn:56:21-56:30) */
         { Site { function: 0, file: 0, line: 56, column: 21, end_line: 56, end_column: 30 } },
-        /* terrane-site-row: site 41: /stable-list-sorting::main (case.trn:61:10-61:22) */
+        /* terrane-site-row: site 37: /stable-list-sorting::main (case.trn:61:10-61:22) */
         { Site { function: 0, file: 0, line: 61, column: 10, end_line: 61, end_column: 22 } },
-        /* terrane-site-row: site 42: /stable-list-sorting::main (case.trn:61:24-61:33) */
+        /* terrane-site-row: site 38: /stable-list-sorting::main (case.trn:61:24-61:33) */
         { Site { function: 0, file: 0, line: 61, column: 24, end_line: 61, end_column: 33 } },
-        /* terrane-site-row: site 43: /stable-list-sorting::main (case.trn:61:35-61:46) */
+        /* terrane-site-row: site 39: /stable-list-sorting::main (case.trn:61:35-61:46) */
         { Site { function: 0, file: 0, line: 61, column: 35, end_line: 61, end_column: 46 } },
-        /* terrane-site-row: site 44: /stable-list-sorting::main (case.trn:69:17-69:29) */
+        /* terrane-site-row: site 40: /stable-list-sorting::main (case.trn:69:17-69:29) */
         { Site { function: 0, file: 0, line: 69, column: 17, end_line: 69, end_column: 29 } },
-        /* terrane-site-row: site 45: /stable-list-sorting::main (case.trn:72:17-72:29) */
+        /* terrane-site-row: site 41: /stable-list-sorting::main (case.trn:72:17-72:29) */
         { Site { function: 0, file: 0, line: 72, column: 17, end_line: 72, end_column: 29 } },
-        /* terrane-site-row: site 46: /stable-list-sorting::main (case.trn:78:24-78:33) */
+        /* terrane-site-row: site 42: /stable-list-sorting::main (case.trn:78:24-78:33) */
         { Site { function: 0, file: 0, line: 78, column: 24, end_line: 78, end_column: 33 } },
     ];
     #[cold]
@@ -633,8 +625,7 @@ fn main() {
     );
     floats.sort_by(terrane_collection_support::compare_float64_ascending);
     println!(
-        "{}{}{}{}{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
+        "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         20 /* terrane-site: case.trn:50:10-50:19 */)), 20 /* terrane-site: case.trn:50:10-50:19 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
@@ -653,48 +644,35 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
         25 /* terrane-site: case.trn:50:125-50:134 */)), 25 /* terrane-site: case.trn:50:125-50:134 */).is_nan()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
-        26 /* terrane-site: case.trn:50:149-50:158 */)), 26 /* terrane-site: case.trn:50:149-50:158 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        27 /* terrane-site: case.trn:50:174-50:183 */)), 27 /* terrane-site: case.trn:50:174-50:183 */).is_nan()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        28 /* terrane-site: case.trn:50:198-50:207 */)), 28 /* terrane-site: case.trn:50:198-50:207 */).is_sign_negative())
+        26 /* terrane-site: case.trn:50:149-50:158 */)), 26 /* terrane-site: case.trn:50:149-50:158 */).is_nan())
     );
     floats.sort_by(terrane_collection_support::compare_float64_descending);
     println!(
-        "{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        27 /* terrane-site: case.trn:52:10-52:19 */)), 27 /* terrane-site: case.trn:52:10-52:19 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        29 /* terrane-site: case.trn:52:10-52:19 */)), 29 /* terrane-site: case.trn:52:10-52:19 */).is_infinite()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        30 /* terrane-site: case.trn:52:30-52:39 */)), 30 /* terrane-site: case.trn:52:30-52:39 */).is_sign_negative()),
+        28 /* terrane-site: case.trn:52:30-52:39 */)), 28 /* terrane-site: case.trn:52:30-52:39 */).is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        31 /* terrane-site: case.trn:52:55-52:64 */)), 31 /* terrane-site: case.trn:52:55-52:64 */).is_sign_negative()),
+        29 /* terrane-site: case.trn:52:55-52:64 */)), 29 /* terrane-site: case.trn:52:55-52:64 */).is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        32 /* terrane-site: case.trn:52:80-52:89 */)), 32 /* terrane-site: case.trn:52:80-52:89 */).is_sign_negative()),
+        30 /* terrane-site: case.trn:52:80-52:89 */)), 30 /* terrane-site: case.trn:52:80-52:89 */).is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        33 /* terrane-site: case.trn:52:105-52:114 */)), 33 /* terrane-site: case.trn:52:105-52:114 */).is_infinite()),
+        31 /* terrane-site: case.trn:52:105-52:114 */)), 31 /* terrane-site: case.trn:52:105-52:114 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        34 /* terrane-site: case.trn:52:125-52:134 */)), 34 /* terrane-site: case.trn:52:125-52:134 */).is_sign_negative()),
+        32 /* terrane-site: case.trn:52:125-52:134 */)), 32 /* terrane-site: case.trn:52:125-52:134 */).is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
-        35 /* terrane-site: case.trn:52:150-52:159 */)), 35 /* terrane-site: case.trn:52:150-52:159 */).is_nan()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
-        36 /* terrane-site: case.trn:52:174-52:183 */)), 36 /* terrane-site: case.trn:52:174-52:183 */).is_sign_negative()),
+        33 /* terrane-site: case.trn:52:150-52:159 */)), 33 /* terrane-site: case.trn:52:150-52:159 */).is_nan()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        37 /* terrane-site: case.trn:52:199-52:208 */)), 37 /* terrane-site: case.trn:52:199-52:208 */).is_nan()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        38 /* terrane-site: case.trn:52:223-52:232 */)), 38 /* terrane-site: case.trn:52:223-52:232 */).is_sign_negative())
+        34 /* terrane-site: case.trn:52:174-52:183 */)), 34 /* terrane-site: case.trn:52:174-52:183 */).is_nan())
     );
     let mut narrow: terrane_collection_support::List<f32> = terrane_collection_support::List::<
         f32,
@@ -703,10 +681,10 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        39 /* terrane-site: case.trn:56:10-56:19 */)), 39 /* terrane-site: case.trn:56:10-56:19 */)),
+        35 /* terrane-site: case.trn:56:10-56:19 */)), 35 /* terrane-site: case.trn:56:10-56:19 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        40 /* terrane-site: case.trn:56:21-56:30 */)), 40 /* terrane-site: case.trn:56:21-56:30 */))
+        36 /* terrane-site: case.trn:56:21-56:30 */)), 36 /* terrane-site: case.trn:56:21-56:30 */))
     );
     let mut values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,
@@ -727,13 +705,13 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(preserved
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        41 /* terrane-site: case.trn:61:10-61:22 */)), 41 /* terrane-site: case.trn:61:10-61:22 */)),
+        37 /* terrane-site: case.trn:61:10-61:22 */)), 37 /* terrane-site: case.trn:61:10-61:22 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        42 /* terrane-site: case.trn:61:24-61:33 */)), 42 /* terrane-site: case.trn:61:24-61:33 */)),
+        38 /* terrane-site: case.trn:61:24-61:33 */)), 38 /* terrane-site: case.trn:61:24-61:33 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        43 /* terrane-site: case.trn:61:35-61:46 */)), 43 /* terrane-site: case.trn:61:35-61:46 */))
+        39 /* terrane-site: case.trn:61:35-61:46 */)), 39 /* terrane-site: case.trn:61:35-61:46 */))
     );
     returned.append(terrane_int_support::Int::from(4_i128));
     println!(
@@ -773,7 +751,7 @@ fn main() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 44 /* terrane-site: case.trn:69:17-69:29 */))
+            .get_or_error(&key), 40 /* terrane-site: case.trn:69:17-69:29 */))
         );
     }
     let descending: terrane_collection_support::List<String> = {
@@ -792,7 +770,7 @@ fn main() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 45 /* terrane-site: case.trn:72:17-72:29 */))
+            .get_or_error(&key), 41 /* terrane-site: case.trn:72:17-72:29 */))
         );
     }
     let mut empty: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
@@ -807,6 +785,6 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(single
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        46 /* terrane-site: case.trn:78:24-78:33 */)), 46 /* terrane-site: case.trn:78:24-78:33 */))
+        42 /* terrane-site: case.trn:78:24-78:33 */)), 42 /* terrane-site: case.trn:78:24-78:33 */))
     );
 }
