@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "38";
+const PROJECTION_SCHEMA: &str = "39";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -222,6 +222,8 @@ pub enum ProjectedKind {
         methods: Vec<ProjectedFunction>,
         #[serde(default)]
         static_methods: Vec<ProjectedFunction>,
+        #[serde(default)]
+        cloneable: bool,
     },
     Interface(ProjectedInterface),
     Enum {
@@ -546,6 +548,7 @@ impl Projection {
                         ProjectedKind::ForeignType {
                             methods,
                             static_methods,
+                            ..
                         } => Some(
                             methods
                                 .iter()
@@ -658,6 +661,7 @@ impl Projection {
                 ProjectedKind::ForeignType {
                     methods,
                     static_methods,
+                    ..
                 } => {
                     let candidates = if is_static { static_methods } else { methods };
                     candidates.iter().find(|method| method.name == method_name)
@@ -690,10 +694,23 @@ impl Projection {
     #[must_use]
     pub(crate) fn foreign_owns_resource(&self, namespace: &str, name: &str) -> bool {
         self.item(namespace, name).is_some_and(|item| {
-            matches!(&item.kind, ProjectedKind::ForeignType { methods, .. } if methods.iter().any(|method| {
-                method.is_async || matches!(method.receiver, Some(Receiver::Move))
-            }))
+            matches!(
+                &item.kind,
+                ProjectedKind::ForeignType { methods, .. }
+                    if methods.iter().any(|method| {
+                        method.is_async || matches!(method.receiver, Some(Receiver::Move))
+                    })
+            )
         })
+    }
+
+    #[must_use]
+    pub(crate) fn foreign_is_cloneable(&self, namespace: &str, name: &str) -> Option<bool> {
+        self.item(namespace, name)
+            .and_then(|item| match &item.kind {
+                ProjectedKind::ForeignType { cloneable, .. } => Some(*cloneable),
+                _ => None,
+            })
     }
 
     #[must_use]
@@ -838,6 +855,7 @@ fn collect_source_foreign(
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
                 for method in methods.iter().chain(static_methods) {
@@ -864,6 +882,7 @@ fn collect_source_foreign(
                     ProjectedKind::ForeignType {
                         methods,
                         static_methods,
+                        ..
                     },
                 ..
             }) = all_items
@@ -966,6 +985,7 @@ fn render_foreign_declaration(
             if let Some(ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             }) = projected_kind
             {
                 for method in methods {
@@ -1662,6 +1682,7 @@ fn projection_history_members(dependency: &ProjectedDependency) -> BTreeSet<(Str
         if let ProjectedKind::ForeignType {
             methods,
             static_methods,
+            ..
         } = &item.kind
         {
             members.extend(methods.iter().map(|method| {
@@ -2042,6 +2063,7 @@ fn enforce_transitive_reachability(
             if let ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } = &mut item.kind
             {
                 let owner_path = item.rust_path.clone();
@@ -2111,6 +2133,7 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } => methods.iter_mut().chain(static_methods).collect(),
             ProjectedKind::Interface(interface) => interface
                 .methods
@@ -2298,6 +2321,7 @@ fn decline_unnameable_bound_owners(
                 ProjectedKind::ForeignType {
                     methods,
                     static_methods,
+                    ..
                 } => {
                     for method_list in [methods, static_methods] {
                         let mut kept = Vec::new();
@@ -2354,6 +2378,7 @@ fn projected_bound_dependencies(
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } => methods.iter().chain(static_methods).collect(),
             ProjectedKind::Interface(interface) => interface
                 .methods
@@ -2549,6 +2574,7 @@ fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
         ProjectedKind::ForeignType {
             methods,
             static_methods,
+            ..
         } => methods.iter().chain(static_methods).collect(),
         ProjectedKind::Interface(interface) => interface
             .methods
@@ -3078,6 +3104,12 @@ fn project_rustdoc(
                     Ok(ProjectedKind::ForeignType {
                         methods,
                         static_methods,
+                        cloneable: implements_trait(
+                            &structure.impls,
+                            index,
+                            paths,
+                            "core::clone::Clone",
+                        ),
                     })
                 }
             }
@@ -3272,6 +3304,7 @@ fn project_rustdoc(
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                ..
             } => {
                 for method in methods.iter_mut().chain(static_methods) {
                     normalize(method);
@@ -3582,6 +3615,7 @@ fn project_chain_owner(
         kind: ProjectedKind::ForeignType {
             methods,
             static_methods: Vec::new(),
+            cloneable: false,
         },
     })
 }
@@ -5187,6 +5221,7 @@ mod tests {
                 kind: ProjectedKind::ForeignType {
                     methods: Vec::new(),
                     static_methods: Vec::new(),
+                    cloneable: false,
                 },
             }],
             declined: Vec::new(),
@@ -5878,6 +5913,7 @@ mod tests {
                     chain_role: None,
                     receiver: None,
                 }],
+                cloneable: false,
             },
         };
         let mut old = Projection {

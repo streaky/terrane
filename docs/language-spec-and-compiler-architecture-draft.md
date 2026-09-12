@@ -4609,6 +4609,11 @@ Rust borrow and mutable binding. On unwinding profiles, a panic crossing a gener
 `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
 rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
+Projection records whether a foreign Rust type implements `Clone`. When a source class stores a
+non-`Clone` foreign value in a field, that class becomes resource-owning transitively and generated
+lowering does not derive `Clone` for it. Assignment therefore transfers the enclosing class value
+instead of inventing target-language cloning that the Rust field type does not support.
+
 A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
 constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits
 the Rust operation before applying the same argument conversion, result conversion, `Result` error

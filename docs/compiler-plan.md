@@ -659,11 +659,13 @@ breadth change explicitly.
 Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
 logic; Terrane classes implement their fixed-signature traits, use the projected identities as
 ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
-provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
-missing methods, receiver-mode mismatches, parameter/result mismatches, throwable mismatches,
-unsupported provided overrides, interface-typed generic arguments, non-immediate or ambiguous
-generic bounds, foreign implementors, and every unsupported trait shape. A focused oracle-failure
-regression proves that one failed witness declines only that candidate interface, and every public
+provided methods, and produce deterministic warning-free canonical Rust. Focused accepts cover
+non-`Clone` foreign fields propagating resource ownership without an invalid generated `Clone`.
+Focused rejects cover missing methods, receiver-mode mismatches, parameter/result mismatches,
+throwable mismatches, unsupported provided overrides, interface-typed generic arguments,
+non-immediate or ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
+A focused oracle-failure regression proves that one failed witness declines only that candidate
+interface, and every public
 trait or member omitted from projection has a tooling-visible reason. Enforcing projected
 interface `Send`/`Sync` obligations against arbitrary Terrane class fields is deferred to 28.2;
 rustc remains the final guard until that semantic check lands.

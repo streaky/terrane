@@ -182,6 +182,7 @@ pub(super) fn parse_units(
                 crate::projection::ProjectedKind::ForeignType {
                     methods,
                     static_methods,
+                    ..
                 } => {
                     for method in methods.iter().chain(static_methods) {
                         if method.destination_result.is_some() {
