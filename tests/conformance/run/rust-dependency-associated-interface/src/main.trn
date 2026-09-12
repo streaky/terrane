@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, Nested as nested, sequence_total as sequence-total, nested_total as nested-total, named_total as named-total, erased_total as erased-total
+from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, Nested as nested, sequence_total as sequence-total, nested_total as nested-total, named_total as named-total, erased_total as erased-total, list_total as list-total
 from /core/collections import list
 
 class ints implements sequence of int
@@ -11,6 +11,8 @@ class ints implements sequence of int
 
     function length int;
         return 2
+
+class more-ints extends ints
 
 class nested-values implements sequence of nested
     function first nested|none;
@@ -31,6 +33,13 @@ class named-ints implements named-sequence of int
     function label string;
         return 'name'
 
+class lists implements sequence of list of int
+    function first (list of int)|none;
+        return list; (7, 8)
+
+    function length int;
+        return 1
+
 function interface-length int; value sequence of int
     return value.length;
 
@@ -50,3 +59,5 @@ function main;
     print; applied-items.length
     maybe-applied (sequence of int)|none = instance ints;
     print; maybe-applied != none
+    print; (sequence-total; (instance more-ints;))
+    print; (list-total; (instance lists;))

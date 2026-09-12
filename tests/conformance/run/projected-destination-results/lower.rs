@@ -547,7 +547,7 @@ fn main() {
     );
     let values: terrane_collection_support::List<i64> = terrane_collection_support::List::new(
         __terrane_raised(
-            sample_value::<Vec<i64>>(),
+            sample_value::<std::vec::Vec<i64>>(),
             7 /* terrane-site: src/main.trn:26:26-26:39 */,
         ),
     );

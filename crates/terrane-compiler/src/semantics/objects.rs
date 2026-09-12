@@ -76,6 +76,24 @@ pub(crate) fn effective_object_fields<'a>(
     collect(package, unit, object, &mut fields);
     fields
 }
+pub(crate) fn effective_object_interfaces<'a>(
+    package: &'a SemanticPackage,
+    object: &'a DescriptorContract,
+) -> Vec<&'a ObjectIdentity> {
+    let mut interfaces = object
+        .base
+        .as_ref()
+        .and_then(|identity| descriptor_declaration(package, identity))
+        .map_or_else(Vec::new, |(_, base)| {
+            effective_object_interfaces(package, base)
+        });
+    for interface in &object.interfaces {
+        if !interfaces.contains(&interface) {
+            interfaces.push(interface);
+        }
+    }
+    interfaces
+}
 
 fn field_metadata(
     unit: &SemanticUnit,
@@ -2542,7 +2560,7 @@ pub(crate) fn destination_projected_type(
         ValueType::List(item) => {
             let item = destination_projected_type(package, item.value_type_ref())?;
             ProjectedType::Sequence {
-                rust_path: format!("Vec<{}>", item.rust_type()),
+                rust_path: format!("std::vec::Vec<{}>", item.rust_type()),
                 item: Box::new(item),
             }
         }

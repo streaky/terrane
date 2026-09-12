@@ -420,21 +420,25 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:38:13-38:45) */
-        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:39:13-39:52) */
-        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 52 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:40:13-40:48) */
-        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 48 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:41:13-41:43) */
-        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 43 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:42:13-42:49) */
-        { Site { function: 0, file: 0, line: 42, column: 13, end_line: 42, end_column: 49 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:44:13-44:34) */
-        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 34 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:46:13-46:40) */
-        { Site { function: 0, file: 0, line: 46, column: 13, end_line: 46, end_column: 40 } },
+    pub static SITES: [Site; 9] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:47:13-47:45) */
+        { Site { function: 0, file: 0, line: 47, column: 13, end_line: 47, end_column: 45 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:48:13-48:52) */
+        { Site { function: 0, file: 0, line: 48, column: 13, end_line: 48, end_column: 52 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:49:13-49:48) */
+        { Site { function: 0, file: 0, line: 49, column: 13, end_line: 49, end_column: 48 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:50:13-50:43) */
+        { Site { function: 0, file: 0, line: 50, column: 13, end_line: 50, end_column: 43 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:51:13-51:49) */
+        { Site { function: 0, file: 0, line: 51, column: 13, end_line: 51, end_column: 49 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:53:13-53:34) */
+        { Site { function: 0, file: 0, line: 53, column: 13, end_line: 53, end_column: 34 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:55:13-55:40) */
+        { Site { function: 0, file: 0, line: 55, column: 13, end_line: 55, end_column: 40 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:62:13-62:50) */
+        { Site { function: 0, file: 0, line: 62, column: 13, end_line: 62, end_column: 50 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:63:13-63:42) */
+        { Site { function: 0, file: 0, line: 63, column: 13, end_line: 63, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]
@@ -451,10 +455,10 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 #[derive(Clone)]
-pub struct Ints {
+pub struct IntsStorage {
     pub value: terrane_int_support::Int,
 }
-impl Ints {
+impl IntsStorage {
     pub fn terrane_construct() -> Self {
         Self {
             value: terrane_int_support::Int::from(40_i128),
@@ -465,6 +469,40 @@ impl Ints {
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(2_i128);
+    }
+}
+#[derive(Clone)]
+pub enum Ints {
+    Own(IntsStorage),
+    MoreInts(MoreInts),
+}
+impl Ints {
+    pub fn terrane_construct() -> Self {
+        Self::Own(IntsStorage::terrane_construct())
+    }
+    pub fn first(&self) -> Option<terrane_int_support::Int> {
+        match self {
+            Self::Own(value) => value.first(),
+            Self::MoreInts(value) => value.first(),
+        }
+    }
+    pub fn length(&self) -> terrane_int_support::Int {
+        match self {
+            Self::Own(value) => value.length(),
+            Self::MoreInts(value) => value.length(),
+        }
+    }
+    pub fn terrane_field_value(&self) -> &terrane_int_support::Int {
+        match self {
+            Self::Own(value) => &value.value,
+            Self::MoreInts(value) => &value.value,
+        }
+    }
+    pub fn terrane_field_value_mut(&mut self) -> &mut terrane_int_support::Int {
+        match self {
+            Self::Own(value) => &mut value.value,
+            Self::MoreInts(value) => &mut value.value,
+        }
     }
 }
 impl TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<terrane_int_support::Int>
@@ -523,6 +561,89 @@ impl terrane_associated_witness::Sequence for Ints {
     fn length(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
             let __terrane_value = <Ints>::length(&*self);
+            Ok(
+                terrane_int_support::coerce::<i64>(&__terrane_value)
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+}
+#[derive(Clone)]
+pub struct MoreInts {
+    pub value: terrane_int_support::Int,
+}
+impl MoreInts {
+    pub fn terrane_construct() -> Self {
+        Self {
+            value: terrane_int_support::Int::from(40_i128),
+        }
+    }
+    pub fn first(&self) -> Option<terrane_int_support::Int> {
+        return Some(self.value.clone());
+    }
+    pub fn length(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(2_i128);
+    }
+}
+impl TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<terrane_int_support::Int>
+for MoreInts {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<
+            terrane_int_support::Int,
+        >,
+    > {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<
+            terrane_int_support::Int,
+        >,
+    > {
+        Box::new(self.clone())
+    }
+    fn first(&self) -> Option<terrane_int_support::Int> {
+        MoreInts::first(&*self)
+    }
+    fn length(&self) -> terrane_int_support::Int {
+        MoreInts::length(&*self)
+    }
+}
+impl From<MoreInts>
+for TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int> {
+    fn from(value: MoreInts) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl terrane_associated_witness::Sequence for MoreInts {
+    type Item = i64;
+    fn first(&self) -> Option<i64> {
+        let __terrane_boundary: Result<Option<i64>, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <MoreInts>::first(&*self);
+            Ok(
+                __terrane_value
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            terrane_int_support::coerce::<i64>(&value)
+                                .map_err(|error| crate::TerraneForeignError(
+                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                ))?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn length(&self) -> i64 {
+        let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <MoreInts>::length(&*self);
             Ok(
                 terrane_int_support::coerce::<i64>(&__terrane_value)
                     .map_err(|error| crate::TerraneForeignError(
@@ -726,6 +847,111 @@ impl terrane_associated_witness::Sequence for NamedInts {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
+#[derive(Clone)]
+pub struct Lists {}
+impl Lists {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn first(
+        &self,
+    ) -> Option<terrane_collection_support::List<terrane_int_support::Int>> {
+        return Some(
+            terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(
+                vec![
+                    terrane_int_support::Int::from(7_i128),
+                    terrane_int_support::Int::from(8_i128)
+                ],
+            ),
+        );
+    }
+    pub fn length(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(1_i128);
+    }
+}
+impl TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<
+    terrane_collection_support::List<terrane_int_support::Int>,
+> for Lists {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<
+            terrane_collection_support::List<terrane_int_support::Int>,
+        >,
+    > {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNs4Deps26TerraneAssociatedWitnessSequenceProtocol<
+            terrane_collection_support::List<terrane_int_support::Int>,
+        >,
+    > {
+        Box::new(self.clone())
+    }
+    fn first(
+        &self,
+    ) -> Option<terrane_collection_support::List<terrane_int_support::Int>> {
+        Lists::first(&*self)
+    }
+    fn length(&self) -> terrane_int_support::Int {
+        Lists::length(&*self)
+    }
+}
+impl From<Lists>
+for TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+    terrane_collection_support::List<terrane_int_support::Int>,
+> {
+    fn from(value: Lists) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl terrane_associated_witness::Sequence for Lists {
+    type Item = std::vec::Vec<i64>;
+    fn first(&self) -> Option<std::vec::Vec<i64>> {
+        let __terrane_boundary: Result<
+            Option<std::vec::Vec<i64>>,
+            crate::TerraneForeignError,
+        > = (|| {
+            let __terrane_value = <Lists>::first(&*self);
+            Ok(
+                __terrane_value
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            value
+                                .into_iter()
+                                .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&item)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
+                                    )
+                                })
+                                .collect::<Result<std::vec::Vec<i64>, _>>()?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn length(&self) -> i64 {
+        let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <Lists>::length(&*self);
+            Ok(
+                terrane_int_support::coerce::<i64>(&__terrane_value)
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+}
 fn interface_length(
     value: TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
@@ -735,27 +961,27 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(Ints::terrane_construct()),
-        0 /* terrane-site: src/main.trn:38:13-38:45 */))
+        0 /* terrane-site: src/main.trn:47:13-47:45 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(nested_total(NestedValues::terrane_construct()),
-        1 /* terrane-site: src/main.trn:39:13-39:52 */))
+        1 /* terrane-site: src/main.trn:48:13-48:52 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(named_total(NamedInts::terrane_construct()),
-        2 /* terrane-site: src/main.trn:40:13-40:48 */))
+        2 /* terrane-site: src/main.trn:49:13-49:48 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(Ints::terrane_construct()),
-        3 /* terrane-site: src/main.trn:41:13-41:43 */))
+        3 /* terrane-site: src/main.trn:50:13-50:43 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(NamedInts::terrane_construct()),
-        4 /* terrane-site: src/main.trn:42:13-42:49 */))
+        4 /* terrane-site: src/main.trn:51:13-51:49 */))
     );
     let applied: TerraneNs4Deps26TerraneAssociatedWitnessSequence<
         terrane_int_support::Int,
@@ -765,7 +991,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
-        5 /* terrane-site: src/main.trn:44:13-44:34 */))
+        5 /* terrane-site: src/main.trn:53:13-53:34 */))
     );
     let applied_named: TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
         terrane_int_support::Int,
@@ -775,7 +1001,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied_named),
-        6 /* terrane-site: src/main.trn:46:13-46:40 */))
+        6 /* terrane-site: src/main.trn:55:13-55:40 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&interface_length(<
@@ -810,6 +1036,16 @@ fn main() {
         >>::from(Ints::terrane_construct()),
     );
     println!("{}", terrane_scalar_support::scalar_text(&maybe_applied.is_some()));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(MoreInts::terrane_construct()),
+        7 /* terrane-site: src/main.trn:62:13-62:50 */))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(list_total(Lists::terrane_construct()),
+        8 /* terrane-site: src/main.trn:63:13-63:42 */))
+    );
 }
 // Source: <terrane>/projected/deps/terrane-associated-witness.trn
 // Namespace: deps/terrane-associated-witness
@@ -982,6 +1218,56 @@ impl<
     }
 }
 impl terrane_associated_witness::Sequence
+for TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+    terrane_collection_support::List<terrane_int_support::Int>,
+> {
+    type Item = std::vec::Vec<i64>;
+    fn first(&self) -> Option<std::vec::Vec<i64>> {
+        let __terrane_boundary: Result<
+            Option<std::vec::Vec<i64>>,
+            crate::TerraneForeignError,
+        > = (|| {
+            let __terrane_value = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+                terrane_collection_support::List<terrane_int_support::Int>,
+            >>::first(&*self);
+            Ok(
+                __terrane_value
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            value
+                                .into_iter()
+                                .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&item)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
+                                    )
+                                })
+                                .collect::<Result<std::vec::Vec<i64>, _>>()?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+    fn length(&self) -> i64 {
+        let __terrane_boundary: Result<i64, crate::TerraneForeignError> = (|| {
+            let __terrane_value = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+                terrane_collection_support::List<terrane_int_support::Int>,
+            >>::length(&*self);
+            Ok(
+                terrane_int_support::coerce::<i64>(&__terrane_value)
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        })();
+        __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
+    }
+}
+impl terrane_associated_witness::Sequence
 for TerraneNs4Deps26TerraneAssociatedWitnessSequence<Nested> {
     type Item = terrane_associated_witness::Nested;
     fn first(&self) -> Option<terrane_associated_witness::Nested> {
@@ -1064,6 +1350,25 @@ pub fn erased_total<
                     payload,
                     "terrane-associated-witness",
                     "terrane_associated_witness::erased_total",
+                ),
+            )
+        }
+    }
+}
+pub fn list_total<T: terrane_associated_witness::Sequence<Item = std::vec::Vec<i64>>>(
+    value: T,
+) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    let value = value;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_associated_witness::list_total(value)),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-associated-witness",
+                    "terrane_associated_witness::list_total",
                 ),
             )
         }

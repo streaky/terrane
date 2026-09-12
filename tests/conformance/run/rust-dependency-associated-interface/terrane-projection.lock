@@ -24,6 +24,10 @@
         ],
         [
           "/deps/terrane-associated-witness",
+          "list_total"
+        ],
+        [
+          "/deps/terrane-associated-witness",
           "named_total"
         ],
         [

@@ -42,3 +42,10 @@ where
 pub fn erased_total(value: Box<dyn Sequence<Item = i64>>) -> i64 {
     value.first().unwrap_or_default() + value.length()
 }
+
+pub fn list_total<T>(value: T) -> i64
+where
+    T: Sequence<Item = Vec<i64>>,
+{
+    value.first().map(|item| item.len() as i64).unwrap_or_default() + value.length()
+}

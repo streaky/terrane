@@ -492,17 +492,6 @@ pub(super) fn declared_value_type_with_visible_objects(
                     union.span,
                 ));
             }
-            if !matches!(
-                inner,
-                ValueType::Scalar(_) | ValueType::Object(_) | ValueType::ProjectedAssociated
-            ) {
-                return Err(failure(
-                    &unit.source,
-                    "T0001",
-                    "a general optional type requires a scalar or object value",
-                    union.span,
-                ));
-            }
             return Ok(ValueType::Optional(Box::new(inner)));
         }
     }

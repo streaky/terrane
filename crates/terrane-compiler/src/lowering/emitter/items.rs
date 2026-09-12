@@ -1000,7 +1000,9 @@ impl<'a> Emitter<'a> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                for interface_identity in effective_object_interfaces(self.unit, object) {
+                for interface_identity in
+                    crate::semantics::effective_object_interfaces(self.package, object)
+                {
                     if interface_identity.namespace == "/core/errors"
                         && interface_identity.name == "throwable"
                     {

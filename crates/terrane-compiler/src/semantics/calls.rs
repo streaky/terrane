@@ -386,8 +386,10 @@ fn validate_projected_generic_arguments(
                 && implementor.kind == ObjectKind::Interface
                 && implementor.identity.base() == *required
         });
+        let effective_interfaces =
+            crate::semantics::effective_object_interfaces(package, implementor);
         let implemented = required.as_ref().and_then(|required| {
-            implementor.interfaces.iter().find(|implemented| {
+            effective_interfaces.into_iter().find(|implemented| {
                 implemented.namespace == required.namespace && implemented.name == required.name
             })
         });
