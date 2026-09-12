@@ -810,5 +810,3 @@ fn main() {
         46 /* terrane-site: case.trn:78:24-78:33 */)), 46 /* terrane-site: case.trn:78:24-78:33 */))
     );
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

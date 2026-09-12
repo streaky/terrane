@@ -628,5 +628,3 @@ fn main() {
         .get_or_error(&String::from("item")), 5 /* terrane-site: case.trn:45:20-45:40 */).name)
     );
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi
