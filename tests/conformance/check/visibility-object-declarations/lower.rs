@@ -44,8 +44,12 @@ impl Clone for Box<dyn PublicInterfaceProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct PublicInterface(Box<dyn PublicInterfaceProtocol>);
+impl Clone for PublicInterface {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl PublicInterface {
     pub fn value(&self) -> terrane_int_support::Int {
         self.0.value()
@@ -61,8 +65,12 @@ impl Clone for Box<dyn PrivateInterfaceProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct PrivateInterface(Box<dyn PrivateInterfaceProtocol>);
+impl Clone for PrivateInterface {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl PrivateInterface {
     pub fn value(&self) -> terrane_int_support::Int {
         self.0.value()
@@ -78,8 +86,12 @@ impl Clone for Box<dyn ProtectedInterfaceProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct ProtectedInterface(Box<dyn ProtectedInterfaceProtocol>);
+impl Clone for ProtectedInterface {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl ProtectedInterface {
     pub fn value(&self) -> terrane_int_support::Int {
         self.0.value()

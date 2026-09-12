@@ -403,8 +403,12 @@ impl Clone for Box<dyn NamedProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct Named(Box<dyn NamedProtocol>);
+impl Clone for Named {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl Named {
     pub fn report(&self) -> terrane_int_support::Int {
         self.0.report()
@@ -570,7 +574,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&value.report()));
     value.set(terrane_int_support::Int::from(4_i128));
     println!("{}", terrane_scalar_support::scalar_text(&value.report()));
-    let view: Named = Named::from(value.terrane_separate());
+    let view: Named = <Named>::from(value.terrane_separate());
     let copied: Named = view.terrane_separate();
     println!("{}", terrane_scalar_support::scalar_text(&copied.report()));
 }

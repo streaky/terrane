@@ -1,9 +1,6 @@
 {
-  "format": 3,
   "dependencies": [
     {
-      "name": "terrane-supertrait-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-supertrait-witness",
@@ -25,33 +22,34 @@
           "/deps/terrane-supertrait-witness",
           "erased_child_total"
         ]
-      ]
+      ],
+      "name": "terrane-supertrait-witness",
+      "version": "0.1.0"
     }
   ],
-  "removed": [],
-  "cache_identity": "dc1bb544d20862637656826d87cf1f34c9ac94e8f816970c5c1fe2348588336b",
-  "source": "Local",
-  "rustdoc_format": 57,
+  "format": 3,
   "projection_schema": "41",
-  "content_hash": "dda450786573cdc52f9d81211bc781390724cedadacde666e6d1360396f5aab0",
+  "removed": [],
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

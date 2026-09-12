@@ -160,6 +160,10 @@
       "members": [
         [
           "/deps/terrane-render-witness",
+          "AssociatedValue"
+        ],
+        [
+          "/deps/terrane-render-witness",
           "Renderable"
         ],
         [
@@ -180,7 +184,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "40",
+  "projection_schema": "41",
   "removed": [],
   "resolution": {
     "events": [

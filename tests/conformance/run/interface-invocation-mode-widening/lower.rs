@@ -11,8 +11,12 @@ impl Clone for Box<dyn MutableCounterProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct MutableCounter(Box<dyn MutableCounterProtocol>);
+impl Clone for MutableCounter {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl MutableCounter {
     pub fn value(
         &mut self,
@@ -31,8 +35,12 @@ impl Clone for Box<dyn ConsumingLabelProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct ConsumingLabel(Box<dyn ConsumingLabelProtocol>);
+impl Clone for ConsumingLabel {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl ConsumingLabel {
     pub fn label(self) -> String {
         self.0.label()
@@ -48,8 +56,12 @@ impl Clone for Box<dyn ConsumingCounterProtocol> {
         self.clone_box()
     }
 }
-#[derive(Clone)]
 pub struct ConsumingCounter(Box<dyn ConsumingCounterProtocol>);
+impl Clone for ConsumingCounter {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl ConsumingCounter {
     pub fn redeem(self) -> terrane_int_support::Int {
         self.0.redeem()
@@ -136,13 +148,13 @@ impl From<MutableSample> for ConsumingCounter {
     }
 }
 fn main() {
-    let mut mutable_view: MutableCounter = MutableCounter::from(
+    let mut mutable_view: MutableCounter = <MutableCounter>::from(
         Sample::terrane_construct(),
     );
-    let consuming_view: ConsumingLabel = ConsumingLabel::from(
+    let consuming_view: ConsumingLabel = <ConsumingLabel>::from(
         Sample::terrane_construct(),
     );
-    let mutable_consuming_view: ConsumingCounter = ConsumingCounter::from(
+    let mutable_consuming_view: ConsumingCounter = <ConsumingCounter>::from(
         MutableSample::terrane_construct(),
     );
     println!(
