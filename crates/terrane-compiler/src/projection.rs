@@ -738,7 +738,7 @@ impl Projection {
                 ProjectedKind::ForeignType { send, sync, .. } => Some((*send, *sync)),
                 ProjectedKind::Interface(interface) => Some((interface.send, interface.sync)),
                 ProjectedKind::Enum { .. } => Some((true, true)),
-                _ => None,
+                ProjectedKind::Function(_) => None,
             })
     }
 
