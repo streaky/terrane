@@ -2986,15 +2986,11 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
         | ProjectedType::Char
         | ProjectedType::String
         | ProjectedType::Bytes
-        | ProjectedType::AsyncSinkOutcome => {}
-        ProjectedType::Associated(_) => {}
+        | ProjectedType::AsyncSinkOutcome
+        | ProjectedType::Associated(_) => {}
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "interface admission keeps trait-level and member-level evidence together"
-)]
 fn project_interface(
     declaration: &rustdoc_types::Trait,
     index: &HashMap<Id, Item>,
@@ -4924,6 +4920,10 @@ fn project_type(
         _ => Err("type has no stable Rust path".to_owned()),
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "trait-object admission validates principal, associated, lifetime, and auto-trait bounds together"
+)]
 fn project_dyn_interface(
     dynamic: &rustdoc_types::DynTrait,
     index: &HashMap<Id, Item>,
@@ -4953,24 +4953,24 @@ fn project_dyn_interface(
     let trait_path = render_resolved_path(&base_trait, index, paths, generics)?;
     let associated_type = match trait_.args.as_deref() {
         Some(GenericArgs::AngleBracketed { constraints, .. }) => {
-            let mut bindings = constraints.iter().filter_map(|constraint| {
+            let mut bindings = constraints.iter().map(|constraint| {
                 if constraint.args.is_some() {
-                    return Some(Err(
-                        "generic associated trait-object bindings are not supported".to_owned(),
-                    ));
+                    return Err(
+                        "generic associated trait-object bindings are not supported".to_owned()
+                    );
                 }
                 match &constraint.binding {
                     rustdoc_types::AssocItemConstraintKind::Equality(
                         rustdoc_types::Term::Type(ty),
-                    ) => Some(project_type(ty, index, paths, generics).map(|ty| {
+                    ) => project_type(ty, index, paths, generics).map(|ty| {
                         ProjectedAssociatedBinding {
                             name: constraint.name.clone(),
                             ty: Box::new(ty),
                         }
-                    })),
-                    _ => Some(Err(
+                    }),
+                    _ => Err(
                         "trait-object associated types require an exact type binding".to_owned(),
-                    )),
+                    ),
                 }
             });
             let binding = bindings.next().transpose()?;

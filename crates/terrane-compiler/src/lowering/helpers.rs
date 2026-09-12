@@ -817,15 +817,15 @@ pub(super) fn rust_object_type_name(
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         > 1;
-    let base = if !collides {
-        rust_object_name(&identity.name)
-    } else {
+    let base = if collides {
         let mut namespace = String::new();
         for segment in identity.namespace.trim_start_matches('/').split('/') {
             write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
                 .expect("writing to a string cannot fail");
         }
         format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+    } else {
+        rust_object_name(&identity.name)
     };
     identity
         .application

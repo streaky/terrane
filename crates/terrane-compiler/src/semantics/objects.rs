@@ -1888,6 +1888,10 @@ fn validate_closed_projected_types(package: &SemanticPackage) -> Result<(), Sema
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "application materialization expands inherited identities and bound contracts atomically"
+)]
 fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
     let projected_methods = package
         .units
