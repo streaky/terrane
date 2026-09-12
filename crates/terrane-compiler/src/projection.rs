@@ -3013,7 +3013,7 @@ fn project_interface_inner(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     rust_path: &str,
-    inherited: bool,
+    _inherited: bool,
 ) -> Result<ProjectedInterface, String> {
     if declaration.is_unsafe {
         return Err("unsafe trait".to_owned());
@@ -3046,11 +3046,6 @@ fn project_interface_inner(
                 requires_drop = true;
             }
             _ => {
-                if inherited {
-                    return Err(format!(
-                        "projected supertrait `{path}` itself has a non-marker supertrait"
-                    ));
-                }
                 let Some(Item {
                     inner: ItemEnum::Trait(supertrait),
                     ..
@@ -3062,32 +3057,36 @@ fn project_interface_inner(
                     render_resolved_path(trait_, index, paths, &BTreeMap::new())?;
                 let projected =
                     project_interface_inner(supertrait, index, paths, &supertrait_rust_path, true)?;
-                if projected.supertraits.is_empty() {
-                    send |= projected.send;
-                    sync |= projected.sync;
-                    requires_drop |= projected.requires_drop;
-                    if let Some(inherited_type) = projected.associated_type {
-                        if associated_type.is_some() {
-                            return Err(
-                                "trait closure contains more than one associated type".to_owned()
-                            );
-                        }
-                        associated_type = Some(inherited_type);
+                send |= projected.send;
+                sync |= projected.sync;
+                requires_drop |= projected.requires_drop;
+                if let Some(inherited_type) = projected.associated_type {
+                    if associated_type.is_some() {
+                        return Err(
+                            "trait closure contains more than one associated type".to_owned()
+                        );
                     }
-                    methods.extend(projected.methods);
-                    declined_methods.extend(projected.declined_methods);
-                    supertraits.push(ProjectedSupertrait {
-                        namespace: String::new(),
-                        name: trait_
-                            .path
-                            .rsplit("::")
-                            .next()
-                            .unwrap_or(&trait_.path)
-                            .to_owned(),
-                        rust_path: supertrait_rust_path,
-                    });
-                } else {
-                    return Err("only one layer of projected supertraits is supported".to_owned());
+                    associated_type = Some(inherited_type);
+                }
+                methods.extend(projected.methods);
+                declined_methods.extend(projected.declined_methods);
+                let direct = ProjectedSupertrait {
+                    namespace: String::new(),
+                    name: trait_
+                        .path
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(&trait_.path)
+                        .to_owned(),
+                    rust_path: supertrait_rust_path,
+                };
+                if !supertraits.contains(&direct) {
+                    supertraits.push(direct);
+                }
+                for inherited in projected.supertraits {
+                    if !supertraits.contains(&inherited) {
+                        supertraits.push(inherited);
+                    }
                 }
             }
         }

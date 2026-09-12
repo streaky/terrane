@@ -15,6 +15,10 @@
         ],
         [
           "/deps/terrane-supertrait-witness",
+          "Middle"
+        ],
+        [
+          "/deps/terrane-supertrait-witness",
           "child_total"
         ],
         [
@@ -29,7 +33,7 @@
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "41",
-  "content_hash": "eab203dabcd91bc112a152958ede5ff71139a5600f9ab188fce994ae3420d32a",
+  "content_hash": "dda450786573cdc52f9d81211bc781390724cedadacde666e6d1360396f5aab0",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

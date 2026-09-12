@@ -4,10 +4,13 @@ from /deps/terrane-supertrait-witness import Child as child, child_total as chil
 
 class values implements child
     function base int;
-        return 20
+        return 10
+
+    function middle int;
+        return 12
 
     function child int;
-        return 22
+        return 20
 
 function main;
     print; (child-total; (instance values;))
