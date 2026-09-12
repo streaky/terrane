@@ -982,9 +982,11 @@ otherwise unused async function requires no Tokio runtime. One non-generic assoc
 closed explicitly as `Interface of ConcreteType`; the concrete argument is currently limited to a
 closed boundary-representable scalar, aggregate, or projected foreign type, with source-class
 arguments deferred pending an explicit Rust boundary conversion contract. That applied nominal
-identity is retained through annotations, reflection, conformance, generic and erased Rust
-crossings, and generated associated-type declarations. Independently projectable supertraits form
-a recursive, diamond-safe requirement and implementation closure. Bare or inferred applications,
+identity is retained recursively through aggregate and optional annotations, reflection,
+conformance, generic and erased Rust crossings, and generated associated-type declarations.
+Grouping places optionality outside an application: `(Interface of ConcreteType)|none`.
+Independently projectable supertraits form a recursive, diamond-safe requirement and implementation
+closure. Bare or inferred applications,
 source-class arguments, multiple or generic associated slots, failed bounds, incoherent erased
 bindings, other wrapped receivers, static and generic methods, higher-ranked lifetimes, unsupported
 owning containers, and unprojectable members or supertraits remain explicit stable declines.

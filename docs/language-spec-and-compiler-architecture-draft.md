@@ -2095,6 +2095,8 @@ The word `of` applies a parameterised type constructor using the language's fixe
 items list of string = list;
 stacks array of vm-struct|none, nr-cached-stacks
 callback function from int, ref opaque to int
+projected-items list of sequence of int = list;
+maybe-sequence (sequence of int)|none = none
 ```
 
 Packages may supply type-constructor objects, but they cannot add type-expression grammar. Every constructor argument is parsed into the same unified constructor-argument syntax node; the parser does not guess whether an identifier denotes a type or a compile-time value. Semantic analysis resolves each argument against the constructor's declared signature and reports whether a type, constant value, or other permitted compile-time object was required. Thus `array of vm-struct|none, nr-cached-stacks` can accept a type followed by a constant extent without lexer or parser knowledge of `array`.
@@ -4517,14 +4519,18 @@ interface is then a type constructor: `Interface of ConcreteType` is required ev
 type or `implements` clause uses it. The concrete argument must currently be a closed
 boundary-representable scalar, aggregate, or projected foreign type; source-class arguments remain
 deferred until an explicit Rust boundary conversion contract exists. That application is part of
-nominal identity. Semantic analysis materializes the closed descriptor, substitutes its argument
-recursively through method contracts and inherited requirements, validates the retained Rust
-bounds, and never infers the slot from matching method shapes. Lowering emits
-`type Slot = RustType` in every corresponding foreign implementation. Owning
-`Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the same binding and remain subject
-to the ordinary erased auto-trait proof.
-The closed-application requirement is recursive through aggregate and callable annotations; an
-unapplied projected interface nested in any such type is rejected before lowering.
+nominal identity. Semantic analysis recursively resolves applied types used as aggregate arguments,
+so `list of Interface of ConcreteType` retains the applied identity as its item type. Because `|`
+belongs to the current `of` argument, `(Interface of ConcreteType)|none` uses grouping when the
+completed application rather than its argument is optional. The binding classifier recognizes
+that grouped type before the following assignment. Semantic analysis materializes the closed
+descriptor, substitutes its argument recursively through method contracts and inherited
+requirements, validates the retained Rust bounds, and never infers the slot from matching method
+shapes. Lowering emits `type Slot = RustType` in every corresponding foreign implementation.
+Owning `Box<dyn Interface<Slot = RustType> + AutoTraits>` inputs use the same binding and remain
+subject to the ordinary erased auto-trait proof. The closed-application requirement is recursive
+through aggregate and callable annotations; an unapplied projected interface nested in any such
+type is rejected before lowering.
 
 Non-marker supertraits are projected recursively only when every ancestor is independently
 admissible. Import expansion carries the complete closure, conformance includes every inherited
