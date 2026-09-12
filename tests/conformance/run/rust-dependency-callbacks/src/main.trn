@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-callback-witness import Adjustable as adjustable, adjust_value
+from /deps/terrane-callback-witness import Adjustable as adjustable, LocalAdjustable as local-adjustable, DropAware as drop-aware-contract, DropToken as drop-token, AsyncEntry as async-entry-contract, adjust_value, retain_adjustable, retain_boxed_adjustable, retain_local_adjustable, consume_drop, drop_token as make-drop-token, cancel_async_entry, record_async_entry_cleanup, async_entry_cleanup_count
 from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently, registrar
 from /deps/terrane-callback-witness import invoke_retained, wait_until_retained_invocation_active, active_retained_invocations, pending_value
 from /core/errors import dependency-panic
@@ -46,6 +46,56 @@ class projected-counter implements adjustable
     function current int;
         return this.total
 
+class projected-local-counter implements local-adjustable
+    total int = 0
+
+    mutable function adjust int; delta int
+        this.total = this.total + delta
+        return this.total
+
+    function current int;
+        return this.total
+
+class drop-aware-value implements drop-aware-contract
+    token drop-token = make-drop-token;
+
+    function label string;
+        return 'drop-aware'
+
+    consuming function destruct;
+        print; 'drop-aware-destruct'
+
+class projected-async-entry implements async-entry-contract
+    async function shared int;
+        try
+            try
+                return await pending_value; 0
+            finally
+                record_async_entry_cleanup;
+        finally
+            record_async_entry_cleanup;
+
+    mutable async function mutable int;
+        try
+            try
+                return await pending_value; 0
+            finally
+                record_async_entry_cleanup;
+        finally
+            record_async_entry_cleanup;
+
+    consuming async function consuming int;
+        try
+            try
+                return await pending_value; 0
+            finally
+                record_async_entry_cleanup;
+        finally
+            record_async_entry_cleanup;
+
+    consuming function destruct;
+        print; (async_entry_cleanup_count;)
+
 class projected-counter-holder
     inner projected-counter = instance projected-counter;
 
@@ -83,3 +133,15 @@ async function main;
     print; (adjust_value; counter, 7)
     holder = instance projected-counter-holder;
     print; (adjust_value; holder.inner, 9)
+    retained-counter = retain_adjustable; counter
+    print; (retained-counter.adjust; 5), (retained-counter.current;)
+    boxed-counter = instance projected-counter;
+    boxed-owner = retain_boxed_adjustable; boxed-counter
+    print; (boxed-owner.adjust; 11), (boxed-owner.current;)
+    erased-boxed adjustable = instance projected-counter;
+    erased-owner = retain_boxed_adjustable; erased-boxed
+    print; (erased-owner.adjust; 4), (erased-owner.current;)
+    local-owner = retain_local_adjustable; (instance projected-local-counter;)
+    print; (local-owner.adjust; 3), (local-owner.current;)
+    print; (consume_drop; (instance drop-aware-value;))
+    print; (await cancel_async_entry; (instance projected-async-entry;))

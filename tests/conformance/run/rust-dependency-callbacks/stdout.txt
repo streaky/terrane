@@ -14,3 +14,11 @@ BORROWED
 OPAQUE
 7
 9
+1212
+1111
+44
+33
+drop-aware-destruct
+drop-aware
+6
+true

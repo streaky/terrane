@@ -367,10 +367,6 @@ pub(super) fn rust_empty_collection(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
-)]
 fn rust_callable_arguments(package: &SemanticPackage, parameters: Vec<ElementType>) -> String {
     let parameters = parameters
         .into_iter()
@@ -383,6 +379,10 @@ fn rust_callable_arguments(package: &SemanticPackage, parameters: Vec<ElementTyp
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
+)]
 pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),

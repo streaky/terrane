@@ -1,0 +1,7 @@
+namespace app
+
+async function later int;
+    return 2
+
+function main;
+    print; 1

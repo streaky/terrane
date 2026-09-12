@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-erased-reject-witness = { path = "fixture-registry/terrane-erased-reject-witness-0.1.0" }

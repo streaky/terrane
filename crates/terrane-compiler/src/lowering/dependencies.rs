@@ -172,6 +172,9 @@ pub(super) fn projected_argument_expression(
         crate::projection::ProjectedType::Char => format!(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
+        crate::projection::ProjectedType::BoxedInterface { .. } => {
+            format!("Box::new({name})")
+        }
         crate::projection::ProjectedType::Callback {
             parameters,
             result,
@@ -460,10 +463,13 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             .parameters
             .iter()
             .filter_map(|parameter| {
-                parameter
-                    .generic_parameter
-                    .as_ref()
-                    .map(|name| format!("{name}: {}", parameter.ty.rust_type()))
+                parameter.generic_parameter.as_ref().map(|name| {
+                    if parameter.generic_bounds.is_empty() {
+                        name.clone()
+                    } else {
+                        format!("{name}: {}", parameter.generic_bounds.join(" + "))
+                    }
+                })
             })
             .collect::<BTreeSet<_>>();
         if let Some(destination) = &projected.destination_result {

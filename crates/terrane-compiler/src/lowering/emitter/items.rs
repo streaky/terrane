@@ -405,10 +405,24 @@ impl<'a> Emitter<'a> {
                 let name = rust_object_type_name(self.package, &object.identity);
                 let protocol = format!("{name}Protocol");
                 let methods = effective_object_methods(self.unit, object);
-                let transfer_bounds = if object.identity.namespace == "/core/logging"
-                    && object.identity.name == "log-value"
+                let projected_requirements = self
+                    .package
+                    .projection
+                    .item(&object.identity.namespace, &object.identity.name)
+                    .and_then(|item| match &item.kind {
+                        crate::projection::ProjectedKind::Interface(interface) => Some(interface),
+                        _ => None,
+                    });
+                let transfer_bounds = if projected_requirements
+                    .is_some_and(|item| item.send && item.sync)
+                    || object.identity.namespace == "/core/logging"
+                        && object.identity.name == "log-value"
                 {
                     " : Send + Sync"
+                } else if projected_requirements.is_some_and(|item| item.send) {
+                    " : Send"
+                } else if projected_requirements.is_some_and(|item| item.sync) {
+                    " : Sync"
                 } else {
                     ""
                 };
@@ -432,7 +446,20 @@ impl<'a> Emitter<'a> {
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
-                    if let Some(result) = forwarded_method_return_type(self.package, method) {
+                    let result = forwarded_method_return_type(self.package, method);
+                    if method.is_async {
+                        write!(
+                            self.output,
+                            " -> std::pin::Pin<Box<dyn std::future::Future<Output = {}> + Send + {}>>",
+                            result.as_deref().unwrap_or("()"),
+                            if method.written_invocation_mode == InvocationMode::Consuming {
+                                "'static"
+                            } else {
+                                "'_"
+                            }
+                        )
+                        .unwrap();
+                    } else if let Some(result) = result {
                         write!(self.output, " -> {result}").unwrap();
                     }
                     self.output.push_str(";\n");
@@ -449,6 +476,11 @@ impl<'a> Emitter<'a> {
                 }
                 self.line("#[derive(Clone)]");
                 self.line(&format!("pub struct {name}(Box<dyn {protocol}>);"));
+                if projected_requirements.is_some_and(|item| item.requires_drop) {
+                    self.line(&format!(
+                        "impl Drop for {name} {{ fn drop(&mut self) {{}} }}"
+                    ));
+                }
                 self.line(&format!("impl {name} {{"));
                 self.indent += 1;
                 for method in &methods {
@@ -458,7 +490,13 @@ impl<'a> Emitter<'a> {
                         InvocationMode::Mutable => "&mut self",
                         InvocationMode::Shared => "&self",
                     };
-                    write!(self.output, "pub fn {}({receiver}", rust_name(&method.name)).unwrap();
+                    write!(
+                        self.output,
+                        "pub {}fn {}({receiver}",
+                        if method.is_async { "async " } else { "" },
+                        rust_name(&method.name)
+                    )
+                    .unwrap();
                     for parameter in &method.parameters {
                         let ty = parameter.value_type.clone().map_or_else(
                             || "i128".to_owned(),
@@ -478,7 +516,11 @@ impl<'a> Emitter<'a> {
                         .map(|parameter| rust_name(&parameter.name))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    self.line(&format!("self.0.{}({arguments})", rust_name(&method.name)));
+                    self.line(&format!(
+                        "self.0.{}({arguments}){}",
+                        rust_name(&method.name),
+                        if method.is_async { ".await" } else { "" }
+                    ));
                     self.indent -= 1;
                     self.line("}");
                 }
@@ -487,6 +529,16 @@ impl<'a> Emitter<'a> {
                 }
                 self.indent -= 1;
                 self.line("}");
+                if self
+                    .package
+                    .projection
+                    .item(&object.identity.namespace, &object.identity.name)
+                    .is_some_and(|item| {
+                        matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                    })
+                {
+                    self.projected_interface_implementation(object, &object.identity);
+                }
             }
             ObjectKind::Trait => {}
             ObjectKind::Type => {
@@ -911,6 +963,17 @@ impl<'a> Emitter<'a> {
                     {
                         continue;
                     }
+                    let projected_interface = self
+                        .package
+                        .projection
+                        .item(&interface_identity.namespace, &interface_identity.name)
+                        .is_some_and(|item| {
+                            matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                        });
+                    if object.resource_owning && projected_interface {
+                        self.projected_interface_implementation(object, interface_identity);
+                        continue;
+                    }
                     let interface_unit = self
                         .package
                         .units
@@ -967,7 +1030,20 @@ impl<'a> Emitter<'a> {
                             write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push(')');
-                        if let Some(result) = forwarded_method_return_type(self.package, method) {
+                        let result = forwarded_method_return_type(self.package, method);
+                        if method.is_async {
+                            write!(
+                                self.output,
+                                " -> std::pin::Pin<Box<dyn std::future::Future<Output = {}> + Send + {}>>",
+                                result.as_deref().unwrap_or("()"),
+                                if method.written_invocation_mode == InvocationMode::Consuming {
+                                    "'static"
+                                } else {
+                                    "'_"
+                                }
+                            )
+                            .unwrap();
+                        } else if let Some(result) = result {
                             write!(self.output, " -> {result}").unwrap();
                         }
                         self.output.push_str(" {\n");
@@ -978,26 +1054,27 @@ impl<'a> Emitter<'a> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
+                        if method.is_async {
+                            self.line_start();
+                            self.output.push_str("Box::pin(async move { ");
+                        }
                         if let Some(implementation) = implementation {
-                            let receiver = match (
-                                method.written_invocation_mode,
-                                implementation.written_invocation_mode,
-                            ) {
-                                (InvocationMode::Consuming, InvocationMode::Shared) => "&*self",
-                                (InvocationMode::Consuming, InvocationMode::Mutable) => {
-                                    "&mut *self"
-                                }
-                                (InvocationMode::Consuming, InvocationMode::Consuming) => "*self",
-                                (_, InvocationMode::Shared) => "&*self",
-                                (_, InvocationMode::Mutable) => "&mut *self",
-                                (_, InvocationMode::Consuming) => {
-                                    unreachable!("validated interface mode compatibility")
+                            let receiver = match implementation.written_invocation_mode {
+                                InvocationMode::Shared => "&*self",
+                                InvocationMode::Mutable => "&mut *self",
+                                InvocationMode::Consuming => {
+                                    debug_assert_eq!(
+                                        method.written_invocation_mode,
+                                        InvocationMode::Consuming
+                                    );
+                                    "*self"
                                 }
                             };
                             write!(
                                 self.output,
-                                "{class_type}::{}({receiver}, {arguments})",
-                                rust_name(&implementation.name)
+                                "{class_type}::{}({receiver}, {arguments}){}",
+                                rust_name(&implementation.name),
+                                if method.is_async { ".await" } else { "" }
                             )
                             .unwrap();
                         } else {
@@ -1046,6 +1123,11 @@ impl<'a> Emitter<'a> {
                                 projected_item.rust_path,
                                 rust_name(&method.name)
                             );
+                            let call = if method.is_async {
+                                format!("{call}.await")
+                            } else {
+                                call
+                            };
                             let call = if projected_method.function.error.is_some() {
                                 format!(
                                     "match {call} {{ Ok(value) => value, Err(error) => return Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}",
@@ -1078,6 +1160,9 @@ impl<'a> Emitter<'a> {
                                 )
                                 .expect("writing to a string cannot fail");
                             }
+                        }
+                        if method.is_async {
+                            self.output.push_str(" })");
                         }
                         self.output.push('\n');
                         self.indent -= 1;
@@ -1129,6 +1214,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "foreign interface method signatures and boundary conversions are emitted together"
+    )]
     fn projected_interface_implementation(
         &mut self,
         object: &DescriptorContract,
@@ -1150,6 +1239,9 @@ impl<'a> Emitter<'a> {
         self.line(&format!("impl {trait_path} for {class_type} {{"));
         self.indent += 1;
         for projected in interface.methods {
+            if object.kind == ObjectKind::Interface && projected.provided {
+                continue;
+            }
             let method = projected.function;
             let Some(implementation) = effective_object_methods(self.unit, object)
                 .into_iter()
@@ -1211,6 +1303,24 @@ impl<'a> Emitter<'a> {
                 "{class_type}::{}({receiver}, {arguments}){await_}",
                 rust_name(&method.name)
             );
+            let terrane_call = if method.is_async && interface.send {
+                match method.receiver {
+                    Some(crate::projection::Receiver::Borrow) => format!(
+                        "{{ let __terrane_receiver = self.clone(); __terrane_projected_async_entry(async move {{ {class_type}::{}(&__terrane_receiver, {arguments}).await }}).await }}",
+                        rust_name(&method.name)
+                    ),
+                    Some(crate::projection::Receiver::MutableBorrow) => format!(
+                        "{{ let mut __terrane_receiver = self.clone(); let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {{ let __terrane_output = {class_type}::{}(&mut __terrane_receiver, {arguments}).await; (__terrane_output, __terrane_receiver) }}).await; *self = __terrane_receiver; __terrane_output }}",
+                        rust_name(&method.name)
+                    ),
+                    Some(crate::projection::Receiver::Move) => format!(
+                        "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
+                    ),
+                    None => terrane_call,
+                }
+            } else {
+                terrane_call
+            };
             let converted = projected_callback_output_expression("__terrane_value", &method.result);
             if method.is_async {
                 self.line(&format!(
@@ -1487,6 +1597,10 @@ impl<'a> Emitter<'a> {
         self.line("}");
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "closure ownership, contracts, captures, and body lowering form one emission path"
+    )]
     pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
         let contract = self
             .unit

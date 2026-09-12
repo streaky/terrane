@@ -203,37 +203,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 28.2 — Owned, erased, and asynchronous dependency entry
-
-Make projected conformance usable at framework and plugin boundaries after the registering call has
-returned. An owned class passed into Rust follows ordinary Terrane copy, separation, move, resource,
-reference, and lifecycle rules; the dependency-held representation owns that lineage until it is
-returned or dropped. Extend argument-directed specialization to retained generic inputs, supported
-`Box<dyn Trait>` inputs, and the exact generated Terrane interface wrapper when erased delegation is
-coherent and oracle-proven. Other owning containers require their own projected construction path.
-
-Milestone 28.2 also enforces projected interface `Send` and `Sync` obligations against the complete
-field graph of each Terrane implementor before lowering.
-
-Each retained method adapter is a later-entry boundary carrying only owned state. Check the actual
-`'static`, `Send`, `Sync`, unwind, runtime, and destruction obligations and reject borrowed escape or
-unavailable execution context. Canonical Rust `Drop` maps to Terrane `destruct` as a lifecycle
-special case and shares the existing lineage-aware lowering; direct import of canonical `Drop` is
-declined with source guidance, and no duplicate Rust `Drop` implementation may be emitted.
-
-Async projected methods preserve Terrane cancellation and cleanup semantics when Rust drops their
-future. Reuse the existing operation/cleanup split, allow post-drop cleanup only when its state can
-be separated from any ended Rust receiver borrow, and keep an owning scope or runtime alive until
-required cleanup finishes. Throwable results use the existing projected `Result` mapping; an
-otherwise throwing implementation is rejected when the Rust result cannot carry the error.
-
-Exit criterion: a controlled dependency accepts both a concrete generic implementor and a supported
-boxed trait object, invokes them after registration on same-thread and `Send`/`Sync` paths, and
-releases or returns their ownership with the correct one-lineage destruction behavior. Separate
-async witnesses prove cancellation, nested `finally`, and destruction order for shared, mutable,
-and consuming receivers. Rejections cover borrowed escape, missing lifetime/thread/runtime bounds,
-incoherent erased wrappers, unavailable dyn dispatch, unrepresentable throwables, and cleanup that
-cannot be separated safely.
 
 ### Milestone 28.3 — Closed associated types and supertrait chains
 
@@ -585,7 +554,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - establish exact callable and object contracts for projected conformance (milestone 28);
 - project concrete Rust traits as Terrane interfaces implemented by local classes (milestone 28.1);
-- support owned, erased, retained, and asynchronous projected-interface crossings (milestone 28.2);
 - close one associated type explicitly and admit implementable supertrait chains (milestone 28.3);
 - deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 30);
 - complete the release hardening gate (milestone 32); and
@@ -665,10 +633,9 @@ Focused rejects cover missing methods, receiver-mode mismatches, parameter/resul
 throwable mismatches, unsupported provided overrides, interface-typed generic arguments,
 non-immediate or ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
 A focused oracle-failure regression proves that one failed witness declines only that candidate
-interface, and every public
-trait or member omitted from projection has a tooling-visible reason. Enforcing projected
-interface `Send`/`Sync` obligations against arbitrary Terrane class fields is deferred to 28.2;
-rustc remains the final guard until that semantic check lands.
+interface, and every public trait or member omitted from projection has a tooling-visible reason.
+Projected interface `Send`/`Sync` obligations against Terrane class fields are delivered by
+milestone 28.2.
 
 Evidence: `rust-dependency-callbacks` uses two deliberately dissimilar local witness crates. A
 Terrane class implements their mutable and shared projected interfaces, calls required and
@@ -683,6 +650,51 @@ matching conformance rejects.
 The projection artifact retains canonical trait identity, receiver authority, provided-member
 metadata, and stable declines; the impl-shaped projection oracle gates interface admission with
 complete witness implementations compiled against the resolved dependency graph.
+### Milestone 28.2 — Owned, erased, and asynchronous dependency entry
+
+Make projected conformance usable at framework and plugin boundaries after the registering call has
+returned. An owned class passed into Rust follows ordinary Terrane copy, separation, move, resource,
+reference, and lifecycle rules; the dependency-held representation owns that lineage until it is
+returned or dropped. Extend argument-directed specialization to retained generic inputs, supported
+`Box<dyn Trait>` inputs, and the exact generated Terrane interface wrapper when erased delegation is
+coherent and oracle-proven. Other owning containers require their own projected construction path.
+
+Milestone 28.2 also enforces projected interface `Send` and `Sync` obligations against the complete
+field graph of each Terrane implementor before lowering.
+
+Each retained method adapter is a later-entry boundary carrying only owned state. Check the actual
+`'static`, `Send`, `Sync`, unwind, runtime, and destruction obligations and reject borrowed escape or
+unavailable execution context. Canonical Rust `Drop` maps to Terrane `destruct` as a lifecycle
+special case and shares the existing lineage-aware lowering; direct import of canonical `Drop` is
+declined with source guidance, and no duplicate Rust `Drop` implementation may be emitted.
+
+Async projected methods preserve Terrane cancellation and cleanup semantics when Rust drops their
+future. Reuse the existing operation/cleanup split, allow post-drop cleanup only when its state can
+be separated from any ended Rust receiver borrow, and keep an owning scope or runtime alive until
+required cleanup finishes. Throwable results use the existing projected `Result` mapping; an
+otherwise throwing implementation is rejected when the Rust result cannot carry the error.
+
+Exit criterion: a controlled dependency accepts both a concrete generic implementor and a supported
+boxed trait object, invokes them after registration on same-thread and `Send`/`Sync` paths, and
+releases or returns their ownership with the correct one-lineage destruction behavior. Separate
+async witnesses prove cancellation, nested `finally`, and destruction order for shared, mutable,
+and consuming receivers. Rejections cover borrowed escape, missing lifetime/thread/runtime bounds,
+incoherent erased wrappers, unavailable dyn dispatch, unrepresentable throwables, and cleanup that
+cannot be separated safely.
+
+Evidence: `rust-dependency-callbacks` retains concrete and erased generic implementations on local
+and `Send + Sync` paths, preserves explicit boxed-object auto traits, maps canonical Rust `Drop`
+through one Terrane destructor lineage, and has Rust poll then drop projected shared, mutable, and
+consuming async futures without caller-side cleanup polling. Nested `finally` completes before
+receiver destruction and generated executor shutdown drains detached cleanup.
+`projected-interface-send-field` and `projected-interface-sync-field` exercise recursive, oracle-
+backed field obligations. `projected-retained-bound`, `projected-drop-missing-destruct`,
+`projected-async-resource-borrow`, `projected-async-runtime-context`,
+`projected-async-nonsend`, `projected-dyn-declines`, `projected-box-non-interface`,
+`projected-boxed-trait-result`, `projected-canonical-drop-import`, and
+`projected-boxed-erased-auto-trait` cover the accepted-boundary rejection matrix.
+`sync-main-later-async` preserves the small sync-main runtime path. Projection schema 40 records the
+new foreign auto-trait and boxed-object evidence.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 

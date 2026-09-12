@@ -610,6 +610,93 @@ struct TerraneCancellationContext {
 tokio::task_local! {
     static TERRANE_CANCELLATION_CONTEXT : TerraneCancellationContext;
 }
+static TERRANE_PROJECTED_CLEANUPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
+    0,
+);
+static TERRANE_PROJECTED_CLEANUPS_CHANGED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+struct TerraneProjectedEntryGuard {
+    cancellation: TerraneCancellation,
+    finalizers: std::sync::Arc<TerraneFinalizerState>,
+    abort: Option<tokio::task::AbortHandle>,
+    armed: bool,
+}
+impl Drop for TerraneProjectedEntryGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        TERRANE_PROJECTED_CLEANUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.cancellation.cancel();
+        let finalizers = self.finalizers.clone();
+        let abort = self
+            .abort
+            .take()
+            .expect("armed projected entry guard must own its abort handle");
+        tokio::spawn(async move {
+            finalizers.reaches(0).await;
+            abort.abort();
+            if TERRANE_PROJECTED_CLEANUPS
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 1
+            {
+                TERRANE_PROJECTED_CLEANUPS_CHANGED.notify_waiters();
+            }
+        });
+    }
+}
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+async fn __terrane_projected_async_entry<F, T>(future: F) -> T
+where
+    F: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
+{
+    let cancellation = TerraneCancellation::new();
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline: None,
+        finalizers: finalizers.clone(),
+    };
+    let mut future = Box::pin(TERRANE_CANCELLATION_CONTEXT.scope(context, future));
+    let first_poll = std::future::poll_fn(|cx| std::task::Poll::Ready(
+            future.as_mut().poll(cx),
+        ))
+        .await;
+    if let std::task::Poll::Ready(output) = first_poll {
+        return output;
+    }
+    let task = tokio::spawn(future);
+    let mut guard = TerraneProjectedEntryGuard {
+        cancellation,
+        finalizers,
+        abort: Some(task.abort_handle()),
+        armed: true,
+    };
+    let output = task
+        .await
+        .expect("projected asynchronous dependency entry task failed");
+    guard.armed = false;
+    output
+}
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+async fn __terrane_wait_projected_cleanups() {
+    loop {
+        let changed = TERRANE_PROJECTED_CLEANUPS_CHANGED.notified();
+        if TERRANE_PROJECTED_CLEANUPS.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+            return;
+        }
+        changed.await;
+    }
+}
 #[allow(
     dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"
@@ -748,7 +835,15 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .enable_all()
         .build()
         .expect("Terrane async runtime must initialize");
-    tokio::task::LocalSet::new().block_on(&runtime, future)
+    tokio::task::LocalSet::new()
+        .block_on(
+            &runtime,
+            async move {
+                let output = future.await;
+                __terrane_wait_projected_cleanups().await;
+                output
+            },
+        )
 }
 async fn __terrane_dependency_await_unwind<F: Future>(
     future: F,

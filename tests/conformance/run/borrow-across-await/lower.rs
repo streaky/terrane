@@ -21,12 +21,22 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
+#[allow(
+    dead_code,
+    clippy::unused_async,
+    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
+)]
+async fn __terrane_wait_projected_cleanups() {}
 fn __terrane_run<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("Terrane async runtime must initialize")
-        .block_on(future)
+        .block_on(async move {
+            let output = future.await;
+            __terrane_wait_projected_cleanups().await;
+            output
+        })
 }
 // Source: case.trn
 // Namespace: borrow-across-await

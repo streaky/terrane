@@ -8,6 +8,46 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "AdjustableOwner"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "AdjustableOwner.adjust"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "AdjustableOwner.current"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "AsyncEntry"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "DropAware"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "DropToken"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner.adjust"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "LocalAdjustableOwner.current"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "Marker"
         ],
         [
@@ -52,6 +92,22 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "async_entry_cleanup_count"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "cancel_async_entry"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "consume_drop"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "drop_token"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "invoke_retained"
         ],
         [
@@ -64,7 +120,23 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "record_async_entry_cleanup"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "registrar"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "retain_adjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "retain_boxed_adjustable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "retain_local_adjustable"
         ],
         [
           "/deps/terrane-callback-witness",
@@ -108,7 +180,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "39",
+  "projection_schema": "40",
   "removed": [],
   "resolution": {
     "events": [

@@ -315,6 +315,10 @@ pub(super) fn validate_call_nodes<'a>(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected source-generic and boxed-interface obligations share one argument pass"
+)]
 fn validate_projected_generic_arguments(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -340,7 +344,7 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
-        let Some((_, class)) = package.units.iter().find_map(|owner| {
+        let Some((_, implementor)) = package.units.iter().find_map(|owner| {
             owner
                 .descriptors
                 .iter()
@@ -350,19 +354,16 @@ fn validate_projected_generic_arguments(
             return Err(failure(
                 &unit.source,
                 "T0121",
-                "immediate projected generic bounds require a concrete source class argument",
+                "projected interface bounds require a source object argument",
                 value.span,
             ));
         };
-        if class.kind != ObjectKind::Class {
-            return Err(failure(
-                &unit.source,
-                "T0121",
-                "interface-typed values cannot select an immediate projected generic bound",
-                value.span,
-            ));
-        }
-        let expected_rust_path = parameter.ty.rust_type();
+        let expected_rust_path = match &parameter.ty {
+            crate::projection::ProjectedType::BoxedInterface { trait_path, .. } => {
+                trait_path.clone()
+            }
+            _ => parameter.ty.rust_type(),
+        };
         let required = package
             .projection
             .dependencies
@@ -376,16 +377,101 @@ fn validate_projected_generic_arguments(
                 namespace: item.namespace.clone(),
                 name: item.name.clone(),
             });
-        if required.is_some_and(|required| !class.interfaces.contains(&required)) {
+        let boxed_interface = matches!(
+            parameter.ty,
+            crate::projection::ProjectedType::BoxedInterface { .. }
+        );
+        let implements_required = required.as_ref().is_some_and(|required| {
+            implementor.interfaces.contains(required)
+                || boxed_interface
+                    && implementor.kind == ObjectKind::Interface
+                    && implementor.identity == *required
+        });
+        if !implements_required {
             return Err(failure(
                 &unit.source,
                 "T0121",
                 format!(
-                    "class `{}` does not implement the projected bound `{expected_rust_path}`",
-                    class.identity.name
+                    "object `{}` does not implement the projected bound `{expected_rust_path}`",
+                    implementor.identity.name
                 ),
                 value.span,
             ));
+        }
+        if implementor.kind != ObjectKind::Class && !boxed_interface {
+            return Err(failure(
+                &unit.source,
+                "T0121",
+                "interface-typed values cannot select a projected source generic bound",
+                value.span,
+            ));
+        }
+        if implementor.kind == ObjectKind::Interface
+            && let crate::projection::ProjectedType::BoxedInterface { auto_traits, .. } =
+                &parameter.ty
+            && let Some((send, sync)) = package
+                .projection
+                .foreign_auto_traits(&implementor.identity.namespace, &implementor.identity.name)
+            && let Some(requirement) = auto_traits.iter().find(|requirement| {
+                requirement.ends_with("::Send") && !send || requirement.ends_with("::Sync") && !sync
+            })
+        {
+            return Err(failure(
+                &unit.source,
+                "T0126",
+                format!(
+                    "interface `{}` cannot cross the boxed projected boundary because its erased wrapper does not satisfy `{requirement}`",
+                    implementor.identity.name
+                ),
+                value.span,
+            ));
+        }
+        let requires_static = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| matches!(bound.as_str(), "'static" | "static"));
+        let requires_send = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| bound.ends_with("::Send") || bound == "Send");
+        let requires_sync = parameter
+            .generic_bounds
+            .iter()
+            .any(|bound| bound.ends_with("::Sync") || bound == "Sync");
+        if implementor.kind == ObjectKind::Class {
+            for (required, requirement, obligation) in [
+                (requires_send, "`Send`", Some(AutoTraitObligation::Send)),
+                (requires_sync, "`Sync`", Some(AutoTraitObligation::Sync)),
+                (requires_static, "`'static`", None),
+            ] {
+                if required
+                    && let Some(field) = effective_object_fields(package, implementor)
+                        .into_iter()
+                        .find(|field| {
+                            !field.is_static
+                                && obligation.map_or_else(
+                                    || !value_type_is_owned_static(&field.value_type),
+                                    |obligation| {
+                                        !value_type_satisfies_auto_trait(
+                                            package,
+                                            &field.value_type,
+                                            obligation,
+                                        )
+                                    },
+                                )
+                        })
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0126",
+                        format!(
+                            "class `{}` cannot cross the retained projected boundary because field `{}` does not satisfy its {requirement} obligation",
+                            implementor.identity.name, field.name
+                        ),
+                        value.span,
+                    ));
+                }
+            }
         }
     }
     Ok(())

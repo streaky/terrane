@@ -4502,10 +4502,40 @@ higher-ranked lifetimes, and unprojectable member types decline with stable arti
 rather than being erased.
 
 A local class adopts the projected identity with ordinary `implements`, and lowering emits one
-foreign Rust impl that delegates into its Terrane methods. Immediate concrete generic and
-`impl Trait` inputs may specialize from the written class argument. Projected error metadata
-contributes the callable's throwable contract, so foreign methods participate in the same
-throwable protocol eligibility and conformance checks as source callables.
+foreign Rust impl that delegates into its Terrane methods. Owned concrete generic and `impl Trait`
+inputs retain their complete Rust lifetime, `Send`, and `Sync` bounds and specialize from the
+written class argument. `Box<dyn Interface + AutoTraits>` is supported only as an owning input:
+projection retains every `Send`/`Sync` object bound, and the shim boxes either a concrete class or
+the exact generated interface wrapper. Bare or borrowed trait objects, non-interface `Box<T>`,
+multiple non-auto trait-object principals, boxed trait-object results, and erased wrappers that do
+not promise the required auto traits decline before lowering.
+
+The projection oracle records `Send` and `Sync` separately for each closed foreign type. Semantic
+conformance walks the complete effective local-class field graph, including nested source classes
+and those foreign facts, for each required auto trait. Retained generic calls repeat the same
+package-aware proof for call-site-only bounds; `'static` remains a separate no-non-owning-reference
+obligation. Projected error metadata contributes the callable's throwable contract, so foreign
+methods participate in the same throwable protocol eligibility and conformance checks as source
+callables.
+
+Canonical Rust `Drop` is never a directly importable interface, including when a dependency
+publicly reexports it: the declined projection points to Terrane `consuming destruct`. A projected
+supertrait requirement for canonical `Drop` instead requires that destructor and reuses the
+class's single lineage-aware Rust `Drop` implementation.
+
+Projected asynchronous methods require a `Send` interface and an asynchronous package entry. That
+entry owns the Tokio context used by Terrane-driven calls. A Rust caller that obtains a projected
+method future must poll it on a thread already entered into that generated runtime; moving and
+polling the future on a bare Rust thread is outside the projected contract and may panic when the
+adapter starts its cleanup task. Shared and mutable receiver adapters detach a separated class
+value; successful mutable completion copies that value back, while cancellation does not.
+Resource-owning classes therefore support only consuming projected async receivers.
+Dropping a Rust-owned method future requests Terrane cancellation, lets every active nested
+`finally` finish, then aborts and releases the detached receiver. The generated executor drains
+all outstanding projected cleanups before runtime shutdown. Packages without task-scope entry,
+projected async entry, or an async function containing `finally` keep the smaller non-cancellation
+runtime; a synchronous main with an otherwise unused ordinary async function needs no Tokio
+runtime.
 
 Mutable Terrane callables own repeatable state and value separation copies the current environment
 rather than aliasing it. Consuming callbacks transfer their environment into the one-shot Rust
@@ -5515,6 +5545,19 @@ counts as use. The resulting package-wide reference index is retained for diagno
 Only an authored top-level function that produces `W4005` carries a narrow generated-Rust dead-code
 allowance, so the source condition remains a Terrane warning rather than an opaque backend failure
 without suppressing dead-code diagnostics for referenced functions.
+
+Projected-interface boundary diagnostics reserve one contiguous source-semantic family:
+
+- `T0122`: a class field graph fails a projected interface's `Send` or `Sync` obligation;
+- `T0123`: a canonical Rust `Drop` supertrait lacks Terrane `consuming destruct`;
+- `T0124`: a resource-owning class cannot separate a borrowed projected async receiver for
+  cancellation cleanup;
+- `T0125`: a projected async implementation has no asynchronous package entry/runtime context;
+- `T0126`: a retained or boxed projected call argument fails its written lifetime or auto-trait
+  obligation.
+
+These codes identify distinct proof failures and remain stable even when their implementation
+shares field-graph or projection metadata.
 
 
 ### 29.1 Bidirectional maps

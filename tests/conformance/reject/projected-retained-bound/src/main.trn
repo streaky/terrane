@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import NonSend as non-send, LocalWorker as local-worker, non_send as make-non-send, retain_local
+
+class retained-unsafe implements local-worker
+    item non-send = make-non-send;
+
+    function run int;
+        return 1
+
+function main;
+    retain_local; (instance retained-unsafe;)

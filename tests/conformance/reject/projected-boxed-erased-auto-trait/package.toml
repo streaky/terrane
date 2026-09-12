@@ -1,0 +1,9 @@
+package = "projected-boxed-erased-auto-trait"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-erased-reject-witness]
+package = "terrane-erased-reject-witness"
+version = "=0.1.0"
+effects = ["build"]

@@ -455,6 +455,12 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
+#[allow(
+    dead_code,
+    clippy::unused_async,
+    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
+)]
+async fn __terrane_wait_projected_cleanups() {}
 async fn __terrane_dependency_await_unwind<F: Future>(
     future: F,
 ) -> Result<F::Output, Box<dyn std::any::Any + Send>> {

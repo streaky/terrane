@@ -811,12 +811,14 @@ Tokio or another executor crate name.
 
 An asynchronous entrypoint creates one selected wake-driven runtime and tears it down after the
 entry task and all linearly owned scopes finish. Projected Rust futures are constructed on first poll
-inside that context, so dependency timers, sockets, and other reactor-backed futures can suspend
-without a busy loop. The generated Cargo manifest includes the pinned runtime dependency only when
-semantic lowering requires async support. There is no fallback that catches missing runtime context
-and blocks instead. Cancellable legacy scope polling parks on real wakeups with bounded
-cancellation/deadline observation; concurrent runtime-native scope scheduling is not implemented
-yet.
+inside that context for Terrane-driven calls, so dependency timers, sockets, and other reactor-backed
+futures can suspend without a busy loop. Rust callers of projected interface methods must likewise
+poll the returned future on a thread entered into the generated runtime; polling it from a bare Rust
+thread is outside the supported boundary. The generated Cargo manifest includes the pinned runtime
+dependency only when semantic lowering requires async support. There is no fallback that catches
+missing runtime context and blocks instead.
+Cancellable legacy scope polling parks on real wakeups with bounded cancellation/deadline
+observation; concurrent runtime-native scope scheduling is not implemented yet.
 
 Projected async metadata records runtime-context, wake-support, and transfer knowledge separately.
 Rust `async fn` items currently mark wake support `required` and runtime context and transfer
@@ -963,16 +965,27 @@ callbacks transfer once.
 Projected interfaces preserve shared, mutable, and consuming receivers plus required/provided
 membership. Local classes adopt them with ordinary `implements`; generated Rust impls delegate
 required methods to Terrane bodies. Rust defaults remain callable; Terrane overrides are currently
-limited to owned, non-`Result` signatures. Required borrowed parameters, required `Result` methods,
-wrapped receivers such as `Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>`, static and generic
-methods, unresolved associated types, higher-ranked lifetimes, and unprojectable members remain
-explicit stable declines. Immediate concrete generic or `impl Trait` inputs specialize from the
-written class argument.
+limited to owned, non-`Result` signatures. Owned concrete generic and `impl Trait` inputs retain
+their lifetime, `Send`, and `Sync` bounds and specialize from the written class argument. Only
+owning `Box<dyn Interface + Send/Sync>` parameters project: every object auto-trait is retained,
+and the shim boxes a conforming concrete class or exact generated wrapper. Bare or borrowed trait
+objects, non-interface boxes, multiple principal traits, boxed trait-object results, and wrappers
+missing requested auto traits decline. The oracle records closed foreign `Send` and `Sync`
+separately; conformance recursively checks the complete effective local-class field graph.
+Canonical Rust `Drop` supertraits require Terrane `consuming destruct` and reuse the class's single
+lineage-aware `Drop`; direct and reexported canonical `Drop` imports decline with that guidance.
+Projected async methods require a `Send` interface and async `main` runtime context. Resource
+classes require consuming async receivers. Rust-owned cancellation detaches receiver state, runs
+nested `finally`, releases it, and is drained before executor shutdown. Packages without task
+scope, projected async entry, or async `finally` retain the small runtime; a sync main with an
+otherwise unused async function requires no Tokio runtime. Other wrapped receivers, static and
+generic methods, unresolved associated types, higher-ranked lifetimes, unsupported owning
+containers, and unprojectable members remain explicit stable declines.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 39 retains these contracts alongside explicit root, continuation, and terminal
+Projection schema 40 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument

@@ -1531,20 +1531,22 @@ features:
   name: Projected Rust trait conformance
   category: interop
   status: partial
-  completion: 34
-  milestone: 28.2-28.3
+  completion: 75
+  milestone: "28.3"
   reference:
     state: partial
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: Fixed-signature Rust traits with plain self receivers now project as nominal Terrane
-    interfaces; local classes implement them and cross immediate concrete generic bounds. Rust
-    provided defaults are callable, while Terrane overrides currently require owned non-Result
-    signatures. Required borrowed/Result members, wrapped receivers, retained/erased implementations,
-    closed associated types, implementable supertrait chains, and asynchronous foreign entry remain
-    later work.
+  notes: Fixed-signature Rust traits project as nominal Terrane interfaces implemented by local
+    classes. Owned concrete generic and supported boxed-trait-object inputs cross retained
+    dependency boundaries with exact lifetime/auto-trait bounds. Oracle-proven foreign Send/Sync
+    facts feed recursive class-field obligations; canonical Drop-to-destruct integration and
+    runtime-drained cancellation cleanup for Send projected async receivers are enforced. Closed
+    associated types and general implementable supertrait chains remain later work.
   sources:
   - docs/compiler-plan.md#Milestone 28.1
+  - docs/compiler-plan.md#Milestone 28.2
+  - docs/language-spec-and-compiler-architecture-draft.md#Rust crates and generated projection
 - id: projection-identity
   name: Namespace-qualified projected identity
   category: interop

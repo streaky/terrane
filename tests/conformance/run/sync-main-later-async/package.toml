@@ -1,0 +1,4 @@
+package = "sync-main-later-async"
+
+[namespaces]
+app = "src"

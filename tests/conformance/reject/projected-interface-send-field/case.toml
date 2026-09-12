@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0122"
+contains = "field `nested` does not satisfy the projected `Send` obligation"

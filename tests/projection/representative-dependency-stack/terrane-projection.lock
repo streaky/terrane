@@ -4829,11 +4829,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "ea0239f50db7a35dc8bfb399fc770b735ae8e2dbb6ca6b6ebec491ba58aa5642",
+  "cache_identity": "48260594af6eb0cc4764af1ba8324ea44be881c41fe1d3fdd90e9155b2129dd4",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "39",
-  "content_hash": "b490d3851ac70606d10316a12cb0dc6a00021483a1bcb1f58c54c9bd35bfd273",
+  "projection_schema": "40",
+  "content_hash": "afc214dd7fd1ce3f63f1ac33c70b04f41f844a51fa32e3e5097ac2da41fcf5de",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

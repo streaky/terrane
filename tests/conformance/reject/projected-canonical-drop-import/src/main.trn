@@ -1,0 +1,5 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import CanonicalDrop as canonical-drop
+
+function main;

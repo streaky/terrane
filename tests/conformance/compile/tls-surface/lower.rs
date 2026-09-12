@@ -416,6 +416,12 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
+#[allow(
+    dead_code,
+    clippy::unused_async,
+    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
+)]
+async fn __terrane_wait_projected_cleanups() {}
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
 pub fn terrane_platform_i128(

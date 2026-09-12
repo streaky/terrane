@@ -79,6 +79,25 @@ fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
     })
 }
 
+fn package_has_async_finally(package: &SemanticPackage) -> bool {
+    fn contains_finally(node: &SyntaxNode) -> bool {
+        node.kind == SyntaxKind::FinallyClause || node.children.iter().any(contains_finally)
+    }
+
+    package.units.iter().any(|unit| {
+        unit.functions.iter().any(|function| {
+            function.is_async
+                && unit
+                    .tree
+                    .root
+                    .children
+                    .iter()
+                    .find(|node| node.span == function.span)
+                    .is_some_and(contains_finally)
+        })
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
@@ -150,7 +169,20 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             )
         })
     });
-    let native_cancellation = package_uses_task_scope(package) && has_async_entry;
+    let projected_async_entry = package.projection.dependencies.iter().any(|dependency| {
+        dependency.items.iter().any(|item| {
+            matches!(
+                &item.kind,
+                crate::projection::ProjectedKind::Interface(interface)
+                    if interface.send
+                        && interface.methods.iter().any(|method| method.function.is_async)
+            )
+        })
+    });
+    let has_async_finally = package_has_async_finally(package);
+    let native_cancellation = package_uses_task_scope(package) && has_async_entry
+        || projected_async_entry
+        || has_async_finally;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.descriptors.iter().any(|object| {
@@ -519,7 +551,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     Ok(Program {
         version: crate::VERSION,
         requires_platform_support,
-        requires_async_runtime: has_async_entry,
+        requires_async_runtime: has_async_entry || projected_async_entry || has_async_finally,
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))

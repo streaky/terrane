@@ -1,0 +1,5 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import borrowed_worker as borrowed-worker
+
+function main;
