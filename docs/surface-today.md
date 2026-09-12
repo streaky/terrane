@@ -811,12 +811,14 @@ Tokio or another executor crate name.
 
 An asynchronous entrypoint creates one selected wake-driven runtime and tears it down after the
 entry task and all linearly owned scopes finish. Projected Rust futures are constructed on first poll
-inside that context, so dependency timers, sockets, and other reactor-backed futures can suspend
-without a busy loop. The generated Cargo manifest includes the pinned runtime dependency only when
-semantic lowering requires async support. There is no fallback that catches missing runtime context
-and blocks instead. Cancellable legacy scope polling parks on real wakeups with bounded
-cancellation/deadline observation; concurrent runtime-native scope scheduling is not implemented
-yet.
+inside that context for Terrane-driven calls, so dependency timers, sockets, and other reactor-backed
+futures can suspend without a busy loop. Rust callers of projected interface methods must likewise
+poll the returned future on a thread entered into the generated runtime; polling it from a bare Rust
+thread is outside the supported boundary. The generated Cargo manifest includes the pinned runtime
+dependency only when semantic lowering requires async support. There is no fallback that catches
+missing runtime context and blocks instead.
+Cancellable legacy scope polling parks on real wakeups with bounded cancellation/deadline
+observation; concurrent runtime-native scope scheduling is not implemented yet.
 
 Projected async metadata records runtime-context, wake-support, and transfer knowledge separately.
 Rust `async fn` items currently mark wake support `required` and runtime context and transfer

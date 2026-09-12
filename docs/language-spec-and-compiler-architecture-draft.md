@@ -4523,10 +4523,13 @@ publicly reexports it: the declined projection points to Terrane `consuming dest
 supertrait requirement for canonical `Drop` instead requires that destructor and reuses the
 class's single lineage-aware Rust `Drop` implementation.
 
-Projected asynchronous methods require a `Send` interface and an asynchronous package entry so
-the adapter always runs inside an owned Tokio context. Shared and mutable receiver adapters detach
-a separated class value; successful mutable completion copies that value back, while cancellation
-does not. Resource-owning classes therefore support only consuming projected async receivers.
+Projected asynchronous methods require a `Send` interface and an asynchronous package entry. That
+entry owns the Tokio context used by Terrane-driven calls. A Rust caller that obtains a projected
+method future must poll it on a thread already entered into that generated runtime; moving and
+polling the future on a bare Rust thread is outside the projected contract and may panic when the
+adapter starts its cleanup task. Shared and mutable receiver adapters detach a separated class
+value; successful mutable completion copies that value back, while cancellation does not.
+Resource-owning classes therefore support only consuming projected async receivers.
 Dropping a Rust-owned method future requests Terrane cancellation, lets every active nested
 `finally` finish, then aborts and releases the detached receiver. The generated executor drains
 all outstanding projected cleanups before runtime shutdown. Packages without task-scope entry,
