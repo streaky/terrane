@@ -1054,7 +1054,7 @@ fn callable_types_compatible(
         && callable_effects_compatible(objects, expected_effects, actual_effects)
 }
 
-fn object_types_compatible(
+pub(super) fn object_types_compatible(
     objects: &[DescriptorContract],
     expected: &ObjectIdentity,
     actual: &ObjectIdentity,

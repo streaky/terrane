@@ -952,28 +952,37 @@ pub(super) fn validate_object_conformance(
                                 } else if bound == "'static" {
                                     true
                                 } else {
-                                    package
-                                        .projection
-                                        .dependencies
-                                        .iter()
-                                        .flat_map(|dependency| &dependency.items)
-                                        .find(|item| item.rust_path == *bound)
-                                        .is_some_and(|item| {
-                                            let ValueType::Object(identity) = application else {
-                                                return false;
-                                            };
-                                            package
+                                    let required = package.projection.dependencies.iter().find_map(
+                                        |dependency| {
+                                            dependency.items.iter().find(|item| {
+                                                item.rust_path == *bound
+                                                    && matches!(
+                                                        &item.kind,
+                                                        crate::projection::ProjectedKind::Interface(
+                                                            interface
+                                                        ) if interface.associated_type.is_none()
+                                                    )
+                                            })
+                                        },
+                                    );
+                                    match (required, application) {
+                                        (Some(required), ValueType::Object(actual)) => {
+                                            let objects = package
                                                 .units
                                                 .iter()
-                                                .flat_map(|unit| &unit.descriptors)
-                                                .find(|object| object.identity == *identity)
-                                                .is_some_and(|object| {
-                                                    object.interfaces.iter().any(|implemented| {
-                                                        implemented.namespace == item.namespace
-                                                            && implemented.name == item.name
-                                                    })
-                                                })
-                                        })
+                                                .flat_map(|unit| unit.descriptors.iter().cloned())
+                                                .collect::<Vec<_>>();
+                                            super::types::object_types_compatible(
+                                                &objects,
+                                                &ObjectIdentity::new(
+                                                    &required.namespace,
+                                                    &required.name,
+                                                ),
+                                                actual,
+                                            )
+                                        }
+                                        _ => false,
+                                    }
                                 };
                                 if !satisfied {
                                     return Err(failure(
