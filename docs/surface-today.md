@@ -963,11 +963,17 @@ callbacks transfer once.
 Projected interfaces preserve shared, mutable, and consuming receivers plus required/provided
 membership. Local classes adopt them with ordinary `implements`; generated Rust impls delegate
 required methods to Terrane bodies. Rust defaults remain callable; Terrane overrides are currently
-limited to owned, non-`Result` signatures. Required borrowed parameters, required `Result` methods,
-wrapped receivers such as `Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>`, static and generic
-methods, unresolved associated types, higher-ranked lifetimes, and unprojectable members remain
-explicit stable declines. Immediate concrete generic or `impl Trait` inputs specialize from the
-written class argument.
+limited to owned, non-`Result` signatures. Owned concrete generic and `impl Trait` inputs retain
+their lifetime/thread bounds and specialize from the written class argument. Supported
+`Box<dyn Trait>` inputs accept a concrete implementor or the exact generated interface wrapper.
+Projected `Send`/`Sync` obligations are checked against implementor fields. Canonical Rust `Drop`
+supertraits require Terrane `consuming destruct` and reuse the class's single lineage-aware
+`Drop`; direct canonical `Drop` imports are declined. Rust-owned cancellation of projected `Send`
+async methods preserves nested Terrane `finally` cleanup for shared, mutable, and consuming
+receivers. Required borrowed parameters and required `Result` methods, wrapped receivers such as
+`Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>`, static and generic methods, unresolved associated
+types, higher-ranked lifetimes, unsupported owning containers, and unprojectable members remain
+explicit stable declines.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
