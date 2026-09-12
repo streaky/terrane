@@ -690,7 +690,8 @@ receiver destruction and generated executor shutdown drains detached cleanup.
 `projected-interface-send-field` and `projected-interface-sync-field` exercise recursive, oracle-
 backed field obligations. `projected-retained-bound`, `projected-drop-missing-destruct`,
 `projected-async-resource-borrow`, `projected-async-runtime-context`,
-`projected-async-nonsend`, `projected-dyn-declines`, `projected-canonical-drop-import`, and
+`projected-async-nonsend`, `projected-dyn-declines`, `projected-box-non-interface`,
+`projected-boxed-trait-result`, `projected-canonical-drop-import`, and
 `projected-boxed-erased-auto-trait` cover the accepted-boundary rejection matrix.
 `sync-main-later-async` preserves the small sync-main runtime path. Projection schema 40 records the
 new foreign auto-trait and boxed-object evidence.
