@@ -418,7 +418,7 @@ fn validate_projected_generic_arguments(
                                 .as_ref()
                                 .expect("resolved projected interface")
                                 .base())
-                    .then(|| implementor.identity.application.as_deref())
+                    .then_some(implementor.identity.application.as_deref())
                     .flatten()
                 });
             let actual = application

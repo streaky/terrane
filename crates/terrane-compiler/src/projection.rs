@@ -5038,10 +5038,6 @@ fn project_type(
         _ => Err("type has no stable Rust path".to_owned()),
     }
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "trait-object admission validates principal, associated, lifetime, and auto-trait bounds together"
-)]
 fn project_associated_binding(
     trait_: &RustdocPath,
     index: &HashMap<Id, Item>,
