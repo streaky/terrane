@@ -1,5 +1,5 @@
 namespace app
 
-from /deps/terrane-boundary-reject-witness import borrowed_worker as borrowed-worker, boxed_string as boxed-string, boxed_worker_result as boxed-worker-result, LocalAsync as local-async, CanonicalDrop as canonical-drop
+from /deps/terrane-boundary-reject-witness import borrowed_worker as borrowed-worker
 
 function main;
