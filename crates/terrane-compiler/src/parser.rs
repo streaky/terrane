@@ -211,7 +211,11 @@ impl Parser<'_> {
             let mut names = Vec::new();
             loop {
                 if self.at(TokenKind::Identifier) {
-                    names.push(self.leaf(SyntaxKind::Name));
+                    names.push(if clause_kind == SyntaxKind::ImplementsClause {
+                        self.parse_prefix_type()
+                    } else {
+                        self.leaf(SyntaxKind::Name)
+                    });
                 } else {
                     self.error_here("S1041", "object clause requires a declared object name");
                     self.recover_line();

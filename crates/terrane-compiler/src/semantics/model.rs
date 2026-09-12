@@ -258,10 +258,11 @@ pub(super) fn iteration_target_bindings(
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
+    pub application: Option<Box<ValueType>>,
 }
 
 impl ObjectIdentity {
@@ -269,17 +270,52 @@ impl ObjectIdentity {
         Self {
             namespace: namespace.into(),
             name: name.into(),
+            application: None,
         }
     }
 
     pub(crate) fn qualified(&self) -> String {
-        format!("{}::{}", self.namespace, self.name)
+        format!("{}::{}", self.namespace, self)
+    }
+
+    pub(crate) fn base(&self) -> Self {
+        Self::new(&self.namespace, &self.name)
     }
 }
 
 impl std::fmt::Display for ObjectIdentity {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.name)
+        formatter.write_str(&self.name)?;
+        if let Some(application) = &self.application {
+            write!(formatter, " of {application}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Ord for ObjectIdentity {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (
+            &self.namespace,
+            &self.name,
+            self.application
+                .as_deref()
+                .map(|value| format!("{value:?}")),
+        )
+            .cmp(&(
+                &other.namespace,
+                &other.name,
+                other
+                    .application
+                    .as_deref()
+                    .map(|value| format!("{value:?}")),
+            ))
+    }
+}
+
+impl PartialOrd for ObjectIdentity {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -407,6 +443,7 @@ pub enum ValueType {
     PlatformUnitResult,
     PlatformDataResult,
     PlatformUrlResult,
+    ProjectedAssociated,
     PlatformCapability,
     PlatformResourceHandle,
     PlatformResult,
@@ -500,6 +537,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformUnitResult
         | ValueType::PlatformDataResult
         | ValueType::PlatformUrlResult
+        | ValueType::ProjectedAssociated
         | ValueType::PlatformCapability
         | ValueType::PlatformResourceHandle
         | ValueType::PlatformResult
@@ -628,6 +666,7 @@ impl std::fmt::Display for ValueType {
                     item.value_type()
                 )
             }
+            Self::ProjectedAssociated => formatter.write_str("host-projected-associated"),
             Self::ChannelOverflowPolicy => formatter.write_str("channel-overflow-policy"),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),

@@ -605,6 +605,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::Reference(item) => {
             format!("&{}", rust_element_type(package, item))
         }
+        ValueType::ProjectedAssociated => "TerraneAssociated".to_owned(),
     }
 }
 
@@ -816,15 +817,22 @@ pub(super) fn rust_object_type_name(
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         > 1;
-    if !collides {
-        return rust_object_name(&identity.name);
-    }
-    let mut namespace = String::new();
-    for segment in identity.namespace.trim_start_matches('/').split('/') {
-        write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
-            .expect("writing to a string cannot fail");
-    }
-    format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+    let base = if !collides {
+        rust_object_name(&identity.name)
+    } else {
+        let mut namespace = String::new();
+        for segment in identity.namespace.trim_start_matches('/').split('/') {
+            write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
+                .expect("writing to a string cannot fail");
+        }
+        format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+    };
+    identity
+        .application
+        .as_deref()
+        .map_or(base.clone(), |application| {
+            format!("{base}<{}>", rust_value_type(package, application.clone()))
+        })
 }
 
 pub(super) fn rust_static_field_name(

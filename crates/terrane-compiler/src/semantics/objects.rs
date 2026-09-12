@@ -199,33 +199,55 @@ pub(super) fn analyze_descriptor_contracts(
                 node.span,
             )
         })?;
-        let clause_identities = |clause_kind| {
-            node.children
-                .iter()
-                .find(|child| child.kind == clause_kind)
-                .map(|clause| {
-                    clause
-                        .children
-                        .iter()
-                        .map(|name| {
-                            let name = node_text(&unit.source, name);
-                            visible_objects.get(name).cloned().unwrap_or_else(|| {
+        let clause_identities = |clause_kind| -> Result<Vec<ObjectIdentity>, SemanticFailure> {
+            let Some(clause) = node.children.iter().find(|child| child.kind == clause_kind) else {
+                return Ok(Vec::new());
+            };
+            clause
+                    .children
+                    .iter()
+                    .map(|type_node| {
+                        if type_node.kind == SyntaxKind::AppliedType {
+                            let [base, argument] = type_node.children.as_slice() else {
+                                return Err(failure(
+                                    &unit.source,
+                                    "T0127",
+                                    "a projected interface application requires exactly one closed type",
+                                    type_node.span,
+                                ));
+                            };
+                            let base_name = node_text(&unit.source, base);
+                            let mut identity =
+                                visible_objects.get(base_name).cloned().unwrap_or_else(|| {
+                                    ObjectIdentity::new(&unit.namespace, base_name)
+                                });
+                            identity.application = Some(Box::new(
+                                declared_value_type_with_visible_objects(
+                                    unit,
+                                    argument,
+                                    &visible,
+                                    visible_objects,
+                                )?,
+                            ));
+                            Ok(identity)
+                        } else {
+                            let name = node_text(&unit.source, type_node);
+                            Ok(visible_objects.get(name).cloned().unwrap_or_else(|| {
                                 if name == "throwable" {
                                     ObjectIdentity::new("/core/errors", name)
                                 } else {
                                     ObjectIdentity::new(&unit.namespace, name)
                                 }
-                            })
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default()
+                            }))
+                        }
+                    })
+                    .collect()
         };
-        let base = clause_identities(SyntaxKind::ExtendsClause)
+        let base = clause_identities(SyntaxKind::ExtendsClause)?
             .into_iter()
             .next();
-        let interfaces = clause_identities(SyntaxKind::ImplementsClause);
-        let traits = clause_identities(SyntaxKind::UsesClause);
+        let interfaces = clause_identities(SyntaxKind::ImplementsClause)?;
+        let traits = clause_identities(SyntaxKind::UsesClause)?;
         let mut fields = Vec::new();
         if let Some(block) = node
             .children
@@ -380,13 +402,17 @@ pub(super) fn analyze_descriptor_contracts(
     }
     for object in &descriptors {
         let require_kind = |identity: &ObjectIdentity, expected: ObjectKind, role: &str| {
+            let base_identity = identity.base();
             let local = descriptors
                 .iter()
-                .find(|candidate| candidate.identity == *identity);
+                .find(|candidate| candidate.identity == base_identity);
             let valid = (expected == ObjectKind::Interface
                 && identity == &ObjectIdentity::new("/core/errors", "throwable"))
                 || local.is_some_and(|candidate| candidate.kind == expected)
-                || local.is_none() && visible_objects.values().any(|visible| visible == identity);
+                || local.is_none()
+                    && visible_objects
+                        .values()
+                        .any(|visible| visible == &base_identity);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -698,6 +724,83 @@ pub(super) fn validate_resource_collection_types(
     Ok(())
 }
 
+pub(super) fn bind_projected_associated_type(
+    value: &ValueType,
+    application: &ValueType,
+) -> ValueType {
+    let element = |value: &ElementType| {
+        ElementType::new(bind_projected_associated_type(
+            value.value_type_ref(),
+            application,
+        ))
+    };
+    match value {
+        ValueType::ProjectedAssociated => application.clone(),
+        ValueType::Optional(inner) => {
+            ValueType::Optional(Box::new(bind_projected_associated_type(inner, application)))
+        }
+        ValueType::Iterator(item) => ValueType::Iterator(element(item)),
+        ValueType::IterationStep(item) => ValueType::IterationStep(element(item)),
+        ValueType::AsyncIterationStep(item) => ValueType::AsyncIterationStep(element(item)),
+        ValueType::ChannelPair(item) => ValueType::ChannelPair(element(item)),
+        ValueType::ChannelSender(item) => ValueType::ChannelSender(element(item)),
+        ValueType::ChannelReceiver(item) => ValueType::ChannelReceiver(element(item)),
+        ValueType::ChannelSendOutcome(item) => ValueType::ChannelSendOutcome(element(item)),
+        ValueType::ChannelReceiveOutcome(item) => ValueType::ChannelReceiveOutcome(element(item)),
+        ValueType::DocumentDecodeOutcome(item) => ValueType::DocumentDecodeOutcome(element(item)),
+        ValueType::List(item) => ValueType::List(element(item)),
+        ValueType::Map(key, item) => ValueType::Map(element(key), element(item)),
+        ValueType::Set(item) => ValueType::Set(element(item)),
+        ValueType::Tuple(item, length) => ValueType::Tuple(element(item), *length),
+        ValueType::Entry(key, item) => ValueType::Entry(element(key), element(item)),
+        ValueType::UnorderedMap(key, item) => ValueType::UnorderedMap(element(key), element(item)),
+        ValueType::UnorderedSet(item) => ValueType::UnorderedSet(element(item)),
+        ValueType::Function(parameters, result, effects) => ValueType::Function(
+            parameters.iter().map(element).collect(),
+            element(result),
+            effects.clone(),
+        ),
+        ValueType::AsyncFunction(parameters, result, transferability, effects) => {
+            ValueType::AsyncFunction(
+                parameters.iter().map(element).collect(),
+                element(result),
+                *transferability,
+                effects.clone(),
+            )
+        }
+        ValueType::Task(item, transferability) => ValueType::Task(element(item), *transferability),
+        ValueType::ScopedTask(item, transferability) => {
+            ValueType::ScopedTask(element(item), *transferability)
+        }
+        ValueType::TaskOutcome(item) => ValueType::TaskOutcome(element(item)),
+        ValueType::Reference(item) => ValueType::Reference(element(item)),
+        ValueType::SharedReference(item) => ValueType::SharedReference(element(item)),
+        _ => value.clone(),
+    }
+}
+
+pub(crate) fn bind_projected_requirement(
+    requirement: &FunctionContract,
+    application: Option<&ValueType>,
+) -> FunctionContract {
+    let Some(application) = application else {
+        return requirement.clone();
+    };
+    let mut bound = requirement.clone();
+    for parameter in &mut bound.parameters {
+        if let Some(value_type) = &mut parameter.value_type {
+            *value_type = bind_projected_associated_type(value_type, application);
+        }
+    }
+    if let Some(value_type) = &mut bound.return_type {
+        *value_type = bind_projected_associated_type(value_type, application);
+    }
+    for value_type in &mut bound.thrown_types {
+        *value_type = bind_projected_associated_type(value_type, application);
+    }
+    bound
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "object conformance checks inheritance, interfaces, and trait conflicts together"
@@ -785,6 +888,102 @@ pub(super) fn validate_object_conformance(
                     .item(&resolved_interface.namespace, &resolved_interface.name)
                     .map(|item| &item.kind)
                 {
+                    match (
+                        projected.associated_type.as_ref(),
+                        interface_identity.application.as_deref(),
+                    ) {
+                        (Some(_), None) => {
+                            return Err(failure(
+                                &declaration_unit.source,
+                                "T0127",
+                                format!(
+                                    "projected interface `{}` requires one closed associated type",
+                                    resolved_interface.name
+                                ),
+                                object.span,
+                            ));
+                        }
+                        (None, Some(_)) => {
+                            return Err(failure(
+                                &declaration_unit.source,
+                                "T0127",
+                                format!(
+                                    "interface `{}` does not declare a projectable associated type",
+                                    resolved_interface.name
+                                ),
+                                object.span,
+                            ));
+                        }
+                        (Some(associated), Some(application)) => {
+                            destination_projected_type(package, application).map_err(|reason| {
+                                failure(
+                                    &declaration_unit.source,
+                                    "T0127",
+                                    format!(
+                                        "associated type `{application}` for projected interface `{}` is not representable: {reason}",
+                                        resolved_interface.name
+                                    ),
+                                    object.span,
+                                )
+                            })?;
+                            for bound in &associated.bounds {
+                                let satisfied = if bound.ends_with("::Send") {
+                                    value_type_satisfies_auto_trait(
+                                        package,
+                                        application,
+                                        AutoTraitObligation::Send,
+                                    )
+                                } else if bound.ends_with("::Sync") {
+                                    value_type_satisfies_auto_trait(
+                                        package,
+                                        application,
+                                        AutoTraitObligation::Sync,
+                                    )
+                                } else if bound.ends_with("::Clone") {
+                                    !value_type_contains_nonclone_foreign(
+                                        &package.projection,
+                                        application,
+                                    )
+                                } else if bound == "'static" {
+                                    true
+                                } else {
+                                    package
+                                        .projection
+                                        .dependencies
+                                        .iter()
+                                        .flat_map(|dependency| &dependency.items)
+                                        .find(|item| item.rust_path == *bound)
+                                        .is_some_and(|item| {
+                                            let ValueType::Object(identity) = application else {
+                                                return false;
+                                            };
+                                            package
+                                                .units
+                                                .iter()
+                                                .flat_map(|unit| &unit.descriptors)
+                                                .find(|object| object.identity == *identity)
+                                                .is_some_and(|object| {
+                                                    object.interfaces.iter().any(|implemented| {
+                                                        implemented.namespace == item.namespace
+                                                            && implemented.name == item.name
+                                                    })
+                                                })
+                                        })
+                                };
+                                if !satisfied {
+                                    return Err(failure(
+                                        &declaration_unit.source,
+                                        "T0127",
+                                        format!(
+                                            "associated type `{application}` does not satisfy projected bound `{bound}`"
+                                        ),
+                                        object.span,
+                                    ));
+                                }
+                            }
+                        }
+                        (None, None) => {}
+                    }
                     for (required, obligation, requirement) in [
                         (projected.send, AutoTraitObligation::Send, "`Send`"),
                         (projected.sync, AutoTraitObligation::Sync, "`Sync`"),
@@ -964,11 +1163,18 @@ pub(super) fn validate_object_conformance(
                     .iter()
                     .find(|candidate| candidate.name == resolved_interface.name)
                     .expect("resolved interface must have an object contract");
-                for required in interface_unit
+                let requirements = interface_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
-                {
+                    .map(|method| {
+                        bind_projected_requirement(
+                            method,
+                            interface_identity.application.as_deref(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                for required in &requirements {
                     let Some(actual) = effective_method(declaration_unit, object, &required.name)
                     else {
                         if required.projected_provided
@@ -1575,6 +1781,109 @@ pub(super) fn infer_and_validate_invocation_modes(
     Ok(())
 }
 
+fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
+    for unit in &mut package.units {
+        for object in &mut unit.descriptors {
+            let mut interface_index = 0;
+            while interface_index < object.interfaces.len() {
+                let interface_identity = object.interfaces[interface_index].clone();
+                let supertraits = package
+                    .projection
+                    .item(&interface_identity.namespace, &interface_identity.name)
+                    .and_then(|item| match &item.kind {
+                        crate::projection::ProjectedKind::Interface(interface) => {
+                            Some(interface.supertraits.clone())
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                for supertrait in supertraits {
+                    let Some(item) = package
+                        .projection
+                        .dependencies
+                        .iter()
+                        .flat_map(|dependency| &dependency.items)
+                        .find(|item| item.rust_path == supertrait.rust_path)
+                    else {
+                        continue;
+                    };
+                    let inherited = ObjectIdentity {
+                        namespace: item.namespace.clone(),
+                        name: item.name.clone(),
+                        application: interface_identity.application.clone(),
+                    };
+                    if !object.interfaces.contains(&inherited) {
+                        object.interfaces.push(inherited);
+                    }
+                }
+                interface_index += 1;
+            }
+        }
+    }
+    let applications = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .flat_map(|object| &object.interfaces)
+        .filter(|identity| identity.application.is_some())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for identity in applications {
+        let Some(application) = identity.application.as_deref() else {
+            continue;
+        };
+        let projectable = package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .is_some_and(|item| {
+                matches!(
+                    &item.kind,
+                    crate::projection::ProjectedKind::Interface(interface)
+                        if interface.associated_type.is_some()
+                )
+            });
+        if !projectable {
+            continue;
+        }
+        for unit in &mut package.units {
+            if unit
+                .descriptors
+                .iter()
+                .any(|candidate| candidate.identity == identity)
+            {
+                continue;
+            }
+            let base = identity.base();
+            let Some(interface) = unit
+                .descriptors
+                .iter()
+                .find(|candidate| {
+                    candidate.identity == base && candidate.kind == ObjectKind::Interface
+                })
+                .cloned()
+            else {
+                continue;
+            };
+            let mut bound_interface = interface;
+            bound_interface.identity = identity.clone();
+            bound_interface.name = identity.to_string();
+            let methods = unit
+                .functions
+                .iter()
+                .filter(|method| method.owner_identity.as_ref() == Some(&base))
+                .map(|method| {
+                    let mut method = bind_projected_requirement(method, Some(application));
+                    method.owner = Some(identity.qualified());
+                    method.owner_identity = Some(identity.clone());
+                    method
+                })
+                .collect::<Vec<_>>();
+            unit.descriptors.push(bound_interface);
+            unit.functions.extend(methods);
+        }
+    }
+}
+
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let descriptors = {
@@ -1628,6 +1937,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }
+    materialize_projected_interface_applications(package);
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
@@ -2044,7 +2354,7 @@ fn collect_projected_destinations(
     Ok(())
 }
 
-fn destination_projected_type(
+pub(crate) fn destination_projected_type(
     package: &SemanticPackage,
     value_type: &ValueType,
 ) -> Result<crate::projection::ProjectedType, &'static str> {

@@ -435,7 +435,10 @@ pub(super) fn declared_value_type_with_visible_objects(
                     union.span,
                 ));
             }
-            if !matches!(inner, ValueType::Scalar(_) | ValueType::Object(_)) {
+            if !matches!(
+                inner,
+                ValueType::Scalar(_) | ValueType::Object(_) | ValueType::ProjectedAssociated
+            ) {
                 return Err(failure(
                     &unit.source,
                     "T0001",
@@ -444,6 +447,39 @@ pub(super) fn declared_value_type_with_visible_objects(
                 ));
             }
             return Ok(ValueType::Optional(Box::new(inner)));
+        }
+    }
+    if shape.kind == SyntaxKind::AppliedType
+        && let [base, argument] = shape.children.as_slice()
+    {
+        let base_name = node_text(&unit.source, base).trim();
+        let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
+            scope.symbols.get(base_name).and_then(|symbols| {
+                symbols.iter().rev().find_map(|symbol| {
+                    matches!(
+                        symbol.kind,
+                        SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                    )
+                    .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+                })
+            })
+        });
+        let object_identity = lexical_identity
+            .or_else(|| visible_objects.get(base_name).cloned())
+            .or_else(|| {
+                unit.descriptors
+                    .iter()
+                    .find(|object| object.builtin.is_none() && object.name == base_name)
+                    .map(|object| object.identity.clone())
+            });
+        if let Some(mut identity) = object_identity {
+            identity.application = Some(Box::new(declared_value_type_with_visible_objects(
+                unit,
+                argument,
+                aliases,
+                visible_objects,
+            )?));
+            return Ok(ValueType::Object(identity));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -535,6 +571,7 @@ pub(super) fn declared_value_type_with_visible_objects(
         }
     }
     match type_name {
+        "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
         "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
         "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
@@ -1037,7 +1074,11 @@ fn object_types_compatible(
         .iter()
         .find(|object| object.identity == *actual)
         .is_some_and(|object| {
-            if object.interfaces.contains(expected) {
+            if object
+                .interfaces
+                .iter()
+                .any(|interface| interface == expected || interface.base() == *expected)
+            {
                 return true;
             }
             let mut base = object.base.as_ref();
@@ -1046,7 +1087,12 @@ fn object_types_compatible(
                 else {
                     break;
                 };
-                if base_object.identity == *expected || base_object.interfaces.contains(expected) {
+                if base_object.identity == *expected
+                    || base_object
+                        .interfaces
+                        .iter()
+                        .any(|interface| interface == expected || interface.base() == *expected)
+                {
                     return true;
                 }
                 base = base_object.base.as_ref();

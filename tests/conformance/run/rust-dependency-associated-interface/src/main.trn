@@ -1,0 +1,29 @@
+namespace app
+
+from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, sequence_total as sequence-total, named_total as named-total, erased_total as erased-total
+
+class ints implements sequence of int
+    value int = 40
+
+    function first int|none;
+        return this.value
+
+    function length int;
+        return 2
+
+class named-ints implements named-sequence of int
+    value int = 30
+
+    function first int|none;
+        return this.value
+
+    function length int;
+        return 4
+
+    function label string;
+        return 'name'
+
+function main;
+    print; (sequence-total; (instance ints;))
+    print; (named-total; (instance named-ints;))
+    print; (erased-total; (instance ints;))

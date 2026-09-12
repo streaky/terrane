@@ -364,29 +364,38 @@ fn validate_projected_generic_arguments(
             }
             _ => parameter.ty.rust_type(),
         };
-        let required = package
+        let expected_base = expected_rust_path
+            .split_once('<')
+            .map_or(expected_rust_path.as_str(), |(base, _)| base);
+        let required_item = package
             .projection
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
             .find(|item| {
-                item.rust_path == expected_rust_path
+                item.rust_path == expected_base
                     && matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
-            })
-            .map(|item| ObjectIdentity {
-                namespace: item.namespace.clone(),
-                name: item.name.clone(),
             });
+        let required = required_item.map(|item| ObjectIdentity {
+            namespace: item.namespace.clone(),
+            name: item.name.clone(),
+            application: None,
+        });
         let boxed_interface = matches!(
             parameter.ty,
             crate::projection::ProjectedType::BoxedInterface { .. }
         );
-        let implements_required = required.as_ref().is_some_and(|required| {
-            implementor.interfaces.contains(required)
-                || boxed_interface
-                    && implementor.kind == ObjectKind::Interface
-                    && implementor.identity == *required
+        let implemented = required.as_ref().and_then(|required| {
+            implementor.interfaces.iter().find(|implemented| {
+                implemented.namespace == required.namespace && implemented.name == required.name
+            })
         });
+        let implements_required = implemented.is_some()
+            || required.as_ref().is_some_and(|required| {
+                boxed_interface
+                    && implementor.kind == ObjectKind::Interface
+                    && implementor.identity.base() == *required
+            });
         if !implements_required {
             return Err(failure(
                 &unit.source,
@@ -397,6 +406,61 @@ fn validate_projected_generic_arguments(
                 ),
                 value.span,
             ));
+        }
+        let expected_associated = match &parameter.ty {
+            crate::projection::ProjectedType::BoxedInterface {
+                associated_type: Some(binding),
+                ..
+            } => Some(binding.ty.rust_type()),
+            _ => required_item
+                .and_then(|item| match &item.kind {
+                    crate::projection::ProjectedKind::Interface(interface) => {
+                        interface.associated_type.as_ref()
+                    }
+                    _ => None,
+                })
+                .and_then(|associated| {
+                    let marker = format!("{} = ", associated.name);
+                    parameter.generic_bounds.iter().find_map(|bound| {
+                        bound
+                            .split_once(&marker)
+                            .and_then(|(_, value)| value.strip_suffix('>'))
+                            .map(str::to_owned)
+                    })
+                }),
+        };
+        if let Some(crate::projection::ProjectedKind::Interface(interface)) =
+            required_item.map(|item| &item.kind)
+            && let Some(associated) = &interface.associated_type
+            && let Some(expected) = expected_associated.as_deref()
+        {
+            let actual = implemented
+                .and_then(|implemented| implemented.application.as_deref())
+                .map(|application| destination_projected_type(package, application))
+                .transpose()
+                .map_err(|_| {
+                    failure(
+                        &unit.source,
+                        "T0121",
+                        "projected associated type is not representable at the generic call",
+                        value.span,
+                    )
+                })?;
+            if actual
+                .as_ref()
+                .map(crate::projection::ProjectedType::rust_type)
+                != Some(expected.to_owned())
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0121",
+                    format!(
+                        "object `{}` binds projected associated type `{}` incompatibly with `{expected}`",
+                        implementor.identity.name, associated.name
+                    ),
+                    value.span,
+                ));
+            }
         }
         if implementor.kind != ObjectKind::Class && !boxed_interface {
             return Err(failure(

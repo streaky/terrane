@@ -87,4 +87,5 @@ pub(crate) use model::{
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::{EffectiveObjectField, effective_object_fields};
+pub(crate) use objects::{bind_projected_requirement, destination_projected_type};
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

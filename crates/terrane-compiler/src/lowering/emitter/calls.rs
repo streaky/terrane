@@ -124,6 +124,7 @@ impl Emitter<'_> {
                 ValueType::Object(ObjectIdentity {
                     namespace: "/core/logging".to_owned(),
                     name: "log-value".to_owned(),
+                    application: None,
                 }),
             );
             let secret = identity.ends_with("::secret-field");
