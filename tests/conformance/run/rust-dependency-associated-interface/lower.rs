@@ -421,20 +421,20 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:37:13-37:45) */
-        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 45 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:38:13-38:52) */
-        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 52 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:39:13-39:48) */
-        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 48 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:40:13-40:43) */
-        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 43 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:41:13-41:49) */
-        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 49 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:43:13-43:34) */
-        { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 34 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:45:13-45:40) */
-        { Site { function: 0, file: 0, line: 45, column: 13, end_line: 45, end_column: 40 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:38:13-38:45) */
+        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:39:13-39:52) */
+        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 52 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:40:13-40:48) */
+        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 48 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:41:13-41:43) */
+        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 43 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:42:13-42:49) */
+        { Site { function: 0, file: 0, line: 42, column: 13, end_line: 42, end_column: 49 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:44:13-44:34) */
+        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 34 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:46:13-46:40) */
+        { Site { function: 0, file: 0, line: 46, column: 13, end_line: 46, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -735,27 +735,27 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(Ints::terrane_construct()),
-        0 /* terrane-site: src/main.trn:37:13-37:45 */))
+        0 /* terrane-site: src/main.trn:38:13-38:45 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(nested_total(NestedValues::terrane_construct()),
-        1 /* terrane-site: src/main.trn:38:13-38:52 */))
+        1 /* terrane-site: src/main.trn:39:13-39:52 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(named_total(NamedInts::terrane_construct()),
-        2 /* terrane-site: src/main.trn:39:13-39:48 */))
+        2 /* terrane-site: src/main.trn:40:13-40:48 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(Ints::terrane_construct()),
-        3 /* terrane-site: src/main.trn:40:13-40:43 */))
+        3 /* terrane-site: src/main.trn:41:13-41:43 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(NamedInts::terrane_construct()),
-        4 /* terrane-site: src/main.trn:41:13-41:49 */))
+        4 /* terrane-site: src/main.trn:42:13-42:49 */))
     );
     let applied: TerraneNs4Deps26TerraneAssociatedWitnessSequence<
         terrane_int_support::Int,
@@ -765,7 +765,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
-        5 /* terrane-site: src/main.trn:43:13-43:34 */))
+        5 /* terrane-site: src/main.trn:44:13-44:34 */))
     );
     let applied_named: TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
         terrane_int_support::Int,
@@ -775,7 +775,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied_named),
-        6 /* terrane-site: src/main.trn:45:13-45:40 */))
+        6 /* terrane-site: src/main.trn:46:13-46:40 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&interface_length(<
@@ -787,6 +787,29 @@ fn main() {
         TerraneNs4Deps26TerraneAssociatedWitnessSequence < terrane_int_support::Int > >
         ::from(NamedInts::terrane_construct())))
     );
+    let applied_items: terrane_collection_support::List<
+        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
+    > = terrane_collection_support::List::<
+        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
+    >::new(
+        vec![
+            < TerraneNs4Deps26TerraneAssociatedWitnessSequence < terrane_int_support::Int
+            >>::from(Ints::terrane_construct())
+        ],
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(applied_items
+        .length()))
+    );
+    let maybe_applied: Option<
+        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
+    > = Some(
+        <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+            terrane_int_support::Int,
+        >>::from(Ints::terrane_construct()),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&maybe_applied.is_some()));
 }
 // Source: <terrane>/projected/deps/terrane-associated-witness.trn
 // Namespace: deps/terrane-associated-witness

@@ -1,6 +1,7 @@
 namespace app
 
 from /deps/terrane-associated-witness import Sequence as sequence, NamedSequence as named-sequence, Nested as nested, sequence_total as sequence-total, nested_total as nested-total, named_total as named-total, erased_total as erased-total
+from /core/collections import list
 
 class ints implements sequence of int
     value int = 40
@@ -45,3 +46,7 @@ function main;
     print; (erased-total; applied-named)
     print; (interface-length; (instance ints;))
     print; (interface-length; (instance named-ints;))
+    applied-items list of sequence of int = list; (instance ints;)
+    print; applied-items.length
+    maybe-applied (sequence of int)|none = instance ints;
+    print; maybe-applied != none

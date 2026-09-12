@@ -506,33 +506,99 @@ pub(super) fn declared_value_type_with_visible_objects(
             return Ok(ValueType::Optional(Box::new(inner)));
         }
     }
+    if shape.kind == SyntaxKind::GroupExpression
+        && let Some(inner) = shape.children.first()
+    {
+        return declared_value_type_with_visible_objects(unit, inner, aliases, visible_objects);
+    }
     if shape.kind == SyntaxKind::AppliedType
-        && let [base, argument] = shape.children.as_slice()
+        && let Some((base, arguments)) = shape.children.split_first()
     {
         let base_name = node_text(&unit.source, base).trim();
-        let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
-            scope.symbols.get(base_name).and_then(|symbols| {
-                symbols.iter().rev().find_map(|symbol| {
-                    matches!(
-                        symbol.kind,
-                        SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
-                    )
-                    .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+        let resolve_argument = |argument: &SyntaxNode| {
+            declared_value_type_with_visible_objects(unit, argument, aliases, visible_objects)
+        };
+        if let [argument] = arguments {
+            let construct = match base_name {
+                "list" => Some(ValueType::List as fn(ElementType) -> ValueType),
+                "tuple" => {
+                    Some((|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType)
+                }
+                "set" => Some(ValueType::Set as fn(ElementType) -> ValueType),
+                "unordered-set" => Some(ValueType::UnorderedSet as fn(ElementType) -> ValueType),
+                "channel-sender" => Some(ValueType::ChannelSender as fn(ElementType) -> ValueType),
+                "channel-receiver" => {
+                    Some(ValueType::ChannelReceiver as fn(ElementType) -> ValueType)
+                }
+                "iterator" => Some(ValueType::Iterator as fn(ElementType) -> ValueType),
+                "iteration-step" => Some(ValueType::IterationStep as fn(ElementType) -> ValueType),
+                "async-iteration-step" => {
+                    Some(ValueType::AsyncIterationStep as fn(ElementType) -> ValueType)
+                }
+                _ => None,
+            };
+            if let Some(construct) = construct {
+                let item = ElementType::new(resolve_argument(argument)?);
+                if matches!(base_name, "set" | "unordered-set") && item.scalar().is_none() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0001",
+                        format!("`{base_name}` requires a scalar item type"),
+                        argument.span,
+                    ));
+                }
+                return Ok(construct(item));
+            }
+        }
+        if let [key_node, value_node] = arguments
+            && let Some(construct) = match base_name {
+                "map" => Some(ValueType::Map as fn(ElementType, ElementType) -> ValueType),
+                "unordered-map" => {
+                    Some(ValueType::UnorderedMap as fn(ElementType, ElementType) -> ValueType)
+                }
+                "entry" => Some(ValueType::Entry as fn(ElementType, ElementType) -> ValueType),
+                _ => None,
+            }
+        {
+            let key = ElementType::new(resolve_argument(key_node)?);
+            if key.scalar().is_none() {
+                return Err(failure(
+                    &unit.source,
+                    "T0001",
+                    format!("`{base_name}` requires a scalar key type"),
+                    key_node.span,
+                ));
+            }
+            return Ok(construct(
+                key,
+                ElementType::new(resolve_argument(value_node)?),
+            ));
+        }
+        if let [argument] = arguments {
+            let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
+                scope.symbols.get(base_name).and_then(|symbols| {
+                    symbols.iter().rev().find_map(|symbol| {
+                        matches!(
+                            symbol.kind,
+                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        )
+                        .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+                    })
                 })
-            })
-        });
-        let object_identity = lexical_identity
-            .or_else(|| visible_objects.get(base_name).cloned())
-            .or_else(|| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| object.builtin.is_none() && object.name == base_name)
-                    .map(|object| object.identity.clone())
             });
-        if let Some(identity) = object_identity {
-            let application =
-                declared_value_type_with_visible_objects(unit, argument, aliases, visible_objects)?;
-            return Ok(ValueType::Object(identity.with_application(application)));
+            let object_identity = lexical_identity
+                .or_else(|| visible_objects.get(base_name).cloned())
+                .or_else(|| {
+                    unit.descriptors
+                        .iter()
+                        .find(|object| object.builtin.is_none() && object.name == base_name)
+                        .map(|object| object.identity.clone())
+                });
+            if let Some(identity) = object_identity {
+                return Ok(ValueType::Object(
+                    identity.with_application(resolve_argument(argument)?),
+                ));
+            }
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -562,66 +628,6 @@ pub(super) fn declared_value_type_with_visible_objects(
         });
     if let Some(identity) = object_identity {
         return Ok(ValueType::Object(identity));
-    }
-    for (constructor, construct) in [
-        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
-        (
-            "tuple of ",
-            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
-        ),
-        (
-            "channel-sender of ",
-            ValueType::ChannelSender as fn(ElementType) -> ValueType,
-        ),
-        (
-            "channel-receiver of ",
-            ValueType::ChannelReceiver as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iterator of ",
-            ValueType::Iterator as fn(ElementType) -> ValueType,
-        ),
-    ] {
-        if let Some(argument) = type_name.strip_prefix(constructor) {
-            let argument = argument.trim();
-            let lexical_identity =
-                lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
-                    scope.symbols.get(argument).and_then(|symbols| {
-                        symbols.iter().rev().find_map(|symbol| {
-                            matches!(
-                                symbol.kind,
-                                SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
-                            )
-                            .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
-                        })
-                    })
-                });
-            let object_identity = lexical_identity
-                .or_else(|| visible_objects.get(argument).cloned())
-                .or_else(|| {
-                    unit.descriptors
-                        .iter()
-                        .find(|object| object.builtin.is_none() && object.name == argument)
-                        .map(|object| object.identity.clone())
-                });
-            if let Some(identity) = object_identity {
-                return Ok(construct(ElementType::new(ValueType::Object(identity))));
-            }
-            if let Some(inner_name) = argument.strip_prefix("shared ref ") {
-                let inner_name = inner_name.trim();
-                let identity = visible_objects.get(inner_name).cloned().or_else(|| {
-                    unit.descriptors
-                        .iter()
-                        .find(|object| object.builtin.is_none() && object.name == inner_name)
-                        .map(|object| object.identity.clone())
-                });
-                if let Some(identity) = identity {
-                    return Ok(construct(ElementType::new(ValueType::SharedReference(
-                        ElementType::new(ValueType::Object(identity)),
-                    ))));
-                }
-            }
-        }
     }
     match type_name {
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
