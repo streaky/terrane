@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: 
+// Runtime support:
 // Vendored support crates: terrane-int-support
 // Source: app/main.trn
 // Namespace: app

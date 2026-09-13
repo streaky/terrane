@@ -1,6 +1,476 @@
 // Generated deterministically by Terrane <version>.
 // Runtime support: async_native.rs, executor_parallel.rs, channels.rs, tasks_native_parallel.rs, platform_data_base.rs, platform_documents.rs, logging_values.rs, platform_capability_types.rs, platform_result_type.rs, platform_int_conversion.rs, platform_capability_base.rs, platform_concurrency.rs
 // Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-document-support, terrane-platform-support
+type TerraneSite = u32;
+const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DescriptorId(u16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
+enum TerraneErrorKind {
+    ArithmeticOverflow,
+    DivisionByZero,
+    IntegerConversionOverflow,
+    NegativeShiftCount,
+    CoercionError,
+    DecodeError,
+    IndexError,
+    MissingKey,
+    ResourceError,
+    SourceError,
+}
+impl TerraneErrorKind {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "arithmetic-overflow",
+            Self::DivisionByZero => "division-by-zero",
+            Self::IntegerConversionOverflow => "integer-conversion-overflow",
+            Self::NegativeShiftCount => "negative-shift-count",
+            Self::CoercionError => "coercion-error",
+            Self::DecodeError => "decode-error",
+            Self::IndexError => "index-error",
+            Self::MissingKey => "missing-key",
+            Self::ResourceError => "resource-error",
+            Self::SourceError => "error",
+        }
+    }
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+            Self::DivisionByZero => "integer division by zero",
+            Self::IntegerConversionOverflow => "integer conversion overflow",
+            Self::NegativeShiftCount => "negative integer shift count",
+            Self::CoercionError => "coercion has no compatible result",
+            Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::IndexError => "collection index is out of range",
+            Self::MissingKey => "collection key is absent",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
+            Self::SourceError => "source error",
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TerraneErrorDetail {
+    message: Option<String>,
+    cause: Option<Box<TerraneError>>,
+    frames: Vec<TerraneSite>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
+    kind: TerraneErrorKind,
+    origin: TerraneSite,
+    detail: Option<Box<TerraneErrorDetail>>,
+}
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime implementation serves every lowered error shape"
+)]
+impl TerraneError {
+    #[cold]
+    #[inline(never)]
+    fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
+        Self { kind, origin, detail: None }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn with_cause(mut self, cause: TerraneError) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .cause = Some(Box::new(cause));
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn attributed(mut self, origin: TerraneSite) -> Self {
+        debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+        self.origin = origin;
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn at(mut self, frame: TerraneSite) -> Self {
+        self.detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .frames
+            .push(frame);
+        self
+    }
+    fn message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.message.as_deref())
+            .unwrap_or_else(|| self.kind.default_message())
+    }
+    #[cold]
+    #[inline(never)]
+    fn render(&self) -> String {
+        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        if let Some(cause) = self
+            .detail
+            .as_ref()
+            .and_then(|detail| detail.cause.as_ref())
+        {
+            rendered.push_str("\ncaused by: ");
+            rendered.push_str(&cause.render());
+        }
+        if self.origin != TERRANE_NO_SITE {
+            rendered.push_str("\nat ");
+            rendered.push_str(&__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            for frame in &detail.frames {
+                rendered.push_str("\nat ");
+                rendered.push_str(&__terrane_trace::render(*frame));
+            }
+        }
+        rendered
+    }
+}
+impl std::fmt::Display for TerraneError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.render())
+    }
+}
+#[allow(
+    dead_code,
+    reason = "fresh support failures are absent from some lowered programs"
+)]
+trait TerraneRaised {
+    fn raised(self, origin: TerraneSite) -> TerraneError;
+}
+pub struct TerraneForeignError(TerraneError);
+impl TerraneForeignError {
+    pub fn render(&self) -> String {
+        self.0.render()
+    }
+}
+impl TerraneRaised for TerraneForeignError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        self.0.attributed(origin)
+    }
+}
+impl TerraneRaised for terrane_int_support::ArithmeticError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
+    }
+}
+impl TerraneRaised for terrane_string_support::DecodeError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::IndexError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::MissingKey {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::RangeStepError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+    __terrane_uncaught(error.raised(origin))
+}
+#[allow(
+    dead_code,
+    reason = "propagating failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+    error.at(frame)
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
+    result.unwrap_or_else(|error| __terrane_raise(error, origin))
+}
+#[allow(
+    dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
+    reason = "returning fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised_err<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_fresh_error(error, origin))
+}
+macro_rules! __terrane_raised_completion {
+    ($result:expr, $origin:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
+    };
+}
+#[allow(
+    dead_code,
+    reason = "terminating propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+}
+#[allow(
+    dead_code,
+    reason = "returning propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced_err<T>(
+    result: Result<T, TerraneError>,
+    frame: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_trace_error(error, frame))
+}
+macro_rules! __terrane_traced_completion {
+    ($result:expr, $frame:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
+    };
+}
+fn __terrane_uncaught(error: TerraneError) -> ! {
+    eprintln!("{}", error.render());
+    std::process::exit(1);
+}
+fn __terrane_generated_defect(message: &str) -> ! {
+    eprintln!(
+        "internal compiler defect: generated program reached an impossible completion: {message}"
+    );
+    std::process::exit(5);
+}
+#[allow(dead_code)]
+enum TerraneCompletion<T> {
+    Normal,
+    Return(T),
+    Error(TerraneError),
+    Break,
+    Continue,
+}
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
+mod __terrane_trace {
+    pub struct Site {
+        pub function: u32,
+        pub file: u32,
+        pub line: u32,
+        pub column: u32,
+        pub end_line: u32,
+        pub end_column: u32,
+    }
+    pub static FILES: [&str; 2] = ["case.trn", "core/documents.trn"];
+    pub static FUNCTIONS: [&str; 4] = [
+        "/structured-logging::main",
+        "/core/documents::make-document-list",
+        "/core/documents::mapping-required-fields",
+        "/core/documents::decode-document",
+    ];
+    pub static SITES: [Site; 27] = [
+        /* terrane-site-row: site 0: /structured-logging::main (case.trn:37:8-37:34) */
+        { Site { function: 0, file: 0, line: 37, column: 8, end_line: 37, end_column: 34 } },
+        /* terrane-site-row: site 1: /structured-logging::main (case.trn:48:13-48:23) */
+        { Site { function: 0, file: 0, line: 48, column: 13, end_line: 48, end_column: 23 } },
+        /* terrane-site-row: site 2: /structured-logging::main (case.trn:48:56-48:66) */
+        { Site { function: 0, file: 0, line: 48, column: 56, end_line: 48, end_column: 66 } },
+        /* terrane-site-row: site 3: /structured-logging::main (case.trn:48:95-48:105) */
+        { Site { function: 0, file: 0, line: 48, column: 95, end_line: 48, end_column: 105 } },
+        /* terrane-site-row: site 4: /structured-logging::main (case.trn:49:13-49:23) */
+        { Site { function: 0, file: 0, line: 49, column: 13, end_line: 49, end_column: 23 } },
+        /* terrane-site-row: site 5: /structured-logging::main (case.trn:49:65-49:75) */
+        { Site { function: 0, file: 0, line: 49, column: 65, end_line: 49, end_column: 75 } },
+        /* terrane-site-row: site 6: /structured-logging::main (case.trn:49:111-49:121) */
+        { Site { function: 0, file: 0, line: 49, column: 111, end_line: 49, end_column: 121 } },
+        /* terrane-site-row: site 7: /structured-logging::main (case.trn:50:13-50:23) */
+        { Site { function: 0, file: 0, line: 50, column: 13, end_line: 50, end_column: 23 } },
+        /* terrane-site-row: site 8: /structured-logging::main (case.trn:50:49-50:59) */
+        { Site { function: 0, file: 0, line: 50, column: 49, end_line: 50, end_column: 59 } },
+        /* terrane-site-row: site 9: /structured-logging::main (case.trn:50:88-50:98) */
+        { Site { function: 0, file: 0, line: 50, column: 88, end_line: 50, end_column: 98 } },
+        /* terrane-site-row: site 10: /structured-logging::main (case.trn:51:13-51:23) */
+        { Site { function: 0, file: 0, line: 51, column: 13, end_line: 51, end_column: 23 } },
+        /* terrane-site-row: site 11: /structured-logging::main (case.trn:51:48-51:58) */
+        { Site { function: 0, file: 0, line: 51, column: 48, end_line: 51, end_column: 58 } },
+        /* terrane-site-row: site 12: /structured-logging::main (case.trn:61:9-61:29) */
+        { Site { function: 0, file: 0, line: 61, column: 9, end_line: 61, end_column: 29 } },
+        /* terrane-site-row: site 13: /structured-logging::main (case.trn:66:59-66:75) */
+        { Site { function: 0, file: 0, line: 66, column: 59, end_line: 66, end_column: 75 } },
+        /* terrane-site-row: site 14: /structured-logging::main (case.trn:72:51-72:62) */
+        { Site { function: 0, file: 0, line: 72, column: 51, end_line: 72, end_column: 62 } },
+        /* terrane-site-row: site 15: /structured-logging::main (case.trn:102:41-102:63) */
+        { Site { function: 0, file: 0, line: 102, column: 41, end_line: 102, end_column: 63 } },
+        /* terrane-site-row: site 16: /structured-logging::main (case.trn:102:107-102:129) */
+        { Site { function: 0, file: 0, line: 102, column: 107, end_line: 102, end_column: 129 } },
+        /* terrane-site-row: site 17: /structured-logging::main (case.trn:116:36-116:53) */
+        { Site { function: 0, file: 0, line: 116, column: 36, end_line: 116, end_column: 53 } },
+        /* terrane-site-row: site 18: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
+        { Site { function: 1, file: 1, line: 140, column: 47, end_line: 140, end_column: 60 } },
+        /* terrane-site-row: site 19: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
+        { Site { function: 2, file: 1, line: 153, column: 17, end_line: 153, end_column: 30 } },
+        /* terrane-site-row: site 20: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
+        { Site { function: 2, file: 1, line: 157, column: 16, end_line: 157, end_column: 47 } },
+        /* terrane-site-row: site 21: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
+        { Site { function: 2, file: 1, line: 163, column: 16, end_line: 163, end_column: 45 } },
+        /* terrane-site-row: site 22: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
+        { Site { function: 3, file: 1, line: 176, column: 12, end_line: 176, end_column: 44 } },
+        /* terrane-site-row: site 23: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
+        { Site { function: 3, file: 1, line: 177, column: 37, end_line: 177, end_column: 69 } },
+        /* terrane-site-row: site 24: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
+        { Site { function: 3, file: 1, line: 183, column: 12, end_line: 183, end_column: 49 } },
+        /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
+        { Site { function: 3, file: 1, line: 184, column: 36, end_line: 184, end_column: 73 } },
+        /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        { Site { function: 3, file: 1, line: 185, column: 36, end_line: 185, end_column: 73 } },
+    ];
+    #[cold]
+    #[inline(never)]
+    pub fn render(site: u32) -> String {
+        let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+        format!(
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
+        )
+    }
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneFieldMetadata {
+    name: &'static str,
+    external_name: &'static str,
+    defaulted: bool,
+    optional: bool,
+    secret: bool,
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+    inherently_identity_bearing: bool,
+    fields: &'static [TerraneFieldMetadata],
+}
 // Source: case.trn
 // Namespace: structured-logging
 #[derive(Clone)]

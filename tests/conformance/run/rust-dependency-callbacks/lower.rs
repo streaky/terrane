@@ -1,6 +1,536 @@
 // Generated deterministically by Terrane <version>.
 // Runtime support: mutable_callable.rs, consuming_callable.rs, async_native.rs, executor_local.rs, async_dependency.rs, tasks_native_local.rs
 // Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
+type TerraneSite = u32;
+const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DescriptorId(u16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
+enum TerraneErrorKind {
+    ArithmeticOverflow,
+    DivisionByZero,
+    IntegerConversionOverflow,
+    NegativeShiftCount,
+    CoercionError,
+    DecodeError,
+    IndexError,
+    MissingKey,
+    ResourceError,
+    SourceError,
+    Custom(DescriptorId),
+}
+impl TerraneErrorKind {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "arithmetic-overflow",
+            Self::DivisionByZero => "division-by-zero",
+            Self::IntegerConversionOverflow => "integer-conversion-overflow",
+            Self::NegativeShiftCount => "negative-shift-count",
+            Self::CoercionError => "coercion-error",
+            Self::DecodeError => "decode-error",
+            Self::IndexError => "index-error",
+            Self::MissingKey => "missing-key",
+            Self::ResourceError => "resource-error",
+            Self::SourceError => "error",
+            Self::Custom(descriptor) => {
+                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
+            }
+        }
+    }
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+            Self::DivisionByZero => "integer division by zero",
+            Self::IntegerConversionOverflow => "integer conversion overflow",
+            Self::NegativeShiftCount => "negative integer shift count",
+            Self::CoercionError => "coercion has no compatible result",
+            Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::IndexError => "collection index is out of range",
+            Self::MissingKey => "collection key is absent",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
+            Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TerraneErrorDetail {
+    message: Option<String>,
+    cause: Option<Box<TerraneError>>,
+    frames: Vec<TerraneSite>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
+    kind: TerraneErrorKind,
+    origin: TerraneSite,
+    detail: Option<Box<TerraneErrorDetail>>,
+}
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime implementation serves every lowered error shape"
+)]
+impl TerraneError {
+    #[cold]
+    #[inline(never)]
+    fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
+        Self { kind, origin, detail: None }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
+    }
+    #[cold]
+    #[inline(never)]
+    fn with_cause(mut self, cause: TerraneError) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .cause = Some(Box::new(cause));
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn attributed(mut self, origin: TerraneSite) -> Self {
+        debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+        self.origin = origin;
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn at(mut self, frame: TerraneSite) -> Self {
+        self.detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .frames
+            .push(frame);
+        self
+    }
+    fn message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.message.as_deref())
+            .unwrap_or_else(|| self.kind.default_message())
+    }
+    #[cold]
+    #[inline(never)]
+    fn render(&self) -> String {
+        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        if let Some(cause) = self
+            .detail
+            .as_ref()
+            .and_then(|detail| detail.cause.as_ref())
+        {
+            rendered.push_str("\ncaused by: ");
+            rendered.push_str(&cause.render());
+        }
+        if self.origin != TERRANE_NO_SITE {
+            rendered.push_str("\nat ");
+            rendered.push_str(&__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            for frame in &detail.frames {
+                rendered.push_str("\nat ");
+                rendered.push_str(&__terrane_trace::render(*frame));
+            }
+        }
+        rendered
+    }
+}
+impl std::fmt::Display for TerraneError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.render())
+    }
+}
+#[allow(
+    dead_code,
+    reason = "fresh support failures are absent from some lowered programs"
+)]
+trait TerraneRaised {
+    fn raised(self, origin: TerraneSite) -> TerraneError;
+}
+pub struct TerraneForeignError(TerraneError);
+impl TerraneForeignError {
+    pub fn render(&self) -> String {
+        self.0.render()
+    }
+}
+impl TerraneRaised for TerraneForeignError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        self.0.attributed(origin)
+    }
+}
+impl TerraneRaised for terrane_int_support::ArithmeticError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
+    }
+}
+impl TerraneRaised for terrane_string_support::DecodeError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::IndexError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::MissingKey {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::RangeStepError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+    __terrane_uncaught(error.raised(origin))
+}
+#[allow(
+    dead_code,
+    reason = "propagating failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+    error.at(frame)
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
+    result.unwrap_or_else(|error| __terrane_raise(error, origin))
+}
+#[allow(
+    dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
+    reason = "returning fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised_err<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_fresh_error(error, origin))
+}
+macro_rules! __terrane_raised_completion {
+    ($result:expr, $origin:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
+    };
+}
+#[allow(
+    dead_code,
+    reason = "terminating propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+}
+#[allow(
+    dead_code,
+    reason = "returning propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced_err<T>(
+    result: Result<T, TerraneError>,
+    frame: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_trace_error(error, frame))
+}
+macro_rules! __terrane_traced_completion {
+    ($result:expr, $frame:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
+    };
+}
+fn __terrane_uncaught(error: TerraneError) -> ! {
+    eprintln!("{}", error.render());
+    std::process::exit(1);
+}
+fn __terrane_generated_defect(message: &str) -> ! {
+    eprintln!(
+        "internal compiler defect: generated program reached an impossible completion: {message}"
+    );
+    std::process::exit(5);
+}
+#[allow(dead_code)]
+enum TerraneCompletion<T> {
+    Normal,
+    Return(T),
+    Error(TerraneError),
+    Break,
+    Continue,
+}
+#[allow(dead_code, reason = "a projected dependency may expose no Result members")]
+const TERRANE_DEPENDENCY_ERROR: DescriptorId = DescriptorId(0);
+#[allow(dead_code, reason = "panic catching may be disabled or not crossed")]
+const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
+fn __terrane_dependency_panic(
+    payload: Box<dyn std::any::Any + Send>,
+    crate_name: &'static str,
+    member: &'static str,
+) -> TerraneForeignError {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    TerraneForeignError(
+        TerraneError::custom_raised(
+            TERRANE_DEPENDENCY_PANIC,
+            format!(
+                "Rust dependency `{crate_name}` member `{member}` panicked: {detail}"
+            ),
+            TERRANE_NO_SITE,
+        ),
+    )
+}
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+}
+mod __terrane_trace {
+    pub struct Site {
+        pub function: u32,
+        pub file: u32,
+        pub line: u32,
+        pub column: u32,
+        pub end_line: u32,
+        pub end_column: u32,
+    }
+    pub static FILES: [&str; 1] = ["src/main.trn"];
+    pub static FUNCTIONS: [&str; 8] = [
+        "/app::stay-pending",
+        "/app::run-retained",
+        "/app",
+        "/app::shared",
+        "/app::mutable",
+        "/app::consuming",
+        "/app::destruct",
+        "/app::main",
+    ];
+    pub static SITES: [Site; 43] = [
+        /* terrane-site-row: site 0: /app::stay-pending (src/main.trn:20:24-20:44) */
+        { Site { function: 0, file: 0, line: 20, column: 24, end_line: 20, end_column: 44 } },
+        /* terrane-site-row: site 1: /app::run-retained (src/main.trn:25:22-25:51) */
+        { Site { function: 1, file: 0, line: 25, column: 22, end_line: 25, end_column: 51 } },
+        /* terrane-site-row: site 2: /app (src/main.trn:60:24-60:40) */
+        { Site { function: 2, file: 0, line: 60, column: 24, end_line: 60, end_column: 40 } },
+        /* terrane-site-row: site 3: /app::shared (src/main.trn:72:30-72:46) */
+        { Site { function: 3, file: 0, line: 72, column: 30, end_line: 72, end_column: 46 } },
+        /* terrane-site-row: site 4: /app::shared (src/main.trn:74:17-74:44) */
+        { Site { function: 3, file: 0, line: 74, column: 17, end_line: 74, end_column: 44 } },
+        /* terrane-site-row: site 5: /app::shared (src/main.trn:76:13-76:40) */
+        { Site { function: 3, file: 0, line: 76, column: 13, end_line: 76, end_column: 40 } },
+        /* terrane-site-row: site 6: /app::mutable (src/main.trn:81:30-81:46) */
+        { Site { function: 4, file: 0, line: 81, column: 30, end_line: 81, end_column: 46 } },
+        /* terrane-site-row: site 7: /app::mutable (src/main.trn:83:17-83:44) */
+        { Site { function: 4, file: 0, line: 83, column: 17, end_line: 83, end_column: 44 } },
+        /* terrane-site-row: site 8: /app::mutable (src/main.trn:85:13-85:40) */
+        { Site { function: 4, file: 0, line: 85, column: 13, end_line: 85, end_column: 40 } },
+        /* terrane-site-row: site 9: /app::consuming (src/main.trn:90:30-90:46) */
+        { Site { function: 5, file: 0, line: 90, column: 30, end_line: 90, end_column: 46 } },
+        /* terrane-site-row: site 10: /app::consuming (src/main.trn:92:17-92:44) */
+        { Site { function: 5, file: 0, line: 92, column: 17, end_line: 92, end_column: 44 } },
+        /* terrane-site-row: site 11: /app::consuming (src/main.trn:94:13-94:40) */
+        { Site { function: 5, file: 0, line: 94, column: 13, end_line: 94, end_column: 40 } },
+        /* terrane-site-row: site 12: /app::destruct (src/main.trn:97:17-97:43) */
+        { Site { function: 6, file: 0, line: 97, column: 17, end_line: 97, end_column: 43 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:103:13-103:38) */
+        { Site { function: 7, file: 0, line: 103, column: 13, end_line: 103, end_column: 38 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:104:13-104:39) */
+        { Site { function: 7, file: 0, line: 104, column: 13, end_line: 104, end_column: 39 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:105:13-105:45) */
+        { Site { function: 7, file: 0, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:106:28-106:67) */
+        { Site { function: 7, file: 0, line: 106, column: 28, end_line: 106, end_column: 67 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:111:28-111:68) */
+        { Site { function: 7, file: 0, line: 111, column: 28, end_line: 111, end_column: 68 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:113:25-113:35) */
+        { Site { function: 7, file: 0, line: 113, column: 25, end_line: 113, end_column: 35 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:114:13-114:48) */
+        { Site { function: 7, file: 0, line: 114, column: 13, end_line: 114, end_column: 48 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:116:13-116:49) */
+        { Site { function: 7, file: 0, line: 116, column: 13, end_line: 116, end_column: 49 } },
+        /* terrane-site-row: site 21: /app::main (src/main.trn:119:25-119:63) */
+        { Site { function: 7, file: 0, line: 119, column: 25, end_line: 119, end_column: 63 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:122:49-122:77) */
+        { Site { function: 7, file: 0, line: 122, column: 49, end_line: 122, end_column: 77 } },
+        /* terrane-site-row: site 23: /app::main (src/main.trn:124:13-124:47) */
+        { Site { function: 7, file: 0, line: 124, column: 13, end_line: 124, end_column: 47 } },
+        /* terrane-site-row: site 24: /app::main (src/main.trn:125:13-125:49) */
+        { Site { function: 7, file: 0, line: 125, column: 13, end_line: 125, end_column: 49 } },
+        /* terrane-site-row: site 25: /app::main (src/main.trn:129:13-129:42) */
+        { Site { function: 7, file: 0, line: 129, column: 13, end_line: 129, end_column: 42 } },
+        /* terrane-site-row: site 26: /app::main (src/main.trn:131:13-131:48) */
+        { Site { function: 7, file: 0, line: 131, column: 13, end_line: 131, end_column: 48 } },
+        /* terrane-site-row: site 27: /app::main (src/main.trn:133:13-133:37) */
+        { Site { function: 7, file: 0, line: 133, column: 13, end_line: 133, end_column: 37 } },
+        /* terrane-site-row: site 28: /app::main (src/main.trn:135:13-135:42) */
+        { Site { function: 7, file: 0, line: 135, column: 13, end_line: 135, end_column: 42 } },
+        /* terrane-site-row: site 29: /app::main (src/main.trn:136:24-136:50) */
+        { Site { function: 7, file: 0, line: 136, column: 24, end_line: 136, end_column: 50 } },
+        /* terrane-site-row: site 30: /app::main (src/main.trn:137:13-137:39) */
+        { Site { function: 7, file: 0, line: 137, column: 13, end_line: 137, end_column: 39 } },
+        /* terrane-site-row: site 31: /app::main (src/main.trn:137:43-137:68) */
+        { Site { function: 7, file: 0, line: 137, column: 43, end_line: 137, end_column: 68 } },
+        /* terrane-site-row: site 32: /app::main (src/main.trn:139:19-139:57) */
+        { Site { function: 7, file: 0, line: 139, column: 19, end_line: 139, end_column: 57 } },
+        /* terrane-site-row: site 33: /app::main (src/main.trn:140:13-140:35) */
+        { Site { function: 7, file: 0, line: 140, column: 13, end_line: 140, end_column: 35 } },
+        /* terrane-site-row: site 34: /app::main (src/main.trn:140:39-140:59) */
+        { Site { function: 7, file: 0, line: 140, column: 39, end_line: 140, end_column: 59 } },
+        /* terrane-site-row: site 35: /app::main (src/main.trn:142:20-142:57) */
+        { Site { function: 7, file: 0, line: 142, column: 20, end_line: 142, end_column: 57 } },
+        /* terrane-site-row: site 36: /app::main (src/main.trn:143:13-143:35) */
+        { Site { function: 7, file: 0, line: 143, column: 13, end_line: 143, end_column: 35 } },
+        /* terrane-site-row: site 37: /app::main (src/main.trn:143:39-143:60) */
+        { Site { function: 7, file: 0, line: 143, column: 39, end_line: 143, end_column: 60 } },
+        /* terrane-site-row: site 38: /app::main (src/main.trn:144:19-144:79) */
+        { Site { function: 7, file: 0, line: 144, column: 19, end_line: 144, end_column: 79 } },
+        /* terrane-site-row: site 39: /app::main (src/main.trn:145:13-145:34) */
+        { Site { function: 7, file: 0, line: 145, column: 13, end_line: 145, end_column: 34 } },
+        /* terrane-site-row: site 40: /app::main (src/main.trn:145:38-145:58) */
+        { Site { function: 7, file: 0, line: 145, column: 38, end_line: 145, end_column: 58 } },
+        /* terrane-site-row: site 41: /app::main (src/main.trn:146:13-146:55) */
+        { Site { function: 7, file: 0, line: 146, column: 13, end_line: 146, end_column: 55 } },
+        /* terrane-site-row: site 42: /app::main (src/main.trn:147:19-147:72) */
+        { Site { function: 7, file: 0, line: 147, column: 19, end_line: 147, end_column: 72 } },
+    ];
+    #[cold]
+    #[inline(never)]
+    pub fn render(site: u32) -> String {
+        let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+        format!(
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
+        )
+    }
+}
 // Source: src/main.trn
 // Namespace: app
 fn add_two(value: terrane_int_support::Int) -> terrane_int_support::Int {

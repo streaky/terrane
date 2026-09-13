@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: 
+// Runtime support:
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 static __TERRANE_GLOBAL_COUNTER: std::sync::LazyLock<
     std::sync::Mutex<Option<terrane_int_support::Int>>,

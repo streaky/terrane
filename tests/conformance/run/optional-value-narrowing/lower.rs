@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: 
+// Runtime support:
 // Vendored support crates: terrane-scalar-support, terrane-string-support
 // Source: case.trn
 // Namespace: optional-value-narrowing
