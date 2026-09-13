@@ -297,6 +297,29 @@ fn parses_control_flow_and_recovers_at_layout_boundaries() {
 }
 
 #[test]
+fn parses_structured_select_cases_and_bindings() {
+    let tree = parse_source(
+        "async function choose;\n  select\n    case value int = await integer-task\n      print; value\n    case await shutdown-task\n      return\n",
+    );
+    assert_eq!(count(&tree.root, SyntaxKind::SelectStatement), 1);
+    assert_eq!(count(&tree.root, SyntaxKind::SelectCase), 2);
+    assert_eq!(count(&tree.root, SyntaxKind::Binding), 1);
+}
+
+#[test]
+fn rejects_malformed_select_boundaries() {
+    rejected(
+        "async function choose;\n  select\n    case await only-task\n",
+        "S1102",
+    );
+    rejected(
+        "async function choose;\n  select\n    case value = prefix + await first\n    case await second\n",
+        "S1103",
+    );
+    rejected("async function choose;\n  select\n    return\n", "S1101");
+}
+
+#[test]
 fn three_clause_for_requires_grouping_for_calls() {
     parse_source("for i = (next;); i < limit; i++\n");
     rejected("for i = next; value; i < limit; i++\n", "S1016");

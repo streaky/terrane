@@ -31,6 +31,8 @@ pub enum SyntaxKind {
     ElseClause,
     WhileStatement,
     ForStatement,
+    SelectStatement,
+    SelectCase,
     ForTarget,
     ReturnStatement,
     ThrowStatement,
