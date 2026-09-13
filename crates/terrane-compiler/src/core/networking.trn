@@ -31,13 +31,14 @@ class network-operation-options
 
 protected function operation-cancellation host-platform-capability; options network-operation-options
     return options.cancellation.handle
-protected function operation-deadline-target int; options network-operation-options
+protected function operation-deadline int; options network-operation-options
     selected = options.deadline
     if selected != none
         remaining = selected.remaining;
         if remaining != none
             return remaining.total-nanoseconds
-    return 0
+        return 0
+    return -1
 class tcp-options
     no-delay bool = true
     ttl int = 64
@@ -150,11 +151,11 @@ class tcp-stream
         this.handle = resource
 
     async function read io-result; limit int, options network-operation-options
-        raw = await host-tcp-read-async; this.handle, limit, (operation-deadline-target; options), options.cancellation.handle
+        raw = await host-tcp-read-async; this.handle, limit, (operation-deadline; options), options.cancellation.handle
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
 
     async function write io-result; data bytes, options network-operation-options
-        raw = await host-tcp-write-async; this.handle, data, (operation-deadline-target; options), options.cancellation.handle
+        raw = await host-tcp-write-async; this.handle, data, (operation-deadline; options), options.cancellation.handle
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
     function configure network-operation-result; options tcp-options
@@ -187,12 +188,12 @@ class stream-result
         this.value = stream
 
 async function connect-tcp stream-result; address socket-address, options network-operation-options
-    raw = await host-tcp-connect-async; address.value, (operation-deadline-target; options), options.cancellation.handle
+    raw = await host-tcp-connect-async; address.value, (operation-deadline; options), options.cancellation.handle
     stream = instance tcp-stream; (host-result-resource; raw)
     return instance stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), '', stream
 
 async function connect-host stream-result; host network-host-name, port int, options network-operation-options
-    raw = await host-tcp-connect-host-async; host.value, port, (operation-deadline-target; options), options.cancellation.handle
+    raw = await host-tcp-connect-host-async; host.value, port, (operation-deadline; options), options.cancellation.handle
     stream = instance tcp-stream; (host-result-resource; raw)
     return instance stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-text; raw), stream
 
@@ -204,7 +205,7 @@ class tcp-listener
     local-address string = ''
 
     async function accept stream-result; options network-operation-options
-        raw = await host-tcp-accept-async; this.handle, (operation-deadline-target; options), options.cancellation.handle
+        raw = await host-tcp-accept-async; this.handle, (operation-deadline; options), options.cancellation.handle
         stream = instance tcp-stream; (host-result-resource; raw)
         return instance stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-text; raw), stream
 
@@ -242,11 +243,11 @@ class udp-socket
     local-address string = ''
 
     async function send-to io-result; data bytes, address socket-address, options network-operation-options
-        raw = await host-udp-send-to-async; this.handle, data, address.value, (operation-deadline-target; options), options.cancellation.handle
+        raw = await host-udp-send-to-async; this.handle, data, address.value, (operation-deadline; options), options.cancellation.handle
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
     async function receive-from io-result; limit int, options network-operation-options
-        raw = await host-udp-receive-from-async; this.handle, limit, (operation-deadline-target; options), options.cancellation.handle
+        raw = await host-udp-receive-from-async; this.handle, limit, (operation-deadline; options), options.cancellation.handle
         return instance io-result; (host-result-failed; raw), (host-result-truncated; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), (host-result-text; raw), false
 
     function configure network-operation-result; options udp-options
@@ -319,7 +320,7 @@ function parse-host-name network-host-name-result; text string
     return instance network-host-name-result; failed, message, host
 
 async function lookup-dns dns-result; host network-host-name, port int, options network-operation-options
-    raw = await host-dns-lookup-async; host.value, port, (operation-deadline-target; options), options.cancellation.handle
+    raw = await host-dns-lookup-async; host.value, port, (operation-deadline; options), options.cancellation.handle
     raw-candidates = host-result-entries; raw
     candidates list of string = list; ''
     index int = 0

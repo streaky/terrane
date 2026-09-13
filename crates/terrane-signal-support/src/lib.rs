@@ -12,6 +12,7 @@ const SIGNALS: [libc::c_int; SIGNAL_COUNT] =
     [libc::SIGINT, libc::SIGTERM, libc::SIGHUP, libc::SIGQUIT];
 static WRITE_FD: AtomicI32 = AtomicI32::new(-1);
 static INSTALLED: AtomicBool = AtomicBool::new(false);
+static ACTIVE_HANDLERS: AtomicU64 = AtomicU64::new(0);
 static COUNTS: [AtomicU64; SIGNAL_COUNT] = [const { AtomicU64::new(0) }; SIGNAL_COUNT];
 static OVERFLOWED: [AtomicBool; SIGNAL_COUNT] = [const { AtomicBool::new(false) }; SIGNAL_COUNT];
 
@@ -24,16 +25,16 @@ pub struct SignalBatch {
 pub struct Registration {
     read_fd: RawFd,
     write_fd: RawFd,
-    previous: [libc::sigaction; SIGNAL_COUNT],
+    previous: std::sync::Mutex<[Option<libc::sigaction>; SIGNAL_COUNT]>,
 }
 
 impl Registration {
-    /// Installs the supported signal handlers and creates their self-pipe.
+    /// Installs handlers for the selected signals and creates their shared self-pipe.
     ///
     /// # Errors
     ///
     /// Returns an error when another registration is active or the host rejects pipe/handler setup.
-    pub fn install() -> io::Result<Self> {
+    pub fn install(selected: [bool; SIGNAL_COUNT]) -> io::Result<Self> {
         if INSTALLED
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_err()
@@ -58,6 +59,7 @@ impl Registration {
         // the signal handler async-signal-safe even when wake bytes are already queued.
         if unsafe { libc::fcntl(pipe[1], libc::F_SETFL, libc::O_NONBLOCK) } != 0 {
             let error = io::Error::last_os_error();
+            // SAFETY: the descriptors were created successfully and have not been transferred.
             unsafe {
                 libc::close(pipe[0]);
                 libc::close(pipe[1]);
@@ -65,45 +67,66 @@ impl Registration {
             INSTALLED.store(false, Ordering::Release);
             return Err(error);
         }
-        let mut previous =
-            [const { unsafe { std::mem::zeroed::<libc::sigaction>() } }; SIGNAL_COUNT];
-        for (index, signal) in SIGNALS.iter().copied().enumerate() {
-            // SAFETY: zero is a valid starting representation for `sigaction`; the mask and handler
-            // fields are initialized before the value is passed to libc.
-            let mut action = unsafe { std::mem::zeroed::<libc::sigaction>() };
-            action.sa_sigaction = signal_handler as *const () as usize;
-            action.sa_flags = libc::SA_RESTART;
-            // SAFETY: `action.sa_mask` is valid writable storage belonging to this stack value.
-            unsafe { libc::sigemptyset(&raw mut action.sa_mask) };
-            // SAFETY: signal numbers are fixed supported process signals, pointers are valid, and
-            // `previous[index]` receives the exact disposition that is later restored.
-            if unsafe { libc::sigaction(signal, &raw const action, &raw mut previous[index]) } != 0
-            {
-                for rollback in 0..index {
-                    // SAFETY: these entries were initialized by successful `sigaction` calls above.
-                    unsafe {
-                        libc::sigaction(
-                            SIGNALS[rollback],
-                            &raw const previous[rollback],
-                            std::ptr::null_mut(),
-                        )
-                    };
-                }
-                // SAFETY: the descriptors were created successfully and have not been transferred.
-                unsafe {
-                    libc::close(pipe[0]);
-                    libc::close(pipe[1]);
-                }
-                INSTALLED.store(false, Ordering::Release);
-                return Err(io::Error::last_os_error());
-            }
-        }
-        WRITE_FD.store(pipe[1], Ordering::Release);
-        Ok(Self {
+        let registration = Self {
             read_fd: pipe[0],
             write_fd: pipe[1],
-            previous,
-        })
+            previous: std::sync::Mutex::new([None; SIGNAL_COUNT]),
+        };
+        WRITE_FD.store(pipe[1], Ordering::Release);
+        if let Err(error) = registration.reconfigure(selected) {
+            drop(registration);
+            return Err(error);
+        }
+        Ok(registration)
+    }
+
+    /// Changes the installed handler set while retaining each kind's initially captured disposition.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the host rejects installing or restoring a selected disposition.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if another thread panicked while mutating this registration's disposition state.
+    pub fn reconfigure(&self, selected: [bool; SIGNAL_COUNT]) -> io::Result<()> {
+        let mut previous = self
+            .previous
+            .lock()
+            .expect("signal disposition lock poisoned");
+        for (index, signal) in SIGNALS.iter().copied().enumerate() {
+            match (selected[index], previous[index]) {
+                (true, None) => {
+                    // SAFETY: zero is a valid starting representation for `sigaction`; the mask and
+                    // handler fields are initialized before the value is passed to libc.
+                    let mut action = unsafe { std::mem::zeroed::<libc::sigaction>() };
+                    action.sa_sigaction = signal_handler as *const () as usize;
+                    action.sa_flags = libc::SA_RESTART;
+                    // SAFETY: `action.sa_mask` is writable storage belonging to this stack value.
+                    unsafe { libc::sigemptyset(&raw mut action.sa_mask) };
+                    // SAFETY: the signal is supported and `captured` receives its prior disposition.
+                    let mut captured = unsafe { std::mem::zeroed::<libc::sigaction>() };
+                    if unsafe { libc::sigaction(signal, &raw const action, &raw mut captured) } != 0
+                    {
+                        return Err(io::Error::last_os_error());
+                    }
+                    previous[index] = Some(captured);
+                }
+                (false, Some(captured)) => {
+                    // SAFETY: `captured` came from the successful installation for this signal.
+                    if unsafe { libc::sigaction(signal, &raw const captured, std::ptr::null_mut()) }
+                        != 0
+                    {
+                        return Err(io::Error::last_os_error());
+                    }
+                    previous[index] = None;
+                    COUNTS[index].store(0, Ordering::Release);
+                    OVERFLOWED[index].store(false, Ordering::Release);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     /// Blocks until a signal or explicit wake is observed, then returns exact per-signal batches.
@@ -144,13 +167,21 @@ impl Registration {
 
 impl Drop for Registration {
     fn drop(&mut self) {
-        WRITE_FD.store(-1, Ordering::Release);
-        for (signal, previous) in SIGNALS.iter().copied().zip(&self.previous) {
-            // SAFETY: each saved disposition was initialized by `install`; restoring it is the
-            // registration's exclusive shutdown responsibility.
-            unsafe { libc::sigaction(signal, previous, std::ptr::null_mut()) };
+        WRITE_FD.store(-1, Ordering::SeqCst);
+        let previous = self
+            .previous
+            .get_mut()
+            .expect("signal disposition lock poisoned");
+        for (signal, captured) in SIGNALS.iter().copied().zip(previous.iter_mut()) {
+            if let Some(captured) = captured.take() {
+                // SAFETY: each saved disposition was captured by this registration.
+                unsafe { libc::sigaction(signal, &raw const captured, std::ptr::null_mut()) };
+            }
         }
-        // SAFETY: both descriptors are exclusively owned by this registration until drop.
+        while ACTIVE_HANDLERS.load(Ordering::SeqCst) != 0 {
+            std::hint::spin_loop();
+        }
+        // SAFETY: no handler can retain the write descriptor after the active-handler barrier.
         unsafe {
             libc::close(self.read_fd);
             libc::close(self.write_fd);
@@ -159,34 +190,66 @@ impl Drop for Registration {
     }
 }
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
+unsafe fn errno_location() -> *mut libc::c_int {
+    // SAFETY: libc exposes the calling thread's errno slot for the duration of the handler.
+    unsafe { libc::__errno_location() }
+}
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "openbsd",
+    target_os = "netbsd"
+))]
+unsafe fn errno_location() -> *mut libc::c_int {
+    // SAFETY: libc exposes the calling thread's errno slot for the duration of the handler.
+    unsafe { libc::__error() }
+}
+
 extern "C" fn signal_handler(signal: libc::c_int) {
-    let Some(index) = SIGNALS.iter().position(|candidate| *candidate == signal) else {
-        return;
-    };
-    let counter = &COUNTS[index];
-    let mut current = counter.load(Ordering::Relaxed);
-    loop {
-        if current == u64::MAX {
-            OVERFLOWED[index].store(true, Ordering::Relaxed);
-            break;
+    // SAFETY: the platform-specific accessor returns this thread's live errno slot.
+    let errno = unsafe { errno_location() };
+    // SAFETY: the slot is valid throughout this signal handler invocation.
+    let saved_errno = unsafe { *errno };
+    ACTIVE_HANDLERS.fetch_add(1, Ordering::SeqCst);
+    if let Some(index) = SIGNALS.iter().position(|candidate| *candidate == signal) {
+        let counter = &COUNTS[index];
+        let mut current = counter.load(Ordering::Relaxed);
+        loop {
+            if current == u64::MAX {
+                OVERFLOWED[index].store(true, Ordering::Relaxed);
+                break;
+            }
+            match counter.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(observed) => current = observed,
+            }
         }
-        match counter.compare_exchange_weak(
-            current,
-            current + 1,
-            Ordering::Relaxed,
-            Ordering::Relaxed,
-        ) {
-            Ok(_) => break,
-            Err(observed) => current = observed,
+        let fd = WRITE_FD.load(Ordering::SeqCst);
+        if fd >= 0 {
+            let byte = match index {
+                0 => 1_u8,
+                1 => 2_u8,
+                2 => 3_u8,
+                3 => 4_u8,
+                _ => 0_u8,
+            };
+            // SAFETY: `write` is async-signal-safe, the pointer names one readable byte, and the
+            // active-handler barrier keeps the descriptor open through this call.
+            unsafe { libc::write(fd, (&raw const byte).cast(), 1) };
         }
     }
-    let fd = WRITE_FD.load(Ordering::Acquire);
-    if fd >= 0 {
-        let byte = u8::try_from(index + 1).expect("supported signal index fits in one byte");
-        // SAFETY: `write` is async-signal-safe, the pointer names one readable byte, and a stale or
-        // full descriptor can only make the best-effort wake fail; the atomic counters retain data.
-        unsafe { libc::write(fd, (&raw const byte).cast(), 1) };
-    }
+    ACTIVE_HANDLERS.fetch_sub(1, Ordering::SeqCst);
+    // SAFETY: restore the interrupted code's errno after every handler operation.
+    unsafe { *errno = saved_errno };
 }
 
 #[cfg(test)]
@@ -202,10 +265,29 @@ mod tests {
             unsafe { libc::sigaction(libc::SIGINT, std::ptr::null(), &raw mut before) },
             0
         );
+        let mut term_before = unsafe { std::mem::zeroed::<libc::sigaction>() };
+        // SAFETY: `term_before` is valid output storage and a null action only queries disposition.
+        assert_eq!(
+            unsafe { libc::sigaction(libc::SIGTERM, std::ptr::null(), &raw mut term_before) },
+            0
+        );
 
-        let registration = Registration::install().expect("install signal registration");
+
+        let registration = Registration::install([true, false, false, false])
+            .expect("install signal registration");
+        let mut term_during = unsafe { std::mem::zeroed::<libc::sigaction>() };
+        // SAFETY: querying an unselected disposition does not alter it.
+        assert_eq!(
+            unsafe { libc::sigaction(libc::SIGTERM, std::ptr::null(), &raw mut term_during) },
+            0
+        );
+        assert_eq!(term_during.sa_sigaction, term_before.sa_sigaction);
+        // SAFETY: the accessor returns this test thread's writable errno slot.
+        unsafe { *errno_location() = 777 };
         // SAFETY: SIGINT is one of the signals owned by the registration during this test.
         assert_eq!(unsafe { libc::raise(libc::SIGINT) }, 0);
+        // SAFETY: reading this test thread's errno slot validates handler preservation.
+        assert_eq!(unsafe { *errno_location() }, 777);
         let batches = registration.wait().expect("observe raised signal");
         assert_eq!(batches[0].count, 1);
         assert!(!batches[0].overflowed);

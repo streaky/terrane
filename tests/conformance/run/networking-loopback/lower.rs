@@ -420,8 +420,8 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 17, column: 70, end_line: 17, end_column: 90 } },
         /* terrane-site-row: site 1: /app::main (case.trn:24:29-24:55) */
         { Site { function: 0, file: 0, line: 24, column: 29, end_line: 24, end_column: 55 } },
-        /* terrane-site-row: site 2: /core/networking::lookup-dns (core/networking.trn:327:28-327:49) */
-        { Site { function: 1, file: 1, line: 327, column: 28, end_line: 327, end_column: 49 } },
+        /* terrane-site-row: site 2: /core/networking::lookup-dns (core/networking.trn:328:28-328:49) */
+        { Site { function: 1, file: 1, line: 328, column: 28, end_line: 328, end_column: 49 } },
         /* terrane-site-row: site 3: /core/streams::read (core/streams.trn:188:23-188:50) */
         { Site { function: 2, file: 2, line: 188, column: 23, end_line: 188, end_column: 50 } },
         /* terrane-site-row: site 4: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
@@ -430,24 +430,24 @@ mod __terrane_trace {
         { Site { function: 4, file: 2, line: 229, column: 23, end_line: 229, end_column: 46 } },
         /* terrane-site-row: site 6: /core/streams::read-async (core/streams.trn:234:23-234:50) */
         { Site { function: 5, file: 2, line: 234, column: 23, end_line: 234, end_column: 50 } },
-        /* terrane-site-row: site 7: /core/time::multiply (core/time.trn:61:13-61:45) */
-        { Site { function: 6, file: 3, line: 61, column: 13, end_line: 61, end_column: 45 } },
-        /* terrane-site-row: site 8: /core/time::seconds (core/time.trn:37:13-37:45) */
-        { Site { function: 7, file: 3, line: 37, column: 13, end_line: 37, end_column: 45 } },
-        /* terrane-site-row: site 9: /core/time::milliseconds (core/time.trn:42:13-42:45) */
-        { Site { function: 8, file: 3, line: 42, column: 13, end_line: 42, end_column: 45 } },
-        /* terrane-site-row: site 10: /core/time::microseconds (core/time.trn:47:13-47:45) */
-        { Site { function: 9, file: 3, line: 47, column: 13, end_line: 47, end_column: 45 } },
-        /* terrane-site-row: site 11: /core/time::nanoseconds (core/time.trn:52:13-52:45) */
-        { Site { function: 10, file: 3, line: 52, column: 13, end_line: 52, end_column: 45 } },
-        /* terrane-site-row: site 12: /core/time::duration-until (core/time.trn:75:13-75:45) */
-        { Site { function: 11, file: 3, line: 75, column: 13, end_line: 75, end_column: 45 } },
-        /* terrane-site-row: site 13: /core/time::at (core/time.trn:104:13-104:45) */
-        { Site { function: 12, file: 3, line: 104, column: 13, end_line: 104, end_column: 45 } },
-        /* terrane-site-row: site 14: /core/time::sleep-until (core/time.trn:157:13-157:45) */
-        { Site { function: 13, file: 3, line: 157, column: 13, end_line: 157, end_column: 45 } },
-        /* terrane-site-row: site 15: /core/time::interval (core/time.trn:168:13-168:45) */
-        { Site { function: 14, file: 3, line: 168, column: 13, end_line: 168, end_column: 45 } },
+        /* terrane-site-row: site 7: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 6, file: 3, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 8: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 7, file: 3, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 9: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 8, file: 3, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 10: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 9, file: 3, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 11: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 10, file: 3, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 12: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 11, file: 3, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 13: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 12, file: 3, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 14: /core/time::sleep-until (core/time.trn:162:13-162:45) */
+        { Site { function: 13, file: 3, line: 162, column: 13, end_line: 162, end_column: 45 } },
+        /* terrane-site-row: site 15: /core/time::interval (core/time.trn:173:13-173:45) */
+        { Site { function: 14, file: 3, line: 173, column: 13, end_line: 173, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -615,9 +615,7 @@ pub fn operation_cancellation(
 ) -> TerranePlatformCapability {
     return options.cancellation.handle;
 }
-pub fn operation_deadline_target(
-    options: NetworkOperationOptions,
-) -> terrane_int_support::Int {
+pub fn operation_deadline(options: NetworkOperationOptions) -> terrane_int_support::Int {
     let selected: Option<Deadline> = options.deadline.clone();
     if selected.is_some() {
         let remaining: Option<Duration> = selected
@@ -631,8 +629,9 @@ pub fn operation_deadline_target(
                 .total_nanoseconds
                 .clone();
         }
+        return terrane_int_support::Int::from(0_i128);
     }
-    return terrane_int_support::Int::from(0_i128);
+    return terrane_int_support::Int::from(-1_i128);
 }
 #[derive(Clone)]
 pub struct TcpOptions {
@@ -909,7 +908,7 @@ impl TcpStream {
                 terrane_platform_tcp_read_async(
                     &self.handle,
                     limit,
-                    operation_deadline_target(options.clone()),
+                    operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
             )
@@ -934,7 +933,7 @@ impl TcpStream {
                 terrane_platform_tcp_write_async(
                     &self.handle,
                     data,
-                    operation_deadline_target(options.clone()),
+                    operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
             )
@@ -1037,7 +1036,7 @@ pub async fn connect_tcp(
     let raw: TerranePlatformResult = __terrane_await(
             terrane_platform_tcp_connect_async(
                 address.value,
-                operation_deadline_target(options.clone()),
+                operation_deadline(options.clone()),
                 &options.cancellation.handle,
             ),
         )
@@ -1062,7 +1061,7 @@ pub async fn connect_host(
             terrane_platform_tcp_connect_host_async(
                 host.value,
                 port,
-                operation_deadline_target(options.clone()),
+                operation_deadline(options.clone()),
                 &options.cancellation.handle,
             ),
         )
@@ -1098,7 +1097,7 @@ impl TcpListener {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_accept_async(
                     &self.handle,
-                    operation_deadline_target(options.clone()),
+                    operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
             )
@@ -1208,7 +1207,7 @@ impl UdpSocket {
                     &self.handle,
                     data,
                     address.value,
-                    operation_deadline_target(options.clone()),
+                    operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
             )
@@ -1233,7 +1232,7 @@ impl UdpSocket {
                 terrane_platform_udp_receive_from_async(
                     &self.handle,
                     limit,
-                    operation_deadline_target(options.clone()),
+                    operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
             )
@@ -1432,7 +1431,7 @@ pub async fn lookup_dns(
             terrane_platform_dns_lookup_async(
                 host.value,
                 port,
-                operation_deadline_target(options.clone()),
+                operation_deadline(options.clone()),
                 &options.cancellation.handle,
             ),
         )
@@ -1454,17 +1453,17 @@ pub async fn lookup_dns(
                             .get(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    2 /* terrane-site: core/networking.trn:327:28-327:49 */,
+                                    2 /* terrane-site: core/networking.trn:328:28-328:49 */,
                                 ),
                             )
                             .cloned()
                             .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    2 /* terrane-site: core/networking.trn:327:28-327:49 */,
+                                    2 /* terrane-site: core/networking.trn:328:28-328:49 */,
                                 ),
                             )),
-                        2 /* terrane-site: core/networking.trn:327:28-327:49 */,
+                        2 /* terrane-site: core/networking.trn:328:28-328:49 */,
                     ),
                 );
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -2227,8 +2226,8 @@ impl DurationSubtraction {
             - other.total_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
-                terrane_platform_time_div(&difference, 1000000000),
-                terrane_platform_time_mod(&difference, 1000000000),
+                terrane_platform_time_div(&difference, 1000000000.clone()),
+                terrane_platform_time_mod(&difference, 1000000000.clone()),
             ),
         );
     }
@@ -2275,8 +2274,8 @@ impl Duration {
             + other.nanoseconds.clone();
         return Duration::terrane_construct(
             self.seconds.clone() + other.seconds.clone()
-                + terrane_platform_time_div(&fractional, 1000000000),
-            terrane_platform_time_mod(&fractional, 1000000000),
+                + terrane_platform_time_div(&fractional, 1000000000.clone()),
+            terrane_platform_time_mod(&fractional, 1000000000.clone()),
         );
     }
     pub fn multiply(
@@ -2289,7 +2288,7 @@ impl Duration {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    7 /* terrane-site: core/time.trn:61:13-61:45 */,
+                    7 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -2297,8 +2296,8 @@ impl Duration {
             * multiplier.clone();
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&total, 1000000000),
-                terrane_platform_time_mod(&total, 1000000000),
+                terrane_platform_time_div(&total, 1000000000.clone()),
+                terrane_platform_time_mod(&total, 1000000000.clone()),
             ),
         );
     }
@@ -2311,7 +2310,7 @@ impl Duration {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    8 /* terrane-site: core/time.trn:37:13-37:45 */,
+                    8 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -2331,14 +2330,14 @@ impl Duration {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    9 /* terrane-site: core/time.trn:42:13-42:45 */,
+                    9 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&value, 1000),
-                terrane_platform_time_mod(&value, 1000)
+                terrane_platform_time_div(&value, 1000.clone()),
+                terrane_platform_time_mod(&value, 1000.clone())
                     * terrane_int_support::Int::from(1000000_i128),
             ),
         );
@@ -2352,14 +2351,14 @@ impl Duration {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    10 /* terrane-site: core/time.trn:47:13-47:45 */,
+                    10 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&value, 1000000),
-                terrane_platform_time_mod(&value, 1000000)
+                terrane_platform_time_div(&value, 1000000.clone()),
+                terrane_platform_time_mod(&value, 1000000.clone())
                     * terrane_int_support::Int::from(1000_i128),
             ),
         );
@@ -2373,14 +2372,14 @@ impl Duration {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    11 /* terrane-site: core/time.trn:52:13-52:45 */,
+                    11 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&value, 1000000000),
-                terrane_platform_time_mod(&value, 1000000000),
+                terrane_platform_time_div(&value, 1000000000.clone()),
+                terrane_platform_time_mod(&value, 1000000000.clone()),
             ),
         );
     }
@@ -2423,7 +2422,7 @@ impl MonotonicInstant {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    12 /* terrane-site: core/time.trn:75:13-75:45 */,
+                    12 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -2431,8 +2430,8 @@ impl MonotonicInstant {
             - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&elapsed, 1000000000),
-                terrane_platform_time_mod(&elapsed, 1000000000),
+                terrane_platform_time_div(&elapsed, 1000000000.clone()),
+                terrane_platform_time_mod(&elapsed, 1000000000.clone()),
             ),
         );
     }
@@ -2493,8 +2492,8 @@ impl Deadline {
             .clone() - now.elapsed_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
-                terrane_platform_time_div(&elapsed, 1000000000),
-                terrane_platform_time_mod(&elapsed, 1000000000),
+                terrane_platform_time_div(&elapsed, 1000000000.clone()),
+                terrane_platform_time_mod(&elapsed, 1000000000.clone()),
             ),
         );
     }
@@ -2510,12 +2509,16 @@ impl Deadline {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    13 /* terrane-site: core/time.trn:104:13-104:45 */,
+                    13 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
         return Ok(Deadline::terrane_construct(target.clone()));
     }
+}
+pub fn discard_none(value: ()) {
+    let _ = &value;
+    return ();
 }
 #[derive(Clone)]
 pub struct Tick {
@@ -2598,17 +2601,16 @@ impl Ticker {
             .anchor
             .elapsed_nanoseconds
             .clone() + period_total.clone() * self.next_index.clone();
-        let ignored: () = __terrane_await(
-                terrane_platform_time_sleep_until(scheduled_nanoseconds),
-            )
-            .await;
-        let _ = &ignored;
+        discard_none(
+            __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
+                .await,
+        );
         let observed: MonotonicInstant = Clock::terrane_static_monotonic();
         let elapsed: terrane_int_support::Int = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
         let mut observed_index: terrane_int_support::Int = terrane_platform_time_div(
             &elapsed,
-            period_total,
+            period_total.clone(),
         );
         if observed_index.clone() < self.next_index.clone() {
             observed_index = self.next_index.clone();
@@ -2618,7 +2620,7 @@ impl Ticker {
         let delivered: MonotonicInstant = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
             self.anchor.elapsed_nanoseconds.clone()
-                + self.period.total_nanoseconds.clone() * observed_index.clone(),
+                + period_total.clone() * observed_index.clone(),
         );
         self.next_index = observed_index.clone()
             + terrane_int_support::Int::from(1_i128);
@@ -2668,7 +2670,7 @@ impl Clock {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    14 /* terrane-site: core/time.trn:157:13-157:45 */,
+                    14 /* terrane-site: core/time.trn:162:13-162:45 */,
                 )
             });
         }
@@ -2694,7 +2696,7 @@ impl Clock {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    15 /* terrane-site: core/time.trn:168:13-168:45 */,
+                    15 /* terrane-site: core/time.trn:173:13-173:45 */,
                 )
             });
         }

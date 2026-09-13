@@ -8,6 +8,7 @@ class invalid-duration implements throwable
     function render string;
         return this.message
 
+# Models `subtract.checked` until source classes support dotted member families.
 private class duration-subtraction
     private total-nanoseconds int = 0
 
@@ -104,6 +105,10 @@ class deadline
             throw instance invalid-duration;
         return instance deadline; target
 
+private function discard-none none; value none
+    return none
+
+
 class tick
     scheduled monotonic-instant = instance monotonic-instant; 0, 0
     observed monotonic-instant = instance monotonic-instant; 0, 0
@@ -126,14 +131,14 @@ class ticker
     mutable async function next tick;
         period-total = this.period.total-nanoseconds
         scheduled-nanoseconds = this.anchor.elapsed-nanoseconds + period-total * this.next-index
-        ignored = await host-time-sleep-until; scheduled-nanoseconds
+        discard-none; (await host-time-sleep-until; scheduled-nanoseconds)
         observed = clock::monotonic;
         elapsed = observed.elapsed-nanoseconds - this.anchor.elapsed-nanoseconds
         observed-index = host-time-div; elapsed, period-total
         if observed-index < this.next-index
             observed-index = this.next-index
         count = observed-index - this.next-index + 1
-        delivered = instance monotonic-instant; this.anchor.domain, this.anchor.elapsed-nanoseconds + this.period.total-nanoseconds * observed-index
+        delivered = instance monotonic-instant; this.anchor.domain, this.anchor.elapsed-nanoseconds + period-total * observed-index
         this.next-index = observed-index + 1
         return instance tick; delivered, observed, count
 

@@ -1197,6 +1197,8 @@ fn synchronize_execution_requirements(package: &mut SemanticPackage) {
             "host-tls-read-async",
             "host-tls-write-async",
             "host-tls-shutdown-async",
+            "host-time-sleep-until",
+            "host-process-signal-next",
         ]
         .iter()
         .any(|name| unit.source.text().contains(name))

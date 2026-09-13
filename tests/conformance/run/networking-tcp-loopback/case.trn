@@ -4,7 +4,6 @@ from /core/output import print
 from /core/encodings import utf8
 from /core/streams import stdin, byte-reader, read-result
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
-from /core/time import clock, duration
 
 async function serve none; listener tcp-listener, options network-operation-options
     accepted stream-result = await listener.accept; options
@@ -27,7 +26,7 @@ async function main;
     bound listener-result = bind-tcp; bind-address.value
     listener = move bound.value
     endpoint-text string = listener.local-address
-    server-options = instance network-operation-options; (clock::deadline; (duration::seconds; 1)), (instance network-cancellation-token;)
+    server-options = instance network-operation-options; none, (instance network-cancellation-token;)
     server-task = serve; move listener, server-options
     scope = task-scope;
     input = stdin;
@@ -35,7 +34,7 @@ async function main;
     input-child = scope.spawn; input-task
     child = scope.spawn; server-task
     destination = socket-address-from-string; endpoint-text
-    client-options = instance network-operation-options; (clock::deadline; (duration::seconds; 1)), (instance network-cancellation-token;)
+    client-options = instance network-operation-options; none, (instance network-cancellation-token;)
     connected stream-result = await connect-tcp; destination.value, client-options
     client = move connected.value
     sent = await client.write; b'terrane', client-options

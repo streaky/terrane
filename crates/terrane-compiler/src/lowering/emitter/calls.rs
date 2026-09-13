@@ -972,6 +972,10 @@ impl Emitter<'_> {
                         && matches!(function, "platform_time_div" | "platform_time_mod")
                     {
                         format!("&({value})")
+                    } else if index == 1
+                        && matches!(function, "platform_time_div" | "platform_time_mod")
+                    {
+                        format!("({value}).clone()")
                     } else {
                         value
                     }

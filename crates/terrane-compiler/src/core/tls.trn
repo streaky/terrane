@@ -1,6 +1,6 @@
 namespace core/networking/tls
 
-from /core/networking import tcp-stream, network-operation-options, network-operation-result, io-result, network-host-name, operation-cancellation, operation-deadline-target
+from /core/networking import tcp-stream, network-operation-options, network-operation-result, io-result, network-host-name, operation-cancellation, operation-deadline
 
 class tls-stream
     private handle host-platform-resource-handle
@@ -11,12 +11,12 @@ class tls-stream
 
     async function read io-result; limit int, options network-operation-options
         cancellation = operation-cancellation; options
-        raw = await host-tls-read-async; this.handle, limit, (operation-deadline-target; options), cancellation
+        raw = await host-tls-read-async; this.handle, limit, (operation-deadline; options), cancellation
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
 
     async function write io-result; data bytes, options network-operation-options
         cancellation = operation-cancellation; options
-        raw = await host-tls-write-async; this.handle, data, (operation-deadline-target; options), cancellation
+        raw = await host-tls-write-async; this.handle, data, (operation-deadline; options), cancellation
         return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
     consuming function close network-operation-result;
@@ -25,7 +25,7 @@ class tls-stream
 
     async function shutdown network-operation-result; options network-operation-options
         cancellation = operation-cancellation; options
-        raw = await host-tls-shutdown-async; this.handle, (operation-deadline-target; options), cancellation
+        raw = await host-tls-shutdown-async; this.handle, (operation-deadline; options), cancellation
         return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     consuming function destruct;
@@ -47,7 +47,7 @@ class tls-result
 # An insecure connector is intentionally absent; it can only live in a separately imported unsafe package.
 async function connect-tls tls-result; stream tcp-stream, server-name network-host-name, options network-operation-options
     cancellation = operation-cancellation; options
-    raw = await host-tls-client-async; stream.handle, server-name.value, (operation-deadline-target; options), cancellation
+    raw = await host-tls-client-async; stream.handle, server-name.value, (operation-deadline; options), cancellation
     value = instance tls-stream; (host-result-resource; raw)
     if not (host-result-failed; raw)
         value.negotiated-version = host-result-text; raw

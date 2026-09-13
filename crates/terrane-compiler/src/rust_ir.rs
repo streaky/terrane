@@ -588,12 +588,15 @@ impl RenderedProgram {
             .contents
             .parse::<TokenStream>()
             .expect("rendered Rust must contain valid tokens");
-        let vendored_support = VENDORED_SUPPORT_CRATES
+        let mut vendored_support = VENDORED_SUPPORT_CRATES
             .iter()
             .filter_map(|(rust_name, package_name)| {
                 token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
             })
             .collect::<Vec<_>>();
+        if runtime_support.contains(&"platform_signals.rs") {
+            vendored_support.push("terrane-signal-support");
+        }
         let mut output = format!(
             "// Generated deterministically by Terrane {}.\n",
             self.version

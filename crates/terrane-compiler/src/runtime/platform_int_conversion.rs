@@ -7,8 +7,8 @@ pub fn terrane_platform_i128(
 }
 
 pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
-    if value <= terrane_int_support::Int::from(0_i128) {
-        return 0;
+    if value < terrane_int_support::Int::from(0_i128) {
+        return -1;
     }
     i128::from(terrane_int_support::coerce::<u64>(&value).unwrap_or(u64::MAX))
 }

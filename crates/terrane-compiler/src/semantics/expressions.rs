@@ -398,7 +398,7 @@ pub(super) fn infer_value_type(
             {
                 return Err(failure(
                     &unit.source,
-                    "T0112",
+                    "T0133",
                     "duration multipliers must be non-negative",
                     argument.span,
                 ));
@@ -454,7 +454,7 @@ pub(super) fn infer_value_type(
                 {
                     return Err(failure(
                         &unit.source,
-                        "T0112",
+                        "T0133",
                         "duration values must be non-negative",
                         argument.span,
                     ));
@@ -473,7 +473,7 @@ pub(super) fn infer_value_type(
                 {
                     return Err(failure(
                         &unit.source,
-                        "T0112",
+                        "T0133",
                         "ticker intervals must be greater than zero",
                         argument.span,
                     ));

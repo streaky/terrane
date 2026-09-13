@@ -687,10 +687,24 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         );
     }
     let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
-    if !hold_stdin {
+    let signals = field(manifest, "signals");
+    let (status, stdout, stderr) = if let Some(signals) = signals {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        for signal in signals.split(',').map(str::trim) {
+            let status = Command::new("kill")
+                .args([format!("-{signal}"), child.id().to_string()])
+                .status()
+                .expect("invoke platform signal command");
+            assert!(
+                status.success(),
+                "could not send {signal} to {}",
+                case.display()
+            );
+        }
         drop(stdin.take());
-    }
-    let (status, stdout, stderr) = if hold_stdin {
+        let output = child.wait_with_output().unwrap();
+        (output.status, output.stdout, output.stderr)
+    } else if hold_stdin {
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut stdout_bytes = Vec::new();
         stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
@@ -701,6 +715,7 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         stderr.read_to_end(&mut stderr_bytes).unwrap();
         (child.wait().unwrap(), stdout_bytes, stderr_bytes)
     } else {
+        drop(stdin.take());
         let output = child.wait_with_output().unwrap();
         (output.status, output.stdout, output.stderr)
     };

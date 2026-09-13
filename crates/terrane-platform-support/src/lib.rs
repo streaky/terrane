@@ -178,9 +178,23 @@ fn capability_result(capability: Capability) -> ResultValue {
 }
 
 static MONOTONIC_ORIGIN: LazyLock<Instant> = LazyLock::new(Instant::now);
+// Every monotonic observer in one process is measured from this nominal runtime activation origin.
+// The value is intentionally process-local and has no meaning across runtime activations.
+#[cfg(test)]
+thread_local! {
+    static CONTROLLED_MONOTONIC_NANOS: std::cell::Cell<Option<u64>> =
+        const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+static CONTROLLED_TIME_NOTIFY: LazyLock<tokio::sync::Notify> =
+    LazyLock::new(tokio::sync::Notify::new);
 
 #[must_use]
 pub fn monotonic_nanos() -> u128 {
+    #[cfg(test)]
+    if let Some(nanoseconds) = CONTROLLED_MONOTONIC_NANOS.get() {
+        return u128::from(nanoseconds);
+    }
     MONOTONIC_ORIGIN.elapsed().as_nanos()
 }
 
@@ -242,6 +256,21 @@ pub fn process_signal_close(_capability: &Capability) -> ResultValue {
 }
 
 pub async fn sleep(duration: Duration) {
+    #[cfg(test)]
+    if let Some(started) = CONTROLLED_MONOTONIC_NANOS.get() {
+        let elapsed = u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX);
+        let target = started.saturating_add(elapsed);
+        loop {
+            let notified = CONTROLLED_TIME_NOTIFY.notified();
+            if CONTROLLED_MONOTONIC_NANOS
+                .get()
+                .is_some_and(|nanoseconds| nanoseconds >= target)
+            {
+                return;
+            }
+            notified.await;
+        }
+    }
     tokio::time::sleep(duration).await;
 }
 
@@ -379,10 +408,13 @@ fn deadline_error(message: &str) -> ResultValue {
 
 const CANCELLATION_QUANTUM: Duration = Duration::from_millis(10);
 
-fn operation_deadline(nanoseconds: i128, label: &str) -> Result<Instant, ResultValue> {
-    let duration = timeout(nanoseconds)?;
+fn operation_deadline(nanoseconds: i128, label: &str) -> Result<Option<Instant>, ResultValue> {
+    let Some(duration) = timeout(nanoseconds)? else {
+        return Ok(None);
+    };
     Instant::now()
         .checked_add(duration)
+        .map(Some)
         .ok_or_else(|| ResultValue::error(format!("{label} is outside the platform time range")))
 }
 
@@ -667,11 +699,19 @@ async fn readiness_operation(
         Ok(value) => value,
         Err(error) => return error,
     };
-    tokio::select! {
-        biased;
-        cancelled = cancellation_wait(cancellation) => cancelled,
-        result = operation => result,
-        () = tokio::time::sleep(duration) => deadline_error(deadline_message),
+    if let Some(duration) = duration {
+        tokio::select! {
+            biased;
+            cancelled = cancellation_wait(cancellation) => cancelled,
+            result = operation => result,
+            () = tokio::time::sleep(duration) => deadline_error(deadline_message),
+        }
+    } else {
+        tokio::select! {
+            biased;
+            cancelled = cancellation_wait(cancellation) => cancelled,
+            result = operation => result,
+        }
     }
 }
 
@@ -1133,10 +1173,13 @@ pub fn parse_socket_text(text: &str) -> ResultValue {
         ..ResultValue::default()
     }
 }
-fn timeout(nanoseconds: i128) -> Result<Duration, ResultValue> {
+fn timeout(nanoseconds: i128) -> Result<Option<Duration>, ResultValue> {
+    if nanoseconds == -1 {
+        return Ok(None);
+    }
     let value = u64::try_from(nanoseconds)
         .map_err(|_| ResultValue::error("deadline duration exceeds the platform timer range"))?;
-    Ok(Duration::from_nanos(value))
+    Ok(Some(Duration::from_nanos(value)))
 }
 
 fn network_block_on<F: std::future::Future>(future: F) -> Result<F::Output, ResultValue> {
@@ -1222,12 +1265,16 @@ pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capabilit
         Ok(value) => value,
         Err(error) => return error,
     };
-    match TcpStream::connect_timeout(&address, duration) {
+    let connected = duration.map_or_else(
+        || TcpStream::connect(address),
+        |duration| TcpStream::connect_timeout(&address, duration),
+    );
+    match connected {
         Ok(stream) => {
-            if let Err(error) = stream.set_read_timeout(Some(duration)) {
+            if let Err(error) = stream.set_read_timeout(duration) {
                 return io_error("TCP read timeout configuration", &error);
             }
-            if let Err(error) = stream.set_write_timeout(Some(duration)) {
+            if let Err(error) = stream.set_write_timeout(duration) {
                 return io_error("TCP write timeout configuration", &error);
             }
             ResultValue {
@@ -1270,8 +1317,8 @@ pub fn tcp_connect_host(
     if candidates.is_empty() {
         return ResultValue::error("DNS lookup returned no usable addresses");
     }
-    let remaining = duration.saturating_sub(started.elapsed());
-    if remaining.is_zero() {
+    let remaining = duration.map(|duration| duration.saturating_sub(started.elapsed()));
+    if remaining.is_some_and(|duration| duration.is_zero()) {
         return ResultValue {
             failed: true,
             deadline_exceeded: true,
@@ -1306,7 +1353,11 @@ pub fn tcp_connect_host(
                 }
             }
         };
-        let result = match tokio::time::timeout(remaining, race).await {
+        let result = match if let Some(remaining) = remaining {
+            tokio::time::timeout(remaining, race).await
+        } else {
+            Ok(race.await)
+        } {
             Ok(value) => value,
             Err(_) => Err(ResultValue {
                 failed: true,
@@ -1375,11 +1426,15 @@ pub fn tcp_accept(
                 };
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                let now = Instant::now();
-                if now >= deadline {
-                    return deadline_error("TCP accept deadline exceeded");
+                if let Some(deadline) = deadline {
+                    let now = Instant::now();
+                    if now >= deadline {
+                        return deadline_error("TCP accept deadline exceeded");
+                    }
+                    std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
+                } else {
+                    std::thread::sleep(CANCELLATION_QUANTUM);
                 }
-                std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
             }
             Err(error) => return io_error("TCP accept", &error),
         }
@@ -1409,7 +1464,7 @@ pub fn tcp_read(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = stream.set_read_timeout(Some(duration)) {
+    if let Err(error) = stream.set_read_timeout(duration) {
         return io_error("TCP read timeout configuration", &error);
     }
     let mut data = vec![0; size];
@@ -1446,7 +1501,7 @@ pub fn tcp_write(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = stream.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.set_write_timeout(duration) {
         return io_error("TCP write timeout configuration", &error);
     }
     match stream.write(data) {
@@ -1555,7 +1610,7 @@ pub fn udp_send_to(
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
-    if let Err(error) = socket.set_write_timeout(Some(duration)) {
+    if let Err(error) = socket.set_write_timeout(duration) {
         return io_error("UDP write timeout configuration", &error);
     }
     match socket.send_to(data, address) {
@@ -1590,7 +1645,7 @@ pub fn udp_receive_from(
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
-    if let Err(error) = socket.set_read_timeout(Some(duration)) {
+    if let Err(error) = socket.set_read_timeout(duration) {
         return io_error("UDP read timeout configuration", &error);
     }
     let mut data = vec![0; size.saturating_add(1)];
@@ -1992,7 +2047,13 @@ pub fn dns_lookup(
             }
         };
         tokio::select! {
-            result = tokio::time::timeout(duration, resolver.lookup_ip(host)) => Some(result),
+            result = async {
+                if let Some(duration) = duration {
+                    tokio::time::timeout(duration, resolver.lookup_ip(host)).await
+                } else {
+                    Ok(resolver.lookup_ip(host).await)
+                }
+            } => Some(result),
             () = cancellation_wait => None,
         }
     }) {
@@ -2066,10 +2127,10 @@ fn tls_client_with_config(
     let Some(tcp) = guard.take() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = tcp.set_read_timeout(Some(duration)) {
+    if let Err(error) = tcp.set_read_timeout(duration) {
         return io_error("TLS read timeout configuration", &error);
     }
-    if let Err(error) = tcp.set_write_timeout(Some(duration)) {
+    if let Err(error) = tcp.set_write_timeout(duration) {
         return io_error("TLS write timeout configuration", &error);
     }
     let Ok(name) = rustls::pki_types::ServerName::try_from(server_name.to_owned()) else {
@@ -2121,7 +2182,7 @@ pub fn tls_read(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_read_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_read_timeout(duration) {
         return io_error("TLS read timeout configuration", &error);
     }
     let mut data = vec![0; size];
@@ -2158,7 +2219,7 @@ pub fn tls_write(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_write_timeout(duration) {
         return io_error("TLS write timeout configuration", &error);
     }
     match stream.write(data) {
@@ -2188,7 +2249,7 @@ pub fn tls_shutdown(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_write_timeout(duration) {
         return io_error("TLS shutdown timeout configuration", &error);
     }
     stream.conn.send_close_notify();
@@ -3056,5 +3117,30 @@ mod tests {
             assert!(!shutdown.failed, "{}", shutdown.message);
         });
         server.join().unwrap();
+    }
+    #[tokio::test(flavor = "current_thread")]
+    async fn controlled_clock_advances_monotonic_time_and_wakes_sleep_exactly() {
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                CONTROLLED_MONOTONIC_NANOS.set(None);
+                CONTROLLED_TIME_NOTIFY.notify_waiters();
+            }
+        }
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_000));
+        let _reset = Reset;
+        assert_eq!(monotonic_nanos(), 1_000);
+
+        let sleeper = tokio::spawn(sleep(Duration::from_nanos(10)));
+        tokio::task::yield_now().await;
+        assert!(!sleeper.is_finished());
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_009));
+        CONTROLLED_TIME_NOTIFY.notify_waiters();
+        tokio::task::yield_now().await;
+        assert!(!sleeper.is_finished());
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_010));
+        CONTROLLED_TIME_NOTIFY.notify_waiters();
+        sleeper.await.expect("controlled sleep completes");
+        assert_eq!(monotonic_nanos(), 1_010);
     }
 }

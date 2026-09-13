@@ -1,6 +1,6 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, async_select.rs, executor_parallel.rs, time_base.rs, platform_capability_types.rs, platform_result_type.rs, platform_capability_base.rs, platform_time.rs
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-platform-support
+// Runtime support: async.rs, executor_parallel.rs, time_base.rs, platform_capability_types.rs, platform_result_type.rs, platform_capability_base.rs, platform_time.rs, platform_signals.rs
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-platform-support, terrane-signal-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -381,7 +381,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 1] = ["invalid-duration"];
+    pub static DESCRIPTORS: [&str; 2] = ["process-signal-error", "invalid-duration"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -392,9 +392,16 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["case.trn", "core/time.trn"];
-    pub static FUNCTIONS: [&str; 10] = [
-        "/time-sleep-ticker::main",
+    pub static FILES: [&str; 3] = [
+        "case.trn",
+        "core/process_signals.trn",
+        "core/time.trn",
+    ];
+    pub static FUNCTIONS: [&str; 13] = [
+        "/process-signals-delivery::main",
+        "/core/process-signals::next",
+        "/core/process-signals::close",
+        "/core/process-signals::process-signals",
         "/core/time::multiply",
         "/core/time::seconds",
         "/core/time::milliseconds",
@@ -405,47 +412,39 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 20] = [
-        /* terrane-site-row: site 0: /time-sleep-ticker::main (case.trn:6:13-6:38) */
-        { Site { function: 0, file: 0, line: 6, column: 13, end_line: 6, end_column: 38 } },
-        /* terrane-site-row: site 1: /time-sleep-ticker::main (case.trn:7:12-7:32) */
-        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 32 } },
-        /* terrane-site-row: site 2: /time-sleep-ticker::main (case.trn:11:13-11:46) */
-        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 46 } },
-        /* terrane-site-row: site 3: /time-sleep-ticker::main (case.trn:13:31-13:57) */
-        { Site { function: 0, file: 0, line: 13, column: 31, end_line: 13, end_column: 57 } },
-        /* terrane-site-row: site 4: /time-sleep-ticker::main (case.trn:14:34-14:61) */
-        { Site { function: 0, file: 0, line: 14, column: 34, end_line: 14, end_column: 61 } },
-        /* terrane-site-row: site 5: /time-sleep-ticker::main (case.trn:18:13-18:50) */
-        { Site { function: 0, file: 0, line: 18, column: 13, end_line: 18, end_column: 50 } },
-        /* terrane-site-row: site 6: /time-sleep-ticker::main (case.trn:20:38-20:63) */
-        { Site { function: 0, file: 0, line: 20, column: 38, end_line: 20, end_column: 63 } },
-        /* terrane-site-row: site 7: /time-sleep-ticker::main (case.trn:20:20-20:64) */
-        { Site { function: 0, file: 0, line: 20, column: 20, end_line: 20, end_column: 64 } },
-        /* terrane-site-row: site 8: /time-sleep-ticker::main (case.trn:22:36-22:61) */
-        { Site { function: 0, file: 0, line: 22, column: 36, end_line: 22, end_column: 61 } },
-        /* terrane-site-row: site 9: /time-sleep-ticker::main (case.trn:25:13-25:65) */
-        { Site { function: 0, file: 0, line: 25, column: 13, end_line: 25, end_column: 65 } },
-        /* terrane-site-row: site 10: /time-sleep-ticker::main (case.trn:35:13-35:56) */
-        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 56 } },
-        /* terrane-site-row: site 11: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 1, file: 1, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 12: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 2, file: 1, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 13: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 3, file: 1, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 14: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 4, file: 1, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 15: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 5, file: 1, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 16: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 6, file: 1, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 17: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 7, file: 1, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 18: /core/time::sleep-until (core/time.trn:162:13-162:45) */
-        { Site { function: 8, file: 1, line: 162, column: 13, end_line: 162, end_column: 45 } },
-        /* terrane-site-row: site 19: /core/time::interval (core/time.trn:173:13-173:45) */
-        { Site { function: 9, file: 1, line: 173, column: 13, end_line: 173, end_column: 45 } },
+    pub static SITES: [Site; 16] = [
+        /* terrane-site-row: site 0: /process-signals-delivery::main (case.trn:9:20-9:45) */
+        { Site { function: 0, file: 0, line: 9, column: 20, end_line: 9, end_column: 45 } },
+        /* terrane-site-row: site 1: /process-signals-delivery::main (case.trn:12:19-12:37) */
+        { Site { function: 0, file: 0, line: 12, column: 19, end_line: 12, end_column: 37 } },
+        /* terrane-site-row: site 2: /process-signals-delivery::main (case.trn:13:65-13:109) */
+        { Site { function: 0, file: 0, line: 13, column: 65, end_line: 13, end_column: 109 } },
+        /* terrane-site-row: site 3: /process-signals-delivery::main (case.trn:14:5-14:24) */
+        { Site { function: 0, file: 0, line: 14, column: 5, end_line: 14, end_column: 24 } },
+        /* terrane-site-row: site 4: /core/process-signals::next (core/process_signals.trn:56:13-56:91) */
+        { Site { function: 1, file: 1, line: 56, column: 13, end_line: 56, end_column: 91 } },
+        /* terrane-site-row: site 5: /core/process-signals::close (core/process_signals.trn:62:13-62:91) */
+        { Site { function: 2, file: 1, line: 62, column: 13, end_line: 62, end_column: 91 } },
+        /* terrane-site-row: site 6: /core/process-signals::process-signals (core/process_signals.trn:71:9-71:87) */
+        { Site { function: 3, file: 1, line: 71, column: 9, end_line: 71, end_column: 87 } },
+        /* terrane-site-row: site 7: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 4, file: 2, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 8: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 5, file: 2, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 9: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 6, file: 2, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 10: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 7, file: 2, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 11: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 8, file: 2, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 12: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 9, file: 2, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 13: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 10, file: 2, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 14: /core/time::sleep-until (core/time.trn:162:13-162:45) */
+        { Site { function: 11, file: 2, line: 162, column: 13, end_line: 162, end_column: 45 } },
+        /* terrane-site-row: site 15: /core/time::interval (core/time.trn:173:13-173:45) */
+        { Site { function: 12, file: 2, line: 173, column: 13, end_line: 173, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -460,223 +459,227 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: time-sleep-ticker
+// Namespace: process-signals-delivery
 fn main() {
     __terrane_run(async move {
-        let mut __terrane_select_cursor_1074 = 0usize;
-        let short: Duration = __terrane_traced(
-            Duration::terrane_static_milliseconds(
-                terrane_int_support::Int::from(2_i128),
-            ),
-            0 /* terrane-site: case.trn:6:13-6:38 */,
+        let selected: terrane_collection_support::Set<ProcessSignal> = terrane_collection_support::Set::<
+            ProcessSignal,
+        >::new(vec![ProcessSignal::terrane_static_interrupt()]);
+        let mut subscription: ProcessSignalSubscription = __terrane_traced(
+            process_signals(selected),
+            0 /* terrane-site: case.trn:9:20-9:45 */,
         );
-        let long: Duration = __terrane_traced(
-            Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
-            1 /* terrane-site: case.trn:7:12-7:32 */,
-        );
-        let started: MonotonicInstant = Clock::terrane_static_monotonic();
-        let ignored: () = __terrane_await(
-                terrane_time_sleep_after(short.total_nanoseconds.clone()),
-            )
-            .await;
-        let _ = &ignored;
-        let slept: MonotonicInstant = Clock::terrane_static_monotonic();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(__terrane_traced(started
-            .duration_until(&slept), 2 /* terrane-site: case.trn:11:13-11:46 */)
-            .total_nanoseconds.clone() >= short.total_nanoseconds.clone()))
-        );
-        let captured = terrane_time_sleep_after(
-            __terrane_traced(
-                    Duration::terrane_static_milliseconds(
-                        terrane_int_support::Int::from(50_i128),
-                    ),
-                    3 /* terrane-site: case.trn:13:31-13:57 */,
-                )
-                .total_nanoseconds
-                .clone(),
-        );
-        let delay: () = __terrane_await(
-                terrane_time_sleep_after(
-                    __terrane_traced(
-                            Duration::terrane_static_milliseconds(
-                                terrane_int_support::Int::from(150_i128),
-                            ),
-                            4 /* terrane-site: case.trn:14:34-14:61 */,
-                        )
-                        .total_nanoseconds
-                        .clone(),
-                ),
-            )
-            .await;
-        let _ = &delay;
-        let resumed: MonotonicInstant = Clock::terrane_static_monotonic();
-        let captured_result: () = __terrane_await(captured).await;
-        let _ = &captured_result;
-        let completed: MonotonicInstant = Clock::terrane_static_monotonic();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(__terrane_traced(resumed
-            .duration_until(&completed), 5 /* terrane-site: case.trn:18:13-18:50 */)
-            .total_nanoseconds.clone() < terrane_int_support::Int::from(25000000_i128)))
-        );
-        let mut timer: Ticker = __terrane_traced(
-            Clock::terrane_static_interval(
-                __terrane_traced(
-                    Duration::terrane_static_milliseconds(
-                        terrane_int_support::Int::from(1_i128),
-                    ),
-                    6 /* terrane-site: case.trn:20:38-20:63 */,
-                ),
-            ),
-            7 /* terrane-site: case.trn:20:20-20:64 */,
-        );
-        let first: Tick = __terrane_await((&mut timer).next()).await;
-        let latency: () = __terrane_await(
-                terrane_time_sleep_after(
-                    __terrane_traced(
-                            Duration::terrane_static_milliseconds(
-                                terrane_int_support::Int::from(5_i128),
-                            ),
-                            8 /* terrane-site: case.trn:22:36-22:61 */,
-                        )
-                        .total_nanoseconds
-                        .clone(),
-                ),
-            )
-            .await;
-        let _ = &latency;
-        let second: Tick = __terrane_await((&mut timer).next()).await;
-        println!(
-            "{}{}", terrane_scalar_support::scalar_text(&(first.count.clone() >=
-            terrane_int_support::Int::from(1_i128))),
-            terrane_scalar_support::scalar_text(&(second.count.clone() >=
-            terrane_int_support::Int::from(4_i128)))
+        let before: MonotonicInstant = Clock::terrane_static_monotonic();
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("ready")));
+        let event: ProcessSignalEvent = __terrane_traced(
+            __terrane_await((&mut subscription).next()).await,
+            1 /* terrane-site: case.trn:12:19-12:37 */,
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&(__terrane_traced(first.scheduled
-            .duration_until(&second.scheduled), 9 /* terrane-site: case.trn:25:13-25:65 */).total_nanoseconds.clone() >=
-            terrane_int_support::Int::from(4000000_i128)))
+            "{}{}{}{}", terrane_scalar_support::scalar_text(&event.signal.name),
+            terrane_scalar_support::scalar_text(&event.count),
+            terrane_scalar_support::scalar_text(&(event.sequence.clone() >
+            terrane_int_support::Int::from(0_i128))),
+            terrane_scalar_support::scalar_text(&(__terrane_traced(before
+            .duration_until(&event.observed_at), 2 /* terrane-site: case.trn:13:65-13:109 */).total_nanoseconds.clone() >=
+            terrane_int_support::Int::from(0_i128)))
         );
-        timer.destruct();
-        let race_started: MonotonicInstant = Clock::terrane_static_monotonic();
-        {
-            let mut __terrane_select_guard_1074 = __terrane_finally_guard();
-            let __terrane_select_control_1074_0 = __terrane_select_control();
-            let mut __terrane_select_future_1074_0 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_1074_0.clone(),
-                terrane_time_sleep_after(short.total_nanoseconds.clone()))
-            );
-            let mut __terrane_select_result_1074_0 = None;
-            let __terrane_select_control_1074_1 = __terrane_select_control();
-            let mut __terrane_select_future_1074_1 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_1074_1.clone(),
-                terrane_time_sleep_after(long.total_nanoseconds.clone()))
-            );
-            let mut __terrane_select_result_1074_1 = None;
-            let __terrane_select_winner_1074 = std::future::poll_fn(|
-                    __terrane_select_context|
-                {
-                    if __terrane_cancellation_is_requested() {
-                        return std::task::Poll::Ready(usize::MAX);
-                    }
-                    for __terrane_select_offset in 0..2usize {
-                        let __terrane_select_candidate = (__terrane_select_cursor_1074
-                            + __terrane_select_offset) % 2usize;
-                        match __terrane_select_candidate {
-                            0 => {
-                                match Future::poll(
-                                    __terrane_select_future_1074_0.as_mut(),
-                                    __terrane_select_context,
-                                ) {
-                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
-                                        __terrane_select_result_1074_0 = Some(
-                                            __terrane_select_value,
-                                        );
-                                        return std::task::Poll::Ready(0usize);
-                                    }
-                                    std::task::Poll::Ready(None) => {
-                                        unreachable!(
-                                            "case cancellation starts only after winner selection"
-                                        )
-                                    }
-                                    std::task::Poll::Pending => {}
-                                }
-                            }
-                            1 => {
-                                match Future::poll(
-                                    __terrane_select_future_1074_1.as_mut(),
-                                    __terrane_select_context,
-                                ) {
-                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
-                                        __terrane_select_result_1074_1 = Some(
-                                            __terrane_select_value,
-                                        );
-                                        return std::task::Poll::Ready(1usize);
-                                    }
-                                    std::task::Poll::Ready(None) => {
-                                        unreachable!(
-                                            "case cancellation starts only after winner selection"
-                                        )
-                                    }
-                                    std::task::Poll::Pending => {}
-                                }
-                            }
-                            _ => {
-                                unreachable!("select candidate is within the case count")
-                            }
-                        }
-                    }
-                    std::task::Poll::Pending
-                })
-                .await;
-            if __terrane_select_winner_1074 == usize::MAX {
-                __terrane_select_control_1074_1.request_cancel();
-                __terrane_select_control_1074_0.request_cancel();
-                let _ = __terrane_select_future_1074_1.as_mut().await;
-                let _ = __terrane_select_future_1074_0.as_mut().await;
-                __terrane_wait_projected_cleanups().await;
-                __terrane_select_guard_1074.finish();
-                __terrane_finish_cancelled_select(__terrane_select_guard_1074).await;
-            }
-            __terrane_select_cursor_1074 = (__terrane_select_winner_1074 + 1usize)
-                % 2usize;
-            match __terrane_select_winner_1074 {
-                0 => {
-                    __terrane_select_control_1074_1.request_cancel();
-                    let _ = __terrane_select_future_1074_1.as_mut().await;
-                }
-                1 => {
-                    __terrane_select_control_1074_0.request_cancel();
-                    let _ = __terrane_select_future_1074_0.as_mut().await;
-                }
-                _ => unreachable!("selected winner is within the case count"),
-            }
-            __terrane_wait_projected_cleanups().await;
-            __terrane_select_guard_1074.finish();
-            match __terrane_select_winner_1074 {
-                0 => {
-                    let done: () = __terrane_select_result_1074_0
-                        .take()
-                        .expect("selected case owns its ready result");
-                    println!("{}", terrane_scalar_support::scalar_text(&(done == ())));
-                }
-                1 => {
-                    let done: () = __terrane_select_result_1074_1
-                        .take()
-                        .expect("selected case owns its ready result");
-                    let _ = &done;
-                    println!("{}", terrane_scalar_support::scalar_text(&false));
-                }
-                _ => unreachable!("selected winner is within the case count"),
-            }
-        }
-        let race_ended: MonotonicInstant = Clock::terrane_static_monotonic();
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(__terrane_traced(race_started
-            .duration_until(&race_ended), 10 /* terrane-site: case.trn:35:13-35:56 */)
-            .total_nanoseconds.clone() < long.total_nanoseconds.clone()))
+        __terrane_traced(
+            subscription.close(),
+            3 /* terrane-site: case.trn:14:5-14:24 */,
         );
     });
+}
+// Source: core/process_signals.trn
+// Namespace: core/process-signals
+#[derive(Clone)]
+pub struct ProcessSignalError {
+    pub message: String,
+}
+impl ProcessSignalError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut value = Self { message: String::from("") };
+        value.construct(detail);
+        value
+    }
+    pub fn construct(&mut self, detail: String) {
+        self.message = detail;
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ProcessSignal {
+    pub name: String,
+}
+impl ProcessSignal {
+    pub fn terrane_construct(signal_name: String) -> Self {
+        let mut value = Self { name: String::from("") };
+        value.construct(signal_name);
+        value
+    }
+    pub fn construct(&mut self, signal_name: String) {
+        self.name = signal_name;
+    }
+    pub fn terrane_static_interrupt() -> ProcessSignal {
+        return ProcessSignal::terrane_construct(String::from("interrupt"));
+    }
+    pub fn terrane_static_terminate() -> ProcessSignal {
+        return ProcessSignal::terrane_construct(String::from("terminate"));
+    }
+    pub fn terrane_static_hangup() -> ProcessSignal {
+        return ProcessSignal::terrane_construct(String::from("hangup"));
+    }
+    pub fn terrane_static_quit() -> ProcessSignal {
+        return ProcessSignal::terrane_construct(String::from("quit"));
+    }
+}
+#[derive(Clone)]
+pub struct ProcessSignalEvent {
+    pub signal: ProcessSignal,
+    pub count: terrane_int_support::Int,
+    pub sequence: terrane_int_support::Int,
+    pub observed_at: MonotonicInstant,
+    pub overflowed: bool,
+}
+impl ProcessSignalEvent {
+    pub fn terrane_construct(
+        observed_signal: ProcessSignal,
+        occurrences: terrane_int_support::Int,
+        event_sequence: terrane_int_support::Int,
+        observed: MonotonicInstant,
+        did_overflow: bool,
+    ) -> Self {
+        let mut value = Self {
+            signal: ProcessSignal::terrane_construct(String::from("")),
+            count: terrane_int_support::Int::from(0_i128),
+            sequence: terrane_int_support::Int::from(0_i128),
+            observed_at: Clock::terrane_static_monotonic(),
+            overflowed: false,
+        };
+        value
+            .construct(
+                observed_signal,
+                occurrences,
+                event_sequence,
+                observed,
+                did_overflow,
+            );
+        value
+    }
+    pub fn construct(
+        &mut self,
+        observed_signal: ProcessSignal,
+        occurrences: terrane_int_support::Int,
+        event_sequence: terrane_int_support::Int,
+        observed: MonotonicInstant,
+        did_overflow: bool,
+    ) {
+        self.signal = observed_signal.clone();
+        self.count = occurrences.clone();
+        self.sequence = event_sequence.clone();
+        self.observed_at = observed.clone();
+        self.overflowed = did_overflow;
+    }
+}
+#[derive(Clone)]
+pub struct ProcessSignalSubscription {
+    __terrane_lifetime: std::sync::Arc<()>,
+    pub handle: TerranePlatformCapability,
+}
+impl ProcessSignalSubscription {
+    pub fn terrane_construct(capability: TerranePlatformCapability) -> Self {
+        let mut value = Self {
+            handle: TerranePlatformCapability::default(),
+            __terrane_lifetime: std::sync::Arc::new(()),
+        };
+        value.construct(capability);
+        value
+    }
+    pub fn terrane_separate(&self) -> Self {
+        let mut value = self.clone();
+        value.__terrane_lifetime = std::sync::Arc::new(());
+        value
+    }
+    pub fn construct(&mut self, capability: TerranePlatformCapability) {
+        self.handle = capability;
+    }
+    pub async fn next(&mut self) -> Result<ProcessSignalEvent, TerraneError> {
+        let raw: TerranePlatformResult = __terrane_await(
+                terrane_process_signal_next(&self.handle),
+            )
+            .await;
+        if terrane_platform_result_failed(&raw) {
+            return Err({
+                let value = ProcessSignalError::terrane_construct(
+                    terrane_platform_result_message(&raw),
+                );
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    value.render(),
+                    4 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
+                )
+            });
+        }
+        return Ok(
+            ProcessSignalEvent::terrane_construct(
+                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
+                terrane_process_signal_result_exact_int(&raw),
+                terrane_platform_result_int(&raw),
+                terrane_process_signal_result_observed(&raw),
+                terrane_platform_result_bool(&raw),
+            ),
+        );
+    }
+    pub fn close(self) -> Result<(), TerraneError> {
+        let raw: TerranePlatformResult = terrane_process_signal_close(&self.handle);
+        if terrane_platform_result_failed(&raw) {
+            return Err({
+                let value = ProcessSignalError::terrane_construct(
+                    terrane_platform_result_message(&raw),
+                );
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    value.render(),
+                    5 /* terrane-site: core/process_signals.trn:62:13-62:91 */,
+                )
+            });
+        }
+        return Ok(());
+    }
+    pub fn destruct(&mut self) {
+        terrane_process_signal_close(&self.handle);
+    }
+}
+impl Drop for ProcessSignalSubscription {
+    fn drop(&mut self) {
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
+            self.destruct();
+        }
+    }
+}
+pub fn process_signals(
+    selected: terrane_collection_support::Set<ProcessSignal>,
+) -> Result<ProcessSignalSubscription, TerraneError> {
+    let raw: TerranePlatformResult = terrane_process_signal_subscribe(selected);
+    if terrane_platform_result_failed(&raw) {
+        return Err({
+            let value = ProcessSignalError::terrane_construct(
+                terrane_platform_result_message(&raw),
+            );
+            TerraneError::raised_with_message(
+                TerraneErrorKind::Custom(DescriptorId(0)),
+                value.render(),
+                6 /* terrane-site: core/process_signals.trn:71:9-71:87 */,
+            )
+        });
+    }
+    return Ok(
+        ProcessSignalSubscription::terrane_construct(
+            terrane_platform_result_capability(&raw),
+        ),
+    );
 }
 // Source: core/time.trn
 // Namespace: core/time
@@ -777,9 +780,9 @@ impl Duration {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    11 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    7 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -799,9 +802,9 @@ impl Duration {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    12 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    8 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -819,9 +822,9 @@ impl Duration {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    13 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    9 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -840,9 +843,9 @@ impl Duration {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    14 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    10 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -861,9 +864,9 @@ impl Duration {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    15 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    11 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -911,9 +914,9 @@ impl MonotonicInstant {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    16 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    12 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -998,9 +1001,9 @@ impl Deadline {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    17 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    13 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -1159,9 +1162,9 @@ impl Clock {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    18 /* terrane-site: core/time.trn:162:13-162:45 */,
+                    14 /* terrane-site: core/time.trn:162:13-162:45 */,
                 )
             });
         }
@@ -1185,9 +1188,9 @@ impl Clock {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 TerraneError::raised_with_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(1)),
                     value.render(),
-                    19 /* terrane-site: core/time.trn:173:13-173:45 */,
+                    15 /* terrane-site: core/time.trn:173:13-173:45 */,
                 )
             });
         }

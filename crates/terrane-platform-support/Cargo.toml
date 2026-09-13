@@ -36,8 +36,6 @@ terrane-signal-support = { path = "../terrane-signal-support" }
 [dev-dependencies]
 rcgen = "0.14"
 
-[target.'cfg(unix)'.dev-dependencies]
-nix = { version = "0.30", features = ["signal"] }
 
 [lints]
 workspace = true

@@ -10,6 +10,7 @@ members = [
     "crates/terrane-document-support",
     "crates/terrane-stream-abi",
     "crates/terrane-platform-support",
+    "crates/terrane-signal-support",
 ]
 resolver = "2"
 
