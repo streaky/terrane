@@ -3,6 +3,18 @@
 #[cfg(not(target_has_atomic = "64"))]
 compile_error!("process signal support requires lock-free 64-bit atomics");
 
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "openbsd",
+    target_os = "netbsd"
+)))]
+compile_error!("process signal support is not implemented for this Unix target");
+
 use std::io;
 use std::os::fd::RawFd;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};

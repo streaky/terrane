@@ -123,7 +123,6 @@ class ticker
     private anchor monotonic-instant = instance monotonic-instant; 0, 0
     private period duration = instance duration; 0, 0
     private next-index int = 1
-    private closed bool = false
 
     private function construct; interval duration
         this.anchor = clock::monotonic;
@@ -143,7 +142,7 @@ class ticker
         return instance tick; delivered, observed, count
 
     consuming function destruct;
-        this.closed = true
+        discard-none; none
 
 class clock
     static function wall instant;

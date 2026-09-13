@@ -1,2 +1,3 @@
 ready
 interrupt1truetrue
+terminate1truetrue

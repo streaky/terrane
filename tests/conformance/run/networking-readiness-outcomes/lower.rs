@@ -427,10 +427,10 @@ mod __terrane_trace {
         { Site { function: 7, file: 2, line: 76, column: 13, end_line: 76, end_column: 45 } },
         /* terrane-site-row: site 9: /core/time::at (core/time.trn:105:13-105:45) */
         { Site { function: 8, file: 2, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 10: /core/time::sleep-until (core/time.trn:162:13-162:45) */
-        { Site { function: 9, file: 2, line: 162, column: 13, end_line: 162, end_column: 45 } },
-        /* terrane-site-row: site 11: /core/time::interval (core/time.trn:173:13-173:45) */
-        { Site { function: 10, file: 2, line: 173, column: 13, end_line: 173, end_column: 45 } },
+        /* terrane-site-row: site 10: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 9, file: 2, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 11: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 10, file: 2, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1815,7 +1815,6 @@ pub struct Ticker {
     pub anchor: MonotonicInstant,
     pub period: Duration,
     pub next_index: terrane_int_support::Int,
-    pub closed: bool,
 }
 impl Ticker {
     pub fn terrane_construct(interval: Duration) -> Self {
@@ -1829,7 +1828,6 @@ impl Ticker {
                 terrane_int_support::Int::from(0_i128),
             ),
             next_index: terrane_int_support::Int::from(1_i128),
-            closed: false,
             __terrane_lifetime: std::sync::Arc::new(()),
         };
         value.construct(interval);
@@ -1879,7 +1877,7 @@ impl Ticker {
         return Tick::terrane_construct(delivered, observed.clone(), count.clone());
     }
     pub fn destruct(&mut self) {
-        self.closed = true;
+        discard_none(());
     }
 }
 impl Drop for Ticker {
@@ -1922,7 +1920,7 @@ impl Clock {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    10 /* terrane-site: core/time.trn:162:13-162:45 */,
+                    10 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -1948,7 +1946,7 @@ impl Clock {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     value.render(),
-                    11 /* terrane-site: core/time.trn:173:13-173:45 */,
+                    11 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

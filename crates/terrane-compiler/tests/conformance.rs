@@ -689,7 +689,9 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
     let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
     let signals = field(manifest, "signals");
     let (status, stdout, stderr) = if let Some(signals) = signals {
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut stdout_bytes = Vec::new();
+        stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
         for signal in signals.split(',').map(str::trim) {
             let status = Command::new("kill")
                 .args([format!("-{signal}"), child.id().to_string()])
@@ -702,8 +704,11 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
             );
         }
         drop(stdin.take());
-        let output = child.wait_with_output().unwrap();
-        (output.status, output.stdout, output.stderr)
+        stdout.read_to_end(&mut stdout_bytes).unwrap();
+        let mut stderr = child.stderr.take().unwrap();
+        let mut stderr_bytes = Vec::new();
+        stderr.read_to_end(&mut stderr_bytes).unwrap();
+        (child.wait().unwrap(), stdout_bytes, stderr_bytes)
     } else if hold_stdin {
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut stdout_bytes = Vec::new();

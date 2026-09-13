@@ -7,6 +7,10 @@ use tokio::sync::Notify;
 const SIGNAL_NAMES: [&str; terrane_signal_support::SIGNAL_COUNT] =
     ["interrupt", "terminate", "hangup", "quit"];
 static BROKER: LazyLock<Mutex<Weak<Broker>>> = LazyLock::new(|| Mutex::new(Weak::new()));
+#[cfg(test)]
+type DispatchPause = (Arc<std::sync::Barrier>, Arc<std::sync::Barrier>);
+#[cfg(test)]
+static DISPATCH_PAUSE: LazyLock<Mutex<Option<DispatchPause>>> = LazyLock::new(|| Mutex::new(None));
 
 pub(crate) struct Subscription {
     broker: Arc<Broker>,
@@ -68,16 +72,33 @@ impl Broker {
     fn dispatch(&self, signal_index: usize, batch: terrane_signal_support::SignalBatch) {
         let sequence = self.next_sequence.fetch_add(1, Ordering::AcqRel);
         let observed = crate::monotonic_nanos().to_string();
-        let mut subscriptions = self
-            .subscriptions
+        let subscriptions = {
+            let mut registered = self
+                .subscriptions
+                .lock()
+                .expect("signal subscription lock poisoned");
+            let mut active = Vec::with_capacity(registered.len());
+            registered.retain(|_, weak| {
+                let Some(subscription) = weak.upgrade() else {
+                    return false;
+                };
+                active.push(subscription);
+                true
+            });
+            active
+        };
+        #[cfg(test)]
+        if let Some((entered, resume)) = DISPATCH_PAUSE
             .lock()
-            .expect("signal subscription lock poisoned");
-        subscriptions.retain(|_, weak| {
-            let Some(subscription) = weak.upgrade() else {
-                return false;
-            };
+            .expect("dispatch pause lock poisoned")
+            .clone()
+        {
+            entered.wait();
+            resume.wait();
+        }
+        for subscription in subscriptions {
             if !subscription.active.load(Ordering::Acquire) || !subscription.mask[signal_index] {
-                return true;
+                continue;
             }
             let mut pending = subscription
                 .pending
@@ -100,17 +121,19 @@ impl Broker {
             }
             drop(pending);
             subscription.notify.notify_one();
-            true
-        });
+        }
     }
 
     fn selected_mask(&self) -> [bool; terrane_signal_support::SIGNAL_COUNT] {
         let subscriptions = self
             .subscriptions
             .lock()
-            .expect("signal subscription lock poisoned");
+            .expect("signal subscription lock poisoned")
+            .values()
+            .filter_map(Weak::upgrade)
+            .collect::<Vec<_>>();
         let mut selected = [false; terrane_signal_support::SIGNAL_COUNT];
-        for subscription in subscriptions.values().filter_map(Weak::upgrade) {
+        for subscription in subscriptions {
             if subscription.active.load(Ordering::Acquire) {
                 for (target, source) in selected.iter_mut().zip(subscription.mask) {
                     *target |= source;
@@ -133,7 +156,7 @@ impl Broker {
             .map_err(|error| format!("failed to update process signal handlers: {error}"))
     }
 
-    fn remove(&self, id: u64) {
+    fn remove(&self, id: u64) -> Result<(), String> {
         let mut global = BROKER.lock().expect("signal broker lock poisoned");
         let is_empty = {
             let mut subscriptions = self
@@ -143,12 +166,19 @@ impl Broker {
             subscriptions.remove(&id);
             subscriptions.is_empty()
         };
+        let restored = self.reconfigure(self.selected_mask());
         if is_empty {
             self.shutdown();
             *global = Weak::new();
-        } else {
-            let _ = self.reconfigure(self.selected_mask());
         }
+        restored
+    }
+    fn is_worker_thread(&self) -> bool {
+        self.worker
+            .lock()
+            .expect("signal worker lock poisoned")
+            .as_ref()
+            .is_some_and(|worker| worker.thread().id() == std::thread::current().id())
     }
 
     fn shutdown(&self) {
@@ -188,10 +218,43 @@ impl Drop for Broker {
 
 impl Drop for Subscription {
     fn drop(&mut self) {
-        if self.active.swap(false, Ordering::AcqRel) {
-            self.broker.remove(self.id);
-            self.notify.notify_waiters();
+        if !self.active.swap(false, Ordering::AcqRel) {
+            return;
         }
+        let broker = self.broker.clone();
+        let id = self.id;
+        if broker.is_worker_thread() {
+            let fallback = broker.clone();
+            let spawned = std::thread::Builder::new()
+                .name("terrane-signal-cleanup".to_owned())
+                .spawn(move || {
+                    if let Err(error) = broker.remove(id) {
+                        eprintln!("{error}");
+                    }
+                });
+            if let Err(error) = spawned {
+                eprintln!("failed to start process signal cleanup: {error}");
+                fallback.stopping.store(true, Ordering::Release);
+                if let Some(registration) = fallback
+                    .registration
+                    .lock()
+                    .expect("signal registration lock poisoned")
+                    .as_ref()
+                {
+                    registration.wake();
+                }
+                let mut global = BROKER.lock().expect("signal broker lock poisoned");
+                if global
+                    .upgrade()
+                    .is_some_and(|current| Arc::ptr_eq(&current, &fallback))
+                {
+                    *global = Weak::new();
+                }
+            }
+        } else if let Err(error) = broker.remove(id) {
+            eprintln!("{error}");
+        }
+        self.notify.notify_waiters();
     }
 }
 
@@ -282,8 +345,11 @@ pub(crate) fn close(capability: &Capability) -> ResultValue {
         return ResultValue::error("capability is not a process signal subscription");
     };
     if subscription.active.swap(false, Ordering::AcqRel) {
-        subscription.broker.remove(subscription.id);
+        let removed = subscription.broker.remove(subscription.id);
         subscription.notify.notify_waiters();
+        if let Err(error) = removed {
+            return ResultValue::error(error);
+        }
     }
     ResultValue::default()
 }
@@ -405,5 +471,39 @@ mod tests {
         assert_eq!(reset.exact_number, "1");
         assert!(!reset.flag);
         assert!(!close(&subscription).failed);
+    }
+    #[tokio::test]
+    async fn dropping_the_last_capability_during_dispatch_cannot_deadlock_the_worker() {
+        let _test_lock = TEST_LOCK.lock().await;
+        let subscription = subscribe(&["interrupt".to_owned()])
+            .capability
+            .expect("subscription");
+        let entered = Arc::new(std::sync::Barrier::new(2));
+        let resume = Arc::new(std::sync::Barrier::new(2));
+        *DISPATCH_PAUSE.lock().expect("dispatch pause lock poisoned") =
+            Some((entered.clone(), resume.clone()));
+
+        let status = std::process::Command::new("kill")
+            .args(["-INT", &std::process::id().to_string()])
+            .status()
+            .expect("send interrupt to test process");
+        assert!(status.success());
+        entered.wait();
+        drop(subscription);
+        resume.wait();
+        *DISPATCH_PAUSE.lock().expect("dispatch pause lock poisoned") = None;
+
+        for _ in 0..100 {
+            if BROKER
+                .lock()
+                .expect("signal broker lock poisoned")
+                .upgrade()
+                .is_none()
+            {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        panic!("dropped subscription did not stop its broker");
     }
 }
