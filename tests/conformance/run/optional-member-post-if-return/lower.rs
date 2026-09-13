@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: optional-member-post-if-return
 pub static TERRANE_STATIC_HOLDER_VALUE: std::sync::LazyLock<

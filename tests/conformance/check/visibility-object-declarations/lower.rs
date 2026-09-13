@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-int-support
 // Source: case.trn
 // Namespace: visibility-object-declarations
 #[derive(Clone)]

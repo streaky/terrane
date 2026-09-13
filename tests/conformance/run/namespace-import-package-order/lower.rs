@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-scalar-support
 // Source: app/a-first.trn
 // Namespace: app
 fn first_choice() -> String {

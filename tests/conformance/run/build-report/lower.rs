@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support
 // Source: case.trn
 // Namespace: build-report
 static __TERRANE_F0_TITLE: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(

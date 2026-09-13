@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-scalar-support
 // Source: case.trn
 // Namespace: linear-ordinary-identifier
 fn main() {

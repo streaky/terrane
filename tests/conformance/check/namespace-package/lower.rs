@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: app/main.trn
 // Namespace: app
 fn main() {

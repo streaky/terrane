@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: 
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: inherited-static-state
 pub static TERRANE_STATIC_ANIMAL_CALLS: std::sync::LazyLock<
