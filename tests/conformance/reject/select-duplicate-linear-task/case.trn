@@ -1,0 +1,12 @@
+namespace select-duplicate-linear-task
+
+async function work int;
+  return 1
+
+async function main;
+  task = work;
+  select
+    case await task
+      return
+    case await task
+      return

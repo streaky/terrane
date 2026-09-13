@@ -1,0 +1,16 @@
+namespace select-partial-assignment
+
+async function first int;
+  return 1
+
+async function second int;
+  return 2
+
+async function main;
+  selected int
+  select
+    case await (first;)
+      selected = 1
+    case await (second;)
+      print; 'second'
+  print; selected

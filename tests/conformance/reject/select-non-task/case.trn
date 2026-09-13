@@ -1,0 +1,11 @@
+namespace select-non-task
+
+async function work int;
+  return 1
+
+async function main;
+  select
+    case await 1
+      return
+    case await (work;)
+      return

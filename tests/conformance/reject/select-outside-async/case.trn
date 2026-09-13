@@ -1,0 +1,11 @@
+namespace select-outside-async
+
+async function work int;
+  return 1
+
+function main;
+  select
+    case await (work;)
+      return
+    case await (work;)
+      return

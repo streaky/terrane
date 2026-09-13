@@ -1,0 +1,11 @@
+namespace select-nested-await-header
+
+async function work int;
+  return 1
+
+async function main;
+  select
+    case value = 1 + await (work;)
+      print; value
+    case await (work;)
+      return

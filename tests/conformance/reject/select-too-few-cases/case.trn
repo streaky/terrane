@@ -1,0 +1,9 @@
+namespace select-too-few-cases
+
+async function work int;
+  return 1
+
+async function main;
+  select
+    case await (work;)
+      return
