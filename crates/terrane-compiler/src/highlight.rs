@@ -1,6 +1,6 @@
 use crate::lexer::lex_recovering;
 use crate::parser::parse;
-use crate::syntax::{SyntaxKind, SyntaxNode};
+use crate::syntax::{SyntaxKind, SyntaxNode, is_keyword};
 use crate::tokens::{Token, TokenKind, TriviaKind};
 use crate::{Diagnostic, SourceFile, Span};
 
@@ -198,69 +198,4 @@ fn last_name_token(node: &SyntaxNode, tokens: &[Token]) -> Option<usize> {
     node.token_range.clone().rev().find(|index| {
         tokens[*index].kind == TokenKind::Identifier && !is_keyword(&tokens[*index].text)
     })
-}
-
-fn is_keyword(text: &str) -> bool {
-    matches!(
-        text,
-        "namespace"
-            | "from"
-            | "import"
-            | "as"
-            | "function"
-            | "interface"
-            | "trait"
-            | "extends"
-            | "implements"
-            | "uses"
-            | "public"
-            | "private"
-            | "protected"
-            | "global"
-            | "constant"
-            | "static"
-            | "instance"
-            | "self"
-            | "this"
-            | "async"
-            | "unsafe"
-            | "throws"
-            | "if"
-            | "else"
-            | "while"
-            | "for"
-            | "in"
-            | "return"
-            | "break"
-            | "continue"
-            | "and"
-            | "or"
-            | "not"
-            | "is"
-            | "a"
-            | "ref"
-            | "shared"
-            | "construct"
-            | "destruct"
-            | "move"
-            | "await"
-            | "of"
-            | "to"
-            | "true"
-            | "false"
-            | "class"
-            | "try"
-            | "throw"
-            | "yield"
-            | "match"
-            | "rust"
-            | "label"
-            | "goto"
-            | "when"
-            | "use"
-            | "catch"
-            | "finally"
-            | "case"
-            | "select"
-    )
 }

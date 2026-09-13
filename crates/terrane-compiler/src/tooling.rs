@@ -1276,7 +1276,7 @@ impl ToolingEngine {
         offset: usize,
         new_name: &str,
     ) -> Result<EditProposal, ProtocolError> {
-        if !valid_declaration_identifier(new_name) {
+        if !valid_identifier(new_name) || crate::syntax::is_keyword(new_name) {
             return Err(ProtocolError::new(
                 "invalid-name",
                 "rename target must be a Terrane identifier",
@@ -2763,29 +2763,6 @@ fn valid_identifier(name: &str) -> bool {
             .all(|character| character == '_' || character == '-' || character.is_alphanumeric())
 }
 
-fn valid_declaration_identifier(name: &str) -> bool {
-    if !valid_identifier(name) {
-        return false;
-    }
-    let source = SourceFile::new(
-        0,
-        PathBuf::from("<rename-validation>"),
-        format!("function {name};\n"),
-    );
-    let lexed = crate::lexer::lex_recovering(&source);
-    if !lexed.diagnostics.is_empty() {
-        return false;
-    }
-    let parsed = crate::parser::parse(&source, lexed.lexed);
-    parsed.diagnostics.is_empty()
-        && parsed.tree.root.children.iter().any(|declaration| {
-            declaration.kind == SyntaxKind::FunctionDeclaration
-                && declaration.children.iter().any(|child| {
-                    child.kind == SyntaxKind::Name && node_text(&source, child) == name
-                })
-        })
-}
-
 fn spans_overlap(left: Span, right: Span) -> bool {
     left.file == right.file && left.start < right.end && right.start < left.end
 }
@@ -3311,17 +3288,19 @@ mod tests {
             .propose_rename(&metadata.snapshot_id, uri, left_use, "count")
             .expect_err("method rename must not capture a field");
         assert_eq!(capture.code, "rename-capture");
-        let keyword = engine
-            .propose_rename(&metadata.snapshot_id, uri, left_use, "instance")
-            .expect_err("reserved keyword is not a declaration name");
-        assert_eq!(keyword.code, "invalid-name");
+        for keyword in crate::syntax::KEYWORDS {
+            let error = engine
+                .propose_rename(&metadata.snapshot_id, uri, left_use, keyword)
+                .expect_err("language keyword is not a declaration name");
+            assert_eq!(error.code, "invalid-name", "{keyword}");
+        }
     }
 
     #[test]
     fn implementation_navigation_finds_descriptor_and_method_implementors() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/implementations.trn";
-        let text = "namespace implementations\n\ninterface worker\n    function run int;\n\nclass first implements worker\n    function run int;\n        return 1\n\nclass second implements worker\n    function run int;\n        return 2\n\nfunction main;\n";
+        let text = "namespace implementations\n\ninterface worker\n    function run int;\n\nclass first implements worker\n    function run int;\n        return 1\n\nclass second implements worker\n    function run int;\n        return 2\n\nfunction main;\n    item = instance first;\n    result int = item.run;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3348,6 +3327,15 @@ mod tests {
             panic!("method implementations should be known");
         };
         assert_eq!(methods.len(), 2);
+        let concrete_method_offset =
+            text.find("item.run").expect("concrete method use") + "item.".len();
+        let Availability::Known(concrete_methods) = engine
+            .implementations(&metadata.snapshot_id, uri, concrete_method_offset)
+            .expect("concrete method implementations")
+        else {
+            panic!("concrete method implementations should be known");
+        };
+        assert_eq!(concrete_methods, methods);
     }
 
     #[test]

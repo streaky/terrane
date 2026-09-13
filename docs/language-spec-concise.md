@@ -60,6 +60,7 @@ identifier:
   joiners: punctuation admitted by normative grammar
   exact_identity: punctuation retained; no normalization
   examples_valid: [http2, sha256, ipv4-ipv6, foo+bar, sha3-256sum, ClientBuilder, parse_json, parse_json_]
+  declaration_keywords: structural language words are rejected as declaration names
   permanent_identifier: compact letter-joiner-letter, e.g. total-count
   lexical_error: terminal joiner + digits-only unit, e.g. count-1, x+4
   slash_excluded: '/' is the namespace separator, NOT an identifier joiner; a character cannot be both without making 'namespace foo/bar' ambiguous

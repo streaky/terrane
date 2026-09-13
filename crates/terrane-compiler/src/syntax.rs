@@ -1,5 +1,76 @@
 use crate::{Span, tokens::LexedSource};
 
+/// Complete compiler-owned inventory of Terrane language keywords.
+///
+/// The list is sorted so keyword checks do not require allocation.
+pub const KEYWORDS: &[&str] = &[
+    "a",
+    "and",
+    "as",
+    "async",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "constant",
+    "construct",
+    "continue",
+    "destruct",
+    "else",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "from",
+    "function",
+    "global",
+    "goto",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instance",
+    "interface",
+    "is",
+    "label",
+    "match",
+    "move",
+    "namespace",
+    "not",
+    "of",
+    "or",
+    "private",
+    "protected",
+    "public",
+    "ref",
+    "return",
+    "rust",
+    "select",
+    "self",
+    "shared",
+    "static",
+    "this",
+    "throw",
+    "throws",
+    "to",
+    "trait",
+    "true",
+    "try",
+    "unsafe",
+    "use",
+    "uses",
+    "when",
+    "while",
+    "yield",
+];
+
+/// Returns whether `text` is reserved by Terrane syntax.
+#[must_use]
+pub fn is_keyword(text: &str) -> bool {
+    KEYWORDS.binary_search(&text).is_ok()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SyntaxKind {
     CompilationUnit,

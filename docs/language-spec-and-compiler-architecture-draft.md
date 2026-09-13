@@ -566,7 +566,11 @@ ordinary binding named `import`. Likewise, `select` is structural at statement s
 resolve an ordinary binding in that position.
 
 The language should use contextual rather than gratuitously reserved keywords where doing so
-remains unambiguous.
+remains unambiguous. Structural language words are nevertheless never legal declaration names,
+even in a declaration slot where the surrounding grammar would make the spelling unambiguous.
+This keeps source editing and identity-safe rename from turning a declaration into a different
+syntactic construct. The compiler owns one keyword inventory used by parsing, highlighting, and
+tooling validation.
 
 ### 6.7 Text literals
 
