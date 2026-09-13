@@ -31,21 +31,46 @@ def golden_diff(git_range: str) -> str:
     return result.stdout
 
 
+def scope_wrapper_hunk(hunks: list[Hunk]) -> Hunk | None:
+    """Collapse repeated brace wrappers after cancelling formatter-only text and commas."""
+    removed = collections.Counter()
+    added = collections.Counter()
+    for hunk in hunks:
+        for line in hunk:
+            if line.startswith("-"):
+                removed.update(character for character in line[1:] if not character.isspace())
+            elif line.startswith("+"):
+                added.update(character for character in line[1:] if not character.isspace())
+    removed_only = removed - added
+    added_only = added - removed
+    removed = removed_only
+    added = added_only
+    removed.pop(",", None)
+    added.pop(",", None)
+    if not added and removed and set(removed) == {"{", "}"} and removed["{"] == removed["}"]:
+        return ("-{", "-}")
+    if not removed and added and set(added) == {"{", "}"} and added["{"] == added["}"]:
+        return ("+{", "+}")
+    return None
+
+
 def grouped_hunks(diff: str) -> collections.OrderedDict[Hunk, set[str]]:
-    grouped: collections.OrderedDict[Hunk, set[str]] = collections.OrderedDict()
+    file_hunks: collections.OrderedDict[str, list[Hunk]] = collections.OrderedDict()
     path: str | None = None
     hunk: list[str] | None = None
 
     def finish_hunk() -> None:
         nonlocal hunk
         if path is not None and hunk:
-            grouped.setdefault(tuple(hunk), set()).add(path)
+            file_hunks.setdefault(path, []).append(tuple(hunk))
         hunk = None
 
     for line in diff.splitlines():
         if line.startswith("diff --git "):
             finish_hunk()
             path = None
+        elif line.startswith("--- a/") and path is None:
+            path = line.removeprefix("--- a/")
         elif line.startswith("+++ b/"):
             path = line.removeprefix("+++ b/")
         elif line.startswith("@@ "):
@@ -54,6 +79,14 @@ def grouped_hunks(diff: str) -> collections.OrderedDict[Hunk, set[str]]:
         elif hunk is not None:
             hunk.append(line)
     finish_hunk()
+
+    grouped: collections.OrderedDict[Hunk, set[str]] = collections.OrderedDict()
+    for file_path, hunks in file_hunks.items():
+        if wrapper := scope_wrapper_hunk(hunks):
+            grouped.setdefault(wrapper, set()).add(file_path)
+            continue
+        for literal_hunk in hunks:
+            grouped.setdefault(literal_hunk, set()).add(file_path)
     return grouped
 
 
