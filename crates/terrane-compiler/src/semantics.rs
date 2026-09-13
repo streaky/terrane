@@ -26,6 +26,7 @@ mod diagnostics;
 mod objects;
 mod ownership;
 mod selection;
+pub(crate) use namespaces::namespace_capabilities;
 
 #[cfg(test)]
 mod tests;

@@ -280,7 +280,7 @@ pub(super) fn collect_declaration(
     Ok(())
 }
 
-pub(super) fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
+pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
         "/core/streams" | "/core/process" => &["process"],
         "/core/filesystem" => &["filesystem"],

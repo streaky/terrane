@@ -67,6 +67,47 @@ pub enum SyntaxKind {
     Unsupported,
 }
 
+impl SyntaxKind {
+    /// Stable child-role label used by compiler-owned syntax projections.
+    #[must_use]
+    pub fn child_field(self, index: usize, child: Self) -> &'static str {
+        if child == Self::Name
+            && matches!(
+                self,
+                Self::Binding
+                    | Self::FunctionDeclaration
+                    | Self::ClassDeclaration
+                    | Self::InterfaceDeclaration
+                    | Self::TraitDeclaration
+            )
+        {
+            return "name";
+        }
+        match (self, child, index) {
+            (Self::Binding, Self::TypeExpression, _) => "type",
+            (Self::Binding, _, _)
+            | (Self::Assignment, _, 1)
+            | (Self::ReturnStatement | Self::ThrowStatement, _, 0) => "value",
+            (Self::FunctionDeclaration, Self::TypeExpression, _) => "return-type",
+            (Self::FunctionDeclaration, Self::EffectClause, _) => "effects",
+            (Self::FunctionDeclaration, Self::DeclarationQualifier, _) => "qualifier",
+            (Self::Assignment, _, 0) => "target",
+            (Self::CallExpression, _, 0) => "callee",
+            (Self::CallExpression, _, 1) => "arguments",
+            (Self::MemberExpression | Self::StaticMemberExpression, _, 0) => "receiver",
+            (Self::MemberExpression | Self::StaticMemberExpression, _, 1) => "member",
+            (Self::IfStatement | Self::WhileStatement, _, 0) => "condition",
+            (
+                Self::FunctionDeclaration | Self::IfStatement | Self::WhileStatement,
+                Self::Block,
+                _,
+            ) => "body",
+            (Self::CompilationUnit | Self::Block, _, _) => "item",
+            _ => "child",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SyntaxNode {
     pub kind: SyntaxKind,

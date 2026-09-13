@@ -408,8 +408,18 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
             "text": "namespace client\n\nfunction main;\n"
         }]
     });
+    let batch = serde_json::json!([
+        request.clone(),
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "syntax-one-shot",
+            "operation": "syntax",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn"
+        }
+    ]);
     let request_path = directory.path().join("request.json");
-    fs::write(&request_path, request.to_string()).unwrap();
+    fs::write(&request_path, batch.to_string()).unwrap();
     let one_shot = Command::new(binary)
         .args(["query", "--request"])
         .arg(&request_path)
@@ -417,24 +427,31 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         .unwrap();
     assert!(one_shot.status.success(), "{one_shot:?}");
     assert!(one_shot.stderr.is_empty(), "{one_shot:?}");
-    let response: serde_json::Value = serde_json::from_slice(&one_shot.stdout).unwrap();
-    assert_eq!(response["request_id"], "open-one-shot");
+    let responses = String::from_utf8(one_shot.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(responses.len(), 2);
+    assert_eq!(responses[0]["request_id"], "open-one-shot");
+    assert_eq!(responses[1]["request_id"], "syntax-one-shot");
     assert_eq!(
-        response["schema_version"],
+        responses[0]["schema_version"],
         terrane_compiler::tooling::SCHEMA_VERSION
     );
     assert!(
-        response["snapshot_id"]
+        responses[0]["snapshot_id"]
             .as_str()
             .unwrap()
             .starts_with("sha256:")
     );
     assert!(
-        response["source_hash"]
+        responses[0]["source_hash"]
             .as_str()
             .unwrap()
             .starts_with("sha256:")
     );
+    assert_eq!(responses[1]["result"]["root"]["kind"], "CompilationUnit");
 
     let mut service = Command::new(binary)
         .args(["tooling", "--stdio"])
@@ -444,6 +461,19 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         .unwrap();
     let mut stdin = service.stdin.take().unwrap();
     writeln!(stdin, "{request}").unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": 42,
+            "operation": "syntax",
+            "snapshot_id": "sha256:missing",
+            "uri": "file:///workspace/client.trn",
+            "node_id": null
+        })
+    )
+    .unwrap();
     writeln!(stdin, "{{not-json").unwrap();
     drop(stdin);
     let output = service.wait_with_output().unwrap();
@@ -453,9 +483,11 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(frames.len(), 2);
+    assert_eq!(frames.len(), 3);
     assert!(frames[0]["error"].is_null());
+    assert_eq!(frames[1]["request_id"], "42");
     assert_eq!(frames[1]["error"]["code"], "invalid-json");
+    assert_eq!(frames[2]["error"]["code"], "invalid-json");
 }
 
 #[test]

@@ -1124,9 +1124,13 @@ fn run_tooling(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         if line.trim().is_empty() {
             continue;
         }
+        let request_id = serde_json::from_str::<serde_json::Value>(&line)
+            .ok()
+            .as_ref()
+            .and_then(request_id_from_value);
         let response = match serde_json::from_str(&line) {
             Ok(request) => engine.handle(request),
-            Err(error) => protocol_parse_error(&error),
+            Err(error) => protocol_parse_error(&error, request_id),
         };
         serde_json::to_writer(&mut output, &response).map_err(|error| {
             CliFailure::diagnostic(
@@ -1167,20 +1171,42 @@ fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let request_text = fs::read_to_string(&request_path).map_err(|error| {
         CliFailure::diagnostic(request_path.clone(), "S3004", error.to_string(), 4)
     })?;
-    let request = serde_json::from_str(&request_text).map_err(|error| {
-        CliFailure::diagnostic(
-            request_path,
-            "S3005",
-            format!("invalid tooling request: {error}"),
-            4,
-        )
-    })?;
-    let response = terrane_compiler::tooling::ToolingEngine::default().handle(request);
-    println!(
-        "{}",
-        serde_json::to_string(&response).expect("tooling responses are serializable")
-    );
-    Ok(if response.error.is_some() {
+    let values = match serde_json::from_str::<serde_json::Value>(&request_text) {
+        Ok(serde_json::Value::Array(values)) => values,
+        Ok(value) => vec![value],
+        Err(error) => {
+            println!(
+                "{}",
+                serde_json::to_string(&protocol_parse_error(&error, None))
+                    .expect("tooling responses are serializable")
+            );
+            return Ok(ExitCode::from(4));
+        }
+    };
+    let mut engine = terrane_compiler::tooling::ToolingEngine::default();
+    let mut last_snapshot: Option<String> = None;
+    let mut failed = false;
+    for mut value in values {
+        if value.get("snapshot_id").and_then(serde_json::Value::as_str) == Some("$last")
+            && let Some(snapshot_id) = &last_snapshot
+        {
+            value["snapshot_id"] = serde_json::Value::String(snapshot_id.clone());
+        }
+        let request_id = request_id_from_value(&value);
+        let response = match serde_json::from_value(value) {
+            Ok(request) => engine.handle(request),
+            Err(error) => protocol_parse_error(&error, request_id),
+        };
+        failed |= response.error.is_some();
+        if response.error.is_none() && response.snapshot_id.is_some() {
+            last_snapshot.clone_from(&response.snapshot_id);
+        }
+        println!(
+            "{}",
+            serde_json::to_string(&response).expect("tooling responses are serializable")
+        );
+    }
+    Ok(if failed {
         ExitCode::from(4)
     } else {
         ExitCode::SUCCESS
@@ -1282,11 +1308,22 @@ fn tooling_failure(error: terrane_compiler::tooling::ProtocolError) -> CliFailur
     )
 }
 
-fn protocol_parse_error(error: &serde_json::Error) -> terrane_compiler::tooling::ResponseEnvelope {
+fn request_id_from_value(value: &serde_json::Value) -> Option<String> {
+    value.get("request_id").map(|request_id| {
+        request_id
+            .as_str()
+            .map_or_else(|| request_id.to_string(), str::to_owned)
+    })
+}
+
+fn protocol_parse_error(
+    error: &serde_json::Error,
+    request_id: Option<String>,
+) -> terrane_compiler::tooling::ResponseEnvelope {
     terrane_compiler::tooling::ResponseEnvelope {
         compiler_version: terrane_compiler::VERSION.to_owned(),
         schema_version: terrane_compiler::tooling::SCHEMA_VERSION.to_owned(),
-        request_id: String::new(),
+        request_id: request_id.unwrap_or_default(),
         snapshot_id: None,
         source_uri: None,
         source_hash: None,
@@ -1295,6 +1332,7 @@ fn protocol_parse_error(error: &serde_json::Error) -> terrane_compiler::tooling:
             code: "invalid-json".to_owned(),
             message: error.to_string(),
             retry_fresh_query: false,
+            apply_report: None,
         }),
     }
 }

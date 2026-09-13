@@ -224,6 +224,67 @@ impl Package {
             rust_dependencies: manifest.rust_dependencies,
         })
     }
+
+    pub(crate) fn from_tooling_sources(
+        manifest_path: &Path,
+        manifest_text: &str,
+        mut units: Vec<SourceUnit>,
+    ) -> Result<Self, Vec<PackageLoadError>> {
+        let manifest = parse_manifest(manifest_path, manifest_text)?;
+        let root = manifest_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
+        let mut errors = Vec::new();
+        for unit in &mut units {
+            let Ok(relative_path) = unit.source.path().strip_prefix(&root) else {
+                errors.push(PackageLoadError::unreadable(
+                    unit.source.path().to_path_buf(),
+                    "snapshot source is outside the package root",
+                ));
+                continue;
+            };
+            let parent = relative_path.parent().unwrap_or_else(|| Path::new(""));
+            let mapping = manifest
+                .namespace_roots
+                .iter()
+                .filter(|mapping| parent.starts_with(&mapping.directory))
+                .max_by_key(|mapping| mapping.directory.components().count());
+            let Some(mapping) = mapping else {
+                errors.push(PackageLoadError::unreadable(
+                    unit.source.path().to_path_buf(),
+                    "snapshot source is outside every declared namespace root",
+                ));
+                continue;
+            };
+            let suffix = parent
+                .strip_prefix(&mapping.directory)
+                .expect("matched namespace directory");
+            match expected_namespace(&mapping.namespace, suffix) {
+                Ok(namespace) => unit.expected_namespace = Some(namespace),
+                Err(message) => errors.push(PackageLoadError::unreadable(
+                    unit.source.path().to_path_buf(),
+                    message,
+                )),
+            }
+            unit.relative_path = relative_path.to_path_buf();
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(Self {
+            identity: manifest.identity,
+            root,
+            prelude: manifest.prelude,
+            reflection: manifest.reflection,
+            executor: manifest.executor,
+            profile: manifest.profile,
+            build_toolchain: manifest.build_toolchain,
+            units,
+            rust_dependencies: manifest.rust_dependencies,
+        })
+    }
 }
 
 struct ParsedManifest {

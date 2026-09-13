@@ -49,6 +49,13 @@ struct Document {
 }
 
 #[derive(Debug)]
+struct Analysis {
+    snapshot_id: String,
+    source_texts: HashMap<String, String>,
+    diagnostics: Vec<terrane_compiler::tooling::DiagnosticProjection>,
+}
+
+#[derive(Debug)]
 pub struct Backend {
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, Document>>>,
@@ -62,69 +69,155 @@ impl Backend {
         Self {
             client,
             documents: Arc::new(RwLock::new(HashMap::new())),
-            tooling: Arc::new(Mutex::new(
-                terrane_compiler::tooling::ToolingEngine::default(),
-            )),
+            tooling: Arc::new(Mutex::new(terrane_compiler::tooling::ToolingEngine::new(
+                usize::MAX,
+                usize::MAX,
+            ))),
             position_encoding: Arc::new(Mutex::new(PositionEncodingKind::UTF16)),
         }
     }
 
-    async fn analyze(&self, uri: &Uri, text: &str, version: i32) -> String {
+    async fn analyze(&self, uri: &Uri, text: &str) -> Analysis {
         let uri_text = uri.to_string();
-        let (metadata, diagnostics) = {
+        let mut overlays = self
+            .documents
+            .read()
+            .await
+            .iter()
+            .map(|(uri, document)| (uri.to_string(), document.text.clone()))
+            .collect::<HashMap<_, _>>();
+        overlays.insert(uri_text.clone(), text.to_owned());
+        let (sources, manifest, package_snapshot) = package_snapshot_inputs(uri, text, &overlays)
+            .unwrap_or_else(|| {
+                (
+                    vec![terrane_compiler::tooling::SourceInput {
+                        uri: uri_text.clone(),
+                        text: text.to_owned(),
+                    }],
+                    None,
+                    false,
+                )
+            });
+        let source_texts = sources
+            .iter()
+            .map(|source| (source.uri.clone(), source.text.clone()))
+            .collect();
+        let (metadata, syntax) = {
             let mut tooling = self.tooling.lock().expect("tooling engine lock");
-            let source = || terrane_compiler::tooling::SourceInput {
-                uri: uri_text.clone(),
-                text: text.to_owned(),
-            };
             let mut metadata = tooling
                 .open_snapshot(
-                    vec![source()],
+                    sources.clone(),
+                    manifest.clone(),
                     None,
-                    None,
-                    terrane_compiler::tooling::SnapshotOptions::default(),
+                    terrane_compiler::tooling::SnapshotOptions {
+                        semantic: package_snapshot,
+                        ..terrane_compiler::tooling::SnapshotOptions::default()
+                    },
                 )
-                .expect("an in-memory editor source is a valid snapshot input");
+                .expect("in-memory editor sources are valid snapshot inputs");
             let mut syntax = tooling
                 .syntax(&metadata.snapshot_id, &uri_text, None)
-                .expect("the just-opened source belongs to its snapshot");
+                .expect("the opened source belongs to its snapshot");
             let has_namespace = syntax
                 .root
                 .children
                 .iter()
                 .any(|child| child.node.kind == "NamespaceDeclaration");
-            if syntax.diagnostics.is_empty() && has_namespace {
+            if !package_snapshot && syntax.diagnostics.is_empty() && has_namespace {
                 let _ = tooling.close_snapshot(&metadata.snapshot_id);
                 metadata = tooling
                     .open_snapshot(
-                        vec![source()],
-                        None,
+                        sources,
+                        manifest,
                         None,
                         terrane_compiler::tooling::SnapshotOptions {
                             semantic: true,
                             ..terrane_compiler::tooling::SnapshotOptions::default()
                         },
                     )
-                    .expect("an in-memory editor source is a valid semantic snapshot input");
+                    .expect("in-memory editor sources are valid semantic snapshot inputs");
                 syntax = tooling
                     .syntax(&metadata.snapshot_id, &uri_text, None)
                     .expect("the semantic snapshot retains its source syntax");
             }
-            (metadata, syntax.diagnostics)
+            (metadata, syntax)
         };
+        Analysis {
+            snapshot_id: metadata.snapshot_id,
+            source_texts,
+            diagnostics: syntax.diagnostics,
+        }
+    }
+
+    async fn install_analysis(&self, uri: Uri, text: String, version: i32, analysis: Analysis) {
         let encoding = self
             .position_encoding
             .lock()
             .expect("position encoding lock")
             .clone();
-        let diagnostics = diagnostics
+        let diagnostics = analysis
+            .diagnostics
             .iter()
-            .map(|diagnostic| tooling_lsp_diagnostic(text, diagnostic, &encoding))
+            .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
             .collect();
+        let mut documents = self.documents.write().await;
+        if documents
+            .get(&uri)
+            .is_some_and(|document| document.version > version)
+        {
+            let snapshot_in_use = documents
+                .values()
+                .any(|document| document.snapshot_id == analysis.snapshot_id);
+            drop(documents);
+            if !snapshot_in_use {
+                let _ = self
+                    .tooling
+                    .lock()
+                    .expect("tooling engine lock")
+                    .close_snapshot(&analysis.snapshot_id);
+            }
+            return;
+        }
+        let old_snapshots = documents
+            .values()
+            .map(|document| document.snapshot_id.clone())
+            .collect::<std::collections::HashSet<_>>();
+        for (open_uri, document) in &mut *documents {
+            let open_uri = open_uri.to_string();
+            if analysis
+                .source_texts
+                .get(&open_uri)
+                .is_some_and(|analyzed| analyzed == &document.text)
+            {
+                document.snapshot_id.clone_from(&analysis.snapshot_id);
+            }
+        }
+        documents.insert(
+            uri.clone(),
+            Document {
+                text,
+                version,
+                snapshot_id: analysis.snapshot_id.clone(),
+            },
+        );
+        let retained = documents
+            .values()
+            .map(|document| document.snapshot_id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        let expired = old_snapshots
+            .into_iter()
+            .filter(|snapshot| !retained.contains(snapshot.as_str()))
+            .collect::<Vec<_>>();
+        drop(documents);
+        {
+            let mut tooling = self.tooling.lock().expect("tooling engine lock");
+            for snapshot in expired {
+                let _ = tooling.close_snapshot(&snapshot);
+            }
+        }
         self.client
-            .publish_diagnostics(uri.clone(), diagnostics, Some(version))
+            .publish_diagnostics(uri, diagnostics, Some(version))
             .await;
-        metadata.snapshot_id
     }
 }
 
@@ -211,15 +304,8 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        let snapshot_id = self.analyze(&uri, &text, version).await;
-        self.documents.write().await.insert(
-            uri,
-            Document {
-                text,
-                version,
-                snapshot_id,
-            },
-        );
+        let analysis = self.analyze(&uri, &text).await;
+        self.install_analysis(uri, text, version, analysis).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -229,27 +315,23 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = change.text;
         let version = params.text_document.version;
-        if let Some(previous) = self.documents.write().await.remove(&uri) {
-            let _ = self
-                .tooling
-                .lock()
-                .expect("tooling engine lock")
-                .close_snapshot(&previous.snapshot_id);
-        }
-        let snapshot_id = self.analyze(&uri, &text, version).await;
-        self.documents.write().await.insert(
-            uri,
-            Document {
-                text,
-                version,
-                snapshot_id,
-            },
-        );
+        let analysis = self.analyze(&uri, &text).await;
+        self.install_analysis(uri, text, version, analysis).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        if let Some(document) = self.documents.write().await.remove(&uri) {
+        let mut documents = self.documents.write().await;
+        let closed = documents.remove(&uri);
+        let snapshot_in_use = closed.as_ref().is_some_and(|closed| {
+            documents
+                .values()
+                .any(|document| document.snapshot_id == closed.snapshot_id)
+        });
+        drop(documents);
+        if let Some(document) = closed
+            && !snapshot_in_use
+        {
             let _ = self
                 .tooling
                 .lock()
@@ -341,6 +423,18 @@ impl LanguageServer for Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
+        let position = params.text_document_position_params.position;
+        if let Some(name) = word_at(&document.text, position)
+            && let Some(namespace) = imported_dependency_namespace(&document.text, name)
+            && let Some(projection) = projection_for_uri(&uri).await
+            && let Some(content) =
+                projected_hover_content(&projection, name, Some(namespace.as_str()))
+        {
+            return Ok(Some(Hover {
+                contents: HoverContents::Scalar(MarkedString::String(content)),
+                range: None,
+            }));
+        }
         if let Some(offset) = byte_offset(
             &document.text,
             params.text_document_position_params.position,
@@ -369,48 +463,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let namespace = imported_dependency_namespace(&document.text, name);
-        let content = projection
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .find(|item| {
-                item.name == name
-                    && namespace
-                        .as_deref()
-                        .is_none_or(|value| item.namespace == value)
-            })
-            .map(|item| {
-                let mut text = format!("`{}`", item.rust_path);
-                if let Some(requirements) = projected_execution_requirements(item) {
-                    text.push_str("\n\n");
-                    text.push_str(&requirements);
-                }
-                if let Some(docs) = &item.docs {
-                    text.push_str("\n\n");
-                    text.push_str(docs);
-                }
-                text
-            })
-            .or_else(|| {
-                projection
-                    .dependencies
-                    .iter()
-                    .flat_map(|dependency| {
-                        dependency
-                            .declined
-                            .iter()
-                            .map(move |item| (dependency, item))
-                    })
-                    .find(|(dependency, item)| {
-                        item.rust_path.rsplit("::").next() == Some(name)
-                            && namespace.as_deref().is_none_or(|value| {
-                                declined_namespace(dependency, &item.rust_path) == value
-                            })
-                    })
-                    .map(|(_, item)| {
-                        format!("`{}`\n\nNot projected: {}", item.rust_path, item.reason)
-                    })
-            });
+        let content = projected_hover_content(&projection, name, namespace.as_deref());
         Ok(content.map(|content| Hover {
             contents: HoverContents::Scalar(MarkedString::String(content)),
             range: None,
@@ -714,6 +767,48 @@ impl LanguageServer for Backend {
     }
 }
 
+fn projected_hover_content(
+    projection: &terrane_compiler::projection::Projection,
+    name: &str,
+    namespace: Option<&str>,
+) -> Option<String> {
+    projection
+        .dependencies
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .find(|item| item.name == name && namespace.is_none_or(|value| item.namespace == value))
+        .map(|item| {
+            let mut text = format!("`{}`", item.rust_path);
+            if let Some(requirements) = projected_execution_requirements(item) {
+                text.push_str("\n\n");
+                text.push_str(&requirements);
+            }
+            if let Some(docs) = &item.docs {
+                text.push_str("\n\n");
+                text.push_str(docs);
+            }
+            text
+        })
+        .or_else(|| {
+            projection
+                .dependencies
+                .iter()
+                .flat_map(|dependency| {
+                    dependency
+                        .declined
+                        .iter()
+                        .map(move |item| (dependency, item))
+                })
+                .find(|(dependency, item)| {
+                    item.rust_path.rsplit("::").next() == Some(name)
+                        && namespace.is_none_or(|value| {
+                            declined_namespace(dependency, &item.rust_path) == value
+                        })
+                })
+                .map(|(_, item)| format!("`{}`\n\nNot projected: {}", item.rust_path, item.reason))
+        })
+}
+
 fn semantic_hover(
     object: terrane_compiler::tooling::SemanticObject,
     text: &str,
@@ -735,6 +830,46 @@ fn semantic_hover(
         range: Some(range_for_public_span(text, &object.span, encoding)),
     })
 }
+type SnapshotInputs = (
+    Vec<terrane_compiler::tooling::SourceInput>,
+    Option<terrane_compiler::tooling::SourceInput>,
+    bool,
+);
+
+fn package_snapshot_inputs(
+    current_uri: &Uri,
+    current_text: &str,
+    overlays: &HashMap<String, String>,
+) -> Option<SnapshotInputs> {
+    let current_path = PathBuf::from(current_uri.to_string().strip_prefix("file://")?);
+    let manifest_path = current_path
+        .parent()?
+        .ancestors()
+        .map(|directory| directory.join(terrane_compiler::package::MANIFEST_FILE_NAME))
+        .find(|candidate| candidate.is_file())?;
+    let package = terrane_compiler::Package::load(&manifest_path).ok()?;
+    let mut sources = Vec::with_capacity(package.units.len());
+    for unit in package.units {
+        let path = std::fs::canonicalize(unit.source.path()).ok()?;
+        let uri = format!("file://{}", path.display());
+        let text = if path == current_path {
+            current_text.to_owned()
+        } else {
+            overlays
+                .get(&uri)
+                .cloned()
+                .unwrap_or_else(|| unit.source.text().to_owned())
+        };
+        sources.push(terrane_compiler::tooling::SourceInput { uri, text });
+    }
+    let manifest_path = std::fs::canonicalize(manifest_path).ok()?;
+    let manifest = terrane_compiler::tooling::SourceInput {
+        uri: format!("file://{}", manifest_path.display()),
+        text: std::fs::read_to_string(manifest_path).ok()?,
+    };
+    Some((sources, Some(manifest), true))
+}
+
 fn byte_offset(text: &str, position: Position, encoding: &PositionEncodingKind) -> Option<usize> {
     let line = text
         .split_inclusive('\n')
@@ -1281,5 +1416,51 @@ mod tests {
             projected_item_detail(&item),
             "witness::builder — chain-only; must terminate within one expression"
         );
+    }
+    #[test]
+    fn package_snapshots_resolve_definitions_across_source_units() {
+        let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repository root");
+        let child_path = repository
+            .join("tests/conformance/check/parent-namespace-function/app/child/child.trn")
+            .canonicalize()
+            .expect("child fixture");
+        let child_text = std::fs::read_to_string(&child_path).expect("child source");
+        let child_uri = format!("file://{}", child_path.display());
+        let uri = child_uri.parse::<Uri>().expect("file URI");
+        let (sources, manifest, package_snapshot) =
+            package_snapshot_inputs(&uri, &child_text, &HashMap::new())
+                .expect("package snapshot inputs");
+        assert!(package_snapshot);
+        assert_eq!(sources.len(), 2);
+
+        let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
+        let snapshot = tooling
+            .open_snapshot(
+                sources,
+                manifest,
+                None,
+                terrane_compiler::tooling::SnapshotOptions {
+                    semantic: true,
+                    ..terrane_compiler::tooling::SnapshotOptions::default()
+                },
+            )
+            .expect("semantic package snapshot");
+        assert_eq!(snapshot.profile, "default");
+        assert!(matches!(
+            snapshot.dependency_projection,
+            terrane_compiler::tooling::Availability::Known(_)
+        ));
+        let use_offset = child_text.find("double").expect("parent function use");
+        let terrane_compiler::tooling::Availability::Known(definition) = tooling
+            .definition(&snapshot.snapshot_id, &child_uri, use_offset)
+            .expect("cross-file definition")
+        else {
+            panic!("cross-file definition should be known");
+        };
+        assert_ne!(definition.uri, child_uri);
+        assert!(definition.uri.ends_with("/app/main.trn"));
     }
 }
