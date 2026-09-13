@@ -1,0 +1,16 @@
+namespace select-overlapping-borrow
+
+class accumulator
+  total int = 0
+
+  mutable async function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+async function main;
+  acc = instance accumulator;
+  select
+    case first = await acc.add; 1
+      print; first
+    case second = await acc.add; 2
+      print; second

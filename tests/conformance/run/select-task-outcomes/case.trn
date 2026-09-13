@@ -1,0 +1,35 @@
+namespace select-task-outcomes
+from /core/concurrency import channel, channel-block
+
+async function blocked; receiver channel-receiver of int
+  received = await receiver.receive;
+  print; received.available
+
+async function cancelled-winner;
+  child-pair = channel; int, 0, channel-block
+  spare-pair = channel; int, 0, channel-block
+  scope = task-scope;
+  child = scope.spawn; (blocked; child-pair.receiver)
+  scope.cancel;
+  select
+    case outcome = await scope.join; child
+      print; 'cancelled', outcome.completed, outcome.cancelled
+    case received = await spare-pair.receiver.receive;
+      print; received.available
+
+async function deadline-winner;
+  child-pair = channel; int, 0, channel-block
+  spare-pair = channel; int, 0, channel-block
+  scope = task-scope; 0
+  child = scope.spawn; (blocked; child-pair.receiver)
+  select
+    case outcome = await scope.join; child
+      print; 'deadline', outcome.completed, outcome.cancelled
+    case received = await spare-pair.receiver.receive;
+      print; received.available
+
+async function main;
+  cancelled = await (cancelled-winner;)
+  deadline = await (deadline-winner;)
+  if cancelled == none and deadline == none
+    return

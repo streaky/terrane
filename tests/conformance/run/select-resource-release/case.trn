@@ -1,0 +1,30 @@
+namespace select-resource-release
+from /core/concurrency import channel, channel-block
+from /core/errors import throwable, coercion-error
+
+class marker
+  name string = 'selected'
+  consuming function destruct;
+    print; 'resource-released'
+
+async function winner marker;
+  return instance marker;
+
+async function failing-loser throws throwable; receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; 'loser-cleanup'
+    throw coercion-error
+
+async function main;
+  pair = channel; int, 0, channel-block
+  try
+    select
+      case await (failing-loser; pair.receiver)
+        print; 'unexpected loser'
+      case selected marker = await (winner;)
+        print; selected.name
+  catch coercion-error
+    print; 'caught-cleanup-error'

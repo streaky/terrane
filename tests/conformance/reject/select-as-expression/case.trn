@@ -1,0 +1,4 @@
+namespace select-as-expression
+
+function main;
+  result = select

@@ -202,210 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 29.1 — Heterogeneous asynchronous selection
-
-Terrane async code needs to wait efficiently for the first of several differently typed operations
-without polling, erasing results into a universal value, or hiding an application event loop in
-Rust. Add a structured `select` statement whose cases retain their own result types and lexical
-scopes.
-
-#### Source contract
-
-The initial syntax is:
-
-```terrane
-select
-  case value int = await integer-task
-    print; value
-  case message = await receiver.receive;
-    print; message.available
-  case await shutdown-task
-    return
-```
-
-`select` is a statement and contains at least two `case` clauses. Each case header contains exactly
-one top-level `await` in one of two forms: `case await expression` or
-`case binding = await expression`, where `binding` uses the ordinary binding grammar and may carry
-an explicit type. Forms such as `case value = prefix + await operation` are not case headers. The
-optional binding is initialized only in that case body and has the awaited result type; cases
-therefore need no common result type or synthesized union. Omitting the binding explicitly
-discards that case's successful value.
-`select` is permitted only in an async function. Guards, an `else`/immediate
-default, nested boolean combinations of awaits, priority annotations, and select-as-expression are
-outside this milestone. Timeouts and process signals participate as ordinary task-producing APIs,
-not special syntax.
-
-All case awaitables and their ordinary argument effects are constructed exactly once in source
-order before polling begins. On a construction-time failure, transition every already constructed
-operation into cancellation before awaiting any cleanup, then drain those operations in reverse
-source order; later cases are not constructed. If cleanup succeeds, the construction failure
-propagates. If cleanup throws, its error replaces the construction failure under the ordinary
-`finally` rule, while every constructed operation is still drained. A task binding moved into a
-case is consumed when the select is constructed, regardless of which case wins.
-Receiver/argument borrows and mutations retain their existing contracts; cases whose simultaneously
-live futures require overlapping incompatible borrows or duplicate a linear value are rejected
-before lowering.
-
-Selection is wake-driven and deterministic. Each dynamic select site owns a cursor in its enclosing
-function activation. The cursor is initialized to case zero. The first execution therefore begins
-polling in source order. When a case is selected, the cursor immediately advances to the following
-case and wraps; it advances before loser cleanup begins and remains advanced even if that cleanup
-later fails. Construction failure, enclosing cancellation before selection, and a poll in which
-every case remains pending do not advance it. Recursion and concurrent calls have independent
-cursors.
-
-During one selection poll, cases are visited from the cursor in wrapped source order. The compiler
-supplies the same current task `Context` and waker to every case it polls. A conforming Rust future
-that returns `Pending` remains responsible for arranging an appropriate wake; Terrane does not
-claim that an opaque future registered one. The first ready case wins and later cases are not
-polled. If every case is pending, the select remains pending without spinning. The rotated order is
-the documented simultaneous-ready tie break and provides deterministic branch-selection fairness
-among repeatedly ready cases at that one dynamic select site. It does not promise fairness between
-executor tasks or make externally driven readiness deterministic. A loop that repeatedly selects
-an immediately ready case need not suspend; executor scheduling and cooperative yielding retain
-their existing runtime contracts.
-
-A terminal successful, throwing, cancelled, or deadline outcome makes a case ready and advances the
-cursor. Before awaiting any loser cleanup, transition every losing operation into cancellation so
-one loser's finalizer cannot wait forever for another loser whose cancellation was never requested.
-The transition step is non-throwing and does not await. After every loser has received that request,
-drain them in reverse source order. Cleanup continues through every loser even after a
-failure so no operation remains detached. A failure from losing cleanup replaces the pending winner
-completion under the ordinary `finally` replacement rule. If multiple loser cleanups fail, each
-later failure in reverse-source drain order replaces the prior pending completion; the final
-replacement propagates deterministically and the winning case body is not entered.
-
-The winning completion remains owned by select state until loser draining resolves. If cleanup
-failure supersedes a successful resource-owning result, the case binding is never initialized and
-the pending result is released exactly once. Any projected asynchronous finalization attached to
-that release joins the same structured drain; its failure participates in the ordinary deterministic
-replacement order rather than being dropped or detached.
-
-Loser draining is shielded from repeated cancellation. An enclosing cancellation request arriving
-after a winner was selected is recorded but cannot interrupt or re-enter the drain and does not
-replace the already selected winner merely by arriving in this interval. If cleanup succeeds, a
-successful winner enters its case body with the selected value intact; a throwing, cancelled, or
-deadline winner propagates through the same path as ordinary `await`. The recorded request becomes
-observable at the next ordinary cancellation point under the existing cooperative-execution
-contract. If a successful body reaches terminal completion without another cancellation point, the
-existing completed-plus-cancelled task outcome rule applies. If loser cleanup fails, that failure
-replaces the winner while the cancellation request remains recorded. The cursor remains advanced
-in every case.
-
-If loser cleanup succeeds, the winning case otherwise uses exactly the result, error, cancellation,
-deadline, and source traceback semantics of an ordinary `await` of that expression. Cancellation
-of the enclosing select before any case wins does not advance the cursor: transition every case
-into cancellation before awaiting cleanup, then drain them in reverse source order before
-propagating. Cleanup failure applies the existing ordinary cancellation/`finally` replacement rule.
-Cleanup is structured: no losing future, waiter registration, child, or projected finalizer may
-remain detached after the statement resolves.
-
-Structured cleanup is not transaction rollback. Selection preserves each operation's existing
-cancellation contract and does not undo application or I/O effects performed before that operation
-returned `Pending`. Compiler-owned operations document consumption and waiter behavior individually.
-Projected operations reuse Milestone 28.2's operation/cleanup split and post-drop finalizer rules;
-a shape that requires asynchronous post-drop cleanup but cannot separate its cleanup state or retain
-the required runtime is declined before selection lowering. A plain Rust `Future` contract alone
-does not imply rollback or asynchronous finalization.
-
-Only the selected case body executes. Its binding and declarations are case-local. `return`,
-`throw`, `break`, and `continue` have their ordinary meaning. Definite assignment after the select
-uses the same all-reachable-branches rule as other branching control flow; assignment in only some
-cases does not initialize an outer binding. An empty case body is valid.
-
-#### Compiler and lowering work
-
-Deliver:
-
-- lexer/parser/formatter support for the structural `select` and `case` form, preserving exact
-  indentation, source spans, and stable source-oriented diagnostics;
-- semantic case result typing, case-local scopes, effect propagation, control-flow/reachability,
-  definite assignment, ownership transfer, borrow overlap, and task/runtime requirement analysis;
-- one semantic selection IR node containing ordered cases, each case's await expression, optional
-  binding, body, source sites, result type, exact throwable set, and cleanup obligations;
-- runtime-neutral lowering over `Future::poll`/`poll_fn` or an equivalently direct primitive rather
-  than hard-coding Tokio syntax into semantic IR;
-- monomorphic generated branch-result storage, stack pinning where the concrete future permits it,
-  and no universal boxed value, heterogeneous result vector, serialization, random choice, busy
-  loop, blocking thread, or avoidable heap allocation;
-- one waker path and an explicit per-activation round-robin cursor initialized to zero, advanced
-  immediately after selection only, and retained across repeated execution of the same select site
-  without becoming program-global;
-- two-phase cancellation lowering that first transitions every affected operation into cancellation
-  without awaiting, then drains cleanup in deterministic reverse source order;
-- pending-completion state that owns a selected result through loser draining, releases a
-  superseded result exactly once, and applies deterministic ordinary-`finally` replacement for
-  construction, winner, cancellation, and cleanup failures;
-- shielded loser draining that records repeated/enclosing cancellation without re-entry and exposes
-  a post-selection request only at the next ordinary cancellation point after the winning body
-  begins;
-- explicit per-operation cancellation semantics rather than a false selection-wide rollback
-  guarantee, reusing Milestone 28.2's projected operation/cleanup separation and admission rules;
-- deterministic loser cancellation and finalizer draining integrated with the existing
-  cancellation context, task scopes, channel waiter removal, deadlines, dependency futures, and
-  projected async finalizers; and
-- source maps and trace frames that identify the selected await and failing cleanup/release sites
-  and preserve failures from construction, polling, cleanup, result release, and the winning body.
-
-The compiler may generate a local enum whose variants carry each case's concrete success value, but
-that enum is lowering-only and never becomes a Terrane union or reflection-visible type. Polling
-must stop at the first ready case so a losing receive cannot consume data in the same poll after a
-winner is known.
-
-#### Evidence and boundaries
-
-Use controlled Terrane and projected-Rust fixture operations rather than depending on wall-clock
-timing. Add accepted runtime cases for:
-
-- every constructed operation receiving cancellation before the first drain after construction
-  failure, and every case receiving it before the first drain after pre-selection enclosing
-  cancellation;
-- differently typed success results with case-local bindings;
-- channel receive versus task completion, including a genuinely pending wakeup;
-- first-run source-order ties and repeated always-ready cases proving branch-selection rotation,
-  without claiming executor-task fairness;
-- cursor advancement immediately on successful/error/cancelled/deadline selection, including when
-  later cleanup fails;
-- no cursor advancement on construction failure, all-pending polls, or enclosing cancellation
-  before selection;
-- exactly-once case construction, the same supplied poll `Context`/waker, and no polling of later
-  cases after a winner;
-- every loser receiving cancellation before the first loser drain, including a finalizer that waits
-  for a sibling to observe cancellation;
-- cancellation and reverse-order cleanup of losers before the winner body;
-- one and multiple throwing loser cleanups proving replacement order, continued draining, skipped
-  winner bodies, and retained cursor advancement;
-- cancellation arriving after selection while loser cleanup is pending, proving shielded drain,
-  intact winner delivery, and observation at the next ordinary cancellation point;
-- a resource-owning winning result followed by loser-cleanup failure, proving the uninitialized
-  binding and exactly-once release/finalization of the superseded result;
-- a cancellation-unsafe fixture that performs visible partial work before `Pending`, proving that
-  structured drain does not promise rollback;
-- a throwing winner, a cancelled winner, a deadline winner, and cancellation of the enclosing
-  select while every case is pending;
-- projected futures with asynchronous finalizers and no finalizer/runtime shutdown race;
-- branch-local `return`, `throw`, `break`, and `continue`, plus outer definite assignment only when
-  every reachable case initializes the binding; and
-- nested selects and independent cursors across recursion and concurrent function activations.
-
-Add rejected cases for fewer than two cases, use outside async code, a case without exactly one
-top-level await in either permitted header form, invalid binding destinations, incompatible
-simultaneous borrows, duplicated linear inputs, post-select use of moved task bindings, unsupported
-guards/defaults, and attempts to use `select` as an expression.
-Diagnostics must point to the case and the conflicting declaration/use rather than
-to generated runtime support.
-
-The runtime witness must prove zero progress without a wakeup, bounded poll counts under repeated
-wakes, removal of losing channel/socket waiters, deterministic tie behavior, and completion of all
-cleanup before executor shutdown. Exercise the feature under both the dependency-free cooperative
-path and the selected native runtime when projected futures require it.
-
-Exit criterion: heterogeneous cases execute through one structured source construct with exact
-typing, deterministic fair wake-driven selection, complete ownership/cancellation/finalizer
-behavior, readable canonical generated Rust, focused accepted/rejected coverage, synchronized
-specification and manual reference material, strict Clippy, the complete conformance matrix, and
-the measured workspace suite.
-
 ### Milestone 29.2 — Native clocks, timers, tickers, and process signals
 
 Terrane needs one portable service-time surface whose public values, policies, cancellation, and
@@ -3779,3 +3575,223 @@ collection and explicitly store it back. Implicit element-place mutation is not 
 milestone. The generated conformance workspace uses the same line-table-only debug profile as the
 workspace so its shared target does not retain full-debuginfo copies of every generated binary and
 runtime dependency.
+
+### Milestone 29.1 — Heterogeneous asynchronous selection
+**Status:** completed on `heterogeneous-async-selection`.
+
+Implemented structured static `select` cases, typed heterogeneous result bindings, deterministic
+activation-local rotating priority, transactional source-order construction, wake-driven polling,
+reverse-order loser cancellation and draining, cleanup shielding and error replacement, resource
+release, external cancellation, channel waiter removal, ownership/definite-assignment joins, borrow
+collision diagnostics, and cooperative/native runtime integration. Focused accepted evidence lives
+in `heterogeneous-select`, `select-pending-wakeup`, `select-terminal-cursor`,
+`select-concurrent-activations`, `select-task-outcomes`, `select-async-closure`,
+`select-case-control-flow`, `select-exclusive-case-move`, `select-definite-assignment`,
+`select-loser-cleanup`, `select-cleanup-shield`, `select-resource-release`,
+`select-error-propagation`, `select-external-cancellation`, `select-post-borrow-use`, and
+`rust-dependency-async-function`; focused rejected fixtures cover the remaining syntax,
+task-consumption, scope, ownership, assignment, and borrow boundaries.
+
+
+Terrane async code needs to wait efficiently for the first of several differently typed operations
+without polling, erasing results into a universal value, or hiding an application event loop in
+Rust. Add a structured `select` statement whose cases retain their own result types and lexical
+scopes.
+
+#### Source contract
+
+The initial syntax is:
+
+```terrane
+select
+  case value int = await integer-task
+    print; value
+  case message = await receiver.receive;
+    print; message.available
+  case await shutdown-task
+    return
+```
+
+`select` is a statement and contains at least two `case` clauses. Each case header contains exactly
+one top-level `await` in one of two forms: `case await expression` or
+`case binding = await expression`, where `binding` uses the ordinary binding grammar and may carry
+an explicit type. Forms such as `case value = prefix + await operation` are not case headers. The
+optional binding is initialized only in that case body and has the awaited result type; cases
+therefore need no common result type or synthesized union. Omitting the binding explicitly
+discards that case's successful value.
+`select` is permitted only in an async function. Guards, an `else`/immediate
+default, nested boolean combinations of awaits, priority annotations, and select-as-expression are
+outside this milestone. Timeouts and process signals participate as ordinary task-producing APIs,
+not special syntax.
+
+All case awaitables and their ordinary argument effects are constructed exactly once in source
+order before polling begins. On a construction-time failure, transition every already constructed
+operation into cancellation before awaiting any cleanup, then drain those operations in reverse
+source order; later cases are not constructed. If cleanup succeeds, the construction failure
+propagates. If cleanup throws, its error replaces the construction failure under the ordinary
+`finally` rule, while every constructed operation is still drained. A task binding moved into a
+case is consumed when the select is constructed, regardless of which case wins.
+Receiver/argument borrows and mutations retain their existing contracts; cases whose simultaneously
+live futures require overlapping incompatible borrows or duplicate a linear value are rejected
+before lowering.
+
+Selection is wake-driven and deterministic. Each dynamic select site owns a cursor in its enclosing
+function activation. The cursor is initialized to case zero. The first execution therefore begins
+polling in source order. When a case is selected, the cursor immediately advances to the following
+case and wraps; it advances before loser cleanup begins and remains advanced even if that cleanup
+later fails. Construction failure, enclosing cancellation before selection, and a poll in which
+every case remains pending do not advance it. Recursion and concurrent calls have independent
+cursors.
+
+During one selection poll, cases are visited from the cursor in wrapped source order. The compiler
+supplies the same current task `Context` and waker to every case it polls. A conforming Rust future
+that returns `Pending` remains responsible for arranging an appropriate wake; Terrane does not
+claim that an opaque future registered one. The first ready case wins and later cases are not
+polled. If every case is pending, the select remains pending without spinning. The rotated order is
+the documented simultaneous-ready tie break and provides deterministic branch-selection fairness
+among repeatedly ready cases at that one dynamic select site. It does not promise fairness between
+executor tasks or make externally driven readiness deterministic. A loop that repeatedly selects
+an immediately ready case need not suspend; executor scheduling and cooperative yielding retain
+their existing runtime contracts.
+
+A terminal successful, throwing, cancelled, or deadline outcome makes a case ready and advances the
+cursor. Before awaiting any loser cleanup, transition every losing operation into cancellation so
+one loser's finalizer cannot wait forever for another loser whose cancellation was never requested.
+The transition step is non-throwing and does not await. After every loser has received that request,
+drain them in reverse source order. Cleanup continues through every loser even after a
+failure so no operation remains detached. A failure from losing cleanup replaces the pending winner
+completion under the ordinary `finally` replacement rule. If multiple loser cleanups fail, each
+later failure in reverse-source drain order replaces the prior pending completion; the final
+replacement propagates deterministically and the winning case body is not entered.
+
+The winning completion remains owned by select state until loser draining resolves. If cleanup
+failure supersedes a successful resource-owning result, the case binding is never initialized and
+the pending result is released exactly once. Any projected asynchronous finalization attached to
+that release joins the same structured drain; its failure participates in the ordinary deterministic
+replacement order rather than being dropped or detached.
+
+Loser draining is shielded from repeated cancellation. An enclosing cancellation request arriving
+after a winner was selected is recorded but cannot interrupt or re-enter the drain and does not
+replace the already selected winner merely by arriving in this interval. If cleanup succeeds, a
+successful winner enters its case body with the selected value intact; a throwing, cancelled, or
+deadline winner propagates through the same path as ordinary `await`. The recorded request becomes
+observable at the next ordinary cancellation point under the existing cooperative-execution
+contract. If a successful body reaches terminal completion without another cancellation point, the
+existing completed-plus-cancelled task outcome rule applies. If loser cleanup fails, that failure
+replaces the winner while the cancellation request remains recorded. The cursor remains advanced
+in every case.
+
+If loser cleanup succeeds, the winning case otherwise uses exactly the result, error, cancellation,
+deadline, and source traceback semantics of an ordinary `await` of that expression. Cancellation
+of the enclosing select before any case wins does not advance the cursor: transition every case
+into cancellation before awaiting cleanup, then drain them in reverse source order before
+propagating. Cleanup failure applies the existing ordinary cancellation/`finally` replacement rule.
+Cleanup is structured: no losing future, waiter registration, child, or projected finalizer may
+remain detached after the statement resolves.
+
+Structured cleanup is not transaction rollback. Selection preserves each operation's existing
+cancellation contract and does not undo application or I/O effects performed before that operation
+returned `Pending`. Compiler-owned operations document consumption and waiter behavior individually.
+Projected operations reuse Milestone 28.2's operation/cleanup split and post-drop finalizer rules;
+a shape that requires asynchronous post-drop cleanup but cannot separate its cleanup state or retain
+the required runtime is declined before selection lowering. A plain Rust `Future` contract alone
+does not imply rollback or asynchronous finalization.
+
+Only the selected case body executes. Its binding and declarations are case-local. `return`,
+`throw`, `break`, and `continue` have their ordinary meaning. Definite assignment after the select
+uses the same all-reachable-branches rule as other branching control flow; assignment in only some
+cases does not initialize an outer binding. An empty case body is valid.
+
+#### Compiler and lowering work
+
+Deliver:
+
+- lexer/parser/formatter support for the structural `select` and `case` form, preserving exact
+  indentation, source spans, and stable source-oriented diagnostics;
+- semantic case result typing, case-local scopes, effect propagation, control-flow/reachability,
+  definite assignment, ownership transfer, borrow overlap, and task/runtime requirement analysis;
+- one semantic selection IR node containing ordered cases, each case's await expression, optional
+  binding, body, source sites, result type, exact throwable set, and cleanup obligations;
+- runtime-neutral lowering over `Future::poll`/`poll_fn` or an equivalently direct primitive rather
+  than hard-coding Tokio syntax into semantic IR;
+- monomorphic generated branch-result storage, stack pinning where the concrete future permits it,
+  and no universal boxed value, heterogeneous result vector, serialization, random choice, busy
+  loop, blocking thread, or avoidable heap allocation;
+- one waker path and an explicit per-activation round-robin cursor initialized to zero, advanced
+  immediately after selection only, and retained across repeated execution of the same select site
+  without becoming program-global;
+- two-phase cancellation lowering that first transitions every affected operation into cancellation
+  without awaiting, then drains cleanup in deterministic reverse source order;
+- pending-completion state that owns a selected result through loser draining, releases a
+  superseded result exactly once, and applies deterministic ordinary-`finally` replacement for
+  construction, winner, cancellation, and cleanup failures;
+- shielded loser draining that records repeated/enclosing cancellation without re-entry and exposes
+  a post-selection request only at the next ordinary cancellation point after the winning body
+  begins;
+- explicit per-operation cancellation semantics rather than a false selection-wide rollback
+  guarantee, reusing Milestone 28.2's projected operation/cleanup separation and admission rules;
+- deterministic loser cancellation and finalizer draining integrated with the existing
+  cancellation context, task scopes, channel waiter removal, deadlines, dependency futures, and
+  projected async finalizers; and
+- source maps and trace frames that identify the selected await and failing cleanup/release sites
+  and preserve failures from construction, polling, cleanup, result release, and the winning body.
+
+The compiler may generate a local enum whose variants carry each case's concrete success value, but
+that enum is lowering-only and never becomes a Terrane union or reflection-visible type. Polling
+must stop at the first ready case so a losing receive cannot consume data in the same poll after a
+winner is known.
+
+#### Evidence and boundaries
+
+Use controlled Terrane and projected-Rust fixture operations rather than depending on wall-clock
+timing. Add accepted runtime cases for:
+
+- every constructed operation receiving cancellation before the first drain after construction
+  failure, and every case receiving it before the first drain after pre-selection enclosing
+  cancellation;
+- differently typed success results with case-local bindings;
+- channel receive versus task completion, including a genuinely pending wakeup;
+- first-run source-order ties and repeated always-ready cases proving branch-selection rotation,
+  without claiming executor-task fairness;
+- cursor advancement immediately on successful/error/cancelled/deadline selection, including when
+  later cleanup fails;
+- no cursor advancement on construction failure, all-pending polls, or enclosing cancellation
+  before selection;
+- exactly-once case construction, the same supplied poll `Context`/waker, and no polling of later
+  cases after a winner;
+- every loser receiving cancellation before the first loser drain, including a finalizer that waits
+  for a sibling to observe cancellation;
+- cancellation and reverse-order cleanup of losers before the winner body;
+- one and multiple throwing loser cleanups proving replacement order, continued draining, skipped
+  winner bodies, and retained cursor advancement;
+- cancellation arriving after selection while loser cleanup is pending, proving shielded drain,
+  intact winner delivery, and observation at the next ordinary cancellation point;
+- a resource-owning winning result followed by loser-cleanup failure, proving the uninitialized
+  binding and exactly-once release/finalization of the superseded result;
+- a cancellation-unsafe fixture that performs visible partial work before `Pending`, proving that
+  structured drain does not promise rollback;
+- a throwing winner, a cancelled winner, a deadline winner, and cancellation of the enclosing
+  select while every case is pending;
+- projected futures with asynchronous finalizers and no finalizer/runtime shutdown race;
+- branch-local `return`, `throw`, `break`, and `continue`, plus outer definite assignment only when
+  every reachable case initializes the binding; and
+- nested selects and independent cursors across recursion and concurrent function activations.
+
+Add rejected cases for fewer than two cases, use outside async code, a case without exactly one
+top-level await in either permitted header form, invalid binding destinations, incompatible
+simultaneous borrows, duplicated linear inputs, post-select use of moved task bindings, unsupported
+guards/defaults, and attempts to use `select` as an expression.
+Diagnostics must point to the case and the conflicting declaration/use rather than
+to generated runtime support.
+
+The runtime witness must prove zero progress without a wakeup, bounded poll counts under repeated
+wakes, removal of losing channel/socket waiters, deterministic tie behavior, and completion of all
+cleanup before executor shutdown. Exercise the feature under both the dependency-free cooperative
+path and the selected native runtime when projected futures require it.
+
+Exit criterion: heterogeneous cases execute through one structured source construct with exact
+typing, deterministic fair wake-driven selection, complete ownership/cancellation/finalizer
+behavior, readable canonical generated Rust, focused accepted/rejected coverage, synchronized
+specification and manual reference material, strict Clippy, the complete conformance matrix, and
+the measured workspace suite.
+

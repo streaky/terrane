@@ -25,6 +25,7 @@ impl Emitter<'_> {
             SyntaxKind::IfStatement => self.if_statement(node),
             SyntaxKind::WhileStatement => self.while_statement(node),
             SyntaxKind::ForStatement => self.for_statement(node),
+            SyntaxKind::SelectStatement => self.select_statement(node),
             SyntaxKind::ReturnStatement => {
                 let value = node.children.first().map_or_else(
                     || "()".to_owned(),
@@ -376,6 +377,292 @@ impl Emitter<'_> {
             format!("Custom(DescriptorId({descriptor}))")
         }
     }
+    fn drain_select_operation(
+        &mut self,
+        select_index: usize,
+        case_index: usize,
+        operand: &SyntaxNode,
+    ) {
+        let await_operation =
+            format!("__terrane_select_future_{select_index}_{case_index}.as_mut().await");
+        if self.awaited_throws(operand) {
+            let site = self.error_site(operand);
+            self.line(&format!(
+                "if let Some(Err(__terrane_select_error)) = {await_operation} {{ __terrane_select_cleanup_error_{select_index} = Some(__terrane_trace_error(__terrane_select_error, {site})); }}"
+            ));
+        } else {
+            self.line(&format!("let _ = {await_operation};"));
+        }
+    }
+
+    fn propagate_select_cleanup_error(&mut self, select_index: usize) {
+        self.line(&format!(
+            "if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_{select_index}.take() {{"
+        ));
+        self.indent += 1;
+        if self.try_completion {
+            self.line("return TerraneCompletion::Error(__terrane_select_cleanup_error);");
+        } else if self.propagate_errors {
+            self.line("return Err(__terrane_select_cleanup_error);");
+        } else {
+            self.line("__terrane_uncaught(__terrane_select_cleanup_error);");
+        }
+        self.indent -= 1;
+        self.line("}");
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "selection construction, polling, cleanup, and dispatch must remain visibly ordered"
+    )]
+    pub(super) fn select_statement(&mut self, node: &SyntaxNode) {
+        let index = node.span.start;
+        let cases = node
+            .children
+            .iter()
+            .filter_map(|case| {
+                let [header, block] = case.children.as_slice() else {
+                    return None;
+                };
+                let awaited = if header.kind == SyntaxKind::Binding {
+                    header.children.last()?
+                } else {
+                    header
+                };
+                let operand = awaited.children.last()?;
+                Some((header, operand, block))
+            })
+            .collect::<Vec<_>>();
+        let has_throwing_case = cases
+            .iter()
+            .any(|(_, operand, _)| self.awaited_throws(operand));
+        let construction_throws = cases
+            .iter()
+            .map(|(_, operand, _)| self.select_construction_throws(operand))
+            .collect::<Vec<_>>();
+        let has_construction_failure = construction_throws.iter().any(|throws| *throws);
+        let mut future_expressions = Vec::with_capacity(cases.len());
+        for (case_index, (_, operand, _)) in cases.iter().enumerate() {
+            let prior_try_completion = self.try_completion;
+            let prior_propagate_errors = self.propagate_errors;
+            if construction_throws[case_index] {
+                self.try_completion = false;
+                self.propagate_errors = true;
+            }
+            future_expressions.push(self.expression(operand));
+            self.try_completion = prior_try_completion;
+            self.propagate_errors = prior_propagate_errors;
+        }
+        self.line("{");
+        self.indent += 1;
+        self.line(&format!(
+            "let mut __terrane_select_guard_{index} = __terrane_finally_guard();"
+        ));
+        if has_throwing_case || has_construction_failure {
+            self.line(&format!(
+                "let mut __terrane_select_cleanup_error_{index}: Option<TerraneError> = None;"
+            ));
+        }
+        for (case_index, ((_, _, _), future)) in cases.iter().zip(&future_expressions).enumerate() {
+            self.line(&format!(
+                "let __terrane_select_control_{index}_{case_index} = __terrane_select_control();"
+            ));
+            if construction_throws[case_index] {
+                self.line(&format!(
+                    "let __terrane_select_unpinned_{index}_{case_index} = match (|| -> Result<_, TerraneError> {{ Ok({future}) }})() {{"
+                ));
+                self.indent += 1;
+                self.line("__terrane_select_constructed => match __terrane_select_constructed {");
+                self.indent += 1;
+                self.line("Ok(__terrane_select_future) => __terrane_select_future,");
+                self.line("Err(__terrane_select_error) => {");
+                self.indent += 1;
+                self.line(&format!(
+                    "__terrane_select_cleanup_error_{index} = Some(__terrane_select_error);"
+                ));
+                for prior in (0..case_index).rev() {
+                    self.line(&format!(
+                        "__terrane_select_control_{index}_{prior}.request_cancel();"
+                    ));
+                }
+                for (prior, (_, prior_operand, _)) in
+                    cases.iter().take(case_index).enumerate().rev()
+                {
+                    self.drain_select_operation(index, prior, prior_operand);
+                }
+                self.line("__terrane_wait_projected_cleanups().await;");
+                self.line(&format!("__terrane_select_guard_{index}.finish();"));
+                self.propagate_select_cleanup_error(index);
+                self.line("unreachable!(\"select construction failure propagates\");");
+                self.indent -= 1;
+                self.line("}");
+                self.indent -= 1;
+                self.line("},");
+                self.indent -= 1;
+                self.line("};");
+                self.line(&format!(
+                    "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), __terrane_select_unpinned_{index}_{case_index}));"
+                ));
+            } else {
+                self.line(&format!(
+                    "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), {future}));"
+                ));
+            }
+            self.line(&format!(
+                "let mut __terrane_select_result_{index}_{case_index} = None;"
+            ));
+        }
+        self.line(&format!(
+            "let __terrane_select_winner_{index} = std::future::poll_fn(|__terrane_select_context| {{"
+        ));
+        self.indent += 1;
+        self.line("if __terrane_cancellation_is_requested() { return std::task::Poll::Ready(usize::MAX); }");
+        self.line(&format!(
+            "for __terrane_select_offset in 0..{}usize {{",
+            cases.len()
+        ));
+        self.indent += 1;
+        self.line(&format!(
+            "let __terrane_select_candidate = (__terrane_select_cursor_{index} + __terrane_select_offset) % {}usize;",
+            cases.len()
+        ));
+        self.line("match __terrane_select_candidate {");
+        self.indent += 1;
+        for case_index in 0..cases.len() {
+            self.line(&format!("{case_index} => {{"));
+            self.indent += 1;
+            self.line(&format!(
+                "match Future::poll(__terrane_select_future_{index}_{case_index}.as_mut(), __terrane_select_context) {{"
+            ));
+            self.indent += 1;
+            self.line("std::task::Poll::Ready(Some(__terrane_select_value)) => {");
+            self.indent += 1;
+            self.line(&format!(
+                "__terrane_select_result_{index}_{case_index} = Some(__terrane_select_value);"
+            ));
+            self.line(&format!(
+                "return std::task::Poll::Ready({case_index}usize);"
+            ));
+            self.indent -= 1;
+            self.line("}");
+            self.line(
+                "std::task::Poll::Ready(None) => unreachable!(\"case cancellation starts only after winner selection\"),",
+            );
+            self.line("std::task::Poll::Pending => {}");
+            self.indent -= 1;
+            self.line("}");
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.line("_ => unreachable!(\"select candidate is within the case count\"),");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        self.line("std::task::Poll::Pending");
+        self.indent -= 1;
+        self.line("}).await;");
+        self.line(&format!(
+            "if __terrane_select_winner_{index} == usize::MAX {{"
+        ));
+        self.indent += 1;
+        for case_index in (0..cases.len()).rev() {
+            self.line(&format!(
+                "__terrane_select_control_{index}_{case_index}.request_cancel();"
+            ));
+        }
+        for (case_index, (_, operand, _)) in cases.iter().enumerate().rev() {
+            self.drain_select_operation(index, case_index, operand);
+        }
+        self.line("__terrane_wait_projected_cleanups().await;");
+        self.line(&format!("__terrane_select_guard_{index}.finish();"));
+        if has_throwing_case {
+            self.propagate_select_cleanup_error(index);
+        }
+        self.line(&format!(
+            "__terrane_finish_cancelled_select(__terrane_select_guard_{index}).await;"
+        ));
+        self.indent -= 1;
+        self.line("}");
+        self.line(&format!(
+            "__terrane_select_cursor_{index} = (__terrane_select_winner_{index} + 1usize) % {}usize;",
+            cases.len()
+        ));
+        self.line(&format!("match __terrane_select_winner_{index} {{"));
+        self.indent += 1;
+        for winner in 0..cases.len() {
+            self.line(&format!("{winner} => {{"));
+            self.indent += 1;
+            for loser in (0..cases.len()).rev().filter(|loser| *loser != winner) {
+                self.line(&format!(
+                    "__terrane_select_control_{index}_{loser}.request_cancel();"
+                ));
+            }
+            for (loser, (_, operand, _)) in cases.iter().enumerate().rev() {
+                if loser != winner {
+                    self.drain_select_operation(index, loser, operand);
+                }
+            }
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.line("_ => unreachable!(\"selected winner is within the case count\"),");
+        self.indent -= 1;
+        self.line("}");
+        self.line("__terrane_wait_projected_cleanups().await;");
+        self.line(&format!("__terrane_select_guard_{index}.finish();"));
+        if has_throwing_case {
+            self.propagate_select_cleanup_error(index);
+        }
+        self.line(&format!("match __terrane_select_winner_{index} {{"));
+        self.indent += 1;
+        for (case_index, (header, operand, block)) in cases.iter().enumerate() {
+            self.line(&format!("{case_index} => {{"));
+            self.indent += 1;
+            let output = format!(
+                "__terrane_select_result_{index}_{case_index}.take().expect(\"selected case owns its ready result\")"
+            );
+            let output = self.traced_await_output(output, operand);
+            if header.kind == SyntaxKind::Binding {
+                let name_node = header
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                    .expect("parsed select binding has a name");
+                let name = rust_name(self.text(name_node));
+                let binding = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == header.span)
+                    .expect("select binding has semantic type");
+                let mutable = binding.mutable
+                    && binding_span_is_mutated(
+                        self.package,
+                        self.unit,
+                        binding.span,
+                        true,
+                        ClosureWrites::Exclude,
+                    );
+                let mutable = if mutable { "mut " } else { "" };
+                let ty = rust_value_type(self.package, binding.value_type.clone());
+                self.line(&format!("let {mutable}{name}: {ty} = {output};"));
+                if !binding_store_value_is_read(self.package, binding.span, binding.span) {
+                    self.line(&format!("let _ = &{name};"));
+                }
+            } else {
+                self.line(&format!("let _ = {output};"));
+            }
+            self.block(block);
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.line("_ => unreachable!(\"selected winner is within the case count\"),");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+    }
 
     pub(super) fn throw_statement(&mut self, node: &SyntaxNode) {
         if let Some(current_error) = &self.current_error
@@ -692,11 +979,11 @@ impl Emitter<'_> {
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
                 binding.mutable
-                    && binding_span_is_mutated(
+                    && binding_requires_mutable_storage(
                         self.package,
                         self.unit,
                         node.span,
-                        true,
+                        initializer.is_some(),
                         ClosureWrites::Exclude,
                     )
                     && !matches!(

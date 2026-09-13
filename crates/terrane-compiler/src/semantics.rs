@@ -25,6 +25,7 @@ mod bindings;
 mod diagnostics;
 mod objects;
 mod ownership;
+mod selection;
 
 #[cfg(test)]
 mod tests;
@@ -61,12 +62,14 @@ mod prelude {
     pub(super) use super::objects::*;
     pub(super) use super::ownership::*;
     pub(super) use super::scopes::*;
+    pub(super) use super::selection::*;
     pub(super) use super::types::*;
 }
 
 pub use analysis::analyze;
 pub(crate) use bindings::{
-    binding_read_value_is_reused, binding_store_value_is_read, descriptor_binding_is_materialized,
+    binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
+    descriptor_binding_is_materialized,
 };
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
@@ -79,8 +82,9 @@ pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
     DescriptorContract, ElementType, EvaluationKind, EvaluationStep, FunctionContract,
     MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity, ObjectKind,
-    ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol, SymbolKind,
-    TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    ParameterContract, SelectionOperationKind, SemanticFailure, SemanticPackage, SemanticSelection,
+    SemanticSelectionCase, SemanticUnit, Symbol, SymbolKind, TaskTransferability, TextUnit,
+    TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,

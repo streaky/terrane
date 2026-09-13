@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "case.trn"
+code = "T0132"
+contains = "overlapping incompatible borrows of `acc`"

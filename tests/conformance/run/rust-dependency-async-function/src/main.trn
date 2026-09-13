@@ -1,6 +1,11 @@
 namespace app
-from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling
+from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling, reset_operation_state, wait_forever, wait_until_operation_started, operation_drop_count
 from /core/errors import dependency-error
+from /core/concurrency import channel, channel-block
+
+async function source-ready string;
+  return 'source-ready'
+
 
 async function main;
   echoed string = await echo_after_yield; >projected async success
@@ -20,3 +25,29 @@ async function main;
     print; rejected
   catch dependency-error
     print; 'caught projected async failure'
+  selection-pair = channel; int, 0, channel-block
+  selection-rx = selection-pair.receiver
+  select
+    case selected string = await echo_after_yield; >selected-projected
+      print; selected
+    case await selection-rx.receive;
+      print; 'unexpected receive'
+  select
+    case projected = await socket_round_trip;
+      print; projected
+    case source = await (source-ready;)
+      print; source
+  select
+    case first = await echo_after_yield; >pending-first
+      print; first
+    case second = await echo_after_yield; >pending-second
+      print; second
+  reset_operation_state;
+  select
+    case await wait_forever;
+      print; 'unexpected projected winner'
+    case selection-polls int = await timer_poll_count;
+      print; 'selection-polls', selection-polls
+  started bool = await wait_until_operation_started;
+  drops int = operation_drop_count;
+  print; started, drops

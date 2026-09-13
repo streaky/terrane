@@ -236,6 +236,29 @@ pub(super) fn populate_node(
                 add_lexical_scope(unit, context, scopes, block, Some(loop_index), false)?;
             }
         }
+        SyntaxKind::SelectCase => {
+            let case_index = scopes.len();
+            scopes.push(LexicalScope {
+                span: node.span,
+                parent: Some(index),
+                symbols: BTreeMap::new(),
+                import_warnings: Vec::new(),
+            });
+            if let Some(binding) = node
+                .children
+                .first()
+                .filter(|header| header.kind == SyntaxKind::Binding)
+                && let Some(name) = declaration_name(binding, &unit.source)
+            {
+                insert_local(unit, scopes, case_index, name, binding.span)?;
+            }
+            if let Some(block) = node.children.last()
+                && block.kind == SyntaxKind::Block
+            {
+                add_lexical_scope(unit, context, scopes, block, Some(case_index), false)?;
+            }
+        }
+
         SyntaxKind::CatchClause => {
             let catch_index = scopes.len();
             scopes.push(LexicalScope {
@@ -280,6 +303,7 @@ pub(super) fn populate_node(
                         | SyntaxKind::ElseClause
                         | SyntaxKind::CatchClause
                         | SyntaxKind::FinallyClause
+                        | SyntaxKind::SelectCase
                 ) {
                     populate_node(unit, context, scopes, index, child)?;
                 }
@@ -430,6 +454,10 @@ pub(super) fn validate_definite_assignment(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "definite assignment keeps statement-specific branch joins in one ordered traversal"
+)]
 pub(super) fn validate_assignment_block(
     unit: &SemanticUnit,
     block: &SyntaxNode,
@@ -514,6 +542,34 @@ pub(super) fn validate_assignment_block(
                         });
                 }
             }
+            SyntaxKind::SelectStatement => {
+                let incoming = assigned.clone();
+                let mut branch_results = Vec::with_capacity(statement.children.len());
+                for case in &statement.children {
+                    let Some([header, block]) = case.children.get(..2) else {
+                        continue;
+                    };
+                    validate_assigned_reads(unit, header, declared, &incoming)?;
+                    let mut branch_declared = declared.clone();
+                    let mut branch_assigned = incoming.clone();
+                    validate_assignment_block(
+                        unit,
+                        block,
+                        &mut branch_declared,
+                        &mut branch_assigned,
+                    )?;
+                    branch_results.push(branch_assigned);
+                }
+                if let Some(first) = branch_results.first() {
+                    *assigned = branch_results
+                        .iter()
+                        .skip(1)
+                        .fold(first.clone(), |common, branch| {
+                            common.intersection(branch).cloned().collect()
+                        });
+                }
+            }
+
             _ => validate_assigned_reads(unit, statement, declared, assigned)?,
         }
     }
@@ -651,6 +707,23 @@ pub(super) fn validate_flow_statement(
         SyntaxKind::IfStatement => {
             validate_if_flow(unit, statement, contract, bindings, loop_depth, unreachable)
         }
+        SyntaxKind::SelectStatement => {
+            let mut any_falls_through = false;
+            for case in &statement.children {
+                if let Some(block) = case.children.last() {
+                    any_falls_through |= validate_flow_block(
+                        unit,
+                        block,
+                        contract,
+                        bindings,
+                        loop_depth,
+                        unreachable,
+                    )?;
+                }
+            }
+            Ok(any_falls_through)
+        }
+
         SyntaxKind::TryStatement => {
             let try_falls_through = if let Some(block) = statement.children.first() {
                 validate_flow_block(unit, block, contract, bindings, loop_depth, unreachable)?

@@ -1,0 +1,12 @@
+namespace select-invalid-binding
+
+async function work int;
+  return 1
+
+async function main;
+  value = 0
+  select
+    case value.member = await (work;)
+      return
+    case await (work;)
+      return

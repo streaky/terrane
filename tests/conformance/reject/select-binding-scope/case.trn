@@ -1,0 +1,15 @@
+namespace select-binding-scope
+
+async function first int;
+  return 1
+
+async function second string;
+  return 'two'
+
+async function main;
+  select
+    case selected = await (first;)
+      print; selected
+    case selected = await (second;)
+      print; selected
+  print; selected

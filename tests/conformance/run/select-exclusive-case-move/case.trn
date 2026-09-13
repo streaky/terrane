@@ -1,0 +1,15 @@
+namespace select-exclusive-case-move
+
+async function one int;
+  return 1
+
+async function two string;
+  return 'two'
+
+async function main;
+  pending = one;
+  select
+    case value = await (one;)
+      print; value, await pending
+    case text = await (two;)
+      print; text, await pending

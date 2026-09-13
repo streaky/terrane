@@ -1,0 +1,37 @@
+namespace select-post-borrow-use
+
+class accumulator
+  total int = 0
+
+  mutable async function add int; delta int
+    this.total = this.total + delta
+    return this.total
+
+class reader
+  total int = 5
+
+  async function peek int; delta int
+    return this.total + delta
+
+async function text string;
+  return 'text'
+
+async function main;
+  acc = instance accumulator;
+  select
+    case first = await acc.add; 1
+      print; first
+    case ignored = await (text;)
+      print; ignored
+  print; acc.total
+  acc.total = 9
+  print; acc.total
+
+  r = instance reader;
+  select
+    case peeked = await r.peek; 1
+      print; peeked
+    case ignored = await (text;)
+      print; ignored
+  r.total = 8
+  print; r.total

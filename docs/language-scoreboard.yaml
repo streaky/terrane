@@ -1188,15 +1188,19 @@ features:
 - id: heterogeneous-async-selection
   name: Heterogeneous asynchronous selection
   category: async
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '29.1'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/language/functions/asynchronous.yaml
-  notes: Will add a typed select statement with deterministic round-robin fairness, wake-driven polling, and structured loser cancellation and cleanup.
+    - docs/language-spec-concise.md
+    - docs/surface-today.md
+  notes: Static heterogeneous select cases use isolated activation-local rotating priority, wake-driven
+    polling, transactional source-order construction, reverse-order cancellation, shielded cleanup,
+    typed stack-local results, and pre-lowering ownership and borrow validation.
   sources:
+  - docs/language-spec-concise.md#ASYNC
   - docs/compiler-plan.md#Milestone 29.1
 - id: native-time-and-process-signals
   name: Native clocks, timers, tickers, and process signals

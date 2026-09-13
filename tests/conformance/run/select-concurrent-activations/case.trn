@@ -1,0 +1,42 @@
+namespace select-concurrent-activations
+
+async function a string;
+  return 'a'
+
+async function b string;
+  return 'b'
+
+async function x string;
+  return 'x'
+
+async function y string;
+  return 'y'
+
+function recursive-choose async function from int to string;
+  return choose
+
+async function choose string; depth int
+  select
+    case await (a;)
+      if depth > 0
+        recurse = recursive-choose;
+        return await (recurse; depth - 1)
+      select
+        case await (x;)
+          return 'ax'
+        case await (y;)
+          return 'ay'
+    case await (b;)
+      return 'b'
+
+async function main;
+  scope = task-scope;
+  first = scope.spawn; (choose; 1)
+  second = scope.spawn; (choose; 1)
+  first-outcome = await scope.join; first
+  second-outcome = await scope.join; second
+  first-value = first-outcome.value
+  second-value = second-outcome.value
+  if first-value != none
+    if second-value != none
+      print; first-value, second-value

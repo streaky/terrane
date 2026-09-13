@@ -791,10 +791,46 @@ qualifier; no empty generic effect set is presented as a stronger semantic purit
 
 ## Async tasks and scopes
 
-An `async function` has a distinct callable type and invocation produces a linear task. Postfix
-`await` is accepted only in an async function and consumes that task; leaving a task unconsumed is a
+An `async function` has a distinct callable type and invocation produces a linear task. `await` is
+accepted only in an async function and consumes that task; leaving a task unconsumed is a
 source diagnostic. The compiler rejects sync/async callable substitutions and non-owning references
 whose owner is not proven across suspension.
+
+`select` is an async-only statement that waits for the first terminal operation among two or more
+statically written cases. Each header contains exactly one top-level `await`; a case may bind the
+completed result, and that binding exists only in its case body. Cases may return unrelated result
+types:
+
+```terrane
+select
+  case count int = await (next-count;)
+    print; count
+  case message = await receiver.receive;
+    print; message.value
+```
+
+Operations are constructed once in source order and every task in a header is consumed. Polling
+starts at a rotating cursor stored separately in each callable activation, including async
+closures, so simultaneously ready cases alternate fairly without interference between concurrent
+calls. A ready value or terminal error advances the cursor before cleanup; an all-pending poll,
+construction failure, or pre-winner cancellation does not.
+
+Once a winner is fixed, every loser receives cancellation before any draining begins. Losing
+operations drain and release in reverse source order, including async `finally`, channel waiter
+removal, and projected Rust cleanup; only then may the selected body's ordinary control flow run.
+Cleanup continues after an error, later cleanup failures replace earlier outcomes, and a displaced
+winning value is released. Cancellation or a deadline observed before a winner takes the same drain
+path. A request observed after winner selection cannot interrupt the loser-cleanup transaction.
+
+All case futures and typed result slots are stack-local to the generated async state. Selection
+spawns no helper task, erases no universal payload, and adds no private event loop or polling loop.
+A plain source-only selection keeps the dependency-free cooperative runtime; selections involving
+task scopes, asynchronous finalization, or projected async work use the already selected native
+runtime. Guards, defaults, dynamic case lists, expression-position selection, duplicate linear
+tasks, and incompatible case-operation borrows are diagnosed before lowering. Case-operation
+borrows end with the `select` statement after cleanup, permitting later reads or mutations of the
+receiver.
+
 
 Async callable, task, and scoped-task types retain compiler-owned local-versus-transferable
 metadata. Authored callables infer it conservatively from parameters and values live across

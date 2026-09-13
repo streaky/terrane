@@ -1,0 +1,78 @@
+namespace select-error-propagation
+from /core/concurrency import channel, channel-block
+from /core/errors import throwable, coercion-error, missing-key
+
+async function fail int throws throwable;
+  throw coercion-error
+async function ready string;
+  return 'winner'
+
+async function cleanup-coercion throws throwable; receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; 'cleanup-coercion'
+    throw coercion-error
+
+async function cleanup-missing throws throwable; receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; 'cleanup-missing'
+    throw missing-key
+
+
+async function accept; value int
+  print; value
+
+function construction-failure int throws throwable;
+  throw missing-key
+
+function late-construction int;
+  print; 'unexpected late construction'
+  return 1
+
+async function blocked; receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; 'cleanup-before-error'
+
+async function main;
+  pair = channel; int, 0, channel-block
+  try
+    select
+      case await (blocked; pair.receiver)
+        print; 'unexpected'
+      case value int = await (fail;)
+        print; value
+  catch coercion-error
+    print; 'caught'
+
+  coercion-pair = channel; int, 0, channel-block
+  missing-pair = channel; int, 0, channel-block
+  try
+    select
+      case await (cleanup-coercion; coercion-pair.receiver)
+        print; 'unexpected coercion'
+      case await (cleanup-missing; missing-pair.receiver)
+        print; 'unexpected missing'
+      case winner = await (ready;)
+        print; winner
+  catch coercion-error
+    print; 'cleanup-error-replaced'
+
+  construction-pair = channel; int, 0, channel-block
+  try
+    select
+      case await (cleanup-coercion; construction-pair.receiver)
+        print; 'unexpected cleanup winner'
+      case await (accept; (construction-failure;))
+        print; 'unexpected construction winner'
+      case await (accept; (late-construction;))
+        print; 'unexpected late winner'
+  catch coercion-error
+    print; 'construction-cleanup-replaced'

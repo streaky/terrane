@@ -179,6 +179,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             )
         })
     });
+    let has_select = package.units.iter().any(|unit| !unit.selections.is_empty());
     let has_async_finally = package_has_async_finally(package);
     let native_cancellation = package_uses_task_scope(package) && has_async_entry
         || projected_async_entry
@@ -225,6 +226,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         } else {
             include_str!("../../runtime/async.rs").to_owned()
         };
+        if has_select && !native_cancellation {
+            support.push_str(include_str!("../../runtime/async_select.rs"));
+        }
         if has_async_entry {
             support.push_str(match package.execution_strategy {
                 crate::execution::ExecutionStrategy::Local => {

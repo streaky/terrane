@@ -261,5 +261,6 @@ fn is_keyword(text: &str) -> bool {
             | "catch"
             | "finally"
             | "case"
+            | "select"
     )
 }

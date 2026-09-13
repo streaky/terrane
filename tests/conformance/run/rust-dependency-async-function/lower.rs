@@ -420,15 +420,33 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 4] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:6:25-6:67) */
-        { Site { function: 0, file: 0, line: 6, column: 25, end_line: 6, end_column: 67 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:21-8:38) */
-        { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 38 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:26-10:44) */
-        { Site { function: 0, file: 0, line: 10, column: 26, end_line: 10, end_column: 44 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:19:29-19:50) */
-        { Site { function: 0, file: 0, line: 19, column: 29, end_line: 19, end_column: 50 } },
+    pub static SITES: [Site; 13] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:11:25-11:67) */
+        { Site { function: 0, file: 0, line: 11, column: 25, end_line: 11, end_column: 67 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:13:21-13:38) */
+        { Site { function: 0, file: 0, line: 13, column: 21, end_line: 13, end_column: 38 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:15:26-15:44) */
+        { Site { function: 0, file: 0, line: 15, column: 26, end_line: 15, end_column: 44 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:24:29-24:50) */
+        { Site { function: 0, file: 0, line: 24, column: 29, end_line: 24, end_column: 50 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:31:34-31:71) */
+        { Site { function: 0, file: 0, line: 31, column: 34, end_line: 31, end_column: 71 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:36:28-36:46) */
+        { Site { function: 0, file: 0, line: 36, column: 28, end_line: 36, end_column: 46 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:41:24-41:56) */
+        { Site { function: 0, file: 0, line: 41, column: 24, end_line: 41, end_column: 56 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:43:25-43:58) */
+        { Site { function: 0, file: 0, line: 43, column: 25, end_line: 43, end_column: 58 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:45:3-45:25) */
+        { Site { function: 0, file: 0, line: 45, column: 3, end_line: 45, end_column: 25 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:47:16-47:29) */
+        { Site { function: 0, file: 0, line: 47, column: 16, end_line: 47, end_column: 29 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:49:38-49:55) */
+        { Site { function: 0, file: 0, line: 49, column: 38, end_line: 49, end_column: 55 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:51:24-51:53) */
+        { Site { function: 0, file: 0, line: 51, column: 24, end_line: 51, end_column: 53 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:52:15-52:36) */
+        { Site { function: 0, file: 0, line: 52, column: 15, end_line: 52, end_column: 36 } },
     ];
     #[cold]
     #[inline(never)]
@@ -533,6 +551,10 @@ impl TerraneFinalizerState {
             waker.wake();
         }
     }
+    #[allow(
+        dead_code,
+        reason = "projected cleanup tracking is shared by packages without projected entries"
+    )]
     async fn reaches(&self, depth: usize) {
         std::future::poll_fn(|context| {
                 if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
@@ -551,6 +573,9 @@ impl TerraneFinalizerState {
                 std::task::Poll::Pending
             })
             .await
+    }
+    fn depth(&self) -> usize {
+        self.depth.load(std::sync::atomic::Ordering::Acquire)
     }
 }
 #[allow(
@@ -678,6 +703,100 @@ impl Drop for TerraneFinallyGuard {
 }
 #[allow(
     dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+#[derive(Clone)]
+struct TerraneSelectControl {
+    requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    waker: std::sync::Arc<std::sync::Mutex<Option<std::task::Waker>>>,
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+impl TerraneSelectControl {
+    fn request_cancel(&self) {
+        self.requested.store(true, std::sync::atomic::Ordering::Release);
+        if let Some(waker) = self
+            .waker
+            .lock()
+            .expect("select cancellation waker lock poisoned")
+            .take()
+        {
+            waker.wake();
+        }
+    }
+    fn is_cancelled(&self) -> bool {
+        self.requested.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+fn __terrane_select_control() -> TerraneSelectControl {
+    TerraneSelectControl {
+        requested: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        waker: std::sync::Arc::new(std::sync::Mutex::new(None)),
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+async fn __terrane_select_operation<F: Future>(
+    control: TerraneSelectControl,
+    future: F,
+) -> Option<F::Output> {
+    let deadline = TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.deadline)
+        .ok()
+        .flatten();
+    let cancellation = TerraneCancellation::new();
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async move {
+                let mut future = std::pin::pin!(future);
+                std::future::poll_fn(move |cx| {
+                        if control.is_cancelled() {
+                            cancellation.cancel();
+                            let mut stored_waker = control
+                                .waker
+                                .lock()
+                                .expect("select cancellation waker lock poisoned");
+                            if stored_waker
+                                .as_ref()
+                                .is_none_or(|waker| !waker.will_wake(cx.waker()))
+                            {
+                                *stored_waker = Some(cx.waker().clone());
+                            }
+                            drop(stored_waker);
+                            return match Future::poll(future.as_mut(), cx) {
+                                std::task::Poll::Ready(output) => {
+                                    std::task::Poll::Ready(Some(output))
+                                }
+                                std::task::Poll::Pending if finalizers.depth() == 0 => {
+                                    std::task::Poll::Ready(None)
+                                }
+                                std::task::Poll::Pending => std::task::Poll::Pending,
+                            };
+                        }
+                        Future::poll(future.as_mut(), cx).map(Some)
+                    })
+                    .await
+            },
+        )
+        .await
+}
+#[allow(
+    dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"
 )]
 fn __terrane_finally_guard() -> TerraneFinallyGuard {
@@ -704,6 +823,23 @@ async fn __terrane_cancellation_requested(
 }
 #[allow(
     dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+fn __terrane_cancellation_is_requested() -> bool {
+    TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| {
+            if context
+                .deadline
+                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+            {
+                context.cancellation.cancel();
+            }
+            context.cancellation.is_cancelled()
+        })
+        .unwrap_or(false)
+}
+#[allow(
+    dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"
 )]
 async fn __terrane_cancel_operation<F: Future>(
@@ -722,10 +858,15 @@ async fn __terrane_cancel_operation<F: Future>(
         .ok()
         .flatten();
     if let Some((cancellation, deadline, finalizers)) = cancellation {
+        let mut future = std::pin::pin!(future);
         tokio::select! {
-            biased; output = future => Some(output), () = async {
-            __terrane_cancellation_requested(cancellation, deadline). await; finalizers
-            .reaches(guard.depth). await; } => None,
+            biased; output = future.as_mut() => Some(output), () =
+            __terrane_cancellation_requested(cancellation, deadline) => {
+            std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
+            std::task::Poll::Ready(output) => { std::task::Poll::Ready(Some(output)) }
+            std::task::Poll::Pending if finalizers.depth() == guard.depth => {
+            std::task::Poll::Ready(None) } std::task::Poll::Pending =>
+            std::task::Poll::Pending, } }). await },
         }
     } else {
         Some(future.await)
@@ -736,6 +877,14 @@ async fn __terrane_cancel_operation<F: Future>(
     reason = "native scope support is shared by packages without asynchronous finally"
 )]
 async fn __terrane_finish_cancelled_finally(mut guard: TerraneFinallyGuard) -> ! {
+    guard.finish();
+    std::future::pending().await
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+async fn __terrane_finish_cancelled_select(mut guard: TerraneFinallyGuard) -> ! {
     guard.finish();
     std::future::pending().await
 }
@@ -776,10 +925,15 @@ async fn __terrane_cancellable<F: Future>(
         .scope(
             context,
             async {
+                let mut future = std::pin::pin!(future);
                 tokio::select! {
-                    biased; output = future => Some(output), () = async {
-                    __terrane_cancellation_requested(cancellation, deadline). await;
-                    finalizers.reaches(0). await; } => None,
+                    biased; output = future.as_mut() => Some(output), () =
+                    __terrane_cancellation_requested(cancellation, deadline) => {
+                    std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx)
+                    { std::task::Poll::Ready(output) => {
+                    std::task::Poll::Ready(Some(output)) } std::task::Poll::Pending if
+                    finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                    std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
                 }
             },
         )
@@ -814,6 +968,346 @@ async fn __terrane_dependency_await_unwind<F: Future>(
             }
         })
         .await
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TerraneChannelOverflow {
+    Block,
+    FailSend,
+    DropNewest,
+    DropOldest,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneChannelSendOutcome<T> {
+    pub accepted: bool,
+    pub closed: bool,
+    pub dropped: bool,
+    pub rejected_value: Option<T>,
+    pub dropped_value: Option<T>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneChannelReceiveOutcome<T> {
+    pub available: bool,
+    pub closed: bool,
+    pub value: Option<T>,
+}
+struct TerraneChannelState<T> {
+    values: std::collections::VecDeque<T>,
+    capacity: usize,
+    overflow: TerraneChannelOverflow,
+    sender_closed: bool,
+    receiver_closed: bool,
+    next_waiter: usize,
+    sender_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
+    receiver_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
+    rendezvous_values: std::collections::BTreeMap<usize, T>,
+    rendezvous_completed: std::collections::BTreeSet<usize>,
+}
+pub struct TerraneChannelSender<T> {
+    state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
+}
+pub struct TerraneChannelReceiver<T> {
+    state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
+}
+pub struct TerraneChannelPair<T> {
+    pub sender: TerraneChannelSender<T>,
+    pub receiver: TerraneChannelReceiver<T>,
+}
+impl<T> TerraneChannelPair<T> {
+    pub fn new(capacity: usize, overflow: TerraneChannelOverflow) -> Self {
+        let state = std::sync::Arc::new(
+            std::sync::Mutex::new(TerraneChannelState {
+                values: std::collections::VecDeque::with_capacity(capacity),
+                capacity,
+                overflow,
+                sender_closed: false,
+                receiver_closed: false,
+                next_waiter: 0,
+                sender_wakers: std::collections::BTreeMap::new(),
+                receiver_wakers: std::collections::BTreeMap::new(),
+                rendezvous_values: std::collections::BTreeMap::new(),
+                rendezvous_completed: std::collections::BTreeSet::new(),
+            }),
+        );
+        Self {
+            sender: TerraneChannelSender {
+                state: state.clone(),
+            },
+            receiver: TerraneChannelReceiver { state },
+        }
+    }
+}
+impl<T> TerraneChannelSender<T> {
+    pub fn send(&self, value: T) -> TerraneChannelSend<T> {
+        TerraneChannelSend {
+            state: self.state.clone(),
+            value: Some(value),
+            waiter_id: None,
+        }
+    }
+    pub fn close(self) {
+        let mut state = self.state.lock().expect("channel state lock poisoned");
+        state.sender_closed = true;
+        for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+            waker.wake();
+        }
+    }
+}
+impl<T> Drop for TerraneChannelSender<T> {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().expect("channel state lock poisoned");
+        state.sender_closed = true;
+        for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+            waker.wake();
+        }
+    }
+}
+pub struct TerraneChannelSend<T> {
+    state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
+    value: Option<T>,
+    waiter_id: Option<usize>,
+}
+impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
+    type Output = TerraneChannelSendOutcome<T>;
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let state_ref = self.state.clone();
+        let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if let Some(waiter_id) = self.waiter_id
+            && state.rendezvous_completed.remove(&waiter_id)
+        {
+            state.sender_wakers.remove(&waiter_id);
+            return std::task::Poll::Ready(TerraneChannelSendOutcome {
+                accepted: true,
+                closed: false,
+                dropped: false,
+                rejected_value: None,
+                dropped_value: None,
+            });
+        }
+        if state.receiver_closed {
+            if let Some(waiter_id) = self.waiter_id.take() {
+                state.sender_wakers.remove(&waiter_id);
+                if self.value.is_none() {
+                    self.value = state.rendezvous_values.remove(&waiter_id);
+                }
+                state.rendezvous_completed.remove(&waiter_id);
+            }
+            return std::task::Poll::Ready(TerraneChannelSendOutcome {
+                accepted: false,
+                closed: true,
+                dropped: false,
+                rejected_value: self.value.take(),
+                dropped_value: None,
+            });
+        }
+        if state.capacity == 0 {
+            let waiter_id = self
+                .waiter_id
+                .unwrap_or_else(|| {
+                    let waiter_id = state.next_waiter;
+                    state.next_waiter += 1;
+                    self.waiter_id = Some(waiter_id);
+                    waiter_id
+                });
+            if let Some(value) = self.value.take() {
+                state.rendezvous_values.insert(waiter_id, value);
+            }
+            state.sender_wakers.insert(waiter_id, context.waker().clone());
+            for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+                waker.wake();
+            }
+            return std::task::Poll::Pending;
+        }
+        if state.values.len() < state.capacity {
+            state
+                .values
+                .push_back(self.value.take().expect("send polled after completion"));
+            if let Some(waiter_id) = self.waiter_id.take() {
+                state.sender_wakers.remove(&waiter_id);
+            }
+            for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+                waker.wake();
+            }
+            return std::task::Poll::Ready(TerraneChannelSendOutcome {
+                accepted: true,
+                closed: false,
+                dropped: false,
+                rejected_value: None,
+                dropped_value: None,
+            });
+        }
+        match state.overflow {
+            TerraneChannelOverflow::Block => {
+                let waiter_id = self
+                    .waiter_id
+                    .unwrap_or_else(|| {
+                        let waiter_id = state.next_waiter;
+                        state.next_waiter += 1;
+                        self.waiter_id = Some(waiter_id);
+                        waiter_id
+                    });
+                state.sender_wakers.insert(waiter_id, context.waker().clone());
+                std::task::Poll::Pending
+            }
+            TerraneChannelOverflow::FailSend => {
+                std::task::Poll::Ready(TerraneChannelSendOutcome {
+                    accepted: false,
+                    closed: false,
+                    dropped: false,
+                    rejected_value: self.value.take(),
+                    dropped_value: None,
+                })
+            }
+            TerraneChannelOverflow::DropNewest => {
+                std::task::Poll::Ready(TerraneChannelSendOutcome {
+                    accepted: false,
+                    closed: false,
+                    dropped: true,
+                    rejected_value: None,
+                    dropped_value: self.value.take(),
+                })
+            }
+            TerraneChannelOverflow::DropOldest => {
+                let dropped_value = state.values.pop_front();
+                state
+                    .values
+                    .push_back(self.value.take().expect("send polled after completion"));
+                for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+                    waker.wake();
+                }
+                std::task::Poll::Ready(TerraneChannelSendOutcome {
+                    accepted: true,
+                    closed: false,
+                    dropped: true,
+                    rejected_value: None,
+                    dropped_value,
+                })
+            }
+        }
+    }
+}
+impl<T> Drop for TerraneChannelSend<T> {
+    fn drop(&mut self) {
+        if let Some(waiter_id) = self.waiter_id {
+            let mut state = self.state.lock().expect("channel state lock poisoned");
+            state.sender_wakers.remove(&waiter_id);
+            state.rendezvous_values.remove(&waiter_id);
+            state.rendezvous_completed.remove(&waiter_id);
+        }
+    }
+}
+impl<T> TerraneChannelReceiver<T> {
+    pub fn receive(&self) -> TerraneChannelReceive<T> {
+        TerraneChannelReceive {
+            state: self.state.clone(),
+            waiter_id: None,
+        }
+    }
+    pub fn close(self) -> terrane_collection_support::List<T> {
+        let mut state = self.state.lock().expect("channel state lock poisoned");
+        state.receiver_closed = true;
+        let remaining = terrane_collection_support::List::new(
+            state.values.drain(..).collect(),
+        );
+        for (_, waker) in std::mem::take(&mut state.sender_wakers) {
+            waker.wake();
+        }
+        remaining
+    }
+}
+impl<T> Drop for TerraneChannelReceiver<T> {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().expect("channel state lock poisoned");
+        state.receiver_closed = true;
+        state.values.clear();
+        for (_, waker) in std::mem::take(&mut state.sender_wakers) {
+            waker.wake();
+        }
+    }
+}
+pub struct TerraneChannelReceive<T> {
+    state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
+    waiter_id: Option<usize>,
+}
+impl<T> std::future::Future for TerraneChannelReceive<T> {
+    type Output = TerraneChannelReceiveOutcome<T>;
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let state_ref = self.state.clone();
+        let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if state.capacity == 0
+            && let Some(waiter_id) = state.rendezvous_values.keys().next().copied()
+        {
+            let value = state
+                .rendezvous_values
+                .remove(&waiter_id)
+                .expect("rendezvous value disappeared");
+            state.rendezvous_completed.insert(waiter_id);
+            if let Some(waker) = state.sender_wakers.remove(&waiter_id) {
+                waker.wake();
+            }
+            if let Some(receiver_waiter_id) = self.waiter_id.take() {
+                state.receiver_wakers.remove(&receiver_waiter_id);
+            }
+            return std::task::Poll::Ready(TerraneChannelReceiveOutcome {
+                available: true,
+                closed: false,
+                value: Some(value),
+            });
+        }
+        if let Some(value) = state.values.pop_front() {
+            if let Some(waiter_id) = self.waiter_id.take() {
+                state.receiver_wakers.remove(&waiter_id);
+            }
+            for (_, waker) in std::mem::take(&mut state.sender_wakers) {
+                waker.wake();
+            }
+            return std::task::Poll::Ready(TerraneChannelReceiveOutcome {
+                available: true,
+                closed: false,
+                value: Some(value),
+            });
+        }
+        if state.sender_closed {
+            if let Some(waiter_id) = self.waiter_id.take() {
+                state.receiver_wakers.remove(&waiter_id);
+            }
+            return std::task::Poll::Ready(TerraneChannelReceiveOutcome {
+                available: false,
+                closed: true,
+                value: None,
+            });
+        }
+        let waiter_id = self
+            .waiter_id
+            .unwrap_or_else(|| {
+                let waiter_id = state.next_waiter;
+                state.next_waiter += 1;
+                self.waiter_id = Some(waiter_id);
+                waiter_id
+            });
+        state.receiver_wakers.insert(waiter_id, context.waker().clone());
+        for waker in state.sender_wakers.values() {
+            waker.wake_by_ref();
+        }
+        std::task::Poll::Pending
+    }
+}
+impl<T> Unpin for TerraneChannelReceive<T> {}
+impl<T> Drop for TerraneChannelReceive<T> {
+    fn drop(&mut self) {
+        if let Some(waiter_id) = self.waiter_id {
+            self.state
+                .lock()
+                .expect("channel state lock poisoned")
+                .receiver_wakers
+                .remove(&waiter_id);
+        }
+    }
 }
 #[derive(Clone)]
 pub struct TerraneTaskScope {
@@ -924,10 +1418,204 @@ pub struct TerraneTaskOutcome<T> {
     pub value: Option<T>,
     pub error: Option<TerraneError>,
 }
+pub type TerranePlatformCapability = terrane_platform_support::Capability;
+pub type TerranePlatformResult = terrane_platform_support::ResultValue;
+pub fn terrane_platform_i128(
+    value: &terrane_int_support::Int,
+    label: &str,
+) -> Result<i128, TerranePlatformResult> {
+    terrane_int_support::coerce::<i128>(value)
+        .map_err(|_| TerranePlatformResult::error(
+            format!("{label} is outside the signed 128-bit platform range"),
+        ))
+}
+macro_rules! terrane_platform_i128 {
+    ($value:expr, $label:literal) => {
+        match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
+        return error, }
+    };
+}
+#[allow(dead_code)]
+fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
+    terrane_platform_support::cancellation_token()
+}
+#[allow(dead_code)]
+fn terrane_platform_no_resource() -> TerranePlatformCapability {
+    TerranePlatformCapability::default()
+}
+#[allow(dead_code)]
+fn terrane_platform_failed_result() -> TerranePlatformResult {
+    TerranePlatformResult::error("uninitialized platform value")
+}
+#[allow(dead_code)]
+fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
+    terrane_platform_support::cancel(token)
+}
+#[allow(dead_code)]
+fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
+    result.failed
+}
+#[allow(dead_code)]
+fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
+    result.resource_limit
+}
+#[allow(dead_code)]
+fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
+    result.truncated
+}
+#[allow(dead_code)]
+fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
+    result.deadline_exceeded
+}
+#[allow(dead_code)]
+fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
+    result.message.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
+    result.text.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
+    result.detail.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
+    result.data.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_int(
+    result: &TerranePlatformResult,
+) -> terrane_int_support::Int {
+    terrane_int_support::Int::from(result.number)
+}
+#[allow(dead_code)]
+fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
+    result.flag
+}
+#[allow(dead_code)]
+fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
+    result.entries.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_capability(
+    result: &TerranePlatformResult,
+) -> TerranePlatformCapability {
+    result.capability.clone().unwrap_or_default()
+}
+#[allow(dead_code)]
+fn terrane_platform_int_mutex(
+    initial: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let initial = terrane_platform_i128!(initial, "mutex initial value");
+    terrane_platform_support::int_mutex(initial)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_mutex_load(
+    value: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::int_mutex_load(value)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_mutex_store(
+    value: &TerranePlatformCapability,
+    replacement: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let replacement = terrane_platform_i128!(replacement, "mutex value");
+    terrane_platform_support::int_mutex_store(value, replacement)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_mutex_add(
+    value: &TerranePlatformCapability,
+    amount: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let amount = terrane_platform_i128!(amount, "mutex update");
+    terrane_platform_support::int_mutex_add(value, amount)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_rw_lock(
+    initial: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let initial = terrane_platform_i128!(initial, "read/write lock initial value");
+    terrane_platform_support::int_rw_lock(initial)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_rw_lock_read(
+    value: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::int_rw_lock_read(value)
+}
+#[allow(dead_code)]
+fn terrane_platform_int_rw_lock_write(
+    value: &TerranePlatformCapability,
+    replacement: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let replacement = terrane_platform_i128!(replacement, "read/write lock value");
+    terrane_platform_support::int_rw_lock_write(value, replacement)
+}
+#[allow(dead_code)]
+fn terrane_platform_atomic_int64(initial: i64) -> TerranePlatformResult {
+    terrane_platform_support::atomic_int64(i128::from(initial))
+}
+#[allow(dead_code)]
+fn terrane_platform_atomic_int64_load(
+    value: &TerranePlatformCapability,
+    ordering: String,
+) -> TerranePlatformResult {
+    terrane_platform_support::atomic_int64_load(value, &ordering)
+}
+#[allow(dead_code)]
+fn terrane_platform_atomic_int64_store(
+    value: &TerranePlatformCapability,
+    replacement: i64,
+    ordering: String,
+) -> TerranePlatformResult {
+    terrane_platform_support::atomic_int64_store(
+        value,
+        i128::from(replacement),
+        &ordering,
+    )
+}
+#[allow(dead_code)]
+fn terrane_platform_atomic_int64_add(
+    value: &TerranePlatformCapability,
+    amount: i64,
+    ordering: String,
+) -> TerranePlatformResult {
+    terrane_platform_support::atomic_int64_add(value, i128::from(amount), &ordering)
+}
+#[allow(dead_code)]
+fn terrane_platform_thread_local_int(
+    initial: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let initial = terrane_platform_i128!(initial, "thread-local initial value");
+    terrane_platform_support::thread_local_int(initial)
+}
+#[allow(dead_code)]
+fn terrane_platform_thread_local_int_get(
+    value: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::thread_local_int_get(value)
+}
+#[allow(dead_code)]
+fn terrane_platform_thread_local_int_set(
+    value: &TerranePlatformCapability,
+    replacement: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let replacement = terrane_platform_i128!(replacement, "thread-local value");
+    terrane_platform_support::thread_local_int_set(value, replacement)
+}
 // Source: src/main.trn
 // Namespace: app
+async fn source_ready() -> String {
+    return String::from("source-ready");
+}
 fn main() {
     __terrane_run(async move {
+        let mut __terrane_select_cursor_1085 = 0usize;
+        let mut __terrane_select_cursor_1258 = 0usize;
+        let mut __terrane_select_cursor_1396 = 0usize;
+        let mut __terrane_select_cursor_1583 = 0usize;
         let echoed: String = __terrane_traced(
             __terrane_await({
                     let __terrane_future = echo_after_yield(
@@ -936,12 +1624,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            0 /* terrane-site: src/main.trn:6:25-6:67 */,
+                            0 /* terrane-site: src/main.trn:11:25-11:67 */,
                         )
                     }
                 })
                 .await,
-            0 /* terrane-site: src/main.trn:6:25-6:67 */,
+            0 /* terrane-site: src/main.trn:11:25-11:67 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&echoed));
         let polls: terrane_int_support::Int = __terrane_traced(
@@ -950,12 +1638,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            1 /* terrane-site: src/main.trn:8:21-8:38 */,
+                            1 /* terrane-site: src/main.trn:13:21-13:38 */,
                         )
                     }
                 })
                 .await,
-            1 /* terrane-site: src/main.trn:8:21-8:38 */,
+            1 /* terrane-site: src/main.trn:13:21-13:38 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&polls));
         let message: String = __terrane_traced(
@@ -964,12 +1652,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:10:26-10:44 */,
+                            2 /* terrane-site: src/main.trn:15:26-15:44 */,
                         )
                     }
                 })
                 .await,
-            2 /* terrane-site: src/main.trn:10:26-10:44 */,
+            2 /* terrane-site: src/main.trn:15:26-15:44 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&message));
         let scope: TerraneTaskScope = TerraneTaskScope::new(None);
@@ -1036,7 +1724,7 @@ fn main() {
                 let rejected: String = __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future =
                     checked_echo(String::from("reject")); async move {
-                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:19:29-19:50 */) } }). await, 3 /* terrane-site: src/main.trn:19:29-19:50 */
+                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:24:29-24:50 */) } }). await, 3 /* terrane-site: src/main.trn:24:29-24:50 */
                 );
                 println!("{}", terrane_scalar_support::scalar_text(&rejected));
                 TerraneCompletion::Normal
@@ -1077,6 +1765,681 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
+        let selection_pair: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(0_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let selection_rx: TerraneChannelReceiver<terrane_int_support::Int> = selection_pair
+            .receiver;
+        {
+            let mut __terrane_select_guard_1085 = __terrane_finally_guard();
+            let mut __terrane_select_cleanup_error_1085: Option<TerraneError> = None;
+            let __terrane_select_control_1085_0 = __terrane_select_control();
+            let mut __terrane_select_future_1085_0 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1085_0.clone(), { let
+                __terrane_future = echo_after_yield(String::from("selected-projected"));
+                async move { __terrane_raised_err(__terrane_future. await,
+                4 /* terrane-site: src/main.trn:31:34-31:71 */) } })
+            );
+            let mut __terrane_select_result_1085_0 = None;
+            let __terrane_select_control_1085_1 = __terrane_select_control();
+            let mut __terrane_select_future_1085_1 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1085_1.clone(),
+                Box::pin(selection_rx.receive()))
+            );
+            let mut __terrane_select_result_1085_1 = None;
+            let __terrane_select_winner_1085 = std::future::poll_fn(|
+                    __terrane_select_context|
+                {
+                    if __terrane_cancellation_is_requested() {
+                        return std::task::Poll::Ready(usize::MAX);
+                    }
+                    for __terrane_select_offset in 0..2usize {
+                        let __terrane_select_candidate = (__terrane_select_cursor_1085
+                            + __terrane_select_offset) % 2usize;
+                        match __terrane_select_candidate {
+                            0 => {
+                                match Future::poll(
+                                    __terrane_select_future_1085_0.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1085_0 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(0usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            1 => {
+                                match Future::poll(
+                                    __terrane_select_future_1085_1.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1085_1 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(1usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            _ => {
+                                unreachable!("select candidate is within the case count")
+                            }
+                        }
+                    }
+                    std::task::Poll::Pending
+                })
+                .await;
+            if __terrane_select_winner_1085 == usize::MAX {
+                __terrane_select_control_1085_1.request_cancel();
+                __terrane_select_control_1085_0.request_cancel();
+                let _ = __terrane_select_future_1085_1.as_mut().await;
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1085_0
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1085 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            4 /* terrane-site: src/main.trn:31:34-31:71 */,
+                        ),
+                    );
+                }
+                __terrane_wait_projected_cleanups().await;
+                __terrane_select_guard_1085.finish();
+                if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1085
+                    .take()
+                {
+                    __terrane_uncaught(__terrane_select_cleanup_error);
+                }
+                __terrane_finish_cancelled_select(__terrane_select_guard_1085).await;
+            }
+            __terrane_select_cursor_1085 = (__terrane_select_winner_1085 + 1usize)
+                % 2usize;
+            match __terrane_select_winner_1085 {
+                0 => {
+                    __terrane_select_control_1085_1.request_cancel();
+                    let _ = __terrane_select_future_1085_1.as_mut().await;
+                }
+                1 => {
+                    __terrane_select_control_1085_0.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1085_0
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1085 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                4 /* terrane-site: src/main.trn:31:34-31:71 */,
+                            ),
+                        );
+                    }
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1085.finish();
+            if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1085
+                .take()
+            {
+                __terrane_uncaught(__terrane_select_cleanup_error);
+            }
+            match __terrane_select_winner_1085 {
+                0 => {
+                    let selected: String = __terrane_traced(
+                        __terrane_select_result_1085_0
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        4 /* terrane-site: src/main.trn:31:34-31:71 */,
+                    );
+                    println!("{}", terrane_scalar_support::scalar_text(&selected));
+                }
+                1 => {
+                    let _ = __terrane_select_result_1085_1
+                        .take()
+                        .expect("selected case owns its ready result");
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("unexpected receive"))
+                    );
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+        }
+        {
+            let mut __terrane_select_guard_1258 = __terrane_finally_guard();
+            let mut __terrane_select_cleanup_error_1258: Option<TerraneError> = None;
+            let __terrane_select_control_1258_0 = __terrane_select_control();
+            let mut __terrane_select_future_1258_0 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1258_0.clone(), { let
+                __terrane_future = socket_round_trip(); async move {
+                __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:36:28-36:46 */) } })
+            );
+            let mut __terrane_select_result_1258_0 = None;
+            let __terrane_select_control_1258_1 = __terrane_select_control();
+            let mut __terrane_select_future_1258_1 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1258_1.clone(),
+                source_ready())
+            );
+            let mut __terrane_select_result_1258_1 = None;
+            let __terrane_select_winner_1258 = std::future::poll_fn(|
+                    __terrane_select_context|
+                {
+                    if __terrane_cancellation_is_requested() {
+                        return std::task::Poll::Ready(usize::MAX);
+                    }
+                    for __terrane_select_offset in 0..2usize {
+                        let __terrane_select_candidate = (__terrane_select_cursor_1258
+                            + __terrane_select_offset) % 2usize;
+                        match __terrane_select_candidate {
+                            0 => {
+                                match Future::poll(
+                                    __terrane_select_future_1258_0.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1258_0 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(0usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            1 => {
+                                match Future::poll(
+                                    __terrane_select_future_1258_1.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1258_1 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(1usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            _ => {
+                                unreachable!("select candidate is within the case count")
+                            }
+                        }
+                    }
+                    std::task::Poll::Pending
+                })
+                .await;
+            if __terrane_select_winner_1258 == usize::MAX {
+                __terrane_select_control_1258_1.request_cancel();
+                __terrane_select_control_1258_0.request_cancel();
+                let _ = __terrane_select_future_1258_1.as_mut().await;
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1258_0
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1258 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            5 /* terrane-site: src/main.trn:36:28-36:46 */,
+                        ),
+                    );
+                }
+                __terrane_wait_projected_cleanups().await;
+                __terrane_select_guard_1258.finish();
+                if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1258
+                    .take()
+                {
+                    __terrane_uncaught(__terrane_select_cleanup_error);
+                }
+                __terrane_finish_cancelled_select(__terrane_select_guard_1258).await;
+            }
+            __terrane_select_cursor_1258 = (__terrane_select_winner_1258 + 1usize)
+                % 2usize;
+            match __terrane_select_winner_1258 {
+                0 => {
+                    __terrane_select_control_1258_1.request_cancel();
+                    let _ = __terrane_select_future_1258_1.as_mut().await;
+                }
+                1 => {
+                    __terrane_select_control_1258_0.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1258_0
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1258 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                5 /* terrane-site: src/main.trn:36:28-36:46 */,
+                            ),
+                        );
+                    }
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1258.finish();
+            if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1258
+                .take()
+            {
+                __terrane_uncaught(__terrane_select_cleanup_error);
+            }
+            match __terrane_select_winner_1258 {
+                0 => {
+                    let projected: String = __terrane_traced(
+                        __terrane_select_result_1258_0
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        5 /* terrane-site: src/main.trn:36:28-36:46 */,
+                    );
+                    println!("{}", terrane_scalar_support::scalar_text(&projected));
+                }
+                1 => {
+                    let source: String = __terrane_select_result_1258_1
+                        .take()
+                        .expect("selected case owns its ready result");
+                    println!("{}", terrane_scalar_support::scalar_text(&source));
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+        }
+        {
+            let mut __terrane_select_guard_1396 = __terrane_finally_guard();
+            let mut __terrane_select_cleanup_error_1396: Option<TerraneError> = None;
+            let __terrane_select_control_1396_0 = __terrane_select_control();
+            let mut __terrane_select_future_1396_0 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1396_0.clone(), { let
+                __terrane_future = echo_after_yield(String::from("pending-first")); async
+                move { __terrane_raised_err(__terrane_future. await,
+                6 /* terrane-site: src/main.trn:41:24-41:56 */) } })
+            );
+            let mut __terrane_select_result_1396_0 = None;
+            let __terrane_select_control_1396_1 = __terrane_select_control();
+            let mut __terrane_select_future_1396_1 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1396_1.clone(), { let
+                __terrane_future = echo_after_yield(String::from("pending-second"));
+                async move { __terrane_raised_err(__terrane_future. await,
+                7 /* terrane-site: src/main.trn:43:25-43:58 */) } })
+            );
+            let mut __terrane_select_result_1396_1 = None;
+            let __terrane_select_winner_1396 = std::future::poll_fn(|
+                    __terrane_select_context|
+                {
+                    if __terrane_cancellation_is_requested() {
+                        return std::task::Poll::Ready(usize::MAX);
+                    }
+                    for __terrane_select_offset in 0..2usize {
+                        let __terrane_select_candidate = (__terrane_select_cursor_1396
+                            + __terrane_select_offset) % 2usize;
+                        match __terrane_select_candidate {
+                            0 => {
+                                match Future::poll(
+                                    __terrane_select_future_1396_0.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1396_0 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(0usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            1 => {
+                                match Future::poll(
+                                    __terrane_select_future_1396_1.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1396_1 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(1usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            _ => {
+                                unreachable!("select candidate is within the case count")
+                            }
+                        }
+                    }
+                    std::task::Poll::Pending
+                })
+                .await;
+            if __terrane_select_winner_1396 == usize::MAX {
+                __terrane_select_control_1396_1.request_cancel();
+                __terrane_select_control_1396_0.request_cancel();
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1396_1
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1396 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            7 /* terrane-site: src/main.trn:43:25-43:58 */,
+                        ),
+                    );
+                }
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1396_0
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1396 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            6 /* terrane-site: src/main.trn:41:24-41:56 */,
+                        ),
+                    );
+                }
+                __terrane_wait_projected_cleanups().await;
+                __terrane_select_guard_1396.finish();
+                if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1396
+                    .take()
+                {
+                    __terrane_uncaught(__terrane_select_cleanup_error);
+                }
+                __terrane_finish_cancelled_select(__terrane_select_guard_1396).await;
+            }
+            __terrane_select_cursor_1396 = (__terrane_select_winner_1396 + 1usize)
+                % 2usize;
+            match __terrane_select_winner_1396 {
+                0 => {
+                    __terrane_select_control_1396_1.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1396_1
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1396 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                7 /* terrane-site: src/main.trn:43:25-43:58 */,
+                            ),
+                        );
+                    }
+                }
+                1 => {
+                    __terrane_select_control_1396_0.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1396_0
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1396 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                6 /* terrane-site: src/main.trn:41:24-41:56 */,
+                            ),
+                        );
+                    }
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1396.finish();
+            if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1396
+                .take()
+            {
+                __terrane_uncaught(__terrane_select_cleanup_error);
+            }
+            match __terrane_select_winner_1396 {
+                0 => {
+                    let first: String = __terrane_traced(
+                        __terrane_select_result_1396_0
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        6 /* terrane-site: src/main.trn:41:24-41:56 */,
+                    );
+                    println!("{}", terrane_scalar_support::scalar_text(&first));
+                }
+                1 => {
+                    let second: String = __terrane_traced(
+                        __terrane_select_result_1396_1
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        7 /* terrane-site: src/main.trn:43:25-43:58 */,
+                    );
+                    println!("{}", terrane_scalar_support::scalar_text(&second));
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+        }
+        __terrane_raised(
+            reset_operation_state(),
+            8 /* terrane-site: src/main.trn:45:3-45:25 */,
+        );
+        {
+            let mut __terrane_select_guard_1583 = __terrane_finally_guard();
+            let mut __terrane_select_cleanup_error_1583: Option<TerraneError> = None;
+            let __terrane_select_control_1583_0 = __terrane_select_control();
+            let mut __terrane_select_future_1583_0 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1583_0.clone(), { let
+                __terrane_future = wait_forever(); async move {
+                __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:47:16-47:29 */) } })
+            );
+            let mut __terrane_select_result_1583_0 = None;
+            let __terrane_select_control_1583_1 = __terrane_select_control();
+            let mut __terrane_select_future_1583_1 = std::pin::pin!(
+                __terrane_select_operation(__terrane_select_control_1583_1.clone(), { let
+                __terrane_future = timer_poll_count(); async move {
+                __terrane_raised_err(__terrane_future. await, 10 /* terrane-site: src/main.trn:49:38-49:55 */) } })
+            );
+            let mut __terrane_select_result_1583_1 = None;
+            let __terrane_select_winner_1583 = std::future::poll_fn(|
+                    __terrane_select_context|
+                {
+                    if __terrane_cancellation_is_requested() {
+                        return std::task::Poll::Ready(usize::MAX);
+                    }
+                    for __terrane_select_offset in 0..2usize {
+                        let __terrane_select_candidate = (__terrane_select_cursor_1583
+                            + __terrane_select_offset) % 2usize;
+                        match __terrane_select_candidate {
+                            0 => {
+                                match Future::poll(
+                                    __terrane_select_future_1583_0.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1583_0 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(0usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            1 => {
+                                match Future::poll(
+                                    __terrane_select_future_1583_1.as_mut(),
+                                    __terrane_select_context,
+                                ) {
+                                    std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                        __terrane_select_result_1583_1 = Some(
+                                            __terrane_select_value,
+                                        );
+                                        return std::task::Poll::Ready(1usize);
+                                    }
+                                    std::task::Poll::Ready(None) => {
+                                        unreachable!(
+                                            "case cancellation starts only after winner selection"
+                                        )
+                                    }
+                                    std::task::Poll::Pending => {}
+                                }
+                            }
+                            _ => {
+                                unreachable!("select candidate is within the case count")
+                            }
+                        }
+                    }
+                    std::task::Poll::Pending
+                })
+                .await;
+            if __terrane_select_winner_1583 == usize::MAX {
+                __terrane_select_control_1583_1.request_cancel();
+                __terrane_select_control_1583_0.request_cancel();
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1583_1
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1583 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            10 /* terrane-site: src/main.trn:49:38-49:55 */,
+                        ),
+                    );
+                }
+                if let Some(Err(__terrane_select_error)) = __terrane_select_future_1583_0
+                    .as_mut()
+                    .await
+                {
+                    __terrane_select_cleanup_error_1583 = Some(
+                        __terrane_trace_error(
+                            __terrane_select_error,
+                            9 /* terrane-site: src/main.trn:47:16-47:29 */,
+                        ),
+                    );
+                }
+                __terrane_wait_projected_cleanups().await;
+                __terrane_select_guard_1583.finish();
+                if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1583
+                    .take()
+                {
+                    __terrane_uncaught(__terrane_select_cleanup_error);
+                }
+                __terrane_finish_cancelled_select(__terrane_select_guard_1583).await;
+            }
+            __terrane_select_cursor_1583 = (__terrane_select_winner_1583 + 1usize)
+                % 2usize;
+            match __terrane_select_winner_1583 {
+                0 => {
+                    __terrane_select_control_1583_1.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1583_1
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1583 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                10 /* terrane-site: src/main.trn:49:38-49:55 */,
+                            ),
+                        );
+                    }
+                }
+                1 => {
+                    __terrane_select_control_1583_0.request_cancel();
+                    if let Some(Err(__terrane_select_error)) = __terrane_select_future_1583_0
+                        .as_mut()
+                        .await
+                    {
+                        __terrane_select_cleanup_error_1583 = Some(
+                            __terrane_trace_error(
+                                __terrane_select_error,
+                                9 /* terrane-site: src/main.trn:47:16-47:29 */,
+                            ),
+                        );
+                    }
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1583.finish();
+            if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_1583
+                .take()
+            {
+                __terrane_uncaught(__terrane_select_cleanup_error);
+            }
+            match __terrane_select_winner_1583 {
+                0 => {
+                    let _ = __terrane_traced(
+                        __terrane_select_result_1583_0
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        9 /* terrane-site: src/main.trn:47:16-47:29 */,
+                    );
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("unexpected projected winner"))
+                    );
+                }
+                1 => {
+                    let selection_polls: terrane_int_support::Int = __terrane_traced(
+                        __terrane_select_result_1583_1
+                            .take()
+                            .expect("selected case owns its ready result"),
+                        10 /* terrane-site: src/main.trn:49:38-49:55 */,
+                    );
+                    println!(
+                        "{}{}",
+                        terrane_scalar_support::scalar_text(&String::from("selection-polls")),
+                        terrane_scalar_support::scalar_text(&selection_polls)
+                    );
+                }
+                _ => unreachable!("selected winner is within the case count"),
+            }
+        }
+        let started: bool = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = wait_until_operation_started();
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            11 /* terrane-site: src/main.trn:51:24-51:53 */,
+                        )
+                    }
+                })
+                .await,
+            11 /* terrane-site: src/main.trn:51:24-51:53 */,
+        );
+        let drops: terrane_int_support::Int = __terrane_raised(
+            operation_drop_count(),
+            12 /* terrane-site: src/main.trn:52:15-52:36 */,
+        );
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&started),
+            terrane_scalar_support::scalar_text(&drops)
+        );
     });
 }
 // Source: <terrane>/projected/deps/async-witness.trn
@@ -1127,6 +2490,41 @@ pub async fn echo_after_yield(
                     payload,
                     "async-witness",
                     "async_witness::echo_after_yield",
+                ),
+            )
+        }
+    }
+}
+pub fn operation_drop_count() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| async_witness::operation_drop_count()),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::operation_drop_count",
+                ),
+            )
+        }
+    }
+}
+pub fn reset_operation_state() -> Result<(), crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| async_witness::reset_operation_state()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::reset_operation_state",
                 ),
             )
         }
@@ -1196,5 +2594,362 @@ pub async fn wait_for_sibling() -> Result<String, crate::TerraneForeignError> {
                 ),
             )
         }
+    }
+}
+pub async fn wait_forever() -> Result<String, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(async_witness::wait_forever()).await {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::wait_forever",
+                ),
+            )
+        }
+    }
+}
+pub async fn wait_until_operation_started() -> Result<bool, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(
+            async_witness::wait_until_operation_started(),
+        )
+        .await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::wait_until_operation_started",
+                ),
+            )
+        }
+    }
+}
+// Source: core/concurrency.trn
+// Namespace: core/concurrency
+#[derive(Clone)]
+pub struct ConcurrencyOperationResult {
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub message: String,
+}
+impl ConcurrencyOperationResult {
+    pub fn terrane_construct(
+        did_fail: bool,
+        exceeded_deadline: bool,
+        detail: String,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            deadline_exceeded: false,
+            message: String::from(""),
+        };
+        value.construct(did_fail, exceeded_deadline, detail);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        did_fail: bool,
+        exceeded_deadline: bool,
+        detail: String,
+    ) {
+        self.failed = did_fail;
+        self.deadline_exceeded = exceeded_deadline;
+        self.message = detail;
+    }
+}
+#[derive(Clone)]
+pub struct ConcurrencyIntResult {
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub available: bool,
+    pub message: String,
+    pub value: terrane_int_support::Int,
+}
+impl ConcurrencyIntResult {
+    pub fn terrane_construct(
+        did_fail: bool,
+        exceeded_deadline: bool,
+        has_value: bool,
+        detail: String,
+        result_value: terrane_int_support::Int,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            deadline_exceeded: false,
+            available: false,
+            message: String::from(""),
+            value: terrane_int_support::Int::from(0_i128),
+        };
+        value.construct(did_fail, exceeded_deadline, has_value, detail, result_value);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        did_fail: bool,
+        exceeded_deadline: bool,
+        has_value: bool,
+        detail: String,
+        result_value: terrane_int_support::Int,
+    ) {
+        self.failed = did_fail;
+        self.deadline_exceeded = exceeded_deadline;
+        self.available = has_value;
+        self.message = detail;
+        self.value = result_value.clone();
+    }
+}
+#[derive(Clone)]
+pub struct IntMutex {
+    pub failed: bool,
+    pub message: String,
+    pub handle: TerranePlatformCapability,
+}
+impl IntMutex {
+    pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            handle: terrane_platform_no_resource(),
+        };
+        value.construct(initial);
+        value
+    }
+    pub fn construct(&mut self, initial: terrane_int_support::Int) {
+        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
+    }
+    pub fn load(&self) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+    pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
+        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
+            &self.handle,
+            value,
+        );
+        return ConcurrencyOperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+        );
+    }
+    pub fn increase(
+        &mut self,
+        amount: terrane_int_support::Int,
+    ) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
+            &self.handle,
+            amount,
+        );
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+}
+#[derive(Clone)]
+pub struct IntReadWriteLock {
+    pub failed: bool,
+    pub message: String,
+    pub handle: TerranePlatformCapability,
+}
+impl IntReadWriteLock {
+    pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            handle: terrane_platform_no_resource(),
+        };
+        value.construct(initial);
+        value
+    }
+    pub fn construct(&mut self, initial: terrane_int_support::Int) {
+        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
+    }
+    pub fn read(&self) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+    pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
+        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
+            &self.handle,
+            value,
+        );
+        return ConcurrencyOperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+        );
+    }
+}
+#[derive(Clone)]
+pub struct MemoryOrder {
+    pub name: String,
+}
+impl MemoryOrder {
+    pub fn terrane_construct(ordering_name: String) -> Self {
+        let mut value = Self {
+            name: String::from("sequentially-consistent"),
+        };
+        value.construct(ordering_name);
+        value
+    }
+    pub fn construct(&mut self, ordering_name: String) {
+        self.name = ordering_name;
+    }
+}
+pub fn relaxed_order() -> MemoryOrder {
+    return MemoryOrder::terrane_construct(String::from("relaxed"));
+}
+pub fn acquire_order() -> MemoryOrder {
+    return MemoryOrder::terrane_construct(String::from("acquire"));
+}
+pub fn release_order() -> MemoryOrder {
+    return MemoryOrder::terrane_construct(String::from("release"));
+}
+pub fn acquire_release_order() -> MemoryOrder {
+    return MemoryOrder::terrane_construct(String::from("acquire-release"));
+}
+pub fn sequentially_consistent_order() -> MemoryOrder {
+    return MemoryOrder::terrane_construct(String::from("sequentially-consistent"));
+}
+#[derive(Clone)]
+pub struct AtomicInt64 {
+    pub failed: bool,
+    pub message: String,
+    pub handle: TerranePlatformCapability,
+}
+impl AtomicInt64 {
+    pub fn terrane_construct(initial: i64) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            handle: terrane_platform_no_resource(),
+        };
+        value.construct(initial);
+        value
+    }
+    pub fn construct(&mut self, initial: i64) {
+        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
+    }
+    pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
+            &self.handle,
+            ordering.name,
+        );
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+    pub fn store(
+        &self,
+        value: i64,
+        ordering: MemoryOrder,
+    ) -> ConcurrencyOperationResult {
+        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
+            &self.handle,
+            value,
+            ordering.name,
+        );
+        return ConcurrencyOperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+        );
+    }
+    pub fn increase(
+        &mut self,
+        amount: i64,
+        ordering: MemoryOrder,
+    ) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
+            &self.handle,
+            amount,
+            ordering.name,
+        );
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+}
+#[derive(Clone)]
+pub struct ThreadLocalInt {
+    pub failed: bool,
+    pub message: String,
+    pub handle: TerranePlatformCapability,
+}
+impl ThreadLocalInt {
+    pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            handle: terrane_platform_no_resource(),
+        };
+        value.construct(initial);
+        value
+    }
+    pub fn construct(&mut self, initial: terrane_int_support::Int) {
+        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
+    }
+    pub fn get(&self) -> ConcurrencyIntResult {
+        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
+            &self.handle,
+        );
+        return ConcurrencyIntResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
+        );
+    }
+    pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
+        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
+            &self.handle,
+            value,
+        );
+        return ConcurrencyOperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+        );
     }
 }

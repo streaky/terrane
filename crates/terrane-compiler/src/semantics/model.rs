@@ -1197,6 +1197,31 @@ pub struct EvaluationStep {
     pub conditional: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SelectionOperationKind {
+    Task,
+    Channel,
+    Projected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SemanticSelectionCase {
+    pub span: Span,
+    pub await_span: Span,
+    pub binding: Option<Span>,
+    pub body: Span,
+    pub result_type: ValueType,
+    pub transferability: TaskTransferability,
+    pub throwable_types: BTreeSet<String>,
+    pub operation: SelectionOperationKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SemanticSelection {
+    pub span: Span,
+    pub cases: Vec<SemanticSelectionCase>,
+}
+
 #[derive(Clone, Debug)]
 pub struct SemanticFailure {
     pub source: SourceFile,
@@ -1240,7 +1265,7 @@ pub struct SemanticUnit {
     pub(super) projected_interfaces_requiring_application: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
-    pub(super) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
+    pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub(super) projected_removals: Vec<crate::projection::RemovedItem>,
     pub(super) projected_destination_functions: BTreeSet<String>,
@@ -1248,6 +1273,7 @@ pub struct SemanticUnit {
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
+    pub selections: Vec<SemanticSelection>,
 }
 
 impl SemanticUnit {

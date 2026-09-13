@@ -1,0 +1,16 @@
+namespace select-post-move-use
+
+async function one int;
+  return 1
+
+async function two int;
+  return 2
+
+async function main;
+  pending = one;
+  select
+    case value = await pending
+      print; value
+    case value = await (two;)
+      print; value
+  print; await pending

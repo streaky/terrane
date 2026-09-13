@@ -98,6 +98,7 @@ impl Parser<'_> {
             "if" => self.parse_if(),
             "while" => self.parse_while(),
             "for" => self.parse_for(),
+            "select" => self.parse_select(),
             "return" => self.parse_simple_value_statement(SyntaxKind::ReturnStatement),
             "throw" => self.parse_simple_value_statement(SyntaxKind::ThrowStatement),
             "try" => self.parse_try(),
@@ -717,6 +718,122 @@ impl Parser<'_> {
         self.node(SyntaxKind::IfStatement, start, self.position, children)
     }
 
+    fn parse_select(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        if !self.at_line_end() {
+            self.error_here("S1100", "`select` does not take an expression");
+            self.recover_line();
+        }
+        self.expect(
+            TokenKind::Newline,
+            "S1023",
+            "expected a newline before select cases",
+        );
+        self.skip_newlines();
+        let mut cases = Vec::new();
+        if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
+            self.skip_newlines();
+            while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
+                if self.at_text("case") {
+                    cases.push(self.parse_select_case());
+                    self.finish_statement();
+                } else {
+                    self.error_here("S1101", "a select body may contain only `case` clauses");
+                    self.recover_line();
+                }
+                self.skip_newlines();
+            }
+            self.block_depth -= 1;
+            self.expect(
+                TokenKind::Dedent,
+                "S1024",
+                "expected the end of the indented select",
+            );
+        }
+        if cases.len() < 2 {
+            self.diagnostics.push(Diagnostic::error(
+                "S1102",
+                "`select` requires at least two `case` clauses",
+                self.tokens[start].span,
+            ));
+        }
+        self.node(SyntaxKind::SelectStatement, start, self.position, cases)
+    }
+
+    fn parse_select_case(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let unsupported_default = self.at_text("else") || self.at_text("default");
+        let header = if unsupported_default {
+            self.error_here("S1107", "default select cases are not supported");
+            self.recover_line();
+            self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+        } else if self.at_line_end() {
+            self.error_here(
+                "S1103",
+                "a select case requires `await expression` or `binding = await expression`",
+            );
+            self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+        } else if self.at_text("await") {
+            self.parse_expression(0, true)
+        } else if (self.peek_kind(0) == Some(TokenKind::Identifier)
+            && self.peek_kind(1) == Some(TokenKind::Assign))
+            || self.looks_like_binding()
+        {
+            self.parse_binding()
+        } else {
+            self.parse_expression(0, true)
+        };
+        let awaited = if header.kind == SyntaxKind::Binding {
+            header.children.last()
+        } else {
+            Some(&header)
+        };
+        if header.kind == SyntaxKind::Binding
+            && header.children.iter().any(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::Visibility | SyntaxKind::DeclarationQualifier
+                )
+            })
+        {
+            self.diagnostics.push(Diagnostic::error(
+                "S1105",
+                "a select case binding must be an ordinary local binding",
+                header.span,
+            ));
+        }
+        let top_level_await = awaited.is_some_and(|expression| {
+            expression.kind == SyntaxKind::UnaryExpression
+                && expression.children.first().is_some_and(|operator| {
+                    self.source.text()[operator.span.start..operator.span.end].trim() == "await"
+                })
+        });
+        if !top_level_await && !unsupported_default {
+            self.diagnostics.push(Diagnostic::error(
+                "S1103",
+                "a select case header must contain exactly one top-level `await`",
+                header.span,
+            ));
+        }
+        if self.at_text("if") {
+            self.error_here("S1106", "select case guards are not supported");
+            self.recover_line();
+        } else if !self.at_line_end() {
+            self.error_here("S1104", "unexpected content after select case header");
+            self.recover_line();
+        }
+        let block = self.parse_block();
+        self.node(
+            SyntaxKind::SelectCase,
+            start,
+            self.position,
+            vec![header, block],
+        )
+    }
+
     fn parse_try(&mut self) -> SyntaxNode {
         let start = self.position;
         self.bump();
@@ -1188,6 +1305,15 @@ impl Parser<'_> {
                     self.position,
                     vec![class],
                 )
+            }
+            TokenKind::Identifier if self.at_text("select") => {
+                let start = self.position;
+                self.error_here(
+                    "S1108",
+                    "`select` is a statement and cannot be used as an expression",
+                );
+                self.bump();
+                self.node(SyntaxKind::Error, start, self.position, Vec::new())
             }
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
             TokenKind::Number

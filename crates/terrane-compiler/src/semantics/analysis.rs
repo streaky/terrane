@@ -78,6 +78,7 @@ pub(super) fn parse_unit(
         enclosing_function_spans,
         unreachable_spans: Vec::new(),
         evaluation_steps: Vec::new(),
+        selections: Vec::new(),
     })
 }
 
@@ -526,6 +527,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     infer_throwing_effects(&mut semantic)?;
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;

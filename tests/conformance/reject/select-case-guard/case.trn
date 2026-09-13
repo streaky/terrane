@@ -1,0 +1,14 @@
+namespace select-case-guard
+
+async function one int;
+  return 1
+
+async function two int;
+  return 2
+
+async function main;
+  select
+    case value = await (one;) if value > 0
+      print; value
+    case value = await (two;)
+      print; value

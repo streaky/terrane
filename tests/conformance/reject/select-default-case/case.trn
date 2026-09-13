@@ -1,0 +1,11 @@
+namespace select-default-case
+
+async function one int;
+  return 1
+
+async function main;
+  select
+    case await (one;)
+      return
+    case default
+      return

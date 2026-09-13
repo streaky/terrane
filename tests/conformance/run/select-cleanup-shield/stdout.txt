@@ -1,0 +1,4 @@
+winner-readytrue
+cleanup-finishedtruetrue
+winner-body
+truetruetruetrue

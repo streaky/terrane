@@ -661,6 +661,10 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
             }
             !has_else || any_falls_through
         }
+        SyntaxKind::SelectStatement => statement
+            .children
+            .iter()
+            .any(|case| case.children.last().is_none_or(block_may_fall_through)),
         SyntaxKind::TryStatement => {
             let try_falls_through = statement
                 .children

@@ -1,0 +1,36 @@
+namespace select-cleanup-shield
+from /core/concurrency import channel, channel-block
+
+async function loser; started (channel-sender of int), cleanup-started (channel-sender of int), cleanup-release (channel-receiver of int), work (channel-receiver of int)
+  try
+    signalled = await started.send; 1
+    received = await work.receive;
+    print; signalled.accepted, received.available
+  finally
+    cleaning = await cleanup-started.send; 1
+    released = await cleanup-release.receive;
+    print; 'cleanup-finished', cleaning.accepted, released.available
+
+async function winner; started channel-receiver of int
+  observed = await started.receive;
+  print; 'winner-ready', observed.available
+
+async function selecting; started-tx (channel-sender of int), started-rx (channel-receiver of int), cleanup-started (channel-sender of int), cleanup-release (channel-receiver of int), work (channel-receiver of int)
+  select
+    case await (loser; started-tx, cleanup-started, cleanup-release, work)
+      print; 'unexpected loser'
+    case await (winner; started-rx)
+      print; 'winner-body'
+
+async function main;
+  started = channel; int, 1, channel-block
+  cleanup-started = channel; int, 1, channel-block
+  cleanup-release = channel; int, 1, channel-block
+  work = channel; int, 0, channel-block
+  scope = task-scope;
+  child = scope.spawn; (selecting; started.sender, started.receiver, cleanup-started.sender, cleanup-release.receiver, work.receiver)
+  cleaning = await cleanup-started.receiver.receive;
+  scope.cancel;
+  release = await cleanup-release.sender.send; 1
+  outcome = await scope.join; child
+  print; cleaning.available, release.accepted, outcome.completed, outcome.cancelled

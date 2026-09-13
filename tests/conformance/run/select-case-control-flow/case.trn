@@ -1,0 +1,39 @@
+namespace select-case-control-flow
+from /core/errors import throwable, coercion-error
+
+async function one int;
+  return 1
+
+async function two int;
+  return 2
+
+async function selected-return int;
+  select
+    case value = await (one;)
+      return value
+    case value = await (two;)
+      return value
+
+async function selected-throw throws throwable;
+  select
+    case await (one;)
+      throw coercion-error
+    case await (two;)
+      return
+
+async function main;
+  iteration = 0
+  while iteration < 2
+    select
+      case await (one;)
+        iteration++
+        continue
+      case await (two;)
+        break
+  print; iteration, await (selected-return;)
+  try
+    finished = await (selected-throw;)
+    if finished == none
+      print; 'unexpected completion'
+  catch coercion-error
+    print; 'caught'

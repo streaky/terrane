@@ -71,7 +71,7 @@ fn highlights_tail_and_block_strings_returned_directly() {
 }
 
 #[test]
-fn classifies_object_and_ownership_contextual_keywords() {
+fn classifies_language_keywords() {
     let keywords = [
         "interface",
         "trait",
@@ -82,6 +82,7 @@ fn classifies_object_and_ownership_contextual_keywords() {
         "this",
         "construct",
         "destruct",
+        "select",
     ];
     let source = keywords.join(" ");
     let actual = classified(&source);
