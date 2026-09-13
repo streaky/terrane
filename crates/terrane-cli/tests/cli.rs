@@ -37,7 +37,7 @@ fn staged_hello() -> TemporaryDirectory {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello");
     let directory = TemporaryDirectory::new("hello-fixture");
     fs::create_dir_all(directory.path()).unwrap();
-    for name in ["case.trn", "lower.rs", "stdout.txt"] {
+    for name in ["case.trn", "stdout.txt"] {
         fs::copy(source.join(name), directory.path().join(name)).unwrap();
     }
     directory
@@ -71,8 +71,12 @@ fn all_commands_share_the_hello_pipeline() {
     let displayed_rust = String::from_utf8(rust.stdout)
         .unwrap()
         .replace(terrane_compiler::VERSION, "<version>");
-    let authored_rust = fs::read_to_string(directory.path().join("lower.rs")).unwrap();
-    assert!(displayed_rust.starts_with(&authored_rust));
+    let source = fs::read_to_string(&hello).unwrap();
+    let standalone_rust = terrane_compiler::compile(&hello, source)
+        .unwrap()
+        .rust
+        .replace(terrane_compiler::VERSION, "<version>");
+    assert!(displayed_rust.starts_with(&standalone_rust));
     assert!(displayed_rust.contains("// Generated Rust form: standalone"));
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 
