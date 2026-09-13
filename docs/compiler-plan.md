@@ -3585,11 +3585,12 @@ reverse-order loser cancellation and draining, cleanup shielding and error repla
 release, external cancellation, channel waiter removal, ownership/definite-assignment joins, borrow
 collision diagnostics, and cooperative/native runtime integration. Focused accepted evidence lives
 in `heterogeneous-select`, `select-pending-wakeup`, `select-terminal-cursor`,
-`select-concurrent-activations`, `select-async-closure`, `select-case-control-flow`,
-`select-exclusive-case-move`, `select-definite-assignment`, `select-loser-cleanup`,
-`select-cleanup-shield`, `select-resource-release`, `select-error-propagation`,
-`select-external-cancellation`, and `rust-dependency-async-function`; focused rejected fixtures
-cover the remaining syntax, task-consumption, scope, ownership, assignment, and borrow boundaries.
+`select-concurrent-activations`, `select-task-outcomes`, `select-async-closure`,
+`select-case-control-flow`, `select-exclusive-case-move`, `select-definite-assignment`,
+`select-loser-cleanup`, `select-cleanup-shield`, `select-resource-release`,
+`select-error-propagation`, `select-external-cancellation`, and
+`rust-dependency-async-function`; focused rejected fixtures cover the remaining syntax,
+task-consumption, scope, ownership, assignment, and borrow boundaries.
 
 
 Terrane async code needs to wait efficiently for the first of several differently typed operations
