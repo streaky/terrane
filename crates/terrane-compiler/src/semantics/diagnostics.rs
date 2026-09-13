@@ -361,14 +361,21 @@ pub(super) fn validate_discarded_temporary_mutations(
                     if member_invocation_mode(package, unit, &receiver_type, family)
                         == InvocationMode::Mutable
                     {
-                        return Err(failure(
-                            &unit.source,
-                            "T0128",
-                            format!(
-                                "mutating collection method `.{member}` cannot discard a temporary receiver"
-                            ),
-                            receiver.span,
-                        ));
+                        return Err(SemanticFailure {
+                            source: unit.source.clone(),
+                            diagnostics: vec![
+                                Diagnostic::error(
+                                    "T0128",
+                                    format!(
+                                        "mutating collection method `.{member}` cannot discard a temporary receiver"
+                                    ),
+                                    receiver.span,
+                                )
+                                .with_help(
+                                    "bind the returned collection and explicitly store it back into the containing collection",
+                                ),
+                            ],
+                        });
                     }
                 }
             }

@@ -77,7 +77,11 @@ tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "sync", "tim
             )
             .unwrap();
         }
-        manifest.push_str("\n[workspace]\n");
+        manifest.push_str(
+            "\n[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true\n\
+             \n[profile.test]\ndebug = \"line-tables-only\"\nincremental = true\n\
+             \n[workspace]\n",
+        );
         fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
     }
 }
@@ -265,9 +269,17 @@ fn reports(
     diagnostics: &[terrane_compiler::Diagnostic],
     code: &str,
     expected: Option<&str>,
+    expected_help: Option<&str>,
 ) -> bool {
     diagnostics.iter().any(|diagnostic| {
-        diagnostic.code == code && expected.is_none_or(|text| diagnostic.message.contains(text))
+        diagnostic.code == code
+            && expected.is_none_or(|text| diagnostic.message.contains(text))
+            && expected_help.is_none_or(|text| {
+                diagnostic
+                    .help
+                    .as_deref()
+                    .is_some_and(|help| help.contains(text))
+            })
     })
 }
 
@@ -401,10 +413,11 @@ fn every_manifest_drives_a_conformance_case() {
                         .diagnostics
                 };
                 let expected = field(&manifest, "contains");
-                let reported = reports(&diagnostics, code, expected);
+                let expected_help = field(&manifest, "help");
+                let reported = reports(&diagnostics, code, expected, expected_help);
                 assert!(
                     reported,
-                    "{} did not report {code} matching {expected:?}: {diagnostics:?}",
+                    "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
                     case.display()
                 );
             }
@@ -924,6 +937,15 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
         "{record:?}"
     );
     fs::remove_file(output).unwrap();
+}
+
+#[test]
+fn generated_conformance_workspace_uses_compact_debug_profiles() {
+    let build = ConformanceBuild::new();
+    build.write_manifest(&[], &[]);
+    let manifest = fs::read_to_string(build.root.join("Cargo.toml")).unwrap();
+    assert!(manifest.contains("[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true"));
+    assert!(manifest.contains("[profile.test]\ndebug = \"line-tables-only\"\nincremental = true"));
 }
 
 #[test]
