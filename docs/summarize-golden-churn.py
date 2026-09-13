@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import signal
 import subprocess
 import sys
 
@@ -31,26 +32,32 @@ def golden_diff(git_range: str) -> str:
     return result.stdout
 
 
-def scope_wrapper_hunk(hunks: list[Hunk]) -> Hunk | None:
-    """Collapse repeated brace wrappers after cancelling formatter-only text and commas."""
-    removed = collections.Counter()
-    added = collections.Counter()
-    for hunk in hunks:
-        for line in hunk:
-            if line.startswith("-"):
-                removed.update(character for character in line[1:] if not character.isspace())
-            elif line.startswith("+"):
-                added.update(character for character in line[1:] if not character.isspace())
-    removed_only = removed - added
-    added_only = added - removed
-    removed = removed_only
-    added = added_only
-    removed.pop(",", None)
-    added.pop(",", None)
-    if not added and removed and set(removed) == {"{", "}"} and removed["{"] == removed["}"]:
-        return ("-{", "-}")
-    if not removed and added and set(added) == {"{", "}"} and added["{"] == added["}"]:
+def normalized_changed_lines(hunk: Hunk, prefix: str) -> list[str]:
+    return [
+        line[1:].strip().removesuffix(",")
+        for line in hunk
+        if line.startswith(prefix)
+    ]
+
+
+def without_one_scope(lines: list[str]) -> list[list[str]]:
+    return [
+        lines[:opening] + lines[opening + 1 : closing] + lines[closing + 1 :]
+        for opening, line in enumerate(lines)
+        if line == "{"
+        for closing in range(opening + 1, len(lines))
+        if lines[closing] == "}"
+    ]
+
+
+def scope_wrapper_hunk(hunk: Hunk) -> Hunk | None:
+    """Recognize one balanced wrapper without overlooking reordered contents."""
+    removed = normalized_changed_lines(hunk, "-")
+    added = normalized_changed_lines(hunk, "+")
+    if removed and any(candidate == removed for candidate in without_one_scope(added)):
         return ("+{", "+}")
+    if added and any(candidate == added for candidate in without_one_scope(removed)):
+        return ("-{", "-}")
     return None
 
 
@@ -82,11 +89,12 @@ def grouped_hunks(diff: str) -> collections.OrderedDict[Hunk, set[str]]:
 
     grouped: collections.OrderedDict[Hunk, set[str]] = collections.OrderedDict()
     for file_path, hunks in file_hunks.items():
-        if wrapper := scope_wrapper_hunk(hunks):
-            grouped.setdefault(wrapper, set()).add(file_path)
-            continue
         for literal_hunk in hunks:
-            grouped.setdefault(literal_hunk, set()).add(file_path)
+            changed_lines = tuple(
+                line for line in literal_hunk if line.startswith(("+", "-"))
+            )
+            signature = scope_wrapper_hunk(changed_lines) or changed_lines
+            grouped.setdefault(signature, set()).add(file_path)
     return grouped
 
 
@@ -112,6 +120,7 @@ def summarize(grouped: collections.OrderedDict[Hunk, set[str]]) -> str:
 
 
 def main() -> None:
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     parser = argparse.ArgumentParser(
         description="Print each unique lower.rs diff hunk once and count affected files."
     )
