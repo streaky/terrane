@@ -186,6 +186,7 @@ pub struct SemanticObject {
     pub span: PublicSpan,
     pub syntax_node_id: u64,
     pub kind: String,
+    pub state: SyntaxState,
     pub name: Option<String>,
     pub symbol_identity: Availability<String>,
     pub descriptor_identity: Availability<String>,
@@ -321,6 +322,11 @@ pub enum Request {
         offset: usize,
     },
     References {
+        snapshot_id: String,
+        uri: String,
+        offset: usize,
+    },
+    Implementations {
         snapshot_id: String,
         uri: String,
         offset: usize,
@@ -570,6 +576,12 @@ impl ToolingEngine {
                 uri,
                 offset,
             } => serde_json::to_value(self.references(&snapshot_id, &uri, offset)?)
+                .map_err(serialization_error),
+            Request::Implementations {
+                snapshot_id,
+                uri,
+                offset,
+            } => serde_json::to_value(self.implementations(&snapshot_id, &uri, offset)?)
                 .map_err(serialization_error),
             Request::Find {
                 snapshot_id,
@@ -828,6 +840,17 @@ impl ToolingEngine {
         Ok(metadata)
     }
 
+    /// Returns immutable metadata for a retained snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns a stale-snapshot error when the snapshot is no longer retained.
+    pub fn metadata(&self, snapshot_id: &str) -> Result<SnapshotMetadata, ProtocolError> {
+        Ok(self.snapshot(snapshot_id)?.metadata.clone())
+    }
+
+    /// Closes a snapshot and invalidates its continuations.
+    ///
     /// # Errors
     ///
     /// Returns an expiry error when the snapshot is no longer retained.
@@ -985,6 +1008,77 @@ impl ToolingEngine {
         }
         if let Some(declaration) = declaration_location(snapshot, &target) {
             locations.push(declaration);
+        }
+        locations.sort();
+        locations.dedup();
+        Ok(Availability::Known(locations))
+    }
+
+    /// Returns concrete implementations or descendants of the semantic target.
+    ///
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots or unknown sources.
+    pub fn implementations(
+        &self,
+        snapshot_id: &str,
+        uri: &str,
+        offset: usize,
+    ) -> Result<Availability<Vec<Location>>, ProtocolError> {
+        let snapshot = self.snapshot(snapshot_id)?;
+        let document = snapshot.document(uri)?;
+        let Some(target) = target_at(snapshot, document, offset) else {
+            return Ok(semantic_fact_unavailable(snapshot));
+        };
+        let Some(semantic) = &snapshot.semantic else {
+            return Ok(semantic_fact_unavailable(snapshot));
+        };
+        let owner = target
+            .function
+            .as_ref()
+            .and_then(|function| function.owner_identity.as_ref())
+            .map(crate::semantics::ObjectIdentity::qualified)
+            .or_else(|| {
+                target
+                    .descriptor
+                    .as_ref()
+                    .map(|descriptor| descriptor.identity.qualified())
+            });
+        let Some(owner) = owner else {
+            return Ok(Availability::Known(Vec::new()));
+        };
+        let mut locations = Vec::new();
+        if let Some(function) = &target.function {
+            for candidate in all_functions(semantic).filter(|candidate| {
+                candidate.name == function.name
+                    && candidate.span != function.span
+                    && candidate
+                        .owner_identity
+                        .as_ref()
+                        .is_some_and(|candidate_owner| {
+                            all_descriptors(semantic)
+                                .find(|descriptor| descriptor.identity == *candidate_owner)
+                                .is_some_and(|descriptor| {
+                                    descriptor_lineage(semantic, descriptor).contains(&owner)
+                                })
+                        })
+            }) {
+                let candidate = function_target(semantic, candidate);
+                if let Some(location) = declaration_location(snapshot, &candidate) {
+                    locations.push(location);
+                }
+            }
+        } else {
+            for descriptor in all_descriptors(semantic).filter(|descriptor| {
+                descriptor.identity.qualified() != owner
+                    && descriptor_lineage(semantic, descriptor).contains(&owner)
+            }) {
+                if let Some(location) =
+                    declaration_location(snapshot, &descriptor_target(descriptor))
+                {
+                    locations.push(location);
+                }
+            }
         }
         locations.sort();
         locations.dedup();
@@ -1182,7 +1276,7 @@ impl ToolingEngine {
         offset: usize,
         new_name: &str,
     ) -> Result<EditProposal, ProtocolError> {
-        if !valid_identifier(new_name) {
+        if !valid_declaration_identifier(new_name) {
             return Err(ProtocolError::new(
                 "invalid-name",
                 "rename target must be a Terrane identifier",
@@ -1543,7 +1637,7 @@ fn project_tree(
         id,
         kind: format!("{:?}", node.kind),
         span: node.span.into(),
-        state: syntax_state(node, diagnostics, &children),
+        state: syntax_state(node, diagnostics),
         children,
     }
 }
@@ -1557,11 +1651,7 @@ fn find_projected_node(node: &SyntaxNodeProjection, wanted: u64) -> Option<&Synt
         .find_map(|child| find_projected_node(&child.node, wanted))
 }
 
-fn syntax_state(
-    node: &SyntaxNode,
-    diagnostics: &[Diagnostic],
-    children: &[SyntaxChild],
-) -> SyntaxState {
+fn syntax_state(node: &SyntaxNode, diagnostics: &[Diagnostic]) -> SyntaxState {
     match node.kind {
         SyntaxKind::Error => SyntaxState::Error,
         SyntaxKind::Unsupported => SyntaxState::Unsupported,
@@ -1578,9 +1668,10 @@ fn syntax_state(
         {
             SyntaxState::Recovery
         }
-        _ if children
+        _ if node
+            .children
             .iter()
-            .any(|child| child.node.state != SyntaxState::Complete) =>
+            .any(|child| syntax_state(child, diagnostics) != SyntaxState::Complete) =>
         {
             SyntaxState::ContainsRecovery
         }
@@ -1702,11 +1793,23 @@ fn semantic_object(
         .map(ToString::to_string)
         .collect()
     });
+    let declaration = if target
+        .as_ref()
+        .is_some_and(|target| target.identity == "/core/types::value.type")
+    {
+        Availability::Unsupported
+    } else {
+        target
+            .as_ref()
+            .and_then(|target| declaration_location(snapshot, target))
+            .map_or_else(|| semantic_fact_unavailable(snapshot), Availability::Known)
+    };
     SemanticObject {
         source_uri: uri.unwrap_or(&document.identity.uri).to_owned(),
         span: node.span.into(),
         syntax_node_id: id,
         kind: format!("{:?}", node.kind),
+        state: syntax_state(node, &document.diagnostics),
         name,
         symbol_identity: known_or_unavailable(
             target.as_ref().map(|target| target.identity.clone()),
@@ -1720,10 +1823,7 @@ fn semantic_object(
         ownership: Availability::Unsupported,
         effects: semantic_optional_fact(snapshot, effects),
         capabilities: semantic_optional_fact(snapshot, capabilities),
-        declaration: target
-            .as_ref()
-            .and_then(|target| declaration_location(snapshot, target))
-            .map_or_else(|| semantic_fact_unavailable(snapshot), Availability::Known),
+        declaration,
         invocation_mode: semantic_optional_fact(snapshot, invocation_mode),
         members: semantic_optional_fact(snapshot, members),
         inheritance: semantic_optional_fact(snapshot, inheritance),
@@ -1777,6 +1877,21 @@ fn resolve_semantic_target(
             return Some(descriptor_target(descriptor));
         }
     }
+    if let Some(symbol) = unit
+        .scopes
+        .iter()
+        .filter_map(|scope| scope.symbols.get(name))
+        .flatten()
+        .find(|symbol| {
+            symbol.declaration_span.is_some_and(|span| {
+                span.file == name_node.span.file
+                    && span.start <= name_node.span.start
+                    && name_node.span.end <= span.end
+            })
+        })
+    {
+        return Some(symbol_target(semantic, unit, symbol));
+    }
     if let Some(parent) = parent_node(&document.tree.root, name_node)
         && matches!(
             parent.kind,
@@ -1790,6 +1905,14 @@ fn resolve_semantic_target(
         return member_target(semantic, unit, parent, name);
     }
     let symbol = semantic.resolve_name_at(unit, name_node.span.start, name)?;
+    Some(symbol_target(semantic, unit, symbol))
+}
+
+fn symbol_target(
+    semantic: &crate::SemanticPackage,
+    unit: &crate::SemanticUnit,
+    symbol: &crate::semantics::Symbol,
+) -> SemanticTarget {
     let function = symbol
         .declaration_span
         .and_then(|span| {
@@ -1803,15 +1926,24 @@ fn resolve_semantic_target(
             all_descriptors(semantic).find(|descriptor| descriptor.identity.qualified() == identity)
         })
         .cloned();
-    Some(SemanticTarget {
+    let binding_span = symbol.binding_span.or(symbol.declaration_span);
+    let value_type = function.as_ref().and_then(function_value_type).or_else(|| {
+        unit.typed_bindings
+            .iter()
+            .find(|binding| {
+                binding.name == symbol.name && binding_span.is_some_and(|span| binding.span == span)
+            })
+            .map(|binding| binding.value_type.clone())
+    });
+    SemanticTarget {
         name: symbol.name.clone(),
         identity: symbol.identity.clone(),
         declaration_span: symbol.declaration_span,
         descriptor_identity: symbol.descriptor_identity().map(str::to_owned),
-        value_type: function.as_ref().and_then(function_value_type),
+        value_type,
         function,
         descriptor,
-    })
+    }
 }
 
 fn member_target(
@@ -1822,6 +1954,22 @@ fn member_target(
 ) -> Option<SemanticTarget> {
     let receiver = member_expression.children.first()?;
     let receiver_type = unit.inferred_value_type(receiver)?;
+    if name == "type" {
+        let descriptor_identity = match unwrapped_value_type(&receiver_type) {
+            crate::ValueType::Object(identity) => identity.qualified(),
+            crate::ValueType::Descriptor(identity) => identity.clone(),
+            value_type => value_type.to_string(),
+        };
+        return Some(SemanticTarget {
+            name: name.to_owned(),
+            identity: "/core/types::value.type".to_owned(),
+            declaration_span: None,
+            descriptor_identity: Some(descriptor_identity),
+            value_type: unit.inferred_value_type(member_expression),
+            function: None,
+            descriptor: None,
+        });
+    }
     let descriptor_identity = match unwrapped_value_type(&receiver_type) {
         crate::ValueType::Object(identity) => identity.qualified(),
         crate::ValueType::Descriptor(identity) => identity.clone(),
@@ -2076,6 +2224,12 @@ fn rename_would_capture(
     if let Some(function) = &target.function
         && let Some(owner) = &function.owner_identity
     {
+        if all_descriptors(semantic).any(|descriptor| {
+            descriptor.identity == *owner
+                && descriptor.fields.iter().any(|field| field.name == new_name)
+        }) {
+            return true;
+        }
         return all_functions(semantic).any(|candidate| {
             candidate.name == new_name
                 && candidate.owner_identity.as_ref() == Some(owner)
@@ -2180,7 +2334,26 @@ fn member_facts(
             });
         }
     }
-    for name in descriptor.members.iter().chain(&descriptor.static_members) {
+    if descriptor.members.contains("type") {
+        members.insert(
+            "type".to_owned(),
+            MemberFact {
+                name: "type".to_owned(),
+                identity: "/core/types::value.type".to_owned(),
+                kind: "property".to_owned(),
+                value_type: Availability::Known(
+                    crate::ValueType::Descriptor(descriptor.identity.qualified()).to_string(),
+                ),
+                declaration: Availability::Unsupported,
+            },
+        );
+    }
+    for name in descriptor
+        .members
+        .iter()
+        .chain(&descriptor.static_members)
+        .filter(|name| name.as_str() != "type")
+    {
         members.entry(name.clone()).or_insert_with(|| MemberFact {
             name: name.clone(),
             identity: descriptor
@@ -2200,21 +2373,6 @@ fn member_facts(
     members.into_values().collect()
 }
 
-fn node_contains_recovery(node: &SyntaxNode, diagnostics: &[Diagnostic]) -> bool {
-    matches!(node.kind, SyntaxKind::Error | SyntaxKind::Unsupported)
-        || diagnostics.iter().any(|diagnostic| {
-            diagnostic.primary.is_some_and(|span| {
-                span.file == node.span.file
-                    && span.start < node.span.end
-                    && node.span.start < span.end
-            })
-        })
-        || node
-            .children
-            .iter()
-            .any(|child| node_contains_recovery(child, diagnostics))
-}
-
 fn selector_matches(
     snapshot: &Snapshot,
     document: &ParsedDocument,
@@ -2222,7 +2380,12 @@ fn selector_matches(
     field: Option<&str>,
     selector: &Selector,
 ) -> bool {
-    if !selector.include_recovery && node_contains_recovery(node, &document.diagnostics) {
+    if !selector.include_recovery
+        && matches!(
+            syntax_state(node, &document.diagnostics),
+            SyntaxState::Error | SyntaxState::Recovery | SyntaxState::Unsupported
+        )
+    {
         return false;
     }
     if selector
@@ -2600,6 +2763,29 @@ fn valid_identifier(name: &str) -> bool {
             .all(|character| character == '_' || character == '-' || character.is_alphanumeric())
 }
 
+fn valid_declaration_identifier(name: &str) -> bool {
+    if !valid_identifier(name) {
+        return false;
+    }
+    let source = SourceFile::new(
+        0,
+        PathBuf::from("<rename-validation>"),
+        format!("function {name};\n"),
+    );
+    let lexed = crate::lexer::lex_recovering(&source);
+    if !lexed.diagnostics.is_empty() {
+        return false;
+    }
+    let parsed = crate::parser::parse(&source, lexed.lexed);
+    parsed.diagnostics.is_empty()
+        && parsed.tree.root.children.iter().any(|declaration| {
+            declaration.kind == SyntaxKind::FunctionDeclaration
+                && declaration.children.iter().any(|child| {
+                    child.kind == SyntaxKind::Name && node_text(&source, child) == name
+                })
+        })
+}
+
 fn spans_overlap(left: Span, right: Span) -> bool {
     left.file == right.file && left.start < right.end && right.start < left.end
 }
@@ -2619,6 +2805,9 @@ fn request_context(request: &Request) -> (Option<String>, Option<String>) {
             snapshot_id, uri, ..
         }
         | Request::References {
+            snapshot_id, uri, ..
+        }
+        | Request::Implementations {
             snapshot_id, uri, ..
         }
         | Request::GeneratedRust {
@@ -2784,6 +2973,54 @@ mod tests {
         assert!(!syntax.diagnostics.is_empty());
         assert_ne!(syntax.root.state, SyntaxState::Complete);
         assert_eq!(syntax.root.span.end, text.len());
+        let without_recovery = engine
+            .find(
+                &metadata.snapshot_id,
+                &Selector {
+                    kind: None,
+                    child_field: None,
+                    containing: None,
+                    text: None,
+                    token_kind: None,
+                    symbol_identity: None,
+                    descriptor_identity: None,
+                    include_recovery: false,
+                },
+                Some(MAX_PAGE_SIZE),
+                None,
+            )
+            .expect("find valid and recovery-containing nodes");
+        assert!(
+            without_recovery
+                .matches
+                .iter()
+                .any(|object| object.state == SyntaxState::ContainsRecovery)
+        );
+        assert!(without_recovery.matches.iter().all(|object| !matches!(
+            object.state,
+            SyntaxState::Error | SyntaxState::Recovery | SyntaxState::Unsupported
+        )));
+        let with_recovery = engine
+            .find(
+                &metadata.snapshot_id,
+                &Selector {
+                    kind: None,
+                    child_field: None,
+                    containing: None,
+                    text: None,
+                    token_kind: None,
+                    symbol_identity: None,
+                    descriptor_identity: None,
+                    include_recovery: true,
+                },
+                Some(MAX_PAGE_SIZE),
+                None,
+            )
+            .expect("find directly recovered nodes");
+        assert!(with_recovery.matches.iter().any(|object| matches!(
+            object.state,
+            SyntaxState::Error | SyntaxState::Recovery | SyntaxState::Unsupported
+        )));
     }
 
     #[test]
@@ -3035,7 +3272,7 @@ mod tests {
     fn member_navigation_uses_receiver_type_instead_of_bare_name_resolution() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/members.trn";
-        let text = "namespace members\n\nclass first\n    function answer int;\n        return 1\n\nclass second\n    function answer int;\n        return 2\n\nfunction main;\n    left = instance first;\n    right = instance second;\n    one int = left.answer;\n    two int = right.answer;\n";
+        let text = "namespace members\n\nclass first\n    count int = 0\n\n    function answer int;\n        return 1\n\nclass second\n    function answer int;\n        return 2\n\nfunction main;\n    left = instance first;\n    right = instance second;\n    one int = left.answer;\n    two int = right.answer;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3070,13 +3307,54 @@ mod tests {
         assert!(left_references.iter().all(|location| {
             location.span != right_definition.span && location.span.start != right_use
         }));
+        let capture = engine
+            .propose_rename(&metadata.snapshot_id, uri, left_use, "count")
+            .expect_err("method rename must not capture a field");
+        assert_eq!(capture.code, "rename-capture");
+        let keyword = engine
+            .propose_rename(&metadata.snapshot_id, uri, left_use, "instance")
+            .expect_err("reserved keyword is not a declaration name");
+        assert_eq!(keyword.code, "invalid-name");
+    }
+
+    #[test]
+    fn implementation_navigation_finds_descriptor_and_method_implementors() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/implementations.trn";
+        let text = "namespace implementations\n\ninterface worker\n    function run int;\n\nclass first implements worker\n    function run int;\n        return 1\n\nclass second implements worker\n    function run int;\n        return 2\n\nfunction main;\n";
+        let metadata = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let descriptor_offset = text.find("worker").expect("interface name");
+        let Availability::Known(descriptors) = engine
+            .implementations(&metadata.snapshot_id, uri, descriptor_offset)
+            .expect("descriptor implementations")
+        else {
+            panic!("descriptor implementations should be known");
+        };
+        assert_eq!(descriptors.len(), 2);
+
+        let method_offset = text.find("run int").expect("interface method");
+        let Availability::Known(methods) = engine
+            .implementations(&metadata.snapshot_id, uri, method_offset)
+            .expect("method implementations")
+        else {
+            panic!("method implementations should be known");
+        };
+        assert_eq!(methods.len(), 2);
     }
 
     #[test]
     fn semantic_objects_report_callable_and_descriptor_facts() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/facts.trn";
-        let text = "namespace facts\n\nfrom /core/errors import coercion-error\nfrom /core/types import int as number\n\nclass base\n    value number = 1\n\nclass child extends base\n    async function compute number throws coercion-error;\n        throw coercion-error\n\nasync function main;\n    item = instance child;\n    result number = await item.compute;\n";
+        let text = "namespace facts\n\nfrom /core/errors import coercion-error\nfrom /core/types import int as number\n\nclass base\n    value number = 1\n\nclass child extends base\n    async function compute number throws coercion-error;\n        throw coercion-error\n\nasync function main;\n    item = instance child;\n    descriptor = item.type\n    result number = await item.compute;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3133,6 +3411,17 @@ mod tests {
         };
         assert!(members.iter().any(|member| member.name == "compute"));
         assert!(members.iter().any(|member| member.name == "value"));
+        let type_offset = text.find("item.type").expect("universal type use") + "item.".len();
+        let type_member = engine
+            .locate(&metadata.snapshot_id, uri, type_offset)
+            .expect("type member query")
+            .expect("type member object");
+        assert_eq!(
+            type_member.symbol_identity,
+            Availability::Known("/core/types::value.type".to_owned())
+        );
+        assert_eq!(type_member.declaration, Availability::Unsupported);
+        assert!(matches!(type_member.value_type, Availability::Known(_)));
     }
 
     #[test]
@@ -3202,6 +3491,25 @@ mod tests {
             panic!("local references should be known");
         };
         assert_eq!(references.len(), 2);
+        let declaration = engine
+            .locate(&snapshot.snapshot_id, uri, declaration_offset)
+            .expect("local declaration query")
+            .expect("local declaration object");
+        assert!(matches!(
+            &declaration.symbol_identity,
+            Availability::Known(identity) if identity.contains("::scope")
+        ));
+        let Availability::Known(declaration_references) = engine
+            .references(&snapshot.snapshot_id, uri, declaration_offset)
+            .expect("references from declaration")
+        else {
+            panic!("declaration references should be known");
+        };
+        assert_eq!(declaration_references, references);
+        let proposal = engine
+            .propose_rename(&snapshot.snapshot_id, uri, declaration_offset, "computed")
+            .expect("rename from declaration");
+        assert_eq!(proposal.replacements.len(), 2);
     }
 
     #[test]
@@ -3346,6 +3654,85 @@ mod tests {
         assert_eq!(
             expired.error.as_ref().map(|error| error.code.as_str()),
             Some("expired-snapshot")
+        );
+    }
+    #[test]
+    fn real_dependency_inputs_drive_snapshot_and_projection_invalidation() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/conformance/check/rust-dependency-reqwest")
+            .canonicalize()
+            .expect("dependency fixture");
+        let directory = TemporaryDirectory::new("dependency-invalidation");
+        let source_directory = directory.path().join("src");
+        fs::create_dir_all(&source_directory).expect("temporary package source directory");
+        let manifest_path = directory.path().join("package.toml");
+        let source_path = source_directory.join("main.trn");
+        fs::copy(fixture.join("package.toml"), &manifest_path).expect("copy manifest");
+        fs::copy(fixture.join("src/main.trn"), &source_path).expect("copy source");
+        fs::copy(
+            fixture.join("terrane-projection.lock"),
+            directory.path().join("terrane-projection.lock"),
+        )
+        .expect("copy projection lock");
+        let manifest_text = fs::read_to_string(&manifest_path).expect("manifest");
+        let source_text = fs::read_to_string(&source_path).expect("source");
+        let manifest_uri = format!("file://{}", manifest_path.display());
+        let source_uri = format!("file://{}", source_path.display());
+        let mut engine = ToolingEngine::default();
+        let open_dependency = |engine: &mut ToolingEngine, manifest: &str, source: &str| {
+            engine
+                .open_snapshot(
+                    vec![SourceInput {
+                        uri: source_uri.clone(),
+                        text: source.to_owned(),
+                    }],
+                    Some(SourceInput {
+                        uri: manifest_uri.clone(),
+                        text: manifest.to_owned(),
+                    }),
+                    None,
+                    SnapshotOptions {
+                        semantic: true,
+                        ..SnapshotOptions::default()
+                    },
+                )
+                .expect("dependency snapshot")
+        };
+        let first = open_dependency(&mut engine, &manifest_text, &source_text);
+        let Availability::Known(first_projection) = &first.dependency_projection else {
+            panic!("real dependency projection should be known");
+        };
+        assert!(
+            first_projection
+                .dependencies
+                .iter()
+                .any(|dependency| dependency.starts_with("reqwest@"))
+        );
+
+        let edited_source = format!("{source_text}\n# editor overlay\n");
+        let source_changed = open_dependency(&mut engine, &manifest_text, &edited_source);
+        let Availability::Known(source_projection) = &source_changed.dependency_projection else {
+            panic!("overlay dependency projection should be known");
+        };
+        assert_ne!(first.snapshot_id, source_changed.snapshot_id);
+        assert_eq!(
+            first_projection.cache_identity,
+            source_projection.cache_identity
+        );
+
+        let changed_manifest = manifest_text.replace(
+            "default-features = false",
+            "default-features = false\neffects = [\"networking\"]",
+        );
+        let dependency_changed = open_dependency(&mut engine, &changed_manifest, &source_text);
+        let Availability::Known(changed_projection) = &dependency_changed.dependency_projection
+        else {
+            panic!("changed dependency projection should be known");
+        };
+        assert_ne!(first.snapshot_id, dependency_changed.snapshot_id);
+        assert_ne!(
+            first_projection.cache_identity,
+            changed_projection.cache_identity
         );
     }
 }

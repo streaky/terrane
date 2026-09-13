@@ -7,8 +7,8 @@ This document is the compatibility reference for the compiler-owned source-intel
 
 `terrane tooling --stdio` reads and writes one UTF-8 JSON object per line. Standard output contains
 protocol frames only. `terrane query --request <json-file>` accepts one request or an array and emits
-one response envelope per request. Within an array, `$last` and `$last-build` refer to the preceding
-successful snapshot and generated build.
+one response envelope per request. Within an array or one JSON-lines session, `$last`, `$last-build`,
+and `$last-proposal` refer to the latest successful snapshot, generated build, and edit proposal.
 
 Every request has:
 
@@ -202,6 +202,14 @@ paths.
 
 LSP clients do not call disk apply. The language server converts proposals to versioned workspace
 edits for the editor to apply.
+
+## Language-server surface
+
+The language server advertises the standard diagnostics, completion, hover, definition, references,
+implementation, rename, document-symbol, formatting, code-action, signature-help, and semantic-token
+capabilities. Its source code action formats the current document. The custom
+`terrane/generatedRust` request accepts a text-document position and returns the same availability-
+tagged exact-build generated locations as `generated-rust`.
 
 ## Formatting
 

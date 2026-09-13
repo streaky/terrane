@@ -3,18 +3,22 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
 
+use serde::{Deserialize, Serialize};
 use terrane_compiler::highlight::{Highlight, HighlightKind, highlight};
 #[cfg(test)]
 use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity};
 use terrane_compiler::{SourceFile, Span};
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::ls_types::request::{GotoImplementationParams, GotoImplementationResponse};
 use tower_lsp_server::ls_types::{
-    CompletionItem, CompletionItemKind, CompletionOptions, CompletionParams, CompletionResponse,
-    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DocumentChanges, DocumentFormattingParams, DocumentSymbol,
-    DocumentSymbolParams, DocumentSymbolResponse, Documentation, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams,
+    CodeActionProviderCapability, CodeActionResponse, CompletionItem, CompletionItemKind,
+    CompletionOptions, CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DocumentChanges, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
+    DocumentSymbolResponse, Documentation, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverContents, HoverParams, HoverProviderCapability, ImplementationProviderCapability,
     InitializeParams, InitializeResult, InitializedParams, Location as LspLocation, MarkedString,
     MessageType, NumberOrString, OneOf, OptionalVersionedTextDocumentIdentifier,
     ParameterInformation, ParameterLabel, Position, PositionEncodingKind, Range, ReferenceParams,
@@ -22,8 +26,8 @@ use tower_lsp_server::ls_types::{
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
     SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
     SignatureHelp, SignatureHelpOptions, SignatureHelpParams, SignatureInformation, SymbolKind,
-    TextDocumentEdit, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
-    WorkspaceEdit,
+    TextDocumentEdit, TextDocumentIdentifier, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextEdit, Uri, WorkspaceEdit,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -55,6 +59,19 @@ struct Analysis {
     diagnostics: Vec<terrane_compiler::tooling::DiagnosticProjection>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedRustParams {
+    text_document: TextDocumentIdentifier,
+    position: Position,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedRustResponse {
+    availability:
+        terrane_compiler::tooling::Availability<Vec<terrane_compiler::tooling::GeneratedLocation>>,
+}
 #[derive(Debug)]
 pub struct Backend {
     client: Client,
@@ -87,7 +104,7 @@ impl Backend {
             .map(|(uri, document)| (uri.to_string(), document.text.clone()))
             .collect::<HashMap<_, _>>();
         overlays.insert(uri_text.clone(), text.to_owned());
-        let (sources, manifest, package_snapshot) = package_snapshot_inputs(uri, text, &overlays)
+        let (sources, manifest, _package_snapshot) = package_snapshot_inputs(uri, text, &overlays)
             .unwrap_or_else(|| {
                 (
                     vec![terrane_compiler::tooling::SourceInput {
@@ -104,42 +121,21 @@ impl Backend {
             .collect();
         let (metadata, syntax) = {
             let mut tooling = self.tooling.lock().expect("tooling engine lock");
-            let mut metadata = tooling
+            let metadata = tooling
                 .open_snapshot(
-                    sources.clone(),
-                    manifest.clone(),
+                    sources,
+                    manifest,
                     None,
                     terrane_compiler::tooling::SnapshotOptions {
-                        semantic: package_snapshot,
+                        semantic: true,
+                        generated: true,
                         ..terrane_compiler::tooling::SnapshotOptions::default()
                     },
                 )
                 .expect("in-memory editor sources are valid snapshot inputs");
-            let mut syntax = tooling
+            let syntax = tooling
                 .syntax(&metadata.snapshot_id, &uri_text, None)
                 .expect("the opened source belongs to its snapshot");
-            let has_namespace = syntax
-                .root
-                .children
-                .iter()
-                .any(|child| child.node.kind == "NamespaceDeclaration");
-            if !package_snapshot && syntax.diagnostics.is_empty() && has_namespace {
-                let _ = tooling.close_snapshot(&metadata.snapshot_id);
-                metadata = tooling
-                    .open_snapshot(
-                        sources,
-                        manifest,
-                        None,
-                        terrane_compiler::tooling::SnapshotOptions {
-                            semantic: true,
-                            ..terrane_compiler::tooling::SnapshotOptions::default()
-                        },
-                    )
-                    .expect("in-memory editor sources are valid semantic snapshot inputs");
-                syntax = tooling
-                    .syntax(&metadata.snapshot_id, &uri_text, None)
-                    .expect("the semantic snapshot retains its source syntax");
-            }
             (metadata, syntax)
         };
         Analysis {
@@ -219,6 +215,57 @@ impl Backend {
             .publish_diagnostics(uri, diagnostics, Some(version))
             .await;
     }
+    /// Finds generated Rust associated with the Terrane syntax at a document position.
+    ///
+    /// # Errors
+    ///
+    /// Returns an LSP error when snapshot lookup fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an internal language-server state lock is poisoned.
+    pub async fn generated_rust(
+        &self,
+        params: GeneratedRustParams,
+    ) -> Result<Option<GeneratedRustResponse>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let Some(offset) = byte_offset(&document.text, params.position, &encoding) else {
+            return Ok(None);
+        };
+        let tooling = self.tooling.lock().expect("tooling engine lock");
+        let Some(object) = tooling
+            .locate(&document.snapshot_id, &uri.to_string(), offset)
+            .ok()
+            .flatten()
+        else {
+            return Ok(None);
+        };
+        let metadata = tooling.metadata(&document.snapshot_id).ok();
+        let Some(terrane_compiler::tooling::Availability::Known(build_id)) =
+            metadata.map(|metadata| metadata.build_id)
+        else {
+            return Ok(Some(GeneratedRustResponse {
+                availability: terrane_compiler::tooling::Availability::NotYetAnalyzed,
+            }));
+        };
+        let availability = tooling
+            .generated_rust(
+                &document.snapshot_id,
+                &uri.to_string(),
+                object.syntax_node_id,
+                &build_id,
+            )
+            .unwrap_or(terrane_compiler::tooling::Availability::Unresolved);
+        Ok(Some(GeneratedRustResponse { availability }))
+    }
 }
 
 impl LanguageServer for Backend {
@@ -274,6 +321,8 @@ impl LanguageServer for Backend {
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Left(true)),
+                implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
+                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 document_formatting_provider: Some(OneOf::Left(true)),
                 ..Default::default()
@@ -579,6 +628,46 @@ impl LanguageServer for Backend {
             .map(GotoDefinitionResponse::Scalar))
     }
 
+    async fn goto_implementation(
+        &self,
+        params: GotoImplementationParams,
+    ) -> Result<Option<GotoImplementationResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let Some(offset) = byte_offset(
+            &document.text,
+            params.text_document_position_params.position,
+            &encoding,
+        ) else {
+            return Ok(None);
+        };
+        let implementations = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .implementations(&document.snapshot_id, &uri.to_string(), offset)
+            .ok();
+        let Some(terrane_compiler::tooling::Availability::Known(implementations)) = implementations
+        else {
+            return Ok(None);
+        };
+        let mut locations = Vec::new();
+        for implementation in implementations {
+            if let Some(location) = lsp_location(&implementation, &self.documents, &encoding).await
+            {
+                locations.push(location);
+            }
+        }
+        Ok(Some(GotoImplementationResponse::Array(locations)))
+    }
+
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<LspLocation>>> {
         let uri = params.text_document_position.text_document.uri;
         let Some(document) = self.documents.read().await.get(&uri).cloned() else {
@@ -733,6 +822,45 @@ impl LanguageServer for Backend {
         let mut symbols = Vec::new();
         collect_document_symbols(&syntax.root, &document.text, &encoding, &mut symbols);
         Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+    }
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let formatted = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .format(&document.snapshot_id, &uri.to_string())
+            .ok();
+        let Some(formatted) = formatted else {
+            return Ok(None);
+        };
+        if !formatted.changed {
+            return Ok(Some(Vec::new()));
+        }
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let edit = TextEdit {
+            range: Range::new(
+                Position::new(0, 0),
+                position_for_offset(&document.text, document.text.len(), &encoding),
+            ),
+            new_text: formatted.text,
+        };
+        Ok(Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
+            title: "Format Terrane document".to_owned(),
+            kind: Some(CodeActionKind::SOURCE),
+            edit: Some(WorkspaceEdit {
+                changes: Some(HashMap::from([(uri, vec![edit])])),
+                ..WorkspaceEdit::default()
+            }),
+            ..CodeAction::default()
+        })]))
     }
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {

@@ -1111,7 +1111,7 @@ fn run_tooling(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
-    let mut engine = terrane_compiler::tooling::ToolingEngine::default();
+    let mut session = ToolingSession::default();
     for line in stdin.lock().lines() {
         let line = line.map_err(|error| {
             CliFailure::diagnostic(
@@ -1124,13 +1124,9 @@ fn run_tooling(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         if line.trim().is_empty() {
             continue;
         }
-        let request_id = serde_json::from_str::<serde_json::Value>(&line)
-            .ok()
-            .as_ref()
-            .and_then(request_id_from_value);
         let response = match serde_json::from_str(&line) {
-            Ok(request) => engine.handle(request),
-            Err(error) => protocol_parse_error(&error, request_id),
+            Ok(value) => session.handle_value(value),
+            Err(error) => protocol_parse_error(&error, None),
         };
         serde_json::to_writer(&mut output, &response).map_err(|error| {
             CliFailure::diagnostic(
@@ -1183,39 +1179,11 @@ fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             return Ok(ExitCode::from(4));
         }
     };
-    let mut engine = terrane_compiler::tooling::ToolingEngine::default();
-    let mut last_build: Option<String> = None;
-    let mut last_snapshot: Option<String> = None;
+    let mut session = ToolingSession::default();
     let mut failed = false;
-    for mut value in values {
-        if value.get("snapshot_id").and_then(serde_json::Value::as_str) == Some("$last")
-            && let Some(snapshot_id) = &last_snapshot
-        {
-            value["snapshot_id"] = serde_json::Value::String(snapshot_id.clone());
-        }
-        if value.get("build_id").and_then(serde_json::Value::as_str) == Some("$last-build")
-            && let Some(build_id) = &last_build
-        {
-            value["build_id"] = serde_json::Value::String(build_id.clone());
-        }
-        let request_id = request_id_from_value(&value);
-        let response = match serde_json::from_value(value) {
-            Ok(request) => engine.handle(request),
-            Err(error) => protocol_parse_error(&error, request_id),
-        };
+    for value in values {
+        let response = session.handle_value(value);
         failed |= response.error.is_some();
-        if response.error.is_none() && response.snapshot_id.is_some() {
-            last_snapshot.clone_from(&response.snapshot_id);
-        }
-        if let Some(build_id) = response
-            .result
-            .as_ref()
-            .and_then(|result| result.get("build_id"))
-            .and_then(|build_id| build_id.get("known"))
-            .and_then(serde_json::Value::as_str)
-        {
-            last_build = Some(build_id.to_owned());
-        }
         println!(
             "{}",
             serde_json::to_string(&response).expect("tooling responses are serializable")
@@ -1323,6 +1291,77 @@ fn tooling_failure(error: terrane_compiler::tooling::ProtocolError) -> CliFailur
     )
 }
 
+#[derive(Default)]
+struct ToolingSession {
+    engine: terrane_compiler::tooling::ToolingEngine,
+    last_snapshot: Option<String>,
+    last_build: Option<String>,
+    last_proposal: Option<String>,
+}
+
+impl ToolingSession {
+    fn handle_value(
+        &mut self,
+        mut value: serde_json::Value,
+    ) -> terrane_compiler::tooling::ResponseEnvelope {
+        let request_id = request_id_from_value(&value);
+        if let Some(schema_version) = value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_str)
+            && schema_version != terrane_compiler::tooling::SCHEMA_VERSION
+        {
+            return protocol_error_response(
+                "unsupported-schema",
+                format!(
+                    "unsupported schema version `{schema_version}`; expected `{}`",
+                    terrane_compiler::tooling::SCHEMA_VERSION
+                ),
+                request_id,
+            );
+        }
+        if value.get("snapshot_id").and_then(serde_json::Value::as_str) == Some("$last")
+            && let Some(snapshot_id) = &self.last_snapshot
+        {
+            value["snapshot_id"] = serde_json::Value::String(snapshot_id.clone());
+        }
+        if value.get("build_id").and_then(serde_json::Value::as_str) == Some("$last-build")
+            && let Some(build_id) = &self.last_build
+        {
+            value["build_id"] = serde_json::Value::String(build_id.clone());
+        }
+        if value.get("proposal_id").and_then(serde_json::Value::as_str) == Some("$last-proposal")
+            && let Some(proposal_id) = &self.last_proposal
+        {
+            value["proposal_id"] = serde_json::Value::String(proposal_id.clone());
+        }
+        let response = match serde_json::from_value(value) {
+            Ok(request) => self.engine.handle(request),
+            Err(error) => protocol_parse_error(&error, request_id),
+        };
+        if response.error.is_none() && response.snapshot_id.is_some() {
+            self.last_snapshot.clone_from(&response.snapshot_id);
+        }
+        if let Some(build_id) = response
+            .result
+            .as_ref()
+            .and_then(|result| result.get("build_id"))
+            .and_then(|build_id| build_id.get("known"))
+            .and_then(serde_json::Value::as_str)
+        {
+            self.last_build = Some(build_id.to_owned());
+        }
+        if let Some(proposal_id) = response
+            .result
+            .as_ref()
+            .and_then(|result| result.get("proposal_id"))
+            .and_then(serde_json::Value::as_str)
+        {
+            self.last_proposal = Some(proposal_id.to_owned());
+        }
+        response
+    }
+}
+
 fn request_id_from_value(value: &serde_json::Value) -> Option<String> {
     value.get("request_id").map(|request_id| {
         request_id
@@ -1331,8 +1370,9 @@ fn request_id_from_value(value: &serde_json::Value) -> Option<String> {
     })
 }
 
-fn protocol_parse_error(
-    error: &serde_json::Error,
+fn protocol_error_response(
+    code: &str,
+    message: String,
     request_id: Option<String>,
 ) -> terrane_compiler::tooling::ResponseEnvelope {
     terrane_compiler::tooling::ResponseEnvelope {
@@ -1344,12 +1384,19 @@ fn protocol_parse_error(
         source_hash: None,
         result: None,
         error: Some(terrane_compiler::tooling::ProtocolError {
-            code: "invalid-json".to_owned(),
-            message: error.to_string(),
+            code: code.to_owned(),
+            message,
             retry_fresh_query: false,
             apply_report: None,
         }),
     }
+}
+
+fn protocol_parse_error(
+    error: &serde_json::Error,
+    request_id: Option<String>,
+) -> terrane_compiler::tooling::ResponseEnvelope {
+    protocol_error_response("invalid-json", error.to_string(), request_id)
 }
 
 fn usage() -> String {
@@ -1371,7 +1418,6 @@ fn usage() -> String {
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

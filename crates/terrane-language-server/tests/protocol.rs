@@ -92,7 +92,10 @@ fn serves_semantic_tokens_for_an_open_document() {
     );
     let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
     assert_eq!(diagnostics["params"]["version"], 1);
-    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
+    assert_eq!(
+        diagnostics["params"]["diagnostics"][0]["code"],
+        json!("S2002")
+    );
     send(
         &mut stdin,
         &json!({
@@ -166,11 +169,19 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
         initialized["result"]["capabilities"]["documentFormattingProvider"],
         true
     );
+    assert_eq!(
+        initialized["result"]["capabilities"]["implementationProvider"],
+        true
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["codeActionProvider"],
+        true
+    );
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
     );
-    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nasync function main;\n    value int = answer;\n";
+    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nasync function main;\n    value int = answer;\n\ninterface worker\n    function work int;\n\nclass machine implements worker\n    function work int;\n        return 1\n";
     send(
         &mut stdin,
         &json!({
@@ -268,9 +279,66 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
 
     send(
         &mut stdin,
-        &json!({"jsonrpc": "2.0", "id": 6, "method": "shutdown", "params": null}),
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "textDocument/implementation",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 9, "character": 13}
+            }
+        }),
     );
-    let _ = receive_response(&mut stdout, 6);
+    let implementations = receive_response(&mut stdout, 6);
+    assert_eq!(
+        implementations["result"][0]["range"]["start"],
+        json!({"line": 12, "character": 13})
+    );
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "textDocument/codeAction",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {"line": 0, "character": 0}
+                },
+                "context": {"diagnostics": []}
+            }
+        }),
+    );
+    let actions = receive_response(&mut stdout, 7);
+    assert_eq!(actions["result"][0]["kind"], "source");
+    assert_eq!(actions["result"][0]["title"], "Format Terrane document");
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 8,
+            "method": "terrane/generatedRust",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 6, "character": 16}
+            }
+        }),
+    );
+    let generated = receive_response(&mut stdout, 8);
+    assert!(
+        generated["result"]["availability"]["known"]
+            .as_array()
+            .is_some_and(|locations| !locations.is_empty())
+    );
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 9, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 9);
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),

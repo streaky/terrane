@@ -487,8 +487,9 @@ fn tooling_stdio_returns_envelopes_for_malformed_requests() {
         "operation": "open-snapshot",
         "sources": [{
             "uri": "file:///workspace/client.trn",
-            "text": "function main;\n"
-        }]
+            "text": "namespace client\n\nfunction main;\n"
+        }],
+        "options": {"semantic": true, "generated": true}
     });
     let mut service = Command::new(binary)
         .args(["tooling", "--stdio"])
@@ -498,6 +499,42 @@ fn tooling_stdio_returns_envelopes_for_malformed_requests() {
         .unwrap();
     let mut stdin = service.stdin.take().unwrap();
     writeln!(stdin, "{request}").unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "syntax-stdio",
+            "operation": "syntax",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn"
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "generated-stdio",
+            "operation": "generated-rust",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn",
+            "node_id": 0,
+            "build_id": "$last-build"
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": "999.0",
+            "request_id": "future-schema",
+            "operation": "unknown-future-operation"
+        })
+    )
+    .unwrap();
     writeln!(
         stdin,
         "{}",
@@ -520,11 +557,83 @@ fn tooling_stdio_returns_envelopes_for_malformed_requests() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(frames.len(), 3);
+    assert_eq!(frames.len(), 6);
     assert!(frames[0]["error"].is_null());
-    assert_eq!(frames[1]["request_id"], "42");
-    assert_eq!(frames[1]["error"]["code"], "invalid-json");
-    assert_eq!(frames[2]["error"]["code"], "invalid-json");
+    assert_eq!(frames[1]["result"]["root"]["kind"], "CompilationUnit");
+    assert!(frames[2]["result"]["known"].is_array());
+    assert_eq!(frames[3]["error"]["code"], "unsupported-schema");
+    assert_eq!(frames[4]["request_id"], "42");
+    assert_eq!(frames[4]["error"]["code"], "invalid-json");
+    assert_eq!(frames[5]["error"]["code"], "invalid-json");
+}
+
+#[test]
+fn external_query_client_applies_a_multi_file_rename() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("external-rename");
+    let app = directory.path().join("app");
+    let child_directory = app.join("child");
+    fs::create_dir_all(&child_directory).unwrap();
+    let manifest_path = directory.path().join("package.toml");
+    let main_path = app.join("main.trn");
+    let child_path = child_directory.join("child.trn");
+    let request_path = directory.path().join("rename.json");
+    let manifest = "package = \"external-rename\"\n[namespaces]\napp = \"app\"\n";
+    let main = "namespace app\n\npublic function answer int;\n    return 1\n";
+    let child = "namespace app/child\n\nfunction use-answer int;\n    return answer;\n";
+    fs::write(&manifest_path, manifest).unwrap();
+    fs::write(&main_path, main).unwrap();
+    fs::write(&child_path, child).unwrap();
+    let main_uri = format!("file://{}", main_path.display());
+    let child_uri = format!("file://{}", child_path.display());
+    let manifest_uri = format!("file://{}", manifest_path.display());
+    let requests = serde_json::json!([
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "open-rename",
+            "operation": "open-snapshot",
+            "sources": [
+                {"uri": main_uri, "text": main},
+                {"uri": child_uri, "text": child}
+            ],
+            "manifest": {"uri": manifest_uri, "text": manifest},
+            "options": {"semantic": true}
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "propose-rename",
+            "operation": "propose-rename",
+            "snapshot_id": "$last",
+            "uri": child_uri,
+            "offset": child.rfind("answer").unwrap(),
+            "new_name": "computed-answer"
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "apply-rename",
+            "operation": "apply-edits",
+            "proposal_id": "$last-proposal"
+        }
+    ]);
+    fs::write(&request_path, requests.to_string()).unwrap();
+    let output = Command::new(binary)
+        .args(["query", "--request"])
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let frames = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(frames.lines().count(), 3);
+    assert!(
+        fs::read_to_string(main_path)
+            .unwrap()
+            .contains("function computed-answer int")
+    );
+    assert!(
+        fs::read_to_string(child_path)
+            .unwrap()
+            .contains("return computed-answer;")
+    );
 }
 
 #[test]
