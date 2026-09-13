@@ -1165,7 +1165,7 @@ mod tests {
 
     #[test]
     fn document_symbols_come_from_compiler_snapshot_fields() {
-        let text = "namespace symbols\n\nfunction main;\n    value int = 1\n";
+        let text = "namespace symbols\n\nasync function main;\n    value int = 1\n";
         let uri = "file:///workspace/symbols.trn";
         let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
         let snapshot = tooling
@@ -1192,6 +1192,7 @@ mod tests {
 
         assert!(symbols.iter().any(|symbol| symbol.name == "main"));
         assert!(symbols.iter().any(|symbol| symbol.name == "value"));
+        assert!(!symbols.iter().any(|symbol| symbol.name == "async"));
     }
 
     #[test]

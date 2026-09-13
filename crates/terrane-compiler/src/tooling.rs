@@ -1381,7 +1381,7 @@ fn project_tree(node: &SyntaxNode, next_id: &mut u64) -> SyntaxNodeProjection {
         .iter()
         .enumerate()
         .map(|(index, child)| SyntaxChild {
-            field: child_field(node.kind, index).to_owned(),
+            field: child_field(node.kind, index, child.kind).to_owned(),
             node: project_tree(child, next_id),
         })
         .collect();
@@ -1403,8 +1403,8 @@ fn find_projected_node(node: &SyntaxNodeProjection, wanted: u64) -> Option<&Synt
         .find_map(|child| find_projected_node(&child.node, wanted))
 }
 
-fn child_field(parent: SyntaxKind, index: usize) -> &'static str {
-    if index == 0
+fn child_field(parent: SyntaxKind, index: usize, child: SyntaxKind) -> &'static str {
+    if child == SyntaxKind::Name
         && matches!(
             parent,
             SyntaxKind::Binding
@@ -1416,21 +1416,24 @@ fn child_field(parent: SyntaxKind, index: usize) -> &'static str {
     {
         return "name";
     }
-    match (parent, index) {
-        (SyntaxKind::Binding, 1) => "type",
-        (SyntaxKind::Binding, 2)
-        | (SyntaxKind::Assignment, 1)
-        | (SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement, 0) => "value",
-        (SyntaxKind::FunctionDeclaration, 1) => "parameters",
-        (SyntaxKind::FunctionDeclaration, _)
-        | (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, 1..) => "body",
-        (SyntaxKind::Assignment, 0) => "target",
-        (SyntaxKind::CallExpression, 0) => "callee",
-        (SyntaxKind::CallExpression, 1) => "arguments",
-        (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, 0) => "receiver",
-        (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, 1) => "member",
-        (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, 0) => "condition",
-        (SyntaxKind::CompilationUnit | SyntaxKind::Block, _) => "item",
+    match (parent, child, index) {
+        (SyntaxKind::Binding, SyntaxKind::TypeExpression, _) => "type",
+        (SyntaxKind::Binding, _, _) => "value",
+        (SyntaxKind::FunctionDeclaration, SyntaxKind::ParameterList, _) => "parameters",
+        (SyntaxKind::FunctionDeclaration, SyntaxKind::Block, _) => "body",
+        (SyntaxKind::FunctionDeclaration, SyntaxKind::TypeExpression, _) => "return-type",
+        (SyntaxKind::FunctionDeclaration, SyntaxKind::EffectClause, _) => "effects",
+        (SyntaxKind::FunctionDeclaration, SyntaxKind::DeclarationQualifier, _) => "qualifier",
+        (SyntaxKind::Assignment, _, 0) => "target",
+        (SyntaxKind::Assignment, _, 1) => "value",
+        (SyntaxKind::CallExpression, _, 0) => "callee",
+        (SyntaxKind::CallExpression, _, 1) => "arguments",
+        (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, _, 0) => "receiver",
+        (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, _, 1) => "member",
+        (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, _, 0) => "condition",
+        (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, SyntaxKind::Block, _) => "body",
+        (SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement, _, 0) => "value",
+        (SyntaxKind::CompilationUnit | SyntaxKind::Block, _, _) => "item",
         _ => "child",
     }
 }
@@ -1467,7 +1470,12 @@ fn walk_nodes(
         *next = next.saturating_add(1);
         visit(node, field, id);
         for (index, child) in node.children.iter().enumerate() {
-            recurse(child, Some(child_field(node.kind, index)), next, visit);
+            recurse(
+                child,
+                Some(child_field(node.kind, index, child.kind)),
+                next,
+                visit,
+            );
         }
     }
     let mut next = 0;

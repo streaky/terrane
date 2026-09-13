@@ -170,7 +170,7 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
     );
-    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nfunction main;\n    value int = answer;\n";
+    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nasync function main;\n    value int = answer;\n";
     send(
         &mut stdin,
         &json!({
@@ -246,9 +246,31 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
 
     send(
         &mut stdin,
-        &json!({"jsonrpc": "2.0", "id": 5, "method": "shutdown", "params": null}),
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "textDocument/documentSymbol",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"}
+            }
+        }),
     );
-    let _ = receive_response(&mut stdout, 5);
+    let symbols = receive_response(&mut stdout, 5);
+    let names = symbols["result"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|symbol| symbol["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&"answer"));
+    assert!(names.contains(&"main"));
+    assert!(!names.contains(&"async"));
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 6, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 6);
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
