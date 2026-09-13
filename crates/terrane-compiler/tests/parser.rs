@@ -316,6 +316,10 @@ fn rejects_malformed_select_boundaries() {
         "async function choose;\n  select\n    case value = prefix + await first\n    case await second\n",
         "S1103",
     );
+    rejected(
+        "async function choose;\n  select\n    case global value = await first\n      return\n    case await second\n      return\n",
+        "S1105",
+    );
     rejected("async function choose;\n  select\n    return\n", "S1101");
 }
 

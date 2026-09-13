@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-fn await_expression(case: &SyntaxNode) -> Option<(&SyntaxNode, Option<Span>, &SyntaxNode)> {
+fn await_expression(case: &SyntaxNode) -> Option<(&SyntaxNode, Span, Option<Span>, &SyntaxNode)> {
     let [header, body] = case.children.as_slice() else {
         return None;
     };
@@ -10,7 +10,7 @@ fn await_expression(case: &SyntaxNode) -> Option<(&SyntaxNode, Option<Span>, &Sy
         (header, None)
     };
     let operand = awaited.children.last()?;
-    Some((operand, binding, body))
+    Some((operand, awaited.span, binding, body))
 }
 
 fn operation_kind(
@@ -94,7 +94,7 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
             }
             let mut cases = Vec::with_capacity(node.children.len());
             for case in &node.children {
-                let Some((operand, binding, body)) = await_expression(case) else {
+                let Some((operand, await_span, binding, body)) = await_expression(case) else {
                     continue;
                 };
                 let Some(result_type) = infer_value_type(unit, operand, &unit.typed_bindings)?
@@ -118,7 +118,7 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
                 };
                 cases.push(SemanticSelectionCase {
                     span: case.span,
-                    await_span: operand.span,
+                    await_span,
                     binding,
                     body: body.span,
                     result_type: result.value_type(),

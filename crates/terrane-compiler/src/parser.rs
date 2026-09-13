@@ -786,6 +786,20 @@ impl Parser<'_> {
         } else {
             Some(&header)
         };
+        if header.kind == SyntaxKind::Binding
+            && header.children.iter().any(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::Visibility | SyntaxKind::DeclarationQualifier
+                )
+            })
+        {
+            self.diagnostics.push(Diagnostic::error(
+                "S1105",
+                "a select case binding must be an ordinary local binding",
+                header.span,
+            ));
+        }
         let top_level_await = awaited.is_some_and(|expression| {
             expression.kind == SyntaxKind::UnaryExpression
                 && expression.children.first().is_some_and(|operator| {
