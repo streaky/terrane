@@ -1,3 +1,4 @@
+use proc_macro2::{TokenStream, TokenTree};
 use std::fmt::Write as _;
 use syn::fold::Fold as _;
 use syn::parse::Parser as _;
@@ -532,14 +533,30 @@ impl Item {
 }
 
 const VENDORED_SUPPORT_CRATES: [(&str, &str); 7] = [
-    ("terrane_int_support::", "terrane-int-support"),
-    ("terrane_collection_support::", "terrane-collection-support"),
-    ("terrane_scalar_support::", "terrane-scalar-support"),
-    ("terrane_string_support::", "terrane-string-support"),
-    ("terrane_document_support::", "terrane-document-support"),
-    ("terrane_stream_abi::", "terrane-stream-abi"),
-    ("terrane_platform_support::", "terrane-platform-support"),
+    ("terrane_int_support", "terrane-int-support"),
+    ("terrane_collection_support", "terrane-collection-support"),
+    ("terrane_scalar_support", "terrane-scalar-support"),
+    ("terrane_string_support", "terrane-string-support"),
+    ("terrane_document_support", "terrane-document-support"),
+    ("terrane_stream_abi", "terrane-stream-abi"),
+    ("terrane_platform_support", "terrane-platform-support"),
 ];
+
+fn token_stream_contains_ident(tokens: TokenStream, expected: &str) -> bool {
+    tokens.into_iter().any(|token| match token {
+        TokenTree::Group(group) => token_stream_contains_ident(group.stream(), expected),
+        TokenTree::Ident(ident) => ident == expected,
+        TokenTree::Punct(_) | TokenTree::Literal(_) => false,
+    })
+}
+
+fn push_manifest_line(output: &mut String, label: &str, values: &[&str]) {
+    write!(output, "// {label}:").expect("writing to a String cannot fail");
+    if !values.is_empty() {
+        write!(output, " {}", values.join(", ")).expect("writing to a String cannot fail");
+    }
+    output.push('\n');
+}
 
 impl RenderedProgram {
     pub(crate) fn standalone_file(&self, path: &str) -> RenderedFile {
@@ -565,23 +582,26 @@ impl RenderedProgram {
         }
     }
     pub(crate) fn review_file(&self) -> String {
-        let runtime_support = self.runtime_source_files().collect::<Vec<_>>().join(", ");
+        let runtime_support = self.runtime_source_files().collect::<Vec<_>>();
+        let tokens = self
+            .standalone
+            .contents
+            .parse::<TokenStream>()
+            .expect("rendered Rust must contain valid tokens");
         let vendored_support = VENDORED_SUPPORT_CRATES
             .iter()
             .filter_map(|(rust_name, package_name)| {
-                self.standalone
-                    .contents
-                    .contains(rust_name)
-                    .then_some(*package_name)
+                token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
             })
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!(
-            "// Generated deterministically by Terrane {}.\n\
-             // Runtime support: {runtime_support}\n\
-             // Vendored support crates: {vendored_support}\n{}",
-            self.version, self.review.contents
-        )
+            .collect::<Vec<_>>();
+        let mut output = format!(
+            "// Generated deterministically by Terrane {}.\n",
+            self.version
+        );
+        push_manifest_line(&mut output, "Runtime support", &runtime_support);
+        push_manifest_line(&mut output, "Vendored support crates", &vendored_support);
+        output.push_str(&self.review.contents);
+        output
     }
 
     fn runtime_source_files(&self) -> impl Iterator<Item = &'static str> + '_ {
@@ -681,6 +701,26 @@ impl Program {
             item.render_associated(&mut program, &mut program_associations);
         }
         render_modules(&self.modules, &mut program, &mut program_associations);
+        let mut review = String::new();
+        let mut review_associations = Vec::new();
+        for module in self
+            .runtime
+            .iter()
+            .filter(|module| module.source_files.is_empty())
+        {
+            for item in &module.items {
+                item.render_associated(&mut review, &mut review_associations);
+            }
+        }
+        let review_prefix_len = review.len();
+        review.push_str(&program);
+        review_associations.extend(program_associations.iter().map(|association| {
+            SourceAssociation {
+                generated_start: association.generated_start + review_prefix_len,
+                generated_end: association.generated_end + review_prefix_len,
+                source: association.source,
+            }
+        }));
         let mut standalone = runtime.clone();
         standalone.push_str(&program);
         let mut standalone_associations = runtime_associations.clone();
@@ -733,8 +773,8 @@ impl Program {
                 associations: application_associations,
             },
             review: RenderedFragment {
-                contents: program,
-                associations: program_associations,
+                contents: review,
+                associations: review_associations,
             },
         }
     }
@@ -875,11 +915,21 @@ mod tests {
             version: "test",
             requires_platform_support: false,
             requires_async_runtime: true,
-            runtime: vec![GeneratedModule {
-                name: "async",
-                source_files: vec!["async.rs"],
-                items: vec![Item::generated(runtime_body)],
-            }],
+            runtime: vec![
+                GeneratedModule {
+                    name: "async",
+                    source_files: vec!["async.rs"],
+                    items: vec![Item::generated(runtime_body)],
+                },
+                GeneratedModule {
+                    name: "sites",
+                    source_files: Vec::new(),
+                    items: vec![Item::generated(
+                        "static SITES: &[u32] = &[7];\n\
+                         static LABEL: &str = \"terrane_string_support\";",
+                    )],
+                },
+            ],
             globals: vec![Item::generated(
                 "static VALUE: terrane_int_support::Int = terrane_int_support::Int::ZERO;",
             )],
@@ -903,10 +953,33 @@ mod tests {
             "// Generated deterministically by Terrane test.\n\
              // Runtime support: async.rs\n\
              // Vendored support crates: terrane-int-support\n\
+             static SITES: &[u32] = &[7];\n\
+             static LABEL: &str = \"terrane_string_support\";\n\
              static VALUE: terrane_int_support::Int = terrane_int_support::Int::ZERO;\n\
              // Source: case.trn\n\
              // Namespace: case\n\
              fn main() {}\n"
+        );
+    }
+
+    #[test]
+    fn empty_review_manifests_have_no_trailing_spaces() {
+        let rendered = Program {
+            version: "test",
+            requires_platform_support: false,
+            requires_async_runtime: false,
+            runtime: Vec::new(),
+            globals: Vec::new(),
+            modules: Vec::new(),
+        }
+        .rendered()
+        .review_file();
+
+        assert_eq!(
+            rendered,
+            "// Generated deterministically by Terrane test.\n\
+             // Runtime support:\n\
+             // Vendored support crates:\n"
         );
     }
 
