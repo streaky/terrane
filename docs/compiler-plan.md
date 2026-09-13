@@ -227,10 +227,10 @@ Deliver three distinct identity-less values:
 The initial duration construction surface is:
 
 ```terrane
-one-second duration = duration.seconds; 1
-quarter-second duration = duration.milliseconds; 250
-precise duration = duration.microseconds; 50
-minimum duration = duration.nanoseconds; 1
+one-second duration = duration::seconds; 1
+quarter-second duration = duration::milliseconds; 250
+precise duration = duration::microseconds; 50
+minimum duration = duration::nanoseconds; 1
 ```
 
 Each factory takes one exact `int`. A negative input rejects statically when constant and otherwise
@@ -260,13 +260,13 @@ formatting belongs to this milestone. Those remain the separate civil-time surfa
 `/core/time` exports an explicit imported `clock` object:
 
 ```text
-clock.wall;                           -> instant
-clock.monotonic;                      -> monotonic-instant
-clock.sleep; duration                 -> async none
-clock.sleep-until; monotonic-instant  -> async none
-clock.interval; duration              -> ticker throws invalid-duration
-clock.deadline; duration              -> deadline
-clock.deadline.at; monotonic-instant  -> deadline
+clock::wall;                           -> instant
+clock::monotonic;                      -> monotonic-instant
+clock::sleep; duration                 -> async none
+clock::sleep-until; monotonic-instant  -> async none
+clock::interval; duration              -> ticker throws invalid-duration
+clock::deadline; duration              -> deadline
+deadline::at; monotonic-instant        -> deadline
 ```
 
 A `deadline` is an identity-less, copyable, reusable value containing one exact
@@ -278,9 +278,9 @@ deadline.remaining; -> duration|none
 deadline.expired    -> bool
 ```
 
-`clock.deadline; duration` reads the monotonic clock and captures its exact target immediately when
-called; later use never recomputes `now + duration`. `clock.deadline.at` retains the supplied target
-after proving the runtime domain. A past or exactly current target is valid, reports `expired` true
+`clock::deadline; duration` reads the monotonic clock and captures its exact target immediately when
+called; later use never recomputes `now + duration`. `deadline::at` retains the supplied target after
+proving the runtime domain. A past or exactly current target is valid, reports `expired` true
 and no remaining duration, and makes an attached operation immediately eligible to observe its
 deadline. Deadline values inherit monotonic instants' runtime-domain, persistence, document, and
 foreign-ABI restrictions.
@@ -310,23 +310,24 @@ earlier of its inherited and requested monotonic deadlines.
 
 #### Ticker contract
 
-`clock.interval; period` constructs a linear `ticker`, anchored at construction time. Its first tick
+`clock::interval; period` constructs a linear `ticker`, anchored at construction time. Its first tick
 is scheduled one period after that anchor:
 
 ```text
-ticker.next; -> async tick
-ticker.close;
+ticker.next;  -> async tick
+ticker.close; -> none
 
-tick.scheduled-at -> monotonic-instant
-tick.observed-at  -> monotonic-instant
-tick.lateness     -> duration
+tick.scheduled -> monotonic-instant
+tick.observed  -> monotonic-instant
+tick.count     -> int
 ```
 
-The first contract has one fixed missed-tick policy: skip missed emissions while retaining the
+The first contract has one fixed missed-tick policy: coalesce missed emissions while retaining the
 original schedule. When observation is late by one or more periods, `.next` returns the most recent
-tick not later than observation, reports its lateness, and schedules the following tick from the
-original anchor. It never emits an immediate burst merely to replay every missed period. Ticker
-index and schedule arithmetic remain exact even when an interval spans more than one bounded host
+tick not later than observation and the exact number of expirations represented by that delivery,
+then schedules the following tick from the original anchor. It never emits an immediate burst merely
+to replay every missed period.
+Ticker index and schedule arithmetic remain exact even when an interval spans more than one bounded host
 timer registration: lowering registers successive wake chunks toward the exact scheduled instant
 without narrowing the period, accumulating repeated-addition drift, or changing which tick is due.
 
@@ -341,24 +342,28 @@ outside this milestone.
 
 #### Process-signal contract
 
-`/core/process-signals` exports `process-signals;`, producing a linear single-consumer subscription:
+`/core/process-signals` exports selected, linear, single-consumer subscriptions:
 
 ```text
-process-signals;            -> process-signal-subscription throws process-signal-error
-subscription.next;          -> async process-signal throws process-signal-error
-subscription.close;
+process-signals; selected-set -> process-signal-subscription throws process-signal-error
+subscription.next;            -> async process-signal-event throws process-signal-error
+subscription.close;           -> none
 
-process-signal.interrupt    -> bool
-process-signal.termination  -> bool
-process-signal.count        -> int
-process-signal.overflowed   -> bool
-process-signal.observed-at  -> monotonic-instant
+process-signal::interrupt; -> process-signal
+process-signal::terminate; -> process-signal
+process-signal::hangup;    -> process-signal
+process-signal::quit;      -> process-signal
+
+process-signal-event.signal      -> process-signal
+process-signal-event.count       -> int
+process-signal-event.sequence    -> int
+process-signal-event.observed-at -> monotonic-instant
+process-signal-event.overflowed  -> bool
 ```
 
-Exactly one kind flag is true. `interrupt` means POSIX `SIGINT` or the target's corresponding console
-interrupt. `termination` means POSIX `SIGTERM` or the target's corresponding service-stop request.
-Arbitrary signal numbers, synchronous source callbacks, and platform-specific signal-handler
-objects are not source surface.
+Each event names exactly one selected kind. Arbitrary signal numbers, synchronous source callbacks,
+and platform-specific signal-handler objects are not source surface. Supported target adapters map
+the four public kinds to their corresponding `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT` events.
 
 A subscription observes only later broker events. Operating systems may coalesce standard signals
 before invoking Terrane's host handler, so neither the broker nor `count` claims to reconstruct how
@@ -374,7 +379,7 @@ means that at least one additional host-handler notification was not represented
 The broker fans each drained notification batch to every active subscription. Per subscription it
 retains at most one pending event slot for each kind. Repeated admitted batches increment that
 slot's arbitrary-precision Terrane `count`; this remains exact for notifications admitted at the
-named boundary. The storage bound is two event slots plus counters whose byte size may grow
+named boundary. The storage bound is four event slots plus counters whose byte size may grow
 logarithmically with a delayed consumer—it is not a constant-byte promise.
 
 The delivered count is the number of admitted notifications represented by that event.
@@ -386,15 +391,15 @@ earlier first broker-observation time, using the broker's deterministic sequence
 timestamp. Host observation remains external input; controlled test adapters supply it
 deterministically.
 
-Constructing the first subscription captures the current host dispositions and installs Terrane's
-handlers. Closing one subscription cannot affect another; closing the last restores exactly the
-dispositions captured by that first installation. Foreign code that mutates either disposition
-while Terrane owns the broker crosses an unsupported interoperation boundary: Terrane does not
+Adding the first subscription for a kind captures that kind's current host disposition and installs
+Terrane's handler. Closing one subscription cannot affect another; when the last interested
+subscription for a kind closes, the broker restores exactly the disposition captured when it took
+ownership of that kind. Closing the final subscription also joins the broker worker. Foreign code
+that mutates an owned disposition crosses an unsupported interoperation boundary: Terrane does not
 promise to preserve or merge that later mutation. Such integration must be mediated through an
-explicit future Terrane-managed facility.
-An upstream runtime signal stream whose drop leaves the process disposition installed does not
-satisfy this contract; the selected adapter must deliberately own capture, installation, and
-restoration.
+explicit future Terrane-managed facility. An upstream runtime signal stream whose drop leaves the
+process disposition installed does not satisfy this contract; the selected adapter must
+deliberately own capture, installation, and restoration.
 
 Cancelling a pending `.next` removes only its waiter and does not consume its retained event. The
 host handler itself may
@@ -425,7 +430,7 @@ Rust/platform support is justified only at the syscall/ABI and executor-wakeup b
 - async-signal-safe target handler installation and restoration;
 - fixed-width saturating per-kind host notification counters plus overflow flags;
 - funneling admitted process notifications onto the selected executor; and
-- the two pending event slots and arbitrary-precision subscription counts whose update cannot
+- the four pending event slots and arbitrary-precision subscription counts whose update cannot
   safely live in a signal callback.
 
 Bundled Terrane source owns constructors, checked arithmetic, ticker scheduling policy, signal
@@ -1574,7 +1579,7 @@ T0070 reflection unavailable in profile     T0074 invalid task-core operation
 T0071 unavailable reflected member
 T0072 read-only member assignment            T0076 unconsumed task
 T0073 value live across suspension           T0077 incompatible member assignment
-T0078 parameterized program entrypoint
+T0078 parameterized program entrypoint      T0133 invalid constant time quantity
 
 `T0056`, `T0057`, `T0060`, and `T0069` are intentionally unassigned.
 

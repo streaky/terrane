@@ -236,11 +236,21 @@ Terrane package
     ├── /core/networking                       sockets and DNS; requires `networking`
     │   ├── ip-address / socket-address / network-host-name validated value objects with structured parse results
     │   ├── network-operation-result           explicit failure / deadline / message
-    │   ├── network-cancellation-token / network-operation-options shared observable cancellation and positive deadlines
+    │   ├── network-cancellation-token / network-operation-options shared observable cancellation and optional typed deadlines
     │   ├── tcp-stream / tcp-listener / udp-socket
     │   ├── ip-address-from-string / socket-address-from-ip / socket-address-from-string / parse-host-name
     │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
     │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
+    ├── /core/time                             exact time and scheduling; requires `clocks`
+    │   ├── duration                           canonical seconds / nanoseconds / exact total; checked arithmetic
+    │   ├── instant / monotonic-instant         wall and runtime-domain monotonic observations
+    │   ├── deadline                           absolute monotonic target with remaining / expired
+    │   ├── clock                              wall / monotonic / sleep / sleep-until / deadline / interval
+    │   └── ticker / tick                      anchored, coalesced scheduled and observed delivery
+    ├── /core/process-signals                  selected signal delivery; requires `process-signals`
+    │   ├── process-signal                     interrupt / terminate / hangup / quit values
+    │   ├── process-signal-event               exact count / sequence / observed-at / overflowed
+    │   └── process-signal-subscription        linear async next and consuming close
     ├── /core/networking/tls                   TLS; requires `networking` and `tls`
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option

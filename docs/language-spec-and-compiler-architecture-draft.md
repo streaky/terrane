@@ -388,17 +388,21 @@ Rust is the correct choice for a layer when one of the following holds, and a la
 
 Everything else is Terrane.
 
-A core facility that depends on a Rust crate uses the ordinary dependency mechanism of §23: a declaration plus a deliberately authored wrapper, with the wrapper being exactly the boundary machinery that section describes. Core facilities receive no privileged path, which means they also serve as worked examples of dependency use. They declare their Rust dependencies explicitly so that a profile may exclude them.
+A core facility backed by Rust follows the same boundary contract as an authored dependency wrapper:
+the source-visible declarations and policy remain in Terrane, while a deliberately narrow private
+host binding crosses into the audited support crate. Bootstrap ordering means compiler-shipped core
+packages use compiler-private bindings rather than importing a projected Rust package, but those
+bindings are not source-visible, do not create public core objects, and remain capability-gated.
 
 Time and process signals apply this boundary literally. Bundled `/core/time` and
 `/core/process-signals` source owns exact value classes, deadline and ticker policy, resource
 ownership, errors, descriptors, and capability admission. Generated runtime support owns
-monotonic/wall-clock observation and wake-driven timer registration. A deliberately tiny
-`terrane-signal-support` crate is the only unsafe layer: it installs the supported host handlers,
-counts observations with signal-safe atomics, wakes the broker through a self-pipe, and restores
-the captured dispositions. The safe platform-support broker owns a joined worker thread, fan-out,
-coalescing, ordering, overflow reporting, and subscription lifecycle. No signal handler executes
-Terrane code, allocates, locks, or calls the executor.
+monotonic/wall-clock observation and wake-driven timer registration. The deliberately tiny
+`terrane-signal-support` crate is the signal-specific unsafe layer: it installs only actively
+subscribed host handlers, counts observations with signal-safe atomics, wakes the broker through a
+self-pipe, and restores captured dispositions. The safe platform-support broker owns a joined worker
+thread, fan-out, coalescing, ordering, overflow reporting, and subscription lifecycle. No signal
+handler executes Terrane code, allocates, locks, or calls the executor.
 
 Two consequences shape the implementation rather than the language. Package-level artifact caching becomes load-bearing rather than an optimisation, because source-form core facilities would otherwise be recompiled by every build. And capability profiles become a question of which Terrane packages are present rather than which support crates were compiled in, which is the simpler story.
 ## 6. Lexical structure
