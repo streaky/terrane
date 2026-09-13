@@ -1759,6 +1759,7 @@ fn main() {
         let selection_rx: TerraneChannelReceiver<terrane_int_support::Int> = selection_pair
             .receiver;
         let mut __terrane_select_guard_996 = __terrane_finally_guard();
+        let mut __terrane_select_cleanup_error_996: Option<TerraneError> = None;
         let __terrane_select_control_996_0 = __terrane_select_control();
         let mut __terrane_select_future_996_0 = std::pin::pin!(
             __terrane_select_operation(__terrane_select_control_996_0.clone(), { let
@@ -1828,7 +1829,6 @@ fn main() {
                 std::task::Poll::Pending
             })
             .await;
-        let mut __terrane_select_cleanup_error_996: Option<TerraneError> = None;
         if __terrane_select_winner_996 == usize::MAX {
             __terrane_select_control_996_1.request_cancel();
             __terrane_select_control_996_0.request_cancel();
@@ -1912,6 +1912,7 @@ fn main() {
             _ => unreachable!("selected winner is within the case count"),
         }
         let mut __terrane_select_guard_1169 = __terrane_finally_guard();
+        let mut __terrane_select_cleanup_error_1169: Option<TerraneError> = None;
         let __terrane_select_control_1169_0 = __terrane_select_control();
         let mut __terrane_select_future_1169_0 = std::pin::pin!(
             __terrane_select_operation(__terrane_select_control_1169_0.clone(), { let
@@ -1981,7 +1982,6 @@ fn main() {
                 std::task::Poll::Pending
             })
             .await;
-        let mut __terrane_select_cleanup_error_1169: Option<TerraneError> = None;
         if __terrane_select_winner_1169 == usize::MAX {
             __terrane_select_control_1169_1.request_cancel();
             __terrane_select_control_1169_0.request_cancel();
