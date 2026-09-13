@@ -457,7 +457,9 @@ impl ToolingEngine {
         }
         let mut context = request_context(&envelope.request);
         let opened_source = match &envelope.request {
-            Request::OpenSnapshot { sources, .. } => sources.first().map(|source| source.uri.clone()),
+            Request::OpenSnapshot { sources, .. } => {
+                sources.first().map(|source| source.uri.clone())
+            }
             _ => None,
         };
         let result = self.dispatch(envelope.request);
@@ -561,6 +563,15 @@ impl ToolingEngine {
         }
     }
 
+    /// Opens an immutable snapshot from explicit source and analysis inputs.
+    ///
+    /// # Errors
+    ///
+    /// Returns a protocol error for empty, duplicate, or oversized inputs.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "snapshot construction keeps hashing, parsing, semantic analysis, and retention ordered"
+    )]
     pub fn open_snapshot(
         &mut self,
         mut sources: Vec<SourceInput>,
@@ -695,6 +706,9 @@ impl ToolingEngine {
         Ok(metadata)
     }
 
+    /// # Errors
+    ///
+    /// Returns an expiry error when the snapshot is no longer retained.
     pub fn close_snapshot(&mut self, snapshot_id: &str) -> Result<(), ProtocolError> {
         let Some(snapshot) = self.snapshots.remove(snapshot_id) else {
             return Err(expired_snapshot());
@@ -709,6 +723,9 @@ impl ToolingEngine {
         Ok(())
     }
 
+    /// # Errors
+    ///
+    /// Returns an expiry, source, or node error for an invalid lookup.
     pub fn syntax(
         &self,
         snapshot_id: &str,
@@ -758,6 +775,9 @@ impl ToolingEngine {
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots, unknown sources, or invalid UTF-8 offsets.
     pub fn locate(
         &self,
         snapshot_id: &str,
@@ -779,6 +799,9 @@ impl ToolingEngine {
         Ok(Some(semantic_object(snapshot, document, node, id, None)))
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots or unknown sources.
     pub fn definition(
         &self,
         snapshot_id: &str,
@@ -796,6 +819,9 @@ impl ToolingEngine {
         ))
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots or unknown sources.
     pub fn references(
         &self,
         snapshot_id: &str,
@@ -838,6 +864,9 @@ impl ToolingEngine {
         Ok(Availability::Known(locations))
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots, selectors, or continuations.
     pub fn find(
         &mut self,
         snapshot_id: &str,
@@ -908,6 +937,9 @@ impl ToolingEngine {
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots, unknown nodes, or mismatched builds.
     pub fn generated_rust(
         &self,
         snapshot_id: &str,
@@ -953,6 +985,9 @@ impl ToolingEngine {
         Ok(Availability::Known(locations))
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error when edit spans or candidate source are invalid.
     pub fn propose_edits(
         &mut self,
         snapshot_id: &str,
@@ -967,17 +1002,23 @@ impl ToolingEngine {
                 .map(|replacement| replacement.uri.as_str())
                 .collect::<BTreeSet<_>>()
                 .into_iter()
-                .map(|uri| AffectedFile {
-                    uri: uri.to_owned(),
-                    content_hash: snapshot
-                        .documents
-                        .get(uri)
-                        .expect("validated replacement URI")
-                        .identity
-                        .content_hash
-                        .clone(),
+                .map(|uri| {
+                    snapshot.documents.get(uri).map_or_else(
+                        || {
+                            Err(ProtocolError::new(
+                                "unknown-source",
+                                "replacement source left the snapshot",
+                            ))
+                        },
+                        |document| {
+                            Ok(AffectedFile {
+                                uri: uri.to_owned(),
+                                content_hash: document.identity.content_hash.clone(),
+                            })
+                        },
+                    )
                 })
-                .collect();
+                .collect::<Result<Vec<_>, ProtocolError>>()?;
             (diagnostics, semantic_reanalysis, affected_files)
         };
         self.nonce = self.nonce.wrapping_add(1);
@@ -998,6 +1039,9 @@ impl ToolingEngine {
         Ok(proposal)
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error when the symbol, new name, or semantic rewrite is invalid.
     pub fn propose_rename(
         &mut self,
         snapshot_id: &str,
@@ -1063,13 +1107,14 @@ impl ToolingEngine {
             });
         }
         for replacement in &replacements {
-            let unit = semantic
-                .units
-                .iter()
-                .find(|unit| {
-                    snapshot.uri_for_file(unit.source.id()) == Some(replacement.uri.as_str())
-                })
-                .expect("semantic source must belong to snapshot");
+            let Some(unit) = semantic.units.iter().find(|unit| {
+                snapshot.uri_for_file(unit.source.id()) == Some(replacement.uri.as_str())
+            }) else {
+                return Err(ProtocolError::new(
+                    "unknown-source",
+                    "rename source left the semantic snapshot",
+                ));
+            };
             if semantic
                 .resolve_name_at(unit, replacement.span.start, new_name)
                 .is_some_and(|candidate| candidate.identity != target.identity)
@@ -1083,6 +1128,9 @@ impl ToolingEngine {
         self.propose_edits(snapshot_id, replacements)
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error when preflight or a filesystem replacement fails.
     pub fn apply_edits(&mut self, proposal_id: &str) -> Result<ApplyReport, ProtocolError> {
         let proposal = self.proposals.get(proposal_id).cloned().ok_or_else(|| {
             ProtocolError::new("unknown-proposal", "edit proposal does not exist")
@@ -1183,6 +1231,9 @@ impl ToolingEngine {
         Ok(report)
     }
 
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots or unknown sources.
     pub fn format(&self, snapshot_id: &str, uri: &str) -> Result<FormatResult, ProtocolError> {
         let snapshot = self.snapshot(snapshot_id)?;
         let document = snapshot.document(uri)?;
@@ -1353,28 +1404,32 @@ fn find_projected_node(node: &SyntaxNodeProjection, wanted: u64) -> Option<&Synt
 }
 
 fn child_field(parent: SyntaxKind, index: usize) -> &'static str {
+    if index == 0
+        && matches!(
+            parent,
+            SyntaxKind::Binding
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TraitDeclaration
+        )
+    {
+        return "name";
+    }
     match (parent, index) {
-        (SyntaxKind::Binding, 0) => "name",
         (SyntaxKind::Binding, 1) => "type",
-        (SyntaxKind::Binding, 2) => "value",
-        (SyntaxKind::FunctionDeclaration, 0) => "name",
+        (SyntaxKind::Binding, 2)
+        | (SyntaxKind::Assignment, 1)
+        | (SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement, 0) => "value",
         (SyntaxKind::FunctionDeclaration, 1) => "parameters",
-        (SyntaxKind::FunctionDeclaration, _) => "body",
-        (
-            SyntaxKind::ClassDeclaration
-            | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::TraitDeclaration,
-            0,
-        ) => "name",
+        (SyntaxKind::FunctionDeclaration, _)
+        | (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, 1..) => "body",
         (SyntaxKind::Assignment, 0) => "target",
-        (SyntaxKind::Assignment, 1) => "value",
         (SyntaxKind::CallExpression, 0) => "callee",
         (SyntaxKind::CallExpression, 1) => "arguments",
         (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, 0) => "receiver",
         (SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression, 1) => "member",
         (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, 0) => "condition",
-        (SyntaxKind::IfStatement | SyntaxKind::WhileStatement, _) => "body",
-        (SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement, 0) => "value",
         (SyntaxKind::CompilationUnit | SyntaxKind::Block, _) => "item",
         _ => "child",
     }
@@ -1702,10 +1757,12 @@ fn validate_replacements(
     Ok(())
 }
 
+type CandidateSources = (BTreeMap<String, String>, Vec<DiagnosticProjection>, bool);
+
 fn candidate_sources(
     snapshot: &Snapshot,
     replacements: &[Replacement],
-) -> Result<(BTreeMap<String, String>, Vec<DiagnosticProjection>, bool), ProtocolError> {
+) -> Result<CandidateSources, ProtocolError> {
     let mut candidate = BTreeMap::new();
     let mut diagnostics = Vec::new();
     let mut units = Vec::new();
@@ -1939,6 +1996,10 @@ fn hash_json(value: &impl Serialize) -> Result<String, ProtocolError> {
         .map_err(serialization_error)
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "serde map_err callbacks transfer their owned error"
+)]
 fn serialization_error(error: serde_json::Error) -> ProtocolError {
     ProtocolError::new("internal-serialization", error.to_string())
 }
@@ -2195,8 +2256,7 @@ mod tests {
             .iter()
             .flat_map(|child| &child.node.children)
             .find(|child| child.node.kind == "Name")
-            .map(|child| child.node.id)
-            .unwrap_or(syntax.root.id);
+            .map_or(syntax.root.id, |child| child.node.id);
         let locations = engine
             .generated_rust(&metadata.snapshot_id, uri, main_node, &build_id)
             .expect("matching build");

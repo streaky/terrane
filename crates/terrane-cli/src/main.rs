@@ -1126,7 +1126,7 @@ fn run_tooling(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         }
         let response = match serde_json::from_str(&line) {
             Ok(request) => engine.handle(request),
-            Err(error) => protocol_parse_error(error),
+            Err(error) => protocol_parse_error(&error),
         };
         serde_json::to_writer(&mut output, &response).map_err(|error| {
             CliFailure::diagnostic(
@@ -1269,6 +1269,10 @@ fn run_format(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     Ok(ExitCode::SUCCESS)
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "map_err transfers the owned protocol error into CLI rendering"
+)]
 fn tooling_failure(error: terrane_compiler::tooling::ProtocolError) -> CliFailure {
     CliFailure::diagnostic(
         PathBuf::from("<tooling>"),
@@ -1278,7 +1282,7 @@ fn tooling_failure(error: terrane_compiler::tooling::ProtocolError) -> CliFailur
     )
 }
 
-fn protocol_parse_error(error: serde_json::Error) -> terrane_compiler::tooling::ResponseEnvelope {
+fn protocol_parse_error(error: &serde_json::Error) -> terrane_compiler::tooling::ResponseEnvelope {
     terrane_compiler::tooling::ResponseEnvelope {
         compiler_version: terrane_compiler::VERSION.to_owned(),
         schema_version: terrane_compiler::tooling::SCHEMA_VERSION.to_owned(),

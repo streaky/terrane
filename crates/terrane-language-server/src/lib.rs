@@ -1,22 +1,29 @@
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
 
 use terrane_compiler::highlight::{Highlight, HighlightKind, highlight};
-use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity, SourceFile, Span};
+#[cfg(test)]
+use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity};
+use terrane_compiler::{SourceFile, Span};
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::{
     CompletionItem, CompletionItemKind, CompletionOptions, CompletionParams, CompletionResponse,
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, Documentation, Hover, HoverContents, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, MarkedString,
-    MessageType, NumberOrString, ParameterInformation, ParameterLabel, Position, Range,
-    SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
+    DidOpenTextDocumentParams, DocumentChanges, DocumentFormattingParams, DocumentSymbol,
+    DocumentSymbolParams, DocumentSymbolResponse, Documentation, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, Location as LspLocation, MarkedString,
+    MessageType, NumberOrString, OneOf, OptionalVersionedTextDocumentIdentifier,
+    ParameterInformation, ParameterLabel, Position, PositionEncodingKind, Range, ReferenceParams,
+    RenameParams, SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
     SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
-    SignatureHelp, SignatureHelpOptions, SignatureHelpParams, SignatureInformation,
-    TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    SignatureHelp, SignatureHelpOptions, SignatureHelpParams, SignatureInformation, SymbolKind,
+    TextDocumentEdit, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
+    WorkspaceEdit,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -38,12 +45,15 @@ const TOKEN_TYPES: [SemanticTokenType; 11] = [
 struct Document {
     text: String,
     version: i32,
+    snapshot_id: String,
 }
 
 #[derive(Debug)]
 pub struct Backend {
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, Document>>>,
+    tooling: Arc<Mutex<terrane_compiler::tooling::ToolingEngine>>,
+    position_encoding: Arc<Mutex<PositionEncodingKind>>,
 }
 
 impl Backend {
@@ -52,20 +62,69 @@ impl Backend {
         Self {
             client,
             documents: Arc::new(RwLock::new(HashMap::new())),
+            tooling: Arc::new(Mutex::new(
+                terrane_compiler::tooling::ToolingEngine::default(),
+            )),
+            position_encoding: Arc::new(Mutex::new(PositionEncodingKind::UTF16)),
         }
     }
 
-    async fn analyze(&self, uri: &Uri, text: &str, version: i32) {
-        let source = source_file(uri, text);
-        let output = highlight(&source);
-        let diagnostics = output
-            .diagnostics
+    async fn analyze(&self, uri: &Uri, text: &str, version: i32) -> String {
+        let uri_text = uri.to_string();
+        let (metadata, diagnostics) = {
+            let mut tooling = self.tooling.lock().expect("tooling engine lock");
+            let source = || terrane_compiler::tooling::SourceInput {
+                uri: uri_text.clone(),
+                text: text.to_owned(),
+            };
+            let mut metadata = tooling
+                .open_snapshot(
+                    vec![source()],
+                    None,
+                    None,
+                    terrane_compiler::tooling::SnapshotOptions::default(),
+                )
+                .expect("an in-memory editor source is a valid snapshot input");
+            let mut syntax = tooling
+                .syntax(&metadata.snapshot_id, &uri_text, None)
+                .expect("the just-opened source belongs to its snapshot");
+            let has_namespace = syntax
+                .root
+                .children
+                .iter()
+                .any(|child| child.node.kind == "NamespaceDeclaration");
+            if syntax.diagnostics.is_empty() && has_namespace {
+                let _ = tooling.close_snapshot(&metadata.snapshot_id);
+                metadata = tooling
+                    .open_snapshot(
+                        vec![source()],
+                        None,
+                        None,
+                        terrane_compiler::tooling::SnapshotOptions {
+                            semantic: true,
+                            ..terrane_compiler::tooling::SnapshotOptions::default()
+                        },
+                    )
+                    .expect("an in-memory editor source is a valid semantic snapshot input");
+                syntax = tooling
+                    .syntax(&metadata.snapshot_id, &uri_text, None)
+                    .expect("the semantic snapshot retains its source syntax");
+            }
+            (metadata, syntax.diagnostics)
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let diagnostics = diagnostics
             .iter()
-            .map(|diagnostic| lsp_diagnostic(&source, diagnostic))
+            .map(|diagnostic| tooling_lsp_diagnostic(text, diagnostic, &encoding))
             .collect();
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, Some(version))
             .await;
+        metadata.snapshot_id
     }
 }
 
@@ -74,9 +133,30 @@ impl LanguageServer for Backend {
         clippy::unused_async_trait_impl,
         reason = "the language-server trait declares lifecycle handlers as async"
     )]
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let encoding = params
+            .capabilities
+            .general
+            .as_ref()
+            .and_then(|general| general.position_encodings.as_ref())
+            .and_then(|encodings| {
+                encodings
+                    .iter()
+                    .find(|encoding| {
+                        **encoding == PositionEncodingKind::UTF8
+                            || **encoding == PositionEncodingKind::UTF16
+                            || **encoding == PositionEncodingKind::UTF32
+                    })
+                    .cloned()
+            })
+            .unwrap_or(PositionEncodingKind::UTF16);
+        *self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock") = encoding.clone();
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                position_encoding: Some(encoding),
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
@@ -98,6 +178,11 @@ impl LanguageServer for Backend {
                     trigger_characters: Some(vec![";".to_owned()]),
                     ..Default::default()
                 }),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Left(true)),
+                document_symbol_provider: Some(OneOf::Left(true)),
+                document_formatting_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -126,14 +211,15 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
+        let snapshot_id = self.analyze(&uri, &text, version).await;
         self.documents.write().await.insert(
-            uri.clone(),
+            uri,
             Document {
-                text: text.clone(),
+                text,
                 version,
+                snapshot_id,
             },
         );
-        self.analyze(&uri, &text, version).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -143,19 +229,33 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = change.text;
         let version = params.text_document.version;
+        if let Some(previous) = self.documents.write().await.remove(&uri) {
+            let _ = self
+                .tooling
+                .lock()
+                .expect("tooling engine lock")
+                .close_snapshot(&previous.snapshot_id);
+        }
+        let snapshot_id = self.analyze(&uri, &text, version).await;
         self.documents.write().await.insert(
-            uri.clone(),
+            uri,
             Document {
-                text: text.clone(),
+                text,
                 version,
+                snapshot_id,
             },
         );
-        self.analyze(&uri, &text, version).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        self.documents.write().await.remove(&uri);
+        if let Some(document) = self.documents.write().await.remove(&uri) {
+            let _ = self
+                .tooling
+                .lock()
+                .expect("tooling engine lock")
+                .close_snapshot(&document.snapshot_id);
+        }
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 
@@ -233,10 +333,32 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
-        let documents = self.documents.read().await;
-        let Some(document) = documents.get(&uri) else {
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
             return Ok(None);
         };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        if let Some(offset) = byte_offset(
+            &document.text,
+            params.text_document_position_params.position,
+            &encoding,
+        ) {
+            let object = self
+                .tooling
+                .lock()
+                .expect("tooling engine lock")
+                .locate(&document.snapshot_id, &uri.to_string(), offset)
+                .ok()
+                .flatten();
+            if let Some(object) = object
+                && let Some(hover) = semantic_hover(object, &document.text, &encoding)
+            {
+                return Ok(Some(hover));
+            }
+        }
         let Some(name) = word_at(
             &document.text,
             params.text_document_position_params.position,
@@ -369,6 +491,388 @@ impl LanguageServer for Backend {
             active_parameter: Some(0),
         }))
     }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let Some(offset) = byte_offset(
+            &document.text,
+            params.text_document_position_params.position,
+            &encoding,
+        ) else {
+            return Ok(None);
+        };
+        let definition = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .definition(&document.snapshot_id, &uri.to_string(), offset)
+            .ok();
+        let Some(terrane_compiler::tooling::Availability::Known(location)) = definition else {
+            return Ok(None);
+        };
+        Ok(lsp_location(&location, &self.documents, &encoding)
+            .await
+            .map(GotoDefinitionResponse::Scalar))
+    }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<LspLocation>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let Some(offset) = byte_offset(
+            &document.text,
+            params.text_document_position.position,
+            &encoding,
+        ) else {
+            return Ok(None);
+        };
+        let (references, definition) = {
+            let tooling = self.tooling.lock().expect("tooling engine lock");
+            (
+                tooling
+                    .references(&document.snapshot_id, &uri.to_string(), offset)
+                    .ok(),
+                tooling
+                    .definition(&document.snapshot_id, &uri.to_string(), offset)
+                    .ok(),
+            )
+        };
+        let Some(terrane_compiler::tooling::Availability::Known(references)) = references else {
+            return Ok(None);
+        };
+        let definition = match definition {
+            Some(terrane_compiler::tooling::Availability::Known(location)) => Some(location),
+            _ => None,
+        };
+        let mut locations = Vec::new();
+        for location in references {
+            if !params.context.include_declaration
+                && definition
+                    .as_ref()
+                    .is_some_and(|definition| *definition == location)
+            {
+                continue;
+            }
+            if let Some(location) = lsp_location(&location, &self.documents, &encoding).await {
+                locations.push(location);
+            }
+        }
+        Ok(Some(locations))
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let documents = self.documents.read().await;
+        let Some(document) = documents.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let Some(offset) = byte_offset(
+            &document.text,
+            params.text_document_position.position,
+            &encoding,
+        ) else {
+            return Ok(None);
+        };
+        let proposal = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .propose_rename(
+                &document.snapshot_id,
+                &uri.to_string(),
+                offset,
+                &params.new_name,
+            )
+            .ok();
+        let Some(proposal) = proposal else {
+            return Ok(None);
+        };
+        let mut grouped = std::collections::BTreeMap::<String, Vec<_>>::new();
+        for replacement in proposal.replacements {
+            grouped
+                .entry(replacement.uri.clone())
+                .or_default()
+                .push(replacement);
+        }
+        let mut edits = Vec::new();
+        for (uri_text, replacements) in grouped {
+            let Ok(edit_uri) = uri_text.parse::<Uri>() else {
+                return Ok(None);
+            };
+            let (text, version) = if let Some(open) = documents.get(&edit_uri) {
+                (open.text.clone(), Some(open.version))
+            } else {
+                let Some(path) = uri_text.strip_prefix("file://") else {
+                    return Ok(None);
+                };
+                let Ok(text) = std::fs::read_to_string(path) else {
+                    return Ok(None);
+                };
+                (text, None)
+            };
+            let text_edits = replacements
+                .into_iter()
+                .map(|replacement| {
+                    OneOf::Left(TextEdit {
+                        range: range_for_public_span(&text, &replacement.span, &encoding),
+                        new_text: replacement.text,
+                    })
+                })
+                .collect();
+            edits.push(TextDocumentEdit {
+                text_document: OptionalVersionedTextDocumentIdentifier {
+                    uri: edit_uri,
+                    version,
+                },
+                edits: text_edits,
+            });
+        }
+        Ok(Some(WorkspaceEdit {
+            document_changes: Some(DocumentChanges::Edits(edits)),
+            ..Default::default()
+        }))
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let syntax = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .syntax(&document.snapshot_id, &uri.to_string(), None)
+            .ok();
+        let Some(syntax) = syntax else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let mut symbols = Vec::new();
+        collect_document_symbols(&syntax.root, &document.text, &encoding, &mut symbols);
+        Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let formatted = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .format(&document.snapshot_id, &uri.to_string())
+            .ok();
+        let Some(formatted) = formatted else {
+            return Ok(None);
+        };
+        if !formatted.changed {
+            return Ok(Some(Vec::new()));
+        }
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        Ok(Some(vec![TextEdit {
+            range: Range::new(
+                Position::new(0, 0),
+                position_for_offset(&document.text, document.text.len(), &encoding),
+            ),
+            new_text: formatted.text,
+        }]))
+    }
+}
+
+fn semantic_hover(
+    object: terrane_compiler::tooling::SemanticObject,
+    text: &str,
+    encoding: &PositionEncodingKind,
+) -> Option<Hover> {
+    let name = object.name?;
+    let mut content = format!("`{name}`");
+    if let terrane_compiler::tooling::Availability::Known(value_type) = object.value_type {
+        let _ = write!(content, "\n\nType: `{value_type}`");
+    }
+    if let terrane_compiler::tooling::Availability::Known(ownership) = object.ownership {
+        let _ = write!(content, "\n\nOwnership: {ownership}");
+    }
+    if let terrane_compiler::tooling::Availability::Known(identity) = object.symbol_identity {
+        let _ = write!(content, "\n\nSymbol: `{identity}`");
+    }
+    Some(Hover {
+        contents: HoverContents::Scalar(MarkedString::String(content)),
+        range: Some(range_for_public_span(text, &object.span, encoding)),
+    })
+}
+fn byte_offset(text: &str, position: Position, encoding: &PositionEncodingKind) -> Option<usize> {
+    let line = text
+        .split_inclusive('\n')
+        .nth(usize::try_from(position.line).ok()?)?;
+    let line_start = text
+        .split_inclusive('\n')
+        .take(usize::try_from(position.line).ok()?)
+        .map(str::len)
+        .sum::<usize>();
+    let line = line.trim_end_matches(['\r', '\n']);
+    let target = usize::try_from(position.character).ok()?;
+    if target == 0 {
+        return Some(line_start);
+    }
+    let mut units = 0;
+    for (byte, character) in line.char_indices() {
+        if units == target {
+            return Some(line_start + byte);
+        }
+        units += position_units(character, encoding);
+        if units > target {
+            return None;
+        }
+    }
+    (units == target).then_some(line_start + line.len())
+}
+
+fn position_for_offset(text: &str, offset: usize, encoding: &PositionEncodingKind) -> Position {
+    let line = text[..offset].bytes().filter(|byte| *byte == b'\n').count();
+    let line_start = text[..offset].rfind('\n').map_or(0, |index| index + 1);
+    let character = text[line_start..offset]
+        .chars()
+        .map(|character| position_units(character, encoding))
+        .sum::<usize>();
+    Position::new(
+        u32::try_from(line).expect("document line fits in LSP position"),
+        u32::try_from(character).expect("document column fits in LSP position"),
+    )
+}
+
+fn position_units(character: char, encoding: &PositionEncodingKind) -> usize {
+    if *encoding == PositionEncodingKind::UTF8 {
+        character.len_utf8()
+    } else if *encoding == PositionEncodingKind::UTF32 {
+        1
+    } else {
+        character.len_utf16()
+    }
+}
+
+fn range_for_public_span(
+    text: &str,
+    span: &terrane_compiler::tooling::PublicSpan,
+    encoding: &PositionEncodingKind,
+) -> Range {
+    Range::new(
+        position_for_offset(text, span.start, encoding),
+        position_for_offset(text, span.end, encoding),
+    )
+}
+
+async fn lsp_location(
+    location: &terrane_compiler::tooling::Location,
+    documents: &RwLock<HashMap<Uri, Document>>,
+    encoding: &PositionEncodingKind,
+) -> Option<LspLocation> {
+    let uri = location.uri.parse::<Uri>().ok()?;
+    let text = if let Some(document) = documents.read().await.get(&uri) {
+        document.text.clone()
+    } else {
+        std::fs::read_to_string(location.uri.strip_prefix("file://")?).ok()?
+    };
+    Some(LspLocation {
+        uri,
+        range: range_for_public_span(&text, &location.span, encoding),
+    })
+}
+
+fn tooling_lsp_diagnostic(
+    text: &str,
+    diagnostic: &terrane_compiler::tooling::DiagnosticProjection,
+    encoding: &PositionEncodingKind,
+) -> Diagnostic {
+    let range = diagnostic.span.as_ref().map_or_else(
+        || Range::new(Position::new(0, 0), Position::new(0, 0)),
+        |span| range_for_public_span(text, span, encoding),
+    );
+    let message = diagnostic.help.as_ref().map_or_else(
+        || diagnostic.message.clone(),
+        |help| format!("{}\n\nhelp: {help}", diagnostic.message),
+    );
+    Diagnostic {
+        range,
+        severity: Some(if diagnostic.severity == "warning" {
+            DiagnosticSeverity::WARNING
+        } else {
+            DiagnosticSeverity::ERROR
+        }),
+        code: Some(NumberOrString::String(diagnostic.code.clone())),
+        source: Some("terrane".to_owned()),
+        message,
+        ..Default::default()
+    }
+}
+
+#[allow(deprecated)]
+fn collect_document_symbols(
+    node: &terrane_compiler::tooling::SyntaxNodeProjection,
+    text: &str,
+    encoding: &PositionEncodingKind,
+    output: &mut Vec<DocumentSymbol>,
+) {
+    let kind = match node.kind.as_str() {
+        "FunctionDeclaration" => Some(SymbolKind::FUNCTION),
+        "ClassDeclaration" => Some(SymbolKind::CLASS),
+        "InterfaceDeclaration" => Some(SymbolKind::INTERFACE),
+        "TraitDeclaration" => Some(SymbolKind::STRUCT),
+        "Binding" => Some(SymbolKind::VARIABLE),
+        _ => None,
+    };
+    if let Some(kind) = kind
+        && let Some(name) = node.children.iter().find(|child| child.field == "name")
+        && let Some(name_text) = text.get(name.node.span.start..name.node.span.end)
+    {
+        output.push(DocumentSymbol {
+            name: name_text.to_owned(),
+            detail: None,
+            kind,
+            tags: None,
+            deprecated: None,
+            range: range_for_public_span(text, &node.span, encoding),
+            selection_range: range_for_public_span(text, &name.node.span, encoding),
+            children: None,
+        });
+    }
+    for child in &node.children {
+        collect_document_symbols(&child.node, text, encoding, output);
+    }
 }
 
 fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> String {
@@ -476,6 +980,7 @@ fn utf16_position(text: &str, offset: usize) -> Position {
     )
 }
 
+#[cfg(test)]
 fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagnostic {
     let range = diagnostic.primary.map_or_else(
         || Range::new(Position::new(0, 0), Position::new(0, 0)),
@@ -643,6 +1148,51 @@ const fn token_type(kind: HighlightKind) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn negotiated_position_encodings_round_trip_unicode_offsets() {
+        let text = "a🙂é\nnext";
+        let offset = text.find('é').expect("unicode character");
+        for (encoding, character) in [
+            (PositionEncodingKind::UTF8, 5),
+            (PositionEncodingKind::UTF16, 3),
+            (PositionEncodingKind::UTF32, 2),
+        ] {
+            let position = position_for_offset(text, offset, &encoding);
+            assert_eq!(position, Position::new(0, character));
+            assert_eq!(byte_offset(text, position, &encoding), Some(offset));
+        }
+    }
+
+    #[test]
+    fn document_symbols_come_from_compiler_snapshot_fields() {
+        let text = "namespace symbols\n\nfunction main;\n    value int = 1\n";
+        let uri = "file:///workspace/symbols.trn";
+        let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
+        let snapshot = tooling
+            .open_snapshot(
+                vec![terrane_compiler::tooling::SourceInput {
+                    uri: uri.to_owned(),
+                    text: text.to_owned(),
+                }],
+                None,
+                None,
+                terrane_compiler::tooling::SnapshotOptions::default(),
+            )
+            .expect("snapshot");
+        let syntax = tooling
+            .syntax(&snapshot.snapshot_id, uri, None)
+            .expect("syntax");
+        let mut symbols = Vec::new();
+        collect_document_symbols(
+            &syntax.root,
+            text,
+            &PositionEncodingKind::UTF16,
+            &mut symbols,
+        );
+
+        assert!(symbols.iter().any(|symbol| symbol.name == "main"));
+        assert!(symbols.iter().any(|symbol| symbol.name == "value"));
+    }
 
     #[test]
     fn diagnostics_use_utf16_positions_at_both_ends_of_multiline_spans() {

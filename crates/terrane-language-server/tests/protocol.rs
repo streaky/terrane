@@ -126,3 +126,133 @@ fn serves_semantic_tokens_for_an_open_document() {
     drop(stdin);
     assert!(child.wait().unwrap().success());
 }
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one process-level scenario proves negotiated positions and shared analysis features"
+)]
+#[test]
+fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "capabilities": {
+                    "general": {"positionEncodings": ["utf-8"]}
+                }
+            }
+        }),
+    );
+    let initialized = receive_response(&mut stdout, 1);
+    assert_eq!(
+        initialized["result"]["capabilities"]["positionEncoding"],
+        "utf-8"
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["definitionProvider"],
+        true
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["documentFormattingProvider"],
+        true
+    );
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
+    );
+    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nfunction main;\n    value int = answer;\n";
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didOpen",
+            "params": {
+                "textDocument": {
+                    "uri": "file:///tmp/navigation.trn",
+                    "languageId": "terrane",
+                    "version": 7,
+                    "text": source
+                }
+            }
+        }),
+    );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "textDocument/definition",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 6, "character": 16}
+            }
+        }),
+    );
+    let definition = receive_response(&mut stdout, 2);
+    assert_eq!(
+        definition["result"]["range"]["start"],
+        json!({"line": 2, "character": 9})
+    );
+    assert_eq!(
+        definition["result"]["range"]["end"],
+        json!({"line": 2, "character": 15})
+    );
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "textDocument/references",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 6, "character": 16},
+                "context": {"includeDeclaration": true}
+            }
+        }),
+    );
+    let references = receive_response(&mut stdout, 3);
+    assert!(references["result"].as_array().unwrap().len() >= 2);
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "textDocument/formatting",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "options": {"tabSize": 4, "insertSpaces": true}
+            }
+        }),
+    );
+    let formatting = receive_response(&mut stdout, 4);
+    let edits = formatting["result"].as_array().unwrap();
+    assert_eq!(edits.len(), 1);
+    assert!(!edits[0]["newText"].as_str().unwrap().contains(";   \n"));
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 5, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 5);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
