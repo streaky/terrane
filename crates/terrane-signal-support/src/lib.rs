@@ -272,7 +272,6 @@ mod tests {
             0
         );
 
-
         let registration = Registration::install([true, false, false, false])
             .expect("install signal registration");
         let mut term_during = unsafe { std::mem::zeroed::<libc::sigaction>() };
