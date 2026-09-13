@@ -1065,8 +1065,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - add efficient keyed map removal and stable ordered list traversal (milestone 29.0);
 - add deterministic, fair, heterogeneous asynchronous selection with structured loser cleanup
   (milestone 29.1);
-- make lowering goldens runtime-independent so runtime support edits stop regenerating fixture
-  goldens, with a churn summarizer and regeneration discipline (milestone 29.2);
 - add native exact clocks, wake-driven timers/tickers, typed deadlines, and semantic process-signal
   subscriptions (milestone 29.3);
 - establish compiler-backed source intelligence, structural querying/editing, source formatting,
