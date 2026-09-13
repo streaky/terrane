@@ -251,6 +251,26 @@ pub(super) fn collect_typed_bindings(
         let [header, block] = node.children.as_slice() else {
             return Ok(());
         };
+        let awaited = if header.kind == SyntaxKind::Binding {
+            header.children.last()
+        } else {
+            Some(header)
+        };
+        if let Some(operand) = awaited.and_then(|awaited| awaited.children.last()) {
+            let operand_type = infer_value_type(unit, operand, visible_bindings)?;
+            if !matches!(operand_type, Some(ValueType::Task(_, _))) {
+                let found = operand_type.map_or_else(
+                    || "an unresolved value".to_owned(),
+                    |value_type| format!("`{value_type}`"),
+                );
+                return Err(failure(
+                    &unit.source,
+                    "T0131",
+                    format!("select case expression must produce a task, found {found}"),
+                    operand.span,
+                ));
+            }
+        }
         let mut case_bindings = visible_bindings.clone();
         if header.kind == SyntaxKind::Binding {
             let prior_len = case_bindings.len();

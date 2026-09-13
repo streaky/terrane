@@ -1605,14 +1605,12 @@ async fn wait_for_either(
         contender(String::from("cleanup-a"), started_a, gate_a))
     );
     let mut __terrane_select_result_517_0 = None;
-    let mut __terrane_select_cancelled_517_0 = false;
     let __terrane_select_control_517_1 = __terrane_select_control();
     let mut __terrane_select_future_517_1 = std::pin::pin!(
         __terrane_select_operation(__terrane_select_control_517_1.clone(),
         contender(String::from("cleanup-b"), started_b, gate_b))
     );
     let mut __terrane_select_result_517_1 = None;
-    let mut __terrane_select_cancelled_517_1 = false;
     let __terrane_select_winner_517 = std::future::poll_fn(|__terrane_select_context| {
             if __terrane_cancellation_is_requested() {
                 return std::task::Poll::Ready(usize::MAX);
@@ -1633,7 +1631,9 @@ async fn wait_for_either(
                                 return std::task::Poll::Ready(0usize);
                             }
                             std::task::Poll::Ready(None) => {
-                                __terrane_select_cancelled_517_0 = true;
+                                unreachable!(
+                                    "case cancellation starts only after winner selection"
+                                )
                             }
                             std::task::Poll::Pending => {}
                         }
@@ -1650,7 +1650,9 @@ async fn wait_for_either(
                                 return std::task::Poll::Ready(1usize);
                             }
                             std::task::Poll::Ready(None) => {
-                                __terrane_select_cancelled_517_1 = true;
+                                unreachable!(
+                                    "case cancellation starts only after winner selection"
+                                )
                             }
                             std::task::Poll::Pending => {}
                         }
@@ -1658,23 +1660,14 @@ async fn wait_for_either(
                     _ => unreachable!("select candidate is within the case count"),
                 }
             }
-            if __terrane_select_cancelled_517_0 && __terrane_select_cancelled_517_1 {
-                return std::task::Poll::Ready(usize::MAX);
-            }
             std::task::Poll::Pending
         })
         .await;
     if __terrane_select_winner_517 == usize::MAX {
         __terrane_select_control_517_1.request_cancel();
         __terrane_select_control_517_0.request_cancel();
-        if !__terrane_select_cancelled_517_1 {
-            let _ = __terrane_select_future_517_1.as_mut().await;
-        }
-        if !__terrane_select_cancelled_517_0 {
-            let _ = __terrane_select_future_517_0.as_mut().await;
-        }
-        drop(__terrane_select_future_517_1);
-        drop(__terrane_select_future_517_0);
+        let _ = __terrane_select_future_517_1.as_mut().await;
+        let _ = __terrane_select_future_517_0.as_mut().await;
         __terrane_wait_projected_cleanups().await;
         __terrane_select_guard_517.finish();
         __terrane_finish_cancelled_select(__terrane_select_guard_517).await;
@@ -1691,8 +1684,6 @@ async fn wait_for_either(
         }
         _ => unreachable!("selected winner is within the case count"),
     }
-    drop(__terrane_select_future_517_1);
-    drop(__terrane_select_future_517_0);
     __terrane_wait_projected_cleanups().await;
     __terrane_select_guard_517.finish();
     match __terrane_select_winner_517 {

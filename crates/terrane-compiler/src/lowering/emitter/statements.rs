@@ -382,24 +382,16 @@ impl Emitter<'_> {
         select_index: usize,
         case_index: usize,
         operand: &SyntaxNode,
-        unless_already_cancelled: bool,
     ) {
         let await_operation =
             format!("__terrane_select_future_{select_index}_{case_index}.as_mut().await");
-        let statement = if self.awaited_throws(operand) {
+        if self.awaited_throws(operand) {
             let site = self.error_site(operand);
-            format!(
-                "if let Some(Err(__terrane_select_error)) = {await_operation} {{ __terrane_select_cleanup_error_{select_index} = Some(__terrane_trace_error(__terrane_select_error, {site})); }}"
-            )
-        } else {
-            format!("let _ = {await_operation};")
-        };
-        if unless_already_cancelled {
             self.line(&format!(
-                "if !__terrane_select_cancelled_{select_index}_{case_index} {{ {statement} }}"
+                "if let Some(Err(__terrane_select_error)) = {await_operation} {{ __terrane_select_cleanup_error_{select_index} = Some(__terrane_trace_error(__terrane_select_error, {site})); }}"
             ));
         } else {
-            self.line(&statement);
+            self.line(&format!("let _ = {await_operation};"));
         }
     }
 
@@ -494,10 +486,7 @@ impl Emitter<'_> {
                 for (prior, (_, prior_operand, _)) in
                     cases.iter().take(case_index).enumerate().rev()
                 {
-                    self.drain_select_operation(index, prior, prior_operand, false);
-                }
-                for prior in (0..case_index).rev() {
-                    self.line(&format!("drop(__terrane_select_future_{index}_{prior});"));
+                    self.drain_select_operation(index, prior, prior_operand);
                 }
                 self.line("__terrane_wait_projected_cleanups().await;");
                 self.line(&format!("__terrane_select_guard_{index}.finish();"));
@@ -519,9 +508,6 @@ impl Emitter<'_> {
             }
             self.line(&format!(
                 "let mut __terrane_select_result_{index}_{case_index} = None;"
-            ));
-            self.line(&format!(
-                "let mut __terrane_select_cancelled_{index}_{case_index} = false;"
             ));
         }
         self.line(&format!(
@@ -557,9 +543,9 @@ impl Emitter<'_> {
             ));
             self.indent -= 1;
             self.line("}");
-            self.line(&format!(
-                "std::task::Poll::Ready(None) => __terrane_select_cancelled_{index}_{case_index} = true,"
-            ));
+            self.line(
+                "std::task::Poll::Ready(None) => unreachable!(\"case cancellation starts only after winner selection\"),",
+            );
             self.line("std::task::Poll::Pending => {}");
             self.indent -= 1;
             self.line("}");
@@ -571,13 +557,6 @@ impl Emitter<'_> {
         self.line("}");
         self.indent -= 1;
         self.line("}");
-        self.line(&format!(
-            "if {} {{ return std::task::Poll::Ready(usize::MAX); }}",
-            (0..cases.len())
-                .map(|case_index| format!("__terrane_select_cancelled_{index}_{case_index}"))
-                .collect::<Vec<_>>()
-                .join(" && ")
-        ));
         self.line("std::task::Poll::Pending");
         self.indent -= 1;
         self.line("}).await;");
@@ -591,12 +570,7 @@ impl Emitter<'_> {
             ));
         }
         for (case_index, (_, operand, _)) in cases.iter().enumerate().rev() {
-            self.drain_select_operation(index, case_index, operand, true);
-        }
-        for case_index in (0..cases.len()).rev() {
-            self.line(&format!(
-                "drop(__terrane_select_future_{index}_{case_index});"
-            ));
+            self.drain_select_operation(index, case_index, operand);
         }
         self.line("__terrane_wait_projected_cleanups().await;");
         self.line(&format!("__terrane_select_guard_{index}.finish();"));
@@ -624,7 +598,7 @@ impl Emitter<'_> {
             }
             for (loser, (_, operand, _)) in cases.iter().enumerate().rev() {
                 if loser != winner {
-                    self.drain_select_operation(index, loser, operand, false);
+                    self.drain_select_operation(index, loser, operand);
                 }
             }
             self.indent -= 1;
@@ -633,11 +607,6 @@ impl Emitter<'_> {
         self.line("_ => unreachable!(\"selected winner is within the case count\"),");
         self.indent -= 1;
         self.line("}");
-        for case_index in (0..cases.len()).rev() {
-            self.line(&format!(
-                "drop(__terrane_select_future_{index}_{case_index});"
-            ));
-        }
         self.line("__terrane_wait_projected_cleanups().await;");
         self.line(&format!("__terrane_select_guard_{index}.finish();"));
         if has_throwing_case {

@@ -5707,6 +5707,7 @@ fn safe_parameter_name(name: &str) -> String {
             | "unsafe"
             | "use"
             | "when"
+            | "select"
             | "yield"
     ) {
         format!("{name}_")

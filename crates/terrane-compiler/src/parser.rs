@@ -765,7 +765,12 @@ impl Parser<'_> {
     fn parse_select_case(&mut self) -> SyntaxNode {
         let start = self.position;
         self.bump();
-        let header = if self.at_line_end() {
+        let unsupported_default = self.at_text("else") || self.at_text("default");
+        let header = if unsupported_default {
+            self.error_here("S1107", "default select cases are not supported");
+            self.recover_line();
+            self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+        } else if self.at_line_end() {
             self.error_here(
                 "S1103",
                 "a select case requires `await expression` or `binding = await expression`",
@@ -806,14 +811,17 @@ impl Parser<'_> {
                     self.source.text()[operator.span.start..operator.span.end].trim() == "await"
                 })
         });
-        if !top_level_await {
+        if !top_level_await && !unsupported_default {
             self.diagnostics.push(Diagnostic::error(
                 "S1103",
                 "a select case header must contain exactly one top-level `await`",
                 header.span,
             ));
         }
-        if !self.at_line_end() {
+        if self.at_text("if") {
+            self.error_here("S1106", "select case guards are not supported");
+            self.recover_line();
+        } else if !self.at_line_end() {
             self.error_here("S1104", "unexpected content after select case header");
             self.recover_line();
         }
@@ -1297,6 +1305,15 @@ impl Parser<'_> {
                     self.position,
                     vec![class],
                 )
+            }
+            TokenKind::Identifier if self.at_text("select") => {
+                let start = self.position;
+                self.error_here(
+                    "S1108",
+                    "`select` is a statement and cannot be used as an expression",
+                );
+                self.bump();
+                self.node(SyntaxKind::Error, start, self.position, Vec::new())
             }
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
             TokenKind::Number

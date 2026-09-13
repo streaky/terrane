@@ -68,7 +68,7 @@
     },
     "keywords": {
       "name": "keyword.control.terrane",
-      "match": "\\b(?:a|and|as|async|await|break|case|catch|class|constant|construct|continue|destruct|else|extends|false|finally|for|from|function|global|goto|if|implements|import|in|interface|is|label|match|move|namespace|not|of|or|private|protected|public|ref|return|rust|shared|static|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|yield)\\b"
+      "match": "\\b(?:a|and|as|async|await|break|case|catch|class|constant|construct|continue|destruct|else|extends|false|finally|for|from|function|global|goto|if|implements|import|in|interface|is|label|match|move|namespace|not|of|or|private|protected|public|ref|return|rust|select|shared|static|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|yield)\\b"
     },
     "operators": {
       "name": "keyword.operator.terrane",
