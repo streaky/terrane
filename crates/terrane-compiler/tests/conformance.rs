@@ -327,11 +327,7 @@ fn with_compilation_dependencies(
 
 #[test]
 fn every_manifest_drives_a_conformance_case() {
-    let update_goldens = golden_updates_requested(
-        std::env::var_os("TERRANE_UPDATE_GOLDENS").as_deref(),
-        std::env::var_os("TERRANE_CONFORMANCE_FILTER").as_deref(),
-    )
-    .unwrap_or_else(|message| panic!("{message}"));
+    let update_goldens = golden_updates_from_environment();
     let manifests = selected_manifests();
     let build = ConformanceBuild::new();
     let mut deferred_generated_cases = Vec::new();
@@ -367,11 +363,9 @@ fn every_manifest_drives_a_conformance_case() {
                     (compilation, Vec::new())
                 };
                 assert_expected_warnings(case, &manifest, &compilation);
-                let normalized = compilation
-                    .review_rust
-                    .replace(terrane_compiler::VERSION, "<version>");
+                let normalized = normalized_review_rust(&compilation);
                 if update_goldens {
-                    write_reviewed_golden(case.join("lower.rs"), &expected, &normalized);
+                    write_reviewed_golden(&case.join("lower.rs"), &expected, &normalized);
                 } else {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
@@ -583,6 +577,12 @@ fn compile_and_maybe_run(
         );
     }
 }
+fn normalized_review_rust(compilation: &terrane_compiler::Compilation) -> String {
+    compilation
+        .review_rust
+        .replace(terrane_compiler::VERSION, "<version>")
+}
+
 fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: bool) {
     let reviewed_path = case.join("terrane-projection.lock");
     if !reviewed_path.is_file() {
@@ -597,7 +597,7 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: b
         let mut reviewed = serde_json::to_string_pretty(&staged).unwrap();
         reviewed.push('\n');
         let existing = fs::read_to_string(&reviewed_path).unwrap();
-        write_reviewed_golden(reviewed_path, &existing, &reviewed);
+        write_reviewed_golden(&reviewed_path, &existing, &reviewed);
         return;
     }
     assert_eq!(
@@ -608,11 +608,11 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: b
     );
 }
 
-fn write_reviewed_golden(path: PathBuf, existing: &str, replacement: &str) {
+fn write_reviewed_golden(path: &Path, existing: &str, replacement: &str) {
     if existing == replacement {
         return;
     }
-    fs::write(&path, replacement).unwrap();
+    fs::write(path, replacement).unwrap();
     eprintln!("updated golden {}", path.display());
 }
 
@@ -850,6 +850,14 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
             }
         })
         .collect()
+}
+
+fn golden_updates_from_environment() -> bool {
+    golden_updates_requested(
+        std::env::var_os("TERRANE_UPDATE_GOLDENS").as_deref(),
+        std::env::var_os("TERRANE_CONFORMANCE_FILTER").as_deref(),
+    )
+    .unwrap_or_else(|message| panic!("{message}"))
 }
 
 fn golden_updates_requested(
