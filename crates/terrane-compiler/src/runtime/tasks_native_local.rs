@@ -1,23 +1,25 @@
 #[derive(Clone)]
 pub struct TerraneTaskScope {
     cancellation: TerraneCancellation,
-    deadline: Option<std::time::Instant>,
+    deadline: Option<terrane_int_support::Int>,
 }
 
 impl TerraneTaskScope {
-    pub fn new(deadline_ms: Option<u64>) -> Self {
+    pub fn new(deadline: Option<terrane_int_support::Int>) -> Self {
         Self {
             cancellation: TerraneCancellation::new(),
-            deadline: deadline_ms
-                .map(|milliseconds| std::time::Instant::now() + std::time::Duration::from_millis(milliseconds)),
+            deadline,
         }
     }
 
-    pub fn child_scope(&self, deadline_ms: u64) -> Self {
-        let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);
+    pub fn child_scope(&self, requested: &terrane_int_support::Int) -> Self {
         Self {
             cancellation: self.cancellation.clone(),
-            deadline: Some(self.deadline.map_or(requested, |parent| parent.min(requested))),
+            deadline: Some(
+                self.deadline
+                    .as_ref()
+                    .map_or_else(|| requested.clone(), |parent| parent.clone().min(requested.clone())),
+            ),
         }
     }
 
@@ -27,7 +29,7 @@ impl TerraneTaskScope {
 
     pub fn should_cancel(&self) -> bool {
         self.cancellation.is_cancelled()
-            || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
+            || self.deadline.as_ref().is_some_and(terrane_time_deadline_expired)
     }
 
     fn cancellation(&self) -> TerraneCancellation {

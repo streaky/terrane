@@ -26,4 +26,5 @@ workspace = true
 
 [dev-dependencies]
 terrane-collection-support = { path = "../terrane-collection-support" }
+terrane-int-support = { path = "../terrane-int-support" }
 terrane-string-support = { path = "../terrane-string-support" }

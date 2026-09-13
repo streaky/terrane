@@ -1,0 +1,8 @@
+package = "process-signals-capability"
+
+[profile]
+name = "single-threaded"
+capabilities = ["clocks"]
+
+[namespaces]
+process-signals-capability = "src"

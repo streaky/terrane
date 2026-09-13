@@ -2,6 +2,7 @@ namespace app
 
 from /core/output import print
 from /core/networking import ip-address-from-string, parse-host-name, network-cancellation-token, network-cancel-operation, network-operation-options, lookup-dns
+from /core/time import clock, duration
 
 async function main;
     parsed = ip-address-from-string; '2001:0db8:0:0:0:0:0:1'
@@ -20,10 +21,10 @@ async function main;
     invalid-host = parse-host-name; 'contains space.example'
     print; invalid-host.failed
     port int = 443
-    deadline int = 1000
+    timeout = clock::deadline; (duration::seconds; 1)
     cancellation = instance network-cancellation-token;
     network-cancel-operation; cancellation
-    cancelled = instance network-operation-options; deadline, cancellation
+    cancelled = instance network-operation-options; timeout, cancellation
     host = parse-host-name; 'localhost'
     lookup = await lookup-dns; host.value, port, cancelled
     print; lookup.failed

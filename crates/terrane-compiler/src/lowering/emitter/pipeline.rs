@@ -311,6 +311,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     let mut uses_tls = false;
     let mut uses_concurrency = false;
     let mut uses_logging = false;
+    let mut uses_time = false;
+    let mut uses_process_signals = false;
     for unit in &package.units {
         match unit.namespace.as_str() {
             "/core/streams" => uses_streams = true,
@@ -328,8 +330,25 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             "/core/networking/tls" => uses_tls = true,
             "/core/concurrency" => uses_concurrency = true,
             "/core/logging" | "/core/logging/async" => uses_logging = true,
+            "/core/time" => uses_time = true,
+            "/core/process-signals" => uses_process_signals = true,
             _ => {}
         }
+    }
+    if uses_time {
+        runtime.push(GeneratedModule {
+            name: "time",
+            source_files: vec!["time_base.rs"],
+            items: vec![Item::generated(include_str!("../../runtime/time_base.rs"))],
+        });
+    } else if native_cancellation || package_uses_task_scope(package) {
+        runtime.push(GeneratedModule {
+            name: "time",
+            source_files: vec!["time_inactive.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/time_inactive.rs"
+            ))],
+        });
     }
     let uses_platform_capabilities = uses_random
         || uses_codecs
@@ -338,7 +357,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         || uses_networking
         || uses_tls
         || uses_concurrency
-        || uses_logging;
+        || uses_logging
+        || uses_time
+        || uses_process_signals;
     let requires_platform_support = uses_streams
         || uses_filesystem
         || uses_process
@@ -517,6 +538,18 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
                 "../../runtime/platform_concurrency.rs"
             )));
             source_files.push("platform_concurrency.rs");
+        }
+        if uses_time {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_time.rs"
+            )));
+            source_files.push("platform_time.rs");
+        }
+        if uses_process_signals {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_signals.rs"
+            )));
+            source_files.push("platform_signals.rs");
         }
         runtime.push(GeneratedModule {
             name: "platform_capabilities",

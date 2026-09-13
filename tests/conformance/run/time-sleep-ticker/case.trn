@@ -1,0 +1,35 @@
+namespace time-sleep-ticker
+
+from /core/time import clock, duration, ticker, tick
+
+async function main;
+    short = duration::milliseconds; 2
+    long = duration::seconds; 1
+    started = clock::monotonic;
+    ignored = await clock::sleep; short
+    slept = clock::monotonic;
+    print; (started.duration-until; ref slept).total-nanoseconds >= short.total-nanoseconds
+
+    captured = clock::sleep; (duration::milliseconds; 50)
+    delay = await clock::sleep; (duration::milliseconds; 150)
+    resumed = clock::monotonic;
+    captured-result = await captured
+    completed = clock::monotonic;
+    print; (resumed.duration-until; ref completed).total-nanoseconds < 25000000
+
+    timer ticker = clock::interval; (duration::milliseconds; 1)
+    first tick = await timer.next;
+    latency = await clock::sleep; (duration::milliseconds; 5)
+    second tick = await timer.next;
+    print; first.count >= 1, second.count >= 4
+    print; (first.scheduled.duration-until; ref second.scheduled).total-nanoseconds >= 4000000
+    timer.destruct;
+
+    race-started = clock::monotonic;
+    select
+        case done = await (clock::sleep; short)
+            print; done == none
+        case done = await (clock::sleep; long)
+            print; false
+    race-ended = clock::monotonic;
+    print; (race-started.duration-until; ref race-ended).total-nanoseconds < long.total-nanoseconds

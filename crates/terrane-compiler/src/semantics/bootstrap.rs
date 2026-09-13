@@ -428,6 +428,42 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "log-result-capability",
         ],
     );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/time",
+        "time",
+        [
+            "platform-result",
+            "time-wall",
+            "time-wall-seconds",
+            "time-wall-nanoseconds",
+            "time-domain",
+            "time-monotonic",
+            "time-sleep-until",
+            "time-div",
+            "time-mod",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/process-signals",
+        "process-signals",
+        [
+            "platform-result",
+            "process-signal-no-capability",
+            "process-signal-subscribe",
+            "process-signal-next",
+            "process-signal-close",
+            "process-signal-result-failed",
+            "process-signal-result-message",
+            "process-signal-result-detail",
+            "process-signal-result-int",
+            "process-signal-result-exact-int",
+            "process-signal-result-bool",
+            "process-signal-result-observed",
+            "process-signal-result-capability",
+        ],
+    );
     let mut types = vec![
         "int".to_owned(),
         "float".to_owned(),

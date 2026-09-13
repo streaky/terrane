@@ -187,7 +187,10 @@ impl Emitter<'_> {
                 || "None".to_owned(),
                 |argument| {
                     let value = argument.children.last().unwrap_or(argument);
-                    format!("Some(({}) as u64)", self.expression(value))
+                    format!(
+                        "Some(({}).expires_at.elapsed_nanoseconds.clone())",
+                        self.expression(value)
+                    )
                 },
             );
             return format!("TerraneTaskScope::new({deadline})");
@@ -266,7 +269,10 @@ impl Emitter<'_> {
                 "cancel" => format!("({receiver}).cancel()"),
                 "child-scope" => arguments.children.first().map_or_else(String::new, |argument| {
                     let deadline = argument.children.last().unwrap_or(argument);
-                    format!("({receiver}).child_scope(({}) as u64)", self.expression(deadline))
+                    format!(
+                        "({receiver}).child_scope(&({}).expires_at.elapsed_nanoseconds)",
+                        self.expression(deadline)
+                    )
                 }),
                 _ => String::new(),
             };
@@ -856,6 +862,115 @@ impl Emitter<'_> {
                             ("document_list_append", 1) | ("document_map_insert", 2)
                         );
                     if borrowed_result {
+                        format!("&({value})")
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
+        }
+        if self.is_builtin(
+            callee,
+            "intrinsic:process-signals::process-signal-no-capability",
+        ) {
+            return "TerranePlatformCapability::default()".to_owned();
+        }
+        if self.is_builtin(
+            callee,
+            "intrinsic:process-signals::process-signal-subscribe",
+        ) {
+            return format!(
+                "terrane_process_signal_subscribe({})",
+                self.expression(argument_values[0])
+            );
+        }
+        if self.is_builtin(callee, "intrinsic:process-signals::process-signal-next") {
+            return format!(
+                "terrane_process_signal_next(&({}))",
+                self.expression(argument_values[0])
+            );
+        }
+        if self.is_builtin(callee, "intrinsic:process-signals::process-signal-close") {
+            return format!(
+                "terrane_process_signal_close(&({}))",
+                self.expression(argument_values[0])
+            );
+        }
+        let signal_result_call = [
+            ("process-signal-result-failed", "platform_result_failed"),
+            ("process-signal-result-message", "platform_result_message"),
+            ("process-signal-result-detail", "platform_result_detail"),
+            ("process-signal-result-int", "platform_result_int"),
+            ("process-signal-result-bool", "platform_result_bool"),
+            (
+                "process-signal-result-capability",
+                "platform_result_capability",
+            ),
+            (
+                "process-signal-result-exact-int",
+                "process_signal_result_exact_int",
+            ),
+            (
+                "process-signal-result-observed",
+                "process_signal_result_observed",
+            ),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("intrinsic:process-signals::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = signal_result_call {
+            return format!(
+                "terrane_{function}(&({}))",
+                self.expression(argument_values[0])
+            );
+        }
+        if callee.kind == SyntaxKind::StaticMemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self.text(member) == "sleep"
+            && self
+                .package
+                .resolve_name_at(self.unit, receiver.span.start, self.text(receiver))
+                .is_some_and(|symbol| symbol.compiler_identity() == "/core/time::clock")
+        {
+            let elapsed = argument_values
+                .first()
+                .expect("time sleep arity is checked semantically");
+            return format!(
+                "terrane_time_sleep_after(({}).total_nanoseconds.clone())",
+                self.expression(elapsed)
+            );
+        }
+        let time_call = [
+            ("time-wall", "platform_time_wall"),
+            ("time-wall-seconds", "platform_time_wall_seconds"),
+            ("time-wall-nanoseconds", "platform_time_wall_nanoseconds"),
+            ("time-domain", "platform_time_domain"),
+            ("time-monotonic", "platform_time_monotonic"),
+            ("time-sleep-until", "platform_time_sleep_until"),
+            ("time-div", "platform_time_div"),
+            ("time-mod", "platform_time_mod"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("intrinsic:time::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = time_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let value = self.expression(value);
+                    if matches!(
+                        function,
+                        "platform_time_wall_seconds" | "platform_time_wall_nanoseconds"
+                    ) || index == 0
+                        && matches!(function, "platform_time_div" | "platform_time_mod")
+                    {
                         format!("&({value})")
                     } else {
                         value

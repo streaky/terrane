@@ -818,6 +818,27 @@ fn write_support_crates(directory: &Path) {
         include_bytes!("../../terrane-platform-support/src/observability.rs"),
     )
     .unwrap();
+    fs::write(
+        platform.join("src/signals.rs"),
+        include_bytes!("../../terrane-platform-support/src/signals.rs"),
+    )
+    .unwrap();
+    write_signal_support_crate(directory);
+}
+
+fn write_signal_support_crate(directory: &Path) {
+    let signal = directory.join("support/terrane-signal-support");
+    fs::create_dir_all(signal.join("src")).unwrap();
+    fs::write(
+        signal.join("Cargo.toml"),
+        terrane_compiler::signal_support_manifest(),
+    )
+    .unwrap();
+    fs::write(
+        signal.join("src/lib.rs"),
+        include_bytes!("../../terrane-signal-support/src/lib.rs"),
+    )
+    .unwrap();
 }
 
 fn optional_bytes(path: PathBuf) -> Vec<u8> {

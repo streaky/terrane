@@ -1,0 +1,5 @@
+namespace time-zero-ticker
+from /core/time import clock, duration
+function main;
+    zero = duration::nanoseconds; 0
+    clock::interval; zero

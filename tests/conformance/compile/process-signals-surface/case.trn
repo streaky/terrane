@@ -1,0 +1,15 @@
+namespace process-signals-surface
+
+from /core/collections import set
+from /core/process-signals import process-signal-error, process-signal, process-signal-event, process-signal-subscription, process-signals
+
+async function observe none throws process-signal-error; subscription process-signal-subscription
+    event process-signal-event = await subscription.next;
+    print; event.signal.name, event.count, event.sequence, event.overflowed
+    closed = subscription.close;
+    return none
+
+async function main;
+    selected set of process-signal = set; (process-signal::interrupt;), (process-signal::terminate;), (process-signal::hangup;), (process-signal::quit;)
+    subscription = process-signals; selected
+    ignored = await observe; subscription

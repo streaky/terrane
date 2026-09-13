@@ -1,23 +1,20 @@
 #[derive(Clone)]
 pub struct TerraneTaskScope {
     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    deadline: Option<std::time::Instant>,
+    deadline: Option<terrane_int_support::Int>,
 }
 impl TerraneTaskScope {
-    pub fn new(deadline_ms: Option<u64>) -> Self {
+    pub fn new(deadline: Option<terrane_int_support::Int>) -> Self {
         Self {
             cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            deadline: deadline_ms
-                .map(|value| {
-                    std::time::Instant::now() + std::time::Duration::from_millis(value)
-                }),
+            deadline,
         }
     }
-    pub fn child_scope(&self, deadline_ms: u64) -> Self {
-        let requested = std::time::Instant::now()
-            + std::time::Duration::from_millis(deadline_ms);
+    pub fn child_scope(&self, requested: &terrane_int_support::Int) -> Self {
         let deadline = Some(
-            self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)),
+            self.deadline
+                .as_ref()
+                .map_or_else(|| requested.clone(), |parent| parent.clone().min(requested.clone())),
         );
         Self {
             cancelled: self.cancelled.clone(),
@@ -29,9 +26,7 @@ impl TerraneTaskScope {
     }
     pub fn should_cancel(&self) -> bool {
         self.cancelled.load(std::sync::atomic::Ordering::Acquire)
-            || self
-                .deadline
-                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+            || self.deadline.as_ref().is_some_and(terrane_time_deadline_expired)
     }
     pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
         let result = task.result.take().expect("scoped task joined once");

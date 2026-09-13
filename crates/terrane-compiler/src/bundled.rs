@@ -86,6 +86,16 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/tls.trn"),
     },
     BundledSource {
+        namespace: "/core/time",
+        path: "core/time.trn",
+        text: include_str!("core/time.trn"),
+    },
+    BundledSource {
+        namespace: "/core/process-signals",
+        path: "core/process_signals.trn",
+        text: include_str!("core/process_signals.trn"),
+    },
+    BundledSource {
         namespace: "/core/concurrency",
         path: "core/concurrency.trn",
         text: include_str!("core/concurrency.trn"),

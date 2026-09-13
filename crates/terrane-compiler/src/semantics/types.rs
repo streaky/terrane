@@ -528,7 +528,15 @@ pub(super) fn declared_value_type_with_visible_objects(
             };
             if let Some(construct) = construct {
                 let item = ElementType::new(resolve_argument(argument)?);
-                if matches!(base_name, "set" | "unordered-set") && item.scalar().is_none() {
+                if matches!(base_name, "set" | "unordered-set")
+                    && item.scalar().is_none()
+                    && !(base_name == "set"
+                        && item.value_type()
+                            == ValueType::Object(ObjectIdentity::new(
+                                "/core/process-signals",
+                                "process-signal",
+                            )))
+                {
                     return Err(failure(
                         &unit.source,
                         "T0001",

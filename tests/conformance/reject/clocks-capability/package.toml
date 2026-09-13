@@ -1,0 +1,8 @@
+package = "clocks-capability"
+
+[profile]
+name = "single-threaded"
+capabilities = []
+
+[namespaces]
+clocks-capability = "src"

@@ -19,6 +19,10 @@ use std::{
 #[derive(Debug)]
 pub struct TerraneError;
 
+fn terrane_time_deadline_expired(_deadline: &terrane_int_support::Int) -> bool {
+    false
+}
+
 include!("../src/runtime/async.rs");
 include!("../src/runtime/async_cancellable.rs");
 include!("../src/runtime/tasks_threaded.rs");

@@ -1,0 +1,72 @@
+namespace core/process-signals
+
+from /core/collections import set
+from /core/errors import throwable
+from /core/time import clock, monotonic-instant
+
+class process-signal-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
+class process-signal
+    name string = ''
+
+    private function construct; signal-name string
+        this.name = signal-name
+
+    static function interrupt process-signal;
+        return instance process-signal; 'interrupt'
+
+    static function terminate process-signal;
+        return instance process-signal; 'terminate'
+
+    static function hangup process-signal;
+        return instance process-signal; 'hangup'
+
+    static function quit process-signal;
+        return instance process-signal; 'quit'
+
+class process-signal-event
+    signal process-signal = instance process-signal; ''
+    count int = 0
+    sequence int = 0
+    observed-at monotonic-instant = clock::monotonic;
+    overflowed bool = false
+
+    private function construct; observed-signal process-signal, occurrences int, event-sequence int, observed monotonic-instant, did-overflow bool
+        this.signal = observed-signal
+        this.count = occurrences
+        this.sequence = event-sequence
+        this.observed-at = observed
+        this.overflowed = did-overflow
+
+class process-signal-subscription
+    private handle host-platform-capability = host-process-signal-no-capability;
+    private function construct; capability host-platform-capability
+        this.handle = capability
+
+    mutable async function next process-signal-event throws process-signal-error;
+        raw = await host-process-signal-next; this.handle
+        if host-process-signal-result-failed; raw
+            throw instance process-signal-error; (host-process-signal-result-message; raw)
+        return instance process-signal-event; (instance process-signal; (host-process-signal-result-detail; raw)), (host-process-signal-result-exact-int; raw), (host-process-signal-result-int; raw), (host-process-signal-result-observed; raw), (host-process-signal-result-bool; raw)
+
+    consuming function close none throws process-signal-error;
+        raw = host-process-signal-close; this.handle
+        if host-process-signal-result-failed; raw
+            throw instance process-signal-error; (host-process-signal-result-message; raw)
+        return none
+
+    consuming function destruct;
+        host-process-signal-close; this.handle
+
+function process-signals process-signal-subscription throws process-signal-error; selected set of process-signal
+    raw = host-process-signal-subscribe; selected
+    if host-process-signal-result-failed; raw
+        throw instance process-signal-error; (host-process-signal-result-message; raw)
+    return instance process-signal-subscription; (host-process-signal-result-capability; raw)

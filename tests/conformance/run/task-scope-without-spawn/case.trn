@@ -1,6 +1,11 @@
 namespace task-scope-without-spawn
 
+from /core/time import clock, duration
+
 function main;
-  parent = task-scope; 10
-  child = parent.child-scope; 5
-  child.child-scope; 2
+  parent-deadline = clock::deadline; (duration::milliseconds; 10)
+  parent = task-scope; parent-deadline
+  child-deadline = clock::deadline; (duration::milliseconds; 5)
+  child = parent.child-scope; child-deadline
+  grandchild-deadline = clock::deadline; (duration::milliseconds; 2)
+  child.child-scope; grandchild-deadline

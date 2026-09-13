@@ -1,0 +1,4 @@
+namespace time-negative-duration
+from /core/time import duration
+function main;
+    duration::milliseconds; -1
