@@ -348,7 +348,8 @@ fn every_manifest_drives_a_conformance_case() {
 
         match (phase, status) {
             ("run" | "check", "accept") => {
-                let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
+                let lower_path = case.join("lower.rs");
+                let expected = read_reviewed_golden(&lower_path, update_goldens);
                 let (compilation, dependencies) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
@@ -365,7 +366,7 @@ fn every_manifest_drives_a_conformance_case() {
                 assert_expected_warnings(case, &manifest, &compilation);
                 let normalized = normalized_review_rust(&compilation);
                 if update_goldens {
-                    write_reviewed_golden(&case.join("lower.rs"), &expected, &normalized);
+                    write_reviewed_golden(&lower_path, &expected, &normalized);
                 } else {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
@@ -577,6 +578,16 @@ fn compile_and_maybe_run(
         );
     }
 }
+fn read_reviewed_golden(path: &Path, allow_missing: bool) -> String {
+    match fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(error) if allow_missing && error.kind() == std::io::ErrorKind::NotFound => {
+            String::new()
+        }
+        Err(error) => panic!("cannot read reviewed golden {}: {error}", path.display()),
+    }
+}
+
 fn normalized_review_rust(compilation: &terrane_compiler::Compilation) -> String {
     compilation
         .review_rust
