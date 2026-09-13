@@ -2063,17 +2063,21 @@
       "id": "compiler-source-intelligence",
       "name": "Compiler-backed source intelligence and structural tooling",
       "category": "syntax",
-      "status": "planned",
-      "completion": 0,
+      "status": "done",
+      "completion": 100,
       "milestone": "30.0",
       "reference": {
-        "state": "planned",
+        "state": "documented",
         "paths": [
           "manual/reference/records/tooling/source-intelligence.yaml"
         ]
       },
-      "notes": "Will expose versioned lossless syntax and canonical semantic queries, snapshot-safe edits, source formatting, and shared language-server analysis without a second parser or resolver.",
+      "notes": "Versioned immutable syntax/semantic snapshots, bounded structural queries, exact-build source associations, validated edits and rename, source formatting, JSON-lines/one-shot CLI access, and shared LSP navigation are implemented.",
       "sources": [
+        "docs/language-spec-and-compiler-architecture-draft.md#31-tooling",
+        "docs/language-spec-concise.md#SOURCE-INTELLIGENCE",
+        "docs/surface-today.md#Compiler-backed-source-intelligence",
+        "docs/tooling-schema.md",
         "docs/compiler-plan.md#Milestone 30.0"
       ]
     },

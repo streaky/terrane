@@ -1196,6 +1196,22 @@ lock_change_diagnostic: machine-independent terrane-projection.lock history reco
 - Any later adapter must define conversion, ownership, lifetime, thread, exception, deployment, and tooling contracts without weakening Terrane semantics.
 - C++ initially crosses through C-compatible shims or Rust bridges; arbitrary C++ ABI integration is deferred.
 
+## SOURCE INTELLIGENCE
+
+```yaml
+authority: one compiler-owned immutable snapshot/query engine; no public internal Rust structs and no second parser/resolver
+schema: version 1.0 additive public projection; canonical UTF-8 half-open byte spans
+identity: compiler version + schema version + content-derived snapshot ID + logical URI/source hash; semantic options include manifest/lock hashes, target, profile and capabilities; generated spans require exact build ID
+syntax: exact tokens/trivia + snapshot-local node IDs + named child fields + complete/error/recovery/unsupported state; remains available after syntax errors
+semantics: compiler resolution supplies canonical symbol/descriptor identity, definition/references, type, ownership and capability facts; availability is known|unresolved|invalid|not-yet-analyzed|unsupported
+query: locate | definition | references | bounded structural find | exact-build generated association; deterministic URI/byte ordering, bounded pages, opaque snapshot/query-bound continuations, recovery matching opt-in
+transport: terrane tooling --stdio JSON-lines; terrane query --request <json-file> one-shot; request IDs, schema errors, cancellation and expiry explicit; protocol frames only on stdout
+edits: proposals carry snapshot + all affected hashes + non-overlapping byte replacements + preview diagnostics + semantic reanalysis state; apply preflights every hash and uses same-directory temporary replacement; rename follows canonical identity and rejects capture
+format: compiler lossless tree; terrane fmt [--check] and LSP formatting; canonical parser-proven assignment/infix spacing, safe trailing whitespace, idempotence, comments/multiline/newline style and malformed-region preservation
+lsp: shared snapshot IDs for diagnostics, semantic hover, definitions, references, rename, symbols and formatting; versioned workspace edits; negotiated UTF-8/UTF-16/UTF-32 boundary
+reference: docs/tooling-schema.md
+```
+
 ## COMPILER
 
 Pipeline:
