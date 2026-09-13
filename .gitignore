@@ -20,3 +20,5 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 /projects/
 
 .vscode/
+
+*.pyc

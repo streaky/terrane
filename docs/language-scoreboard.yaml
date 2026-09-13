@@ -1207,7 +1207,7 @@ features:
   category: async
   status: planned
   completion: 0
-  milestone: '29.2'
+  milestone: '29.3'
   reference:
     state: planned
     paths:
@@ -1215,7 +1215,7 @@ features:
   notes: Will add exact duration and wall/monotonic values, wake-driven sleep and aligned tickers, typed deadlines, and bounded semantic interrupt/termination subscriptions.
   sources:
   - docs/surface-v1.md#13.1 Date and time
-  - docs/compiler-plan.md#Milestone 29.2
+  - docs/compiler-plan.md#Milestone 29.3
 - id: byte-text-streams
   name: Byte and text streams
   category: async
