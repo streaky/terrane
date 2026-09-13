@@ -205,299 +205,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 29.3 — Native clocks, timers, tickers, and process signals
-
-Terrane needs one portable service-time surface whose public values, policies, cancellation, and
-diagnostics belong to the language rather than to whichever Rust runtime an application happens to
-project. Implement `/core/time` and `/core/process-signals` as bundled Terrane packages over the
-smallest irreducible clock, timer-registration, signal-registration, and wakeup host boundary.
-This is language infrastructure in its own right, not an adapter for one application.
-
-Milestone 29.1 supplies composition: sleeps, ticker waits, and signal waits are ordinary typed tasks
-which participate in `select` without timer-, timeout-, or signal-specific control-flow syntax.
-
-#### Exact time values
-
-Deliver three distinct identity-less values:
-
-- `duration`: an exact non-negative elapsed quantity stored canonically as arbitrary-precision whole
-  seconds plus a nanosecond component in `0..999_999_999`;
-- `monotonic-instant`: an opaque, comparable point in the current program runtime's monotonic clock
-  domain, never serializable or interpretable as civil time; and
-- `instant`: a UTC wall-clock point represented as signed Unix seconds plus a canonical nanosecond
-  component, suitable for persistence and structured output but never for scheduling.
-
-The initial duration construction surface is:
-
-```terrane
-one-second duration = duration::seconds; 1
-quarter-second duration = duration::milliseconds; 250
-precise duration = duration::microseconds; 50
-minimum duration = duration::nanoseconds; 1
-```
-
-Each factory takes one exact `int`. A negative input rejects statically when constant and otherwise
-throws `invalid-duration`; no factory accepts floating values or silently rounds. Duration exposes
-whole `.seconds`, canonical `.nanoseconds`, exact `.total-nanoseconds`, `.add; other`,
-`.subtract.checked; other`, and `.multiply; non-negative-int`. A negative multiplier follows the
-same rule: reject when statically known and otherwise throw `invalid-duration` without producing a
-value. Addition and non-negative multiplication remain exact. Checked subtraction returns `none`
-rather than constructing a negative duration. Zero is a valid duration, sleep input, and multiplier,
-but not a valid ticker period.
-
-Monotonic instants compare and support `.duration-until; later -> duration`; reversed dynamic
-operands throw `invalid-duration`. Wall instants compare and expose signed Unix seconds plus a
-canonical nanosecond component.
-Wall and monotonic instants never compare, subtract, or convert to one another. Monotonic values are
-valid only within the runtime activation that produced them. Ordinary in-memory calls and returns
-between Terrane packages in that same activation may carry them, as may compiler-owned core/runtime
-support. Persistence, document encoding, arbitrary foreign projection/ABI crossing, and use by
-another program/runtime activation reject.
-
-No calendar date, local time, time zone, daylight-saving rule, leap-second presentation, parsing, or
-formatting belongs to this milestone. Those remain the separate civil-time surface anticipated by
-`docs/surface-v1.md`.
-
-#### Clock, sleep, and deadline contract
-
-`/core/time` exports an explicit imported `clock` object:
-
-```text
-clock::wall;                           -> instant
-clock::monotonic;                      -> monotonic-instant
-clock::sleep; duration                 -> async none
-clock::sleep-until; monotonic-instant  -> async none
-clock::interval; duration              -> ticker throws invalid-duration
-clock::deadline; duration              -> deadline
-deadline::at; monotonic-instant        -> deadline
-```
-
-A `deadline` is an identity-less, copyable, reusable value containing one exact
-`monotonic-instant` target in the same runtime domain:
-
-```text
-deadline.expires-at -> monotonic-instant
-deadline.remaining; -> duration|none
-deadline.expired    -> bool
-```
-
-`clock::deadline; duration` reads the monotonic clock and captures its exact target immediately when
-called; later use never recomputes `now + duration`. `deadline::at` retains the supplied target after
-proving the runtime domain. A past or exactly current target is valid, reports `expired` true
-and no remaining duration, and makes an attached operation immediately eligible to observe its
-deadline. Deadline values inherit monotonic instants' runtime-domain, persistence, document, and
-foreign-ABI restrictions.
-
-The deadline stores its exact semantic target independently of any bounded host `Instant`.
-Comparison, `.remaining`, child-deadline combination, ticker `scheduled-at`, and expiration checks
-operate on that exact target. Only the next wake registration converts a bounded chunk to a host
-timer, so chunking cannot overflow the semantic deadline or alter ordering.
-
-A sleep deadline is captured when its async task is constructed, before first poll. Zero-duration
-sleep becomes ready on its first poll without registering a timer or spinning. A positive pending
-sleep registers one wake-driven timer operation. Cancellation removes that registration before
-ordinary Terrane `finally` processing; a ready sleep selected before cancellation is completed
-work. `sleep-until` completes immediately when its authored monotonic instant is not later than the
-current monotonic time.
-
-Every timer and deadline uses monotonic time. Moving the wall clock backward or forward cannot
-alter its readiness. The runtime may break a duration larger than one host registration range into
-chunks, but may not narrow, wrap, clamp, poll periodically, or surface target-dependent maximum
-durations. No sleep receives one blocking thread.
-
-Replace provisional integer-millisecond deadline parameters throughout compiler-owned APIs with
-`duration` or `deadline`, including task-scope/child-scope construction and network/process
-operation options. This is a clean cutover: migrate every caller, fixture, descriptor, reflection
-record, and manual entry and remove the integer aliases. A child's effective deadline remains the
-earlier of its inherited and requested monotonic deadlines.
-
-#### Ticker contract
-
-`clock::interval; period` constructs a linear `ticker`, anchored at construction time. Its first tick
-is scheduled one period after that anchor:
-
-```text
-ticker.next;     -> async tick
-ticker.destruct; -> none
-
-tick.scheduled -> monotonic-instant
-tick.observed  -> monotonic-instant
-tick.count     -> int
-```
-
-The first contract has one fixed missed-tick policy: coalesce missed emissions while retaining the
-original schedule. When observation is late by one or more periods, `.next` returns the most recent
-tick not later than observation and the exact number of expirations represented by that delivery,
-then schedules the following tick from the original anchor. It never emits an immediate burst merely
-to replay every missed period.
-Ticker index and schedule arithmetic remain exact even when an interval spans more than one bounded host
-timer registration: lowering registers successive wake chunks toward the exact scheduled instant
-without narrowing the period, accumulating repeated-addition drift, or changing which tick is due.
-
-Only one `.next` may borrow one ticker at a time. Cancelling a pending `.next` unregisters its waiter
-without advancing the schedule or consuming a not-yet-ready tick. Once `.next` is ready and selected,
-that tick is completed work. `destruct` consumes the ticker, removes its registration, and runs no
-detached cleanup. Drop is a non-graceful resource release that still unregisters; authored orderly
-shutdown also consumes the linear ticker with `destruct`.
-
-Burst, delay-from-observation, cron, wall-clock alignment, jitter, retry, and backoff policies are
-outside this milestone.
-
-#### Process-signal contract
-
-`/core/process-signals` exports selected, linear, single-consumer subscriptions:
-
-```text
-process-signals; selected-set -> process-signal-subscription throws process-signal-error
-subscription.next;            -> async process-signal-event throws process-signal-error
-subscription.close;           -> none
-
-process-signal::interrupt; -> process-signal
-process-signal::terminate; -> process-signal
-process-signal::hangup;    -> process-signal
-process-signal::quit;      -> process-signal
-
-process-signal-event.signal      -> process-signal
-process-signal-event.count       -> int
-process-signal-event.sequence    -> int
-process-signal-event.observed-at -> monotonic-instant
-process-signal-event.overflowed  -> bool
-```
-
-Each event names exactly one selected kind. Arbitrary signal numbers, synchronous source callbacks,
-and platform-specific signal-handler objects are not source surface. Supported target adapters map
-the four public kinds to their corresponding `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT` events.
-
-A subscription observes only later broker events. Operating systems may coalesce standard signals
-before invoking Terrane's host handler, so neither the broker nor `count` claims to reconstruct how
-many signals another process attempted to generate. Cross-kind order before host observation is
-likewise unspecified.
-
-The named counting boundary is admission into the host adapter's fixed-width, async-signal-safe
-per-kind counter. Each successfully admitted handler notification contributes one. If that counter
-saturates before the broker drains it, the handler performs no unbounded work: it retains the
-saturated count, sets the corresponding overflow flag, and wakes the broker. `overflowed` therefore
-means that at least one additional host-handler notification was not represented in `count`.
-
-The broker fans each drained notification batch to every active subscription. Per subscription it
-retains at most one pending event slot for each kind. Repeated admitted batches increment that
-slot's arbitrary-precision Terrane `count`; this remains exact for notifications admitted at the
-named boundary. The storage bound is four event slots plus counters whose byte size may grow
-logarithmically with a delayed consumer—it is not a constant-byte promise.
-
-The delivered count is the number of admitted notifications represented by that event.
-`observed-at` is the monotonic time at which the broker first admitted a notification into that
-pending subscription slot; later coalescing does not change it. Once `.next` successfully delivers
-the event, that kind's count and overflow flag reset. A later notification starts a new pending
-event and is never folded retroactively into the delivered one. `.next` chooses the kind with the
-earlier first broker-observation time, using the broker's deterministic sequence to break an equal
-timestamp. Host observation remains external input; controlled test adapters supply it
-deterministically.
-
-Adding the first subscription for a kind captures that kind's current host disposition and installs
-Terrane's handler. Closing one subscription cannot affect another; when the last interested
-subscription for a kind closes, the broker restores exactly the disposition captured when it took
-ownership of that kind. Closing the final subscription also joins the broker worker. Foreign code
-that mutates an owned disposition crosses an unsupported interoperation boundary: Terrane does not
-promise to preserve or merge that later mutation. Such integration must be mediated through an
-explicit future Terrane-managed facility. An upstream runtime signal stream whose drop leaves the
-process disposition installed does not satisfy this contract; the selected adapter must
-deliberately own capture, installation, and restoration.
-
-Cancelling a pending `.next` removes only its waiter and does not consume its retained event. The
-host handler itself may
-only perform async-signal-safe notification; it never allocates, takes an ordinary lock, executes
-Terrane code, runs cleanup, or decides application shutdown policy. The broker transfers notification
-onto the selected runtime before constructing Terrane values or waking subscriptions.
-
-Receipt never implicitly cancels a task scope and a repeated signal never hard-exits by language
-policy. Programs decide whether the first event starts graceful shutdown and whether a later count
-escalates. With no active subscription, the target's normal process behavior applies.
-
-#### Capabilities, implementation, and lowering
-
-`/core/time` requires the existing `clocks` target capability. `/core/process-signals` requires a
-new narrow `process-signals` capability rather than the broader process-spawn capability.
-Unsupported targets reject the import/use statically; they do not return fabricated time, create a
-forever-pending task, or silently omit one signal kind.
-
-Implement and commit this milestone in three evidence-bearing checkpoints: exact duration/instant
-values plus typed deadlines and caller migration; wake-driven sleep plus ticker scheduling; then
-the separately failure-prone process-signal broker. Do not hide an unfinished later checkpoint
-behind a completed earlier surface or mark 29.3 done until all three share the final contracts.
-
-Rust/platform support is justified only at the syscall/ABI and executor-wakeup boundary. It owns:
-
-- reading wall and monotonic clocks;
-- registering, cancelling, and waking runtime timers;
-- async-signal-safe target handler installation and restoration;
-- fixed-width saturating per-kind host notification counters plus overflow flags;
-- funneling admitted process notifications onto the selected executor; and
-- the four pending event slots and arbitrary-precision subscription counts whose update cannot
-  safely live in a signal callback.
-
-Bundled Terrane source owns constructors, checked arithmetic, ticker scheduling policy, signal
-classification/coalescing policy, object interfaces, capability diagnostics, and integration with
-tasks, scopes, `select`, structured errors, and logging. Core packages use the ordinary dependency
-mechanism and receive no privileged projection path.
-
-Semantic IR records generic requirements—clock access, wake support, local/transferable execution,
-and process-signal support—without naming Tokio or another runtime. Native lowering selects exactly
-one adapter already chosen for the program. Sleep, ticker, and signal tasks use one current
-`Context`/waker, never a polling loop, one-thread-per-operation fallback, hidden second runtime, or
-unbounded queue. All public types and members come from canonical descriptor contracts shared by
-semantic checking, reflection, lowering, completion, and hover.
-
-#### Deterministic evidence and boundaries
-
-Milestone 29.3 provides a compiler-controlled platform clock hook proving wake-driven sleep and
-no-early-completion behavior without production test-control entry points. Exposing explicit clock
-advancement and signal injection through Terrane-level conformance is deferred to Milestone 30.1;
-the current real-host sleep/ticker case is smoke coverage, not the primary semantic oracle. That
-adapter completion must add accepted cases for:
-
-- every duration factory, normalization boundary, exact arithmetic, checked negative subtraction,
-  and constant/dynamic rejection of negative construction or multiplication;
-- immediate deadline capture, reuse, expired/past targets, exact target comparison beyond one host
-  registration range, same-runtime package passage, and rejected foreign/runtime-domain crossing;
-- wall time moving backward and forward while monotonic sleep, deadlines, and tickers remain
-  unaffected;
-- zero, positive, already-expired, cancelled, and host-registration-spanning sleeps with no early
-  completion;
-- timer registration removal, no progress without a wake, bounded poll counts, and cleanup before
-  executor shutdown;
-- ticker first-fire alignment, late observation, multi-period skip, exact long-run alignment across
-  bounded host wake chunks, cancellation, destruct, and drop;
-- controlled interrupt and termination delivery, operating-system pre-handler coalescing,
-  host-counter saturation/overflow, broker-admitted counts, first-observation timestamps,
-  post-delivery count/overflow reset, cross-kind ordering, multiple subscriptions, cancellation,
-  close, and exact restoration of the initially captured disposition after the last close;
-- `select` across task completion, sleep, ticker, and signal cases, including simultaneous readiness
-  and losing-operation cleanup;
-- migration of task-scope, child-scope, networking, process, and test timeout callers from
-  provisional integer milliseconds to `duration`/`deadline`; and
-- compile-time capability rejection plus one real subprocess SIGINT/SIGTERM smoke scenario on each
-  supported host family.
-
-Add rejected cases for float or negative duration construction, zero ticker periods, mixed
-wall/monotonic operations, cross-runtime or persisted monotonic instants, overlapping ticker or
-subscription waits, use after destruct/move, unavailable capabilities, arbitrary signal numbers, and
-attempts to use signal handlers as source callbacks.
-
-The completed controlled adapter must expose explicit advancement and signal injection to compiler
-and Milestone-30.1 test infrastructure without becoming an ambient production clock. Production
-builds must not contain test-control entry points. The existing platform hook is the first half of
-that adapter; Milestone 30.1 owns its Terrane test-harness exposure. A runtime witness must
-demonstrate that the selected native timer and signal adapter introduces no busy polling, detached
-tasks, leaked registrations, or shutdown race.
-
-Exit criterion: exact time values, wake-driven sleeps, typed deadlines, aligned tickers, and semantic
-interrupt/termination subscriptions compose with ordinary `await`, task scopes, cancellation,
-`finally`, and Milestone-29.1 `select`; all provisional integer timeout callers are migrated; source
-and full/concise specifications, implemented surface, manual reference, capability tables,
-reflection, and tooling agree; focused conformance, real-host smoke coverage, strict Clippy, the
-complete conformance matrix, and the measured workspace suite all pass.
-
 ### Milestone 30.0 — Compiler-backed source intelligence and structural tooling
 
 Terrane already owns recovered syntax, retained tokens/trivia and byte spans, canonical semantic
@@ -3893,4 +3600,298 @@ Exit criterion: no `lower.rs` contains runtime support text; each golden carries
 line; a runtime-only edit regenerates no goldens; the summarizer reproduces the `1790be1c` churn as
 one hunk; and the full suite, canonical-Rust validation, and strict Clippy pass at the migration
 commit with the scoreboard refreshed there.
+
+### Milestone 29.3 — Native clocks, timers, tickers, and process signals
+**Status:** completed on `native-time-and-process-signals`.
+
+Terrane needs one portable service-time surface whose public values, policies, cancellation, and
+diagnostics belong to the language rather than to whichever Rust runtime an application happens to
+project. Implement `/core/time` and `/core/process-signals` as bundled Terrane packages over the
+smallest irreducible clock, timer-registration, signal-registration, and wakeup host boundary.
+This is language infrastructure in its own right, not an adapter for one application.
+
+Milestone 29.1 supplies composition: sleeps, ticker waits, and signal waits are ordinary typed tasks
+which participate in `select` without timer-, timeout-, or signal-specific control-flow syntax.
+
+#### Exact time values
+
+Deliver three distinct identity-less values:
+
+- `duration`: an exact non-negative elapsed quantity stored canonically as arbitrary-precision whole
+  seconds plus a nanosecond component in `0..999_999_999`;
+- `monotonic-instant`: an opaque, comparable point in the current program runtime's monotonic clock
+  domain, never serializable or interpretable as civil time; and
+- `instant`: a UTC wall-clock point represented as signed Unix seconds plus a canonical nanosecond
+  component, suitable for persistence and structured output but never for scheduling.
+
+The initial duration construction surface is:
+
+```terrane
+one-second duration = duration::seconds; 1
+quarter-second duration = duration::milliseconds; 250
+precise duration = duration::microseconds; 50
+minimum duration = duration::nanoseconds; 1
+```
+
+Each factory takes one exact `int`. A negative input rejects statically when constant and otherwise
+throws `invalid-duration`; no factory accepts floating values or silently rounds. Duration exposes
+whole `.seconds`, canonical `.nanoseconds`, exact `.total-nanoseconds`, `.add; other`,
+`.subtract.checked; other`, and `.multiply; non-negative-int`. A negative multiplier follows the
+same rule: reject when statically known and otherwise throw `invalid-duration` without producing a
+value. Addition and non-negative multiplication remain exact. Checked subtraction returns `none`
+rather than constructing a negative duration. Zero is a valid duration, sleep input, and multiplier,
+but not a valid ticker period.
+
+Monotonic instants compare and support `.duration-until; later -> duration`; reversed dynamic
+operands throw `invalid-duration`. Wall instants compare and expose signed Unix seconds plus a
+canonical nanosecond component.
+Wall and monotonic instants never compare, subtract, or convert to one another. Monotonic values are
+valid only within the runtime activation that produced them. Ordinary in-memory calls and returns
+between Terrane packages in that same activation may carry them, as may compiler-owned core/runtime
+support. Persistence, document encoding, arbitrary foreign projection/ABI crossing, and use by
+another program/runtime activation reject.
+
+No calendar date, local time, time zone, daylight-saving rule, leap-second presentation, parsing, or
+formatting belongs to this milestone. Those remain the separate civil-time surface anticipated by
+`docs/surface-v1.md`.
+
+#### Clock, sleep, and deadline contract
+
+`/core/time` exports an explicit imported `clock` object:
+
+```text
+clock::wall;                           -> instant
+clock::monotonic;                      -> monotonic-instant
+clock::sleep; duration                 -> async none
+clock::sleep-until; monotonic-instant  -> async none
+clock::interval; duration              -> ticker throws invalid-duration
+clock::deadline; duration              -> deadline
+deadline::at; monotonic-instant        -> deadline
+```
+
+A `deadline` is an identity-less, copyable, reusable value containing one exact
+`monotonic-instant` target in the same runtime domain:
+
+```text
+deadline.expires-at -> monotonic-instant
+deadline.remaining; -> duration|none
+deadline.expired    -> bool
+```
+
+`clock::deadline; duration` reads the monotonic clock and captures its exact target immediately when
+called; later use never recomputes `now + duration`. `deadline::at` retains the supplied target after
+proving the runtime domain. A past or exactly current target is valid, reports `expired` true
+and no remaining duration, and makes an attached operation immediately eligible to observe its
+deadline. Deadline values inherit monotonic instants' runtime-domain, persistence, document, and
+foreign-ABI restrictions.
+
+The deadline stores its exact semantic target independently of any bounded host `Instant`.
+Comparison, `.remaining`, child-deadline combination, ticker `scheduled-at`, and expiration checks
+operate on that exact target. Only the next wake registration converts a bounded chunk to a host
+timer, so chunking cannot overflow the semantic deadline or alter ordering.
+
+A sleep deadline is captured when its async task is constructed, before first poll. Zero-duration
+sleep becomes ready on its first poll without registering a timer or spinning. A positive pending
+sleep registers one wake-driven timer operation. Cancellation removes that registration before
+ordinary Terrane `finally` processing; a ready sleep selected before cancellation is completed
+work. `sleep-until` completes immediately when its authored monotonic instant is not later than the
+current monotonic time.
+
+Every timer and deadline uses monotonic time. Moving the wall clock backward or forward cannot
+alter its readiness. The runtime may break a duration larger than one host registration range into
+chunks, but may not narrow, wrap, clamp, poll periodically, or surface target-dependent maximum
+durations. No sleep receives one blocking thread.
+
+Replace provisional integer-millisecond deadline parameters throughout compiler-owned APIs with
+`duration` or `deadline`, including task-scope/child-scope construction and network/process
+operation options. This is a clean cutover: migrate every caller, fixture, descriptor, reflection
+record, and manual entry and remove the integer aliases. A child's effective deadline remains the
+earlier of its inherited and requested monotonic deadlines.
+
+#### Ticker contract
+
+`clock::interval; period` constructs a linear `ticker`, anchored at construction time. Its first tick
+is scheduled one period after that anchor:
+
+```text
+ticker.next;     -> async tick
+ticker.destruct; -> none
+
+tick.scheduled -> monotonic-instant
+tick.observed  -> monotonic-instant
+tick.count     -> int
+```
+
+The first contract has one fixed missed-tick policy: coalesce missed emissions while retaining the
+original schedule. When observation is late by one or more periods, `.next` returns the most recent
+tick not later than observation and the exact number of expirations represented by that delivery,
+then schedules the following tick from the original anchor. It never emits an immediate burst merely
+to replay every missed period.
+Ticker index and schedule arithmetic remain exact even when an interval spans more than one bounded host
+timer registration: lowering registers successive wake chunks toward the exact scheduled instant
+without narrowing the period, accumulating repeated-addition drift, or changing which tick is due.
+
+Only one `.next` may borrow one ticker at a time. Cancelling a pending `.next` unregisters its waiter
+without advancing the schedule or consuming a not-yet-ready tick. Once `.next` is ready and selected,
+that tick is completed work. `destruct` consumes the ticker, removes its registration, and runs no
+detached cleanup. Drop is a non-graceful resource release that still unregisters; authored orderly
+shutdown also consumes the linear ticker with `destruct`.
+
+Burst, delay-from-observation, cron, wall-clock alignment, jitter, retry, and backoff policies are
+outside this milestone.
+
+#### Process-signal contract
+
+`/core/process-signals` exports selected, linear, single-consumer subscriptions:
+
+```text
+process-signals; selected-set -> process-signal-subscription throws process-signal-error
+subscription.next;            -> async process-signal-event throws process-signal-error
+subscription.close;           -> none
+
+process-signal::interrupt; -> process-signal
+process-signal::terminate; -> process-signal
+process-signal::hangup;    -> process-signal
+process-signal::quit;      -> process-signal
+
+process-signal-event.signal      -> process-signal
+process-signal-event.count       -> int
+process-signal-event.sequence    -> int
+process-signal-event.observed-at -> monotonic-instant
+process-signal-event.overflowed  -> bool
+```
+
+Each event names exactly one selected kind. Arbitrary signal numbers, synchronous source callbacks,
+and platform-specific signal-handler objects are not source surface. Supported target adapters map
+the four public kinds to their corresponding `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT` events.
+
+A subscription observes only later broker events. Operating systems may coalesce standard signals
+before invoking Terrane's host handler, so neither the broker nor `count` claims to reconstruct how
+many signals another process attempted to generate. Cross-kind order before host observation is
+likewise unspecified.
+
+The named counting boundary is admission into the host adapter's fixed-width, async-signal-safe
+per-kind counter. Each successfully admitted handler notification contributes one. If that counter
+saturates before the broker drains it, the handler performs no unbounded work: it retains the
+saturated count, sets the corresponding overflow flag, and wakes the broker. `overflowed` therefore
+means that at least one additional host-handler notification was not represented in `count`.
+
+The broker fans each drained notification batch to every active subscription. Per subscription it
+retains at most one pending event slot for each kind. Repeated admitted batches increment that
+slot's arbitrary-precision Terrane `count`; this remains exact for notifications admitted at the
+named boundary. The storage bound is four event slots plus counters whose byte size may grow
+logarithmically with a delayed consumer—it is not a constant-byte promise.
+
+The delivered count is the number of admitted notifications represented by that event.
+`observed-at` is the monotonic time at which the broker first admitted a notification into that
+pending subscription slot; later coalescing does not change it. Once `.next` successfully delivers
+the event, that kind's count and overflow flag reset. A later notification starts a new pending
+event and is never folded retroactively into the delivered one. `.next` chooses the kind with the
+earlier first broker-observation time, using the broker's deterministic sequence to break an equal
+timestamp. Host observation remains external input; controlled test adapters supply it
+deterministically.
+
+Adding the first subscription for a kind captures that kind's current host disposition and installs
+Terrane's handler. Closing one subscription cannot affect another; when the last interested
+subscription for a kind closes, the broker restores exactly the disposition captured when it took
+ownership of that kind. Closing the final subscription also joins the broker worker. Foreign code
+that mutates an owned disposition crosses an unsupported interoperation boundary: Terrane does not
+promise to preserve or merge that later mutation. Such integration must be mediated through an
+explicit future Terrane-managed facility. An upstream runtime signal stream whose drop leaves the
+process disposition installed does not satisfy this contract; the selected adapter must
+deliberately own capture, installation, and restoration.
+
+Cancelling a pending `.next` removes only its waiter and does not consume its retained event. The
+host handler itself may
+only perform async-signal-safe notification; it never allocates, takes an ordinary lock, executes
+Terrane code, runs cleanup, or decides application shutdown policy. The broker transfers notification
+onto the selected runtime before constructing Terrane values or waking subscriptions.
+
+Receipt never implicitly cancels a task scope and a repeated signal never hard-exits by language
+policy. Programs decide whether the first event starts graceful shutdown and whether a later count
+escalates. With no active subscription, the target's normal process behavior applies.
+
+#### Capabilities, implementation, and lowering
+
+`/core/time` requires the existing `clocks` target capability. `/core/process-signals` requires a
+new narrow `process-signals` capability rather than the broader process-spawn capability.
+Unsupported targets reject the import/use statically; they do not return fabricated time, create a
+forever-pending task, or silently omit one signal kind.
+
+Implement and commit this milestone in three evidence-bearing checkpoints: exact duration/instant
+values plus typed deadlines and caller migration; wake-driven sleep plus ticker scheduling; then
+the separately failure-prone process-signal broker. Do not hide an unfinished later checkpoint
+behind a completed earlier surface or mark 29.3 done until all three share the final contracts.
+
+Rust/platform support is justified only at the syscall/ABI and executor-wakeup boundary. It owns:
+
+- reading wall and monotonic clocks;
+- registering, cancelling, and waking runtime timers;
+- async-signal-safe target handler installation and restoration;
+- fixed-width saturating per-kind host notification counters plus overflow flags;
+- funneling admitted process notifications onto the selected executor; and
+- the four pending event slots and arbitrary-precision subscription counts whose update cannot
+  safely live in a signal callback.
+
+Bundled Terrane source owns constructors, checked arithmetic, ticker scheduling policy, signal
+classification/coalescing policy, object interfaces, capability diagnostics, and integration with
+tasks, scopes, `select`, structured errors, and logging. Core packages use the ordinary dependency
+mechanism and receive no privileged projection path.
+
+Semantic IR records generic requirements—clock access, wake support, local/transferable execution,
+and process-signal support—without naming Tokio or another runtime. Native lowering selects exactly
+one adapter already chosen for the program. Sleep, ticker, and signal tasks use one current
+`Context`/waker, never a polling loop, one-thread-per-operation fallback, hidden second runtime, or
+unbounded queue. All public types and members come from canonical descriptor contracts shared by
+semantic checking, reflection, lowering, completion, and hover.
+
+#### Deterministic evidence and boundaries
+
+Milestone 29.3 provides a compiler-controlled platform clock hook proving wake-driven sleep and
+no-early-completion behavior without production test-control entry points. Exposing explicit clock
+advancement and signal injection through Terrane-level conformance is deferred to Milestone 30.1;
+the current real-host sleep/ticker case is smoke coverage, not the primary semantic oracle. That
+adapter completion must add accepted cases for:
+
+- every duration factory, normalization boundary, exact arithmetic, checked negative subtraction,
+  and constant/dynamic rejection of negative construction or multiplication;
+- immediate deadline capture, reuse, expired/past targets, exact target comparison beyond one host
+  registration range, same-runtime package passage, and rejected foreign/runtime-domain crossing;
+- wall time moving backward and forward while monotonic sleep, deadlines, and tickers remain
+  unaffected;
+- zero, positive, already-expired, cancelled, and host-registration-spanning sleeps with no early
+  completion;
+- timer registration removal, no progress without a wake, bounded poll counts, and cleanup before
+  executor shutdown;
+- ticker first-fire alignment, late observation, multi-period skip, exact long-run alignment across
+  bounded host wake chunks, cancellation, destruct, and drop;
+- controlled interrupt and termination delivery, operating-system pre-handler coalescing,
+  host-counter saturation/overflow, broker-admitted counts, first-observation timestamps,
+  post-delivery count/overflow reset, cross-kind ordering, multiple subscriptions, cancellation,
+  close, and exact restoration of the initially captured disposition after the last close;
+- `select` across task completion, sleep, ticker, and signal cases, including simultaneous readiness
+  and losing-operation cleanup;
+- migration of task-scope, child-scope, networking, process, and test timeout callers from
+  provisional integer milliseconds to `duration`/`deadline`; and
+- compile-time capability rejection plus one real subprocess SIGINT/SIGTERM smoke scenario on each
+  supported host family.
+
+Add rejected cases for float or negative duration construction, zero ticker periods, mixed
+wall/monotonic operations, cross-runtime or persisted monotonic instants, overlapping ticker or
+subscription waits, use after destruct/move, unavailable capabilities, arbitrary signal numbers, and
+attempts to use signal handlers as source callbacks.
+
+The completed controlled adapter must expose explicit advancement and signal injection to compiler
+and Milestone-30.1 test infrastructure without becoming an ambient production clock. Production
+builds must not contain test-control entry points. The existing platform hook is the first half of
+that adapter; Milestone 30.1 owns its Terrane test-harness exposure. A runtime witness must
+demonstrate that the selected native timer and signal adapter introduces no busy polling, detached
+tasks, leaked registrations, or shutdown race.
+
+Exit criterion: exact time values, wake-driven sleeps, typed deadlines, aligned tickers, and semantic
+interrupt/termination subscriptions compose with ordinary `await`, task scopes, cancellation,
+`finally`, and Milestone-29.1 `select`; all provisional integer timeout callers are migrated; source
+and full/concise specifications, implemented surface, manual reference, capability tables,
+reflection, and tooling agree; focused conformance, real-host smoke coverage, strict Clippy, the
+complete conformance matrix, and the measured workspace suite all pass.
 
