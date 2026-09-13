@@ -199,6 +199,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     if has_mutable_callables {
         runtime.push(GeneratedModule {
             name: "mutable-callable",
+            source_files: vec!["mutable_callable.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/mutable_callable.rs"
             ))],
@@ -207,6 +208,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     if has_async_mutable_callables {
         runtime.push(GeneratedModule {
             name: "async-mutable-state",
+            source_files: vec!["async_mutable_state.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/async_mutable_state.rs"
             ))],
@@ -215,66 +217,82 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     if has_consuming_callables {
         runtime.push(GeneratedModule {
             name: "consuming-callable",
+            source_files: vec!["consuming_callable.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/consuming_callable.rs"
             ))],
         });
     }
     if has_async {
+        let mut source_files = Vec::new();
         let mut support = if native_cancellation {
+            source_files.push("async_native.rs");
             include_str!("../../runtime/async_native.rs").to_owned()
         } else {
+            source_files.push("async.rs");
             include_str!("../../runtime/async.rs").to_owned()
         };
         if has_select && !native_cancellation {
             support.push_str(include_str!("../../runtime/async_select.rs"));
+            source_files.push("async_select.rs");
         }
         if has_async_entry {
             support.push_str(match package.execution_strategy {
                 crate::execution::ExecutionStrategy::Local => {
+                    source_files.push("executor_local.rs");
                     include_str!("../../runtime/executor_local.rs")
                 }
                 crate::execution::ExecutionStrategy::Parallel => {
+                    source_files.push("executor_parallel.rs");
                     include_str!("../../runtime/executor_parallel.rs")
                 }
             });
         }
         if has_async_dependency {
             support.push_str(include_str!("../../runtime/async_dependency.rs"));
+            source_files.push("async_dependency.rs");
         }
         if has_channels {
             support.push_str(include_str!("../../runtime/channels.rs"));
+            source_files.push("channels.rs");
         }
         if package_uses_task_scope(package) && !native_cancellation {
             support.push_str(include_str!("../../runtime/async_cancellable.rs"));
+            source_files.push("async_cancellable.rs");
         }
         runtime.push(GeneratedModule {
             name: "async",
+            source_files,
             items: vec![Item::generated(&support)],
         });
     }
     if package_uses_task_scope(package) {
-        let support = if has_async_entry {
+        let (support, source_file) = if has_async_entry {
             match package.execution_strategy {
-                crate::execution::ExecutionStrategy::Local => {
-                    include_str!("../../runtime/tasks_native_local.rs")
-                }
-                crate::execution::ExecutionStrategy::Parallel => {
-                    include_str!("../../runtime/tasks_native_parallel.rs")
-                }
+                crate::execution::ExecutionStrategy::Local => (
+                    include_str!("../../runtime/tasks_native_local.rs"),
+                    "tasks_native_local.rs",
+                ),
+                crate::execution::ExecutionStrategy::Parallel => (
+                    include_str!("../../runtime/tasks_native_parallel.rs"),
+                    "tasks_native_parallel.rs",
+                ),
             }
         } else {
             match package.execution_strategy {
-                crate::execution::ExecutionStrategy::Local => {
-                    include_str!("../../runtime/tasks_cooperative.rs")
-                }
-                crate::execution::ExecutionStrategy::Parallel => {
-                    include_str!("../../runtime/tasks_threaded.rs")
-                }
+                crate::execution::ExecutionStrategy::Local => (
+                    include_str!("../../runtime/tasks_cooperative.rs"),
+                    "tasks_cooperative.rs",
+                ),
+                crate::execution::ExecutionStrategy::Parallel => (
+                    include_str!("../../runtime/tasks_threaded.rs"),
+                    "tasks_threaded.rs",
+                ),
             }
         };
         runtime.push(GeneratedModule {
             name: "tasks",
+            source_files: vec![source_file],
             items: vec![Item::generated(support)],
         });
     }
@@ -330,6 +348,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         || uses_urls
         || uses_platform_capabilities;
     if uses_streams || uses_filesystem {
+        let mut source_files = vec!["platform_streams.rs"];
         let mut items = vec![Item::generated(include_str!(
             "../../runtime/platform_streams.rs"
         ))];
@@ -337,74 +356,90 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_standard_streams.rs"
             )));
+            source_files.push("platform_standard_streams.rs");
         }
         if uses_filesystem {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_files.rs"
             )));
+            source_files.push("platform_files.rs");
         }
         runtime.push(GeneratedModule {
             name: "platform_streams",
+            source_files,
             items,
         });
     }
     if uses_filesystem || uses_process {
+        let mut source_files = Vec::new();
         let mut items = Vec::new();
         if uses_filesystem {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_system.rs"
             )));
+            source_files.push("platform_system.rs");
         }
         if uses_process {
             if !uses_platform_capabilities {
                 items.push(Item::generated(include_str!(
                     "../../runtime/platform_result_type.rs"
                 )));
+                source_files.push("platform_result_type.rs");
             }
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_process.rs"
             )));
+            source_files.push("platform_process.rs");
         }
         runtime.push(GeneratedModule {
             name: "platform_system",
+            source_files,
             items,
         });
     }
     if uses_documents || uses_json || uses_yaml || uses_urls {
+        let mut source_files = Vec::new();
         let mut items = Vec::new();
         if uses_documents || uses_json || uses_yaml {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_data_base.rs"
             )));
+            source_files.push("platform_data_base.rs");
         }
         if uses_documents {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_documents.rs"
             )));
+            source_files.push("platform_documents.rs");
         }
         if uses_json {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_json.rs"
             )));
+            source_files.push("platform_json.rs");
         }
         if uses_yaml {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_yaml.rs"
             )));
+            source_files.push("platform_yaml.rs");
         }
         if uses_urls {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_urls.rs"
             )));
+            source_files.push("platform_urls.rs");
         }
         runtime.push(GeneratedModule {
             name: "platform_data",
+            source_files,
             items,
         });
     }
     if uses_typed_documents {
         runtime.push(GeneratedModule {
             name: "typed_documents",
+            source_files: vec!["typed_documents.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/typed_documents.rs"
             ))],
@@ -413,12 +448,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     if uses_log_error {
         runtime.push(GeneratedModule {
             name: "logging_values",
+            source_files: vec!["logging_values.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/logging_values.rs"
             ))],
         });
     }
     if uses_platform_capabilities {
+        let mut source_files = vec!["platform_capability_types.rs", "platform_result_type.rs"];
         let mut items = vec![
             Item::generated(include_str!("../../runtime/platform_capability_types.rs")),
             Item::generated(include_str!("../../runtime/platform_result_type.rs")),
@@ -433,47 +470,57 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_int_conversion.rs"
             )));
+            source_files.push("platform_int_conversion.rs");
         }
         items.push(Item::generated(include_str!(
             "../../runtime/platform_capability_base.rs"
         )));
+        source_files.push("platform_capability_base.rs");
         if uses_random {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_random.rs"
             )));
+            source_files.push("platform_random.rs");
         }
         if uses_codecs {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_codecs.rs"
             )));
+            source_files.push("platform_codecs.rs");
         }
         if uses_compression {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_compression.rs"
             )));
+            source_files.push("platform_compression.rs");
         }
         if uses_uuid {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_uuid.rs"
             )));
+            source_files.push("platform_uuid.rs");
         }
         if uses_networking {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_networking.rs"
             )));
+            source_files.push("platform_networking.rs");
         }
         if uses_tls {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_tls.rs"
             )));
+            source_files.push("platform_tls.rs");
         }
         if uses_concurrency {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_concurrency.rs"
             )));
+            source_files.push("platform_concurrency.rs");
         }
         runtime.push(GeneratedModule {
             name: "platform_capabilities",
+            source_files,
             items,
         });
     }
@@ -548,6 +595,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             0,
             GeneratedModule {
                 name: "errors",
+                source_files: Vec::new(),
                 items: vec![Item::generated(&support)],
             },
         );
