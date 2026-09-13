@@ -773,7 +773,10 @@ impl Parser<'_> {
             self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
         } else if self.at_text("await") {
             self.parse_expression(0, true)
-        } else if self.looks_like_binding() {
+        } else if (self.peek_kind(0) == Some(TokenKind::Identifier)
+            && self.peek_kind(1) == Some(TokenKind::Assign))
+            || self.looks_like_binding()
+        {
             self.parse_binding()
         } else {
             self.parse_expression(0, true)

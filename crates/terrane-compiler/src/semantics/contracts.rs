@@ -247,6 +247,22 @@ pub(super) fn collect_typed_bindings(
         )?;
         return Ok(());
     }
+    if node.kind == SyntaxKind::SelectCase {
+        let [header, block] = node.children.as_slice() else {
+            return Ok(());
+        };
+        let mut case_bindings = visible_bindings.clone();
+        if header.kind == SyntaxKind::Binding {
+            let prior_len = case_bindings.len();
+            analyze_binding_node(unit, header, &mut case_bindings, Some(block.span))?;
+            bindings.extend_from_slice(&case_bindings[prior_len..]);
+        } else {
+            infer_value_type(unit, header, &case_bindings)?;
+        }
+        collect_typed_bindings(unit, block, &mut case_bindings, bindings, Some(block.span))?;
+        return Ok(());
+    }
+
     if node.kind == SyntaxKind::CatchClause {
         let Some(alias) = node
             .children

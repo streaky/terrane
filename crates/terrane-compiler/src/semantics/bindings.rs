@@ -236,6 +236,29 @@ pub(super) fn validate_global_definite_assignment(
             }
             return Ok(());
         }
+        if node.kind == SyntaxKind::SelectStatement {
+            let incoming = assigned.clone();
+            let mut branch_results = Vec::with_capacity(node.children.len());
+            for case in &node.children {
+                let Some([header, block]) = case.children.get(..2) else {
+                    continue;
+                };
+                validate_node(package, unit, header, relevant, assigned)?;
+                let mut branch_assigned = incoming.clone();
+                validate_node(package, unit, block, relevant, &mut branch_assigned)?;
+                branch_results.push(branch_assigned);
+            }
+            if let Some(first) = branch_results.first() {
+                *assigned = branch_results
+                    .iter()
+                    .skip(1)
+                    .fold(first.clone(), |common, branch| {
+                        common.intersection(branch).cloned().collect()
+                    });
+            }
+            return Ok(());
+        }
+
         if node.kind == SyntaxKind::WhileStatement {
             let before = assigned.clone();
             for child in &node.children {

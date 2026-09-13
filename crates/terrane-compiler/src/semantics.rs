@@ -25,6 +25,7 @@ mod bindings;
 mod diagnostics;
 mod objects;
 mod ownership;
+mod selection;
 
 #[cfg(test)]
 mod tests;
@@ -61,6 +62,7 @@ mod prelude {
     pub(super) use super::objects::*;
     pub(super) use super::ownership::*;
     pub(super) use super::scopes::*;
+    pub(super) use super::selection::*;
     pub(super) use super::types::*;
 }
 
@@ -79,8 +81,9 @@ pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
     DescriptorContract, ElementType, EvaluationKind, EvaluationStep, FunctionContract,
     MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity, ObjectKind,
-    ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol, SymbolKind,
-    TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    ParameterContract, SelectionOperationKind, SemanticFailure, SemanticPackage, SemanticSelection,
+    SemanticSelectionCase, SemanticUnit, Symbol, SymbolKind, TaskTransferability, TextUnit,
+    TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,
