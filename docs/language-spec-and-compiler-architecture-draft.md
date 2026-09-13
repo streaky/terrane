@@ -3986,31 +3986,43 @@ select
 
 `select` is valid only in an async callable and contains at least two static `case` clauses. A case
 header is either `await expression` or one ordinary local binding initialized by exactly one
-top-level `await`; member/index destinations and nested-await header expressions are rejected. The
-case binding has the awaited operation's result type and is visible only in that case body. Case
-result types are independent, so no common erased payload type is required.
+top-level `await`; member/index destinations, nested-await header expressions, guards, defaults,
+dynamic case lists, and expression-position selection are rejected. The case binding has the
+awaited operation's result type and is visible only in that case body. Case result types are
+independent, so no common erased payload type is required. Every task named by a case is consumed;
+the same linear task cannot occur in two simultaneously live cases.
 
 Operation-producing expressions are evaluated once in source order. If construction fails, later
 operations are not constructed, already-constructed operations are cancelled and drained, and the
 failure propagates only after cleanup. Each statement has a rotating cursor stored in the current
-callable activation. Polling visits cases from that cursor, returns `Pending` after one pass when
-nothing is ready, and otherwise chooses the first ready case in that rotated order. The cursor
-advances to one past the winner before cleanup begins; it does not advance on all-pending polls,
-external cancellation, deadlines, or construction failure.
+callable activation; separate calls, recursion, concurrent activations, and async closures do not
+share it. The cursor starts at the first case. Polling visits cases from that cursor, returns
+`Pending` after one pass when nothing is ready, and otherwise chooses the first terminal case in
+that rotated order. Both a ready value and a terminal error advance the cursor to one past the
+winner before cleanup begins. It does not advance on all-pending polls, construction failure, or
+cancellation/deadline observation before a winner is fixed.
 
 After the winner is fixed, every losing operation receives cancellation before any loser is
 drained. Draining and release then proceed in reverse source order, including channel waiter
-removal, Terrane async `finally`, and projected Rust cleanup. A cleanup failure does not stop
-remaining cleanup; a failure observed later in drain order replaces the earlier result or error.
-Only after all cleanup completes may the selected error propagate or the selected body begin.
-Cancellation or a deadline observed before a winner takes the same reverse-order drain path without
-entering any body. A request observed after a winner is fixed cannot interrupt loser cleanup.
+removal, Terrane async `finally`, and projected Rust cleanup. The selected body cannot begin while
+loser cleanup is outstanding. A cleanup failure does not stop remaining cleanup; a failure observed
+later in drain order replaces the earlier result or error, and a retained winning value is released
+if cleanup replaces it. Cancellation or a deadline observed before a winner takes the same
+reverse-order drain path without entering any body. After a winner is fixed, the complete loser
+drain transaction is shielded from later cancellation.
 
 Lowering uses one stack-pinned future and one typed result slot per static case plus a small integer
-cursor; it does not allocate a universal result box, spawn helper tasks, or run a private event loop.
-Source-only selection extends the dependency-free cooperative runtime. Task-scope cancellation,
-asynchronous finalization, and projected async operations reuse the native wake-driven runtime
-selected by ordinary execution requirements.
+cursor; it does not allocate a universal result box, spawn helper tasks, busy-poll, or run a private
+event loop. A selected body's `return`, `throw`, `break`, or `continue` executes only after cleanup
+and retains its ordinary enclosing-control-flow meaning. Source-only selection extends the
+dependency-free cooperative runtime. Task-scope cancellation, asynchronous finalization, and
+projected async operations reuse the native wake-driven runtime selected by ordinary execution
+requirements.
+
+Ownership analysis treats case bodies as mutually exclusive branches but treats every case
+operation as live together. It merges post-selection move and definite-assignment state across all
+possible winners, validates retained borrows through cleanup, and rejects incompatible
+mutable/shared borrows of the same receiver across case operations before Rust lowering.
 
 ### 21.4 Runtime independence
 

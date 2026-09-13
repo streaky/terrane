@@ -870,17 +870,30 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `select` is an async-only statement with at least two static `case` clauses. Each case header is
   either `await expression` or one ordinary local binding initialized by exactly one top-level
   `await`; the binding is scoped to that case body. Case result types need not agree.
-- A selection constructs operations exactly once in source order, polls wakefully from a
-  per-statement cursor local to the current callable activation, and advances that cursor only after
-  fixing a winner. Simultaneously ready cases therefore use deterministic rotating priority.
+- A selection consumes every task named by its headers, constructs each operation exactly once in
+  source order, and polls wakefully from a per-statement cursor local to the current callable
+  activation. Every invocation (including an async closure, recursion, or concurrent activation)
+  owns a distinct cursor initialized to the first case. Simultaneously ready cases therefore use
+  deterministic rotating priority without cross-activation interference.
+- The cursor advances to one past the winner for either a ready value or terminal error, before
+  cleanup starts. It does not advance on an all-pending poll, construction failure, or
+  cancellation/deadline observation before a winner is fixed.
 - After a winner is fixed, every loser receives cancellation before any loser is drained. Draining
   and release occur in reverse source order, projected async cleanup is included, and the selected
   body cannot begin early. Cleanup errors do not stop later cleanup; the later cleanup failure
-  replaces the earlier result or error. External task cancellation and deadlines take the same
-  cleanup path and do not advance the fairness cursor.
-- Selection storage is fixed-size and stack-local. Source-only cases retain the dependency-free
-  cooperative runtime; requirements already needing native cancellation or projected async support
-  select that runtime through the ordinary execution-requirement pipeline.
+  replaces the earlier result or error. A retained winning value is released if cleanup replaces it.
+- External task cancellation or a deadline observed before winner selection takes the same cleanup
+  path without advancing the cursor. After a winner is fixed, loser cleanup is shielded from later
+  cancellation until the complete drain transaction finishes.
+- Selection storage is fixed-size and stack-local: one pinned future and typed result slot per case
+  plus the cursor, with no helper task, universal payload box, busy polling, or private event loop.
+  Source-only cases retain the dependency-free cooperative runtime; requirements already needing
+  native cancellation or projected async support select that runtime through the ordinary
+  execution-requirement pipeline.
+- Case guards, default cases, dynamic case lists, and expression-position `select` are unsupported.
+  A linear task may appear in only one case. Exclusive move state is merged after all possible
+  winning branches, and incompatible mutable/shared receiver borrows across simultaneously live
+  cases are rejected before lowering.
 - Source executor profiles map to compiler-owned execution strategies. Semantic lowering records generic requirements—runtime context, wake support, local/transferable work, blocking delegation—and chooses a runtime later; language contracts never name a runtime crate.
 - The native backend enters exactly one selected wake-driven runtime around async `main`; projected futures are constructed on first poll inside it. Pending dependency futures and timers sleep until their waker fires. No failed runtime requirement silently falls back to blocking; cancellable legacy scope polling parks on its waker while scope scheduling remains a separate contract.
 - Projected async metadata records runtime-context, wake-support, and transfer knowledge independently as `required`, `not required`, or `unknown`; Rust `async fn` currently requires wake support while context and transfer remain unknown absent exact evidence. Completion and hover show these Terrane requirements, not Rust future internals.
