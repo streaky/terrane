@@ -453,6 +453,8 @@ impl Emitter<'_> {
             self.try_completion = prior_try_completion;
             self.propagate_errors = prior_propagate_errors;
         }
+        self.line("{");
+        self.indent += 1;
         self.line(&format!(
             "let mut __terrane_select_guard_{index} = __terrane_finally_guard();"
         ));
@@ -656,6 +658,8 @@ impl Emitter<'_> {
             self.line("}");
         }
         self.line("_ => unreachable!(\"selected winner is within the case count\"),");
+        self.indent -= 1;
+        self.line("}");
         self.indent -= 1;
         self.line("}");
     }
