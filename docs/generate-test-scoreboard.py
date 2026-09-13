@@ -59,7 +59,7 @@ def validate(data: Any) -> dict[str, Any]:
 def render(data: dict[str, Any]) -> str:
     title = html.escape(data["title"])
     description = html.escape(data["metadata"]["description"])
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    payload = json.dumps(data, ensure_ascii=False, indent=2).replace("</", "<\\/")
     return f'''<!doctype html>
 <!-- Generated from test-scoreboard.yaml by generate-test-scoreboard.py; do not edit directly. -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

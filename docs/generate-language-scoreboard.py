@@ -112,7 +112,7 @@ def render(data: dict[str, Any]) -> str:
     title = html.escape(data["title"])
     description = html.escape(data["metadata"]["description"])
     as_of = html.escape(str(data["metadata"]["as_of"]))
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    payload = json.dumps(data, ensure_ascii=False, indent=2).replace("</", "<\\/")
     return f'''<!doctype html>
 <!-- Generated from language-scoreboard.yaml by generate-language-scoreboard.py; do not edit directly. -->
 <html lang="en">
