@@ -455,10 +455,23 @@ impl ToolingEngine {
                 ProtocolError::new("canceled", "request was canceled"),
             );
         }
-        let context = request_context(&envelope.request);
+        let mut context = request_context(&envelope.request);
+        let opened_source = match &envelope.request {
+            Request::OpenSnapshot { sources, .. } => sources.first().map(|source| source.uri.clone()),
+            _ => None,
+        };
         let result = self.dispatch(envelope.request);
         match result {
-            Ok(value) => self.success_response(request_id, context, value),
+            Ok(value) => {
+                if context.0.is_none() {
+                    context.0 = value
+                        .get("snapshot_id")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned);
+                    context.1 = opened_source;
+                }
+                self.success_response(request_id, context, value)
+            }
             Err(error) => self.error_response(request_id, context.0, context.1, error),
         }
     }
