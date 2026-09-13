@@ -111,7 +111,7 @@ Each conformance case is a directory or manifest entry containing only the artif
 ```terrane
 case.trn     # single-source input
 package.toml    # optional package manifest for multi-source cases
-case.toml       # phase, expected status, entrypoint, arguments, canonical-Rust expectation
+case.toml       # phase/status, entrypoint/arguments, canonical-Rust, interactive run controls
 stdin.txt       # optional exact input
 stdout.txt      # optional exact output
 stderr.txt      # optional exact diagnostic or uncaught source-runtime error
@@ -125,8 +125,11 @@ lower.rs        # optional canonical generated Rust
 test-harness metadata and points to it when present. An accepted case may set
 `canonical-rust = true` once its untouched lowering is known to match the bundled formatter; the
 conformance runner then compiles that case with canonical validation enabled so later formatting
-regressions fail at their source. Absence means no canonical-format claim, not that noncanonical
-output is expected. Runtime-failure fixtures must provide both `stderr.txt` and `exit-code.txt`.
+regressions fail at their source. Runtime cases may set `hold-stdin-until-stdout = true` to release
+stdin after the first output line, or `signals = "INT,TERM"` to wait for that readiness line and then
+send the named host signals to the child in order. Absence means no canonical-format claim, not that
+noncanonical output is expected. Runtime-failure fixtures must provide both `stderr.txt` and
+`exit-code.txt`.
 
 Golden files must be reviewed output, not snapshots accepted blindly. Unstable data such as temporary paths is normalized by the test harness before comparison.
 
@@ -314,8 +317,8 @@ earlier of its inherited and requested monotonic deadlines.
 is scheduled one period after that anchor:
 
 ```text
-ticker.next;  -> async tick
-ticker.close; -> none
+ticker.next;     -> async tick
+ticker.destruct; -> none
 
 tick.scheduled -> monotonic-instant
 tick.observed  -> monotonic-instant
@@ -333,9 +336,9 @@ without narrowing the period, accumulating repeated-addition drift, or changing 
 
 Only one `.next` may borrow one ticker at a time. Cancelling a pending `.next` unregisters its waiter
 without advancing the schedule or consuming a not-yet-ready tick. Once `.next` is ready and selected,
-that tick is completed work. `close` consumes the ticker, removes its registration, and runs no
+that tick is completed work. `destruct` consumes the ticker, removes its registration, and runs no
 detached cleanup. Drop is a non-graceful resource release that still unregisters; authored orderly
-shutdown uses `close`.
+shutdown also consumes the linear ticker with `destruct`.
 
 Burst, delay-from-observation, cron, wall-clock alignment, jitter, retry, and backoff policies are
 outside this milestone.
@@ -447,8 +450,11 @@ semantic checking, reflection, lowering, completion, and hover.
 
 #### Deterministic evidence and boundaries
 
-Provide a compiler-controlled clock and signal adapter for conformance; the suite must not use real
-delays as its primary oracle. Add accepted cases for:
+Milestone 29.3 provides a compiler-controlled platform clock hook proving wake-driven sleep and
+no-early-completion behavior without production test-control entry points. Exposing explicit clock
+advancement and signal injection through Terrane-level conformance is deferred to Milestone 30.1;
+the current real-host sleep/ticker case is smoke coverage, not the primary semantic oracle. That
+adapter completion must add accepted cases for:
 
 - every duration factory, normalization boundary, exact arithmetic, checked negative subtraction,
   and constant/dynamic rejection of negative construction or multiplication;
@@ -461,7 +467,7 @@ delays as its primary oracle. Add accepted cases for:
 - timer registration removal, no progress without a wake, bounded poll counts, and cleanup before
   executor shutdown;
 - ticker first-fire alignment, late observation, multi-period skip, exact long-run alignment across
-  bounded host wake chunks, cancellation, close, and drop;
+  bounded host wake chunks, cancellation, destruct, and drop;
 - controlled interrupt and termination delivery, operating-system pre-handler coalescing,
   host-counter saturation/overflow, broker-admitted counts, first-observation timestamps,
   post-delivery count/overflow reset, cross-kind ordering, multiple subscriptions, cancellation,
@@ -475,14 +481,15 @@ delays as its primary oracle. Add accepted cases for:
 
 Add rejected cases for float or negative duration construction, zero ticker periods, mixed
 wall/monotonic operations, cross-runtime or persisted monotonic instants, overlapping ticker or
-subscription waits, use after close/move, unavailable capabilities, arbitrary signal numbers, and
+subscription waits, use after destruct/move, unavailable capabilities, arbitrary signal numbers, and
 attempts to use signal handlers as source callbacks.
 
-The controlled adapter must expose explicit advancement and signal injection to compiler and
-Milestone-30 test infrastructure without becoming an ambient production clock. Production builds
-must not contain test-control entry points. A runtime witness must demonstrate that the selected
-native timer and signal adapter introduces no busy polling, detached tasks, leaked registrations,
-or shutdown race.
+The completed controlled adapter must expose explicit advancement and signal injection to compiler
+and Milestone-30.1 test infrastructure without becoming an ambient production clock. Production
+builds must not contain test-control entry points. The existing platform hook is the first half of
+that adapter; Milestone 30.1 owns its Terrane test-harness exposure. A runtime witness must
+demonstrate that the selected native timer and signal adapter introduces no busy polling, detached
+tasks, leaked registrations, or shutdown race.
 
 Exit criterion: exact time values, wake-driven sleeps, typed deadlines, aligned tickers, and semantic
 interrupt/termination subscriptions compose with ordinary `await`, task scopes, cancellation,
@@ -630,13 +637,13 @@ Terrane programs need a first-party way to test Terrane behavior without transla
 contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
 `terrane test` path over the ordinary compiler pipeline. The public framework and case execution
 logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
-process isolation/capture, host filesystem operations, and the controlled host-clock adapter
-defined by Milestone 29.3.
+process isolation/capture, host filesystem operations, and Terrane-level exposure of the controlled
+host-clock foundation introduced by Milestone 29.3.
 
 Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
 test callbacks. Milestones 19, 22, 26, 29.1, and 29.3 provide the async, filesystem, process,
-profile, system, selection, controlled-time, and signal foundations needed by deterministic unit,
-isolated integration, and end-to-end tests.
+profile, system, selection, controlled-time foundation, and signal facilities needed by deterministic
+unit, isolated integration, and end-to-end tests.
 
 Test discovery and execution consume the shared in-process snapshot/query service from Milestone
 30.0; they do not serialize the public AST schema internally or create a test-only parser,
