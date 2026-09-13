@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support: mutable_callable.rs, consuming_callable.rs
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -389,80 +391,6 @@ mod __terrane_trace {
             .expect("file id must fit usize")], site.line, site.column, site.end_line,
             site.end_column,
         )
-    }
-}
-trait TerraneMutableCallableBody<Arguments, Output>: Send {
-    fn call(&mut self, arguments: Arguments) -> Output;
-    fn clone_box(
-        &self,
-    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>;
-}
-impl<Arguments, Output, Function> TerraneMutableCallableBody<Arguments, Output>
-for Function
-where
-    Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
-{
-    fn call(&mut self, arguments: Arguments) -> Output {
-        self(arguments)
-    }
-    fn clone_box(
-        &self,
-    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>> {
-        std::boxed::Box::new(self.clone())
-    }
-}
-pub struct TerraneMutableCallable<Arguments, Output> {
-    body: std::sync::Mutex<
-        std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>,
-    >,
-}
-impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
-    where
-        Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
-    {
-        Self {
-            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
-        }
-    }
-    fn call(&self, arguments: Arguments) -> Output {
-        self.body.lock().expect("mutable callable lock poisoned").call(arguments)
-    }
-}
-impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
-    fn clone(&self) -> Self {
-        let body = self.body.lock().expect("mutable callable lock poisoned").clone_box();
-        Self {
-            body: std::sync::Mutex::new(body),
-        }
-    }
-}
-trait TerraneConsumingCallableBody<Arguments, Output>: Send {
-    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output;
-}
-impl<Arguments, Output, Function> TerraneConsumingCallableBody<Arguments, Output>
-for Function
-where
-    Function: FnOnce(Arguments) -> Output + Send + 'static,
-{
-    fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output {
-        self(arguments)
-    }
-}
-pub struct TerraneConsumingCallable<Arguments, Output> {
-    body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
-}
-impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
-    where
-        Function: FnOnce(Arguments) -> Output + Send + 'static,
-    {
-        Self {
-            body: std::boxed::Box::new(function),
-        }
-    }
-    fn call(self, arguments: Arguments) -> Output {
-        self.body.call(arguments)
     }
 }
 // Source: case.trn

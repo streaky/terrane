@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 static __TERRANE_GLOBAL_GLOBAL_BODY: std::sync::LazyLock<
     std::sync::Mutex<Option<terrane_int_support::Int>>,
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(

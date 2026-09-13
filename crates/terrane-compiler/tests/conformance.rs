@@ -327,6 +327,7 @@ fn with_compilation_dependencies(
 
 #[test]
 fn every_manifest_drives_a_conformance_case() {
+    let update_goldens = golden_updates_from_environment();
     let manifests = selected_manifests();
     let build = ConformanceBuild::new();
     let mut deferred_generated_cases = Vec::new();
@@ -347,12 +348,13 @@ fn every_manifest_drives_a_conformance_case() {
 
         match (phase, status) {
             ("run" | "check", "accept") => {
-                let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
+                let lower_path = case.join("lower.rs");
+                let expected = read_reviewed_golden(&lower_path, update_goldens);
                 let (compilation, dependencies) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
-                    verify_reviewed_projection(case, &source_path);
+                    verify_reviewed_projection(case, &source_path, update_goldens);
                     with_compilation_dependencies(compilation)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
@@ -362,11 +364,9 @@ fn every_manifest_drives_a_conformance_case() {
                     (compilation, Vec::new())
                 };
                 assert_expected_warnings(case, &manifest, &compilation);
-                let normalized = compilation
-                    .rust
-                    .replace(terrane_compiler::VERSION, "<version>");
-                if std::env::var_os("TERRANE_UPDATE_GOLDENS").is_some() {
-                    fs::write(case.join("lower.rs"), &normalized).unwrap();
+                let normalized = normalized_review_rust(&compilation);
+                if update_goldens {
+                    write_reviewed_golden(&lower_path, &expected, &normalized);
                 } else {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
@@ -404,7 +404,7 @@ fn every_manifest_drives_a_conformance_case() {
                 let diagnostics = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let result = terrane_compiler::compile_package(&package);
-                    verify_reviewed_projection(case, &source_path);
+                    verify_reviewed_projection(case, &source_path, update_goldens);
                     result.unwrap_err().diagnostics
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
@@ -578,7 +578,23 @@ fn compile_and_maybe_run(
         );
     }
 }
-fn verify_reviewed_projection(case: &Path, source_path: &Path) {
+fn read_reviewed_golden(path: &Path, allow_missing: bool) -> String {
+    match fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(error) if allow_missing && error.kind() == std::io::ErrorKind::NotFound => {
+            String::new()
+        }
+        Err(error) => panic!("cannot read reviewed golden {}: {error}", path.display()),
+    }
+}
+
+fn normalized_review_rust(compilation: &terrane_compiler::Compilation) -> String {
+    compilation
+        .review_rust
+        .replace(terrane_compiler::VERSION, "<version>")
+}
+
+fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: bool) {
     let reviewed_path = case.join("terrane-projection.lock");
     if !reviewed_path.is_file() {
         return;
@@ -588,10 +604,11 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path) {
         .expect("package entrypoint must have a parent")
         .join("terrane-projection.lock");
     let staged = stable_projection_history(&staged_path);
-    if std::env::var_os("TERRANE_UPDATE_GOLDENS").is_some() {
+    if update_goldens {
         let mut reviewed = serde_json::to_string_pretty(&staged).unwrap();
         reviewed.push('\n');
-        fs::write(reviewed_path, reviewed).unwrap();
+        let existing = fs::read_to_string(&reviewed_path).unwrap();
+        write_reviewed_golden(&reviewed_path, &existing, &reviewed);
         return;
     }
     assert_eq!(
@@ -600,6 +617,14 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path) {
         "{} changed its reviewed projection semantics",
         case.display()
     );
+}
+
+fn write_reviewed_golden(path: &Path, existing: &str, replacement: &str) {
+    if existing == replacement {
+        return;
+    }
+    fs::write(path, replacement).unwrap();
+    eprintln!("updated golden {}", path.display());
 }
 
 fn stable_projection_history(path: &Path) -> serde_json::Value {
@@ -838,6 +863,30 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .collect()
 }
 
+fn golden_updates_from_environment() -> bool {
+    golden_updates_requested(
+        std::env::var_os("TERRANE_UPDATE_GOLDENS").as_deref(),
+        std::env::var_os("TERRANE_CONFORMANCE_FILTER").as_deref(),
+    )
+    .unwrap_or_else(|message| panic!("{message}"))
+}
+
+fn golden_updates_requested(
+    update: Option<&std::ffi::OsStr>,
+    filter: Option<&std::ffi::OsStr>,
+) -> Result<bool, &'static str> {
+    let Some(update) = update else {
+        return Ok(false);
+    };
+    if update == std::ffi::OsStr::new("all") || filter.is_some_and(|filter| !filter.is_empty()) {
+        return Ok(true);
+    }
+    Err(
+        "TERRANE_UPDATE_GOLDENS requires TERRANE_CONFORMANCE_FILTER; \
+         use TERRANE_UPDATE_GOLDENS=all for a deliberate corpus-wide regeneration",
+    )
+}
+
 fn selected_manifests() -> Vec<PathBuf> {
     let filter = std::env::var("TERRANE_CONFORMANCE_FILTER").ok();
     let manifests = filtered_manifests(manifests_below(&corpus()), filter.as_deref());
@@ -918,6 +967,22 @@ fn canonical_rust_manifest_expectation_is_opt_in() {
         Some(true)
     );
     assert_eq!(boolean_field("phase = \"run\"\n", "canonical-rust"), None);
+}
+
+#[test]
+fn broad_golden_updates_require_an_explicit_all_value() {
+    use std::ffi::OsStr;
+
+    assert_eq!(golden_updates_requested(None, None), Ok(false));
+    assert_eq!(
+        golden_updates_requested(Some(OsStr::new("1")), Some(OsStr::new("async-await"))),
+        Ok(true)
+    );
+    assert_eq!(
+        golden_updates_requested(Some(OsStr::new("all")), None),
+        Ok(true)
+    );
+    assert!(golden_updates_requested(Some(OsStr::new("1")), None).is_err());
 }
 
 #[test]

@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-scalar-support
 // Source: case.trn
 // Namespace: name-aliasing
 static __TERRANE_F0_ORIGINAL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(

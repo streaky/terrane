@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-collection-support, terrane-scalar-support, terrane-string-support
 // Source: case.trn
 // Namespace: string-result-list-iteration
 fn main() {

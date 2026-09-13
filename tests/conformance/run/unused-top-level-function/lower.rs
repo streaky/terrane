@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: unused-top-level-function
 #[allow(dead_code)]

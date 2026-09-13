@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: interface-invocation-mode-widening
 pub trait MutableCounterProtocol {

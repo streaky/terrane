@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-scalar-support
 // Source: case.trn
 // Namespace: total-coercion-no-throw
 fn widen(value: i8) -> i16 {

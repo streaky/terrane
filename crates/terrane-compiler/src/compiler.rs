@@ -17,6 +17,7 @@ pub struct Compilation {
     pub source: SourceFile,
     pub sources: Vec<SourceFile>,
     pub rust: String,
+    pub review_rust: String,
     rendered_rust: crate::rust_ir::RenderedProgram,
     require_canonical_rust: bool,
     entry_span: Span,
@@ -239,6 +240,7 @@ pub fn compile_package_with_options(
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
     let rust = standalone_file.contents.clone();
+    let review_rust = rendered_rust.review_file();
     let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     if options.require_canonical_rust {
         validate_canonical_rust(&[standalone_file], &sources, source, entry_span)?;
@@ -247,6 +249,7 @@ pub fn compile_package_with_options(
         source: (*source).clone(),
         sources,
         rust,
+        review_rust,
         rendered_rust,
         require_canonical_rust: options.require_canonical_rust,
         entry_span,

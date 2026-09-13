@@ -1,32 +1,6 @@
 // Generated deterministically by Terrane <version>.
-async fn __terrane_await<F: Future>(future: F) -> F::Output {
-    struct YieldOnce(bool);
-    impl Future for YieldOnce {
-        type Output = ();
-        fn poll(
-            mut self: std::pin::Pin<&mut Self>,
-            context: &mut std::task::Context<'_>,
-        ) -> std::task::Poll<Self::Output> {
-            if self.0 {
-                std::task::Poll::Ready(())
-            } else {
-                self.0 = true;
-                context.waker().wake_by_ref();
-                std::task::Poll::Pending
-            }
-        }
-    }
-    YieldOnce(false).await;
-    let output = future.await;
-    YieldOnce(false).await;
-    output
-}
-#[allow(
-    dead_code,
-    clippy::unused_async,
-    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
-)]
-async fn __terrane_wait_projected_cleanups() {}
+// Runtime support: async.rs
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: src/main.trn
 // Namespace: app
 #[allow(dead_code)]

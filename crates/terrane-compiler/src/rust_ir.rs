@@ -1,3 +1,4 @@
+use proc_macro2::{TokenStream, TokenTree};
 use std::fmt::Write as _;
 use syn::fold::Fold as _;
 use syn::parse::Parser as _;
@@ -24,9 +25,11 @@ pub struct RenderedFile {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RenderedProgram {
     version: &'static str,
+    runtime_source_files: Vec<&'static str>,
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
+    review: RenderedFragment,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -38,6 +41,7 @@ struct RenderedFragment {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedModule {
     pub name: &'static str,
+    pub source_files: Vec<&'static str>,
     pub items: Vec<Item>,
 }
 
@@ -528,6 +532,32 @@ impl Item {
     }
 }
 
+const VENDORED_SUPPORT_CRATES: [(&str, &str); 7] = [
+    ("terrane_int_support", "terrane-int-support"),
+    ("terrane_collection_support", "terrane-collection-support"),
+    ("terrane_scalar_support", "terrane-scalar-support"),
+    ("terrane_string_support", "terrane-string-support"),
+    ("terrane_document_support", "terrane-document-support"),
+    ("terrane_stream_abi", "terrane-stream-abi"),
+    ("terrane_platform_support", "terrane-platform-support"),
+];
+
+fn token_stream_contains_ident(tokens: TokenStream, expected: &str) -> bool {
+    tokens.into_iter().any(|token| match token {
+        TokenTree::Group(group) => token_stream_contains_ident(group.stream(), expected),
+        TokenTree::Ident(ident) => ident == expected,
+        TokenTree::Punct(_) | TokenTree::Literal(_) => false,
+    })
+}
+
+fn push_manifest_line(output: &mut String, label: &str, values: &[&str]) {
+    write!(output, "// {label}:").expect("writing to a String cannot fail");
+    if !values.is_empty() {
+        write!(output, " {}", values.join(", ")).expect("writing to a String cannot fail");
+    }
+    output.push('\n');
+}
+
 impl RenderedProgram {
     pub(crate) fn standalone_file(&self, path: &str) -> RenderedFile {
         let mut contents = format!(
@@ -550,6 +580,32 @@ impl RenderedProgram {
                 })
                 .collect(),
         }
+    }
+    pub(crate) fn review_file(&self) -> String {
+        let runtime_support = self.runtime_source_files().collect::<Vec<_>>();
+        let tokens = self
+            .standalone
+            .contents
+            .parse::<TokenStream>()
+            .expect("rendered Rust must contain valid tokens");
+        let vendored_support = VENDORED_SUPPORT_CRATES
+            .iter()
+            .filter_map(|(rust_name, package_name)| {
+                token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
+            })
+            .collect::<Vec<_>>();
+        let mut output = format!(
+            "// Generated deterministically by Terrane {}.\n",
+            self.version
+        );
+        push_manifest_line(&mut output, "Runtime support", &runtime_support);
+        push_manifest_line(&mut output, "Vendored support crates", &vendored_support);
+        output.push_str(&self.review.contents);
+        output
+    }
+
+    fn runtime_source_files(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.runtime_source_files.iter().copied()
     }
 
     pub(crate) fn files(&self, entrypoint: &std::path::Path) -> Result<Vec<RenderedFile>, String> {
@@ -607,45 +663,86 @@ impl RenderedProgram {
     }
 }
 
+fn render_modules<'a>(
+    modules: impl IntoIterator<Item = &'a Module>,
+    output: &mut String,
+    associations: &mut Vec<SourceAssociation>,
+) {
+    for module in modules {
+        if module.items.is_empty() {
+            continue;
+        }
+        write!(
+            output,
+            "// Source: {}\n// Namespace: {}\n",
+            module.source_path,
+            module.namespace.trim_start_matches('/')
+        )
+        .expect("writing to a String cannot fail");
+        for item in &module.items {
+            item.render_associated(output, associations);
+        }
+    }
+}
+
+fn render_generated_modules<'a>(
+    modules: impl IntoIterator<Item = &'a GeneratedModule>,
+    output: &mut String,
+    associations: &mut Vec<SourceAssociation>,
+) {
+    for module in modules {
+        for item in &module.items {
+            item.render_associated(output, associations);
+        }
+    }
+}
+
 impl Program {
     #[must_use]
     pub(crate) fn rendered(&self) -> RenderedProgram {
-        fn render_modules<'a>(
-            modules: impl IntoIterator<Item = &'a Module>,
-            output: &mut String,
-            associations: &mut Vec<SourceAssociation>,
-        ) {
-            for module in modules {
-                if module.items.is_empty() {
-                    continue;
-                }
-                write!(
-                    output,
-                    "// Source: {}\n// Namespace: {}\n",
-                    module.source_path,
-                    module.namespace.trim_start_matches('/')
-                )
-                .expect("writing to a String cannot fail");
-                for item in &module.items {
-                    item.render_associated(output, associations);
-                }
-            }
+        let mut runtime = String::new();
+        let mut runtime_associations = Vec::new();
+        render_generated_modules(&self.runtime, &mut runtime, &mut runtime_associations);
+        let mut program = String::new();
+        let mut program_associations = Vec::new();
+        for item in &self.globals {
+            item.render_associated(&mut program, &mut program_associations);
         }
+        render_modules(&self.modules, &mut program, &mut program_associations);
+        let mut review = String::new();
+        let mut review_associations = Vec::new();
+        render_generated_modules(
+            self.runtime
+                .iter()
+                .filter(|module| module.source_files.is_empty()),
+            &mut review,
+            &mut review_associations,
+        );
+        let review_prefix_len = review.len();
+        review.push_str(&program);
+        review_associations.extend(program_associations.iter().map(|association| {
+            SourceAssociation {
+                generated_start: association.generated_start + review_prefix_len,
+                generated_end: association.generated_end + review_prefix_len,
+                source: association.source,
+            }
+        }));
+        let mut standalone = runtime.clone();
+        standalone.push_str(&program);
+        let mut standalone_associations = runtime_associations.clone();
+        standalone_associations.extend(program_associations.iter().map(|association| {
+            SourceAssociation {
+                generated_start: association.generated_start + runtime.len(),
+                generated_end: association.generated_end + runtime.len(),
+                source: association.source,
+            }
+        }));
 
-        let mut support = String::new();
-        let mut support_associations = Vec::new();
-        for module in &self.runtime {
-            for item in &module.items {
-                item.render_associated(&mut support, &mut support_associations);
-            }
-        }
+        let mut support = runtime;
+        let mut support_associations = runtime_associations;
         for item in &self.globals {
             item.render_associated(&mut support, &mut support_associations);
         }
-        let mut standalone = support.clone();
-        let mut standalone_associations = support_associations.clone();
-        render_modules(&self.modules, &mut standalone, &mut standalone_associations);
-
         let mut application = String::new();
         let mut application_associations = Vec::new();
         render_modules(
@@ -663,6 +760,11 @@ impl Program {
             &mut application_associations,
         );
         RenderedProgram {
+            runtime_source_files: self
+                .runtime
+                .iter()
+                .flat_map(|module| module.source_files.iter().copied())
+                .collect(),
             version: self.version,
             standalone: RenderedFragment {
                 contents: standalone,
@@ -676,6 +778,10 @@ impl Program {
                 contents: application,
                 associations: application_associations,
             },
+            review: RenderedFragment {
+                contents: review,
+                associations: review_associations,
+            },
         }
     }
 }
@@ -683,8 +789,9 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::{
-        Block, canonicalize_rust, encode_terrane_comments, restore_terrane_comments,
-        restore_terrane_metadata, restore_terrane_module_comments, restore_terrane_site_rows,
+        Block, GeneratedModule, Item, Module, ModuleDestination, Program, canonicalize_rust,
+        encode_terrane_comments, restore_terrane_comments, restore_terrane_metadata,
+        restore_terrane_module_comments, restore_terrane_site_rows,
     };
 
     #[test]
@@ -806,6 +913,86 @@ mod tests {
     fn malformed_metadata_macro_delimiters_are_left_unchanged() {
         let rendered = "__terrane_site_row!(]);\n";
         assert_eq!(restore_terrane_site_rows(rendered), rendered);
+    }
+
+    #[test]
+    fn review_rendering_replaces_runtime_contents_with_a_manifest() {
+        let program = |runtime_body, sites_body| Program {
+            version: "test",
+            requires_platform_support: false,
+            requires_async_runtime: true,
+            runtime: vec![
+                GeneratedModule {
+                    name: "async",
+                    source_files: vec!["async.rs"],
+                    items: vec![Item::generated(runtime_body)],
+                },
+                GeneratedModule {
+                    name: "sites",
+                    source_files: Vec::new(),
+                    items: vec![Item::generated(sites_body)],
+                },
+            ],
+            globals: vec![Item::generated(
+                "static VALUE: terrane_int_support::Int = terrane_int_support::Int::ZERO;",
+            )],
+            modules: vec![Module {
+                source_path: "case.trn".to_owned(),
+                namespace: "/case".to_owned(),
+                destination: ModuleDestination::Application,
+                items: vec![Item::generated("fn main() {}")],
+            }],
+        };
+
+        let sites = "static SITES: &[u32] = &[7];\n\
+                     static LABEL: &str = \"terrane_string_support\";";
+        let first = program("fn runtime_first() {}", sites).rendered();
+        let second = program("fn runtime_second() {}", sites).rendered();
+        let changed_sites = program(
+            "fn runtime_first() {}",
+            "static SITES: &[u32] = &[8];\n\
+             static LABEL: &str = \"terrane_string_support\";",
+        )
+        .rendered();
+        assert_ne!(
+            first.standalone_file("<stdout>").contents,
+            second.standalone_file("<stdout>").contents
+        );
+        assert_eq!(first.review_file(), second.review_file());
+        assert_ne!(first.review_file(), changed_sites.review_file());
+        assert_eq!(
+            first.review_file(),
+            "// Generated deterministically by Terrane test.\n\
+             // Runtime support: async.rs\n\
+             // Vendored support crates: terrane-int-support\n\
+             static SITES: &[u32] = &[7];\n\
+             static LABEL: &str = \"terrane_string_support\";\n\
+             static VALUE: terrane_int_support::Int = terrane_int_support::Int::ZERO;\n\
+             // Source: case.trn\n\
+             // Namespace: case\n\
+             fn main() {}\n"
+        );
+    }
+
+    #[test]
+    fn empty_review_manifests_have_no_trailing_spaces() {
+        let rendered = Program {
+            version: "test",
+            requires_platform_support: false,
+            requires_async_runtime: false,
+            runtime: Vec::new(),
+            globals: Vec::new(),
+            modules: Vec::new(),
+        }
+        .rendered()
+        .review_file();
+
+        assert_eq!(
+            rendered,
+            "// Generated deterministically by Terrane test.\n\
+             // Runtime support:\n\
+             // Vendored support crates:\n"
+        );
     }
 
     #[test]

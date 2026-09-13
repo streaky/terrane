@@ -202,78 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 29.2 — Runtime-independent lowering goldens
-
-Every accepted conformance case pins its generated Rust in `lower.rs`, and that file is the
-standalone rendering: the program lowering concatenated with every runtime support module the
-program selects (`src/runtime/*.rs`, included verbatim through `pipeline.rs`). Roughly half of a
-typical golden is therefore a copy of tracked compiler source. A one-line change to
-`runtime/async_native.rs` regenerates every fixture that selects the native async runtime, the
-regeneration commit shows the same hunk dozens of times, and a reviewer cannot tell from the diff
-whether a lowering shape changed or only the shared runtime did. Over three hundred commits have
-touched `lower.rs` files; most of that churn carries no review information. The goldens exist so
-that lowering shape is reviewed output, not snapshots accepted blindly (§5.1); this milestone makes
-them assert only what the program's own lowering decides.
-
-Moving the goldens to another repository is rejected: it breaks atomic commits between a lowering
-change and its evidence, and it moves the churn rather than removing it.
-
-#### Golden contract
-
-`RenderedProgram` already renders the support modules and the application as separate fragments.
-The conformance golden becomes the application-only rendering plus a runtime manifest:
-
-```rust
-// Generated deterministically by Terrane <version>.
-// Runtime support: async_native.rs, executor_local.rs, channels.rs, tasks_native_local.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support
-<application lowering exactly as today>
-```
-
-The manifest names the runtime source files in the order the pipeline concatenates them, so a
-program that starts or stops selecting a runtime module still changes its golden, while an edit
-inside a runtime module changes only that tracked source file. Runtime modules are never copied
-into a golden again. The standalone rendering that `terrane rust` writes and that canonical-Rust
-validation compiles is unchanged; only what the harness compares and writes under
-`TERRANE_UPDATE_GOLDENS` changes. The compiler exposes the review rendering on `Compilation`
-rather than the harness pattern-matching support text, so formatting of the concatenated file
-cannot drift from the fragments.
-
-Existing goldens are migrated by one regeneration commit that contains nothing else; its body
-records the line count before and after.
-
-#### Regeneration discipline
-
-- `TERRANE_UPDATE_GOLDENS` reports every golden it rewrote and refuses to run without a
-  conformance filter unless `TERRANE_UPDATE_GOLDENS=all`, so a broad regeneration is a deliberate
-  act rather than a side effect of a focused run.
-- Add `docs/summarize-golden-churn.py <git range>`: it collapses identical hunks across all changed
-  `lower.rs` files and prints each unique hunk once with the number of files it appears in, so a
-  regeneration is auditable as "1 unique hunk × 25 files" rather than by reading 25 diffs. Its
-  output belongs in the body of the commit that regenerates the goldens.
-- Goldens are regenerated in the same commit as the lowering change that caused them, never in a
-  separate refresh commit, and that commit's body states the cause. The scoreboard-refresh commit
-  described in `docs/MEMORY.md` records the summarizer output for the branch.
-
-#### Evidence and boundaries
-
-- A fixture that only exercises behaviour still keeps its golden; the point is to make goldens
-  cheap, not fewer, because the unrelated fixtures are the ones that catch an unintended shape
-  change.
-- A comment-only edit to `runtime/async_native.rs` followed by the full conformance suite
-  regenerates zero goldens under `TERRANE_UPDATE_GOLDENS=all`; a change that adds a runtime module
-  to a program's selection changes exactly that program's manifest line.
-- The `select` block-scoping change on `heterogeneous-async-selection` (`1790be1c`) is the
-  reference example of churn that must survive: rerunning it against the migrated goldens still
-  regenerates every select fixture, and the summarizer reports one unique hunk.
-- Source associations for debugging and diagnostics (§6.5, Milestone 30.2) keep their offsets into
-  the standalone rendering; the review rendering is not used for anything but comparison.
-
-Exit criterion: no `lower.rs` contains runtime support text; each golden carries a runtime manifest
-line; a runtime-only edit regenerates no goldens; the summarizer reproduces the `1790be1c` churn as
-one hunk; and the full suite, canonical-Rust validation, and strict Clippy pass at the migration
-commit with the scoreboard refreshed there.
-
 ### Milestone 29.3 — Native clocks, timers, tickers, and process signals
 
 Terrane needs one portable service-time surface whose public values, policies, cancellation, and
@@ -1137,8 +1065,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - add efficient keyed map removal and stable ordered list traversal (milestone 29.0);
 - add deterministic, fair, heterogeneous asynchronous selection with structured loser cleanup
   (milestone 29.1);
-- make lowering goldens runtime-independent so runtime support edits stop regenerating fixture
-  goldens, with a churn summarizer and regeneration discipline (milestone 29.2);
 - add native exact clocks, wake-driven timers/tickers, typed deadlines, and semantic process-signal
   subscriptions (milestone 29.3);
 - establish compiler-backed source intelligence, structural querying/editing, source formatting,
@@ -3868,4 +3794,91 @@ typing, deterministic fair wake-driven selection, complete ownership/cancellatio
 behavior, readable canonical generated Rust, focused accepted/rejected coverage, synchronized
 specification and manual reference material, strict Clippy, the complete conformance matrix, and
 the measured workspace suite.
+
+### Milestone 29.2 — Runtime-independent lowering goldens
+**Status:** completed on `runtime-independent-lowering-goldens`.
+
+`Compilation::review_rust` now renders ordered runtime-source and vendored-support manifests followed
+by program-owned lowering, while standalone Rust, split generated files, canonical validation, and
+source associations retain their prior contract. The conformance harness requires an explicit
+filter for ordinary regeneration, reserves `TERRANE_UPDATE_GOLDENS=all` for corpus-wide updates,
+reports only changed artifacts, and compares every accepted case against the review rendering.
+
+The initial migration reduced 271 `lower.rs` files from 167,829 lines to 65,605. Review correction
+then restored generated reflection and error-site tables, producing a final 133,526-line corpus;
+257 goldens changed, 165 again pin `pub static SITES`, and the churn summarizer reported 135 unique
+changed-line hunks. A comment-only `runtime/async_native.rs` probe followed by corpus-wide
+regeneration changed zero goldens. `docs/summarize-golden-churn.py` emits YAML containing each
+unique hunk once with its affected file count and paths.
+
+
+Before this milestone, every accepted conformance case pinned standalone generated Rust in
+`lower.rs`: the program lowering concatenated with every runtime support module the program
+selected (`src/runtime/*.rs`, included verbatim through `pipeline.rs`). Roughly half of a
+typical golden is therefore a copy of tracked compiler source. A one-line change to
+`runtime/async_native.rs` regenerates every fixture that selects the native async runtime, the
+regeneration commit shows the same hunk dozens of times, and a reviewer cannot tell from the diff
+whether a lowering shape changed or only the shared runtime did. Over three hundred commits have
+touched `lower.rs` files; most of that churn carries no review information. The goldens exist so
+that lowering shape is reviewed output, not snapshots accepted blindly (§5.1); this milestone makes
+them assert only what the program's own lowering decides.
+
+Moving the goldens to another repository is rejected: it breaks atomic commits between a lowering
+change and its evidence, and it moves the churn rather than removing it.
+
+#### Golden contract
+
+`RenderedProgram` already renders the support modules and the application as separate fragments.
+The conformance golden becomes the program-owned rendering plus a runtime manifest:
+
+```rust
+// Generated deterministically by Terrane <version>.
+// Runtime support: async_native.rs, executor_local.rs, channels.rs, tasks_native_local.rs
+// Vendored support crates: terrane-int-support, terrane-scalar-support
+<generated reflection and error-site tables, then source-module lowering>
+```
+
+The manifest names the runtime source files in the order the pipeline concatenates them, so a
+program that starts or stops selecting a runtime module still changes its golden, while an edit
+inside a runtime module changes only that tracked source file. Runtime modules are never copied
+into a golden again. The standalone rendering that `terrane rust` writes and that canonical-Rust
+validation compiles is unchanged; only what the harness compares and writes under
+`TERRANE_UPDATE_GOLDENS` changes. The compiler exposes the review rendering on `Compilation`
+rather than the harness pattern-matching support text, so formatting of the concatenated file
+cannot drift from the fragments.
+
+Existing goldens are migrated by one regeneration commit that contains nothing else; its body
+records the line count before and after.
+
+#### Regeneration discipline
+
+- `TERRANE_UPDATE_GOLDENS` reports every golden it rewrote and refuses to run without a
+  conformance filter unless `TERRANE_UPDATE_GOLDENS=all`, so a broad regeneration is a deliberate
+  act rather than a side effect of a focused run.
+- Add `docs/summarize-golden-churn.py <git range>`: it collapses identical hunks across all changed
+  `lower.rs` files and prints each unique hunk once with the number of files it appears in, so a
+  regeneration is auditable as "1 unique hunk × 25 files" rather than by reading 25 diffs. Its
+  output belongs in the body of the commit that regenerates the goldens.
+- Goldens are regenerated in the same commit as the lowering change that caused them, never in a
+  separate refresh commit, and that commit's body states the cause. The scoreboard-refresh commit
+  described in `docs/MEMORY.md` records the summarizer output for the branch.
+
+#### Evidence and boundaries
+
+- A fixture that only exercises behaviour still keeps its golden; the point is to make goldens
+  cheap, not fewer, because the unrelated fixtures are the ones that catch an unintended shape
+  change.
+- A comment-only edit to `runtime/async_native.rs` followed by the full conformance suite
+  regenerates zero goldens under `TERRANE_UPDATE_GOLDENS=all`; a change that adds a runtime module
+  to a program's selection changes exactly that program's manifest line.
+- The `select` block-scoping change on `heterogeneous-async-selection` (`1790be1c`) is the
+  reference example of churn that must survive: rerunning it against the migrated goldens still
+  regenerates every select fixture, and the summarizer reports one unique hunk.
+- Source associations for debugging and diagnostics (§6.5, Milestone 30.2) keep their offsets into
+  the standalone rendering; the review rendering is not used for anything but comparison.
+
+Exit criterion: no `lower.rs` contains runtime support text; each golden carries a runtime manifest
+line; a runtime-only edit regenerates no goldens; the summarizer reproduces the `1790be1c` churn as
+one hunk; and the full suite, canonical-Rust validation, and strict Clippy pass at the migration
+commit with the scoreboard refreshed there.
 

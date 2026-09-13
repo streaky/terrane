@@ -2,6 +2,7 @@ use super::prelude::*;
 pub(super) fn descriptor_runtime_module() -> GeneratedModule {
     GeneratedModule {
         name: "reflection",
+        source_files: Vec::new(),
         items: vec![Item::generated(
             "#[allow(dead_code)]\n\
              #[derive(Clone, Copy)]\n\

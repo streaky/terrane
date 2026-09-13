@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct TerraneFieldMetadata {

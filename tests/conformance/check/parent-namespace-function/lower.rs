@@ -1,4 +1,6 @@
 // Generated deterministically by Terrane <version>.
+// Runtime support:
+// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: app/child/child.trn
 // Namespace: app/child
 fn use_parent_functions(value: terrane_int_support::Int) -> terrane_int_support::Int {
