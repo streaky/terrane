@@ -336,9 +336,27 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
 
     send(
         &mut stdin,
-        &json!({"jsonrpc": "2.0", "id": 9, "method": "shutdown", "params": null}),
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "textDocument/definition",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 6, "character": 16}
+            }
+        }),
     );
-    let _ = receive_response(&mut stdout, 9);
+    let definition_after_generation = receive_response(&mut stdout, 9);
+    assert_eq!(
+        definition_after_generation["result"]["range"]["start"],
+        json!({"line": 2, "character": 9})
+    );
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 10, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 10);
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),

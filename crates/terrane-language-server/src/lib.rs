@@ -104,17 +104,7 @@ impl Backend {
             .map(|(uri, document)| (uri.to_string(), document.text.clone()))
             .collect::<HashMap<_, _>>();
         overlays.insert(uri_text.clone(), text.to_owned());
-        let (sources, manifest, _package_snapshot) = package_snapshot_inputs(uri, text, &overlays)
-            .unwrap_or_else(|| {
-                (
-                    vec![terrane_compiler::tooling::SourceInput {
-                        uri: uri_text.clone(),
-                        text: text.to_owned(),
-                    }],
-                    None,
-                    false,
-                )
-            });
+        let (sources, manifest) = snapshot_inputs(uri, text, &overlays);
         let source_texts = sources
             .iter()
             .map(|source| (source.uri.clone(), source.text.clone()))
@@ -128,7 +118,7 @@ impl Backend {
                     None,
                     terrane_compiler::tooling::SnapshotOptions {
                         semantic: true,
-                        generated: true,
+                        generated: false,
                         ..terrane_compiler::tooling::SnapshotOptions::default()
                     },
                 )
@@ -229,8 +219,16 @@ impl Backend {
         params: GeneratedRustParams,
     ) -> Result<Option<GeneratedRustResponse>> {
         let uri = params.text_document.uri;
-        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
-            return Ok(None);
+        let (document, overlays) = {
+            let documents = self.documents.read().await;
+            let Some(document) = documents.get(&uri).cloned() else {
+                return Ok(None);
+            };
+            let overlays = documents
+                .iter()
+                .map(|(uri, document)| (uri.to_string(), document.text.clone()))
+                .collect::<HashMap<_, _>>();
+            (document, overlays)
         };
         let encoding = self
             .position_encoding
@@ -240,31 +238,44 @@ impl Backend {
         let Some(offset) = byte_offset(&document.text, params.position, &encoding) else {
             return Ok(None);
         };
-        let tooling = self.tooling.lock().expect("tooling engine lock");
-        let Some(object) = tooling
-            .locate(&document.snapshot_id, &uri.to_string(), offset)
+        let uri_text = uri.to_string();
+        let (sources, manifest) = snapshot_inputs(&uri, &document.text, &overlays);
+        let mut tooling = self.tooling.lock().expect("tooling engine lock");
+        let metadata = tooling
+            .open_snapshot(
+                sources,
+                manifest,
+                None,
+                terrane_compiler::tooling::SnapshotOptions {
+                    semantic: true,
+                    generated: true,
+                    ..terrane_compiler::tooling::SnapshotOptions::default()
+                },
+            )
+            .expect("open documents are valid generated snapshot inputs");
+        let response = tooling
+            .locate(&metadata.snapshot_id, &uri_text, offset)
             .ok()
             .flatten()
-        else {
-            return Ok(None);
-        };
-        let metadata = tooling.metadata(&document.snapshot_id).ok();
-        let Some(terrane_compiler::tooling::Availability::Known(build_id)) =
-            metadata.map(|metadata| metadata.build_id)
-        else {
-            return Ok(Some(GeneratedRustResponse {
-                availability: terrane_compiler::tooling::Availability::NotYetAnalyzed,
-            }));
-        };
-        let availability = tooling
-            .generated_rust(
-                &document.snapshot_id,
-                &uri.to_string(),
-                object.syntax_node_id,
-                &build_id,
-            )
-            .unwrap_or(terrane_compiler::tooling::Availability::Unresolved);
-        Ok(Some(GeneratedRustResponse { availability }))
+            .map(|object| {
+                let availability = if let terrane_compiler::tooling::Availability::Known(build_id) =
+                    &metadata.build_id
+                {
+                    tooling
+                        .generated_rust(
+                            &metadata.snapshot_id,
+                            &uri_text,
+                            object.syntax_node_id,
+                            build_id,
+                        )
+                        .unwrap_or(terrane_compiler::tooling::Availability::Unresolved)
+                } else {
+                    terrane_compiler::tooling::Availability::NotYetAnalyzed
+                };
+                GeneratedRustResponse { availability }
+            });
+        let _ = tooling.close_snapshot(&metadata.snapshot_id);
+        Ok(response)
     }
 }
 
@@ -961,8 +972,23 @@ fn semantic_hover(
 type SnapshotInputs = (
     Vec<terrane_compiler::tooling::SourceInput>,
     Option<terrane_compiler::tooling::SourceInput>,
-    bool,
 );
+
+fn snapshot_inputs(
+    current_uri: &Uri,
+    current_text: &str,
+    overlays: &HashMap<String, String>,
+) -> SnapshotInputs {
+    package_snapshot_inputs(current_uri, current_text, overlays).unwrap_or_else(|| {
+        (
+            vec![terrane_compiler::tooling::SourceInput {
+                uri: current_uri.to_string(),
+                text: current_text.to_owned(),
+            }],
+            None,
+        )
+    })
+}
 
 fn package_snapshot_inputs(
     current_uri: &Uri,
@@ -995,7 +1021,7 @@ fn package_snapshot_inputs(
         uri: format!("file://{}", manifest_path.display()),
         text: std::fs::read_to_string(manifest_path).ok()?,
     };
-    Some((sources, Some(manifest), true))
+    Some((sources, Some(manifest)))
 }
 
 fn byte_offset(text: &str, position: Position, encoding: &PositionEncodingKind) -> Option<usize> {
@@ -1559,10 +1585,8 @@ mod tests {
         let child_text = format!("{disk_child}\n# unsaved editor overlay\n");
         let child_uri = format!("file://{}", child_path.display());
         let uri = child_uri.parse::<Uri>().expect("file URI");
-        let (sources, manifest, package_snapshot) =
-            package_snapshot_inputs(&uri, &child_text, &HashMap::new())
-                .expect("package snapshot inputs");
-        assert!(package_snapshot);
+        let (sources, manifest) = package_snapshot_inputs(&uri, &child_text, &HashMap::new())
+            .expect("package snapshot inputs");
         assert_eq!(sources.len(), 2);
         assert_eq!(
             sources
@@ -1585,6 +1609,10 @@ mod tests {
             )
             .expect("semantic package snapshot");
         assert_eq!(snapshot.profile, "default");
+        assert!(matches!(
+            snapshot.build_id,
+            terrane_compiler::tooling::Availability::NotYetAnalyzed
+        ));
         assert!(matches!(
             snapshot.dependency_projection,
             terrane_compiler::tooling::Availability::Known(_)
