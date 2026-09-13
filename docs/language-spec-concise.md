@@ -867,6 +867,20 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` accepts an async callable or an unpolled task transferred automatically by its non-copyable contract and returns a linear `scoped-task of T`; `join` consumes that scoped task by value and creates `task of task-outcome of T`, so `await scope.join; child` consumes the child at the call boundary and the join task at `await`. Neither transfer requires source-level `move`; unconsumed tasks are compile-time errors, never implicit detach/cancel.
 - Every async callable/task carries inferred `local` or `transferable` execution metadata from parameters, captures, live-across-suspension values, and invoked async boundaries. Projected Rust futures are local unless their admitted contract or an exact probe proves transfer. Callable compatibility preserves the distinction; a threaded spawn rejects local work.
 - Direct calls, local bindings, and immediate await keep concrete Rust future types. Pin/box erasure appears only at heterogeneous storage or callable ABI boundaries, and only transferable erased futures receive the strategy's transfer bound. A task may move before first poll; after advancement it is pinned in executor-owned state.
+- `select` is an async-only statement with at least two static `case` clauses. Each case header is
+  either `await expression` or one ordinary local binding initialized by exactly one top-level
+  `await`; the binding is scoped to that case body. Case result types need not agree.
+- A selection constructs operations exactly once in source order, polls wakefully from a
+  per-statement cursor local to the current callable activation, and advances that cursor only after
+  fixing a winner. Simultaneously ready cases therefore use deterministic rotating priority.
+- After a winner is fixed, every loser receives cancellation before any loser is drained. Draining
+  and release occur in reverse source order, projected async cleanup is included, and the selected
+  body cannot begin early. Cleanup errors do not stop later cleanup; the later cleanup failure
+  replaces the earlier result or error. External task cancellation and deadlines take the same
+  cleanup path and do not advance the fairness cursor.
+- Selection storage is fixed-size and stack-local. Source-only cases retain the dependency-free
+  cooperative runtime; requirements already needing native cancellation or projected async support
+  select that runtime through the ordinary execution-requirement pipeline.
 - Source executor profiles map to compiler-owned execution strategies. Semantic lowering records generic requirements—runtime context, wake support, local/transferable work, blocking delegation—and chooses a runtime later; language contracts never name a runtime crate.
 - The native backend enters exactly one selected wake-driven runtime around async `main`; projected futures are constructed on first poll inside it. Pending dependency futures and timers sleep until their waker fires. No failed runtime requirement silently falls back to blocking; cancellable legacy scope polling parks on its waker while scope scheduling remains a separate contract.
 - Projected async metadata records runtime-context, wake-support, and transfer knowledge independently as `required`, `not required`, or `unknown`; Rust `async fn` currently requires wake support while context and transfer remain unknown absent exact evidence. Completion and hover show these Terrane requirements, not Rust future internals.

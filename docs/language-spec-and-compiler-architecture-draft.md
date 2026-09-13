@@ -3974,7 +3974,45 @@ strategy's transfer requirement; a local erased task does not acquire it silentl
 poll a linear task may be moved into its consuming `await` or scope operation. After advancement it
 is pinned inside compiler-owned executor state and cannot be moved through a source operation.
 
-### 21.3 Runtime independence
+### 21.3 Heterogeneous selection
+
+```terrane
+select
+  case count int = await (next-count;)
+    print; count
+  case received = await receiver.receive;
+    print; received.value
+```
+
+`select` is valid only in an async callable and contains at least two static `case` clauses. A case
+header is either `await expression` or one ordinary local binding initialized by exactly one
+top-level `await`; member/index destinations and nested-await header expressions are rejected. The
+case binding has the awaited operation's result type and is visible only in that case body. Case
+result types are independent, so no common erased payload type is required.
+
+Operation-producing expressions are evaluated once in source order. If construction fails, later
+operations are not constructed, already-constructed operations are cancelled and drained, and the
+failure propagates only after cleanup. Each statement has a rotating cursor stored in the current
+callable activation. Polling visits cases from that cursor, returns `Pending` after one pass when
+nothing is ready, and otherwise chooses the first ready case in that rotated order. The cursor
+advances to one past the winner before cleanup begins; it does not advance on all-pending polls,
+external cancellation, deadlines, or construction failure.
+
+After the winner is fixed, every losing operation receives cancellation before any loser is
+drained. Draining and release then proceed in reverse source order, including channel waiter
+removal, Terrane async `finally`, and projected Rust cleanup. A cleanup failure does not stop
+remaining cleanup; a failure observed later in drain order replaces the earlier result or error.
+Only after all cleanup completes may the selected error propagate or the selected body begin.
+Cancellation or a deadline observed before a winner takes the same reverse-order drain path without
+entering any body. A request observed after a winner is fixed cannot interrupt loser cleanup.
+
+Lowering uses one stack-pinned future and one typed result slot per static case plus a small integer
+cursor; it does not allocate a universal result box, spawn helper tasks, or run a private event loop.
+Source-only selection extends the dependency-free cooperative runtime. Task-scope cancellation,
+asynchronous finalization, and projected async operations reuse the native wake-driven runtime
+selected by ordinary execution requirements.
+
+### 21.4 Runtime independence
 
 The source language should not hard-code one async executor.
 
@@ -4002,7 +4040,7 @@ support as required and leaves runtime context and transfer unknown unless exact
 establishes more. Editor completion and hover present those Terrane execution requirements rather
 than Rust future internals.
 
-### 21.4 Structured concurrency
+### 21.5 Structured concurrency
 
 The structured-concurrency scope is a version-one language-level object, not a library preference.
 It arrives with the async callable type, the task object, and the cancellation core, because the
@@ -6310,6 +6348,7 @@ statement
   | while-statement
   | for-statement
   | try-statement
+  | select-statement
   | throw-statement
   | return-statement
   | break-statement
@@ -6358,6 +6397,15 @@ try-statement
 
 catch-clause
   = "catch" call-free-expression [ "as" identifier ] indented-body
+
+select-statement
+  = "select" newline indent select-case select-case { select-case } dedent
+
+select-case
+  = "case"
+    ( "await" expression
+    | identifier [ type-expression ] "=" "await" expression )
+    indented-body
 
 throw-statement
   = "throw" expression
