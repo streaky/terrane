@@ -3804,15 +3804,17 @@ source associations retain their prior contract. The conformance harness require
 filter for ordinary regeneration, reserves `TERRANE_UPDATE_GOLDENS=all` for corpus-wide updates,
 reports only changed artifacts, and compares every accepted case against the review rendering.
 
-The migration reduced 271 `lower.rs` files from 167,829 lines to 65,605. A comment-only
-`runtime/async_native.rs` probe followed by corpus-wide regeneration changed zero goldens.
-`docs/summarize-golden-churn.py` emits YAML containing each unique hunk once with its affected file
-count and paths.
+The initial migration reduced 271 `lower.rs` files from 167,829 lines to 65,605. Review correction
+then restored generated reflection and error-site tables, producing a final 133,526-line corpus;
+257 goldens changed, 165 again pin `pub static SITES`, and the churn summarizer reported 135 unique
+changed-line hunks. A comment-only `runtime/async_native.rs` probe followed by corpus-wide
+regeneration changed zero goldens. `docs/summarize-golden-churn.py` emits YAML containing each
+unique hunk once with its affected file count and paths.
 
 
-Every accepted conformance case pins its generated Rust in `lower.rs`, and that file is the
-standalone rendering: the program lowering concatenated with every runtime support module the
-program selects (`src/runtime/*.rs`, included verbatim through `pipeline.rs`). Roughly half of a
+Before this milestone, every accepted conformance case pinned standalone generated Rust in
+`lower.rs`: the program lowering concatenated with every runtime support module the program
+selected (`src/runtime/*.rs`, included verbatim through `pipeline.rs`). Roughly half of a
 typical golden is therefore a copy of tracked compiler source. A one-line change to
 `runtime/async_native.rs` regenerates every fixture that selects the native async runtime, the
 regeneration commit shows the same hunk dozens of times, and a reviewer cannot tell from the diff
@@ -3827,13 +3829,13 @@ change and its evidence, and it moves the churn rather than removing it.
 #### Golden contract
 
 `RenderedProgram` already renders the support modules and the application as separate fragments.
-The conformance golden becomes the application-only rendering plus a runtime manifest:
+The conformance golden becomes the program-owned rendering plus a runtime manifest:
 
 ```rust
 // Generated deterministically by Terrane <version>.
 // Runtime support: async_native.rs, executor_local.rs, channels.rs, tasks_native_local.rs
 // Vendored support crates: terrane-int-support, terrane-scalar-support
-<application lowering exactly as today>
+<generated reflection and error-site tables, then source-module lowering>
 ```
 
 The manifest names the runtime source files in the order the pipeline concatenates them, so a
