@@ -272,12 +272,20 @@ impl Drop for TerraneFinallyGuard {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 #[derive(Clone)]
 struct TerraneSelectControl {
     requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
     waker: std::sync::Arc<std::sync::Mutex<Option<std::task::Waker>>>,
 }
 
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 impl TerraneSelectControl {
     fn request_cancel(&self) {
         self.requested
@@ -298,6 +306,10 @@ impl TerraneSelectControl {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 fn __terrane_select_control() -> TerraneSelectControl {
     TerraneSelectControl {
         requested: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -305,28 +317,30 @@ fn __terrane_select_control() -> TerraneSelectControl {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 async fn __terrane_select_operation<F: Future>(
     control: TerraneSelectControl,
     future: F,
 ) -> Option<F::Output> {
-    let parent = TERRANE_CANCELLATION_CONTEXT
-        .try_with(|context| (context.cancellation.clone(), context.deadline))
-        .ok();
+    let deadline = TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.deadline)
+        .ok()
+        .flatten();
     let cancellation = TerraneCancellation::new();
     let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
     let context = TerraneCancellationContext {
         cancellation: cancellation.clone(),
-        deadline: parent.as_ref().and_then(|(_, deadline)| *deadline),
+        deadline,
         finalizers: finalizers.clone(),
     };
     TERRANE_CANCELLATION_CONTEXT
         .scope(context, async move {
             let mut future = std::pin::pin!(future);
             std::future::poll_fn(move |cx| {
-                let parent_cancelled = parent
-                    .as_ref()
-                    .is_some_and(|(parent, _)| parent.is_cancelled());
-                if control.is_cancelled() || parent_cancelled {
+                if control.is_cancelled() {
                     cancellation.cancel();
                     let mut stored_waker = control
                         .waker
@@ -339,11 +353,15 @@ async fn __terrane_select_operation<F: Future>(
                         *stored_waker = Some(cx.waker().clone());
                     }
                     drop(stored_waker);
-                    let _ = Future::poll(future.as_mut(), cx);
-                    if finalizers.depth() == 0 {
-                        return std::task::Poll::Ready(None);
-                    }
-                    return std::task::Poll::Pending;
+                    return match Future::poll(future.as_mut(), cx) {
+                        std::task::Poll::Ready(output) => {
+                            std::task::Poll::Ready(Some(output))
+                        }
+                        std::task::Poll::Pending if finalizers.depth() == 0 => {
+                            std::task::Poll::Ready(None)
+                        }
+                        std::task::Poll::Pending => std::task::Poll::Pending,
+                    };
                 }
                 Future::poll(future.as_mut(), cx).map(Some)
             })
@@ -381,6 +399,10 @@ async fn __terrane_cancellation_requested(
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 fn __terrane_cancellation_is_requested() -> bool {
     TERRANE_CANCELLATION_CONTEXT
         .try_with(|context| {
@@ -422,14 +444,16 @@ async fn __terrane_cancel_operation<F: Future>(
             output = future.as_mut() => Some(output),
             () = __terrane_cancellation_requested(cancellation, deadline) => {
                 std::future::poll_fn(|cx| {
-                    let _ = Future::poll(future.as_mut(), cx);
-                    if finalizers.depth() == guard.depth {
-                        std::task::Poll::Ready(())
-                    } else {
-                        std::task::Poll::Pending
+                    match Future::poll(future.as_mut(), cx) {
+                        std::task::Poll::Ready(output) => {
+                            std::task::Poll::Ready(Some(output))
+                        }
+                        std::task::Poll::Pending if finalizers.depth() == guard.depth => {
+                            std::task::Poll::Ready(None)
+                        }
+                        std::task::Poll::Pending => std::task::Poll::Pending,
                     }
-                }).await;
-                None
+                }).await
             },
         }
     } else {
@@ -445,11 +469,14 @@ async fn __terrane_finish_cancelled_finally(mut guard: TerraneFinallyGuard) -> !
     guard.finish();
     std::future::pending().await
 }
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
 async fn __terrane_finish_cancelled_select(mut guard: TerraneFinallyGuard) -> ! {
     guard.finish();
     std::future::pending().await
 }
-
 
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
@@ -495,14 +522,16 @@ async fn __terrane_cancellable<F: Future>(
                 output = future.as_mut() => Some(output),
                 () = __terrane_cancellation_requested(cancellation, deadline) => {
                     std::future::poll_fn(|cx| {
-                        let _ = Future::poll(future.as_mut(), cx);
-                        if finalizers.depth() == 0 {
-                            std::task::Poll::Ready(())
-                        } else {
-                            std::task::Poll::Pending
+                        match Future::poll(future.as_mut(), cx) {
+                            std::task::Poll::Ready(output) => {
+                                std::task::Poll::Ready(Some(output))
+                            }
+                            std::task::Poll::Pending if finalizers.depth() == 0 => {
+                                std::task::Poll::Ready(None)
+                            }
+                            std::task::Poll::Pending => std::task::Poll::Pending,
                         }
-                    }).await;
-                    None
+                    }).await
                 },
             }
         })

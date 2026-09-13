@@ -13,7 +13,11 @@ fn await_expression(case: &SyntaxNode) -> Option<(&SyntaxNode, Option<Span>, &Sy
     Some((operand, binding, body))
 }
 
-fn operation_kind(unit: &SemanticUnit, mut operand: &SyntaxNode) -> SelectionOperationKind {
+fn operation_kind(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut operand: &SyntaxNode,
+) -> SelectionOperationKind {
     while operand.kind == SyntaxKind::GroupExpression
         && let [grouped] = operand.children.as_slice()
     {
@@ -37,10 +41,11 @@ fn operation_kind(unit: &SemanticUnit, mut operand: &SyntaxNode) -> SelectionOpe
         return SelectionOperationKind::Channel;
     }
     if callee.kind == SyntaxKind::Name
-        && unit
-            .function_contracts_by_span
-            .values()
-            .any(|contract| contract.span == callee.span && contract.span.file != unit.source.id())
+        && package
+            .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+            .and_then(|symbol| symbol.identity.rsplit_once("::"))
+            .and_then(|(namespace, name)| package.projection.item(namespace, name))
+            .is_some_and(|item| matches!(&item.kind, crate::projection::ProjectedKind::Function(_)))
     {
         return SelectionOperationKind::Projected;
     }
@@ -68,6 +73,7 @@ fn throwable_types(unit: &SemanticUnit, mut operand: &SyntaxNode) -> BTreeSet<St
 
 pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     fn collect(
+        package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
         selections: &mut Vec<SemanticSelection>,
@@ -118,7 +124,7 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
                     result_type: result.value_type(),
                     transferability,
                     throwable_types: throwable_types(unit, operand),
-                    operation: operation_kind(unit, operand),
+                    operation: operation_kind(package, unit, operand),
                 });
             }
             selections.push(SemanticSelection {
@@ -127,15 +133,18 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
             });
         }
         for child in &node.children {
-            collect(unit, child, selections)?;
+            collect(package, unit, child, selections)?;
         }
         Ok(())
     }
 
-    for unit in &mut package.units {
+    for index in 0..package.units.len() {
         let mut selections = Vec::new();
-        collect(unit, &unit.tree.root, &mut selections)?;
-        unit.selections = selections;
+        {
+            let unit = &package.units[index];
+            collect(package, unit, &unit.tree.root, &mut selections)?;
+        }
+        package.units[index].selections = selections;
     }
     Ok(())
 }

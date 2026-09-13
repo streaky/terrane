@@ -377,6 +377,47 @@ impl Emitter<'_> {
             format!("Custom(DescriptorId({descriptor}))")
         }
     }
+    fn drain_select_operation(
+        &mut self,
+        select_index: usize,
+        case_index: usize,
+        operand: &SyntaxNode,
+        unless_already_cancelled: bool,
+    ) {
+        let await_operation =
+            format!("__terrane_select_future_{select_index}_{case_index}.as_mut().await");
+        let statement = if self.awaited_throws(operand) {
+            let site = self.error_site(operand);
+            format!(
+                "if let Some(Err(__terrane_select_error)) = {await_operation} {{ __terrane_select_cleanup_error_{select_index} = Some(__terrane_trace_error(__terrane_select_error, {site})); }}"
+            )
+        } else {
+            format!("let _ = {await_operation};")
+        };
+        if unless_already_cancelled {
+            self.line(&format!(
+                "if !__terrane_select_cancelled_{select_index}_{case_index} {{ {statement} }}"
+            ));
+        } else {
+            self.line(&statement);
+        }
+    }
+
+    fn propagate_select_cleanup_error(&mut self, select_index: usize) {
+        self.line(&format!(
+            "if let Some(__terrane_select_cleanup_error) = __terrane_select_cleanup_error_{select_index}.take() {{"
+        ));
+        self.indent += 1;
+        if self.try_completion {
+            self.line("return TerraneCompletion::Error(__terrane_select_cleanup_error);");
+        } else if self.propagate_errors {
+            self.line("return Err(__terrane_select_cleanup_error);");
+        } else {
+            self.line("__terrane_uncaught(__terrane_select_cleanup_error);");
+        }
+        self.indent -= 1;
+        self.line("}");
+    }
 
     pub(super) fn select_statement(&mut self, node: &SyntaxNode) {
         let index = node.span.start;
@@ -396,17 +437,82 @@ impl Emitter<'_> {
                 Some((header, operand, block))
             })
             .collect::<Vec<_>>();
+        let has_throwing_case = cases
+            .iter()
+            .any(|(_, operand, _)| self.awaited_throws(operand));
+        let construction_throws = cases
+            .iter()
+            .map(|(_, operand, _)| self.select_construction_throws(operand))
+            .collect::<Vec<_>>();
+        let has_construction_failure = construction_throws.iter().any(|throws| *throws);
+        let mut future_expressions = Vec::with_capacity(cases.len());
+        for (case_index, (_, operand, _)) in cases.iter().enumerate() {
+            let prior_try_completion = self.try_completion;
+            let prior_propagate_errors = self.propagate_errors;
+            if construction_throws[case_index] {
+                self.try_completion = false;
+                self.propagate_errors = true;
+            }
+            future_expressions.push(self.expression(operand));
+            self.try_completion = prior_try_completion;
+            self.propagate_errors = prior_propagate_errors;
+        }
         self.line(&format!(
             "let mut __terrane_select_guard_{index} = __terrane_finally_guard();"
         ));
-        for (case_index, (_, operand, _)) in cases.iter().enumerate() {
-            let future = self.expression(operand);
+        if has_throwing_case || has_construction_failure {
+            self.line(&format!(
+                "let mut __terrane_select_cleanup_error_{index}: Option<TerraneError> = None;"
+            ));
+        }
+        for (case_index, ((_, _, _), future)) in cases.iter().zip(&future_expressions).enumerate() {
             self.line(&format!(
                 "let __terrane_select_control_{index}_{case_index} = __terrane_select_control();"
             ));
-            self.line(&format!(
-                "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), {future}));"
-            ));
+            if construction_throws[case_index] {
+                self.line(&format!(
+                    "let __terrane_select_unpinned_{index}_{case_index} = match (|| -> Result<_, TerraneError> {{ Ok({future}) }})() {{"
+                ));
+                self.indent += 1;
+                self.line("__terrane_select_constructed => match __terrane_select_constructed {");
+                self.indent += 1;
+                self.line("Ok(__terrane_select_future) => __terrane_select_future,");
+                self.line("Err(__terrane_select_error) => {");
+                self.indent += 1;
+                self.line(&format!(
+                    "__terrane_select_cleanup_error_{index} = Some(__terrane_select_error);"
+                ));
+                for prior in (0..case_index).rev() {
+                    self.line(&format!(
+                        "__terrane_select_control_{index}_{prior}.request_cancel();"
+                    ));
+                }
+                for (prior, (_, prior_operand, _)) in
+                    cases.iter().take(case_index).enumerate().rev()
+                {
+                    self.drain_select_operation(index, prior, prior_operand, false);
+                }
+                for prior in (0..case_index).rev() {
+                    self.line(&format!("drop(__terrane_select_future_{index}_{prior});"));
+                }
+                self.line("__terrane_wait_projected_cleanups().await;");
+                self.line(&format!("__terrane_select_guard_{index}.finish();"));
+                self.propagate_select_cleanup_error(index);
+                self.line("unreachable!(\"select construction failure propagates\");");
+                self.indent -= 1;
+                self.line("}");
+                self.indent -= 1;
+                self.line("},");
+                self.indent -= 1;
+                self.line("};");
+                self.line(&format!(
+                    "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), __terrane_select_unpinned_{index}_{case_index}));"
+                ));
+            } else {
+                self.line(&format!(
+                    "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), {future}));"
+                ));
+            }
             self.line(&format!(
                 "let mut __terrane_select_result_{index}_{case_index} = None;"
             ));
@@ -480,10 +586,8 @@ impl Emitter<'_> {
                 "__terrane_select_control_{index}_{case_index}.request_cancel();"
             ));
         }
-        for case_index in (0..cases.len()).rev() {
-            self.line(&format!(
-                "if !__terrane_select_cancelled_{index}_{case_index} {{ debug_assert!(__terrane_select_future_{index}_{case_index}.as_mut().await.is_none()); }}"
-            ));
+        for (case_index, (_, operand, _)) in cases.iter().enumerate().rev() {
+            self.drain_select_operation(index, case_index, operand, true);
         }
         for case_index in (0..cases.len()).rev() {
             self.line(&format!(
@@ -491,6 +595,10 @@ impl Emitter<'_> {
             ));
         }
         self.line("__terrane_wait_projected_cleanups().await;");
+        self.line(&format!("__terrane_select_guard_{index}.finish();"));
+        if has_throwing_case {
+            self.propagate_select_cleanup_error(index);
+        }
         self.line(&format!(
             "__terrane_finish_cancelled_select(__terrane_select_guard_{index}).await;"
         ));
@@ -510,10 +618,10 @@ impl Emitter<'_> {
                     "__terrane_select_control_{index}_{loser}.request_cancel();"
                 ));
             }
-            for loser in (0..cases.len()).rev().filter(|loser| *loser != winner) {
-                self.line(&format!(
-                    "debug_assert!(__terrane_select_future_{index}_{loser}.as_mut().await.is_none());"
-                ));
+            for (loser, (_, operand, _)) in cases.iter().enumerate().rev() {
+                if loser != winner {
+                    self.drain_select_operation(index, loser, operand, false);
+                }
             }
             self.indent -= 1;
             self.line("}");
@@ -528,6 +636,9 @@ impl Emitter<'_> {
         }
         self.line("__terrane_wait_projected_cleanups().await;");
         self.line(&format!("__terrane_select_guard_{index}.finish();"));
+        if has_throwing_case {
+            self.propagate_select_cleanup_error(index);
+        }
         self.line(&format!("match __terrane_select_winner_{index} {{"));
         self.indent += 1;
         for (case_index, (header, operand, block)) in cases.iter().enumerate() {

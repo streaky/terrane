@@ -130,6 +130,45 @@ impl Emitter<'_> {
         projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
     }
 
+    fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+        {
+            let contract = self.contract_for_call(callee);
+            let callable_throws = self.value_type(callee).is_some_and(|value_type| {
+                matches!(
+                    value_type,
+                    ValueType::Function(_, _, ref effects)
+                        if effects.requires_throwing_abi()
+                )
+            });
+            if contract.is_some_and(|contract| !contract.is_async && contract.throws)
+                || callable_throws
+            {
+                return true;
+            }
+        }
+        node.children
+            .iter()
+            .any(|child| self.expression_throws_synchronously(child))
+    }
+
+    pub(super) fn select_construction_throws(&self, mut operand: &SyntaxNode) -> bool {
+        while operand.kind == SyntaxKind::GroupExpression
+            && let [grouped] = operand.children.as_slice()
+        {
+            operand = grouped;
+        }
+        if operand.kind != SyntaxKind::CallExpression {
+            return self.expression_throws_synchronously(operand);
+        }
+        operand
+            .children
+            .iter()
+            .skip(1)
+            .any(|argument| self.expression_throws_synchronously(argument))
+    }
+
     pub(super) fn traced_await_output(
         &mut self,
         output: impl AsRef<str>,
