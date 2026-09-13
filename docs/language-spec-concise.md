@@ -77,6 +77,8 @@ numeric_literal:
   dot_rule: "'.' joins a literal only before a digit; 1.type stays member access"
 member_dot: no whitespace: value.member; '.' has NO other role in the language
 invalid_adjacency: 'value member'
+structural_statement_start_words: [if, for, while, select, try, throw, return, break, continue]
+structural_word_resolution: a structural word at statement start does not resolve an ordinary binding of the same name
 newline: normally ends statement; grammar-defined continuation only
 ```
 
@@ -893,7 +895,8 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Case guards, default cases, dynamic case lists, and expression-position `select` are unsupported.
   A linear task may appear in only one case. Exclusive move state is merged after all possible
   winning branches, and incompatible mutable/shared receiver borrows across simultaneously live
-  cases are rejected before lowering.
+  cases are rejected before lowering. Case-operation borrows end with the `select` statement after
+  loser cleanup, so a receiver may be read or mutated by the following statement.
 - Source executor profiles map to compiler-owned execution strategies. Semantic lowering records generic requirements—runtime context, wake support, local/transferable work, blocking delegation—and chooses a runtime later; language contracts never name a runtime crate.
 - The native backend enters exactly one selected wake-driven runtime around async `main`; projected futures are constructed on first poll inside it. Pending dependency futures and timers sleep until their waker fires. No failed runtime requirement silently falls back to blocking; cancellable legacy scope polling parks on its waker while scope scheduling remains a separate contract.
 - Projected async metadata records runtime-context, wake-support, and transfer knowledge independently as `required`, `not required`, or `unknown`; Rust `async fn` currently requires wake support while context and transfer remain unknown absent exact evidence. Completion and hover show these Terrane requirements, not Rust future internals.

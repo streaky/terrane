@@ -528,6 +528,7 @@ if
 else
 for
 while
+select
 try
 catch
 finally
@@ -545,9 +546,13 @@ rust
 unsafe
 ```
 
-`import` is special: it participates structurally in both `from ... import ...` and `import with ...`. The latter selects a compile-time importer slot; neither form resolves an ordinary binding named `import`.
+`import` is special: it participates structurally in both `from ... import ...` and
+`import with ...`. The latter selects a compile-time importer slot; neither form resolves an
+ordinary binding named `import`. Likewise, `select` is structural at statement start and does not
+resolve an ordinary binding in that position.
 
-The language should use contextual rather than gratuitously reserved keywords where doing so remains unambiguous.
+The language should use contextual rather than gratuitously reserved keywords where doing so
+remains unambiguous.
 
 ### 6.7 Text literals
 
@@ -4022,7 +4027,9 @@ requirements.
 Ownership analysis treats case bodies as mutually exclusive branches but treats every case
 operation as live together. It merges post-selection move and definite-assignment state across all
 possible winners, validates retained borrows through cleanup, and rejects incompatible
-mutable/shared borrows of the same receiver across case operations before Rust lowering.
+mutable/shared borrows of the same receiver across case operations before Rust lowering. All case
+future storage is scoped to the `select` statement, so those operation borrows end after cleanup
+and before the following statement executes.
 
 ### 21.4 Runtime independence
 

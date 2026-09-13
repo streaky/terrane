@@ -3588,7 +3588,7 @@ in `heterogeneous-select`, `select-pending-wakeup`, `select-terminal-cursor`,
 `select-concurrent-activations`, `select-task-outcomes`, `select-async-closure`,
 `select-case-control-flow`, `select-exclusive-case-move`, `select-definite-assignment`,
 `select-loser-cleanup`, `select-cleanup-shield`, `select-resource-release`,
-`select-error-propagation`, `select-external-cancellation`, and
+`select-error-propagation`, `select-external-cancellation`, `select-post-borrow-use`, and
 `rust-dependency-async-function`; focused rejected fixtures cover the remaining syntax,
 task-consumption, scope, ownership, assignment, and borrow boundaries.
 

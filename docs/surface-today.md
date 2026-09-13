@@ -827,7 +827,9 @@ spawns no helper task, erases no universal payload, and adds no private event lo
 A plain source-only selection keeps the dependency-free cooperative runtime; selections involving
 task scopes, asynchronous finalization, or projected async work use the already selected native
 runtime. Guards, defaults, dynamic case lists, expression-position selection, duplicate linear
-tasks, and incompatible case-operation borrows are diagnosed before lowering.
+tasks, and incompatible case-operation borrows are diagnosed before lowering. Case-operation
+borrows end with the `select` statement after cleanup, permitting later reads or mutations of the
+receiver.
 
 
 Async callable, task, and scoped-task types retain compiler-owned local-versus-transferable
