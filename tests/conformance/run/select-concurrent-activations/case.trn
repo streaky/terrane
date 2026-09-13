@@ -12,9 +12,15 @@ async function x string;
 async function y string;
   return 'y'
 
-async function choose string;
+function recursive-choose async function from int to string;
+  return choose
+
+async function choose string; depth int
   select
     case await (a;)
+      if depth > 0
+        recurse = recursive-choose;
+        return await (recurse; depth - 1)
       select
         case await (x;)
           return 'ax'
@@ -25,8 +31,8 @@ async function choose string;
 
 async function main;
   scope = task-scope;
-  first = scope.spawn; (choose;)
-  second = scope.spawn; (choose;)
+  first = scope.spawn; (choose; 1)
+  second = scope.spawn; (choose; 1)
   first-outcome = await scope.join; first
   second-outcome = await scope.join; second
   first-value = first-outcome.value

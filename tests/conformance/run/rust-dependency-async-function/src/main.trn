@@ -37,12 +37,17 @@ async function main;
       print; projected
     case source = await (source-ready;)
       print; source
+  select
+    case first = await echo_after_yield; >pending-first
+      print; first
+    case second = await echo_after_yield; >pending-second
+      print; second
   reset_operation_state;
   select
     case await wait_forever;
       print; 'unexpected projected winner'
-    case source = await (source-ready;)
-      print; source
+    case selection-polls int = await timer_poll_count;
+      print; 'selection-polls', selection-polls
   started bool = await wait_until_operation_started;
   drops int = operation_drop_count;
   print; started, drops
