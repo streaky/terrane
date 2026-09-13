@@ -904,6 +904,38 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Cancellation is cooperative at defined points, but observation while suspended promptly drops the in-flight operation. A wakeable compiler-owned signal—not timer polling—drives native observation. Lowered async `try` regions install nested finalization guards: the innermost active guard drops its operation, runs compiler-separated `finally` state exactly once, and then exposes the request to its parent. Async cleanup remains protected until the outermost guard releases cancellation to the task boundary. Guard state is non-catchable and uses no Rust panic/unwind control flow. Owned foreign operation state runs Rust `Drop`; cleanup-owned state survives until cleanup. Reject overlapping exclusive ownership, insufficient-lifetime borrows, or other captures that cannot split operation and cleanup state.
 - Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true. A cleanup error replaces pending cancellation under ordinary `finally` rules while cancellation remains observable.
 - Deadlines use the same cancellation transition and are not hard kills. Cleanup may suspend beyond a deadline; join remains pending, and no liveness is promised for a foreign cleanup future that never wakes.
+- `/core/time` requires `clocks`. `duration` is an exact non-negative value with canonical
+  `seconds`, `nanoseconds`, and arbitrary-precision `total-nanoseconds`; factories reject known
+  negative constants statically and dynamic negatives with `invalid-duration`. Addition,
+  multiplication by a non-negative integer, and `subtract.checked` preserve exactness.
+- `clock::wall` returns a UTC Unix `instant`; `clock::monotonic` returns a comparable point in the
+  current runtime activation's monotonic domain. Monotonic points and deadlines cannot cross a
+  persistence, foreign, or runtime boundary. Wall-clock adjustment never changes elapsed-time,
+  deadline, sleep, or ticker behavior.
+- `clock::sleep` captures its absolute monotonic target when the task is constructed, before first
+  poll. `clock::sleep-until` uses an existing monotonic target. Both suspend through wake-driven
+  host timers, re-check the exact target after every wake, chunk only at the host boundary when a
+  timer range is bounded, and drop timer registration promptly on cancellation or `select` loss.
+- `clock::deadline` creates a typed absolute deadline from a duration and `deadline::at` wraps a
+  same-runtime monotonic point. `deadline.remaining` returns `duration|none`; `deadline.expired`
+  is true once the target is eligible. `task-scope` and child scopes accept only typed deadlines;
+  children clamp to the earlier parent/requested target. Networking and TLS operation options
+  likewise carry typed deadlines; integer millisecond timeout aliases do not exist.
+- `clock::interval` rejects a zero period and returns a linear ticker anchored once at construction.
+  Each `ticker.next` schedules `anchor + period * index`, so handler latency does not accumulate
+  drift. A `tick` reports scheduled/observed monotonic points and an exact coalesced count; a
+  cancelled `next` does not advance the index and no ticker helper task is detached.
+- `/core/process-signals` requires `process-signals`. It exposes typed `process-signal` values for
+  interrupt, terminate, hangup, and quit; `process-signals; selected-set` creates a linear
+  subscription whose async `next` participates normally in `await` and `select`. Each event carries
+  signal, exact count, deterministic broker sequence, host-observation monotonic point, and explicit
+  overflow status. One process-wide broker fans every observation out to all interested live
+  subscriptions and coalesces repeated pending observations without silent loss.
+- Process-signal ownership is explicit: `close`/`destruct` unregisters the subscription; closing the
+  last subscription stops and joins the broker worker, removes wake registrations, and restores the
+  exact prior host dispositions. Supported Unix hosts with lock-free 64-bit atomics use the audited
+  signal ABI boundary; selecting this package on an unsupported host family is a build error rather
+  than a runtime fallback.
 - Compiler-owned async stream, TCP, UDP, and DNS operations use the selected runtime. Blocking standard-handle/socket ABIs are explicitly delegated to its blocking pool, never run on executor workers or through a second runtime.
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
 - Runtime remains profile-selected; concurrency objects synchronize existing executor/runtime host threads and expose no thread lifecycle.

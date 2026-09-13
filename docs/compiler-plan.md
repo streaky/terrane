@@ -1571,7 +1571,7 @@ T0058 use after move                      T0065 uninferable object field type
 T0059 reference used after replacement     T0066 field missing type and initializer
 T0067 incompatible interface signature    T0068 escaping non-owning reference
 T0070 reflection unavailable in profile     T0074 invalid task-core operation
-T0071 unavailable reflected member          T0075 child deadline extension
+T0071 unavailable reflected member
 T0072 read-only member assignment            T0076 unconsumed task
 T0073 value live across suspension           T0077 incompatible member assignment
 T0078 parameterized program entrypoint
