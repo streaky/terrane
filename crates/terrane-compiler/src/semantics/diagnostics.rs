@@ -324,6 +324,67 @@ pub(super) fn object_method_mutates(
         })
 }
 
+pub(super) fn validate_discarded_temporary_mutations(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn retained_receiver(unit: &SemanticUnit, receiver: &SyntaxNode) -> bool {
+        if receiver.kind == SyntaxKind::Name {
+            return true;
+        }
+        let [base, _field] = receiver.children.as_slice() else {
+            return false;
+        };
+        receiver.kind == SyntaxKind::MemberExpression
+            && retained_receiver(unit, base)
+            && matches!(
+                infer_receiver_value_type(unit, base, &unit.typed_bindings),
+                Ok(Some(ValueType::Object(_)))
+            )
+    }
+
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::Block {
+            for statement in &node.children {
+                if statement.kind == SyntaxKind::CallExpression
+                    && let Some(callee) = statement.children.first()
+                    && let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee)
+                    && descriptor_is_collection(unit, &receiver_type)
+                    && !retained_receiver(unit, receiver)
+                {
+                    let family = member
+                        .split_once('.')
+                        .map_or(member.as_str(), |(family, _)| family);
+                    if member_invocation_mode(package, unit, &receiver_type, family)
+                        == InvocationMode::Mutable
+                    {
+                        return Err(failure(
+                            &unit.source,
+                            "T0128",
+                            format!(
+                                "mutating collection method `.{member}` cannot discard a temporary receiver"
+                            ),
+                            receiver.span,
+                        ));
+                    }
+                }
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn typed_member_call<'a>(
     unit: &SemanticUnit,
     callee: &'a SyntaxNode,
