@@ -749,12 +749,13 @@ lookup: default child THROWS (missing-key for map, index-error for sequence); ch
 lookup_rule: absence is always the checked spelling; no operation returns absence by default
 map_removal: remove; key -> Value or throws missing-key; remove.checked; key -> Value|none without mutation on absence
 map_removal_order: ordered map preserves remaining insertion order; reinserting a removed key appends it; an absent removal does not separate COW storage
-unordered_iteration: deterministic for the same operation history; content-equal values reached through different remove/insert histories may iterate differently
+unordered_iteration: deterministic for the same operation history; new items append, removal may fill the removed position with the prior final item, and content-equal values reached through different histories may iterate differently
 list_sort: sort and sort.descending stably mutate and return the resulting list; supported items are int, fixed integers, float32/float64 (including float alias), and string only
 list_sort_order: strings use Unicode scalar sequence; integers use mathematical value; floating NaNs remain a stable final bucket in both directions, signed zeros compare equal, and descending compares directly rather than reversing
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
 byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
 mutators: return the resulting collection for value/COW collections; none for in-place resource mutators unless a removed/replaced value is meaningful
+discarded_mutation: statement-form collection mutators require a retained binding receiver; mutating a temporary/snapshot is rejected unless its returned collection is consumed as an expression
 release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
 release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
 release_clearing: elements released in collection iteration order before clear returns
