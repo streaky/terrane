@@ -663,38 +663,46 @@ impl RenderedProgram {
     }
 }
 
+fn render_modules<'a>(
+    modules: impl IntoIterator<Item = &'a Module>,
+    output: &mut String,
+    associations: &mut Vec<SourceAssociation>,
+) {
+    for module in modules {
+        if module.items.is_empty() {
+            continue;
+        }
+        write!(
+            output,
+            "// Source: {}\n// Namespace: {}\n",
+            module.source_path,
+            module.namespace.trim_start_matches('/')
+        )
+        .expect("writing to a String cannot fail");
+        for item in &module.items {
+            item.render_associated(output, associations);
+        }
+    }
+}
+
+fn render_generated_modules<'a>(
+    modules: impl IntoIterator<Item = &'a GeneratedModule>,
+    output: &mut String,
+    associations: &mut Vec<SourceAssociation>,
+) {
+    for module in modules {
+        for item in &module.items {
+            item.render_associated(output, associations);
+        }
+    }
+}
+
 impl Program {
     #[must_use]
     pub(crate) fn rendered(&self) -> RenderedProgram {
-        fn render_modules<'a>(
-            modules: impl IntoIterator<Item = &'a Module>,
-            output: &mut String,
-            associations: &mut Vec<SourceAssociation>,
-        ) {
-            for module in modules {
-                if module.items.is_empty() {
-                    continue;
-                }
-                write!(
-                    output,
-                    "// Source: {}\n// Namespace: {}\n",
-                    module.source_path,
-                    module.namespace.trim_start_matches('/')
-                )
-                .expect("writing to a String cannot fail");
-                for item in &module.items {
-                    item.render_associated(output, associations);
-                }
-            }
-        }
-
         let mut runtime = String::new();
         let mut runtime_associations = Vec::new();
-        for module in &self.runtime {
-            for item in &module.items {
-                item.render_associated(&mut runtime, &mut runtime_associations);
-            }
-        }
+        render_generated_modules(&self.runtime, &mut runtime, &mut runtime_associations);
         let mut program = String::new();
         let mut program_associations = Vec::new();
         for item in &self.globals {
@@ -703,15 +711,13 @@ impl Program {
         render_modules(&self.modules, &mut program, &mut program_associations);
         let mut review = String::new();
         let mut review_associations = Vec::new();
-        for module in self
-            .runtime
-            .iter()
-            .filter(|module| module.source_files.is_empty())
-        {
-            for item in &module.items {
-                item.render_associated(&mut review, &mut review_associations);
-            }
-        }
+        render_generated_modules(
+            self.runtime
+                .iter()
+                .filter(|module| module.source_files.is_empty()),
+            &mut review,
+            &mut review_associations,
+        );
         let review_prefix_len = review.len();
         review.push_str(&program);
         review_associations.extend(program_associations.iter().map(|association| {
