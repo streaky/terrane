@@ -3768,3 +3768,14 @@ size-independent hash work, and stable sorting has bounded $O(n \log n)$ compari
 clones. The adaptive-integer
 unit witness additionally asserts that a mixed `Small`/`Wide`/`Big` sort performs no
 allocation-producing `as_big` materializations.
+
+Compatibility note: Milestone 29.0 changes unordered traversal from the earlier stable-hash order to
+append plus swap-fill order so both insertion and removal meet the expected amortized constant-time
+contract. Programs must not treat prior unordered rendering or traversal order as stable; the
+`collections-value-semantics` golden records the intentional transition.
+
+Discarded temporary mutations use `T0128` with help directing callers to bind the returned
+collection and explicitly store it back. Implicit element-place mutation is not part of this
+milestone. The generated conformance workspace uses the same line-table-only debug profile as the
+workspace so its shared target does not retain full-debuginfo copies of every generated binary and
+runtime dependency.

@@ -3337,7 +3337,7 @@ the referent is destroyed only after its final owner is released.
 
 **Ordering.** Maps and sets preserve insertion order, and that order is an observable part of their contract rather than an implementation accident. Iteration, rendering, and serialisation are therefore reproducible without the program sorting defensively.
 
-A separate unordered map and set type exists for cases where the index-map layout costs more than the guarantee is worth. It does not promise insertion order, but it remains deterministic: the same operation sequence iterates the same way on every run, in every process, and across builds. New elements append to the current traversal sequence, while removal may fill the removed position with the previous final element. Iteration order may therefore depend on prior removals and insertions, and content-equal unordered collections constructed through different operation histories need not traverse identically. The performance option must never be the nondeterministic option, because reproducible output and comparable test evidence depend on it. Choosing it is a type choice rather than a flag, so the weaker guarantee stays visible in signatures and at every boundary the value crosses.
+A separate unordered map and set type exists for cases where expected constant-time removal matters more than preserving the relative order of remaining elements. It does not promise insertion order, but it remains deterministic: the same operation sequence iterates the same way on every run, in every process, and across builds. New elements append to the current traversal sequence, while removal may fill the removed position with the previous final element. Iteration order may therefore depend on prior removals and insertions, and content-equal unordered collections constructed through different operation histories need not traverse identically. The performance option must never be the nondeterministic option, because reproducible output and comparable test evidence depend on it. Choosing it is a type choice rather than a flag, so the weaker guarantee stays visible in signatures and at every boundary the value crosses.
 
 **Keyed removal.** `map of Key, Value` and `unordered-map of Key, Value` expose
 `remove; key`, which removes and returns the stored value or throws `missing-key`, and
@@ -3367,10 +3367,11 @@ than reversing an ascending result, so equal-value stability and the final NaN b
 **Copy-on-write separation.** Separation occurs at the first mutation visible through a non-unique handle, which is what preserves value-assignment semantics without copying on every binding.
 
 A mutable collection method used as a statement must target a retained collection binding. Calling a
-mutator through a temporary collection value, including an `entry.value` snapshot, and discarding
-its returned collection is rejected because the mutation would have no observable destination.
-The same temporary receiver is valid in expression position when the caller consumes the returned
-collection value.
+mutator through a temporary collection value, including an `entry.value` or indexed-element
+snapshot, and discarding its returned collection is rejected because the mutation would have no
+observable destination. Terrane does not implicitly write such a result back through the containing
+collection. The caller must consume and explicitly store the returned value, for example
+`nested.set; index, (nested[index].append; value)`, or bind the result before storing it back.
 
 **Element type inference.** A homogeneous literal infers the narrowest common declared type of its elements. A heterogeneous literal requires an explicit finite union or an annotation; the compiler does not widen silently to a dynamic element type.
 

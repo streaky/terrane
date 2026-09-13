@@ -755,7 +755,7 @@ list_sort_order: strings use Unicode scalar sequence; integers use mathematical 
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
 byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
 mutators: return the resulting collection for value/COW collections; none for in-place resource mutators unless a removed/replaced value is meaningful
-discarded_mutation: statement-form collection mutators require a retained binding receiver; mutating a temporary/snapshot is rejected unless its returned collection is consumed as an expression
+discarded_mutation: statement-form collection mutators require a retained binding receiver; temporary entry/index snapshots are rejected, with explicit expression-result writeback such as nested.set; index, (nested[index].append; value)
 release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
 release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
 release_clearing: elements released in collection iteration order before clear returns
