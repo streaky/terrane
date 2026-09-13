@@ -130,14 +130,18 @@ ancestor. Node IDs are deterministic only inside the exact snapshot. Tokens and 
 exact authored `text`, and `span`. Diagnostic objects carry `severity`, stable `code`, `message`,
 nullable primary `span`, and nullable `help`.
 
-### `locate`, `definition`, and `references`
+### `locate`, `definition`, `references`, and `implementations`
 
-Each accepts `snapshot_id`, `uri`, and an `offset` at a UTF-8 boundary. `locate` returns the smallest
-syntax object containing the position, augmented with nullable name and availability-tagged canonical
-symbol identity, descriptor identity, value type, ownership, exact effects, capability requirements,
-declaration, invocation mode, member facts, and inheritance. Ownership is `unsupported` until the
-semantic model exposes an authoritative ownership state. Locations contain `{uri,span}`. Definitions
-and references resolve by syntactic role and canonical semantic identity, not matching text.
+Each accepts `snapshot_id`, `uri`, and an `offset` at a UTF-8 boundary and is available through both
+JSON-lines stdio and one-shot query transports. `locate` returns the smallest syntax object containing
+the position, augmented with nullable name and availability-tagged canonical symbol identity,
+descriptor identity, value type, ownership, exact effects, capability requirements, declaration,
+invocation mode, member facts, and inheritance. Ownership is `unsupported` until the semantic model
+exposes an authoritative ownership state. Locations contain `{uri,span}`. Definitions and references
+resolve by syntactic role and canonical semantic identity, not matching text. `implementations`
+returns implementing descriptors for an interface or implementing methods for an interface method.
+A query from a concrete method use first follows its resolved method's owning interface contract, so
+its result contains every method implementing that contract, including the resolved concrete method.
 
 ### `find`
 
@@ -164,6 +168,10 @@ All selector fields are optional constraints. Results are sorted by URI, start, 
 are clamped to 1–1000. `complete: false` always carries an opaque continuation token whose remaining
 match set is retained rather than recomputed. A continuation is single-use, bound to the exact
 snapshot and selector, and one of at most 128 active continuations; expiry returns a retryable error.
+
+With `include_recovery: false`, `find` excludes only nodes whose own state is `error`, `recovery`, or
+`unsupported`. An otherwise valid `contains-recovery` ancestor remains eligible; clients can inspect
+its state without treating the entire surrounding construct as a directly recovered match.
 
 ### `generated-rust`
 
@@ -207,9 +215,11 @@ edits for the editor to apply.
 
 The language server advertises the standard diagnostics, completion, hover, definition, references,
 implementation, rename, document-symbol, formatting, code-action, signature-help, and semantic-token
-capabilities. Its source code action formats the current document. The custom
-`terrane/generatedRust` request accepts a text-document position and returns the same availability-
-tagged exact-build generated locations as `generated-rust`.
+capabilities. Its source code action formats the current document. Ordinary `didOpen` and `didChange`
+analysis snapshots do not compile generated Rust. The custom `terrane/generatedRust` request accepts
+a text-document position, lazily opens a short-lived generated snapshot from the exact current package
+and editor overlays, returns the same availability-tagged exact-build generated locations as
+`generated-rust`, and closes that generated snapshot before responding.
 
 ## Formatting
 
