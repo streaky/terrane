@@ -1,0 +1,17 @@
+namespace heterogeneous-select
+
+async function number-task int;
+  return 7
+
+async function text-task string;
+  return 'text'
+
+async function main;
+  count = 0
+  while count < 4
+    select
+      case number int = await (number-task;)
+        print; number
+      case text = await (text-task;)
+        print; text
+    count++

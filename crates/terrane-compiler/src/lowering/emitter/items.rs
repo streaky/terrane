@@ -1715,6 +1715,19 @@ impl<'a> Emitter<'a> {
             [parameter] => self.line(&format!("let _ = {parameter};")),
             parameters => self.line(&format!("let _ = ({});", parameters.join(", "))),
         }
+        for selection in self.unit.selections.iter().filter(|selection| {
+            self.unit
+                .enclosing_function_spans
+                .get(&selection.span.start)
+                .copied()
+                .flatten()
+                == Some(contract.span)
+        }) {
+            self.line(&format!(
+                "let mut __terrane_select_cursor_{} = 0usize;",
+                selection.span.start
+            ));
+        }
         if let Some(block) = block {
             self.block(block);
         }

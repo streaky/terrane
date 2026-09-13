@@ -86,8 +86,7 @@ impl Emitter<'_> {
         )
     }
 
-    fn await_expression(&mut self, operand: &SyntaxNode) -> String {
-        let awaited = format!("__terrane_await({}).await", self.expression(operand));
+    pub(super) fn awaited_throws(&self, operand: &SyntaxNode) -> bool {
         let callee = (operand.kind == SyntaxKind::CallExpression)
             .then(|| operand.children.first())
             .flatten();
@@ -123,19 +122,31 @@ impl Emitter<'_> {
                 ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
                 _ => false,
             });
-        let throws =
-            projected || contract.is_some_and(|contract| contract.throws) || function_value_throws;
-        if !throws {
-            return awaited;
+        projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
+    }
+
+    pub(super) fn traced_await_output(
+        &mut self,
+        output: impl AsRef<str>,
+        operand: &SyntaxNode,
+    ) -> String {
+        let output = output.as_ref();
+        if !self.awaited_throws(operand) {
+            return output.to_owned();
         }
         let site = self.error_site(operand);
         if self.try_completion {
-            format!("__terrane_traced_completion!({awaited}, {site})")
+            format!("__terrane_traced_completion!({output}, {site})")
         } else if self.propagate_errors {
-            format!("__terrane_traced_err({awaited}, {site})?")
+            format!("__terrane_traced_err({output}, {site})?")
         } else {
-            format!("__terrane_traced({awaited}, {site})")
+            format!("__terrane_traced({output}, {site})")
         }
+    }
+
+    fn await_expression(&mut self, operand: &SyntaxNode) -> String {
+        let awaited = format!("__terrane_await({}).await", self.expression(operand));
+        self.traced_await_output(awaited, operand)
     }
 
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
