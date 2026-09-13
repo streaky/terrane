@@ -1856,34 +1856,127 @@ fn format_source(document: &ParsedDocument) -> String {
         )
         .collect::<Vec<_>>();
     let source = document.source.text();
-    let newline = if source.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    };
-    let had_final_newline = source.ends_with('\n');
-    let mut output = String::with_capacity(source.len());
+    let mut edits = Vec::<(usize, usize, &'static str)>::new();
     let mut offset = 0;
     for raw in source.split_inclusive('\n') {
         let content = raw.trim_end_matches(['\r', '\n']);
+        let trimmed = content.trim_end_matches([' ', '\t']);
+        let start = offset + trimmed.len();
         let end = offset + content.len();
-        let is_protected = protected
-            .iter()
-            .any(|span| span.start < end && offset < span.end);
-        if is_protected {
-            output.push_str(content);
-        } else {
-            output.push_str(content.trim_end_matches([' ', '\t']));
-        }
-        if raw.ends_with('\n') {
-            output.push_str(newline);
+        if start < end && !overlaps_protected(start, end, &protected) {
+            edits.push((start, end, ""));
         }
         offset += raw.len();
     }
-    if !had_final_newline {
-        output.truncate(output.trim_end_matches(['\r', '\n']).len());
+    collect_operator_spacing(
+        &document.tree.root,
+        &document.tree.lexed.tokens,
+        source,
+        &protected,
+        &mut edits,
+    );
+    for (index, token) in document.tree.lexed.tokens.iter().enumerate() {
+        if token.kind == TokenKind::Assign {
+            add_token_spacing(
+                index,
+                &document.tree.lexed.tokens,
+                source,
+                &protected,
+                &mut edits,
+            );
+        }
+    }
+    edits.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    edits.dedup();
+    let mut output = source.to_owned();
+    for (start, end, replacement) in edits.into_iter().rev() {
+        output.replace_range(start..end, replacement);
     }
     output
+}
+
+fn collect_operator_spacing(
+    node: &SyntaxNode,
+    tokens: &[crate::tokens::Token],
+    source: &str,
+    protected: &[Span],
+    edits: &mut Vec<(usize, usize, &'static str)>,
+) {
+    if node.kind == SyntaxKind::BinaryExpression {
+        for index in node.token_range.clone() {
+            if tokens[index].kind == TokenKind::Operator {
+                add_token_spacing(index, tokens, source, protected, edits);
+            }
+        }
+    }
+    for child in &node.children {
+        collect_operator_spacing(child, tokens, source, protected, edits);
+    }
+}
+
+fn add_token_spacing(
+    index: usize,
+    tokens: &[crate::tokens::Token],
+    source: &str,
+    protected: &[Span],
+    edits: &mut Vec<(usize, usize, &'static str)>,
+) {
+    let previous = tokens[..index]
+        .iter()
+        .rev()
+        .find(|token| !is_layout_token(token.kind));
+    let next = tokens[index + 1..]
+        .iter()
+        .find(|token| !is_layout_token(token.kind));
+    if let Some(previous) = previous {
+        add_safe_space(
+            previous.span.end,
+            tokens[index].span.start,
+            source,
+            protected,
+            edits,
+        );
+    }
+    if let Some(next) = next {
+        add_safe_space(
+            tokens[index].span.end,
+            next.span.start,
+            source,
+            protected,
+            edits,
+        );
+    }
+}
+
+fn add_safe_space(
+    start: usize,
+    end: usize,
+    source: &str,
+    protected: &[Span],
+    edits: &mut Vec<(usize, usize, &'static str)>,
+) {
+    let Some(gap) = source.get(start..end) else {
+        return;
+    };
+    if gap != " "
+        && gap.chars().all(|character| matches!(character, ' ' | '\t'))
+        && !overlaps_protected(start, end, protected)
+    {
+        edits.push((start, end, " "));
+    }
+}
+
+fn overlaps_protected(start: usize, end: usize, protected: &[Span]) -> bool {
+    protected
+        .iter()
+        .any(|span| span.start < end && start < span.end)
+}
+
+fn is_layout_token(kind: TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent | TokenKind::Eof
+    )
 }
 
 fn project_diagnostic(diagnostic: &Diagnostic) -> DiagnosticProjection {
@@ -2154,13 +2247,13 @@ mod tests {
     fn formatter_is_idempotent_and_leaves_recovered_source_untouched() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/format.trn";
-        let source = "function main;   \r\n    value int = 1   \r\n";
+        let source = "function main;   \r\n    value int=1 +2   \r\n";
         let snapshot = open(&mut engine, uri, source, SnapshotOptions::default());
         let first = engine
             .format(&snapshot.snapshot_id, uri)
             .expect("format valid source");
         assert!(first.changed);
-        assert_eq!(first.text, "function main;\r\n    value int = 1\r\n");
+        assert_eq!(first.text, "function main;\r\n    value int = 1 + 2\r\n");
         let second_snapshot = open(&mut engine, uri, &first.text, SnapshotOptions::default());
         let second = engine
             .format(&second_snapshot.snapshot_id, uri)
