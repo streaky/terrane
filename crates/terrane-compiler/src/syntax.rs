@@ -71,6 +71,15 @@ pub fn is_keyword(text: &str) -> bool {
     KEYWORDS.binary_search(&text).is_ok()
 }
 
+/// Complete set of names forbidden in ordinary declaration-name slots.
+pub const RESERVED_DECLARATION_NAMES: &[&str] = &["function", "instance", "self", "this"];
+
+/// Returns whether `text` is forbidden in an ordinary declaration-name slot.
+#[must_use]
+pub fn is_reserved_declaration_name(text: &str) -> bool {
+    RESERVED_DECLARATION_NAMES.binary_search(&text).is_ok()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SyntaxKind {
     CompilationUnit,

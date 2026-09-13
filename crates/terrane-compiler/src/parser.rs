@@ -1,4 +1,4 @@
-use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree, is_keyword};
+use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree, is_reserved_declaration_name};
 use crate::tokens::{Attachment, LexedSource, Token, TokenKind};
 use crate::{Diagnostic, SourceFile, Span};
 
@@ -1563,7 +1563,7 @@ impl Parser<'_> {
     }
 
     fn reject_keyword_declaration_name(&mut self) {
-        if is_keyword(self.text()) {
+        if is_reserved_declaration_name(self.text()) {
             self.error_here(
                 "S1095",
                 format!("`{}` is reserved and cannot be declared", self.text()),

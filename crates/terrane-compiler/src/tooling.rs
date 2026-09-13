@@ -1276,7 +1276,7 @@ impl ToolingEngine {
         offset: usize,
         new_name: &str,
     ) -> Result<EditProposal, ProtocolError> {
-        if !valid_identifier(new_name) || crate::syntax::is_keyword(new_name) {
+        if !valid_identifier(new_name) || crate::syntax::is_reserved_declaration_name(new_name) {
             return Err(ProtocolError::new(
                 "invalid-name",
                 "rename target must be a Terrane identifier",
@@ -3288,7 +3288,7 @@ mod tests {
             .propose_rename(&metadata.snapshot_id, uri, left_use, "count")
             .expect_err("method rename must not capture a field");
         assert_eq!(capture.code, "rename-capture");
-        for keyword in crate::syntax::KEYWORDS {
+        for keyword in crate::syntax::RESERVED_DECLARATION_NAMES {
             let error = engine
                 .propose_rename(&metadata.snapshot_id, uri, left_use, keyword)
                 .expect_err("language keyword is not a declaration name");

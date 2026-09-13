@@ -566,11 +566,12 @@ ordinary binding named `import`. Likewise, `select` is structural at statement s
 resolve an ordinary binding in that position.
 
 The language should use contextual rather than gratuitously reserved keywords where doing so
-remains unambiguous. Structural language words are nevertheless never legal declaration names,
-even in a declaration slot where the surrounding grammar would make the spelling unambiguous.
-This keeps source editing and identity-safe rename from turning a declaration into a different
-syntactic construct. The compiler owns one keyword inventory used by parsing, highlighting, and
-tooling validation.
+remains unambiguous. Declaration-name slots reserve the declaration introducer `function` and the
+intrinsic object words `instance`, `self`, and `this`; other contextual words remain usable as
+ordinary names when their surrounding grammar is unambiguous. This keeps source editing and
+identity-safe rename from turning a declaration into a function construct. Compiler syntax owns
+both the language-keyword inventory and the declaration-name reservation policy used by parsing,
+highlighting, and tooling validation.
 
 ### 6.7 Text literals
 

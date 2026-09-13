@@ -529,23 +529,11 @@ fn parses_structural_import_forms_and_named_arguments() {
 }
 
 #[test]
-fn two_token_import_binding_is_parsed_then_rejected_without_consuming_structural_imports() {
-    let source = SourceFile::new(
-        0,
-        "case.trn".into(),
-        "import value = 1\nfrom /core/output import print\n".to_owned(),
-    );
-    let tree = parse(&source, lex(&source).unwrap());
-    assert!(
-        tree.diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "S1095")
-    );
-    assert_eq!(tree.tree.root.children[0].kind, SyntaxKind::Binding);
-    assert_eq!(
-        tree.tree.root.children[1].kind,
-        SyntaxKind::ImportDeclaration
-    );
+fn two_token_import_binding_does_not_consume_structural_imports() {
+    let tree = parse_source("import value = 1\nfrom /core/output import print\n");
+
+    assert_eq!(tree.root.children[0].kind, SyntaxKind::Binding);
+    assert_eq!(tree.root.children[1].kind, SyntaxKind::ImportDeclaration);
 }
 
 #[test]
@@ -665,12 +653,7 @@ fn rejects_every_reserved_statement_keyword() {
 
 #[test]
 fn rejects_language_keywords_in_declaration_name_positions() {
-    for source in [
-        "function function;\n",
-        "class while\n",
-        "function answer int; from if int\n",
-        "value int = 1\nfunction main; from value select\n",
-    ] {
+    for source in ["function function;\n", "class instance\n"] {
         rejected(source, "S1095");
     }
 }
