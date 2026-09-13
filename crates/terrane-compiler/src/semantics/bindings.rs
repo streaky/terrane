@@ -509,6 +509,12 @@ pub(super) fn binding_event_child_region(
             arm: Some(index),
         });
     }
+    if node.kind == SyntaxKind::SelectStatement && child.kind == SyntaxKind::SelectCase {
+        return Some(ControlRegion {
+            statement: node.span,
+            arm: Some(index),
+        });
+    }
     if child.kind != SyntaxKind::Block {
         return None;
     }
@@ -719,6 +725,52 @@ pub(super) fn regions_conflict(left: &[ControlRegion], right: &[ControlRegion]) 
                 && left.arm != right.arm
         })
     })
+}
+pub(crate) fn binding_requires_mutable_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+    initially_assigned: bool,
+    closure_writes: ClosureWrites,
+) -> bool {
+    if initially_assigned {
+        return binding_span_is_mutated(package, unit, declaration_span, true, closure_writes);
+    }
+    let declaration_function = unit
+        .enclosing_function_spans
+        .get(&declaration_span.start)
+        .copied()
+        .flatten();
+    let writes = package
+        .binding_events
+        .get(&span_key(declaration_span))
+        .into_iter()
+        .flatten()
+        .filter_map(|event| match event {
+            BindingEvent::Write {
+                span,
+                loops,
+                regions,
+            } if closure_writes == ClosureWrites::Include
+                || unit
+                    .enclosing_function_spans
+                    .get(&span.start)
+                    .copied()
+                    .flatten()
+                    == declaration_function =>
+            {
+                Some((loops, regions))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    writes.iter().any(|(loops, _)| !loops.is_empty())
+        || writes.iter().enumerate().any(|(index, (_, left))| {
+            writes
+                .iter()
+                .skip(index + 1)
+                .any(|(_, right)| !regions_conflict(left, right))
+        })
 }
 
 pub(super) fn later_store_replaces(earlier: &[ControlRegion], later: &[ControlRegion]) -> bool {

@@ -1,0 +1,16 @@
+namespace select-definite-assignment
+
+async function one int;
+  return 1
+
+async function two int;
+  return 2
+
+async function main;
+  selected int
+  select
+    case value = await (one;)
+      selected = value
+    case value = await (two;)
+      selected = value
+  print; selected

@@ -405,6 +405,26 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             return Ok(());
         }
+        if node.kind == SyntaxKind::SelectStatement {
+            let mut entry = moved.clone();
+            for case in &node.children {
+                if let Some(header) = case.children.first() {
+                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                }
+            }
+            let mut branches = Vec::with_capacity(node.children.len());
+            for case in &node.children {
+                let mut branch = entry.clone();
+                if let Some(body) = case.children.last() {
+                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                }
+                branches.push(branch);
+            }
+            moved.clear();
+            moved.extend(branches.into_iter().flatten());
+            return Ok(());
+        }
+
         if node.kind == SyntaxKind::IfStatement {
             let mut entry = moved.clone();
             for child in &node.children {

@@ -1,0 +1,18 @@
+namespace select-async-closure
+
+async function one int;
+  return 1
+
+async function two string;
+  return 'two'
+
+async function main;
+  inner = async function;
+    select
+      case value = await (one;)
+        print; value
+      case text = await (two;)
+        print; text
+  finished = await (inner;)
+  if finished == none
+    return

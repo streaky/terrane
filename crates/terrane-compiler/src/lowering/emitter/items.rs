@@ -1545,6 +1545,28 @@ impl<'a> Emitter<'a> {
         self.emit_function_as(node, receiver, None);
     }
 
+    fn emit_select_cursors(&mut self, function_span: crate::Span) {
+        let selections = self
+            .unit
+            .selections
+            .iter()
+            .filter(|selection| {
+                self.unit
+                    .enclosing_function_spans
+                    .get(&selection.span.start)
+                    .copied()
+                    .flatten()
+                    == Some(function_span)
+            })
+            .map(|selection| selection.span.start)
+            .collect::<Vec<_>>();
+        for selection_start in selections {
+            self.line(&format!(
+                "let mut __terrane_select_cursor_{selection_start} = 0usize;"
+            ));
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
@@ -1715,19 +1737,7 @@ impl<'a> Emitter<'a> {
             [parameter] => self.line(&format!("let _ = {parameter};")),
             parameters => self.line(&format!("let _ = ({});", parameters.join(", "))),
         }
-        for selection in self.unit.selections.iter().filter(|selection| {
-            self.unit
-                .enclosing_function_spans
-                .get(&selection.span.start)
-                .copied()
-                .flatten()
-                == Some(contract.span)
-        }) {
-            self.line(&format!(
-                "let mut __terrane_select_cursor_{} = 0usize;",
-                selection.span.start
-            ));
-        }
+        self.emit_select_cursors(contract.span);
         if let Some(block) = block {
             self.block(block);
         }
@@ -1843,6 +1853,7 @@ impl<'a> Emitter<'a> {
         }
         self.closure_depth += 1;
         self.indent = outer_indent + 1;
+        self.emit_select_cursors(contract.span);
         if let Some(block) = node
             .children
             .iter()

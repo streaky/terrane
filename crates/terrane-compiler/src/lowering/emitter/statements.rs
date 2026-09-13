@@ -419,6 +419,10 @@ impl Emitter<'_> {
         self.line("}");
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "selection construction, polling, cleanup, and dispatch must remain visibly ordered"
+    )]
     pub(super) fn select_statement(&mut self, node: &SyntaxNode) {
         let index = node.span.start;
         let cases = node
@@ -1002,11 +1006,11 @@ impl Emitter<'_> {
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
                 binding.mutable
-                    && binding_span_is_mutated(
+                    && binding_requires_mutable_storage(
                         self.package,
                         self.unit,
                         node.span,
-                        true,
+                        initializer.is_some(),
                         ClosureWrites::Exclude,
                     )
                     && !matches!(

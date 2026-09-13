@@ -68,7 +68,8 @@ mod prelude {
 
 pub use analysis::analyze;
 pub(crate) use bindings::{
-    binding_read_value_is_reused, binding_store_value_is_read, descriptor_binding_is_materialized,
+    binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
+    descriptor_binding_is_materialized,
 };
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};

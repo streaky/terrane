@@ -49,28 +49,136 @@ fn operation_kind(
     {
         return SelectionOperationKind::Projected;
     }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && let Ok(Some(ValueType::Object(identity))) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+        && package
+            .projection
+            .method(
+                &identity.namespace,
+                &identity.name,
+                node_text(&unit.source, member),
+                false,
+            )
+            .is_some()
+    {
+        return SelectionOperationKind::Projected;
+    }
     SelectionOperationKind::Task
 }
-fn throwable_types(unit: &SemanticUnit, mut operand: &SyntaxNode) -> BTreeSet<String> {
+fn receiver_root_name(mut receiver: &SyntaxNode) -> Option<&SyntaxNode> {
+    while matches!(
+        receiver.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
+        receiver = receiver.children.first()?;
+    }
+    (receiver.kind == SyntaxKind::Name).then_some(receiver)
+}
+
+struct SelectedReceiverBorrow {
+    key: (u32, usize, usize),
+    mode: InvocationMode,
+    use_span: Span,
+    name: String,
+    declaration_span: Span,
+}
+
+fn selected_receiver_borrow(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut operand: &SyntaxNode,
+) -> Option<SelectedReceiverBorrow> {
     while operand.kind == SyntaxKind::GroupExpression
         && let [grouped] = operand.children.as_slice()
     {
         operand = grouped;
     }
-    let Some(callee) = (operand.kind == SyntaxKind::CallExpression)
-        .then(|| operand.children.first())
-        .flatten()
-    else {
-        return BTreeSet::new();
+    let [callee, _] = operand.children.as_slice() else {
+        return None;
     };
-    if let Ok(Some(ValueType::AsyncFunction(_, _, _, effects))) =
-        infer_value_type(unit, callee, &unit.typed_bindings)
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    if callee.kind != SyntaxKind::MemberExpression {
+        return None;
+    }
+    let receiver_type = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()?;
+    let mode = super::diagnostics::member_invocation_mode(
+        package,
+        unit,
+        &receiver_type,
+        node_text(&unit.source, member),
+    );
+    let root = receiver_root_name(receiver)?;
+    let name = node_text(&unit.source, root);
+    let binding = unit.typed_bindings.iter().rev().find(|binding| {
+        binding.name == name && binding.is_visible_at(unit.source.id(), root.span.start)
+    })?;
+    Some(SelectedReceiverBorrow {
+        key: (binding.span.file, binding.span.start, binding.span.end),
+        mode,
+        use_span: operand.span,
+        name: name.to_owned(),
+        declaration_span: binding.span,
+    })
+}
+
+fn find_node(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+    (node.span == span).then_some(node).or_else(|| {
+        node.children
+            .iter()
+            .find_map(|child| find_node(child, span))
+    })
+}
+
+fn throwable_types_inner(
+    unit: &SemanticUnit,
+    mut operand: &SyntaxNode,
+    visited_bindings: &mut BTreeSet<(u32, usize, usize)>,
+) -> BTreeSet<String> {
+    while operand.kind == SyntaxKind::GroupExpression
+        && let [grouped] = operand.children.as_slice()
+    {
+        operand = grouped;
+    }
+    if operand.kind == SyntaxKind::CallExpression
+        && let Some(callee) = operand.children.first()
+        && let Ok(Some(ValueType::AsyncFunction(_, _, _, effects))) =
+            infer_value_type(unit, callee, &unit.typed_bindings)
     {
         return effects.possible_throwables();
+    }
+    if operand.kind == SyntaxKind::Name {
+        let name = node_text(&unit.source, operand);
+        if let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == name
+                && binding.is_visible_at(unit.source.id(), operand.span.start)
+                && matches!(binding.value_type, ValueType::Task(_, _))
+        }) {
+            let key = (binding.span.file, binding.span.start, binding.span.end);
+            if visited_bindings.insert(key)
+                && let Some(declaration) = find_node(&unit.tree.root, binding.span)
+                && let Some(initializer) = declaration.children.last()
+            {
+                return throwable_types_inner(unit, initializer, visited_bindings);
+            }
+        }
     }
     BTreeSet::new()
 }
 
+fn throwable_types(unit: &SemanticUnit, operand: &SyntaxNode) -> BTreeSet<String> {
+    throwable_types_inner(unit, operand, &mut BTreeSet::new())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "selection validation builds one ordered semantic node while checking cross-case state"
+)]
 pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     fn collect(
         package: &SemanticPackage,
@@ -93,6 +201,8 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
                 ));
             }
             let mut cases = Vec::with_capacity(node.children.len());
+            let mut receiver_borrows: BTreeMap<(u32, usize, usize), (InvocationMode, Span)> =
+                BTreeMap::new();
             for case in &node.children {
                 let Some((operand, await_span, binding, body)) = await_expression(case) else {
                     continue;
@@ -116,6 +226,36 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
                         operand.span,
                     ));
                 };
+                if let Some(borrow) = selected_receiver_borrow(package, unit, operand) {
+                    let SelectedReceiverBorrow {
+                        key,
+                        mode,
+                        use_span,
+                        name,
+                        declaration_span,
+                    } = borrow;
+                    if let Some((prior_mode, prior_use)) = receiver_borrows.get(&key)
+                        && (*prior_mode != InvocationMode::Shared || mode != InvocationMode::Shared)
+                    {
+                        return Err(SemanticFailure {
+                            source: unit.source.clone(),
+                            diagnostics: vec![
+                                Diagnostic::error(
+                                    "T0132",
+                                    format!(
+                                        "select cases cannot hold overlapping incompatible borrows of `{name}`"
+                                    ),
+                                    use_span,
+                                )
+                                .with_help(format!(
+                                    "the earlier case borrows it at byte {}; `{name}` is declared at byte {}",
+                                    prior_use.start, declaration_span.start
+                                )),
+                            ],
+                        });
+                    }
+                    receiver_borrows.insert(key, (mode, use_span));
+                }
                 cases.push(SemanticSelectionCase {
                     span: case.span,
                     await_span,

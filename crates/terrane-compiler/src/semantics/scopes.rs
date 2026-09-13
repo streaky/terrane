@@ -454,6 +454,10 @@ pub(super) fn validate_definite_assignment(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "definite assignment keeps statement-specific branch joins in one ordered traversal"
+)]
 pub(super) fn validate_assignment_block(
     unit: &SemanticUnit,
     block: &SyntaxNode,
