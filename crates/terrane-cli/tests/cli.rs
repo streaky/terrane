@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
@@ -391,4 +392,105 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
     assert!(stderr.contains("at /runtime-error::main (case.trn:11:3-11:9)"));
     assert!(!stderr.contains("panicked"));
     assert!(!stderr.contains("src/authored"));
+}
+
+#[test]
+fn external_tooling_clients_receive_versioned_protocol_frames() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("tooling-client");
+    fs::create_dir_all(directory.path()).unwrap();
+    let request = serde_json::json!({
+        "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+        "request_id": "open-one-shot",
+        "operation": "open-snapshot",
+        "sources": [{
+            "uri": "file:///workspace/client.trn",
+            "text": "namespace client\n\nfunction main;\n"
+        }]
+    });
+    let request_path = directory.path().join("request.json");
+    fs::write(&request_path, request.to_string()).unwrap();
+    let one_shot = Command::new(binary)
+        .args(["query", "--request"])
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    assert!(one_shot.status.success(), "{one_shot:?}");
+    assert!(one_shot.stderr.is_empty(), "{one_shot:?}");
+    let response: serde_json::Value = serde_json::from_slice(&one_shot.stdout).unwrap();
+    assert_eq!(response["request_id"], "open-one-shot");
+    assert_eq!(
+        response["schema_version"],
+        terrane_compiler::tooling::SCHEMA_VERSION
+    );
+    assert!(
+        response["snapshot_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert!(
+        response["source_hash"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+
+    let mut service = Command::new(binary)
+        .args(["tooling", "--stdio"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = service.stdin.take().unwrap();
+    writeln!(stdin, "{request}").unwrap();
+    writeln!(stdin, "{{not-json").unwrap();
+    drop(stdin);
+    let output = service.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let frames = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 2);
+    assert!(frames[0]["error"].is_null());
+    assert_eq!(frames[1]["error"]["code"], "invalid-json");
+}
+
+#[test]
+fn source_formatter_checks_then_applies_an_idempotent_edit() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("formatter");
+    fs::create_dir_all(directory.path()).unwrap();
+    let source = directory.path().join("format.trn");
+    fs::write(&source, "function main;   \r\n    value int = 1   \r\n").unwrap();
+
+    let check = Command::new(binary)
+        .args(["fmt", "--check"])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert_eq!(check.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(check.stdout).unwrap().trim(),
+        source.display().to_string()
+    );
+    let apply = Command::new(binary)
+        .arg("fmt")
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(apply.status.success(), "{apply:?}");
+    assert_eq!(
+        fs::read_to_string(&source).unwrap(),
+        "function main;\r\n    value int = 1\r\n"
+    );
+    let clean = Command::new(binary)
+        .args(["fmt", "--check"])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(clean.status.success(), "{clean:?}");
+    assert!(clean.stdout.is_empty());
 }
