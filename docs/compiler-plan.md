@@ -3896,3 +3896,10 @@ protocol, validated edits, source formatter, and shared LSP analysis work end to
 real compiler; no consumer reparses or re-resolves Terrane independently; the external-client
 fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
 suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
+
+Completion evidence after the correctness review:
+
+- `cargo clippy -p terrane-compiler -p terrane-cli -p terrane-language-server --all-targets -- -D warnings`;
+- focused compiler tooling, external CLI-client, and language-server suites passed; and
+- `python3 docs/measure-test-times.py` passed the complete workspace suite and refreshed the
+  scoreboard with 1,053 recorded timings for 1,066 tests.
