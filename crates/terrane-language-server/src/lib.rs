@@ -1427,7 +1427,8 @@ mod tests {
             .join("tests/conformance/check/parent-namespace-function/app/child/child.trn")
             .canonicalize()
             .expect("child fixture");
-        let child_text = std::fs::read_to_string(&child_path).expect("child source");
+        let disk_child = std::fs::read_to_string(&child_path).expect("child source");
+        let child_text = format!("{disk_child}\n# unsaved editor overlay\n");
         let child_uri = format!("file://{}", child_path.display());
         let uri = child_uri.parse::<Uri>().expect("file URI");
         let (sources, manifest, package_snapshot) =
@@ -1435,6 +1436,13 @@ mod tests {
                 .expect("package snapshot inputs");
         assert!(package_snapshot);
         assert_eq!(sources.len(), 2);
+        assert_eq!(
+            sources
+                .iter()
+                .find(|source| source.uri == child_uri)
+                .map(|source| source.text.as_str()),
+            Some(child_text.as_str())
+        );
 
         let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
         let snapshot = tooling

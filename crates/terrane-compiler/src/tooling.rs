@@ -380,7 +380,7 @@ pub struct ProtocolError {
     #[serde(default)]
     pub retry_fresh_query: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub apply_report: Option<ApplyReport>,
+    pub apply_report: Option<Box<ApplyReport>>,
 }
 
 impl ProtocolError {
@@ -765,7 +765,7 @@ impl ToolingEngine {
             lock_hash: lock.map_or(Availability::Unresolved, |input| {
                 Availability::Known(hash_text(&input.text))
             }),
-            target: options.target.clone(),
+            target: options.target,
             profile: package.profile.name.clone(),
             capabilities: package
                 .profile
@@ -1354,7 +1354,7 @@ impl ToolingEngine {
                     code: "partial-apply".to_owned(),
                     message: format!("failed to replace {}: {error}", path.display()),
                     retry_fresh_query: false,
-                    apply_report: Some(report),
+                    apply_report: Some(Box::new(report)),
                 });
             }
             report.committed.push(uri.clone());
@@ -1665,15 +1665,9 @@ fn semantic_object(
             }
             effects.extend(
                 function
-                    .thrown_types
-                    .iter()
-                    .map(|throwable| format!("throws {throwable}")),
-            );
-            effects.extend(
-                function
                     .escaping_throwables
                     .iter()
-                    .map(|throwable| format!("escapes {throwable}")),
+                    .map(|throwable| format!("throws {throwable}")),
             );
             effects
         })
@@ -2744,6 +2738,16 @@ mod tests {
         }
     }
 
+    fn has_direct_recovery(node: &SyntaxNodeProjection) -> bool {
+        matches!(
+            node.state,
+            SyntaxState::Recovery | SyntaxState::Error | SyntaxState::Unsupported
+        ) || node
+            .children
+            .iter()
+            .any(|child| has_direct_recovery(&child.node))
+    }
+
     fn open(
         engine: &mut ToolingEngine,
         uri: &str,
@@ -2921,15 +2925,6 @@ mod tests {
             )
             .expect("recovery projection");
         assert_eq!(recovery_tree.root.state, SyntaxState::ContainsRecovery);
-        fn has_direct_recovery(node: &SyntaxNodeProjection) -> bool {
-            matches!(
-                node.state,
-                SyntaxState::Recovery | SyntaxState::Error | SyntaxState::Unsupported
-            ) || node
-                .children
-                .iter()
-                .any(|child| has_direct_recovery(&child.node))
-        }
         assert!(has_direct_recovery(&recovery_tree.root));
         assert_eq!(
             engine
@@ -3081,7 +3076,7 @@ mod tests {
     fn semantic_objects_report_callable_and_descriptor_facts() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/facts.trn";
-        let text = "namespace facts\n\nclass base\n    value int = 1\n\nclass child extends base\n    async function compute int;\n        return 1\n\nasync function main;\n    item = instance child;\n    result int = await item.compute;\n";
+        let text = "namespace facts\n\nfrom /core/errors import coercion-error\nfrom /core/types import int as number\n\nclass base\n    value number = 1\n\nclass child extends base\n    async function compute number throws coercion-error;\n        throw coercion-error\n\nasync function main;\n    item = instance child;\n    result number = await item.compute;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3100,13 +3095,27 @@ mod tests {
             object.invocation_mode,
             Availability::Known("shared".to_owned())
         );
-        assert_eq!(
-            object.effects,
-            Availability::Known(vec!["async".to_owned()])
-        );
+        let Availability::Known(effects) = object.effects else {
+            panic!("function effects should be known");
+        };
+        assert_eq!(effects.len(), 2);
+        assert_eq!(effects[0], "async");
+        assert!(effects[1].starts_with("throws "));
+        assert_eq!(object.ownership, Availability::Unsupported);
+        assert_eq!(object.capabilities, Availability::Known(Vec::new()));
         assert!(matches!(object.value_type, Availability::Known(_)));
 
         let child_offset = text.find("child extends").expect("child declaration");
+        let alias_offset = text.rfind("number").expect("aliased type use");
+        let alias = engine
+            .locate(&metadata.snapshot_id, uri, alias_offset)
+            .expect("alias query")
+            .expect("alias syntax object");
+        assert_eq!(
+            alias.symbol_identity,
+            Availability::Known("/core/types::int".to_owned())
+        );
+
         let descriptor = engine
             .locate(&metadata.snapshot_id, uri, child_offset)
             .expect("descriptor semantic object")
@@ -3164,6 +3173,122 @@ mod tests {
         assert_eq!(lock_error.code, "lock-mismatch");
     }
     #[test]
+    fn semantic_navigation_preserves_lexical_shadowing() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/shadowing.trn";
+        let text = "namespace shadowing\n\nfunction answer int;\n    return 1\n\nfunction main;\n    answer int = 2\n    local int = answer\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let use_offset = text.rfind("answer").expect("shadowed use");
+        let declaration_offset = text.find("answer int = 2").expect("local declaration");
+        let Availability::Known(definition) = engine
+            .definition(&snapshot.snapshot_id, uri, use_offset)
+            .expect("shadowed definition")
+        else {
+            panic!("local definition should be known");
+        };
+        assert_eq!(definition.span.start, declaration_offset);
+        let Availability::Known(references) = engine
+            .references(&snapshot.snapshot_id, uri, use_offset)
+            .expect("shadowed references")
+        else {
+            panic!("local references should be known");
+        };
+        assert_eq!(references.len(), 2);
+    }
+
+    #[test]
+    fn package_rename_is_identity_safe_preflighted_and_comment_preserving() {
+        let directory = TemporaryDirectory::new("package-rename");
+        let root = directory.path();
+        let child_directory = root.join("app/child");
+        fs::create_dir_all(&child_directory).expect("create package sources");
+        let manifest_path = root.join("package.toml");
+        let main_path = root.join("app/main.trn");
+        let child_path = child_directory.join("child.trn");
+        let manifest = "package = \"tooling-rename\"\n[namespaces]\napp = \"app\"\n";
+        let main = "namespace app\n\n# answer remains in this comment\npublic function answer int;\n    return 1\n\nfunction occupied int;\n    return 2\n";
+        let child = "namespace app/child\n\nfunction use-answer int;\n    # answer remains here too\n    return answer;\n";
+        fs::write(&manifest_path, manifest).expect("write manifest");
+        fs::write(&main_path, main).expect("write main source");
+        fs::write(&child_path, child).expect("write child source");
+        let main_uri = format!("file://{}", main_path.display());
+        let child_uri = format!("file://{}", child_path.display());
+        let mut engine = ToolingEngine::default();
+        let snapshot = engine
+            .open_snapshot(
+                vec![
+                    SourceInput {
+                        uri: main_uri.clone(),
+                        text: main.to_owned(),
+                    },
+                    SourceInput {
+                        uri: child_uri.clone(),
+                        text: child.to_owned(),
+                    },
+                ],
+                Some(SourceInput {
+                    uri: format!("file://{}", manifest_path.display()),
+                    text: manifest.to_owned(),
+                }),
+                None,
+                SnapshotOptions {
+                    semantic: true,
+                    ..SnapshotOptions::default()
+                },
+            )
+            .expect("package snapshot");
+        let use_offset = child.rfind("answer").expect("answer use");
+        let capture = engine
+            .propose_rename(&snapshot.snapshot_id, &child_uri, use_offset, "occupied")
+            .expect_err("same-namespace declaration captures rename");
+        assert_eq!(capture.code, "rename-capture");
+
+        let stale = engine
+            .propose_rename(
+                &snapshot.snapshot_id,
+                &child_uri,
+                use_offset,
+                "computed-answer",
+            )
+            .expect("multi-file rename proposal");
+        assert_eq!(stale.affected_files.len(), 2);
+        fs::write(&child_path, format!("{child}\n")).expect("drift child source");
+        let stale_error = engine
+            .apply_edits(&stale.proposal_id)
+            .expect_err("preflight rejects every file before committing");
+        assert_eq!(stale_error.code, "stale-write");
+        assert_eq!(fs::read_to_string(&main_path).unwrap(), main);
+
+        fs::write(&child_path, child).expect("restore child source");
+        let proposal = engine
+            .propose_rename(
+                &snapshot.snapshot_id,
+                &child_uri,
+                use_offset,
+                "computed-answer",
+            )
+            .expect("fresh rename proposal");
+        let report = engine
+            .apply_edits(&proposal.proposal_id)
+            .expect("apply rename");
+        assert_eq!(report.committed.len(), 2);
+        let updated_main = fs::read_to_string(&main_path).expect("updated main");
+        let updated_child = fs::read_to_string(&child_path).expect("updated child");
+        assert!(updated_main.contains("function computed-answer int"));
+        assert!(updated_child.contains("return computed-answer;"));
+        assert!(updated_main.contains("# answer remains in this comment"));
+        assert!(updated_child.contains("# answer remains here too"));
+    }
+
+    #[test]
     fn protocol_rejects_unknown_fields_and_bounds_pending_cancellations() {
         let unknown = serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -3188,6 +3313,29 @@ mod tests {
             assert!(response.error.is_none());
         }
         assert_eq!(engine.canceled.len(), 1_024);
+        let canceled = engine.handle(RequestEnvelope {
+            schema_version: SCHEMA_VERSION.to_owned(),
+            request_id: "future-1099".to_owned(),
+            request: Request::Find {
+                snapshot_id: "sha256:missing".to_owned(),
+                selector: Selector {
+                    kind: None,
+                    child_field: None,
+                    containing: None,
+                    text: None,
+                    token_kind: None,
+                    symbol_identity: None,
+                    descriptor_identity: None,
+                    include_recovery: false,
+                },
+                page_size: None,
+                continuation: None,
+            },
+        });
+        assert_eq!(
+            canceled.error.as_ref().map(|error| error.code.as_str()),
+            Some("canceled")
+        );
         let expired = engine.handle(RequestEnvelope {
             schema_version: SCHEMA_VERSION.to_owned(),
             request_id: "future-0".to_owned(),

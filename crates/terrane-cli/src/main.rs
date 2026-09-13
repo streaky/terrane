@@ -1184,6 +1184,7 @@ fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         }
     };
     let mut engine = terrane_compiler::tooling::ToolingEngine::default();
+    let mut last_build: Option<String> = None;
     let mut last_snapshot: Option<String> = None;
     let mut failed = false;
     for mut value in values {
@@ -1191,6 +1192,11 @@ fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             && let Some(snapshot_id) = &last_snapshot
         {
             value["snapshot_id"] = serde_json::Value::String(snapshot_id.clone());
+        }
+        if value.get("build_id").and_then(serde_json::Value::as_str) == Some("$last-build")
+            && let Some(build_id) = &last_build
+        {
+            value["build_id"] = serde_json::Value::String(build_id.clone());
         }
         let request_id = request_id_from_value(&value);
         let response = match serde_json::from_value(value) {
@@ -1200,6 +1206,15 @@ fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         failed |= response.error.is_some();
         if response.error.is_none() && response.snapshot_id.is_some() {
             last_snapshot.clone_from(&response.snapshot_id);
+        }
+        if let Some(build_id) = response
+            .result
+            .as_ref()
+            .and_then(|result| result.get("build_id"))
+            .and_then(|build_id| build_id.get("known"))
+            .and_then(serde_json::Value::as_str)
+        {
+            last_build = Some(build_id.to_owned());
         }
         println!(
             "{}",

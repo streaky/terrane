@@ -3868,8 +3868,8 @@ Refactor existing source/lexer/token/syntax/parser, semantic-package, language-s
 `rust_ir::SourceAssociation` data behind compiler-owned snapshot/query interfaces. Preserve the one
 `check`/`rust`/`build`/`run` frontend. Extend generated associations only through final rendered
 output; do not infer source identity from encoded Rust names. Public schema compatibility is
-additive within a schema major version; unknown enum values/fields remain rejectable or ignorable
-according to negotiated client capability, never silently reinterpreted.
+additive within a schema major version. Schema 1.0 rejects unknown request fields rather than
+silently reinterpreting them; any future ignorable-field behavior requires explicit negotiation.
 
 Prove the milestone with real external clients:
 

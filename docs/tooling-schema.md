@@ -6,8 +6,9 @@ This document is the compatibility reference for the compiler-owned source-intel
 ## Transport and envelope
 
 `terrane tooling --stdio` reads and writes one UTF-8 JSON object per line. Standard output contains
-protocol frames only. `terrane query --request <json-file>` accepts one request object and prints the
-same response envelope once.
+protocol frames only. `terrane query --request <json-file>` accepts one request or an array and emits
+one response envelope per request. Within an array, `$last` and `$last-build` refer to the preceding
+successful snapshot and generated build.
 
 Every request has:
 
@@ -18,6 +19,9 @@ Every request has:
   "operation": "open-snapshot"
 }
 ```
+
+Unknown request fields are rejected. This keeps misspelled or newer fields from silently changing a
+request's meaning.
 
 Every response has `compiler_version`, `schema_version`, `request_id`, and nullable `snapshot_id`,
 `source_uri`, and `source_hash` context fields. A successful response has `result`; a failed response
@@ -55,19 +59,24 @@ than guessed. Compiler spans are zero-based, half-open UTF-8 byte ranges:
     "generated": false,
     "target": "host",
     "profile": "development",
-    "capabilities": []
+    "capabilities": [],
+    "generated_entrypoint": "src/main.rs"
   }
 }
 ```
 
-`manifest` and `lock`, when present, use the same `{uri,text}` shape. Sources are sorted by logical URI
-before hashing; duplicate URIs and empty source sets are rejected. The result contains:
+`manifest` and `lock`, when present, use the same `{uri,text}` shape. A manifest supplies the package's
+actual namespace, prelude, profile, executor, and dependency configuration; a lock input must match
+the on-disk locked input consumed by analysis. Only the host target is currently supported. Sources
+are sorted by logical URI before hashing; duplicate URIs and empty source sets are rejected. The
+result contains:
 
 - `compiler_version` and `schema_version`;
 - content-derived `snapshot_id`;
 - sorted `sources` with `uri` and SHA-256 `content_hash`;
 - `manifest_hash` and `lock_hash` availability;
-- `target`, `profile`, and `capabilities` analysis identity;
+- `target`, effective `profile`, `capabilities`, and `generated_entrypoint`;
+- dependency-projection cache/content identities and projected artifact names;
 - `build_id` availability for exact generated output.
 
 Snapshots are immutable. The service retains at most 32 snapshots and 64 MiB of source text by
@@ -115,18 +124,20 @@ contains the source identity, ordered diagnostics, exact token/trivia arrays, an
 }
 ```
 
-The four node states are `complete`, `error`, `recovery`, and `unsupported`. Node IDs are deterministic
-only inside the exact snapshot. Tokens and trivia carry `kind`, exact authored `text`, and `span`.
-Diagnostic objects carry `severity`, stable `code`, `message`, nullable primary `span`, and nullable
-`help`.
+The five node states are `complete`, `error`, `recovery`, `contains-recovery`, and `unsupported`.
+`recovery` identifies a directly recovered node; `contains-recovery` identifies an otherwise valid
+ancestor. Node IDs are deterministic only inside the exact snapshot. Tokens and trivia carry `kind`,
+exact authored `text`, and `span`. Diagnostic objects carry `severity`, stable `code`, `message`,
+nullable primary `span`, and nullable `help`.
 
 ### `locate`, `definition`, and `references`
 
 Each accepts `snapshot_id`, `uri`, and an `offset` at a UTF-8 boundary. `locate` returns the smallest
 syntax object containing the position, augmented with nullable name and availability-tagged canonical
-symbol identity, descriptor identity, value type, ownership, effects, capabilities, and declaration.
-Locations contain `{uri,span}`. Definitions and references use canonical semantic identity, not text
-matching.
+symbol identity, descriptor identity, value type, ownership, exact effects, capability requirements,
+declaration, invocation mode, member facts, and inheritance. Ownership is `unsupported` until the
+semantic model exposes an authoritative ownership state. Locations contain `{uri,span}`. Definitions
+and references resolve by syntactic role and canonical semantic identity, not matching text.
 
 ### `find`
 
@@ -150,8 +161,9 @@ matching.
 ```
 
 All selector fields are optional constraints. Results are sorted by URI, start, then end. Page sizes
-are clamped to 1–1000. `complete: false` always carries an opaque continuation token. A continuation
-is single-use and bound to the exact snapshot and selector; expiry returns a retryable error.
+are clamped to 1–1000. `complete: false` always carries an opaque continuation token whose remaining
+match set is retained rather than recomputed. A continuation is single-use, bound to the exact
+snapshot and selector, and one of at most 128 active continuations; expiry returns a retryable error.
 
 ### `generated-rust`
 
@@ -184,8 +196,9 @@ site. It returns the ordinary edit-proposal shape.
 
 Fields: `proposal_id`. Disk application accepts `file://` sources only. It reads and validates every
 content hash before the first write, writes same-directory temporary files, then replaces originals.
-Stale content is never overwritten. Cross-file crash atomicity is not promised; host replacement
-failure reports committed, uncommitted, and retained recovery paths.
+Stale content is never overwritten. Cross-file crash atomicity is not promised; a `partial-apply`
+error carries a structured `apply_report` with committed and uncommitted URIs and retained recovery
+paths.
 
 LSP clients do not call disk apply. The language server converts proposals to versioned workspace
 edits for the editor to apply.

@@ -406,7 +406,12 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         "sources": [{
             "uri": "file:///workspace/client.trn",
             "text": "namespace client\n\nfunction main;\n"
-        }]
+        }],
+        "options": {
+            "semantic": true,
+            "generated": true,
+            "generated_entrypoint": "generated/client.rs"
+        }
     });
     let batch = serde_json::json!([
         request.clone(),
@@ -416,6 +421,15 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
             "operation": "syntax",
             "snapshot_id": "$last",
             "uri": "file:///workspace/client.trn"
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "generated-one-shot",
+            "operation": "generated-rust",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn",
+            "node_id": 0,
+            "build_id": "$last-build"
         }
     ]);
     let request_path = directory.path().join("request.json");
@@ -432,9 +446,10 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(responses.len(), 2);
+    assert_eq!(responses.len(), 3);
     assert_eq!(responses[0]["request_id"], "open-one-shot");
     assert_eq!(responses[1]["request_id"], "syntax-one-shot");
+    assert_eq!(responses[2]["request_id"], "generated-one-shot");
     assert_eq!(
         responses[0]["schema_version"],
         terrane_compiler::tooling::SCHEMA_VERSION
@@ -452,7 +467,29 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
             .starts_with("sha256:")
     );
     assert_eq!(responses[1]["result"]["root"]["kind"], "CompilationUnit");
+    assert!(
+        responses[2]["result"]["known"]
+            .as_array()
+            .is_some_and(|locations| locations.iter().any(|location| {
+                location["path"]
+                    .as_str()
+                    .is_some_and(|path| path.ends_with("generated/client.rs"))
+            }))
+    );
+}
 
+#[test]
+fn tooling_stdio_returns_envelopes_for_malformed_requests() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let request = serde_json::json!({
+        "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+        "request_id": "open-stdio",
+        "operation": "open-snapshot",
+        "sources": [{
+            "uri": "file:///workspace/client.trn",
+            "text": "function main;\n"
+        }]
+    });
     let mut service = Command::new(binary)
         .args(["tooling", "--stdio"])
         .stdin(Stdio::piped())
