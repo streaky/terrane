@@ -1,0 +1,25 @@
+namespace select-pending-wakeup
+from /core/concurrency import channel, channel-block
+
+async function choose; started (channel-sender of int), left (channel-receiver of int), right (channel-receiver of int)
+  signalled = await started.send; 1
+  select
+    case received = await left.receive;
+      value = received.value
+      if value != none
+        print; 'left', value
+    case received = await right.receive;
+      value = received.value
+      if value != none
+        print; 'right', value
+
+async function main;
+  started = channel; int, 1, channel-block
+  left = channel; int, 0, channel-block
+  right = channel; int, 0, channel-block
+  scope = task-scope;
+  child = scope.spawn; (choose; started.sender, left.receiver, right.receiver)
+  observed = await started.receiver.receive;
+  sent = await right.sender.send; 9
+  outcome = await scope.join; child
+  print; observed.available, sent.accepted, outcome.completed

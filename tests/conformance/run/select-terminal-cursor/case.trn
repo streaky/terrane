@@ -1,0 +1,21 @@
+namespace select-terminal-cursor
+from /core/errors import throwable, coercion-error
+
+async function fail int throws throwable;
+  throw coercion-error
+
+async function ready string;
+  return 'ready'
+
+async function main;
+  iteration = 0
+  while iteration < 2
+    try
+      select
+        case value = await (fail;)
+          print; value
+        case value = await (ready;)
+          print; value
+    catch coercion-error
+      print; 'error'
+    iteration++

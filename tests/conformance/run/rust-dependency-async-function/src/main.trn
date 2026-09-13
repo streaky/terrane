@@ -1,5 +1,5 @@
 namespace app
-from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling
+from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling, reset_operation_state, wait_forever, wait_until_operation_started, operation_drop_count
 from /core/errors import dependency-error
 from /core/concurrency import channel, channel-block
 
@@ -37,3 +37,12 @@ async function main;
       print; projected
     case source = await (source-ready;)
       print; source
+  reset_operation_state;
+  select
+    case await wait_forever;
+      print; 'unexpected projected winner'
+    case source = await (source-ready;)
+      print; source
+  started bool = await wait_until_operation_started;
+  drops int = operation_drop_count;
+  print; started, drops
