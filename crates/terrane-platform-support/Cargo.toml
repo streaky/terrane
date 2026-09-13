@@ -30,8 +30,12 @@ webpki-roots = "1"
 zeroize = "1"
 zstd = "0.13"
 
+[target.'cfg(unix)'.dependencies]
+terrane-signal-support = { path = "../terrane-signal-support" }
+
 [dev-dependencies]
 rcgen = "0.14"
+
 
 [lints]
 workspace = true

@@ -1335,7 +1335,7 @@ pub(super) fn resolved_compiler_identity<'a>(
         .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
 }
 
-pub(super) fn constant_deadline_ms(
+pub(super) fn constant_nonnegative_u64(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -1345,7 +1345,7 @@ pub(super) fn constant_deadline_ms(
         return node
             .children
             .first()
-            .and_then(|child| constant_deadline_ms(unit, child, bindings, visited));
+            .and_then(|child| constant_nonnegative_u64(unit, child, bindings, visited));
     }
     if node.kind == SyntaxKind::Name {
         let binding = bindings.iter().rev().find(|binding| {
@@ -1356,7 +1356,7 @@ pub(super) fn constant_deadline_ms(
             return None;
         }
         return find_binding_initializer(&unit.tree.root, binding.span)
-            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
+            .and_then(|value| constant_nonnegative_u64(unit, value, bindings, visited));
     }
     match contextual_constant(&unit.source, node, ScalarType::Int)? {
         Ok(ContextualConstant::Integer(value)) => value.to_u64(),
@@ -1371,61 +1371,6 @@ pub(super) fn find_binding_initializer(node: &SyntaxNode, name_span: Span) -> Op
     node.children
         .iter()
         .find_map(|child| find_binding_initializer(child, name_span))
-}
-
-pub(super) fn task_scope_deadline_ms(
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
-    bindings: &[TypedBinding],
-    visited: &mut BTreeSet<(u32, usize, usize)>,
-) -> Option<u64> {
-    if node.kind == SyntaxKind::GroupExpression {
-        return node
-            .children
-            .first()
-            .and_then(|child| task_scope_deadline_ms(unit, child, bindings, visited));
-    }
-    if node.kind == SyntaxKind::Name {
-        let binding = bindings.iter().rev().find(|binding| {
-            binding.name == node_text(&unit.source, node)
-                && binding.is_visible_at(unit.source.id(), node.span.start)
-        })?;
-        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
-            return None;
-        }
-        return find_binding_initializer(&unit.tree.root, binding.span)
-            .and_then(|value| task_scope_deadline_ms(unit, value, bindings, visited));
-    }
-    if node.kind != SyntaxKind::CallExpression {
-        return None;
-    }
-    let [callee, arguments] = node.children.as_slice() else {
-        return None;
-    };
-    if callee.kind == SyntaxKind::Name
-        && resolved_compiler_identity(unit, callee)
-            .is_some_and(|identity| identity == "/core/async::task-scope")
-    {
-        return arguments
-            .children
-            .first()
-            .and_then(|argument| argument.children.last().or(Some(argument)))
-            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
-    }
-    let [receiver, member] = callee.children.as_slice() else {
-        return None;
-    };
-    if callee.kind != SyntaxKind::MemberExpression
-        || node_text(&unit.source, member) != "child-scope"
-    {
-        return None;
-    }
-    arguments
-        .children
-        .first()
-        .and_then(|argument| argument.children.last().or(Some(argument)))
-        .and_then(|value| constant_deadline_ms(unit, value, bindings, visited))
-        .or_else(|| task_scope_deadline_ms(unit, receiver, bindings, visited))
 }
 
 pub(super) fn bootstrap_prelude() -> BTreeMap<String, Symbol> {

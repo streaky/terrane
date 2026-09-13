@@ -1,0 +1,30 @@
+namespace time-exact-values
+
+from /core/time import duration, clock, invalid-duration
+
+function main;
+    one = duration::seconds; 1
+    quarter = duration::milliseconds; 250
+    precise = duration::microseconds; 50
+    minimum = duration::nanoseconds; 1
+    sum = one.add; quarter
+    huge = duration::nanoseconds; 10000000000000000000000000000000000000000
+    huge-scaled = huge.multiply; 3
+    reduced = sum.subtract.checked; quarter
+    scaled = precise.multiply; 4
+    wall = clock::wall;
+    before = clock::monotonic;
+    timeout = clock::deadline; quarter
+    after = clock::monotonic;
+    print; one.seconds, quarter.nanoseconds, precise.nanoseconds, minimum.nanoseconds
+    if reduced != none
+        print; sum.seconds, sum.nanoseconds, reduced.total-nanoseconds, scaled.total-nanoseconds
+    print; huge-scaled.total-nanoseconds == 30000000000000000000000000000000000000000
+    dynamic-negative = wall.unix-seconds - wall.unix-seconds - 1
+    print; wall.nanoseconds >= 0, wall.nanoseconds < 1000000000, before <= after, (before.duration-until; ref after).total-nanoseconds >= 0
+    print; (timeout.expires-at.duration-until; ref timeout.expires-at).total-nanoseconds
+    print; (timeout.expired;)
+    try
+        print; (duration::nanoseconds; dynamic-negative).nanoseconds
+    catch invalid-duration
+        print; 'invalid'

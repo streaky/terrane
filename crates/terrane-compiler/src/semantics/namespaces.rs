@@ -290,6 +290,8 @@ pub(super) fn namespace_capabilities(namespace: &str) -> &'static [&'static str]
         "/core/logging/async" => &["logging", "threads"],
         "/core/networking/tls" => &["networking", "tls"],
         "/core/concurrency" => &["threads"],
+        "/core/time" => &["clocks"],
+        "/core/process-signals" => &["process-signals"],
         _ => &[],
     }
 }

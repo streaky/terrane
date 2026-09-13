@@ -556,6 +556,18 @@ pub(super) fn infer_binary_type(
     {
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
+    if matches!(operator, "==" | "!=" | "<" | "<=" | ">" | ">=")
+        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
+        && left == right
+        && (left.namespace == "/core/time"
+            && matches!(
+                left.name.as_str(),
+                "duration" | "instant" | "monotonic-instant" | "deadline"
+            )
+            || left.namespace == "/core/process-signals" && left.name == "process-signal")
+    {
+        return Ok(ValueType::Scalar(ScalarType::Bool));
+    }
     let comparison = matches!(operator, "==" | "!=" | "<" | "<=" | ">" | ">=");
     let contextual_numeric = matches!(
         operator,

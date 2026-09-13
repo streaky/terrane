@@ -14,6 +14,53 @@ fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<Value
         .map(|object| ValueType::Object(object.identity.clone()))
 }
 
+fn constant_duration_factory_value(
+    unit: &SemanticUnit,
+    mut node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    visited: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<num_bigint::BigInt> {
+    while node.kind == SyntaxKind::GroupExpression {
+        node = node.children.first()?;
+    }
+    if node.kind == SyntaxKind::Name {
+        let binding = bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, node)
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+        })?;
+        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
+            return None;
+        }
+        let initializer = find_binding_initializer(&unit.tree.root, binding.span)?;
+        return constant_duration_factory_value(unit, initializer, bindings, visited);
+    }
+    let [callee, arguments] = node.children.as_slice() else {
+        return None;
+    };
+    if node.kind != SyntaxKind::CallExpression || callee.kind != SyntaxKind::StaticMemberExpression
+    {
+        return None;
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    let identity = class_designator_identity(unit, receiver)?;
+    if identity.namespace != "/core/time"
+        || identity.name != "duration"
+        || !matches!(
+            node_text(&unit.source, member),
+            "seconds" | "milliseconds" | "microseconds" | "nanoseconds"
+        )
+    {
+        return None;
+    }
+    let argument = arguments.children.first()?.children.last()?;
+    match contextual_constant(&unit.source, argument, ScalarType::Int)? {
+        Ok(ContextualConstant::Integer(value)) => Some(value),
+        Ok(ContextualConstant::Float32(_) | ContextualConstant::Float64(_)) | Err(_) => None,
+    }
+}
+
 fn is_destination_directed_projected_call(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -333,6 +380,29 @@ pub(super) fn infer_value_type(
             return Ok(Some(value_type));
         }
         if let [callee, arguments] = node.children.as_slice() {
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && node_text(&unit.source, member) == "multiply"
+                && infer_value_type(unit, receiver, bindings)?
+                    == Some(ValueType::Object(ObjectIdentity::new(
+                        "/core/time",
+                        "duration",
+                    )))
+                && let Some(argument) = arguments.children.first()
+                && let Some(Ok(ContextualConstant::Integer(value))) = contextual_constant(
+                    &unit.source,
+                    argument.children.last().unwrap_or(argument),
+                    ScalarType::Int,
+                )
+                && value < num_bigint::BigInt::from(0)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0133",
+                    "duration multipliers must be non-negative",
+                    argument.span,
+                ));
+            }
             if callee.kind == SyntaxKind::ConstructionExpression {
                 let class = callee.children.first().ok_or_else(|| {
                     failure(
@@ -367,6 +437,47 @@ pub(super) fn infer_value_type(
                         receiver.span,
                     )
                 })?;
+                let member_name = node_text(&unit.source, member);
+                if identity.namespace == "/core/time"
+                    && identity.name == "duration"
+                    && matches!(
+                        member_name,
+                        "seconds" | "milliseconds" | "microseconds" | "nanoseconds"
+                    )
+                    && let Some(argument) = arguments.children.first()
+                    && let Some(Ok(ContextualConstant::Integer(value))) = contextual_constant(
+                        &unit.source,
+                        argument.children.last().unwrap_or(argument),
+                        ScalarType::Int,
+                    )
+                    && value < num_bigint::BigInt::from(0)
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0133",
+                        "duration values must be non-negative",
+                        argument.span,
+                    ));
+                }
+                if identity.namespace == "/core/time"
+                    && identity.name == "clock"
+                    && member_name == "interval"
+                    && let Some(argument) = arguments.children.first()
+                    && constant_duration_factory_value(
+                        unit,
+                        argument.children.last().unwrap_or(argument),
+                        bindings,
+                        &mut BTreeSet::new(),
+                    )
+                    .is_some_and(|value| value == num_bigint::BigInt::from(0))
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0133",
+                        "ticker intervals must be greater than zero",
+                        argument.span,
+                    ));
+                }
                 let member_type =
                     object_member_type(unit, &identity, node_text(&unit.source, member), true)
                         .ok_or_else(|| missing_static_member_failure(unit, &identity, member))?;
@@ -458,7 +569,7 @@ pub(super) fn infer_value_type(
                         )
                     })?;
                 let Some(capacity_value) =
-                    constant_deadline_ms(unit, capacity, bindings, &mut BTreeSet::new())
+                    constant_nonnegative_u64(unit, capacity, bindings, &mut BTreeSet::new())
                 else {
                     return Err(failure(
                         &unit.source,
@@ -494,6 +605,22 @@ pub(super) fn infer_value_type(
                 && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
+                if let Some(argument) = arguments.children.first() {
+                    let deadline = argument.children.last().unwrap_or(argument);
+                    if infer_value_type(unit, deadline, bindings)?
+                        != Some(ValueType::Object(ObjectIdentity::new(
+                            "/core/time",
+                            "deadline",
+                        )))
+                    {
+                        return Err(failure(
+                            &unit.source,
+                            "T0074",
+                            "`task-scope` requires a `/core/time` deadline",
+                            deadline.span,
+                        ));
+                    }
+                }
                 return Ok(Some(ValueType::TaskScope));
             }
             if callee.kind == SyntaxKind::Name
@@ -531,19 +658,14 @@ pub(super) fn infer_value_type(
                     | "intrinsic:logging::log-result-entries" => Some(ValueType::List(
                         ElementType::new(ValueType::Scalar(ScalarType::String)),
                     )),
-                    "intrinsic:logging::log-no-sink"
-                    | "intrinsic:logging::log-result-capability" => {
-                        Some(ValueType::PlatformCapability)
-                    }
                     "intrinsic:logging::log-memory-sink"
                     | "intrinsic:logging::log-console-sink"
                     | "intrinsic:logging::log-failing-sink"
                     | "intrinsic:logging::log-write"
                     | "intrinsic:logging::log-drain"
                     | "intrinsic:logging::log-drain-fallback"
-                    | "intrinsic:logging::log-install-dependency-bridge" => {
-                        Some(ValueType::PlatformResult)
-                    }
+                    | "intrinsic:logging::log-install-dependency-bridge"
+                    | "intrinsic:time::time-wall" => Some(ValueType::PlatformResult),
                     "intrinsic:data::empty-document"
                     | "intrinsic:data::make-document-none"
                     | "intrinsic:data::make-document-bool"
@@ -561,13 +683,19 @@ pub(super) fn infer_value_type(
                     | "intrinsic:data::document-field"
                     | "intrinsic:data::validate-mapping" => Some(ValueType::PlatformDataResult),
                     "intrinsic:data::url-parse" => Some(ValueType::PlatformUrlResult),
-                    "intrinsic:capabilities::secure-random"
+                    "intrinsic:logging::log-no-sink"
+                    | "intrinsic:logging::log-result-capability"
+                    | "intrinsic:capabilities::secure-random"
                     | "intrinsic:capabilities::cancellation-token"
                     | "intrinsic:capabilities::pseudo-random"
                     | "intrinsic:capabilities::secret-buffer"
                     | "intrinsic:capabilities::result-capability"
                     | "intrinsic:concurrency::platform-capability"
-                    | "intrinsic:concurrency::no-capability" => Some(ValueType::PlatformCapability),
+                    | "intrinsic:concurrency::no-capability"
+                    | "intrinsic:process-signals::process-signal-result-capability"
+                    | "intrinsic:process-signals::process-signal-no-capability" => {
+                        Some(ValueType::PlatformCapability)
+                    }
                     "intrinsic:capabilities::result-resource"
                     | "intrinsic:capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
@@ -583,7 +711,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::tls-client-async"
                     | "intrinsic:capabilities::tls-read-async"
                     | "intrinsic:capabilities::tls-write-async"
-                    | "intrinsic:capabilities::tls-shutdown-async" => {
+                    | "intrinsic:capabilities::tls-shutdown-async"
+                    | "intrinsic:process-signals::process-signal-next" => {
                         return Ok(Some(ValueType::Task(
                             ElementType::new(ValueType::PlatformResult),
                             TaskTransferability::Local,
@@ -642,7 +771,18 @@ pub(super) fn infer_value_type(
                     | "intrinsic:concurrency::thread-local-int-get"
                     | "intrinsic:concurrency::thread-local-int-set"
                     | "intrinsic:adapters::platform-result"
-                    | "intrinsic:adapters::system-host-name" => Some(ValueType::PlatformResult),
+                    | "intrinsic:adapters::system-host-name"
+                    | "intrinsic:process-signals::process-signal-subscribe"
+                    | "intrinsic:process-signals::process-signal-close" => {
+                        Some(ValueType::PlatformResult)
+                    }
+                    "intrinsic:time::time-sleep-until" => Some(ValueType::Task(
+                        ElementType::new(ValueType::Scalar(ScalarType::None)),
+                        TaskTransferability::Local,
+                    )),
+                    "intrinsic:process-signals::process-signal-result-observed" => Some(
+                        ValueType::Object(ObjectIdentity::new("/core/time", "monotonic-instant")),
+                    ),
                     "intrinsic:system::filesystem-exists"
                     | "intrinsic:system::filesystem-metadata"
                     | "intrinsic:system::filesystem-realpath"
@@ -653,6 +793,12 @@ pub(super) fn infer_value_type(
                     | "intrinsic:system::filesystem-remove" => {
                         Some(ValueType::PlatformFilesystemResult)
                     }
+                    "intrinsic:time::time-wall-seconds"
+                    | "intrinsic:time::time-wall-nanoseconds"
+                    | "intrinsic:time::time-domain"
+                    | "intrinsic:time::time-monotonic"
+                    | "intrinsic:time::time-div"
+                    | "intrinsic:time::time-mod" => Some(ValueType::Scalar(ScalarType::Int)),
                     "intrinsic:logging::log-result-failed"
                     | "intrinsic:system::result-failed"
                     | "intrinsic:system::result-bool"
@@ -668,7 +814,9 @@ pub(super) fn infer_value_type(
                     | "intrinsic:concurrency::result-failed"
                     | "intrinsic:concurrency::result-bool"
                     | "intrinsic:adapters::result-failed"
-                    | "intrinsic:adapters::result-bool" => {
+                    | "intrinsic:adapters::result-bool"
+                    | "intrinsic:process-signals::process-signal-result-failed"
+                    | "intrinsic:process-signals::process-signal-result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "intrinsic:logging::log-result-message"
@@ -704,7 +852,9 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::result-detail"
                     | "intrinsic:concurrency::result-message"
                     | "intrinsic:adapters::result-message"
-                    | "intrinsic:adapters::result-text" => {
+                    | "intrinsic:adapters::result-text"
+                    | "intrinsic:process-signals::process-signal-result-message"
+                    | "intrinsic:process-signals::process-signal-result-detail" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "intrinsic:system::result-bytes"
@@ -718,7 +868,9 @@ pub(super) fn infer_value_type(
                     | "intrinsic:data::document-length"
                     | "intrinsic:data::url-query-length"
                     | "intrinsic:capabilities::result-int"
-                    | "intrinsic:concurrency::result-int" => {
+                    | "intrinsic:concurrency::result-int"
+                    | "intrinsic:process-signals::process-signal-result-int"
+                    | "intrinsic:process-signals::process-signal-result-exact-int" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "intrinsic:system::process-arguments"
@@ -867,18 +1019,16 @@ pub(super) fn infer_value_type(
                             ));
                         };
                         let child = argument.children.last().unwrap_or(argument);
-                        let parent_deadline =
-                            task_scope_deadline_ms(unit, receiver, bindings, &mut BTreeSet::new());
-                        let child_deadline =
-                            constant_deadline_ms(unit, child, bindings, &mut BTreeSet::new());
-                        if matches!(
-                            (parent_deadline, child_deadline),
-                            (Some(parent), Some(child)) if child > parent
-                        ) {
+                        if infer_value_type(unit, child, bindings)?
+                            != Some(ValueType::Object(ObjectIdentity::new(
+                                "/core/time",
+                                "deadline",
+                            )))
+                        {
                             return Err(failure(
                                 &unit.source,
-                                "T0075",
-                                "a child scope cannot extend its parent deadline",
+                                "T0074",
+                                "`task-scope.child-scope` requires a `/core/time` deadline",
                                 child.span,
                             ));
                         }

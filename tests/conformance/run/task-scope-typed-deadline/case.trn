@@ -1,0 +1,14 @@
+namespace task-scope-typed-deadline
+
+from /core/time import clock, duration
+
+async function work int;
+    ignored = await clock::sleep; (duration::seconds; 1)
+    return 42
+
+async function main;
+    parent = task-scope; (clock::deadline; (duration::milliseconds; 2))
+    child = parent.child-scope; (clock::deadline; (duration::seconds; 1))
+    task = child.spawn; work
+    outcome = await child.join; task
+    print; outcome.completed, outcome.cancelled

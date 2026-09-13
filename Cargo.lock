@@ -1570,6 +1570,7 @@ dependencies = [
  "sha2",
  "syn 2.0.119",
  "terrane-collection-support",
+ "terrane-int-support",
  "terrane-string-support",
  "toml",
  "ureq",
@@ -1624,6 +1625,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "subtle",
+ "terrane-signal-support",
  "tokio",
  "tokio-rustls",
  "tracing",
@@ -1639,6 +1641,13 @@ name = "terrane-scalar-support"
 version = "0.1.0"
 dependencies = [
  "terrane-int-support",
+]
+
+[[package]]
+name = "terrane-signal-support"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

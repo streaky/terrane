@@ -1,0 +1,16 @@
+namespace process-signals-delivery
+
+from /core/collections import set
+from /core/process-signals import process-signal, process-signals
+from /core/time import clock
+
+async function main;
+    selected set of process-signal = set; (process-signal::interrupt;), (process-signal::terminate;)
+    subscription = process-signals; selected
+    before = clock::monotonic;
+    print; 'ready'
+    first = await subscription.next;
+    second = await subscription.next;
+    print; first.signal.name, first.count, first.sequence > 0, (before.duration-until; ref first.observed-at).total-nanoseconds >= 0
+    print; second.signal.name, second.count, second.sequence > first.sequence, (first.observed-at.duration-until; ref second.observed-at).total-nanoseconds >= 0
+    subscription.close;

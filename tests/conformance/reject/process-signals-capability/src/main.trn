@@ -1,0 +1,6 @@
+namespace process-signals-capability
+
+from /core/process-signals import process-signal
+
+function main;
+    print; (process-signal::interrupt;).name

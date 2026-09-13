@@ -149,7 +149,7 @@ impl TerraneFinalizerState {
 )]
 struct TerraneCancellationContext {
     cancellation: TerraneCancellation,
-    deadline: Option<std::time::Instant>,
+    deadline: Option<terrane_int_support::Int>,
     finalizers: std::sync::Arc<TerraneFinalizerState>,
 }
 
@@ -326,7 +326,7 @@ async fn __terrane_select_operation<F: Future>(
     future: F,
 ) -> Option<F::Output> {
     let deadline = TERRANE_CANCELLATION_CONTEXT
-        .try_with(|context| context.deadline)
+        .try_with(|context| context.deadline.clone())
         .ok()
         .flatten();
     let cancellation = TerraneCancellation::new();
@@ -385,12 +385,12 @@ fn __terrane_finally_guard() -> TerraneFinallyGuard {
 
 async fn __terrane_cancellation_requested(
     cancellation: TerraneCancellation,
-    deadline: Option<std::time::Instant>,
+    deadline: Option<terrane_int_support::Int>,
 ) {
     if let Some(deadline) = deadline {
         tokio::select! {
             () = cancellation.cancelled() => {}
-            () = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
+            () = terrane_time_sleep_until(deadline) => {
                 cancellation.cancel();
             }
         }
@@ -408,7 +408,8 @@ fn __terrane_cancellation_is_requested() -> bool {
         .try_with(|context| {
             if context
                 .deadline
-                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+                .as_ref()
+                .is_some_and(terrane_time_deadline_expired)
             {
                 context.cancellation.cancel();
             }
@@ -430,7 +431,7 @@ async fn __terrane_cancel_operation<F: Future>(
             guard.state.as_ref().map(|state| {
                 (
                     context.cancellation.clone(),
-                    context.deadline,
+                    context.deadline.clone(),
                     state.clone(),
                 )
             })
@@ -506,12 +507,12 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
 async fn __terrane_cancellable<F: Future>(
     future: F,
     cancellation: TerraneCancellation,
-    deadline: Option<std::time::Instant>,
+    deadline: Option<terrane_int_support::Int>,
 ) -> Option<F::Output> {
     let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
     let context = TerraneCancellationContext {
         cancellation: cancellation.clone(),
-        deadline,
+        deadline: deadline.clone(),
         finalizers: finalizers.clone(),
     };
     TERRANE_CANCELLATION_CONTEXT
@@ -520,7 +521,7 @@ async fn __terrane_cancellable<F: Future>(
             tokio::select! {
                 biased;
                 output = future.as_mut() => Some(output),
-                () = __terrane_cancellation_requested(cancellation, deadline) => {
+                () = __terrane_cancellation_requested(cancellation, deadline.clone()) => {
                     std::future::poll_fn(|cx| {
                         match Future::poll(future.as_mut(), cx) {
                             std::task::Poll::Ready(output) => {

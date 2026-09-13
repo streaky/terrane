@@ -634,7 +634,26 @@ impl<'a> Emitter<'a> {
                 }
 
                 if !object.resource_owning {
-                    self.line("#[derive(Clone)]");
+                    if object.identity.namespace == "/core/time"
+                        && matches!(
+                            object.identity.name.as_str(),
+                            "duration"
+                                | "duration-subtraction"
+                                | "instant"
+                                | "monotonic-instant"
+                                | "deadline"
+                        )
+                        || object.identity.namespace == "/core/process-signals"
+                            && object.identity.name == "process-signal"
+                    {
+                        if object.identity.namespace == "/core/process-signals" {
+                            self.line("#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]");
+                        } else {
+                            self.line("#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]");
+                        }
+                    } else {
+                        self.line("#[derive(Clone)]");
+                    }
                 }
                 self.line(&format!("pub struct {storage_type} {{"));
                 self.indent += 1;

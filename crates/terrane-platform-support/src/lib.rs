@@ -11,6 +11,8 @@
     clippy::struct_excessive_bools
 )]
 mod observability;
+#[cfg(unix)]
+mod signals;
 
 pub use observability::{LogEventInput, LogFieldInput};
 // The host ABI deliberately uses one flat result envelope and opaque heterogeneous capability
@@ -31,7 +33,7 @@ use std::sync::{
     Arc, LazyLock, Mutex, RwLock, Weak,
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use subtle::ConstantTimeEq as _;
 use zeroize::Zeroizing;
 
@@ -46,6 +48,9 @@ pub struct ResultValue {
     pub detail: String,
     pub data: Vec<u8>,
     pub number: i128,
+    pub secondary_number: i128,
+    pub exact_number: String,
+    pub secondary_exact_number: String,
     pub flag: bool,
     pub entries: Vec<String>,
     pub capability: Option<Capability>,
@@ -108,6 +113,8 @@ enum CapabilityInner {
     Tcp(Mutex<Option<TcpStream>>),
     Udp(Mutex<Option<UdpSocket>>),
     Tls(Mutex<Option<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>>),
+    #[cfg(unix)]
+    SignalSubscription(Arc<signals::Subscription>),
 }
 impl Default for Capability {
     fn default() -> Self {
@@ -168,6 +175,103 @@ fn capability_result(capability: Capability) -> ResultValue {
         capability: Some(capability),
         ..ResultValue::default()
     }
+}
+
+static MONOTONIC_ORIGIN: LazyLock<Instant> = LazyLock::new(Instant::now);
+// Every monotonic observer in one process is measured from this nominal runtime activation origin.
+// The value is intentionally process-local and has no meaning across runtime activations.
+#[cfg(test)]
+thread_local! {
+    static CONTROLLED_MONOTONIC_NANOS: std::cell::Cell<Option<u64>> =
+        const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+static CONTROLLED_TIME_NOTIFY: LazyLock<tokio::sync::Notify> =
+    LazyLock::new(tokio::sync::Notify::new);
+
+#[must_use]
+pub fn monotonic_nanos() -> u128 {
+    #[cfg(test)]
+    if let Some(nanoseconds) = CONTROLLED_MONOTONIC_NANOS.get() {
+        return u128::from(nanoseconds);
+    }
+    MONOTONIC_ORIGIN.elapsed().as_nanos()
+}
+
+pub fn wall_time() -> ResultValue {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(elapsed) => ResultValue {
+            number: i128::from(elapsed.as_secs()),
+            secondary_number: i128::from(elapsed.subsec_nanos()),
+            ..ResultValue::default()
+        },
+        Err(error) => {
+            let elapsed = error.duration();
+            let seconds = i128::from(elapsed.as_secs());
+            let nanoseconds = i128::from(elapsed.subsec_nanos());
+            if nanoseconds == 0 {
+                ResultValue {
+                    number: -seconds,
+                    ..ResultValue::default()
+                }
+            } else {
+                ResultValue {
+                    number: -seconds - 1,
+                    secondary_number: 1_000_000_000 - nanoseconds,
+                    ..ResultValue::default()
+                }
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+pub fn process_signal_subscribe(names: &[String]) -> ResultValue {
+    signals::subscribe(names)
+}
+
+#[cfg(not(unix))]
+pub fn process_signal_subscribe(_names: &[String]) -> ResultValue {
+    ResultValue::error("process signals are not supported on this host family")
+}
+
+#[cfg(unix)]
+pub async fn process_signal_next(capability: &Capability) -> ResultValue {
+    signals::next(capability).await
+}
+
+#[cfg(not(unix))]
+pub async fn process_signal_next(_capability: &Capability) -> ResultValue {
+    ResultValue::error("process signals are not supported on this host family")
+}
+
+#[cfg(unix)]
+pub fn process_signal_close(capability: &Capability) -> ResultValue {
+    signals::close(capability)
+}
+
+#[cfg(not(unix))]
+pub fn process_signal_close(_capability: &Capability) -> ResultValue {
+    ResultValue::error("process signals are not supported on this host family")
+}
+
+pub async fn sleep(duration: Duration) {
+    #[cfg(test)]
+    if let Some(started) = CONTROLLED_MONOTONIC_NANOS.get() {
+        let elapsed = u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX);
+        let target = started.saturating_add(elapsed);
+        loop {
+            let notified = CONTROLLED_TIME_NOTIFY.notified();
+            if CONTROLLED_MONOTONIC_NANOS
+                .get()
+                .is_some_and(|nanoseconds| nanoseconds >= target)
+            {
+                return;
+            }
+            notified.await;
+        }
+    }
+    tokio::time::sleep(duration).await;
 }
 
 pub fn logging_memory_sink(
@@ -304,10 +408,13 @@ fn deadline_error(message: &str) -> ResultValue {
 
 const CANCELLATION_QUANTUM: Duration = Duration::from_millis(10);
 
-fn operation_deadline(milliseconds: i128, label: &str) -> Result<Instant, ResultValue> {
-    let duration = timeout(milliseconds)?;
+fn operation_deadline(nanoseconds: i128, label: &str) -> Result<Option<Instant>, ResultValue> {
+    let Some(duration) = timeout(nanoseconds)? else {
+        return Ok(None);
+    };
     Instant::now()
         .checked_add(duration)
+        .map(Some)
         .ok_or_else(|| ResultValue::error(format!("{label} is outside the platform time range")))
 }
 
@@ -584,19 +691,27 @@ async fn cancellation_wait(token: &Capability) -> ResultValue {
 
 async fn readiness_operation(
     operation: impl Future<Output = ResultValue>,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     deadline_message: &'static str,
     cancellation: &Capability,
 ) -> ResultValue {
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
-    tokio::select! {
-        biased;
-        cancelled = cancellation_wait(cancellation) => cancelled,
-        result = operation => result,
-        () = tokio::time::sleep(duration) => deadline_error(deadline_message),
+    if let Some(duration) = duration {
+        tokio::select! {
+            biased;
+            cancelled = cancellation_wait(cancellation) => cancelled,
+            result = operation => result,
+            () = tokio::time::sleep(duration) => deadline_error(deadline_message),
+        }
+    } else {
+        tokio::select! {
+            biased;
+            cancelled = cancellation_wait(cancellation) => cancelled,
+            result = operation => result,
+        }
     }
 }
 
@@ -1058,12 +1173,13 @@ pub fn parse_socket_text(text: &str) -> ResultValue {
         ..ResultValue::default()
     }
 }
-fn timeout(milliseconds: i128) -> Result<Duration, ResultValue> {
-    let value = u64::try_from(milliseconds)
-        .ok()
-        .filter(|value| *value > 0)
-        .ok_or_else(|| ResultValue::error("deadline must be positive milliseconds"))?;
-    Ok(Duration::from_millis(value))
+fn timeout(nanoseconds: i128) -> Result<Option<Duration>, ResultValue> {
+    if nanoseconds == -1 {
+        return Ok(None);
+    }
+    let value = u64::try_from(nanoseconds)
+        .map_err(|_| ResultValue::error("deadline duration exceeds the platform timer range"))?;
+    Ok(Some(Duration::from_nanos(value)))
 }
 
 fn network_block_on<F: std::future::Future>(future: F) -> Result<F::Output, ResultValue> {
@@ -1138,23 +1254,27 @@ pub fn tcp_bind(address: &str) -> ResultValue {
         Err(error) => ResultValue::error(format!("TCP bind failed: {error}")),
     }
 }
-pub fn tcp_connect(address: &str, deadline_ms: i128, cancellation: &Capability) -> ResultValue {
+pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capability) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
     let Ok(address) = address.parse::<SocketAddr>() else {
         return ResultValue::error("invalid socket address");
     };
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
-    match TcpStream::connect_timeout(&address, duration) {
+    let connected = duration.map_or_else(
+        || TcpStream::connect(address),
+        |duration| TcpStream::connect_timeout(&address, duration),
+    );
+    match connected {
         Ok(stream) => {
-            if let Err(error) = stream.set_read_timeout(Some(duration)) {
+            if let Err(error) = stream.set_read_timeout(duration) {
                 return io_error("TCP read timeout configuration", &error);
             }
-            if let Err(error) = stream.set_write_timeout(Some(duration)) {
+            if let Err(error) = stream.set_write_timeout(duration) {
                 return io_error("TCP write timeout configuration", &error);
             }
             ResultValue {
@@ -1171,13 +1291,13 @@ pub fn tcp_connect(address: &str, deadline_ms: i128, cancellation: &Capability) 
 pub fn tcp_connect_host(
     host: &str,
     port: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1185,7 +1305,7 @@ pub fn tcp_connect_host(
         return ResultValue::error("port must be in 0..=65535");
     };
     let started = std::time::Instant::now();
-    let resolved = dns_lookup(host, i128::from(port), deadline_ms, cancellation);
+    let resolved = dns_lookup(host, i128::from(port), deadline_nanos, cancellation);
     if resolved.failed {
         return resolved;
     }
@@ -1197,8 +1317,8 @@ pub fn tcp_connect_host(
     if candidates.is_empty() {
         return ResultValue::error("DNS lookup returned no usable addresses");
     }
-    let remaining = duration.saturating_sub(started.elapsed());
-    if remaining.is_zero() {
+    let remaining = duration.map(|duration| duration.saturating_sub(started.elapsed()));
+    if remaining.is_some_and(|duration| duration.is_zero()) {
         return ResultValue {
             failed: true,
             deadline_exceeded: true,
@@ -1233,7 +1353,11 @@ pub fn tcp_connect_host(
                 }
             }
         };
-        let result = match tokio::time::timeout(remaining, race).await {
+        let result = match if let Some(remaining) = remaining {
+            tokio::time::timeout(remaining, race).await
+        } else {
+            Ok(race.await)
+        } {
             Ok(value) => value,
             Err(_) => Err(ResultValue {
                 failed: true,
@@ -1270,7 +1394,7 @@ pub fn tcp_connect_host(
 }
 pub fn tcp_accept(
     listener: &Capability,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
@@ -1279,7 +1403,7 @@ pub fn tcp_accept(
     let CapabilityInner::Listener(listener) = listener.0.as_ref() else {
         return ResultValue::error("capability is not a TCP listener");
     };
-    let deadline = match operation_deadline(deadline_ms, "TCP accept deadline") {
+    let deadline = match operation_deadline(deadline_nanos, "TCP accept deadline") {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1302,11 +1426,15 @@ pub fn tcp_accept(
                 };
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                let now = Instant::now();
-                if now >= deadline {
-                    return deadline_error("TCP accept deadline exceeded");
+                if let Some(deadline) = deadline {
+                    let now = Instant::now();
+                    if now >= deadline {
+                        return deadline_error("TCP accept deadline exceeded");
+                    }
+                    std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
+                } else {
+                    std::thread::sleep(CANCELLATION_QUANTUM);
                 }
-                std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
             }
             Err(error) => return io_error("TCP accept", &error),
         }
@@ -1315,7 +1443,7 @@ pub fn tcp_accept(
 pub fn tcp_read(
     stream: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
@@ -1325,7 +1453,7 @@ pub fn tcp_read(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1336,7 +1464,7 @@ pub fn tcp_read(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = stream.set_read_timeout(Some(duration)) {
+    if let Err(error) = stream.set_read_timeout(duration) {
         return io_error("TCP read timeout configuration", &error);
     }
     let mut data = vec![0; size];
@@ -1356,13 +1484,13 @@ pub fn tcp_read(
 pub fn tcp_write(
     stream: &Capability,
     data: &[u8],
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1373,7 +1501,7 @@ pub fn tcp_write(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = stream.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.set_write_timeout(duration) {
         return io_error("TCP write timeout configuration", &error);
     }
     match stream.write(data) {
@@ -1465,13 +1593,13 @@ pub fn udp_send_to(
     socket: &Capability,
     data: &[u8],
     address: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1482,7 +1610,7 @@ pub fn udp_send_to(
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
-    if let Err(error) = socket.set_write_timeout(Some(duration)) {
+    if let Err(error) = socket.set_write_timeout(duration) {
         return io_error("UDP write timeout configuration", &error);
     }
     match socket.send_to(data, address) {
@@ -1496,7 +1624,7 @@ pub fn udp_send_to(
 pub fn udp_receive_from(
     socket: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
@@ -1506,7 +1634,7 @@ pub fn udp_receive_from(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1517,7 +1645,7 @@ pub fn udp_receive_from(
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
-    if let Err(error) = socket.set_read_timeout(Some(duration)) {
+    if let Err(error) = socket.set_read_timeout(duration) {
         return io_error("UDP read timeout configuration", &error);
     }
     let mut data = vec![0; size.saturating_add(1)];
@@ -1593,7 +1721,7 @@ fn readiness_udp_socket(socket: &Capability) -> Result<tokio::net::UdpSocket, Re
 
 pub async fn tcp_connect_async(
     address: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let Ok(address) = address.parse::<SocketAddr>() else {
@@ -1619,7 +1747,7 @@ pub async fn tcp_connect_async(
                 Err(error) => io_error("TCP connect", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TCP connect deadline exceeded",
         cancellation,
     )
@@ -1629,19 +1757,24 @@ pub async fn tcp_connect_async(
 pub async fn tcp_connect_host_async(
     host: &str,
     port: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let Ok(port) = u16::try_from(port) else {
         return ResultValue::error("port must be in 0..=65535");
     };
-    if timeout(deadline_ms).is_err() {
+    if timeout(deadline_nanos).is_err() {
         return ResultValue::error("deadline must be positive");
     }
     let host = host.to_owned();
     let cancellation_for_dns = cancellation.clone();
     let resolved = tokio::task::spawn_blocking(move || {
-        dns_lookup(&host, i128::from(port), deadline_ms, &cancellation_for_dns)
+        dns_lookup(
+            &host,
+            i128::from(port),
+            deadline_nanos,
+            &cancellation_for_dns,
+        )
     })
     .await
     .expect("delegated DNS lookup must not panic");
@@ -1691,7 +1824,7 @@ pub async fn tcp_connect_host_async(
             }
             ResultValue::error("all TCP connection candidates failed")
         },
-        deadline_ms,
+        deadline_nanos,
         "TCP connect deadline exceeded",
         cancellation,
     )
@@ -1700,7 +1833,7 @@ pub async fn tcp_connect_host_async(
 
 pub async fn tcp_accept_async(
     listener: &Capability,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let listener = match readiness_listener(listener) {
@@ -1728,7 +1861,7 @@ pub async fn tcp_accept_async(
                 Err(error) => io_error("TCP accept", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TCP accept deadline exceeded",
         cancellation,
     )
@@ -1738,7 +1871,7 @@ pub async fn tcp_accept_async(
 pub async fn tcp_read_async(
     stream: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let size = match count(limit, "read limit") {
@@ -1766,7 +1899,7 @@ pub async fn tcp_read_async(
                 Err(error) => io_error("TCP read", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TCP read deadline exceeded",
         cancellation,
     )
@@ -1776,7 +1909,7 @@ pub async fn tcp_read_async(
 pub async fn tcp_write_async(
     stream: &Capability,
     data: &[u8],
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let mut stream = match readiness_tcp_stream(stream) {
@@ -1795,7 +1928,7 @@ pub async fn tcp_write_async(
                 Err(error) => io_error("TCP write", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TCP write deadline exceeded",
         cancellation,
     )
@@ -1806,7 +1939,7 @@ pub async fn udp_send_to_async(
     socket: &Capability,
     data: &[u8],
     address: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let socket = match readiness_udp_socket(socket) {
@@ -1825,7 +1958,7 @@ pub async fn udp_send_to_async(
                 Err(error) => io_error("UDP send", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "UDP send deadline exceeded",
         cancellation,
     )
@@ -1835,7 +1968,7 @@ pub async fn udp_send_to_async(
 pub async fn udp_receive_from_async(
     socket: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let size = match count(limit, "datagram limit") {
@@ -1864,7 +1997,7 @@ pub async fn udp_receive_from_async(
                 Err(error) => io_error("UDP receive", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "UDP receive deadline exceeded",
         cancellation,
     )
@@ -1887,13 +2020,13 @@ fn ordered_socket_candidates(
 pub fn dns_lookup(
     host: &str,
     port: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1914,7 +2047,13 @@ pub fn dns_lookup(
             }
         };
         tokio::select! {
-            result = tokio::time::timeout(duration, resolver.lookup_ip(host)) => Some(result),
+            result = async {
+                if let Some(duration) = duration {
+                    tokio::time::timeout(duration, resolver.lookup_ip(host)).await
+                } else {
+                    Ok(resolver.lookup_ip(host).await)
+                }
+            } => Some(result),
             () = cancellation_wait => None,
         }
     }) {
@@ -1948,7 +2087,7 @@ pub fn dns_lookup(
 pub fn tls_client(
     stream: &Capability,
     server_name: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let roots = webpki_roots::TLS_SERVER_ROOTS
@@ -1961,7 +2100,7 @@ pub fn tls_client(
     tls_client_with_config(
         stream,
         server_name,
-        deadline_ms,
+        deadline_nanos,
         cancellation,
         Arc::new(config),
     )
@@ -1970,14 +2109,14 @@ pub fn tls_client(
 fn tls_client_with_config(
     stream: &Capability,
     server_name: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
     config: Arc<rustls::ClientConfig>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -1988,10 +2127,10 @@ fn tls_client_with_config(
     let Some(tcp) = guard.take() else {
         return ResultValue::error("stream is closed");
     };
-    if let Err(error) = tcp.set_read_timeout(Some(duration)) {
+    if let Err(error) = tcp.set_read_timeout(duration) {
         return io_error("TLS read timeout configuration", &error);
     }
-    if let Err(error) = tcp.set_write_timeout(Some(duration)) {
+    if let Err(error) = tcp.set_write_timeout(duration) {
         return io_error("TLS write timeout configuration", &error);
     }
     let Ok(name) = rustls::pki_types::ServerName::try_from(server_name.to_owned()) else {
@@ -2022,7 +2161,7 @@ fn tls_client_with_config(
 pub fn tls_read(
     stream: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
@@ -2032,7 +2171,7 @@ pub fn tls_read(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -2043,7 +2182,7 @@ pub fn tls_read(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_read_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_read_timeout(duration) {
         return io_error("TLS read timeout configuration", &error);
     }
     let mut data = vec![0; size];
@@ -2063,13 +2202,13 @@ pub fn tls_read(
 pub fn tls_write(
     stream: &Capability,
     data: &[u8],
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -2080,7 +2219,7 @@ pub fn tls_write(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_write_timeout(duration) {
         return io_error("TLS write timeout configuration", &error);
     }
     match stream.write(data) {
@@ -2093,13 +2232,13 @@ pub fn tls_write(
 }
 pub fn tls_shutdown(
     stream: &Capability,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_ms) {
+    let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
@@ -2110,7 +2249,7 @@ pub fn tls_shutdown(
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
-    if let Err(error) = stream.sock.set_write_timeout(Some(duration)) {
+    if let Err(error) = stream.sock.set_write_timeout(duration) {
         return io_error("TLS shutdown timeout configuration", &error);
     }
     stream.conn.send_close_notify();
@@ -2138,7 +2277,7 @@ fn take_readiness_tcp_stream(stream: &Capability) -> Result<tokio::net::TcpStrea
 pub async fn tls_client_async(
     stream: &Capability,
     server_name: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let roots = webpki_roots::TLS_SERVER_ROOTS
@@ -2151,7 +2290,7 @@ pub async fn tls_client_async(
     tls_client_async_with_config(
         stream,
         server_name,
-        deadline_ms,
+        deadline_nanos,
         cancellation,
         Arc::new(config),
     )
@@ -2161,7 +2300,7 @@ pub async fn tls_client_async(
 async fn tls_client_async_with_config(
     stream: &Capability,
     server_name: &str,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
     config: Arc<rustls::ClientConfig>,
 ) -> ResultValue {
@@ -2195,7 +2334,7 @@ async fn tls_client_async_with_config(
                 Err(error) => ResultValue::error(format!("TLS handshake failed: {error}")),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TLS handshake deadline exceeded",
         cancellation,
     )
@@ -2205,7 +2344,7 @@ async fn tls_client_async_with_config(
 pub async fn tls_read_async(
     stream: &Capability,
     limit: i128,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let size = match count(limit, "TLS read limit") {
@@ -2236,7 +2375,7 @@ pub async fn tls_read_async(
                 Err(error) => io_error("TLS read", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TLS read deadline exceeded",
         cancellation,
     )
@@ -2246,7 +2385,7 @@ pub async fn tls_read_async(
 pub async fn tls_write_async(
     stream: &Capability,
     data: &[u8],
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
@@ -2267,7 +2406,7 @@ pub async fn tls_write_async(
                 Err(error) => io_error("TLS write", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TLS write deadline exceeded",
         cancellation,
     )
@@ -2276,7 +2415,7 @@ pub async fn tls_write_async(
 
 pub async fn tls_shutdown_async(
     stream: &Capability,
-    deadline_ms: i128,
+    deadline_nanos: i128,
     cancellation: &Capability,
 ) -> ResultValue {
     let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
@@ -2294,7 +2433,7 @@ pub async fn tls_shutdown_async(
                 Err(error) => io_error("TLS shutdown", &error),
             }
         },
-        deadline_ms,
+        deadline_nanos,
         "TLS shutdown deadline exceeded",
         cancellation,
     )
@@ -2463,18 +2602,27 @@ mod tests {
         assert!(!listener.failed);
         let address = listener.text.clone();
         let cancellation = cancellation_token();
-        let client = tcp_connect(&address, 1_000, &cancellation);
+        let client = tcp_connect(&address, 1_000_000_000, &cancellation);
         assert!(!client.failed);
-        let server = tcp_accept(listener.capability.as_ref().unwrap(), 1_000, &cancellation);
+        let server = tcp_accept(
+            listener.capability.as_ref().unwrap(),
+            1_000_000_000,
+            &cancellation,
+        );
         assert!(!server.failed);
         let sent = tcp_write(
             client.capability.as_ref().unwrap(),
             b"terrane",
-            1_000,
+            1_000_000_000,
             &cancellation,
         );
         assert_eq!(sent.number, 7);
-        let received = tcp_read(server.capability.as_ref().unwrap(), 7, 1_000, &cancellation);
+        let received = tcp_read(
+            server.capability.as_ref().unwrap(),
+            7,
+            1_000_000_000,
+            &cancellation,
+        );
         assert_eq!(received.data, b"terrane");
     }
 
@@ -2485,10 +2633,12 @@ mod tests {
         let listener = listener.capability.unwrap();
         let first_listener = listener.clone();
         let second_listener = listener.clone();
-        let first =
-            std::thread::spawn(move || tcp_accept(&first_listener, 1_000, &cancellation_token()));
-        let second =
-            std::thread::spawn(move || tcp_accept(&second_listener, 1_000, &cancellation_token()));
+        let first = std::thread::spawn(move || {
+            tcp_accept(&first_listener, 1_000_000_000, &cancellation_token())
+        });
+        let second = std::thread::spawn(move || {
+            tcp_accept(&second_listener, 1_000_000_000, &cancellation_token())
+        });
         let address = match listener.0.as_ref() {
             CapabilityInner::Listener(listener) => listener
                 .read()
@@ -2520,14 +2670,14 @@ mod tests {
             sender.capability.as_ref().unwrap(),
             b"oversized",
             &receiver.text,
-            1_000,
+            1_000_000_000,
             &cancellation,
         );
         assert_eq!(sent.number, 9);
         let datagram = udp_receive_from(
             receiver.capability.as_ref().unwrap(),
             4,
-            1_000,
+            1_000_000_000,
             &cancellation,
         );
         assert!(datagram.truncated);
@@ -2535,17 +2685,20 @@ mod tests {
     }
 
     #[test]
-    fn blocking_operations_reject_non_positive_deadlines_and_observe_cancellation() {
+    fn blocking_operations_observe_expired_deadlines_and_cancellation() {
         let listener = tcp_bind("127.0.0.1:0");
         assert!(!listener.failed);
         let cancellation = cancellation_token();
-        let invalid = tcp_accept(listener.capability.as_ref().unwrap(), 0, &cancellation);
-        assert!(invalid.failed);
-        assert!(!invalid.deadline_exceeded);
-        assert!(invalid.message.contains("positive"));
+        let expired = tcp_accept(listener.capability.as_ref().unwrap(), 0, &cancellation);
+        assert!(expired.failed);
+        assert!(expired.deadline_exceeded);
 
         assert!(!cancel(&cancellation).failed);
-        let cancelled = tcp_accept(listener.capability.as_ref().unwrap(), 1_000, &cancellation);
+        let cancelled = tcp_accept(
+            listener.capability.as_ref().unwrap(),
+            1_000_000_000,
+            &cancellation,
+        );
         assert!(cancelled.failed);
         assert!(!cancelled.deadline_exceeded);
         assert_eq!(cancelled.message, "operation cancelled");
@@ -2567,9 +2720,13 @@ mod tests {
         assert!(!listener.failed);
         let port = listener.text.parse::<SocketAddr>().unwrap().port();
         let cancellation = cancellation_token();
-        let client = tcp_connect_host("localhost", i128::from(port), 1_000, &cancellation);
+        let client = tcp_connect_host("localhost", i128::from(port), 1_000_000_000, &cancellation);
         assert!(!client.failed, "{}", client.message);
-        let server = tcp_accept(listener.capability.as_ref().unwrap(), 1_000, &cancellation);
+        let server = tcp_accept(
+            listener.capability.as_ref().unwrap(),
+            1_000_000_000,
+            &cancellation,
+        );
         assert!(!server.failed, "{}", server.message);
         assert!(!tcp_configure(client.capability.as_ref().unwrap(), true, 32).failed);
         assert!(tcp_configure(client.capability.as_ref().unwrap(), false, -1).failed);
@@ -2605,7 +2762,7 @@ mod tests {
 
     #[test]
     fn dns_lookup_projects_ordered_candidates_and_ttl() {
-        let result = dns_lookup("localhost", 443, 1_000, &cancellation_token());
+        let result = dns_lookup("localhost", 443, 1_000_000_000, &cancellation_token());
         assert!(!result.failed, "{}", result.message);
         assert!(result.flag);
         assert!(result.number >= 0);
@@ -2693,11 +2850,11 @@ mod tests {
         let config = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
         let result = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
-            1_000,
+            1_000_000_000,
             &cancellation_token(),
             Arc::new(config),
         );
@@ -2706,7 +2863,7 @@ mod tests {
         let read = tls_read(
             result.capability.as_ref().unwrap(),
             1,
-            1_000,
+            1_000_000_000,
             &cancellation_token(),
         );
         assert_eq!(read.data, b"x");
@@ -2740,11 +2897,11 @@ mod tests {
             rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
                 .with_root_certificates(roots)
                 .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
         let result = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
-            1_000,
+            1_000_000_000,
             &cancellation_token(),
             Arc::new(config),
         );
@@ -2753,7 +2910,7 @@ mod tests {
         let read = tls_read(
             result.capability.as_ref().unwrap(),
             1,
-            1_000,
+            1_000_000_000,
             &cancellation_token(),
         );
         assert_eq!(read.data, b"x");
@@ -2787,21 +2944,21 @@ mod tests {
         let config = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
         let tls = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
-            1_000,
+            1_000_000_000,
             &cancellation_token(),
             Arc::new(config),
         );
         assert!(!tls.failed, "{}", tls.message);
         let tls = tls.capability.unwrap();
         assert_eq!(
-            tls_write(&tls, b"x", 1_000, &cancellation_token()).number,
+            tls_write(&tls, b"x", 1_000_000_000, &cancellation_token()).number,
             1
         );
-        let shutdown = tls_shutdown(&tls, 1_000, &cancellation_token());
+        let shutdown = tls_shutdown(&tls, 1_000_000_000, &cancellation_token());
         assert!(!shutdown.failed, "{}", shutdown.message);
         server.join().unwrap();
     }
@@ -2827,7 +2984,12 @@ mod tests {
         });
         let client = TcpStream::connect(address).unwrap();
         let capability = Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(Some(client)))));
-        let result = tls_client(&capability, "localhost", 1_000, &cancellation_token());
+        let result = tls_client(
+            &capability,
+            "localhost",
+            1_000_000_000,
+            &cancellation_token(),
+        );
         assert!(result.failed);
         assert!(result.message.starts_with("TLS handshake failed:"));
         server.join().unwrap();
@@ -2934,11 +3096,12 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(async {
-            let tcp = tcp_connect_async(&address.to_string(), 1_000, &cancellation_token()).await;
+            let tcp =
+                tcp_connect_async(&address.to_string(), 1_000_000_000, &cancellation_token()).await;
             let tls = tls_client_async_with_config(
                 tcp.capability.as_ref().unwrap(),
                 "localhost",
-                1_000,
+                1_000_000_000,
                 &cancellation_token(),
                 Arc::new(client_config),
             )
@@ -2946,13 +3109,38 @@ mod tests {
             assert!(!tls.failed, "{}", tls.message);
             assert_eq!(tls.text, "TLS 1.3");
             let tls = tls.capability.unwrap();
-            let write = tls_write_async(&tls, b"x", 1_000, &cancellation_token()).await;
+            let write = tls_write_async(&tls, b"x", 1_000_000_000, &cancellation_token()).await;
             assert_eq!(write.number, 1);
-            let read = tls_read_async(&tls, 1, 1_000, &cancellation_token()).await;
+            let read = tls_read_async(&tls, 1, 1_000_000_000, &cancellation_token()).await;
             assert_eq!(read.data, b"y");
-            let shutdown = tls_shutdown_async(&tls, 1_000, &cancellation_token()).await;
+            let shutdown = tls_shutdown_async(&tls, 1_000_000_000, &cancellation_token()).await;
             assert!(!shutdown.failed, "{}", shutdown.message);
         });
         server.join().unwrap();
+    }
+    #[tokio::test(flavor = "current_thread")]
+    async fn controlled_clock_advances_monotonic_time_and_wakes_sleep_exactly() {
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                CONTROLLED_MONOTONIC_NANOS.set(None);
+                CONTROLLED_TIME_NOTIFY.notify_waiters();
+            }
+        }
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_000));
+        let _reset = Reset;
+        assert_eq!(monotonic_nanos(), 1_000);
+
+        let sleeper = tokio::spawn(sleep(Duration::from_nanos(10)));
+        tokio::task::yield_now().await;
+        assert!(!sleeper.is_finished());
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_009));
+        CONTROLLED_TIME_NOTIFY.notify_waiters();
+        tokio::task::yield_now().await;
+        assert!(!sleeper.is_finished());
+        CONTROLLED_MONOTONIC_NANOS.set(Some(1_010));
+        CONTROLLED_TIME_NOTIFY.notify_waiters();
+        sleeper.await.expect("controlled sleep completes");
+        assert_eq!(monotonic_nanos(), 1_010);
     }
 }

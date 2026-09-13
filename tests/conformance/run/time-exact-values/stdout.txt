@@ -1,0 +1,7 @@
+1250000000500001
+12500000001000000000200000
+true
+truetruetruetrue
+0
+false
+invalid

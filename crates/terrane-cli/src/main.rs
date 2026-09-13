@@ -674,6 +674,12 @@ fn generated_crate_path(
             "../../terrane-platform-support/src/observability.rs"
         ));
         hash.update(b"\0");
+        hash.update(include_bytes!(
+            "../../terrane-platform-support/src/signals.rs"
+        ));
+        hash.update(b"\0");
+        hash.update(include_bytes!("../../terrane-signal-support/src/lib.rs"));
+        hash.update(b"\0");
     }
     Ok(root
         .join(".trn/build")
@@ -860,6 +866,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     let stream = directory.join("support/terrane-stream-abi");
     let platform =
         uses_platform_support.then(|| directory.join("support/terrane-platform-support"));
+    let signal = uses_platform_support.then(|| directory.join("support/terrane-signal-support"));
     fs::create_dir_all(int.join("src"))?;
     fs::create_dir_all(collection.join("src"))?;
     fs::create_dir_all(scalar.join("src"))?;
@@ -868,6 +875,9 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     fs::create_dir_all(stream.join("src"))?;
     if let Some(platform) = &platform {
         fs::create_dir_all(platform.join("src"))?;
+    }
+    if let Some(signal) = &signal {
+        fs::create_dir_all(signal.join("src"))?;
     }
     write_if_changed(
         &int.join("Cargo.toml"),
@@ -929,6 +939,20 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
         write_if_changed(
             &platform.join("src/observability.rs"),
             include_bytes!("../../terrane-platform-support/src/observability.rs"),
+        )?;
+        write_if_changed(
+            &platform.join("src/signals.rs"),
+            include_bytes!("../../terrane-platform-support/src/signals.rs"),
+        )?;
+    }
+    if let Some(signal) = signal {
+        write_if_changed(
+            &signal.join("Cargo.toml"),
+            terrane_compiler::signal_support_manifest().as_bytes(),
+        )?;
+        write_if_changed(
+            &signal.join("src/lib.rs"),
+            include_bytes!("../../terrane-signal-support/src/lib.rs"),
         )?;
     }
     Ok(())

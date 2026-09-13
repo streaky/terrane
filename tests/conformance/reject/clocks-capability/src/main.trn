@@ -1,0 +1,6 @@
+namespace clocks-capability
+
+from /core/time import clock
+
+function main;
+    print; (clock::monotonic;)

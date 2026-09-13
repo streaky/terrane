@@ -64,7 +64,14 @@ fn platform_support_manifest_from(source: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n"
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+    )
+}
+
+#[must_use]
+pub fn signal_support_manifest() -> String {
+    format!(
+        "[package]\nname = \"terrane-signal-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n"
     )
 }
 

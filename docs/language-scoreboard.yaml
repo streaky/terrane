@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-11'
+  as_of: '2026-09-13'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -1205,16 +1205,20 @@ features:
 - id: native-time-and-process-signals
   name: Native clocks, timers, tickers, and process signals
   category: async
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '29.3'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/language/functions/asynchronous.yaml
-  notes: Will add exact duration and wall/monotonic values, wake-driven sleep and aligned tickers, typed deadlines, and bounded semantic interrupt/termination subscriptions.
+    - manual/reference/records/standard-library/time.yaml
+    - manual/reference/records/standard-library/process-signals.yaml
+  notes: Exact duration, wall and runtime-domain monotonic values, typed absolute deadlines,
+    wake-driven sleeps, anchored coalescing tickers, and selected bounded process-signal
+    subscriptions are implemented with clocks and process-signals capability admission.
   sources:
-  - docs/surface-v1.md#13.1 Date and time
+  - docs/language-spec-concise.md#ASYNC
+  - docs/surface-today.md
   - docs/compiler-plan.md#Milestone 29.3
 - id: byte-text-streams
   name: Byte and text streams

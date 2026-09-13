@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "case.trn"
+code = "T0133"
+contains = "greater than zero"

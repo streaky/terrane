@@ -687,10 +687,29 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         );
     }
     let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
-    if !hold_stdin {
+    let signals = field(manifest, "signals");
+    let (status, stdout, stderr) = if let Some(signals) = signals {
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut stdout_bytes = Vec::new();
+        stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
+        for signal in signals.split(',').map(str::trim) {
+            let status = Command::new("kill")
+                .args([format!("-{signal}"), child.id().to_string()])
+                .status()
+                .expect("invoke platform signal command");
+            assert!(
+                status.success(),
+                "could not send {signal} to {}",
+                case.display()
+            );
+        }
         drop(stdin.take());
-    }
-    let (status, stdout, stderr) = if hold_stdin {
+        stdout.read_to_end(&mut stdout_bytes).unwrap();
+        let mut stderr = child.stderr.take().unwrap();
+        let mut stderr_bytes = Vec::new();
+        stderr.read_to_end(&mut stderr_bytes).unwrap();
+        (child.wait().unwrap(), stdout_bytes, stderr_bytes)
+    } else if hold_stdin {
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut stdout_bytes = Vec::new();
         stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
@@ -701,6 +720,7 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         stderr.read_to_end(&mut stderr_bytes).unwrap();
         (child.wait().unwrap(), stdout_bytes, stderr_bytes)
     } else {
+        drop(stdin.take());
         let output = child.wait_with_output().unwrap();
         (output.status, output.stdout, output.stderr)
     };
@@ -816,6 +836,27 @@ fn write_support_crates(directory: &Path) {
     fs::write(
         platform.join("src/observability.rs"),
         include_bytes!("../../terrane-platform-support/src/observability.rs"),
+    )
+    .unwrap();
+    fs::write(
+        platform.join("src/signals.rs"),
+        include_bytes!("../../terrane-platform-support/src/signals.rs"),
+    )
+    .unwrap();
+    write_signal_support_crate(directory);
+}
+
+fn write_signal_support_crate(directory: &Path) {
+    let signal = directory.join("support/terrane-signal-support");
+    fs::create_dir_all(signal.join("src")).unwrap();
+    fs::write(
+        signal.join("Cargo.toml"),
+        terrane_compiler::signal_support_manifest(),
+    )
+    .unwrap();
+    fs::write(
+        signal.join("src/lib.rs"),
+        include_bytes!("../../terrane-signal-support/src/lib.rs"),
     )
     .unwrap();
 }

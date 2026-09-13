@@ -1,0 +1,173 @@
+namespace core/time
+
+from /core/errors import throwable
+
+class invalid-duration implements throwable
+    message string = 'duration must be exact and non-negative'
+
+    function render string;
+        return this.message
+
+# Models `subtract.checked` until source classes support dotted member families.
+private class duration-subtraction
+    private total-nanoseconds int = 0
+
+    private function construct; total int
+        this.total-nanoseconds = total
+
+    function checked duration|none; other duration
+        if this.total-nanoseconds < other.total-nanoseconds
+            return none
+        difference = this.total-nanoseconds - other.total-nanoseconds
+        return instance duration; (host-time-div; difference, 1000000000), (host-time-mod; difference, 1000000000)
+
+class duration
+    seconds int = 0
+    nanoseconds int = 0
+    total-nanoseconds int = 0
+    subtract duration-subtraction = instance duration-subtraction; 0
+
+    private function construct; whole-seconds int, fractional-nanoseconds int
+        this.seconds = whole-seconds
+        this.nanoseconds = fractional-nanoseconds
+        this.total-nanoseconds = whole-seconds * 1000000000 + fractional-nanoseconds
+        this.subtract = instance duration-subtraction; this.total-nanoseconds
+
+    static function seconds duration throws invalid-duration; value int
+        if value < 0
+            throw instance invalid-duration;
+        return instance duration; value, 0
+
+    static function milliseconds duration throws invalid-duration; value int
+        if value < 0
+            throw instance invalid-duration;
+        return instance duration; (host-time-div; value, 1000), (host-time-mod; value, 1000) * 1000000
+
+    static function microseconds duration throws invalid-duration; value int
+        if value < 0
+            throw instance invalid-duration;
+        return instance duration; (host-time-div; value, 1000000), (host-time-mod; value, 1000000) * 1000
+
+    static function nanoseconds duration throws invalid-duration; value int
+        if value < 0
+            throw instance invalid-duration;
+        return instance duration; (host-time-div; value, 1000000000), (host-time-mod; value, 1000000000)
+
+    function add duration; other duration
+        fractional = this.nanoseconds + other.nanoseconds
+        return instance duration; this.seconds + other.seconds + (host-time-div; fractional, 1000000000), (host-time-mod; fractional, 1000000000)
+
+    function multiply duration throws invalid-duration; multiplier int
+        if multiplier < 0
+            throw instance invalid-duration;
+        total = this.total-nanoseconds * multiplier
+        return instance duration; (host-time-div; total, 1000000000), (host-time-mod; total, 1000000000)
+
+class monotonic-instant
+    private domain int = 0
+    private elapsed-nanoseconds int = 0
+
+    private function construct; runtime-domain int, elapsed int
+        this.domain = runtime-domain
+        this.elapsed-nanoseconds = elapsed
+
+    function duration-until duration throws invalid-duration; later ref monotonic-instant
+        if this.domain != later.domain or later.elapsed-nanoseconds < this.elapsed-nanoseconds
+            throw instance invalid-duration;
+        elapsed = later.elapsed-nanoseconds - this.elapsed-nanoseconds
+        return instance duration; (host-time-div; elapsed, 1000000000), (host-time-mod; elapsed, 1000000000)
+
+class instant
+    unix-seconds int = 0
+    nanoseconds int = 0
+
+    private function construct; seconds int, fractional-nanoseconds int
+        this.unix-seconds = seconds
+        this.nanoseconds = fractional-nanoseconds
+
+class deadline
+    expires-at monotonic-instant = instance monotonic-instant; 0, 0
+
+    private function construct; target monotonic-instant
+        this.expires-at = target
+
+    function remaining duration|none;
+        now = clock::monotonic;
+        if this.expires-at.elapsed-nanoseconds <= now.elapsed-nanoseconds
+            return none
+        elapsed = this.expires-at.elapsed-nanoseconds - now.elapsed-nanoseconds
+        return instance duration; (host-time-div; elapsed, 1000000000), (host-time-mod; elapsed, 1000000000)
+    function expired bool;
+        return (this.remaining;) == none
+
+    static function at deadline throws invalid-duration; target monotonic-instant
+        if target.domain != (host-time-domain;)
+            throw instance invalid-duration;
+        return instance deadline; target
+
+private function discard-none none; value none
+    return none
+
+
+class tick
+    scheduled monotonic-instant = instance monotonic-instant; 0, 0
+    observed monotonic-instant = instance monotonic-instant; 0, 0
+    count int = 0
+
+    private function construct; scheduled-at monotonic-instant, observed-at monotonic-instant, expirations int
+        this.scheduled = scheduled-at
+        this.observed = observed-at
+        this.count = expirations
+
+class ticker
+    private anchor monotonic-instant = instance monotonic-instant; 0, 0
+    private period duration = instance duration; 0, 0
+    private next-index int = 1
+
+    private function construct; interval duration
+        this.anchor = clock::monotonic;
+        this.period = interval
+    mutable async function next tick;
+        period-total = this.period.total-nanoseconds
+        scheduled-nanoseconds = this.anchor.elapsed-nanoseconds + period-total * this.next-index
+        discard-none; (await host-time-sleep-until; scheduled-nanoseconds)
+        observed = clock::monotonic;
+        elapsed = observed.elapsed-nanoseconds - this.anchor.elapsed-nanoseconds
+        observed-index = host-time-div; elapsed, period-total
+        if observed-index < this.next-index
+            observed-index = this.next-index
+        count = observed-index - this.next-index + 1
+        delivered = instance monotonic-instant; this.anchor.domain, this.anchor.elapsed-nanoseconds + period-total * observed-index
+        this.next-index = observed-index + 1
+        return instance tick; delivered, observed, count
+
+    consuming function destruct;
+        discard-none; none
+
+class clock
+    static function wall instant;
+        raw = host-time-wall;
+        return instance instant; (host-time-wall-seconds; raw), (host-time-wall-nanoseconds; raw)
+
+    static function monotonic monotonic-instant;
+        return instance monotonic-instant; (host-time-domain;), (host-time-monotonic;)
+
+    static async function sleep none; elapsed duration
+        target = (host-time-monotonic;) + elapsed.total-nanoseconds
+        return await host-time-sleep-until; target
+
+    static async function sleep-until none throws invalid-duration; target monotonic-instant
+        if target.domain != (host-time-domain;)
+            throw instance invalid-duration;
+        return await host-time-sleep-until; target.elapsed-nanoseconds
+
+    static function deadline deadline; elapsed duration
+        now = clock::monotonic;
+        target = instance monotonic-instant; now.domain, now.elapsed-nanoseconds + elapsed.total-nanoseconds
+        return instance deadline; target
+
+
+    static function interval ticker throws invalid-duration; period duration
+        if period.total-nanoseconds == 0
+            throw instance invalid-duration;
+        return instance ticker; period
