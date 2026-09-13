@@ -396,19 +396,29 @@ impl Emitter<'_> {
                 Some((header, operand, block))
             })
             .collect::<Vec<_>>();
+        self.line(&format!(
+            "let mut __terrane_select_guard_{index} = __terrane_finally_guard();"
+        ));
         for (case_index, (_, operand, _)) in cases.iter().enumerate() {
             let future = self.expression(operand);
             self.line(&format!(
-                "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!({future});"
+                "let __terrane_select_control_{index}_{case_index} = __terrane_select_control();"
+            ));
+            self.line(&format!(
+                "let mut __terrane_select_future_{index}_{case_index} = std::pin::pin!(__terrane_select_operation(__terrane_select_control_{index}_{case_index}.clone(), {future}));"
             ));
             self.line(&format!(
                 "let mut __terrane_select_result_{index}_{case_index} = None;"
+            ));
+            self.line(&format!(
+                "let mut __terrane_select_cancelled_{index}_{case_index} = false;"
             ));
         }
         self.line(&format!(
             "let __terrane_select_winner_{index} = std::future::poll_fn(|__terrane_select_context| {{"
         ));
         self.indent += 1;
+        self.line("if __terrane_cancellation_is_requested() { return std::task::Poll::Ready(usize::MAX); }");
         self.line(&format!(
             "for __terrane_select_offset in 0..{}usize {{",
             cases.len()
@@ -424,8 +434,10 @@ impl Emitter<'_> {
             self.line(&format!("{case_index} => {{"));
             self.indent += 1;
             self.line(&format!(
-                "if let std::task::Poll::Ready(__terrane_select_value) = Future::poll(__terrane_select_future_{index}_{case_index}.as_mut(), __terrane_select_context) {{"
+                "match Future::poll(__terrane_select_future_{index}_{case_index}.as_mut(), __terrane_select_context) {{"
             ));
+            self.indent += 1;
+            self.line("std::task::Poll::Ready(Some(__terrane_select_value)) => {");
             self.indent += 1;
             self.line(&format!(
                 "__terrane_select_result_{index}_{case_index} = Some(__terrane_select_value);"
@@ -433,6 +445,12 @@ impl Emitter<'_> {
             self.line(&format!(
                 "return std::task::Poll::Ready({case_index}usize);"
             ));
+            self.indent -= 1;
+            self.line("}");
+            self.line(&format!(
+                "std::task::Poll::Ready(None) => __terrane_select_cancelled_{index}_{case_index} = true,"
+            ));
+            self.line("std::task::Poll::Pending => {}");
             self.indent -= 1;
             self.line("}");
             self.indent -= 1;
@@ -443,18 +461,73 @@ impl Emitter<'_> {
         self.line("}");
         self.indent -= 1;
         self.line("}");
+        self.line(&format!(
+            "if {} {{ return std::task::Poll::Ready(usize::MAX); }}",
+            (0..cases.len())
+                .map(|case_index| format!("__terrane_select_cancelled_{index}_{case_index}"))
+                .collect::<Vec<_>>()
+                .join(" && ")
+        ));
         self.line("std::task::Poll::Pending");
         self.indent -= 1;
         self.line("}).await;");
         self.line(&format!(
-            "__terrane_select_cursor_{index} = (__terrane_select_winner_{index} + 1usize) % {}usize;",
-            cases.len()
+            "if __terrane_select_winner_{index} == usize::MAX {{"
         ));
+        self.indent += 1;
+        for case_index in (0..cases.len()).rev() {
+            self.line(&format!(
+                "__terrane_select_control_{index}_{case_index}.request_cancel();"
+            ));
+        }
+        for case_index in (0..cases.len()).rev() {
+            self.line(&format!(
+                "if !__terrane_select_cancelled_{index}_{case_index} {{ debug_assert!(__terrane_select_future_{index}_{case_index}.as_mut().await.is_none()); }}"
+            ));
+        }
         for case_index in (0..cases.len()).rev() {
             self.line(&format!(
                 "drop(__terrane_select_future_{index}_{case_index});"
             ));
         }
+        self.line("__terrane_wait_projected_cleanups().await;");
+        self.line(&format!(
+            "__terrane_finish_cancelled_select(__terrane_select_guard_{index}).await;"
+        ));
+        self.indent -= 1;
+        self.line("}");
+        self.line(&format!(
+            "__terrane_select_cursor_{index} = (__terrane_select_winner_{index} + 1usize) % {}usize;",
+            cases.len()
+        ));
+        self.line(&format!("match __terrane_select_winner_{index} {{"));
+        self.indent += 1;
+        for winner in 0..cases.len() {
+            self.line(&format!("{winner} => {{"));
+            self.indent += 1;
+            for loser in (0..cases.len()).rev().filter(|loser| *loser != winner) {
+                self.line(&format!(
+                    "__terrane_select_control_{index}_{loser}.request_cancel();"
+                ));
+            }
+            for loser in (0..cases.len()).rev().filter(|loser| *loser != winner) {
+                self.line(&format!(
+                    "debug_assert!(__terrane_select_future_{index}_{loser}.as_mut().await.is_none());"
+                ));
+            }
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.line("_ => unreachable!(\"selected winner is within the case count\"),");
+        self.indent -= 1;
+        self.line("}");
+        for case_index in (0..cases.len()).rev() {
+            self.line(&format!(
+                "drop(__terrane_select_future_{index}_{case_index});"
+            ));
+        }
+        self.line("__terrane_wait_projected_cleanups().await;");
+        self.line(&format!("__terrane_select_guard_{index}.finish();"));
         self.line(&format!("match __terrane_select_winner_{index} {{"));
         self.indent += 1;
         for (case_index, (header, operand, block)) in cases.iter().enumerate() {

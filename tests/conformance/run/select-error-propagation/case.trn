@@ -1,0 +1,24 @@
+namespace select-error-propagation
+from /core/concurrency import channel, channel-block
+from /core/errors import throwable, coercion-error
+
+async function fail int throws throwable;
+  throw coercion-error
+
+async function blocked; receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; 'cleanup-before-error'
+
+async function main;
+  pair = channel; int, 0, channel-block
+  try
+    select
+      case await (blocked; pair.receiver)
+        print; 'unexpected'
+      case value int = await (fail;)
+        print; value
+  catch coercion-error
+    print; 'caught'

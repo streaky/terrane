@@ -1,0 +1,37 @@
+namespace select-loser-cleanup
+from /core/concurrency import channel, channel-block
+
+async function ready string;
+  return 'winner'
+
+async function blocked; marker string, receiver channel-receiver of int
+  try
+    received = await receiver.receive;
+    print; received.available
+  finally
+    print; marker
+
+async function main;
+  cleanup-pair-a = channel; int, 0, channel-block
+  cleanup-pair-b = channel; int, 0, channel-block
+  select
+    case value = await (blocked; 'cleanup-a', cleanup-pair-a.receiver)
+      print; value
+    case value = await (blocked; 'cleanup-b', cleanup-pair-b.receiver)
+      print; value
+    case winner = await (ready;)
+      print; winner
+
+  waiter-pair = channel; int, 1, channel-block
+  waiter-tx = waiter-pair.sender
+  waiter-rx = waiter-pair.receiver
+  select
+    case received = await waiter-rx.receive;
+      print; received.available
+    case winner = await (ready;)
+      print; winner
+  sent = await waiter-tx.send; 9
+  received = await waiter-rx.receive;
+  value = received.value
+  if value != none
+    print; sent.accepted, value

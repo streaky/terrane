@@ -13,7 +13,12 @@ fn await_expression(case: &SyntaxNode) -> Option<(&SyntaxNode, Option<Span>, &Sy
     Some((operand, binding, body))
 }
 
-fn operation_kind(unit: &SemanticUnit, operand: &SyntaxNode) -> SelectionOperationKind {
+fn operation_kind(unit: &SemanticUnit, mut operand: &SyntaxNode) -> SelectionOperationKind {
+    while operand.kind == SyntaxKind::GroupExpression
+        && let [grouped] = operand.children.as_slice()
+    {
+        operand = grouped;
+    }
     let Some(callee) = (operand.kind == SyntaxKind::CallExpression)
         .then(|| operand.children.first())
         .flatten()
@@ -41,8 +46,12 @@ fn operation_kind(unit: &SemanticUnit, operand: &SyntaxNode) -> SelectionOperati
     }
     SelectionOperationKind::Task
 }
-
-fn throwable_types(unit: &SemanticUnit, operand: &SyntaxNode) -> BTreeSet<String> {
+fn throwable_types(unit: &SemanticUnit, mut operand: &SyntaxNode) -> BTreeSet<String> {
+    while operand.kind == SyntaxKind::GroupExpression
+        && let [grouped] = operand.children.as_slice()
+    {
+        operand = grouped;
+    }
     let Some(callee) = (operand.kind == SyntaxKind::CallExpression)
         .then(|| operand.children.first())
         .flatten()

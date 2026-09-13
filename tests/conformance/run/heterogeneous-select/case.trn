@@ -1,17 +1,21 @@
 namespace heterogeneous-select
 
-async function number-task int;
+function mark string; value string
+  print; value
+  return value
+
+async function number-task int; marker string
   return 7
 
-async function text-task string;
+async function text-task string; marker string
   return 'text'
 
 async function main;
   count = 0
   while count < 4
     select
-      case number int = await (number-task;)
+      case number int = await (number-task; (mark; 'construct-a'))
         print; number
-      case text = await (text-task;)
+      case text = await (text-task; (mark; 'construct-b'))
         print; text
     count++

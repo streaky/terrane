@@ -1,0 +1,30 @@
+namespace select-external-cancellation
+from /core/concurrency import channel, channel-block
+
+async function contender; marker string, started (channel-sender of int), gate (channel-receiver of int)
+  try
+    sent = await started.send; 1
+    received = await gate.receive;
+    print; sent.accepted, received.available
+  finally
+    print; marker
+
+async function wait-for-either; started-a (channel-sender of int), gate-a (channel-receiver of int), started-b (channel-sender of int), gate-b (channel-receiver of int)
+  select
+    case await (contender; 'cleanup-a', started-a, gate-a)
+      print; 'a-won'
+    case await (contender; 'cleanup-b', started-b, gate-b)
+      print; 'b-won'
+
+async function main;
+  started-a = channel; int, 1, channel-block
+  started-b = channel; int, 1, channel-block
+  gate-a = channel; int, 0, channel-block
+  gate-b = channel; int, 0, channel-block
+  scope = task-scope;
+  child = scope.spawn; (wait-for-either; started-a.sender, gate-a.receiver, started-b.sender, gate-b.receiver)
+  observed-a = await started-a.receiver.receive;
+  observed-b = await started-b.receiver.receive;
+  scope.cancel;
+  outcome = await scope.join; child
+  print; observed-a.available, observed-b.available, outcome.cancelled

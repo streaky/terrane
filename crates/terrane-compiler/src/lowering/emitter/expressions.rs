@@ -86,7 +86,12 @@ impl Emitter<'_> {
         )
     }
 
-    pub(super) fn awaited_throws(&self, operand: &SyntaxNode) -> bool {
+    pub(super) fn awaited_throws(&self, mut operand: &SyntaxNode) -> bool {
+        while operand.kind == SyntaxKind::GroupExpression
+            && let [grouped] = operand.children.as_slice()
+        {
+            operand = grouped;
+        }
         let callee = (operand.kind == SyntaxKind::CallExpression)
             .then(|| operand.children.first())
             .flatten();

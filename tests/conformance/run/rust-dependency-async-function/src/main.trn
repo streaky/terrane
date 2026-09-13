@@ -1,6 +1,11 @@
 namespace app
 from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling
 from /core/errors import dependency-error
+from /core/concurrency import channel, channel-block
+
+async function source-ready string;
+  return 'source-ready'
+
 
 async function main;
   echoed string = await echo_after_yield; >projected async success
@@ -20,3 +25,15 @@ async function main;
     print; rejected
   catch dependency-error
     print; 'caught projected async failure'
+  selection-pair = channel; int, 0, channel-block
+  selection-rx = selection-pair.receiver
+  select
+    case selected string = await echo_after_yield; >selected-projected
+      print; selected
+    case await selection-rx.receive;
+      print; 'unexpected receive'
+  select
+    case projected = await socket_round_trip;
+      print; projected
+    case source = await (source-ready;)
+      print; source

@@ -3,3 +3,5 @@ projected async success
 awake
 truetrue
 caught projected async failure
+selected-projected
+source-ready
