@@ -1,0 +1,10 @@
+namespace map-removal-throwable-contract
+from /core/collections import map
+from /core/errors import index-error
+
+function take int throws index-error; key string, values map of string, int
+  return values.remove; key
+
+function main;
+  values = map; answer=42
+  print; (take; 'answer', values)

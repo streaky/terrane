@@ -999,6 +999,13 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                 .flatten();
             let mut errors = if let Some(error) = numeric_coercion_error(unit, node) {
                 BTreeSet::from([error.to_owned()])
+            } else if member_name == "remove"
+                && matches!(
+                    receiver_type,
+                    Some(ValueType::Map(_, _) | ValueType::UnorderedMap(_, _))
+                )
+            {
+                BTreeSet::from(["/core/errors::missing-key".to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions
                     .iter()

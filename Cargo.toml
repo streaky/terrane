@@ -30,3 +30,11 @@ unsafe_code = "forbid"
 [workspace.lints.clippy]
 all = "warn"
 pedantic = "warn"
+
+[profile.dev]
+debug = "line-tables-only"
+incremental = true
+
+[profile.test]
+debug = "line-tables-only"
+incremental = true

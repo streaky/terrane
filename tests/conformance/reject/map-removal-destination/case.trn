@@ -1,0 +1,6 @@
+namespace map-removal-destination
+from /core/collections import map
+
+function main;
+  values = map; answer=42
+  removed string = values.remove; 'answer'

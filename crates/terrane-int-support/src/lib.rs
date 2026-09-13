@@ -136,6 +136,9 @@ impl ArithmeticError {
     }
 }
 
+#[cfg(test)]
+static AS_BIG_MATERIALIZATIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
 impl Int {
     #[must_use]
     pub fn from_big(value: BigInt) -> Self {
@@ -164,6 +167,8 @@ impl Int {
 
     #[must_use]
     pub fn as_big(&self) -> BigInt {
+        #[cfg(test)]
+        AS_BIG_MATERIALIZATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         match self {
             Self::Small(value) => BigInt::from(*value),
             Self::Wide(value) => BigInt::from(*value),
@@ -321,6 +326,19 @@ impl From<i128> for Int {
     }
 }
 
+fn compare_big_to_i128(big: &BigInt, bounded: i128) -> Ordering {
+    big.to_i128().map_or_else(
+        || {
+            if big.sign() == num_bigint::Sign::Minus {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        },
+        |value| value.cmp(&bounded),
+    )
+}
+
 impl Ord for Int {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
@@ -329,7 +347,12 @@ impl Ord for Int {
             (Self::Wide(left), Self::Small(right)) => left.cmp(&i128::from(*right)),
             (Self::Wide(left), Self::Wide(right)) => left.cmp(right),
             (Self::Big(left), Self::Big(right)) => left.cmp(right),
-            _ => self.as_big().cmp(&other.as_big()),
+            (Self::Big(left), Self::Small(right)) => compare_big_to_i128(left, i128::from(*right)),
+            (Self::Big(left), Self::Wide(right)) => compare_big_to_i128(left, *right),
+            (Self::Small(left), Self::Big(right)) => {
+                compare_big_to_i128(right, i128::from(*left)).reverse()
+            }
+            (Self::Wide(left), Self::Big(right)) => compare_big_to_i128(right, *left).reverse(),
         }
     }
 }
@@ -1501,4 +1524,24 @@ pub fn wrapping_coerce<T: IntegerDestination>(value: &impl IntegerSource) -> T {
 #[must_use]
 pub fn saturating_coerce<T: IntegerDestination>(value: &impl IntegerSource) -> T {
     T::saturating_from_big(&value.integer_value())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AS_BIG_MATERIALIZATIONS, Int};
+    use num_bigint::BigInt;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn mixed_tier_sort_does_not_materialize_big_integers() {
+        let mut values = [
+            Int::from_big(BigInt::from(i128::MAX) + 1),
+            Int::from(-2_i64),
+            Int::from(i128::MAX),
+            Int::from_big(BigInt::from(i128::MIN) - 1),
+        ];
+        AS_BIG_MATERIALIZATIONS.store(0, Ordering::Relaxed);
+        values.sort();
+        assert_eq!(AS_BIG_MATERIALIZATIONS.load(Ordering::Relaxed), 0);
+    }
 }

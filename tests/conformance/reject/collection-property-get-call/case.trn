@@ -1,0 +1,7 @@
+namespace collection-property-get-call
+from /core/collections import list, map
+
+function main;
+  values map of string, list of int = map; alpha=(list; 3, 1)
+  for pair in values.entries;
+    print; (pair.value.get; 0)

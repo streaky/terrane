@@ -77,7 +77,11 @@ tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "sync", "tim
             )
             .unwrap();
         }
-        manifest.push_str("\n[workspace]\n");
+        manifest.push_str(
+            "\n[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true\n\
+             \n[profile.test]\ndebug = \"line-tables-only\"\nincremental = true\n\
+             \n[workspace]\n",
+        );
         fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
     }
 }
@@ -265,9 +269,17 @@ fn reports(
     diagnostics: &[terrane_compiler::Diagnostic],
     code: &str,
     expected: Option<&str>,
+    expected_help: Option<&str>,
 ) -> bool {
     diagnostics.iter().any(|diagnostic| {
-        diagnostic.code == code && expected.is_none_or(|text| diagnostic.message.contains(text))
+        diagnostic.code == code
+            && expected.is_none_or(|text| diagnostic.message.contains(text))
+            && expected_help.is_none_or(|text| {
+                diagnostic
+                    .help
+                    .as_deref()
+                    .is_some_and(|help| help.contains(text))
+            })
     })
 }
 
@@ -315,10 +327,9 @@ fn with_compilation_dependencies(
 
 #[test]
 fn every_manifest_drives_a_conformance_case() {
-    let manifests = manifests_below(&corpus());
+    let manifests = selected_manifests();
     let build = ConformanceBuild::new();
     let mut deferred_generated_cases = Vec::new();
-    assert!(!manifests.is_empty());
     for (case_index, manifest_path) in manifests.into_iter().enumerate() {
         let binary_name = format!("terrane_conformance_case_{case_index}");
         let case = manifest_path.parent().unwrap();
@@ -402,10 +413,11 @@ fn every_manifest_drives_a_conformance_case() {
                         .diagnostics
                 };
                 let expected = field(&manifest, "contains");
-                let reported = reports(&diagnostics, code, expected);
+                let expected_help = field(&manifest, "help");
+                let reported = reports(&diagnostics, code, expected, expected_help);
                 assert!(
                     reported,
-                    "{} did not report {code} matching {expected:?}: {diagnostics:?}",
+                    "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
                     case.display()
                 );
             }
@@ -826,6 +838,35 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .collect()
 }
 
+fn selected_manifests() -> Vec<PathBuf> {
+    let filter = std::env::var("TERRANE_CONFORMANCE_FILTER").ok();
+    let manifests = filtered_manifests(manifests_below(&corpus()), filter.as_deref());
+    assert!(
+        !manifests.is_empty(),
+        "no conformance cases matched {}",
+        filter.as_deref().unwrap_or("the corpus")
+    );
+    manifests
+}
+
+fn filtered_manifests(manifests: Vec<PathBuf>, filter: Option<&str>) -> Vec<PathBuf> {
+    let Some(filter) = filter else {
+        return manifests;
+    };
+    let patterns = filter
+        .split(',')
+        .map(str::trim)
+        .filter(|pattern| !pattern.is_empty())
+        .collect::<Vec<_>>();
+    manifests
+        .into_iter()
+        .filter(|manifest| {
+            let path = manifest.to_string_lossy();
+            patterns.iter().any(|pattern| path.contains(pattern))
+        })
+        .collect()
+}
+
 fn manifests_below(root: &Path) -> Vec<PathBuf> {
     let mut manifests = Vec::new();
     for entry in fs::read_dir(root).unwrap() {
@@ -896,6 +937,31 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
         "{record:?}"
     );
     fs::remove_file(output).unwrap();
+}
+
+#[test]
+fn generated_conformance_workspace_uses_compact_debug_profiles() {
+    let build = ConformanceBuild::new();
+    build.write_manifest(&[], &[]);
+    let manifest = fs::read_to_string(build.root.join("Cargo.toml")).unwrap();
+    assert!(manifest.contains("[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true"));
+    assert!(manifest.contains("[profile.test]\ndebug = \"line-tables-only\"\nincremental = true"));
+}
+
+#[test]
+fn conformance_filter_accepts_comma_separated_path_fragments() {
+    let manifests = vec![
+        PathBuf::from("run/map-key-removal/case.toml"),
+        PathBuf::from("run/stable-list-sorting/case.toml"),
+        PathBuf::from("reject/map-removal-key-type/case.toml"),
+    ];
+    assert_eq!(
+        filtered_manifests(manifests, Some("run/map-key-removal, map-removal-key-type")),
+        [
+            PathBuf::from("run/map-key-removal/case.toml"),
+            PathBuf::from("reject/map-removal-key-type/case.toml"),
+        ]
+    );
 }
 
 #[test]

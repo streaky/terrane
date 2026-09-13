@@ -1,0 +1,6 @@
+namespace list-sort-unknown-child
+from /core/collections import list
+
+function main;
+  values = list; 2, 1
+  values.sort.reverse;

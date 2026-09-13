@@ -562,18 +562,11 @@ fn first_owner_lifetime_end(
         let [callee, _arguments] = node.children.as_slice() else {
             return None;
         };
-        let [receiver, member] = callee.children.as_slice() else {
-            return None;
-        };
-        let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-            .ok()
-            .flatten()?;
-        (member_invocation_mode(
-            package,
-            unit,
-            &receiver_type,
-            node_text(&unit.source, member),
-        ) == InvocationMode::Mutable)
+        let (receiver, receiver_type, member) = typed_member_call(unit, callee)?;
+        let family = member
+            .split_once('.')
+            .map_or(member.as_str(), |(family, _)| family);
+        (member_invocation_mode(package, unit, &receiver_type, family) == InvocationMode::Mutable)
             .then_some(receiver)
     }
 

@@ -33,6 +33,16 @@ impl Drop for TemporaryDirectory {
     }
 }
 
+fn staged_hello() -> TemporaryDirectory {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello");
+    let directory = TemporaryDirectory::new("hello-fixture");
+    fs::create_dir_all(directory.path()).unwrap();
+    for name in ["case.trn", "lower.rs", "stdout.txt"] {
+        fs::copy(source.join(name), directory.path().join(name)).unwrap();
+    }
+    directory
+}
+
 fn hello() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello/case.trn")
 }
@@ -45,12 +55,14 @@ fn structured_error() -> PathBuf {
 #[test]
 fn all_commands_share_the_hello_pipeline() {
     let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = staged_hello();
+    let hello = directory.path().join("case.trn");
     let rust = Command::new(binary)
-        .args(["rust", hello().to_str().unwrap()])
+        .args(["rust", hello.to_str().unwrap()])
         .output()
         .unwrap();
     let rust_again = Command::new(binary)
-        .args(["rust", hello().to_str().unwrap()])
+        .args(["rust", hello.to_str().unwrap()])
         .output()
         .unwrap();
     assert!(rust.status.success());
@@ -59,35 +71,35 @@ fn all_commands_share_the_hello_pipeline() {
     let displayed_rust = String::from_utf8(rust.stdout)
         .unwrap()
         .replace(terrane_compiler::VERSION, "<version>");
-    let authored_rust = fs::read_to_string(hello().parent().unwrap().join("lower.rs")).unwrap();
+    let authored_rust = fs::read_to_string(directory.path().join("lower.rs")).unwrap();
     assert!(displayed_rust.starts_with(&authored_rust));
     assert!(displayed_rust.contains("// Generated Rust form: standalone"));
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 
     let check = Command::new(binary)
-        .args(["check", hello().to_str().unwrap()])
+        .args(["check", hello.to_str().unwrap()])
         .output()
         .unwrap();
     assert!(check.status.success());
 
     let build = Command::new(binary)
-        .args(["build", hello().to_str().unwrap()])
+        .args(["build", hello.to_str().unwrap()])
         .output()
         .unwrap();
     assert!(build.status.success());
     let executable = String::from_utf8(build.stdout).unwrap();
     assert!(Path::new(executable.trim()).is_file());
-    let source_root = hello().parent().unwrap().canonicalize().unwrap();
+    let source_root = directory.path().canonicalize().unwrap();
     assert!(Path::new(executable.trim()).starts_with(source_root.join(".trn")));
 
     let run = Command::new(binary)
-        .args(["run", hello().to_str().unwrap()])
+        .args(["run", hello.to_str().unwrap()])
         .output()
         .unwrap();
     assert!(run.status.success());
     assert_eq!(
         run.stdout,
-        fs::read(hello().parent().unwrap().join("stdout.txt")).unwrap()
+        fs::read(directory.path().join("stdout.txt")).unwrap()
     );
 }
 

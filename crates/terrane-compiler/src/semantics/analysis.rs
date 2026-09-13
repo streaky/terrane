@@ -531,6 +531,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_global_definite_assignment(&semantic)?;
     record_binding_mutability(&mut semantic);
     validate_calls(&semantic)?;
+    validate_discarded_temporary_mutations(&semantic)?;
     validate_definite_assignment(&semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);

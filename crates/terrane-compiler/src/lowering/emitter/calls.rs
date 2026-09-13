@@ -1,5 +1,25 @@
 use super::super::prelude::*;
 
+pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'static str {
+    match (item.value_type(), descending) {
+        (ValueType::Scalar(ScalarType::Float32), false) => {
+            "terrane_collection_support::compare_float32_ascending"
+        }
+        (ValueType::Scalar(ScalarType::Float32), true) => {
+            "terrane_collection_support::compare_float32_descending"
+        }
+        (ValueType::Scalar(ScalarType::Float64), false) => {
+            "terrane_collection_support::compare_float64_ascending"
+        }
+        (ValueType::Scalar(ScalarType::Float64), true) => {
+            "terrane_collection_support::compare_float64_descending"
+        }
+        (ValueType::Scalar(_), false) => "|left, right| left.cmp(right)",
+        (ValueType::Scalar(_), true) => "|left, right| right.cmp(left)",
+        _ => unreachable!("semantic analysis admits only sortable scalar list items"),
+    }
+}
+
 impl Emitter<'_> {
     fn typed_document_decode_call(
         &mut self,
@@ -282,30 +302,54 @@ impl Emitter<'_> {
             };
         }
 
-        if callee.kind == SyntaxKind::MemberExpression
-            && let [family, child] = callee.children.as_slice()
-            && self.text(child) == "checked"
-            && family.kind == SyntaxKind::MemberExpression
-            && let [receiver, member] = family.children.as_slice()
-            && self.text(member) == "get"
-            && let Some(receiver_type) = self.receiver_value_type(receiver)
-            && let Some(argument) = arguments.children.first()
+        if let Ok(Some((receiver, receiver_type, member))) =
+            collection_member_call(self.unit, callee, &self.unit.typed_bindings)
+            && member.contains('.')
         {
-            let argument = argument.children.last().unwrap_or(argument);
-            let receiver_value = self.receiver_expression(receiver);
-            return match receiver_type {
-                ValueType::List(_) | ValueType::Tuple(_, _) => {
-                    let index = self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
-                    format!(
-                        "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
-                    )
-                }
-                ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
-                    let key = self.expression_as(argument, key.value_type());
-                    format!("({receiver_value}).get(&({key})).cloned()")
-                }
-                _ => String::new(),
-            };
+            if matches!(member.as_str(), "get.checked" | "remove.checked")
+                && let Some(argument) = arguments.children.first()
+            {
+                let remove = member == "remove.checked";
+                let argument = argument.children.last().unwrap_or(argument);
+                let receiver_value = if remove {
+                    self.receiver_guard_expression(receiver)
+                } else {
+                    self.receiver_expression(receiver)
+                };
+                let call = match receiver_type {
+                    ValueType::List(_) | ValueType::Tuple(_, _) => {
+                        let index =
+                            self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
+                        format!(
+                            "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
+                        )
+                    }
+                    ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
+                        let key = self.expression_as(argument, key.value_type());
+                        if remove {
+                            format!("({receiver_value}).remove_checked(&({key}))")
+                        } else {
+                            format!("({receiver_value}).get(&({key})).cloned()")
+                        }
+                    }
+                    _ => String::new(),
+                };
+                return if remove {
+                    self.wrap_receiver_guard(receiver, call)
+                } else {
+                    call
+                };
+            }
+            if member == "sort.descending"
+                && let ValueType::List(item) = receiver_type
+            {
+                let receiver_value = self.receiver_guard_expression(receiver);
+                let comparator = list_sort_comparator(&item, true);
+                let call = format!(
+                    "({{ let collection = &mut ({receiver_value}); collection.sort_by({comparator}); collection.clone() }})"
+                );
+                return self.wrap_receiver_guard(receiver, call);
+            }
         }
         if let Some(string_call) = self.string_call(node, arguments) {
             return string_call;
@@ -379,6 +423,12 @@ impl Emitter<'_> {
                 (ValueType::List(_), "clear") => Some(format!(
                     "({{ let collection = &mut ({receiver_value}); collection.clear(); collection.clone() }})"
                 )),
+                (ValueType::List(item), "sort") => {
+                    let comparator = list_sort_comparator(&item, false);
+                    Some(format!(
+                        "({{ let collection = &mut ({receiver_value}); collection.sort_by({comparator}); collection.clone() }})"
+                    ))
+                }
                 (ValueType::List(_), "remove") => {
                     let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
                     let index = self.fallible(
@@ -393,6 +443,10 @@ impl Emitter<'_> {
                         self.expression_as(values[0], key.value_type()),
                         self.expression_as(values[1], value.value_type())
                     ))
+                }
+                (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
+                    let key = self.expression_as(values[0], key.value_type());
+                    Some(self.fallible(format!("({receiver_value}).remove(&({key}))"), node))
                 }
                 (ValueType::Set(item) | ValueType::UnorderedSet(item), "contains") => {
                     Some(format!(

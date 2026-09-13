@@ -885,16 +885,22 @@ features:
 - id: collection-removal-and-ordering
   name: Efficient map removal and ordered list traversal
   category: text-data
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '29.0'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/collections.yaml
-  notes: Will add default and checked keyed removal for ordered and unordered maps plus stable ascending and descending in-place ordering for numeric and string lists.
+  notes: Ordered and unordered maps provide default and checked keyed removal; unordered insertion and removal are expected amortized constant time; lists provide stable ascending and descending ordering for the closed scalar set; discarded statement-form mutations require a retained receiver.
   sources:
+  - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 29.0
+  - tests/conformance/run/map-key-removal/case.trn
+  - tests/conformance/run/stable-list-sorting/case.trn
+  - tests/conformance/run/collection-property-method-calls/case.trn
+  - tests/conformance/reject/discarded-temporary-list-append/case.trn
+  - tests/conformance/reject/discarded-temporary-list-sort/case.trn
 - id: iterator-protocol
   name: Structural iterator protocol
   category: text-data

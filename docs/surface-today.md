@@ -896,8 +896,8 @@ change the generated manifest.
 | list / tuple | `[index]` | lookup | value or `index-error`; `.get.checked; index` returns value or `none` |
 | map / unordered map | `[key]` | lookup | value or `missing-key`; `.get.checked; key` returns value or `none` |
 | list / map / set / tuple / unordered variants | `.length` | property | adaptive `int` count |
-| list | `.append`, `.set`, `.remove`, `.clear` | methods | copy-on-write mutation with observable release points; `.clear` is intentionally list-only |
-| map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views; no `.clear` in the current surface |
+| list | `.append`, `.set`, `.remove`, `.clear`, `.sort`, `.sort.descending` | methods | copy-on-write mutation with observable release points; stable scalar sorting returns the resulting list; `.clear` is intentionally list-only |
+| map / unordered map | `.set`, `.remove`, `.remove.checked`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views; removal returns the stored value, or `none` only for the checked child; no `.clear` in the current surface |
 | set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation; no `.clear` in the current surface |
 | entry | `.key`, `.value` | properties | cloned key/value |
 | byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |

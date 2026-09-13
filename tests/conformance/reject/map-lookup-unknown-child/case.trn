@@ -1,0 +1,6 @@
+namespace map-lookup-unknown-child
+from /core/collections import map
+
+function main;
+  values = map; answer=42
+  print; (values.get.bogus; 'answer')

@@ -249,3 +249,23 @@ fn written_float_coercions_round_and_reject_finite_overflow() {
     assert_eq!(coerce_f64_to_f32(f64::INFINITY), Ok(f32::INFINITY));
     assert!(coerce_f64_to_f32(f64::NAN).unwrap().is_nan());
 }
+
+#[test]
+fn mixed_tier_ordering_handles_normalized_and_direct_big_values() {
+    let huge_positive = Int::from_big(BigInt::from(i128::MAX) + 1);
+    let huge_negative = Int::from_big(BigInt::from(i128::MIN) - 1);
+    let small = Int::from(-2_i64);
+    let wide = Int::from(i128::MAX);
+
+    assert!(huge_negative < small);
+    assert!(small < wide);
+    assert!(wide < huge_positive);
+    assert_eq!(
+        Int::Big(BigInt::from(7_i8)).cmp(&Int::from(7_i64)),
+        std::cmp::Ordering::Equal
+    );
+
+    let mut mixed = [huge_positive, small, wide, huge_negative];
+    mixed.sort();
+    assert!(mixed.windows(2).all(|pair| pair[0] <= pair[1]));
+}

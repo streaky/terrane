@@ -3337,11 +3337,41 @@ the referent is destroyed only after its final owner is released.
 
 **Ordering.** Maps and sets preserve insertion order, and that order is an observable part of their contract rather than an implementation accident. Iteration, rendering, and serialisation are therefore reproducible without the program sorting defensively.
 
-A separate unordered map and set type exists for cases where the index-map layout costs more than the guarantee is worth. It does not preserve insertion order, but it remains deterministic: a fixed hash seed means the same insertions iterate the same way on every run, in every process, and across builds. The performance option must never be the nondeterministic option, because reproducible output and comparable test evidence depend on it. Choosing it is a type choice rather than a flag, so the weaker guarantee stays visible in signatures and at every boundary the value crosses.
+A separate unordered map and set type exists for cases where expected constant-time removal matters more than preserving the relative order of remaining elements. It does not promise insertion order, but it remains deterministic: the same operation sequence iterates the same way on every run, in every process, and across builds. New elements append to the current traversal sequence, while removal may fill the removed position with the previous final element. Iteration order may therefore depend on prior removals and insertions, and content-equal unordered collections constructed through different operation histories need not traverse identically. The performance option must never be the nondeterministic option, because reproducible output and comparable test evidence depend on it. Choosing it is a type choice rather than a flag, so the weaker guarantee stays visible in signatures and at every boundary the value crosses.
+
+**Keyed removal.** `map of Key, Value` and `unordered-map of Key, Value` expose
+`remove; key`, which removes and returns the stored value or throws `missing-key`, and
+`remove.checked; key`, which returns `Value|none`. A miss does not mutate the map or trigger
+copy-on-write separation. Successful removal transfers the stored logical value to the caller and
+separates shared storage exactly once; a unique map mutates its existing backing storage. Ordered
+maps retain the relative insertion order of every remaining entry, and reinserting a removed key is
+a new insertion at the end. Removal is rejected when a still-live element reference prevents the
+compiler from proving the mutation safe.
+
+**Stable list ordering.** `list` exposes zero-argument `sort` and `sort.descending` methods. Both
+stably mutate the receiver and return its resulting list value under the ordinary copy-on-write
+mutator rule. The closed admitted item set is adaptive `int`, every fixed signed and unsigned
+integer, `float32`, `float64` (including the `float` alias), and `string`; optional and union item
+types, booleans, collections, objects, references, resources, and comparator callbacks are rejected.
+Strings compare lexicographically by Unicode scalar sequence without normalization, locale, or case
+folding, and integers compare by mathematical value.
+
+Floating ordering is total and deterministic for this operation. Negative infinity, finite values,
+and positive infinity retain numeric order; negative and positive zero compare equal, preserving
+their input order. Every NaN belongs to one equivalent category after all non-NaN values in both
+directions, regardless of sign or payload. Descending order applies its comparison directly rather
+than reversing an ascending result, so equal-value stability and the final NaN bucket are preserved.
 
 **Mutation results.** A mutator returns the resulting collection for value and copy-on-write collections, and `none` for an in-place mutator on a resource, unless the operation has a meaningful removed or replaced value to report.
 
 **Copy-on-write separation.** Separation occurs at the first mutation visible through a non-unique handle, which is what preserves value-assignment semantics without copying on every binding.
+
+A mutable collection method used as a statement must target a retained collection binding. Calling a
+mutator through a temporary collection value, including an `entry.value` or indexed-element
+snapshot, and discarding its returned collection is rejected because the mutation would have no
+observable destination. Terrane does not implicitly write such a result back through the containing
+collection. The caller must consume and explicitly store the returned value, for example
+`nested.set; index, (nested[index].append; value)`, or bind the result before storing it back.
 
 **Element type inference.** A homogeneous literal infers the narrowest common declared type of its elements. A heterogeneous literal requires an explicit finite union or an annotation; the compiler does not widen silently to a dynamic element type.
 

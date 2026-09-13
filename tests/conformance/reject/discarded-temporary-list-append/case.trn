@@ -1,0 +1,7 @@
+namespace discarded-temporary-list-append
+from /core/collections import list, map
+
+function main;
+  values map of string, list of int = map; alpha=(list; 1)
+  for pair in values.entries;
+    pair.value.append; 2

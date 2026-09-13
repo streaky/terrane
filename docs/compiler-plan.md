@@ -202,158 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 29.0 — Efficient removal and ordered collection traversal
-
-Stateful services need to delete keyed state and traverse scalar values in
-value order without rebuilding whole collections or moving policy into a Rust adapter. Extend the
-existing value-semantic collection surface rather than introducing another collection family.
-
-#### Source contract
-
-Add map removal to both `map of Key, Value` and `unordered-map of Key, Value`:
-
-```terrane
-removed Value = values.remove; key
-maybe-removed Value|none = values.remove.checked; key
-```
-
-The default child removes and returns the stored value or throws `missing-key` without mutating the
-map. The `checked` child removes and returns the value when present and returns `none` without
-mutation when absent. Neither form performs a separate source-visible lookup. A successful removal
-transfers the removed value to the caller; discarding the result releases it at that site.
-
-The existing collection admissibility boundary remains: a collection whose item graph is
-resource-owning is rejected before lowering, so this milestone does not create copyable/COW aliases
-of linear resources. Removal transfers an admitted stored logical value under the existing
-collection release rules; lifting the resource-owning collection restriction is separate work.
-
-An ordered `map` retains the relative insertion order of every remaining entry. Removing and later
-reinserting the same key is a new insertion at the end. An `unordered-map` retains its existing
-deterministic-unordered contract. A miss must not trigger copy-on-write separation. A successful
-mutation separates shared backing storage exactly once, while a uniquely held map mutates its
-existing backing storage. Removal is admitted only when the borrow checker can prove that every
-outstanding element reference remains valid; otherwise it rejects the call. The language does not
-declare that removal invalidates all element references merely because one backing representation
-might move unrelated entries. An initial conservative proof may reject when it cannot establish
-stability, but must leave room for more precise disjoint-key/path reasoning without a language
-change.
-
-Add stable in-place scalar ordering to `list`:
-
-```terrane
-values.sort;
-values.sort.descending;
-```
-
-Both methods mutate and return the resulting list, matching existing copy-on-write list mutators.
-Returning the receiver's resulting value is deliberate: it follows the language-wide collection
-mutator rule rather than making sort a one-off in-place exception. In
-`other = values.sort;`, `values` is mutated and `other` receives the same logical sorted value;
-neither binding aliases source-visible collection identity, and a later mutation separates them
-under ordinary copy-on-write semantics. The result is not the pre-sort value and sort does not
-return `none`.
-The default child orders ascending and `descending` orders descending. The admitted item
-descriptors are exactly:
-
-```text
-int
-int8, int16, int32, int64, int128
-uint8, uint16, uint32, uint64, uint128
-float32, float64
-string
-```
-
-`float` is accepted because it resolves to the canonical `float64` descriptor; it is not an
-additional admitted type. Even when every arm is numeric, optional and finite-union item types
-reject. `bool`, collections, objects, references, resources, and caller-supplied comparator
-callbacks also reject statically. This is an intentionally closed first contract, not permission
-to route unsupported values through dynamic comparison.
-
-Sorting is stable: values equal under the selected ordering retain their prior relative order.
-Strings compare lexicographically by Unicode scalar sequence without normalization, locale, or case
-folding; canonically equivalent strings with different scalar sequences may therefore sort
-differently. Integers compare by mathematical value. Floating values use this explicit
-deterministic policy:
-
-- negative infinity, finite values, and positive infinity retain their numeric order;
-- negative and positive zero compare equal, so stability preserves their input order;
-- every NaN compares as one equivalent unordered category and is placed after all non-NaN values
-  in both ascending and descending results; and
-- NaN sign and payload never affect ordering because those details are not source contracts.
-
-This policy must be shared by constant evaluation, semantic documentation, runtime support, and
-generated Rust. It must not inherit host `partial_cmp` failure or expose Rust's NaN payload order.
-
-`sort.descending` applies the descending comparison directly. It must not sort ascending and then
-reverse: reversal would invert stable equal-value groups and move the NaN bucket to the front.
-No non-mutating `.sorted` alias, map-by-key sorting method, ordered-tree collection, custom
-comparator, collation object, or generalized ordering protocol belongs to this milestone.
-
-#### Compiler and lowering work
-
-Deliver:
-
-- canonical `DescriptorContract` members and operation identities for `remove`,
-  `remove.checked`, `sort`, and `sort.descending`; do not add a parallel collection-member table;
-- receiver-, key-, item-, result-, and throwable-aware semantic checking, including static
-  rejection of sorting unsupported item types and ordinary optional refinement of checked removal;
-- effect summaries in which default removal can throw `missing-key`, checked removal is
-  non-throwing, and sorting is non-throwing under the total policy above;
-- borrow/reference validity proof, copy-on-write separation, move/release, reflection, and generated
-  member metadata consistent with existing list removal and map mutation, without making one
-  backing representation's blanket reference invalidation a source contract;
-- ordered-map lowering that performs exactly one structural removal from the separated backing
-  container while preserving the remaining insertion order, and unordered-map lowering with
-  expected amortized constant-time removal;
-- stable list sorting that mutates unique backing storage directly, separates shared storage once,
-  performs no per-comparison allocation, cloning, formatting, boxing, or dynamic dispatch, and
-  compares adaptive integers directly in their adaptive representation without narrowing or
-  stringifying them; and
-- readable source-mapped Rust whose helper selection is monomorphic for each admitted item type.
-
-“One structural removal” does not mean one physical hash probe across the complete copy-on-write
-path. Shared storage may be probed for presence before separation so a miss avoids cloning, then
-removed once from the separated container. That internal probe is not a second source-visible
-lookup or removal. Unique storage should proceed directly to the one removal.
-
-Preserving ordered-map insertion order may require shifting the suffix after removal; that cost is
-part of the ordered representation contract. It must not be implemented by reconstructing and
-rehashing the whole map. Sorting may use linear temporary storage required by a stable
-$O(n \log n)$ algorithm, but must not clone logical items per comparison or silently select an
-unstable algorithm.
-
-#### Evidence and boundaries
-
-Add focused accepted cases for:
-
-- present and absent default/checked removal on ordered and unordered maps;
-- removal followed by reinsertion, ordered map views, iteration, and entry destructuring;
-- removed destructor-bearing copyable values, observable destruction, copy-on-write aliases, and a
-  unique map;
-- ascending and descending integer, adaptive-integer, string, and floating lists;
-- duplicate/equal values, signed zero, infinities, multiple NaNs, empty lists, and one-item lists,
-  including a regression proving descending comparison is direct rather than ascending-plus-reverse;
-- sorting a separated list without changing its preserved pre-sort alias, assigning the returned
-  sorted value to another binding, and proving a later mutation separates the two sorted values; and
-- using sorted map keys to drive deterministic ascending and descending lookup traversal.
-
-Add focused rejected cases for unsupported sort item types—including all optional and union item
-types—unknown sort children or arguments, wrong removal keys/destinations, resource-owning map
-values under the existing collection restriction, removal when the compiler cannot prove
-outstanding element references remain valid, and default removal without an admitted `missing-key`
-effect. Retain the current diagnostics that tuples cannot mutate and maps do not expose list-only
-members.
-
-Record a reproducible performance witness over representative small and large maps/lists. It must
-show that an absent removal performs no full collection clone, unique unordered removal is expected
-amortized $O(1)$, ordered removal preserves order without rebuilding the whole map, and stable sort
-scales as $O(n \log n)$ without per-comparison allocation. The witness establishes algorithmic and
-allocation behavior, not a machine-specific latency threshold.
-
-Exit criterion: source check, lowering, canonical generated Rust, runtime conformance, reflection,
-documentation/reference synchronization, strict Clippy, the complete conformance matrix, and the
-measured workspace suite all agree on the removal, ordering, lifetime, and performance contracts.
-
 ### Milestone 29.1 — Heterogeneous asynchronous selection
 
 Terrane async code needs to wait efficiently for the first of several differently typed operations
@@ -2528,6 +2376,27 @@ identity, custom output naming and disk writes, support/error separation, source
 generated-crate compilation, artifact reuse and eviction, and strict canonical-format rejection;
 compile/run conformance cases validate the generated crates with warnings denied.
 
+
+Longer-term cache consolidation should separate generated-program identity from Cargo dependency
+artifact reuse. Move generated builds into one bounded, content-addressed target pool shared by CLI
+commands and the conformance harness. The pool key must cover the Rust toolchain, target triple,
+profile and panic policy, relevant rustflags, bundled-support identities, and the complete external
+dependency closure. Generated packages and binaries need collision-free identity-derived names;
+concurrent builders must coordinate target mutation and capture the exact emitted executable before
+releasing that coordination, rather than racing on Cargo's conventional `target/debug/<name>` path.
+Final package executables remain cached under the existing full source identity, while dependency
+artifacts may be reused across different programs with the same pool key. A size-bounded,
+last-used eviction policy must retain active entries, expose inspection and pruning commands, and
+never turn a partial or merely similar key into a cache hit. Conformance and ordinary CLI builds
+should exercise the same pool so focused fixture runs do not recreate the runtime and dependency
+graph hundreds of times.
+
+Until that design is implemented, focused conformance work uses
+`TERRANE_CONFORMANCE_FILTER=<case-name>` with the canonical harness and its shared target rather
+than invoking `terrane run` inside tracked fixture directories. Workspace development and test
+profiles retain incremental compilation but emit line-table-only debug information to bound future
+artifact growth.
+
 Remaining milestone-5 work: lowering still initially constructs item bodies as Rust text before the
 mandatory parse and structural normalization boundary. A fully structural expression/statement
 builder and a named-intermediate nesting policy therefore remain assigned to this milestone. The
@@ -3722,3 +3591,191 @@ adapter dependency it calls directly. `logging-capability` proves profile denial
 ### Completed portion of Milestone 32.1 — Projection artifact foundation
 
 Projection artifacts have an exact identity envelope, SHA-256 payload validation, exact-match acceptance, and a resolution chain covering cache, optional trusted-HTTPS publication, bundled-source skip, and local rustdoc fallback. Every source attempt and result is recorded in `terrane-projection.lock` with stable origin, rustdoc format, projection schema, cache identity, content hash, and explicit failure reasons. Local rustdoc remains the ground-truth fallback.
+
+### Milestone 29.0 — Efficient removal and ordered collection traversal
+
+Stateful services need to delete keyed state and traverse scalar values in
+value order without rebuilding whole collections or moving policy into a Rust adapter. Extend the
+existing value-semantic collection surface rather than introducing another collection family.
+
+#### Source contract
+
+Add map removal to both `map of Key, Value` and `unordered-map of Key, Value`:
+
+```terrane
+removed Value = values.remove; key
+maybe-removed Value|none = values.remove.checked; key
+```
+
+The default child removes and returns the stored value or throws `missing-key` without mutating the
+map. The `checked` child removes and returns the value when present and returns `none` without
+mutation when absent. Neither form performs a separate source-visible lookup. A successful removal
+transfers the removed value to the caller; discarding the result releases it at that site.
+
+The existing collection admissibility boundary remains: a collection whose item graph is
+resource-owning is rejected before lowering, so this milestone does not create copyable/COW aliases
+of linear resources. Removal transfers an admitted stored logical value under the existing
+collection release rules; lifting the resource-owning collection restriction is separate work.
+
+An ordered `map` retains the relative insertion order of every remaining entry. Removing and later
+reinserting the same key is a new insertion at the end. An `unordered-map` retains its existing
+deterministic-unordered contract. A miss must not trigger copy-on-write separation. A successful
+mutation separates shared backing storage exactly once, while a uniquely held map mutates its
+existing backing storage. Removal is admitted only when the borrow checker can prove that every
+outstanding element reference remains valid; otherwise it rejects the call. The language does not
+declare that removal invalidates all element references merely because one backing representation
+might move unrelated entries. An initial conservative proof may reject when it cannot establish
+stability, but must leave room for more precise disjoint-key/path reasoning without a language
+change.
+
+Add stable in-place scalar ordering to `list`:
+
+```terrane
+values.sort;
+values.sort.descending;
+```
+
+Both methods mutate and return the resulting list, matching existing copy-on-write list mutators.
+Returning the receiver's resulting value is deliberate: it follows the language-wide collection
+mutator rule rather than making sort a one-off in-place exception. In
+`other = values.sort;`, `values` is mutated and `other` receives the same logical sorted value;
+neither binding aliases source-visible collection identity, and a later mutation separates them
+under ordinary copy-on-write semantics. The result is not the pre-sort value and sort does not
+return `none`.
+The default child orders ascending and `descending` orders descending. The admitted item
+descriptors are exactly:
+
+```text
+int
+int8, int16, int32, int64, int128
+uint8, uint16, uint32, uint64, uint128
+float32, float64
+string
+```
+
+`float` is accepted because it resolves to the canonical `float64` descriptor; it is not an
+additional admitted type. Even when every arm is numeric, optional and finite-union item types
+reject. `bool`, collections, objects, references, resources, and caller-supplied comparator
+callbacks also reject statically. This is an intentionally closed first contract, not permission
+to route unsupported values through dynamic comparison.
+
+Sorting is stable: values equal under the selected ordering retain their prior relative order.
+Strings compare lexicographically by Unicode scalar sequence without normalization, locale, or case
+folding; canonically equivalent strings with different scalar sequences may therefore sort
+differently. Integers compare by mathematical value. Floating values use this explicit
+deterministic policy:
+
+- negative infinity, finite values, and positive infinity retain their numeric order;
+- negative and positive zero compare equal, so stability preserves their input order;
+- every NaN compares as one equivalent unordered category and is placed after all non-NaN values
+  in both ascending and descending results; and
+- NaN sign and payload never affect ordering because those details are not source contracts.
+
+This policy must be shared by constant evaluation, semantic documentation, runtime support, and
+generated Rust. It must not inherit host `partial_cmp` failure or expose Rust's NaN payload order.
+
+`sort.descending` applies the descending comparison directly. It must not sort ascending and then
+reverse: reversal would invert stable equal-value groups and move the NaN bucket to the front.
+No non-mutating `.sorted` alias, map-by-key sorting method, ordered-tree collection, custom
+comparator, collation object, or generalized ordering protocol belongs to this milestone.
+
+#### Compiler and lowering work
+
+Deliver:
+
+- canonical `DescriptorContract` members and operation identities for `remove`,
+  `remove.checked`, `sort`, and `sort.descending`; do not add a parallel collection-member table;
+- receiver-, key-, item-, result-, and throwable-aware semantic checking, including static
+  rejection of sorting unsupported item types and ordinary optional refinement of checked removal;
+- effect summaries in which default removal can throw `missing-key`, checked removal is
+  non-throwing, and sorting is non-throwing under the total policy above;
+- borrow/reference validity proof, copy-on-write separation, move/release, reflection, and generated
+  member metadata consistent with existing list removal and map mutation, without making one
+  backing representation's blanket reference invalidation a source contract;
+- ordered-map lowering that performs exactly one structural removal from the separated backing
+  container while preserving the remaining insertion order, and unordered-map lowering with
+  expected amortized constant-time removal;
+- stable list sorting that mutates unique backing storage directly, separates shared storage once,
+  performs no per-comparison allocation, cloning, formatting, boxing, or dynamic dispatch, and
+  compares adaptive integers directly in their adaptive representation without narrowing or
+  stringifying them; and
+- readable source-mapped Rust whose helper selection is monomorphic for each admitted item type.
+
+“One structural removal” does not mean one physical hash probe across the complete copy-on-write
+path. Shared storage may be probed for presence before separation so a miss avoids cloning, then
+removed once from the separated container. That internal probe is not a second source-visible
+lookup or removal. Unique storage should proceed directly to the one removal.
+
+Preserving ordered-map insertion order may require shifting the suffix after removal; that cost is
+part of the ordered representation contract. It must not be implemented by reconstructing and
+rehashing the whole map. Sorting may use linear temporary storage required by a stable
+$O(n \log n)$ algorithm, but must not clone logical items per comparison or silently select an
+unstable algorithm.
+
+#### Evidence and boundaries
+
+Add focused accepted cases for:
+
+- present and absent default/checked removal on ordered and unordered maps;
+- removal followed by reinsertion, ordered map views, iteration, and entry destructuring;
+- removed destructor-bearing copyable values, observable destruction, copy-on-write aliases, and a
+  unique map;
+- ascending and descending integer, adaptive-integer, string, and floating lists;
+- duplicate/equal values, signed zero, infinities, multiple NaNs, empty lists, and one-item lists,
+  including a regression proving descending comparison is direct rather than ascending-plus-reverse;
+- sorting a separated list without changing its preserved pre-sort alias, assigning the returned
+  sorted value to another binding, and proving a later mutation separates the two sorted values; and
+- using sorted map keys to drive deterministic ascending and descending lookup traversal.
+
+Add focused rejected cases for unsupported sort item types—including all optional and union item
+types—unknown sort children or arguments, wrong removal keys/destinations, resource-owning map
+values under the existing collection restriction, removal when the compiler cannot prove
+outstanding element references remain valid, and default removal without an admitted `missing-key`
+effect. Retain the current diagnostics that tuples cannot mutate and maps do not expose list-only
+members.
+
+Record a reproducible performance witness over representative small and large maps/lists. It must
+show that an absent removal performs no full collection clone, unique unordered removal is expected
+amortized $O(1)$, ordered removal preserves order without rebuilding the whole map, and stable sort
+scales as $O(n \log n)$ without per-comparison allocation. The witness establishes algorithmic and
+allocation behavior, not a machine-specific latency threshold.
+
+Exit criterion: source check, lowering, canonical generated Rust, runtime conformance, reflection,
+documentation/reference synchronization, strict Clippy, the complete conformance matrix, and the
+measured workspace suite all agree on the removal, ordering, lifetime, and performance contracts.
+
+
+Implemented evidence: compiler-owned descriptors, inference, effect validation, ownership
+diagnostics, and canonical Rust lowering now cover `map`/`unordered-map` `.remove` and
+`.remove.checked`, plus stable `list.sort` and `list.sort.descending`. The collection runtime checks
+a shared miss before copy-on-write separation, uses ordered `shift_remove`, stores unordered
+map/set iteration positions beside their values, appends new unordered items, and repairs one moved
+position after `swap_remove` for expected amortized constant-time insertion and deletion. List
+ordering calls Rust's stable slice sort with monomorphic scalar comparators.
+
+The `map-key-removal`, `stable-list-sorting`, and `collection-property-method-calls` run cases cover
+returned and discarded values, checked and throwing absence, ordered reinsertion and views,
+deterministic unordered traversal, calls through entry properties, copy-on-write aliases,
+destructor-bearing values, every admitted scalar family, infinities, signed zeroes, multiple NaNs,
+empty and singleton lists, expression results, and sorting map-key views.
+Focused rejected fixtures cover argument and key errors, wrong destinations, missing throwable
+admission, outstanding references, resource-owning maps, unsupported list items, unknown
+collection-member children, and discarded mutations through temporary collection snapshots. The
+removal-clone, unordered-removal-hash, unordered-insertion/set-removal-hash, and stable-sort
+performance witnesses compare small and large collections while asserting absent shared removal
+does not separate, unique removal does not clone values, unordered insertion and removal have
+size-independent hash work, and stable sorting has bounded $O(n \log n)$ comparisons with no item
+clones. The adaptive-integer
+unit witness additionally asserts that a mixed `Small`/`Wide`/`Big` sort performs no
+allocation-producing `as_big` materializations.
+
+Compatibility note: Milestone 29.0 changes unordered traversal from the earlier stable-hash order to
+append plus swap-fill order so both insertion and removal meet the expected amortized constant-time
+contract. Programs must not treat prior unordered rendering or traversal order as stable; the
+`collections-value-semantics` golden records the intentional transition.
+
+Discarded temporary mutations use `T0128` with help directing callers to bind the returned
+collection and explicitly store it back. Implicit element-place mutation is not part of this
+milestone. The generated conformance workspace uses the same line-table-only debug profile as the
+workspace so its shared target does not retain full-debuginfo copies of every generated binary and
+runtime dependency.

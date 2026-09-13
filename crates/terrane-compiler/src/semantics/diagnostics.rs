@@ -324,6 +324,99 @@ pub(super) fn object_method_mutates(
         })
 }
 
+pub(super) fn validate_discarded_temporary_mutations(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn retained_receiver(unit: &SemanticUnit, receiver: &SyntaxNode) -> bool {
+        if receiver.kind == SyntaxKind::Name {
+            return true;
+        }
+        let [base, _field] = receiver.children.as_slice() else {
+            return false;
+        };
+        receiver.kind == SyntaxKind::MemberExpression
+            && retained_receiver(unit, base)
+            && matches!(
+                infer_receiver_value_type(unit, base, &unit.typed_bindings),
+                Ok(Some(ValueType::Object(_)))
+            )
+    }
+
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::Block {
+            for statement in &node.children {
+                if statement.kind == SyntaxKind::CallExpression
+                    && let Some(callee) = statement.children.first()
+                    && let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee)
+                    && descriptor_is_collection(unit, &receiver_type)
+                    && !retained_receiver(unit, receiver)
+                {
+                    let family = member
+                        .split_once('.')
+                        .map_or(member.as_str(), |(family, _)| family);
+                    if member_invocation_mode(package, unit, &receiver_type, family)
+                        == InvocationMode::Mutable
+                    {
+                        return Err(SemanticFailure {
+                            source: unit.source.clone(),
+                            diagnostics: vec![
+                                Diagnostic::error(
+                                    "T0128",
+                                    format!(
+                                        "mutating collection method `.{member}` cannot discard a temporary receiver"
+                                    ),
+                                    receiver.span,
+                                )
+                                .with_help(
+                                    "bind the returned collection and explicitly store it back into the containing collection",
+                                ),
+                            ],
+                        });
+                    }
+                }
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn typed_member_call<'a>(
+    unit: &SemanticUnit,
+    callee: &'a SyntaxNode,
+) -> Option<(&'a SyntaxNode, ValueType, String)> {
+    if let Ok(Some(call)) = collection_member_call(unit, callee, &unit.typed_bindings) {
+        return Some(call);
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    if callee.kind != SyntaxKind::MemberExpression {
+        return None;
+    }
+    infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+        .map(|receiver_type| {
+            (
+                receiver,
+                receiver_type,
+                node_text(&unit.source, member).to_owned(),
+            )
+        })
+}
+
 pub(crate) fn member_invocation_mode(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -467,34 +560,23 @@ pub(crate) fn binding_span_is_mutated(
             });
         let mutator_call = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
-                let [receiver, member] = callee.children.as_slice() else {
+                let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee)
+                else {
                     return false;
                 };
-                callee.kind == SyntaxKind::MemberExpression
-                    && infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-                        .ok()
-                        .flatten()
-                        .is_some_and(|receiver_type| {
-                            let callable_field = match &receiver_type {
-                                ValueType::Object(identity) => matches!(
-                                    object_field_type(
-                                        unit,
-                                        identity,
-                                        node_text(&unit.source, member),
-                                        false,
-                                    ),
-                                    Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-                                ),
-                                _ => false,
-                            };
-                            member_invocation_mode(
-                                package,
-                                unit,
-                                &receiver_type,
-                                node_text(&unit.source, member),
-                            ) == InvocationMode::Mutable
-                                && (closure_writes == ClosureWrites::Include || !callable_field)
-                        })
+                let family = member
+                    .split_once('.')
+                    .map_or(member.as_str(), |(family, _)| family);
+                let callable_field = match &receiver_type {
+                    ValueType::Object(identity) => matches!(
+                        object_field_type(unit, identity, family, false),
+                        Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                    ),
+                    _ => false,
+                };
+                member_invocation_mode(package, unit, &receiver_type, family)
+                    == InvocationMode::Mutable
+                    && (closure_writes == ClosureWrites::Include || !callable_field)
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding

@@ -1,0 +1,8 @@
+namespace reference-map-removal
+from /core/collections import map
+
+function main;
+  values = map; answer=42, other=1
+  observer ref int = ref values['answer']
+  values.remove.checked; 'other'
+  print; observer
