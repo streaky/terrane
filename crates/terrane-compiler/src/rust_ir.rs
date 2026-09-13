@@ -911,7 +911,7 @@ mod tests {
 
     #[test]
     fn review_rendering_replaces_runtime_contents_with_a_manifest() {
-        let program = |runtime_body| Program {
+        let program = |runtime_body, sites_body| Program {
             version: "test",
             requires_platform_support: false,
             requires_async_runtime: true,
@@ -924,10 +924,7 @@ mod tests {
                 GeneratedModule {
                     name: "sites",
                     source_files: Vec::new(),
-                    items: vec![Item::generated(
-                        "static SITES: &[u32] = &[7];\n\
-                         static LABEL: &str = \"terrane_string_support\";",
-                    )],
+                    items: vec![Item::generated(sites_body)],
                 },
             ],
             globals: vec![Item::generated(
@@ -941,13 +938,22 @@ mod tests {
             }],
         };
 
-        let first = program("fn runtime_first() {}").rendered();
-        let second = program("fn runtime_second() {}").rendered();
+        let sites = "static SITES: &[u32] = &[7];\n\
+                     static LABEL: &str = \"terrane_string_support\";";
+        let first = program("fn runtime_first() {}", sites).rendered();
+        let second = program("fn runtime_second() {}", sites).rendered();
+        let changed_sites = program(
+            "fn runtime_first() {}",
+            "static SITES: &[u32] = &[8];\n\
+             static LABEL: &str = \"terrane_string_support\";",
+        )
+        .rendered();
         assert_ne!(
             first.standalone_file("<stdout>").contents,
             second.standalone_file("<stdout>").contents
         );
         assert_eq!(first.review_file(), second.review_file());
+        assert_ne!(first.review_file(), changed_sites.review_file());
         assert_eq!(
             first.review_file(),
             "// Generated deterministically by Terrane test.\n\
