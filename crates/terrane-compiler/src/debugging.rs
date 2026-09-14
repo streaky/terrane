@@ -816,6 +816,45 @@ mod tests {
     }
 
     #[test]
+    fn three_clause_loop_causes_do_not_bleed_into_the_body_statement() {
+        let compilation = compile_with_options(
+            "loop.trn",
+            concat!(
+                "namespace loop-debug\n",
+                "function main;\n",
+                "  for index = 0; index < 2; index++\n",
+                "    print; index\n",
+                "  print; 9\n",
+            )
+            .to_owned(),
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let debug = compilation
+            .debug_information(Path::new("src/main.rs"))
+            .unwrap()
+            .unwrap();
+        let body_associations = debug
+            .generated_files
+            .iter()
+            .flat_map(|file| &file.associations)
+            .filter(|association| {
+                association.sequence_point && association.causes.iter().any(|cause| cause.line == 4)
+            })
+            .collect::<Vec<_>>();
+
+        assert!(!body_associations.is_empty());
+        assert!(
+            body_associations
+                .iter()
+                .all(|association| { association.causes.iter().all(|cause| cause.line == 4) })
+        );
+    }
+
+    #[test]
     fn ordinary_compilation_does_not_emit_debug_markers() {
         let compilation = crate::compile(
             "ordinary.trn",
