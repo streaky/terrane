@@ -46,10 +46,14 @@ impl DebugFixture {
     }
 
     fn build(&self) -> (PathBuf, PathBuf) {
-        self.build_with_flags(&[])
+        self.build_expecting(&[], b"42\r\n")
     }
 
     fn build_with_flags(&self, flags: &[&str]) -> (PathBuf, PathBuf) {
+        self.build_expecting(flags, b"42\r\n")
+    }
+
+    fn build_expecting(&self, flags: &[&str], expected_stdout: &[u8]) -> (PathBuf, PathBuf) {
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
             .arg("debug")
             .args(flags)
@@ -68,7 +72,7 @@ impl DebugFixture {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        assert_eq!(output.stdout, b"42\r\n");
+        assert_eq!(output.stdout, expected_stdout);
         let build = fs::read_dir(self.root.join(".trn/build"))
             .unwrap()
             .map(|entry| entry.unwrap().path())
@@ -977,6 +981,105 @@ fn cli_next_ignores_temporary_breakpoint_hits_in_recursive_deeper_frames() {
     assert!(stderr.contains("#0   /debugger::descend"), "{stderr}");
     assert!(stderr.contains("#1   /debugger::main"), "{stderr}");
     assert!(!stderr.contains("#1   /debugger::descend"), "{stderr}");
+}
+
+#[test]
+fn debugger_preserves_breakpoints_beyond_five_hundred_sequence_points() {
+    let fixture = DebugFixture::new();
+    let mut source =
+        "namespace debugger\nfrom /core/output import print\nfunction main;\n  value = 0\n"
+            .to_owned();
+    for _ in 0..620 {
+        source.push_str("  value = value + 1\n");
+    }
+    source.push_str("  print; value\n");
+    fs::write(&fixture.source, source).unwrap();
+    let (_, provenance_path) = fixture.build_expecting(&[], b"620\r\n");
+    let provenance: Value = serde_json::from_slice(&fs::read(&provenance_path).unwrap()).unwrap();
+    let sequence_points = provenance["debug"]["generated_files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|file| file["associations"].as_array().unwrap())
+        .filter(|association| association["sequence_point"] == true)
+        .count();
+    assert!(sequence_points > 500, "{sequence_points}");
+
+    let target_line = 550;
+    let commands = format!(
+        "break {}:{target_line}\ncontinue\nsource 0\nquit\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains(&format!(":{target_line}")), "{stderr}");
+    assert!(
+        stderr.contains(&format!(">   {target_line} |   value = value + 1")),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn cli_locals_follow_the_innermost_shadowed_binding() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "  value int = 1\n",
+            "  if value == 1\n",
+            "    value int = 2\n",
+            "    print; value\n",
+            "  print; value\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:7\nbreak {}:8\ncontinue\nlocals\ndisable 1\ncontinue\nlocals\nquit\n",
+        fixture.source.display(),
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let inner = stderr
+        .find("value = 2")
+        .unwrap_or_else(|| panic!("inner binding is not visible:\n{stderr}"));
+    let outer = stderr[inner + 1..]
+        .find("value = 1")
+        .unwrap_or_else(|| panic!("outer binding is not restored:\n{stderr}"));
+    assert!(outer > 0);
 }
 
 #[test]

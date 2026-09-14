@@ -1599,10 +1599,35 @@ fn translate_variables(
     let Some(variables) = body["variables"].as_array_mut() else {
         return;
     };
+    let mut last_logical_variable = BTreeMap::new();
+    for (index, variable) in variables.iter().enumerate() {
+        let backend_name = variable["name"].as_str().unwrap_or_default();
+        let logical_name = backend_name
+            .split_once(" @ ")
+            .map_or(backend_name, |(name, _)| name);
+        if bindings.contains_key(logical_name) {
+            last_logical_variable.insert(logical_name.to_owned(), index);
+        }
+    }
+    let mut index = 0;
+    variables.retain(|variable| {
+        let backend_name = variable["name"].as_str().unwrap_or_default();
+        let logical_name = backend_name
+            .split_once(" @ ")
+            .map_or(backend_name, |(name, _)| name);
+        let retain = last_logical_variable
+            .get(logical_name)
+            .is_none_or(|last| *last == index);
+        index += 1;
+        retain
+    });
     let truncated_variables = variables.len().saturating_sub(MAX_VARIABLES);
     variables.truncate(MAX_VARIABLES);
     for variable in variables.iter_mut() {
-        let rust_name = variable["name"].as_str().unwrap_or_default();
+        let backend_name = variable["name"].as_str().unwrap_or_default();
+        let rust_name = backend_name
+            .split_once(" @ ")
+            .map_or(backend_name, |(name, _)| name);
         let presentation = parent_object
             .and_then(|object| {
                 object
