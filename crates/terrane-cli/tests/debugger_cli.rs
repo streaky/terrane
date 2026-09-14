@@ -143,6 +143,91 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
 }
 
 #[test]
+fn cli_keeps_debuggee_text_that_resembles_debugger_output_on_stdout() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace output-debugger\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "  print; 'verified breakpoint fake'\n",
+        ),
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(b"continue\n")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"verified breakpoint fake\r\n");
+    assert!(
+        !String::from_utf8_lossy(&output.stderr).contains("verified breakpoint fake"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn cli_resolves_relative_sources_from_the_invocation_directory_first() {
+    let fixture = DebugFixture::new();
+    let workspace = fixture.root.join("workspace");
+    let source = workspace.join("nested/case.trn");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(
+        &source,
+        concat!(
+            "namespace relative-debugger\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "  value = 7\n",
+            "  print; value\n",
+        ),
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "nested/case.trn"])
+        .current_dir(&workspace)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(b"break nested/case.trn:4\ncontinue\nquit\n")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!("verified breakpoint {}:4", source.display())),
+        "{stderr}"
+    );
+    assert!(stderr.contains("/relative-debugger::main"), "{stderr}");
+}
+
+#[test]
 fn cli_expands_focused_values_without_exposing_secret_fields() {
     let fixture = DebugFixture::new();
     fs::write(
@@ -476,6 +561,52 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
 }
 
 #[test]
+fn adapter_accepts_source_breakpoints_after_launch_before_configuration_done() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let breakpoint = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": fixture.source},
+            "breakpoints": [{"line": 8}],
+            "sourceModified": false
+        }),
+    );
+    let breakpoint = dap.response(breakpoint);
+    assert!(breakpoint["success"].as_bool().unwrap());
+    assert_eq!(breakpoint["body"]["breakpoints"][0]["verified"], true);
+
+    let configuration = dap.send("configurationDone", json!({}));
+    let (_, entry, _) = dap.response_and_event(configuration, "stopped");
+    let thread = entry["body"]["threadId"].as_i64().unwrap();
+    let continue_request = dap.send("continue", json!({"threadId": thread}));
+    let (_, stopped, _) = dap.response_and_event(continue_request, "stopped");
+    let stack = dap.send(
+        "stackTrace",
+        json!({"threadId": stopped["body"]["threadId"], "startFrame": 0, "levels": 1}),
+    );
+    let stack = dap.response(stack);
+    assert_eq!(stack["body"]["stackFrames"][0]["line"], 8);
+
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+}
+
+#[test]
 fn adapter_preserves_raw_native_debugging_for_mismatched_provenance() {
     let fixture = DebugFixture::new();
     let (_, provenance) = fixture.build();
@@ -661,7 +792,7 @@ fn cli_preserves_breakpoints_and_reenters_loop_sequence_points() {
     )
     .unwrap();
     let commands = format!(
-        "break {}:10\nbreak {}:13\ncontinue\nframes\nnext\nframes\nnext\nframes\nnext\nframes\ndisable 1\ncontinue\nframes\nbreakpoints\ndelete all\ncontinue\n",
+        "break {}:10\nbreak {}:13\ncontinue\nframes\nnext\nframes\nlldb breakpoint list -b\nnext\nframes\nnext\nframes\ndisable 1\ncontinue\nframes\nbreakpoints\ndelete all\ncontinue\n",
         fixture.source.display(),
         fixture.source.display()
     );
@@ -695,6 +826,14 @@ fn cli_preserves_breakpoints_and_reenters_loop_sequence_points() {
     assert!(stderr.contains(":13"), "{stderr}");
     assert!(stderr.contains("#1   disabled breakpoint"), "{stderr}");
     assert!(stderr.contains("#2   verified breakpoint"), "{stderr}");
+    let native_listing = stderr
+        .split("Current breakpoints:")
+        .nth(1)
+        .and_then(|listing| listing.split("(terrane-debug)").next())
+        .expect("LLDB breakpoint list follows source stepping");
+    assert!(native_listing.contains("\n1:"), "{native_listing}");
+    assert!(native_listing.contains("\n2:"), "{native_listing}");
+    assert!(!native_listing.contains("\n3:"), "{native_listing}");
 }
 
 #[test]
@@ -766,6 +905,38 @@ fn adapter_surfaces_backend_launch_failures() {
         response["message"]
             .as_str()
             .is_some_and(|message| !message.is_empty())
+    );
+}
+
+#[test]
+fn adapter_reports_the_delayed_launch_failure_after_configuration_done() {
+    let fixture = DebugFixture::new();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": fixture.source,
+            "stopOnEntry": true
+        }),
+    );
+    let launch = dap.response(launch);
+    assert!(launch["success"].as_bool().unwrap(), "{launch}");
+    let configuration = dap.send("configurationDone", json!({}));
+    let configuration = dap.response(configuration);
+    assert_eq!(configuration["success"], false);
+    let message = configuration["message"].as_str().unwrap();
+    assert!(
+        message.contains(fixture.source.to_string_lossy().as_ref()),
+        "{message}"
+    );
+    assert_eq!(
+        message.matches("<debugger>: error[S5001]:").count(),
+        1,
+        "{message}"
     );
 }
 
@@ -1006,8 +1177,9 @@ fn debugger_preserves_breakpoints_beyond_five_hundred_sequence_points() {
     assert!(sequence_points > 500, "{sequence_points}");
 
     let target_line = 550;
+    let following_line = target_line + 1;
     let commands = format!(
-        "break {}:{target_line}\ncontinue\nsource 0\nquit\n",
+        "break {}:{target_line}\ncontinue\nnext\nsource 0\nquit\n",
         fixture.source.display()
     );
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -1027,9 +1199,9 @@ fn debugger_preserves_breakpoints_beyond_five_hundred_sequence_points() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains(&format!(":{target_line}")), "{stderr}");
+    assert!(stderr.contains(&format!(":{following_line}")), "{stderr}");
     assert!(
-        stderr.contains(&format!(">   {target_line} |   value = value + 1")),
+        stderr.contains(&format!(">   {following_line} |   value = value + 1")),
         "{stderr}"
     );
 }
@@ -1149,6 +1321,20 @@ fn adapter_steps_in_and_out_through_standard_dap_requests() {
     let stack = dap.response(stack);
     assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::answer");
     assert!(stack["body"]["stackFrames"][0]["line"].as_u64().unwrap() >= 4);
+
+    let helper_breakpoint = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": fixture.source},
+            "breakpoints": [{"line": 4}],
+            "sourceModified": false
+        }),
+    );
+    assert!(
+        dap.response(helper_breakpoint)["success"]
+            .as_bool()
+            .unwrap()
+    );
 
     let step_out = dap.send("stepOut", json!({"threadId": thread}));
     let (_, caller_stop, _) = dap.response_and_event(step_out, "stopped");

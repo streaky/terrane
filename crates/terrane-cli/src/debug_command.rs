@@ -4,6 +4,7 @@ use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, ExitCode, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -16,6 +17,8 @@ use base64::Engine as _;
 use num_bigint::BigUint;
 
 const MAX_RAW_STEPS: usize = 64;
+const MAX_TEMPORARY_SEQUENCE_POINTS: usize = 512;
+static NEXT_COMMAND_FILE: AtomicU64 = AtomicU64::new(1);
 
 pub(super) fn write_provenance(
     build_root: &Path,
@@ -347,15 +350,18 @@ impl Adapter {
             let sidecar = arguments["terraneProvenance"]
                 .as_str()
                 .map_or_else(|| executable_sidecar(&executable), PathBuf::from);
-            let recorded_relocation = fs::read(&sidecar)
+            let loaded = load_provenance(&sidecar);
+            let recorded_relocation = loaded
+                .as_ref()
                 .ok()
-                .and_then(|bytes| serde_json::from_slice::<ProvenanceManifest>(&bytes).ok())
-                .map(|provenance| provenance.relocation);
-            let translation = load_and_validate(
-                &sidecar,
-                &executable,
-                arguments.get("terraneRelocation"),
-            )
+                .map(|provenance| provenance.relocation.clone());
+            let translation = loaded.and_then(|provenance| {
+                validate_provenance(
+                    provenance,
+                    &executable,
+                    arguments.get("terraneRelocation"),
+                )
+            })
             .and_then(|provenance| {
                 let stale =
                     provenance.validate_sources(Path::new(&provenance.relocation.source_root));
@@ -604,26 +610,24 @@ impl Adapter {
             .then(|| self.pending_launch_context.take())
             .flatten();
         let backend = self.backend_mut()?;
-        let backend_response = backend.request(command, arguments).map_err(|failure| {
-            if let Some(context) = &pending_context {
-                debugger_failure(format!("{context}: {}", failure.message))
+        let backend_response = backend.request(command, arguments);
+        if let Some(sequence) = pending_launch
+            && let Err(failure) = backend.finish_request(sequence, Duration::from_millis(500))
+        {
+            return Err(contextual_debugger_failure(
+                pending_context
+                    .as_deref()
+                    .unwrap_or("delayed launch or attach request failed"),
+                &failure,
+            ));
+        }
+        let backend_response = backend_response.map_err(|failure| {
+            if let Some(context) = pending_context.as_deref() {
+                contextual_debugger_failure(context, &failure)
             } else {
                 failure
             }
         })?;
-        if let Some(sequence) = pending_launch {
-            backend
-                .finish_request(sequence, Duration::from_millis(500))
-                .map_err(|failure| {
-                    debugger_failure(format!(
-                        "{}: {}",
-                        pending_context
-                            .as_deref()
-                            .unwrap_or("delayed launch or attach request failed"),
-                        failure.message
-                    ))
-                })?;
-        }
         let terminal_event = if matches!(
             command,
             "continue" | "next" | "stepIn" | "stepOut" | "configurationDone"
@@ -743,6 +747,22 @@ struct Backend {
     sequence: i64,
     events: VecDeque<Value>,
     responses: BTreeMap<i64, Value>,
+}
+fn backend_console_output(backend: &mut Backend, response: &Value) -> String {
+    let mut output = response["body"]["result"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    let mut retained = VecDeque::new();
+    while let Some(event) = backend.events.pop_front() {
+        if event["event"] == "output" && event["body"]["category"] == "console" {
+            output.push_str(event["body"]["output"].as_str().unwrap_or_default());
+        } else {
+            retained.push_back(event);
+        }
+    }
+    backend.events = retained;
+    output
 }
 
 fn discover_rust_lldb_formatter(rust_sysroot: &str) -> Option<PathBuf> {
@@ -1370,6 +1390,26 @@ fn normalized_source_path(provenance: &ProvenanceManifest, path: &Path) -> PathB
         .unwrap_or_else(|_| lexical_normalize(&rooted))
 }
 
+fn requested_source_paths(provenance: &ProvenanceManifest, path: &Path) -> Vec<PathBuf> {
+    if path.is_absolute() {
+        return vec![normalized_source_path(provenance, path)];
+    }
+    let mut candidates = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        let rooted = cwd.join(path);
+        candidates.push(
+            rooted
+                .canonicalize()
+                .unwrap_or_else(|_| lexical_normalize(&rooted)),
+        );
+    }
+    let package_relative = normalized_source_path(provenance, path);
+    if !candidates.contains(&package_relative) {
+        candidates.push(package_relative);
+    }
+    candidates
+}
+
 fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component;
 
@@ -1391,18 +1431,22 @@ fn lexical_normalize(path: &Path) -> PathBuf {
 }
 
 fn known_source_path(provenance: &ProvenanceManifest, requested: &Path) -> Option<PathBuf> {
-    let requested = normalized_source_path(provenance, requested);
-    provenance
+    let authored = provenance
         .debug
         .sources
         .iter()
-        .any(|source| normalized_source_path(provenance, Path::new(&source.uri)) == requested)
-        .then_some(requested)
+        .map(|source| normalized_source_path(provenance, Path::new(&source.uri)))
+        .collect::<BTreeSet<_>>();
+    requested_source_paths(provenance, requested)
+        .into_iter()
+        .find(|candidate| authored.contains(candidate))
 }
 
 fn source_matches(provenance: &ProvenanceManifest, requested: &Path, uri: &str) -> bool {
-    normalized_source_path(provenance, requested)
-        == normalized_source_path(provenance, Path::new(uri))
+    let source = normalized_source_path(provenance, Path::new(uri));
+    requested_source_paths(provenance, requested)
+        .into_iter()
+        .any(|candidate| candidate == source)
 }
 
 fn all_source_associations(
@@ -2057,49 +2101,38 @@ fn temporary_sequence_step(
     if targets.is_empty() {
         return Ok(None);
     }
+    if targets.len() > MAX_TEMPORARY_SEQUENCE_POINTS {
+        return Ok(None);
+    }
     let target_locations = targets
         .iter()
         .map(|(path, line)| (lexical_normalize(&generated_path(provenance, path)), *line))
         .collect::<BTreeSet<_>>();
     let current_file = frame["source"]["path"].as_str().unwrap_or_default();
     let suspended_ids = breakpoints.backend_ids_at(current_file, current.generated.line);
-    if !suspended_ids.is_empty() {
-        let ids = suspended_ids
-            .iter()
-            .map(i64::to_string)
-            .collect::<Vec<_>>()
-            .join(" ");
-        backend.request(
-            "evaluate",
-            json!({"expression": format!("`breakpoint disable {ids}"), "context": "repl"}),
-        )?;
-    }
+    set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
 
-    let mut temporary_ids = Vec::new();
+    let command_file = TemporaryBreakpointCommands::write(provenance, &targets)?;
+    let response = backend.request(
+        "evaluate",
+        json!({
+            "expression": format!(
+                "`command source -s 0 {}",
+                lldb_quote(&command_file.path.to_string_lossy())
+            ),
+            "context": "repl"
+        }),
+    )?;
+    let temporary_ids = parse_lldb_breakpoint_ids(&backend_console_output(backend, &response));
+    if temporary_ids.len() != targets.len() {
+        set_backend_breakpoints_enabled(backend, &suspended_ids, true)?;
+        return Err(debugger_failure(format!(
+            "lldb-dap identified {} of {} temporary source breakpoints",
+            temporary_ids.len(),
+            targets.len()
+        )));
+    }
     let result = (|| {
-        for (path, line) in targets {
-            let path = generated_path(provenance, &path);
-            let response = backend.request(
-                "evaluate",
-                json!({
-                    "expression": format!(
-                        "`breakpoint set --file {} --line {line}",
-                        lldb_quote(&path.to_string_lossy())
-                    ),
-                    "context": "repl"
-                }),
-            )?;
-            let id = response["body"]["result"]
-                .as_str()
-                .and_then(parse_lldb_breakpoint_id)
-                .ok_or_else(|| {
-                    debugger_failure(format!(
-                        "lldb-dap did not identify temporary source breakpoint at {}:{line}",
-                        path.display()
-                    ))
-                })?;
-            temporary_ids.push(id);
-        }
         backend.request(
             "continue",
             json!({"threadId": thread_id, "singleThread": false}),
@@ -2151,38 +2184,99 @@ fn temporary_sequence_step(
             )?;
         }
     })();
-    for id in temporary_ids {
-        let _ = backend.request(
-            "evaluate",
-            json!({
-                "expression": format!("`breakpoint delete {id}"),
-                "context": "repl"
-            }),
-        );
-    }
-    if !suspended_ids.is_empty() {
-        let ids = suspended_ids
+    if !temporary_ids.is_empty() {
+        let ids = temporary_ids
             .iter()
             .map(i64::to_string)
             .collect::<Vec<_>>()
             .join(" ");
         let _ = backend.request(
             "evaluate",
-            json!({"expression": format!("`breakpoint enable {ids}"), "context": "repl"}),
+            json!({
+                "expression": format!("`breakpoint delete {ids}"),
+                "context": "repl"
+            }),
         );
     }
+    let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
     result.map(Some)
 }
 
-fn parse_lldb_breakpoint_id(output: &str) -> Option<i64> {
-    output.lines().find_map(|line| {
-        line.trim()
-            .strip_prefix("Breakpoint ")?
-            .split_once(':')?
-            .0
-            .parse()
-            .ok()
-    })
+struct TemporaryBreakpointCommands {
+    path: PathBuf,
+}
+
+impl TemporaryBreakpointCommands {
+    fn write(
+        provenance: &ProvenanceManifest,
+        targets: &BTreeSet<(String, usize)>,
+    ) -> Result<Self, CliFailure> {
+        let sequence = NEXT_COMMAND_FILE.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "terrane-debug-breakpoints-{}-{sequence}.lldb",
+            std::process::id()
+        ));
+        let commands = targets
+            .iter()
+            .map(|(relative, line)| {
+                let path = generated_path(provenance, relative);
+                format!(
+                    "breakpoint set --file {} --line {line}",
+                    lldb_quote(&path.to_string_lossy())
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&path, format!("{commands}\n")).map_err(|error| {
+            debugger_failure(format!(
+                "cannot write temporary debugger commands {}: {error}",
+                path.display()
+            ))
+        })?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for TemporaryBreakpointCommands {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn set_backend_breakpoints_enabled(
+    backend: &mut Backend,
+    ids: &[i64],
+    enabled: bool,
+) -> Result<(), CliFailure> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let ids = ids.iter().map(i64::to_string).collect::<Vec<_>>().join(" ");
+    backend.request(
+        "evaluate",
+        json!({
+            "expression": format!(
+                "`breakpoint {} {ids}",
+                if enabled { "enable" } else { "disable" }
+            ),
+            "context": "repl"
+        }),
+    )?;
+    Ok(())
+}
+
+fn parse_lldb_breakpoint_ids(output: &str) -> Vec<i64> {
+    output
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix("Breakpoint ")?
+                .split_once(':')?
+                .0
+                .parse()
+                .ok()
+        })
+        .collect()
 }
 
 fn step_to_source(
@@ -2198,53 +2292,67 @@ fn step_to_source(
         return Ok(event);
     }
     let origin = mapped_stop_location(backend, provenance, thread_id)?;
-    let mut native_command = command;
-    for _ in 0..MAX_RAW_STEPS {
-        backend.request(
-            native_command,
-            json!({"threadId": thread_id, "singleThread": true, "granularity": "statement"}),
-        )?;
-        let event = backend.wait_for_event(&["stopped", "terminated"])?;
-        if event["event"] != "stopped" {
-            return Ok(event);
-        }
-        let reason = event["body"]["reason"].as_str().unwrap_or_default();
-        if !matches!(reason, "step" | "entry" | "") {
-            return Ok(event);
-        }
-        if command == "stepOut" {
-            native_command = "next";
-        }
-        let Some(current) = mapped_stop_location(backend, provenance, thread_id)? else {
-            continue;
-        };
-        let Some(origin) = &origin else {
-            return Ok(event);
-        };
-        let changed_point = current.generated_path != origin.generated_path
-            || current.generated_line != origin.generated_line
-            || current.function_id != origin.function_id;
-        let reached_source_target = match command {
-            "next" => {
-                current.frame_depth < origin.frame_depth
-                    || (current.frame_depth == origin.frame_depth && changed_point)
+    let suspended_ids = origin.as_ref().map_or_else(Vec::new, |origin| {
+        breakpoints.backend_ids_at(&origin.generated_path, origin.generated_line)
+    });
+    set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
+    let result = (|| {
+        let mut native_command = command;
+        for _ in 0..MAX_RAW_STEPS {
+            backend.request(
+                native_command,
+                json!({"threadId": thread_id, "singleThread": true, "granularity": "statement"}),
+            )?;
+            let event = backend.wait_for_event(&["stopped", "terminated"])?;
+            if event["event"] != "stopped" {
+                return Ok(event);
             }
-            "stepOut" => current.frame_depth < origin.frame_depth,
-            _ => current.frame_depth > origin.frame_depth || changed_point,
-        };
-        if reached_source_target {
-            return Ok(event);
+            let reason = event["body"]["reason"].as_str().unwrap_or_default();
+            if !matches!(reason, "step" | "entry" | "") {
+                return Ok(event);
+            }
+            if command == "stepOut" {
+                native_command = "next";
+            }
+            let Some(current) = mapped_stop_location(backend, provenance, thread_id)? else {
+                continue;
+            };
+            let Some(origin) = &origin else {
+                return Ok(event);
+            };
+            let changed_point = current.generated_path != origin.generated_path
+                || current.generated_line != origin.generated_line
+                || current.function_id != origin.function_id;
+            let reached_source_target = match command {
+                "next" => {
+                    current.frame_depth < origin.frame_depth
+                        || (current.frame_depth == origin.frame_depth && changed_point)
+                }
+                "stepOut" => current.frame_depth < origin.frame_depth,
+                _ => current.frame_depth > origin.frame_depth || changed_point,
+            };
+            if reached_source_target {
+                return Ok(event);
+            }
         }
+        eprintln!(
+            "source progress unavailable after {MAX_RAW_STEPS} bounded native steps; exposing the native stop"
+        );
+        Ok(json!({
+            "seq": 0,
+            "type": "event",
+            "event": "stopped",
+            "body": {"reason": "step", "threadId": thread_id}
+        }))
+    })();
+    let restored = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
+    match result {
+        Ok(event) => {
+            restored?;
+            Ok(event)
+        }
+        Err(failure) => Err(failure),
     }
-    eprintln!(
-        "source progress unavailable after {MAX_RAW_STEPS} bounded native steps; exposing the native stop"
-    );
-    Ok(json!({
-        "seq": 0,
-        "type": "event",
-        "event": "stopped",
-        "body": {"reason": "step", "threadId": thread_id}
-    }))
 }
 
 fn lldb_quote(value: &str) -> String {
@@ -2614,13 +2722,34 @@ fn parse_breakpoint(location: &str) -> Result<(PathBuf, usize), CliFailure> {
     Ok((PathBuf::from(path), line))
 }
 
+fn load_provenance(sidecar: &Path) -> Result<ProvenanceManifest, CliFailure> {
+    let bytes = fs::read(sidecar).map_err(|error| {
+        debugger_failure(format!(
+            "Terrane translation unavailable: cannot read provenance sidecar {}: {error}; raw native debugging remains available",
+            sidecar.display()
+        ))
+    })?;
+    serde_json::from_slice(&bytes).map_err(|error| {
+        debugger_failure(format!(
+            "Terrane translation unavailable: invalid provenance sidecar {}: {error}; raw native debugging remains available",
+            sidecar.display()
+        ))
+    })
+}
+
 fn load_and_validate(
     sidecar: &Path,
     executable: &Path,
     relocation: Option<&Value>,
 ) -> Result<ProvenanceManifest, CliFailure> {
-    let bytes = fs::read(sidecar).map_err(|error| debugger_failure(format!("Terrane translation unavailable: cannot read provenance sidecar {}: {error}; raw native debugging remains available", sidecar.display())))?;
-    let mut provenance: ProvenanceManifest = serde_json::from_slice(&bytes).map_err(|error| debugger_failure(format!("Terrane translation unavailable: invalid provenance sidecar {}: {error}; raw native debugging remains available", sidecar.display())))?;
+    validate_provenance(load_provenance(sidecar)?, executable, relocation)
+}
+
+fn validate_provenance(
+    mut provenance: ProvenanceManifest,
+    executable: &Path,
+    relocation: Option<&Value>,
+) -> Result<ProvenanceManifest, CliFailure> {
     if let Some(relocation) = relocation {
         if let Some(build_root) = relocation["buildRoot"].as_str() {
             provenance.relocation.build_root =
@@ -2754,6 +2883,15 @@ fn write_message(writer: &mut impl Write, value: &Value) -> io::Result<()> {
     write!(writer, "Content-Length: {}\r\n\r\n", bytes.len())?;
     writer.write_all(&bytes)?;
     writer.flush()
+}
+
+fn contextual_debugger_failure(context: &str, failure: &CliFailure) -> CliFailure {
+    let detail = failure
+        .message
+        .trim()
+        .strip_prefix("<debugger>: error[S5001]: ")
+        .unwrap_or(failure.message.trim());
+    debugger_failure(format!("{context}: {detail}"))
 }
 
 fn debugger_failure(message: impl Into<String>) -> CliFailure {
@@ -3038,6 +3176,16 @@ mod tests {
         );
         assert_eq!(variables["variables"][0]["value"], "41");
         assert_eq!(variables["variables"][0]["variablesReference"], 0);
+    }
+
+    #[test]
+    fn batched_lldb_breakpoint_output_preserves_every_identifier() {
+        assert_eq!(
+            parse_lldb_breakpoint_ids(
+                "Breakpoint 4: 1 location.\nBreakpoint 7: 2 locations.\nnot a breakpoint\n"
+            ),
+            [4, 7]
+        );
     }
 
     #[test]
