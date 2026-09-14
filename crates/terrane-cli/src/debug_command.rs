@@ -61,16 +61,18 @@ pub(super) fn run_cli(
             "pathFormat": "path"
         }),
     )?;
-    backend.send(
-        "launch",
-        json!({
-            "program": executable,
-            "args": arguments,
-            "cwd": provenance.relocation.source_root,
-            "stopOnEntry": true,
-            "disableASLR": false
-        }),
-    )?;
+    let mut backend_arguments = json!({
+        "program": executable,
+        "args": arguments,
+        "cwd": provenance.relocation.source_root,
+        "stopOnEntry": true,
+        "disableASLR": false
+    });
+    add_rust_lldb_init_commands(
+        &mut backend_arguments,
+        discover_rust_lldb_formatter().as_deref(),
+    );
+    backend.send("launch", backend_arguments)?;
     backend.request("configurationDone", json!({}))?;
     let stopped = backend.wait_for_event(&["stopped", "terminated"])?;
     backend.emit_debuggee_output()?;
@@ -287,6 +289,10 @@ impl Adapter {
                     .expect("DAP arguments are an object")
                     .remove(name);
             }
+            add_rust_lldb_init_commands(
+                &mut backend_arguments,
+                discover_rust_lldb_formatter().as_deref(),
+            );
             if command == "launch"
                 && let Ok(provenance) = &translation
             {
@@ -509,6 +515,51 @@ struct Backend {
     output: BufReader<ChildStdout>,
     sequence: i64,
     events: VecDeque<Value>,
+}
+
+fn discover_rust_lldb_formatter() -> Option<PathBuf> {
+    let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
+    let output = Command::new(rustc)
+        .args(["--print", "sysroot"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let sysroot = String::from_utf8(output.stdout).ok()?;
+    let formatter = Path::new(sysroot.trim())
+        .join("lib")
+        .join("rustlib")
+        .join("etc")
+        .join("lldb_lookup.py");
+    formatter.is_file().then_some(formatter)
+}
+
+fn add_rust_lldb_init_commands(arguments: &mut Value, formatter: Option<&Path>) {
+    let Some(formatter) = formatter else {
+        return;
+    };
+    let Some(arguments) = arguments.as_object_mut() else {
+        return;
+    };
+    let commands = arguments
+        .entry("initCommands")
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let Some(commands) = commands.as_array_mut() else {
+        return;
+    };
+    commands.insert(
+        0,
+        format!(
+            "?command script import {}",
+            lldb_quote(&formatter.to_string_lossy())
+        )
+        .into(),
+    );
+    commands.insert(
+        1,
+        "?settings set target.process.unsupported-language-warnings false".into(),
+    );
 }
 
 impl Backend {
@@ -1545,6 +1596,29 @@ mod tests {
                 .all(|location| location.message.contains("adjusted"))
         );
         assert!(resolve_breakpoint(&provenance, Path::new("unknown.trn"), 4).is_empty());
+    }
+
+    #[test]
+    fn rust_lldb_initialization_precedes_client_commands_when_available() {
+        let mut arguments = json!({"initCommands": ["settings set target.language c++"]});
+        add_rust_lldb_init_commands(
+            &mut arguments,
+            Some(Path::new(
+                "/toolchain with spaces/lib/rustlib/etc/lldb_lookup.py",
+            )),
+        );
+        assert_eq!(
+            arguments["initCommands"],
+            json!([
+                "?command script import \"/toolchain with spaces/lib/rustlib/etc/lldb_lookup.py\"",
+                "?settings set target.process.unsupported-language-warnings false",
+                "settings set target.language c++"
+            ])
+        );
+
+        let mut unavailable = json!({"program": "/tmp/program"});
+        add_rust_lldb_init_commands(&mut unavailable, None);
+        assert!(unavailable.get("initCommands").is_none());
     }
 
     #[test]
