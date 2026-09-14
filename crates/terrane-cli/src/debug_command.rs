@@ -3,7 +3,10 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, ExitCode, Stdio};
+use std::process::{Child, ChildStdin, Command, ExitCode, Stdio};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use terrane_compiler::debugging::{DebugAssociation, ProvenanceManifest};
@@ -23,7 +26,17 @@ pub(super) fn write_provenance(
         .map_err(|error| CliFailure::backend(format!("cannot encode debug provenance: {error}")))?;
     bytes.push(b'\n');
     let generated_sidecar = build_root.join("terrane-debug.json");
-    let executable_sidecar = executable.with_extension(format!(
+    let executable_sidecar = executable_sidecar(executable);
+    super::write_if_changed(&generated_sidecar, &bytes)
+        .map_err(|error| CliFailure::backend(format!("cannot write debug provenance: {error}")))?;
+    super::write_if_changed(&executable_sidecar, &bytes).map_err(|error| {
+        CliFailure::backend(format!("cannot write executable debug provenance: {error}"))
+    })?;
+    Ok(generated_sidecar)
+}
+
+fn executable_sidecar(executable: &Path) -> PathBuf {
+    executable.with_extension(format!(
         "{}terrane-debug.json",
         executable
             .extension()
@@ -31,13 +44,7 @@ pub(super) fn write_provenance(
                 "{}.",
                 extension.to_string_lossy()
             ))
-    ));
-    super::write_if_changed(&generated_sidecar, &bytes)
-        .map_err(|error| CliFailure::backend(format!("cannot write debug provenance: {error}")))?;
-    super::write_if_changed(&executable_sidecar, &bytes).map_err(|error| {
-        CliFailure::backend(format!("cannot write executable debug provenance: {error}"))
-    })?;
-    Ok(generated_sidecar)
+    ))
 }
 
 #[expect(
@@ -72,10 +79,17 @@ pub(super) fn run_cli(
         &mut backend_arguments,
         discover_rust_lldb_formatter().as_deref(),
     );
-    backend.send("launch", backend_arguments)?;
+    let _ = backend.request_with_timeout(
+        "launch",
+        backend_arguments,
+        Some(Duration::from_millis(500)),
+    )?;
     backend.request("configurationDone", json!({}))?;
     let stopped = backend.wait_for_event(&["stopped", "terminated"])?;
     backend.emit_debuggee_output()?;
+    if stopped["event"] != "stopped" {
+        return Ok(backend.debuggee_exit_code());
+    }
     let mut thread_id = stopped["body"]["threadId"].as_i64().unwrap_or(1);
     let mut selected_frame_index = 0_usize;
     let mut breakpoints = BreakpointManager::default();
@@ -122,7 +136,7 @@ pub(super) fn run_cli(
                 let event = backend.wait_for_event(&["stopped", "terminated"])?;
                 backend.emit_debuggee_output()?;
                 if event["event"] != "stopped" {
-                    return Ok(ExitCode::SUCCESS);
+                    return Ok(backend.debuggee_exit_code());
                 }
                 thread_id = event["body"]["threadId"].as_i64().unwrap_or(thread_id);
                 selected_frame_index = 0;
@@ -138,7 +152,7 @@ pub(super) fn run_cli(
                     step_to_source(&mut backend, &provenance, &breakpoints, request, thread_id)?;
                 backend.emit_debuggee_output()?;
                 if event["event"] != "stopped" {
-                    return Ok(ExitCode::SUCCESS);
+                    return Ok(backend.debuggee_exit_code());
                 }
                 thread_id = event["body"]["threadId"].as_i64().unwrap_or(thread_id);
                 selected_frame_index = 0;
@@ -266,13 +280,18 @@ impl Adapter {
         reason = "central dispatch keeps DAP request correlation and debugger lifecycle ordering explicit"
     )]
     fn handle(&mut self, command: &str, arguments: Value) -> Result<Vec<Value>, CliFailure> {
+        if matches!(
+            command,
+            "continue" | "next" | "stepIn" | "stepOut" | "configurationDone"
+        ) {
+            self.variable_objects.clear();
+        }
         if command == "initialize" {
             let backend = self.backend.get_or_insert(Backend::start()?);
             let _ = backend.request("initialize", arguments)?;
             let mut messages = vec![
                 response(json!({
                     "supportsConfigurationDoneRequest": true,
-                    "supportsCancelRequest": true,
                     "supportsTerminateRequest": true,
                     "supportsRestartRequest": false,
                     "supportsConditionalBreakpoints": false,
@@ -295,10 +314,15 @@ impl Adapter {
                 .ok_or_else(|| {
                     debugger_failure("launch/attach requires a native `program` path")
                 })?;
-            let sidecar = arguments["terraneProvenance"].as_str().map_or_else(
-                || executable.with_extension("terrane-debug.json"),
-                PathBuf::from,
-            );
+            if !executable.is_file() {
+                return Err(debugger_failure(format!(
+                    "cannot {command} missing native program {}",
+                    executable.display()
+                )));
+            }
+            let sidecar = arguments["terraneProvenance"]
+                .as_str()
+                .map_or_else(|| executable_sidecar(&executable), PathBuf::from);
             let translation = load_and_validate(
                 &sidecar,
                 &executable,
@@ -337,10 +361,13 @@ impl Adapter {
                 .backend
                 .as_mut()
                 .ok_or_else(|| debugger_failure("initialize must precede launch or attach"))?;
-            backend.send(command, backend_arguments)?;
+            let backend_response = backend
+                .request_with_timeout(command, backend_arguments, Some(Duration::from_millis(500)))?
+                .unwrap_or_else(|| response(json!({})));
             self.launched = command == "launch";
             self.executable = Some(executable);
-            let mut messages = with_backend_events(backend, response(json!({})));
+            let mut messages =
+                with_backend_events(backend, response(backend_response["body"].clone()));
             match translation {
                 Ok(provenance) => {
                     self.breakpoints.resolve_all(&provenance);
@@ -350,6 +377,7 @@ impl Adapter {
                         "terrane/fidelity",
                         json!({"mode": "source", "sourceTranslation": true}),
                     ));
+                    messages.extend(self.breakpoints.verification_events());
                 }
                 Err(failure) => {
                     self.provenance = None;
@@ -554,9 +582,10 @@ fn with_backend_events(backend: &mut Backend, response: Value) -> Vec<Value> {
 struct Backend {
     child: Child,
     input: ChildStdin,
-    output: BufReader<ChildStdout>,
+    output: Receiver<Result<Value, String>>,
     sequence: i64,
     events: VecDeque<Value>,
+    responses: BTreeMap<i64, Value>,
 }
 
 fn discover_rust_lldb_formatter() -> Option<PathBuf> {
@@ -615,13 +644,32 @@ impl Backend {
                 debugger_failure(format!("cannot start selected lldb-dap backend: {error}"))
             })?;
         let input = child.stdin.take().expect("piped lldb-dap stdin");
-        let output = BufReader::new(child.stdout.take().expect("piped lldb-dap stdout"));
+        let stdout = child.stdout.take().expect("piped lldb-dap stdout");
+        let (sender, output) = mpsc::channel();
+        thread::spawn(move || {
+            let mut reader = BufReader::new(stdout);
+            loop {
+                match read_message(&mut reader) {
+                    Ok(Some(message)) => {
+                        if sender.send(Ok(message)).is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(error) => {
+                        let _ = sender.send(Err(error.to_string()));
+                        break;
+                    }
+                }
+            }
+        });
         Ok(Self {
             child,
             input,
             output,
             sequence: 1,
             events: VecDeque::new(),
+            responses: BTreeMap::new(),
         })
     }
 
@@ -639,22 +687,46 @@ impl Backend {
     }
 
     fn request(&mut self, command: &str, arguments: Value) -> Result<Value, CliFailure> {
+        self.request_with_timeout(command, arguments, None)?
+            .ok_or_else(|| debugger_failure("lldb-dap request timed out"))
+    }
+
+    fn request_with_timeout(
+        &mut self,
+        command: &str,
+        arguments: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Option<Value>, CliFailure> {
         let sequence = self.send(command, arguments)?;
+        if let Some(response) = self.responses.remove(&sequence) {
+            return validate_backend_response(response).map(Some);
+        }
+        let deadline = timeout.map(|timeout| Instant::now() + timeout);
         loop {
-            let message = read_message(&mut self.output)
-                .map_err(protocol_failure)?
-                .ok_or_else(|| debugger_failure("lldb-dap closed its protocol stream"))?;
-            if message["type"] == "response" && message["request_seq"] == sequence {
-                if !message["success"].as_bool().unwrap_or(false) {
-                    return Err(debugger_failure(
-                        message["message"]
-                            .as_str()
-                            .unwrap_or("lldb-dap request failed"),
-                    ));
+            let message = match deadline {
+                Some(deadline) => {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    match self.output.recv_timeout(remaining) {
+                        Ok(message) => message,
+                        Err(RecvTimeoutError::Timeout) => return Ok(None),
+                        Err(RecvTimeoutError::Disconnected) => {
+                            return Err(debugger_failure("lldb-dap closed its protocol stream"));
+                        }
+                    }
                 }
-                return Ok(message);
+                None => self
+                    .output
+                    .recv()
+                    .map_err(|_| debugger_failure("lldb-dap closed its protocol stream"))?,
             }
-            if message["type"] == "event" {
+            .map_err(|error| protocol_failure(io::Error::other(error)))?;
+            if message["type"] == "response" {
+                let request_sequence = message["request_seq"].as_i64().unwrap_or(0);
+                if request_sequence == sequence {
+                    return validate_backend_response(message).map(Some);
+                }
+                self.responses.insert(request_sequence, message);
+            } else if message["type"] == "event" {
                 self.events.push_back(message);
             }
         }
@@ -669,11 +741,11 @@ impl Backend {
             return Ok(self.events.remove(index).expect("queued event exists"));
         }
         loop {
-            let message = read_message(&mut self.output)
-                .map_err(protocol_failure)?
-                .ok_or_else(|| {
-                    debugger_failure("lldb-dap closed before reporting process state")
-                })?;
+            let message = self
+                .output
+                .recv()
+                .map_err(|_| debugger_failure("lldb-dap closed before reporting process state"))?
+                .map_err(|error| protocol_failure(io::Error::other(error)))?;
             if message["type"] == "event"
                 && message["event"]
                     .as_str()
@@ -683,6 +755,9 @@ impl Backend {
             }
             if message["type"] == "event" {
                 self.events.push_back(message);
+            } else if message["type"] == "response" {
+                let request_sequence = message["request_seq"].as_i64().unwrap_or(0);
+                self.responses.insert(request_sequence, message);
             }
         }
     }
@@ -714,9 +789,33 @@ impl Backend {
         Ok(())
     }
 
+    fn debuggee_exit_code(&self) -> ExitCode {
+        let code = self
+            .events
+            .iter()
+            .rev()
+            .find(|event| event["event"] == "exited")
+            .and_then(|event| event["body"]["exitCode"].as_i64())
+            .and_then(|code| u8::try_from(code).ok())
+            .unwrap_or(1);
+        ExitCode::from(code)
+    }
+
     fn disconnect(&mut self, terminate: bool) -> Result<(), CliFailure> {
         let _ = self.request("disconnect", json!({"terminateDebuggee": terminate}))?;
         Ok(())
+    }
+}
+
+fn validate_backend_response(message: Value) -> Result<Value, CliFailure> {
+    if message["success"].as_bool().unwrap_or(false) {
+        Ok(message)
+    } else {
+        Err(debugger_failure(
+            message["message"]
+                .as_str()
+                .unwrap_or("lldb-dap request failed"),
+        ))
     }
 }
 
@@ -909,15 +1008,22 @@ impl BreakpointManager {
             .get(source)
             .into_iter()
             .flatten()
+            .map(LogicalBreakpoint::dap_value)
+            .collect()
+    }
+
+    fn verification_events(&self) -> Vec<Value> {
+        self.by_source
+            .values()
+            .flatten()
             .map(|breakpoint| {
-                let mut value = json!({
-                    "id": breakpoint.id,
-                    "verified": breakpoint.verified,
-                    "line": breakpoint.resolved_line(),
-                    "source": {"path": breakpoint.source_path}
-                });
-                value["message"] = breakpoint.message().into();
-                value
+                event(
+                    "breakpoint",
+                    json!({
+                        "reason": "changed",
+                        "breakpoint": breakpoint.dap_value()
+                    }),
+                )
             })
             .collect()
     }
@@ -989,6 +1095,16 @@ impl LogicalBreakpoint {
         self.resolutions
             .first()
             .map_or(self.requested_line, |resolution| resolution.source_line)
+    }
+
+    fn dap_value(&self) -> Value {
+        json!({
+            "id": self.id,
+            "verified": self.verified,
+            "line": self.resolved_line(),
+            "source": {"path": self.source_path},
+            "message": self.message()
+        })
     }
 
     fn message(&self) -> String {
@@ -2268,6 +2384,13 @@ mod tests {
                         "sequence_point": true,
                         "function_id": "function",
                         "scope_ids": ["scope"]
+                    }, {
+                        "generated": {"start": 10, "end": 14, "line": 14, "column": 1, "end_line": 14, "end_column": 5},
+                        "causes": [{"source_id": 1, "start": 40, "end": 44, "line": 6, "column": 3, "end_line": 6, "end_column": 7}],
+                        "role": "user",
+                        "sequence_point": true,
+                        "function_id": "function",
+                        "scope_ids": ["scope"]
                     }]
                 }],
                 "functions": [{
@@ -2280,6 +2403,7 @@ mod tests {
                 }],
                 "scopes": [{
                     "id": "scope",
+                    "function_id": "function",
                     "source": {"source_id": 1, "start": 10, "end": 50, "line": 2, "column": 1, "end_line": 6, "end_column": 1}
                 }],
                 "bindings": [{
@@ -2327,12 +2451,13 @@ mod tests {
         assert!(exact.iter().all(|location| location.source_line == 4));
 
         let adjusted = resolve_breakpoint(&provenance, Path::new("source.trn"), 5);
-        assert_eq!(adjusted.len(), 2);
+        assert_eq!(adjusted.len(), 1);
         assert!(
             adjusted
                 .iter()
                 .all(|location| location.message.contains("adjusted"))
         );
+        assert_eq!(adjusted[0].source_line, 6);
         assert!(resolve_breakpoint(&provenance, Path::new("unknown.trn"), 4).is_empty());
     }
 
@@ -2389,6 +2514,7 @@ mod tests {
         }, {
             "name": "token",
             "value": "must-not-escape",
+
             "variablesReference": 9,
             "memoryReference": "0x2345",
             "evaluateName": "credentials.token"
@@ -2405,5 +2531,25 @@ mod tests {
         assert_eq!(fields["variables"][1]["variablesReference"], 0);
         assert!(fields["variables"][1]["memoryReference"].is_null());
         assert!(fields["variables"][1]["evaluateName"].is_null());
+    }
+
+    #[test]
+    fn executable_sidecars_preserve_native_extensions() {
+        assert_eq!(
+            executable_sidecar(Path::new("/tmp/program.exe")),
+            Path::new("/tmp/program.exe.terrane-debug.json")
+        );
+        assert_eq!(
+            executable_sidecar(Path::new("/tmp/program")),
+            Path::new("/tmp/program.terrane-debug.json")
+        );
+    }
+
+    #[test]
+    fn resuming_invalidates_session_variable_handles_before_backend_io() {
+        let mut adapter = Adapter::default();
+        adapter.variable_objects.insert(7, "object".to_owned());
+        assert!(adapter.handle("continue", json!({"threadId": 1})).is_err());
+        assert!(adapter.variable_objects.is_empty());
     }
 }

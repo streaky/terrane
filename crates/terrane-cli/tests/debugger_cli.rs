@@ -287,9 +287,32 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
             .as_bool()
             .unwrap()
     );
+    assert!(response["body"].get("supportsCancelRequest").is_none());
     let initialized = dap.read();
     assert_eq!(initialized["type"], "event");
     assert_eq!(initialized["event"], "initialized");
+
+    let set_breakpoints = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": fixture.source},
+            "breakpoints": [{"line": 8}, {"line": 9}],
+            "sourceModified": false
+        }),
+    );
+    let pending = dap.response(set_breakpoints);
+    assert!(pending["success"].as_bool().unwrap());
+    assert_eq!(pending["body"]["breakpoints"].as_array().unwrap().len(), 2);
+    assert!(
+        pending["body"]["breakpoints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|breakpoint| {
+                !breakpoint["verified"].as_bool().unwrap()
+                    && breakpoint["message"].as_str().unwrap().contains("pending")
+            })
+    );
 
     let launch = dap.send(
         "launch",
@@ -301,33 +324,23 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
         }),
     );
     assert!(dap.response(launch)["success"].as_bool().unwrap());
-    let fidelity = dap.read();
-    assert_eq!(fidelity["event"], "terrane/fidelity");
+    let mut fidelity = None;
+    let mut changed = Vec::new();
+    while fidelity.is_none() || changed.len() < 2 {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            fidelity = Some(message);
+        } else if message["event"] == "breakpoint" {
+            changed.push(message);
+        }
+    }
+    let fidelity = fidelity.unwrap();
     assert_eq!(fidelity["body"]["mode"], "source");
     assert_eq!(fidelity["body"]["sourceTranslation"], true);
-
-    let set_breakpoints = dap.send(
-        "setBreakpoints",
-        json!({
-            "source": {"path": fixture.source},
-            "breakpoints": [{"line": 8}, {"line": 9}],
-            "sourceModified": false
-        }),
-    );
-    let response = dap.response(set_breakpoints);
-    assert!(response["success"].as_bool().unwrap());
-    assert!(
-        response["body"]["breakpoints"][0]["verified"]
-            .as_bool()
-            .unwrap()
-    );
-    assert_eq!(response["body"]["breakpoints"].as_array().unwrap().len(), 2);
-    assert!(
-        response["body"]["breakpoints"][1]["verified"]
-            .as_bool()
-            .unwrap()
-    );
-    let message = response["body"]["breakpoints"][0]["message"]
+    assert!(changed.iter().all(|message| {
+        message["body"]["reason"] == "changed" && message["body"]["breakpoint"]["verified"] == true
+    }));
+    let message = changed[0]["body"]["breakpoint"]["message"]
         .as_str()
         .unwrap();
     assert!(message.contains(fixture.source.to_string_lossy().as_ref()));
@@ -652,4 +665,60 @@ fn cli_step_out_returns_to_the_exact_caller() {
     assert!(stderr.contains("/depth::main"), "{stderr}");
     assert!(stderr.contains(":11"), "{stderr}");
     assert!(!stderr.contains("/depth::inner at"), "{stderr}");
+}
+
+#[test]
+fn adapter_surfaces_backend_launch_failures() {
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": "/definitely/missing/terrane-program",
+            "stopOnEntry": true
+        }),
+    );
+    let response = dap.response(launch);
+    assert_eq!(response["success"], false);
+    assert!(
+        response["message"]
+            .as_str()
+            .is_some_and(|message| !message.is_empty())
+    );
+}
+
+#[test]
+fn cli_returns_the_debuggee_exit_status() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace exit-debugger\n",
+            "from /core/process import exit, make-exit-status\n",
+            "function main;\n",
+            "  exit; (make-exit-status; 7)\n",
+        ),
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(b"continue\n")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert_eq!(
+        output.status.code(),
+        Some(7),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
