@@ -1,3 +1,4 @@
+mod debug_command;
 mod test_command;
 
 use sha2::{Digest, Sha256};
@@ -73,6 +74,8 @@ enum CliCommand {
     Rust,
     Build,
     Run,
+    Debug,
+    DebugAdapter,
     Test,
     Tooling,
     Query,
@@ -90,6 +93,8 @@ impl CliCommand {
             "build" => Some(Self::Build),
             "test" => Some(Self::Test),
             "run" => Some(Self::Run),
+            "debug" => Some(Self::Debug),
+            "debug-adapter" => Some(Self::DebugAdapter),
             "tooling" => Some(Self::Tooling),
             "query" => Some(Self::Query),
             "fmt" => Some(Self::Format),
@@ -167,7 +172,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
-        CliCommand::Check | CliCommand::Rust | CliCommand::Build | CliCommand::Run => {}
+        CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
+        CliCommand::Check
+        | CliCommand::Rust
+        | CliCommand::Build
+        | CliCommand::Run
+        | CliCommand::Debug => {}
     }
     let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
         parse_input(arguments, command)?;
@@ -194,6 +204,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
+            debug_information: command == CliCommand::Debug,
         },
     ) {
         Ok(compilation) => compilation,
@@ -241,6 +252,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
+            debug_information: command == CliCommand::Debug,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -258,10 +270,27 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
     }
-    let executable = executable.expect("build and run prepare an executable");
+    let executable = executable.expect("build, run, and debug prepare an executable");
     if command == CliCommand::Build {
         println!("{}", executable.display());
         return Ok(ExitCode::SUCCESS);
+    }
+    if command == CliCommand::Debug {
+        let debug = compilation
+            .debug_information(rust_entrypoint)
+            .map_err(CliFailure::rust_artifact)?
+            .expect("debug compilation produces debugger metadata");
+        let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
+            &package,
+            debug,
+            &executable,
+            &crate_dir,
+        )
+        .map_err(CliFailure::backend)?;
+        let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
+        let separator = arguments.iter().position(|argument| argument == "--");
+        let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
+        return debug_command::run_cli(&executable, &sidecar, program_arguments);
     }
     let separator = arguments.iter().position(|argument| argument == "--");
     let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
@@ -306,7 +335,7 @@ fn parse_input(
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
-    let has_valid_arity = if command == CliCommand::Run {
+    let has_valid_arity = if matches!(command, CliCommand::Run | CliCommand::Debug) {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
     } else {
@@ -751,6 +780,7 @@ struct GeneratedCrateOptions {
     uses_async_runtime: bool,
     uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
+    debug_information: bool,
 }
 
 fn base_generated_manifest() -> String {
@@ -816,8 +846,14 @@ fn write_generated_crate(
             write_rust_dependency(&mut manifest, dependency);
         }
     }
-    if options.panic == terrane_compiler::PanicProfile::Abort {
-        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
+    if options.panic == terrane_compiler::PanicProfile::Abort || options.debug_information {
+        manifest.push_str("\n[profile.dev]\n");
+        if options.panic == terrane_compiler::PanicProfile::Abort {
+            manifest.push_str("panic = \"abort\"\n");
+        }
+        if options.debug_information {
+            manifest.push_str("opt-level = 0\ndebug = 2\nstrip = \"none\"\n");
+        }
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
     manifest.push_str("\n[workspace]\n");
@@ -1414,6 +1450,8 @@ fn protocol_parse_error(
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
+     terrane debug <file-or-manifest> [-- program arguments]\n\
+     terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] <package-or-manifest>\n\
@@ -1428,6 +1466,8 @@ fn usage() -> String {
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program\n  \
+     debug  build and launch the LLDB-backed Terrane source debugger\n  \
+     debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
@@ -1610,6 +1650,7 @@ mod tests {
                     uses_async_runtime: true,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                    debug_information: true,
                 },
             )
             .is_ok()
@@ -1617,6 +1658,7 @@ mod tests {
 
         let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
         assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
+        assert!(manifest.contains("opt-level = 0\ndebug = 2\nstrip = \"none\"\n"));
         assert!(
             manifest
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
@@ -1655,6 +1697,7 @@ mod tests {
                     uses_async_runtime: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                    debug_information: false,
                 },
             )
             .is_ok()
