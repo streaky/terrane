@@ -1549,10 +1549,10 @@ features:
   completion: 100
   milestone: '30.2'
   reference:
-    state: current
+    state: documented
     paths:
     - manual/reference/records/tooling/debugging.yaml
-  notes: Linux x86-64 with lldb-dap 22 is exercised end to end for schema 1.1 exact-build target/sysroot/ABI provenance, grouped source breakpoints and pending lifecycle, mapped frames, loop/caller/async stepping, scope/shadow-aware bounded values, privacy, opt-in embedded source, stale/unsupported-artifact rejection, raw native fallback, and serialized DAP/CLI lifecycle. Cancellation is not advertised; attach remains host-policy-dependent; optimized or stripped source fidelity and direct isolated test-case debugging remain explicit exclusions.
+  notes: Linux x86-64 with lldb-dap 22 is exercised end to end for schema 1.2 exact-build Rust release/sysroot/target/profile/ABI provenance, copied-artifact relocation, split or embedded generated sources, uncapped grouped and pending source breakpoints, mapped frames, loop/caller/recursion/async and standard DAP stepping, scope/shadow-aware bounded values, privacy, malformed/stale/unsupported-artifact rejection, fatal native stops, raw native fallback, and serialized time-bounded DAP/CLI lifecycle. Cancellation is not advertised; attach remains host-policy-dependent; optimized or stripped source fidelity and direct isolated test-case debugging remain explicit exclusions.
   sources:
   - docs/language-spec-concise.md#DEBUGGING
   - docs/language-spec-and-compiler-architecture-draft.md#31.6-Debugging
