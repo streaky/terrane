@@ -283,6 +283,7 @@ struct Adapter {
     frame_contexts: BTreeMap<i64, StopContext>,
     variable_contexts: BTreeMap<i64, StopContext>,
     pending_launch_response: Option<i64>,
+    pending_launch_context: Option<String>,
     breakpoints: BreakpointManager,
 }
 
@@ -342,9 +343,14 @@ impl Adapter {
                     executable.display()
                 )));
             }
+            let attach_pid = arguments["pid"].as_u64().unwrap_or(0);
             let sidecar = arguments["terraneProvenance"]
                 .as_str()
                 .map_or_else(|| executable_sidecar(&executable), PathBuf::from);
+            let recorded_relocation = fs::read(&sidecar)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<ProvenanceManifest>(&bytes).ok())
+                .map(|provenance| provenance.relocation);
             let translation = load_and_validate(
                 &sidecar,
                 &executable,
@@ -370,6 +376,24 @@ impl Adapter {
                     .expect("DAP arguments are an object")
                     .remove(name);
             }
+            if let (Some(recorded), Ok(relocated)) = (&recorded_relocation, &translation) {
+                let mut source_map = Vec::new();
+                if recorded.build_root != relocated.relocation.build_root {
+                    source_map.push(json!([
+                        recorded.build_root,
+                        relocated.relocation.build_root
+                    ]));
+                }
+                if recorded.source_root != relocated.relocation.source_root {
+                    source_map.push(json!([
+                        recorded.source_root,
+                        relocated.relocation.source_root
+                    ]));
+                }
+                if !source_map.is_empty() {
+                    backend_arguments["sourceMap"] = source_map.into();
+                }
+            }
             add_rust_lldb_init_commands(
                 &mut backend_arguments,
                 translation
@@ -393,6 +417,16 @@ impl Adapter {
                     Some(Duration::from_millis(500)),
                 )?;
             self.pending_launch_response = backend_response.is_none().then_some(sequence);
+            self.pending_launch_context = backend_response.is_none().then(|| {
+                if command == "attach" {
+                    format!(
+                        "attach to process {} was rejected by the host or debugger backend",
+                        attach_pid
+                    )
+                } else {
+                    format!("launch of {} failed", executable.display())
+                }
+            });
             let backend_response = backend_response.unwrap_or_else(|| response(json!({})));
             self.launched = command == "launch";
             self.executable = Some(executable);
@@ -567,10 +601,29 @@ impl Adapter {
         let pending_launch = (command == "configurationDone")
             .then(|| self.pending_launch_response.take())
             .flatten();
+        let pending_context = (command == "configurationDone")
+            .then(|| self.pending_launch_context.take())
+            .flatten();
         let backend = self.backend_mut()?;
-        let backend_response = backend.request(command, arguments)?;
+        let backend_response = backend.request(command, arguments).map_err(|failure| {
+            if let Some(context) = &pending_context {
+                debugger_failure(format!("{context}: {}", failure.message))
+            } else {
+                failure
+            }
+        })?;
         if let Some(sequence) = pending_launch {
-            backend.finish_request(sequence, Duration::from_millis(500))?;
+            backend
+                .finish_request(sequence, Duration::from_millis(500))
+                .map_err(|failure| {
+                    debugger_failure(format!(
+                        "{}: {}",
+                        pending_context
+                            .as_deref()
+                            .unwrap_or("delayed launch or attach request failed"),
+                        failure.message
+                    ))
+                })?;
         }
         let terminal_event = if matches!(
             command,
@@ -922,14 +975,18 @@ impl Backend {
 
 fn validate_backend_response(message: Value) -> Result<Value, CliFailure> {
     if message["success"].as_bool().unwrap_or(false) {
-        Ok(message)
-    } else {
-        Err(debugger_failure(
-            message["message"]
-                .as_str()
-                .unwrap_or("lldb-dap request failed"),
-        ))
+        return Ok(message);
     }
+    let detail = message["message"]
+        .as_str()
+        .or_else(|| {
+            message
+                .pointer("/body/error/format")
+                .and_then(Value::as_str)
+        })
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("lldb-dap request failed: {}", message["body"]));
+    Err(debugger_failure(detail))
 }
 
 impl Drop for Backend {

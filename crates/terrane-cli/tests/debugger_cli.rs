@@ -1087,7 +1087,318 @@ fn debugger_fixture_removes_its_temporary_build_tree_on_drop() {
     let root = {
         let fixture = DebugFixture::new();
         assert!(fixture.root.exists());
+
         fixture.root.clone()
     };
     assert!(!root.exists(), "fixture leaked {}", root.display());
+}
+#[test]
+fn adapter_steps_in_and_out_through_standard_dap_requests() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/output import print\n",
+            "function answer int;\n",
+            "  value = 41\n",
+            "  return value + 1\n",
+            "function main;\n",
+            "  result = answer;\n",
+            "  print; result\n",
+        ),
+    )
+    .unwrap();
+    let (executable, provenance) = fixture.build();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let breakpoint = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": fixture.source},
+            "breakpoints": [{"line": 7}],
+            "sourceModified": false
+        }),
+    );
+    assert!(dap.response(breakpoint)["success"].as_bool().unwrap());
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let configuration = dap.send("configurationDone", json!({}));
+    let (_, entry, _) = dap.response_and_event(configuration, "stopped");
+    let thread = entry["body"]["threadId"].as_i64().unwrap();
+    let continue_request = dap.send("continue", json!({"threadId": thread}));
+    let (_, call_stop, _) = dap.response_and_event(continue_request, "stopped");
+    let thread = call_stop["body"]["threadId"].as_i64().unwrap();
+
+    let step_in = dap.send("stepIn", json!({"threadId": thread}));
+    let (_, helper_stop, _) = dap.response_and_event(step_in, "stopped");
+    assert_eq!(helper_stop["body"]["reason"], "step");
+    let stack = dap.send(
+        "stackTrace",
+        json!({"threadId": thread, "startFrame": 0, "levels": 2}),
+    );
+    let stack = dap.response(stack);
+    assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::answer");
+    assert!(stack["body"]["stackFrames"][0]["line"].as_u64().unwrap() >= 4);
+
+    let step_out = dap.send("stepOut", json!({"threadId": thread}));
+    let (_, caller_stop, _) = dap.response_and_event(step_out, "stopped");
+    assert_eq!(caller_stop["body"]["reason"], "step");
+    let stack = dap.send(
+        "stackTrace",
+        json!({"threadId": thread, "startFrame": 0, "levels": 1}),
+    );
+    let stack = dap.response(stack);
+    assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::main");
+    assert!(stack["body"]["stackFrames"][0]["line"].as_u64().unwrap() >= 7);
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+}
+
+#[test]
+fn adapter_serializes_disconnect_queued_during_active_source_step() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let configuration = dap.send("configurationDone", json!({}));
+    let (_, stopped, _) = dap.response_and_event(configuration, "stopped");
+    let thread = stopped["body"]["threadId"].as_i64().unwrap();
+
+    let step = dap.send("next", json!({"threadId": thread}));
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    let mut step_response = None;
+    let mut disconnect_response = None;
+    while step_response.is_none() || disconnect_response.is_none() {
+        let message = dap.read();
+        if message["type"] != "response" {
+            continue;
+        }
+        if message["request_seq"] == step {
+            step_response = Some(message);
+        } else if message["request_seq"] == disconnect {
+            disconnect_response = Some(message);
+        }
+    }
+    assert!(step_response.unwrap()["success"].as_bool().unwrap());
+    assert!(disconnect_response.unwrap()["success"].as_bool().unwrap());
+}
+
+#[test]
+fn adapter_preserves_fatal_native_stop_during_source_translation() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    let (launch_response, _, _) = dap.response_and_event(launch, "terrane/fidelity");
+    assert!(launch_response["success"].as_bool().unwrap());
+    let configuration = dap.send("configurationDone", json!({}));
+    let (_, entry, messages) = dap.response_and_event(configuration, "stopped");
+    let process_id = messages
+        .iter()
+        .find(|message| message["event"] == "process")
+        .and_then(|message| message["body"]["systemProcessId"].as_u64())
+        .expect("lldb-dap reports the launched process id");
+    let thread = entry["body"]["threadId"].as_i64().unwrap();
+    let continue_request = dap.send("continue", json!({"threadId": thread}));
+    let signal = Command::new("kill")
+        .args(["-SEGV", &process_id.to_string()])
+        .status()
+        .unwrap();
+    assert!(signal.success());
+    let (response, stopped, _) = dap.response_and_event(continue_request, "stopped");
+    assert!(response["success"].as_bool().unwrap());
+    assert_ne!(stopped["body"]["reason"], "step");
+    assert!(
+        matches!(
+            stopped["body"]["reason"].as_str(),
+            Some("exception" | "signal" | "pause")
+        ),
+        "{stopped}"
+    );
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+}
+
+#[test]
+fn adapter_debugs_relocated_exact_build_artifacts_and_sources() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build();
+    let relocated_root = fixture.root.with_extension("relocated");
+    let executable_relative = executable.strip_prefix(&fixture.root).unwrap().to_owned();
+    let provenance_relative = provenance.strip_prefix(&fixture.root).unwrap().to_owned();
+    let source_relative = fixture
+        .source
+        .strip_prefix(&fixture.root)
+        .unwrap()
+        .to_owned();
+    fs::rename(&fixture.root, &relocated_root).unwrap();
+    let executable = relocated_root.join(executable_relative);
+    let provenance = relocated_root.join(provenance_relative);
+    let source = relocated_root.join(source_relative);
+    let build_root = provenance.parent().unwrap();
+
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "terraneRelocation": {
+                "sourceRoot": relocated_root,
+                "buildRoot": build_root
+            },
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let fidelity = loop {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            break message;
+        }
+    };
+    assert_eq!(fidelity["body"]["mode"], "source");
+    let breakpoint = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": source},
+            "breakpoints": [{"line": 8}],
+            "sourceModified": false
+        }),
+    );
+    let breakpoint = dap.response(breakpoint);
+    assert!(
+        breakpoint["body"]["breakpoints"][0]["verified"]
+            .as_bool()
+            .unwrap()
+    );
+    let configuration = dap.send("configurationDone", json!({}));
+    let (_, entry, _) = dap.response_and_event(configuration, "stopped");
+    let thread = entry["body"]["threadId"].as_i64().unwrap();
+    let continue_request = dap.send("continue", json!({"threadId": thread}));
+    let (_, stopped, _) = dap.response_and_event(continue_request, "stopped");
+    let thread = stopped["body"]["threadId"].as_i64().unwrap();
+
+    let stack = dap.send(
+        "stackTrace",
+        json!({"threadId": thread, "startFrame": 0, "levels": 1}),
+    );
+    let stack = dap.response(stack);
+    assert_eq!(
+        stack["body"]["stackFrames"][0]["source"]["path"],
+        source.to_string_lossy().as_ref()
+    );
+    assert_eq!(stack["body"]["stackFrames"][0]["line"], 8);
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+    fs::remove_dir_all(relocated_root).unwrap();
+}
+#[test]
+fn adapter_renders_split_generated_support_from_exact_build() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance_path) = fixture.build();
+    let provenance: Value = serde_json::from_slice(&fs::read(&provenance_path).unwrap()).unwrap();
+    let support = provenance["debug"]["generated_files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|file| file["path"] != "src/main.rs")
+        .expect("debug build contains a split generated support file");
+    let support_path = support["path"].as_str().unwrap();
+    let expected =
+        fs::read_to_string(provenance_path.parent().unwrap().join(support_path)).unwrap();
+    assert_eq!(
+        support["content_hash"],
+        terrane_compiler::debugging::hash_bytes(expected.as_bytes())
+    );
+
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance_path,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let generated = dap.send("terrane/generatedSource", json!({"path": support_path}));
+    let generated = dap.response(generated);
+    assert_eq!(generated["body"]["content"], expected);
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+}
+
+#[test]
+fn adapter_reports_attach_host_policy_and_honors_disconnect_policy() {
+    let mut target = Command::new("sleep").arg("30").spawn().unwrap();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let attach = dap.send(
+        "attach",
+        json!({
+            "program": "/usr/bin/sleep",
+            "pid": target.id()
+        }),
+    );
+    let mut response = dap.response(attach);
+    if response["success"].as_bool().unwrap() {
+        let configuration = dap.send("configurationDone", json!({}));
+        response = dap.response(configuration);
+        if response["success"].as_bool().unwrap() {
+            let disconnect = dap.send("disconnect", json!({"terminateDebuggee": false}));
+            assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+        }
+    }
+    if !response["success"].as_bool().unwrap() {
+        let message = response["message"].as_str().unwrap_or_default();
+        assert!(
+            message.contains("attach")
+                || message.contains("operation")
+                || message.contains("permission")
+                || message.contains("process"),
+            "{response}"
+        );
+    }
+    target.kill().ok();
+    target.wait().ok();
 }
