@@ -129,6 +129,12 @@ The conformance corpus under `tests/conformance/` is the executable authority fo
 language behavior. Accepted cases exercise checking, lowering, generated-Rust compilation, and—when
 behavior matters—execution. Rejected cases pin source diagnostics and malformed boundaries.
 
+The harness first prepares one representative package with a projected Rust dependency to warm
+shared compiler and Cargo caches, then analyzes and lowers the remaining manifests with up to eight
+workers. Set `TERRANE_CONFORMANCE_JOBS=1..8` to reduce that bound on constrained hosts.
+Dependency-free generated programs still share one Cargo build, while dependency-bearing generated
+builds remain serialized to preserve manifest isolation and cache locality.
+
 Manual CLI debugging of a package-shaped conformance fixture can rewrite its tracked
 `terrane-projection.lock`, including changing recorded projection provenance on a cache hit. Run
 such experiments from a disposable copy of the entire case directory (including `.cargo` and

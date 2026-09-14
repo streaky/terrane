@@ -4,6 +4,12 @@ use std::fs;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, mpsc};
+
+const MAX_CONFORMANCE_JOBS: usize = 8;
+static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
+static NEXT_BUILD_ID: AtomicUsize = AtomicUsize::new(0);
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
@@ -16,7 +22,11 @@ struct ConformanceBuild {
 
 impl ConformanceBuild {
     fn new() -> Self {
-        let root = std::env::temp_dir().join(format!("terrane-conformance-{}", std::process::id()));
+        let build_id = NEXT_BUILD_ID.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "terrane-conformance-{}-{build_id}",
+            std::process::id()
+        ));
         if root.exists() {
             fs::remove_dir_all(&root).unwrap();
         }
@@ -179,6 +189,9 @@ impl Drop for CaseTiming {
         let Some(output) = &self.output else {
             return;
         };
+        let _guard = TIMING_WRITE_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Ok(mut output) = fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -204,21 +217,25 @@ struct DeferredGeneratedCase {
     timing: CaseTiming,
 }
 
-impl DeferredGeneratedCase {
-    fn new(
-        binary_name: String,
-        case: &Path,
-        should_run: bool,
-        manifest: String,
-        mut timing: CaseTiming,
-    ) -> Self {
-        timing.defer();
-        Self {
-            binary_name,
-            case: case.to_owned(),
+struct PreparedGeneratedCase {
+    binary_name: String,
+    case: PathBuf,
+    phase: String,
+    manifest: String,
+    rust: String,
+    dependencies: Vec<terrane_compiler::RustDependency>,
+    timing: CaseTiming,
+}
+
+impl PreparedGeneratedCase {
+    fn into_deferred(self) -> DeferredGeneratedCase {
+        let should_run = self.phase == "run";
+        DeferredGeneratedCase {
+            binary_name: self.binary_name,
+            case: self.case,
             should_run,
-            run_manifest: should_run.then_some(manifest),
-            timing,
+            run_manifest: should_run.then_some(self.manifest),
+            timing: self.timing,
         }
     }
 }
@@ -241,14 +258,16 @@ fn copy_package_fixture(source: &Path, destination: &Path) {
     }
 }
 
-fn case_source_path(build: &ConformanceBuild, case: &Path, entrypoint: &str) -> PathBuf {
+fn case_source_path(
+    build: &ConformanceBuild,
+    case: &Path,
+    entrypoint: &str,
+    staging_identity: &str,
+) -> PathBuf {
     if entrypoint != terrane_compiler::MANIFEST_FILE_NAME {
         return case.join(entrypoint);
     }
-    let staged = build.root.join("package-input").join(
-        case.file_name()
-            .expect("conformance case directory must have a name"),
-    );
+    let staged = build.root.join("package-input").join(staging_identity);
     if staged.exists() {
         fs::remove_dir_all(&staged).unwrap();
     }
@@ -364,104 +383,259 @@ fn compile_package_case(
     }
 }
 
+fn bounded_conformance_jobs(
+    requested: Option<&std::ffi::OsStr>,
+    available: usize,
+    work_items: usize,
+) -> Result<usize, String> {
+    let requested = requested.map_or(Ok(MAX_CONFORMANCE_JOBS), |value| {
+        value
+            .to_str()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|jobs| *jobs > 0)
+            .ok_or_else(|| "TERRANE_CONFORMANCE_JOBS must be a positive integer".to_owned())
+    })?;
+    Ok(requested
+        .min(MAX_CONFORMANCE_JOBS)
+        .min(available.max(1))
+        .min(work_items.max(1)))
+}
+
+fn conformance_jobs(work_items: usize) -> usize {
+    bounded_conformance_jobs(
+        std::env::var_os("TERRANE_CONFORMANCE_JOBS").as_deref(),
+        std::thread::available_parallelism().map_or(1, usize::from),
+        work_items,
+    )
+    .unwrap_or_else(|message| panic!("{message}"))
+}
+
+fn package_manifest_has_rust_dependencies(manifest: &str) -> bool {
+    manifest.lines().any(|line| {
+        let line = line.trim();
+        line == "[rust-dependencies]" || line.starts_with("[rust-dependencies.")
+    })
+}
+
+fn conformance_warmup_index(manifests: &[PathBuf]) -> usize {
+    manifests
+        .iter()
+        .position(|manifest_path| {
+            let manifest = fs::read_to_string(manifest_path).unwrap();
+            if field(&manifest, "entrypoint") != Some(terrane_compiler::MANIFEST_FILE_NAME) {
+                return false;
+            }
+            manifest_path
+                .parent()
+                .map(|case| case.join(terrane_compiler::MANIFEST_FILE_NAME))
+                .and_then(|package| fs::read_to_string(package).ok())
+                .is_some_and(|package| package_manifest_has_rust_dependencies(&package))
+        })
+        .unwrap_or(0)
+}
+
+fn parallel_map_indexed<T, R, F>(
+    items: &[T],
+    jobs: usize,
+    warmup_index: usize,
+    operation: F,
+) -> Vec<R>
+where
+    T: Sync,
+    R: Send,
+    F: Fn(usize, &T) -> R + Sync,
+{
+    if items.is_empty() {
+        return Vec::new();
+    }
+    assert!(warmup_index < items.len(), "warmup index is in range");
+    let warmup_result = operation(warmup_index, &items[warmup_index]);
+    let mut results = std::iter::repeat_with(|| None)
+        .take(items.len())
+        .collect::<Vec<_>>();
+    results[warmup_index] = Some(warmup_result);
+    if jobs <= 1 {
+        for (index, item) in items.iter().enumerate() {
+            if index != warmup_index {
+                results[index] = Some(operation(index, item));
+            }
+        }
+        return results
+            .into_iter()
+            .map(|result| result.expect("every conformance job returns one result"))
+            .collect();
+    }
+
+    let worker_count = jobs.min(items.len() - 1);
+    let next = AtomicUsize::new(0);
+    let (sender, receiver) = mpsc::channel();
+    std::thread::scope(|scope| {
+        for _ in 0..worker_count {
+            let sender = sender.clone();
+            let operation = &operation;
+            let next = &next;
+            scope.spawn(move || {
+                loop {
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(item) = items.get(index) else {
+                        break;
+                    };
+                    if index == warmup_index {
+                        continue;
+                    }
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        operation(index, item)
+                    }));
+                    sender.send((index, result)).unwrap();
+                }
+            });
+        }
+        drop(sender);
+        for _ in 1..items.len() {
+            let (index, result) = receiver.recv().unwrap();
+            results[index] = Some(match result {
+                Ok(result) => result,
+                Err(payload) => std::panic::resume_unwind(payload),
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|result| result.expect("every conformance job returns one result"))
+        .collect()
+}
+
+fn prepare_conformance_case(
+    case_index: usize,
+    manifest_path: &Path,
+    build: &ConformanceBuild,
+    update_goldens: bool,
+) -> Option<PreparedGeneratedCase> {
+    let binary_name = format!("terrane_conformance_case_{case_index}");
+    let case = manifest_path.parent().unwrap();
+    let mut timing = CaseTiming::new(case);
+    let manifest = fs::read_to_string(manifest_path).unwrap();
+    let phase = field(&manifest, "phase").unwrap();
+    let status = field(&manifest, "status").unwrap();
+    let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
+    let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+    let source_path = case_source_path(build, case, entrypoint, &binary_name);
+    let options = terrane_compiler::CompilerOptions {
+        require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
+        lint_name_style: false,
+    };
+
+    match (phase, status) {
+        ("run" | "check", "accept") => {
+            let lower_path = case.join("lower.rs");
+            let expected = read_reviewed_golden(&lower_path, update_goldens);
+            let (compilation, dependencies) = if package_case {
+                compile_package_case(
+                    &source_path,
+                    options,
+                    boolean_field(&manifest, "native-test").unwrap_or(false),
+                    case,
+                    update_goldens,
+                )
+            } else {
+                let source = fs::read_to_string(&source_path).unwrap();
+                let compilation =
+                    terrane_compiler::compile_with_options(&source_path, source, options).unwrap();
+                (compilation, Vec::new())
+            };
+            assert_expected_warnings(case, &manifest, &compilation);
+            verify_reviewed_rust(case, &lower_path, &expected, &compilation, update_goldens);
+            timing.defer();
+            Some(PreparedGeneratedCase {
+                binary_name,
+                case: case.to_owned(),
+                phase: phase.to_owned(),
+                manifest,
+                rust: compilation.rust,
+                dependencies,
+                timing,
+            })
+        }
+        ("check", "reject") => {
+            let code = field(&manifest, "code").unwrap();
+            let diagnostics = if package_case {
+                let package = terrane_compiler::Package::load(&source_path).unwrap();
+                let result = terrane_compiler::compile_package(&package);
+                verify_reviewed_projection(case, &source_path, update_goldens);
+                result.unwrap_err().diagnostics
+            } else {
+                let source = fs::read_to_string(&source_path).unwrap();
+                terrane_compiler::compile(&source_path, source)
+                    .unwrap_err()
+                    .diagnostics
+            };
+            let expected = field(&manifest, "contains");
+            let expected_help = field(&manifest, "help");
+            let reported = reports(&diagnostics, code, expected, expected_help);
+            assert!(
+                reported,
+                "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
+                case.display()
+            );
+            timing.pass();
+            None
+        }
+        _ => panic!(
+            "unsupported conformance manifest {}: phase={phase}, status={status}",
+            manifest_path.display()
+        ),
+    }
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let update_goldens = golden_updates_from_environment();
     let manifests = selected_manifests();
+    let warmup_index = conformance_warmup_index(&manifests);
     let build = ConformanceBuild::new();
+    let prepared = parallel_map_indexed(
+        &manifests,
+        conformance_jobs(manifests.len()),
+        warmup_index,
+        |case_index, manifest_path| {
+            prepare_conformance_case(case_index, manifest_path, &build, update_goldens)
+        },
+    );
     let mut deferred_generated_cases = Vec::new();
-    for (case_index, manifest_path) in manifests.into_iter().enumerate() {
-        let binary_name = format!("terrane_conformance_case_{case_index}");
-        let case = manifest_path.parent().unwrap();
-        let mut timing = CaseTiming::new(case);
-        let manifest = fs::read_to_string(&manifest_path).unwrap();
-        let phase = field(&manifest, "phase").unwrap();
-        let status = field(&manifest, "status").unwrap();
-        let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
-        let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
-        let source_path = case_source_path(&build, case, entrypoint);
-        let options = terrane_compiler::CompilerOptions {
-            require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
-            lint_name_style: false,
-        };
-
-        match (phase, status) {
-            ("run" | "check", "accept") => {
-                let lower_path = case.join("lower.rs");
-                let expected = read_reviewed_golden(&lower_path, update_goldens);
-                let (compilation, dependencies) = if package_case {
-                    compile_package_case(
-                        &source_path,
-                        options,
-                        boolean_field(&manifest, "native-test").unwrap_or(false),
-                        case,
-                        update_goldens,
-                    )
-                } else {
-                    let source = fs::read_to_string(&source_path).unwrap();
-                    let compilation =
-                        terrane_compiler::compile_with_options(&source_path, source, options)
-                            .unwrap();
-                    (compilation, Vec::new())
-                };
-                assert_expected_warnings(case, &manifest, &compilation);
-                verify_reviewed_rust(case, &lower_path, &expected, &compilation, update_goldens);
-                // Only dependency-free binaries can safely share one Cargo manifest and build.
-                if dependencies.is_empty() && field(&manifest, "dependency-panic-test").is_none() {
-                    stage_generated_binary(
-                        &binary_name,
-                        case,
-                        &manifest,
-                        &compilation.rust,
-                        &build,
-                    );
-                    let should_run = phase == "run";
-                    deferred_generated_cases.push(DeferredGeneratedCase::new(
-                        binary_name,
-                        case,
-                        should_run,
-                        manifest,
-                        timing,
-                    ));
-                    continue;
-                }
-                compile_and_maybe_run(
-                    &binary_name,
-                    case,
-                    phase,
-                    &manifest,
-                    &compilation.rust,
-                    &dependencies,
-                    &build,
-                );
-            }
-            ("check", "reject") => {
-                let code = field(&manifest, "code").unwrap();
-                let diagnostics = if package_case {
-                    let package = terrane_compiler::Package::load(&source_path).unwrap();
-                    let result = terrane_compiler::compile_package(&package);
-                    verify_reviewed_projection(case, &source_path, update_goldens);
-                    result.unwrap_err().diagnostics
-                } else {
-                    let source = fs::read_to_string(&source_path).unwrap();
-                    terrane_compiler::compile(&source_path, source)
-                        .unwrap_err()
-                        .diagnostics
-                };
-                let expected = field(&manifest, "contains");
-                let expected_help = field(&manifest, "help");
-                let reported = reports(&diagnostics, code, expected, expected_help);
-                assert!(
-                    reported,
-                    "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
-                    case.display()
-                );
-            }
-            _ => panic!(
-                "unsupported conformance manifest {}: phase={phase}, status={status}",
-                manifest_path.display()
-            ),
+    for prepared in prepared.into_iter().flatten() {
+        // Only dependency-free binaries can safely share one Cargo manifest and build.
+        if prepared.dependencies.is_empty()
+            && field(&prepared.manifest, "dependency-panic-test").is_none()
+        {
+            stage_generated_binary(
+                &prepared.binary_name,
+                &prepared.case,
+                &prepared.manifest,
+                &prepared.rust,
+                &build,
+            );
+            deferred_generated_cases.push(prepared.into_deferred());
+            continue;
         }
+        let PreparedGeneratedCase {
+            binary_name,
+            case,
+            phase,
+            manifest,
+            rust,
+            dependencies,
+            mut timing,
+        } = prepared;
+        timing.begin_pending_work();
+        compile_and_maybe_run(
+            &binary_name,
+            &case,
+            &phase,
+            &manifest,
+            &rust,
+            &dependencies,
+            &build,
+        );
         timing.pass();
     }
     compile_and_run_deferred_cases(&mut deferred_generated_cases, &build);
@@ -1061,6 +1235,65 @@ fn broad_golden_updates_require_an_explicit_all_value() {
         Ok(true)
     );
     assert!(golden_updates_requested(Some(OsStr::new("1")), None).is_err());
+}
+
+#[test]
+fn conformance_worker_count_is_bounded() {
+    use std::ffi::OsStr;
+
+    assert_eq!(bounded_conformance_jobs(None, 24, 100), Ok(8));
+    assert_eq!(
+        bounded_conformance_jobs(Some(OsStr::new("3")), 24, 100),
+        Ok(3)
+    );
+    assert_eq!(
+        bounded_conformance_jobs(Some(OsStr::new("20")), 24, 4),
+        Ok(4)
+    );
+    assert!(bounded_conformance_jobs(Some(OsStr::new("0")), 24, 100).is_err());
+    assert!(bounded_conformance_jobs(Some(OsStr::new("many")), 24, 100).is_err());
+}
+
+#[test]
+fn projected_dependency_tables_are_cache_warmup_candidates() {
+    assert!(package_manifest_has_rust_dependencies(
+        "[rust-dependencies.reqwest]\nversion = \"=0.12.23\"\n"
+    ));
+    assert!(package_manifest_has_rust_dependencies(
+        "[rust-dependencies]\nreqwest = \"=0.12.23\"\n"
+    ));
+    assert!(!package_manifest_has_rust_dependencies(
+        "[dependencies]\nlocal = \"../local\"\n"
+    ));
+}
+
+#[test]
+fn parallel_conformance_preparation_preserves_manifest_order() {
+    let items = (0..12).collect::<Vec<_>>();
+    let active = AtomicUsize::new(0);
+    let maximum = AtomicUsize::new(0);
+    let warmed = std::sync::atomic::AtomicBool::new(false);
+    let results = parallel_map_indexed(&items, 3, 0, |index, item| {
+        if index == 0 {
+            warmed.store(true, Ordering::SeqCst);
+        } else {
+            assert!(warmed.load(Ordering::SeqCst));
+        }
+        let active_now = active.fetch_add(1, Ordering::SeqCst) + 1;
+        maximum.fetch_max(active_now, Ordering::SeqCst);
+        std::thread::sleep(std::time::Duration::from_millis(
+            u64::try_from(items.len() - index).unwrap(),
+        ));
+        active.fetch_sub(1, Ordering::SeqCst);
+        item * 2
+    });
+
+    assert_eq!(
+        results,
+        items.iter().map(|item| item * 2).collect::<Vec<_>>()
+    );
+    assert!(maximum.load(Ordering::SeqCst) > 1);
+    assert!(maximum.load(Ordering::SeqCst) <= 3);
 }
 
 #[test]
