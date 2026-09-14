@@ -18,7 +18,7 @@ struct DebugFixture {
 impl DebugFixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
-            "terrane-debugger-{}-{}",
+            "terrane-debugger-π-{}-{}",
             std::process::id(),
             NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
         ));
@@ -84,7 +84,7 @@ impl Drop for DebugFixture {
 fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let fixture = DebugFixture::new();
     let commands = format!(
-        "break {}:8\ncontinue\nlocals\ncontinue\n",
+        "break {}:8\ncontinue\nlocals\nnext\ncontinue\n",
         fixture.source.display()
     );
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -115,6 +115,7 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
         "{stderr}"
     );
     assert!(stderr.contains("text = \"hello\""), "{stderr}");
+    assert!(stderr.contains(":9"), "{stderr}");
 }
 
 struct DapClient {
@@ -273,6 +274,15 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     );
     assert_eq!(stack["body"]["stackFrames"][0]["line"], 8);
     assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::main");
+    let next_request = dap.send("next", json!({"threadId": thread}));
+    let (_, stopped, _) = dap.response_and_event(next_request, "stopped");
+    let thread = stopped["body"]["threadId"].as_i64().unwrap();
+    let stack = dap.send(
+        "stackTrace",
+        json!({"threadId": thread, "startFrame": 0, "levels": 1}),
+    );
+    let stack = dap.response(stack);
+    assert_eq!(stack["body"]["stackFrames"][0]["line"], 9);
 
     let continue_request = dap.send("continue", json!({"threadId": thread}));
     let (_, _, messages) = dap.response_and_event(continue_request, "terminated");
@@ -311,4 +321,70 @@ fn adapter_preserves_raw_native_debugging_for_mismatched_provenance() {
             .unwrap()
             .contains("raw native debugging remains available")
     );
+}
+
+#[test]
+fn adapter_disables_source_translation_for_stale_sources() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build();
+    fs::write(&fixture.source, "namespace changed\nfunction main;\n").unwrap();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    let launch = dap.send(
+        "launch",
+        json!({"program": executable, "terraneProvenance": provenance}),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let warning = dap.read();
+    assert_eq!(warning["event"], "output");
+    assert!(
+        warning["body"]["output"]
+            .as_str()
+            .unwrap()
+            .contains("source changed since this binary was built")
+    );
+}
+
+#[test]
+fn cli_steps_across_async_function_boundaries_in_source_space() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace async-debugger\n",
+            "from /core/output import print\n",
+            "async function answer int;\n",
+            "  return 42\n",
+            "async function main;\n",
+            "  value int = await answer;\n",
+            "  print; value\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:6\ncontinue\nframes\nnext\ncontinue\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"42\r\n");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("/async-debugger::main"), "{stderr}");
+    assert!(stderr.contains(":7"), "{stderr}");
 }

@@ -373,6 +373,16 @@ impl Adapter {
             )?;
             return Ok(vec![response(backend_response["body"].clone())]);
         }
+        if matches!(command, "next" | "stepIn" | "stepOut")
+            && let Some(provenance) = self.provenance.clone()
+        {
+            let thread_id = arguments["threadId"].as_i64().unwrap_or(1);
+            let backend = self.backend_mut()?;
+            let event = step_to_source(backend, &provenance, command, thread_id)?;
+            let mut messages = with_backend_events(backend, response(json!({})));
+            messages.push(event);
+            return Ok(messages);
+        }
         if command == "disconnect" {
             let attached = !self.launched;
             let terminate = arguments["terminateDebuggee"]
@@ -1057,7 +1067,94 @@ fn step_to_source(
     provenance: &ProvenanceManifest,
     command: &str,
     thread_id: i64,
-) -> Result<(), CliFailure> {
+) -> Result<Value, CliFailure> {
+    let frames = backend.request(
+        "stackTrace",
+        json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
+    )?;
+    let frame = &frames["body"]["stackFrames"][0];
+    let Some(current) = association_for_frame(provenance, frame) else {
+        return bounded_native_step(backend, provenance, command, thread_id);
+    };
+    let mut targets = std::collections::BTreeSet::new();
+    for file in &provenance.debug.generated_files {
+        for association in &file.associations {
+            if !association.sequence_point
+                || (Path::new(frame["source"]["path"].as_str().unwrap_or_default())
+                    .ends_with(&file.path)
+                    && association.generated.line == current.generated.line)
+            {
+                continue;
+            }
+            let selected = match command {
+                "next" => association.function_id == current.function_id,
+                "stepOut" => association.function_id != current.function_id,
+                _ => true,
+            };
+            if selected {
+                targets.insert((file.path.clone(), association.generated.line));
+            }
+        }
+    }
+    if targets.is_empty() || targets.len() > 512 {
+        return bounded_native_step(backend, provenance, command, thread_id);
+    }
+
+    let _ = backend.request(
+        "evaluate",
+        json!({"expression": "`breakpoint disable", "context": "repl"}),
+    );
+
+    let mut breakpoint_ids = Vec::new();
+    for (path, line) in targets {
+        let path = generated_path(provenance, &path);
+        let command = format!(
+            "`breakpoint set --one-shot true --file {} --line {line}",
+            lldb_quote(&path.to_string_lossy())
+        );
+        let response = backend.request(
+            "evaluate",
+            json!({"expression": command, "context": "repl"}),
+        )?;
+        if let Some(id) = response["body"]["result"]
+            .as_str()
+            .and_then(parse_lldb_breakpoint_id)
+        {
+            breakpoint_ids.push(id);
+        }
+    }
+    backend.request(
+        "continue",
+        json!({"threadId": thread_id, "singleThread": false}),
+    )?;
+    let event = backend.wait_for_event(&["stopped", "terminated"])?;
+    if !breakpoint_ids.is_empty() {
+        let ids = breakpoint_ids
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let _ = backend.request(
+            "evaluate",
+            json!({
+                "expression": format!("`breakpoint delete {ids}"),
+                "context": "repl"
+            }),
+        );
+    }
+    let _ = backend.request(
+        "evaluate",
+        json!({"expression": "`breakpoint enable", "context": "repl"}),
+    );
+    Ok(event)
+}
+
+fn bounded_native_step(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    command: &str,
+    thread_id: i64,
+) -> Result<Value, CliFailure> {
     for _ in 0..MAX_RAW_STEPS {
         backend.request(
             command,
@@ -1065,25 +1162,38 @@ fn step_to_source(
         )?;
         let event = backend.wait_for_event(&["stopped", "terminated"])?;
         if event["event"] != "stopped" {
-            return Ok(());
+            return Ok(event);
         }
         let frames = backend.request(
             "stackTrace",
             json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
         )?;
-        if frames["body"]["stackFrames"][0]
-            .as_object()
-            .is_some_and(|frame| {
-                association_for_frame(provenance, &Value::Object(frame.clone())).is_some()
-            })
-        {
-            return Ok(());
+        if association_for_frame(provenance, &frames["body"]["stackFrames"][0]).is_some() {
+            return Ok(event);
         }
     }
     eprintln!(
         "source progress unavailable after {MAX_RAW_STEPS} bounded native steps; exposing the native stop"
     );
-    Ok(())
+    Ok(json!({
+        "seq": 0,
+        "type": "event",
+        "event": "stopped",
+        "body": {"reason": "step", "threadId": thread_id}
+    }))
+}
+
+fn parse_lldb_breakpoint_id(output: &str) -> Option<usize> {
+    output
+        .strip_prefix("Breakpoint ")?
+        .split_once(':')?
+        .0
+        .parse()
+        .ok()
+}
+
+fn lldb_quote(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 fn show_top_frame(
