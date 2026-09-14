@@ -6114,8 +6114,10 @@ sequence points; semantic function/scope/binding/object identities; field secrec
 stripping state; and explicit source/build relocation roots. Translation requires matching sidecar,
 executable, generated files, selected source bytes, compiler/schema, selected
 target/toolchain-bound ABI recipe, and every named artifact-profile property. Explicit relocation
-may replace roots for copied-but-identical artifacts but never changes identity. After launch or
-attach the adapter emits a machine-readable `terrane/fidelity` event naming `source` or `native`
+may replace roots for copied-but-identical artifacts but never changes identity; the adapter also
+forwards the recorded-to-relocated build/source mapping to LLDB so native line tables and Terrane
+provenance resolve the same copied artifact. After launch or attach the adapter emits a
+machine-readable `terrane/fidelity` event naming `source` or `native`
 mode and, in source mode, the selected target, ABI recipe, artifact profile, exact Rust compiler
 release, and inlining status. A mismatch disables Terrane translation with a diagnostic while raw
 native debugging remains available.
@@ -6148,9 +6150,13 @@ recorded in provenance, before client initialization commands; formatter absence
 DAP initialization produces exactly one immediate `initialized` event. Backend responses are
 correlated and retained even when another request is currently expected; variable handles are
 invalidated on resume. Request ingress remains serialized, so cancellation is not advertised.
-Client disconnect never implicitly kills an attached process. Conditional breakpoints, logpoints,
-restart, Terrane-language expression evaluation, DWARF rewriting, alternate native backends, and
-time-travel debugging are not supported. Direct isolated test-case debugging is also deferred:
+Client disconnect terminates a launched debuggee by default and never implicitly kills an attached
+process. Linux x86-64/LLDB 22 integration evidence covers standard DAP step-in/step-out, recursive
+step-over, fatal native stops during translation, disconnect queued during source stepping,
+relocated exact builds, host-policy attach outcomes, split generated support, shadowed locals, and
+more than 500 sequence points. Conditional breakpoints, logpoints, restart, Terrane-language
+expression evaluation, DWARF rewriting, alternate native backends, and time-travel debugging are
+not supported. Direct isolated test-case debugging is also deferred:
 before it can be exposed, the test runner must separately specify debugger ownership, case
 selection, context, timeouts, temporary-directory lifetime, and reporting when the debugger
 replaces or controls the runner supervisor.
