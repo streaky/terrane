@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -274,6 +274,31 @@ impl Drop for DapClient {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+fn launch_fidelity(executable: &Path, provenance: &Path) -> Value {
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let fidelity = loop {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            break message;
+        }
+    };
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
+    fidelity
 }
 
 #[test]
@@ -845,25 +870,7 @@ fn adapter_reports_unsupported_debug_profiles_as_native_fidelity() {
     provenance["optimization"] = "3".into();
     fs::write(&provenance_path, serde_json::to_vec(&provenance).unwrap()).unwrap();
 
-    let mut dap = DapClient::start();
-    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
-    assert!(dap.response(initialize)["success"].as_bool().unwrap());
-    assert_eq!(dap.read()["event"], "initialized");
-    let launch = dap.send(
-        "launch",
-        json!({
-            "program": executable,
-            "terraneProvenance": provenance_path,
-            "stopOnEntry": true
-        }),
-    );
-    assert!(dap.response(launch)["success"].as_bool().unwrap());
-    let fidelity = loop {
-        let message = dap.read();
-        if message["event"] == "terrane/fidelity" {
-            break message;
-        }
-    };
+    let fidelity = launch_fidelity(&executable, &provenance_path);
     assert_eq!(fidelity["body"]["mode"], "native");
     assert!(
         fidelity["body"]["reason"]
@@ -871,4 +878,113 @@ fn adapter_reports_unsupported_debug_profiles_as_native_fidelity() {
             .unwrap()
             .contains("unsupported debug artifact profile")
     );
+}
+
+#[test]
+fn adapter_rejects_malformed_schema_hash_and_abi_provenance() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance_path) = fixture.build();
+    let original: Value = serde_json::from_slice(&fs::read(&provenance_path).unwrap()).unwrap();
+
+    let malformed = fixture.root.join("malformed.json");
+    fs::write(&malformed, b"{not-json").unwrap();
+    let fidelity = launch_fidelity(&executable, &malformed);
+    assert!(
+        fidelity["body"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("invalid provenance sidecar")
+    );
+
+    let cases = [
+        ("schema", "unsupported debug provenance schema"),
+        ("generated-hash", "generated source identity mismatch"),
+        (
+            "executable-hash",
+            "debug provenance does not match executable",
+        ),
+        ("abi", "unsupported debug target, toolchain, or ABI recipe"),
+    ];
+    for (case, expected) in cases {
+        let mut provenance = original.clone();
+        match case {
+            "schema" => provenance["schema_version"] = "999".into(),
+            "generated-hash" => {
+                provenance["debug"]["generated_files"][0]["content_hash"] = "sha256:nope".into();
+            }
+            "executable-hash" => {
+                provenance["native_module"]["content_hash"] = "sha256:nope".into();
+            }
+            "abi" => provenance["abi_recipe"] = "terrane-test-wrong-abi".into(),
+            _ => unreachable!(),
+        }
+        let path = fixture.root.join(format!("{case}.json"));
+        fs::write(&path, serde_json::to_vec(&provenance).unwrap()).unwrap();
+        let fidelity = launch_fidelity(&executable, &path);
+        assert_eq!(fidelity["body"]["mode"], "native");
+        assert!(
+            fidelity["body"]["reason"]
+                .as_str()
+                .unwrap()
+                .contains(expected),
+            "{case}: {fidelity}"
+        );
+    }
+}
+
+#[test]
+fn cli_next_ignores_temporary_breakpoint_hits_in_recursive_deeper_frames() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/output import print\n",
+            "function descend int; depth int\n",
+            "  if depth == 0\n",
+            "    return 0\n",
+            "  next-depth = depth - 1\n",
+            "  child = descend; next-depth\n",
+            "  return child + 1\n",
+            "function main;\n",
+            "  result = descend; 2\n",
+            "  print; result\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:7\ncontinue\ndisable 1\nnext\nsource 0\nframes\nquit\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains(">     8 |   return child + 1"), "{stderr}");
+    assert!(stderr.contains("#0   /debugger::descend"), "{stderr}");
+    assert!(stderr.contains("#1   /debugger::main"), "{stderr}");
+    assert!(!stderr.contains("#1   /debugger::descend"), "{stderr}");
+}
+
+#[test]
+fn debugger_fixture_removes_its_temporary_build_tree_on_drop() {
+    let root = {
+        let fixture = DebugFixture::new();
+        assert!(fixture.root.exists());
+        fixture.root.clone()
+    };
+    assert!(!root.exists(), "fixture leaked {}", root.display());
 }

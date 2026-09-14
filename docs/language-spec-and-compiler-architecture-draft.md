@@ -6138,11 +6138,12 @@ fixed scalars, adaptive integers across small/wide/arbitrary-precision tiers, an
 strings/bytes without invoking arbitrary debuggee methods. Without that recipe it preserves raw
 backend scalar values rather than guessing a layout. Object and collection children stay lazy;
 focused value expansion is depth-, cycle-, and count-bounded. Responses are bounded to 100 values
-plus an explicit continuation marker and 4096 displayed bytes, and distinguish moved,
-optimized-out, unavailable, and truncated states. Secret fields are redacted before frontend
-exposure and lose child, memory, and evaluation references; explicit raw inspection may expose
-physical memory. The debugger imports Rust LLDB formatters only from the exact sysroot recorded in
-provenance, before client initialization commands; formatter absence is non-fatal.
+plus an explicit continuation marker and 4096 displayed bytes, and distinguish optimized-out,
+unavailable, and truncated states. The adapter does not claim a distinct moved-value state because
+the current LLDB data does not prove source ownership transitions. Secret fields are redacted
+before frontend exposure and lose child, memory, and evaluation references; explicit raw inspection
+may expose physical memory. The debugger imports Rust LLDB formatters only from the exact sysroot
+recorded in provenance, before client initialization commands; formatter absence is non-fatal.
 
 DAP initialization produces exactly one immediate `initialized` event. Backend responses are
 correlated and retained even when another request is currently expected; variable handles are

@@ -372,7 +372,12 @@ fn marker_associations(file: &RenderedFile, symbols: &DebugSymbols) -> Vec<Debug
             .and_then(|value| value.strip_suffix(" */"))
         {
             if let Some((span, role)) = parse_marker(marker) {
-                pending.clear();
+                if pending
+                    .last()
+                    .is_none_or(|(_, pending_role)| *pending_role != role)
+                {
+                    pending.clear();
+                }
                 pending.push((span, role));
             }
         } else if !pending.is_empty() && !trimmed.is_empty() {
@@ -381,35 +386,57 @@ fn marker_associations(file: &RenderedFile, symbols: &DebugSymbols) -> Vec<Debug
                 offset,
                 offset + line.trim_end_matches('\n').len(),
             );
-            for (span, role) in pending.drain(..) {
-                let Some(source) = symbols.source_files.get(&span.file) else {
-                    continue;
-                };
-                let function = symbols
-                    .functions
+            let mapped = pending
+                .drain(..)
+                .filter_map(|(span, role)| {
+                    let source = symbols.source_files.get(&span.file)?;
+                    let function_id = symbols
+                        .functions
+                        .iter()
+                        .filter(|function| {
+                            function.source.source_id == span.file
+                                && function.source.start <= span.start
+                                && function.source.end >= span.end
+                        })
+                        .min_by_key(|function| function.source.end - function.source.start)
+                        .map(|function| function.id.clone());
+                    let scope_ids = symbols
+                        .scopes
+                        .iter()
+                        .filter(|scope| {
+                            scope.source.source_id == span.file
+                                && scope.source.start <= span.start
+                                && scope.source.end >= span.end
+                        })
+                        .map(|scope| scope.id.clone())
+                        .collect::<Vec<_>>();
+                    Some((source_span(source, span), role, function_id, scope_ids))
+                })
+                .collect::<Vec<_>>();
+            if let Some((role, first_function, first_scopes)) = mapped
+                .first()
+                .map(|(_, role, function, scopes)| (role.clone(), function.clone(), scopes.clone()))
+            {
+                let function_id = mapped
                     .iter()
-                    .filter(|function| {
-                        function.source.source_id == span.file
-                            && function.source.start <= span.start
-                            && function.source.end >= span.end
-                    })
-                    .min_by_key(|function| function.source.end - function.source.start);
-                let scope_ids = symbols
-                    .scopes
+                    .all(|(_, _, function, _)| function == &first_function)
+                    .then_some(first_function)
+                    .flatten();
+                let scope_ids = first_scopes
                     .iter()
                     .filter(|scope| {
-                        scope.source.source_id == span.file
-                            && scope.source.start <= span.start
-                            && scope.source.end >= span.end
+                        mapped
+                            .iter()
+                            .all(|(_, _, _, scopes)| scopes.contains(scope))
                     })
-                    .map(|scope| scope.id.clone())
+                    .cloned()
                     .collect();
                 associations.push(DebugAssociation {
-                    generated: generated.clone(),
-                    causes: vec![source_span(source, span)],
+                    generated,
+                    causes: mapped.into_iter().map(|(cause, _, _, _)| cause).collect(),
                     role,
                     sequence_point: true,
-                    function_id: function.map(|function| function.id.clone()),
+                    function_id,
                     scope_ids,
                 });
             }
@@ -675,9 +702,14 @@ pub fn hash_bytes(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::collections::BTreeMap;
+    use std::path::{Path, PathBuf};
 
+    use crate::rust_ir::RenderedFile;
     use crate::{CompilerOptions, compile_with_options};
+    use crate::{SourceFile, SourceRole};
+
+    use super::{DebugSymbols, marker_associations};
 
     #[test]
     fn debug_information_tracks_final_sequence_points_and_bindings() {
@@ -827,5 +859,38 @@ mod tests {
                 .iter()
                 .any(|field| field.name == "username" && !field.secret)
         );
+    }
+    #[test]
+    fn consecutive_same_role_markers_form_one_multi_cause_association() {
+        let source = SourceFile::new(
+            7,
+            PathBuf::from("src/main.trn"),
+            "first\nsecond\n".to_owned(),
+        );
+        let symbols = DebugSymbols {
+            sources: Vec::new(),
+            functions: Vec::new(),
+            scopes: Vec::new(),
+            bindings: Vec::new(),
+            source_roles: BTreeMap::from([(7, SourceRole::Production)]),
+            objects: Vec::new(),
+            source_files: BTreeMap::from([(7, source)]),
+            embed_generated_sources: false,
+        };
+        let file = RenderedFile {
+            path: "src/main.rs".to_owned(),
+            contents: concat!(
+                "/* terrane-debug-point:7:0:5:user */\n",
+                "/* terrane-debug-point:7:6:12:user */\n",
+                "let value = 1;\n"
+            )
+            .to_owned(),
+            associations: Vec::new(),
+        };
+        let associations = marker_associations(&file, &symbols);
+        assert_eq!(associations.len(), 1);
+        assert_eq!(associations[0].causes.len(), 2);
+        assert_eq!(associations[0].causes[0].line, 1);
+        assert_eq!(associations[0].causes[1].line, 2);
     }
 }

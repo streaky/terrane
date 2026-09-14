@@ -1664,8 +1664,6 @@ fn translate_variables(
                     variable["variablesReference"] = 0.into();
                 } else if raw.contains("optimized out") {
                     variable["value"] = "<optimized out>".into();
-                } else if raw.contains("moved") {
-                    variable["value"] = "<moved>".into();
                 } else if raw.contains("unavailable") {
                     variable["value"] = "<unavailable debug information>".into();
                 }
