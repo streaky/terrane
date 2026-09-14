@@ -583,8 +583,8 @@ mod __terrane_trace {
         { Site { function: 33, file: 1, line: 235, column: 9, end_line: 235, end_column: 49 } },
         /* terrane-site-row: site 45: /core/testing::advance-time (core/testing.trn:237:9-237:69) */
         { Site { function: 33, file: 1, line: 237, column: 9, end_line: 237, end_column: 69 } },
-        /* terrane-site-row: site 46: /core/testing/process::run-process (core/testing_process.trn:43:9-43:84) */
-        { Site { function: 34, file: 2, line: 43, column: 9, end_line: 43, end_column: 84 } },
+        /* terrane-site-row: site 46: /core/testing/process::run-process (core/testing_process.trn:47:9-47:84) */
+        { Site { function: 34, file: 2, line: 47, column: 9, end_line: 47, end_column: 84 } },
         /* terrane-site-row: site 47: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 35, file: 3, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 48: /core/process::environment (core/process.trn:54:40-54:54) */
@@ -1398,6 +1398,8 @@ pub struct ProcessResult {
     pub timed_out: bool,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
+    pub stdout_truncated: bool,
+    pub stderr_truncated: bool,
 }
 impl ProcessResult {
     pub fn terrane_construct(
@@ -1406,6 +1408,8 @@ impl ProcessResult {
         exceeded_deadline: bool,
         output: Vec<u8>,
         errors: Vec<u8>,
+        output_truncated: bool,
+        errors_truncated: bool,
     ) -> Self {
         let mut value = Self {
             exit_code: terrane_int_support::Int::from(0_i128),
@@ -1413,8 +1417,19 @@ impl ProcessResult {
             timed_out: false,
             stdout: Vec::from([]),
             stderr: Vec::from([]),
+            stdout_truncated: false,
+            stderr_truncated: false,
         };
-        value.construct(status, did_crash, exceeded_deadline, output, errors);
+        value
+            .construct(
+                status,
+                did_crash,
+                exceeded_deadline,
+                output,
+                errors,
+                output_truncated,
+                errors_truncated,
+            );
         value
     }
     pub fn construct(
@@ -1424,12 +1439,16 @@ impl ProcessResult {
         exceeded_deadline: bool,
         output: Vec<u8>,
         errors: Vec<u8>,
+        output_truncated: bool,
+        errors_truncated: bool,
     ) {
         self.exit_code = status.clone();
         self.crashed = did_crash;
         self.timed_out = exceeded_deadline;
         self.stdout = output;
         self.stderr = errors;
+        self.stdout_truncated = output_truncated;
+        self.stderr_truncated = errors_truncated;
     }
 }
 pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneError> {
@@ -1481,7 +1500,7 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
             TerraneError::raised_with_message(
                 TerraneErrorKind::Custom(DescriptorId(2)),
                 value.render(),
-                46 /* terrane-site: core/testing_process.trn:43:9-43:84 */,
+                46 /* terrane-site: core/testing_process.trn:47:9-47:84 */,
             )
         });
     }
@@ -1492,6 +1511,8 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
             terrane_test_result_deadline_exceeded(&raw),
             terrane_test_result_stdout(&raw),
             terrane_test_result_stderr(&raw),
+            terrane_test_result_stdout_truncated(&raw),
+            terrane_test_result_stderr_truncated(&raw),
         ),
     );
 }
