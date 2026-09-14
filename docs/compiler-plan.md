@@ -206,118 +206,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.1 — Terrane-native testing framework
-
-Terrane programs need a first-party way to test Terrane behavior without translating their
-contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
-`terrane test` path over the ordinary compiler pipeline. The public framework and case execution
-logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
-process isolation/capture, host filesystem operations, and Terrane-level exposure of the controlled
-host-clock foundation introduced by Milestone 29.3.
-
-Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
-test callbacks. Milestones 19, 22, 26, 29.1, and 29.3 provide the async, filesystem, process,
-profile, system, selection, controlled-time foundation, and signal facilities needed by deterministic
-unit, isolated integration, and end-to-end tests.
-
-Test discovery and execution consume the shared in-process snapshot/query service from Milestone
-30.0; they do not serialize the public AST schema internally or create a test-only parser,
-resolver, symbol identity, or source-location model.
-
-#### Test discovery and tiers
-
-Deliver:
-
-- `terrane test [package-or-source]` using the same package loading, semantic analysis, Rust IR,
-  Cargo generation, cache, warning policy, and source diagnostics as `check`, `build`, and `run`;
-- conventional `tests/unit`, `tests/integration`, and `tests/end-to-end` roots, with optional
-  manifest overrides that remain bounded package inputs and enter the build/cache identity;
-- discovery of top-level zero-parameter `test-*` functions in those roots, including `async`
-  functions, in deterministic tier, logical-path, source-order, and function-name order;
-- a compiler-generated test registry and native runner entrypoint. Test units do not author a
-  second `main`; ordinary programs and executable scripts retain their required parameterless
-  top-level `main`;
-- unit tests compiled with the package source set and namespace-private access only when they
-  declare the namespace that owns that state; integration tests compiled as external consumers of
-  public package surfaces; and end-to-end tests driving the built application artifact through an
-  explicit process fixture;
-- a source-oriented diagnostic for an invalid test signature, duplicate fully qualified test
-  identity, test-only dependency leak into production, or inaccessible unit/integration boundary.
-
-Discovery is compiler-owned metadata, not a new declaration grammar or annotation system. A test is
-an ordinary Terrane function that can also be called by another Terrane function. Filtering changes
-which valid tests execute, never which test sources are compiled and checked.
-
-#### Terrane testing surface
-
-Provide the main framework as bundled Terrane source in `/core/testing`:
-
-- `test-failure` and `test-skip` throwable classes carrying message, assertion source, and bounded
-  structured details;
-- boolean `assert` and `deny`, explicit `fail`, equality/inequality assertions, optional
-  present/none assertions, floating near-equality with an explicit tolerance, and
-  `assert-throws` over a typed callback and expected throwable descriptor;
-- assertion forms that evaluate every supplied expression exactly once and report the authored
-  assertion site. Equality remains the language's typed equality rather than string comparison;
-  concrete operand types stay statically known and must not be routed through a universal boxed
-  value merely to make the API generic;
-- useful failure rendering for values that implement ordinary display or the
-  `/core/testing::test-value` protocol, with type and source information retained when a value is
-  intentionally not renderable. Secret/redacted values must never be revealed by a failed assertion;
-- `skip; reason`, per-test timeout/deadline access, a unique temporary directory, controlled
-  environment and argument fixtures, and deterministic pseudo-random seed access;
-- end-to-end process fixtures that take an artifact, lossless arguments/environment, optional
-  standard input, and deadline, then return exact exit status plus captured stdout and stderr.
-  The host spawn/capture primitive is a narrow audited adapter; orchestration and assertions remain
-  Terrane;
-- a named test profile selected through the manifest, defaulting to the package's ordinary profile
-  without silently adding capabilities. Temporary directories and child-process fixtures require
-  the same explicit filesystem/process grants as ordinary Terrane code;
-
-Ordinary Terrane control flow supplies table-driven tests and local setup/cleanup. The initial
-framework does not add parameterized-test syntax, decorators, automatic retries, snapshot rewriting,
-mock generation, or a second matcher DSL. Those can be considered only after real suites show that
-functions, loops, callbacks, `try`/`finally`, and the core assertions are insufficient.
-
-Terrane currently lacks a concise expression for a short-lived heterogeneous object with named
-members. While building the framework and its first real suites, record every case where a class is
-introduced solely to bundle one-off fixture or intermediate values, along with why a tuple, map,
-document value, or named class was inadequate. This is design evidence, not a commitment to
-anonymous objects: the eventual answer may be anonymous compiler-generated classes, lightweight
-named records, better fixture construction, or no new construct if the pressure is weak. Revisit the
-question after the milestone's representative unit, integration, and end-to-end suites exist.
-
-#### Isolation, reporting, and command behavior
-
-Deliver:
-
-- compile each tier once, then execute every selected case in an isolated process by default so an
-  explicit exit, panic, timeout, leaked global state, or malformed end-to-end child cannot prevent
-  later cases from running;
-- a fresh working directory and test context per case, bounded stdout/stderr capture, deterministic
-  ordering of the final report, and explicit cleanup even when a case fails or times out;
-- bounded parallel execution through `--jobs`, stable substring filtering, `--list`, `--fail-fast`,
-  and an explicit per-case timeout; scheduling may vary but report order and identities may not;
-- concise human output by default, captured output on failure with an opt-in successful-output view,
-  and a versioned machine-readable report containing case identity, tier, status, duration, source,
-  structured failure/cause, stdout, and stderr;
-- distinct passed, failed, skipped, timed-out, crashed, compile-failed, and infrastructure-failed
-  states. Zero exit means every selected executable case passed or explicitly skipped; assertion,
-  uncaught throwable, timeout, crash, and unexpected process result are test failures, while
-  compiler and infrastructure failures retain their existing distinct CLI exit classes;
-- no dependency on Cargo's test target model, Rust `#[test]`, or `libtest`. Generated Rust may use
-  ordinary native functions and executables, but Rust testing infrastructure is not the semantic
-  runner for Terrane code.
-
-Exit criterion: one purpose-built package runs unit, integration, asynchronous, and end-to-end tests
-written entirely in Terrane; demonstrates every initial assertion category, skip, failure, timeout,
-temporary-directory isolation, argument/environment control, stdout/stderr capture, and deterministic
-filter/report behavior; proves private unit access and public-only integration access; and shows that
-one crashing or exiting test does not suppress later results. The framework's own behavioral suite
-must be Terrane tests run by `terrane test`, while compiler discovery/lowering and the narrow host
-adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
-and accepted framework cases carry canonical generated-Rust evidence.
-
 ### Milestone 30.2 — LLDB-backed Terrane source debugging
 
 Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
@@ -656,7 +544,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
   subscriptions (milestone 29.3);
 - establish compiler-backed source intelligence, structural querying/editing, source formatting,
   and consolidated language-server analysis (milestone 30.0);
-- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 30.1);
 - add LLDB-backed Terrane source debugging with build-bound provenance and shared DAP/CLI
   translation (milestone 30.2);
 - complete the release hardening gate (milestone 32); and
@@ -3904,3 +3791,130 @@ Completion evidence after the fifth correctness review:
   and
 - `python3 docs/measure-test-times.py` passed the complete workspace suite and refreshed the
   scoreboard with 1,055 recorded timings for 1,068 tests.
+
+### Milestone 30.1 — Terrane-native testing framework
+**Status:** completed on `terrane-native-testing-framework`.
+
+Terrane programs need a first-party way to test Terrane behavior without translating their
+contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
+`terrane test` path over the ordinary compiler pipeline. The public framework and case execution
+logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
+process isolation/capture, host filesystem operations, and Terrane-level exposure of the controlled
+host-clock foundation introduced by Milestone 29.3.
+
+Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
+test callbacks. Milestones 19, 22, 26, 29.1, and 29.3 provide the async, filesystem, process,
+profile, system, selection, controlled-time foundation, and signal facilities needed by deterministic
+unit, isolated integration, and end-to-end tests.
+
+Test discovery and execution consume the shared in-process snapshot/query service from Milestone
+30.0; they do not serialize the public AST schema internally or create a test-only parser,
+resolver, symbol identity, or source-location model.
+
+#### Test discovery and tiers
+
+Deliver:
+
+- `terrane test [package-or-source]` using the same package loading, semantic analysis, Rust IR,
+  Cargo generation, cache, warning policy, and source diagnostics as `check`, `build`, and `run`;
+- conventional `tests/unit`, `tests/integration`, and `tests/end-to-end` roots, with optional
+  manifest overrides that remain bounded package inputs and enter the build/cache identity;
+- discovery of top-level zero-parameter `test-*` functions in those roots, including `async`
+  functions, in deterministic tier, logical-path, source-order, and function-name order;
+- a compiler-generated test registry and native runner entrypoint. Test units do not author a
+  second `main`; ordinary programs and executable scripts retain their required parameterless
+  top-level `main`;
+- unit tests compiled with the package source set and namespace-private access only when they
+  declare the namespace that owns that state; integration tests compiled as external consumers of
+  public package surfaces; and end-to-end tests driving the built application artifact through an
+  explicit process fixture;
+- a source-oriented diagnostic for an invalid test signature, duplicate fully qualified test
+  identity, test-only dependency leak into production, or inaccessible unit/integration boundary.
+
+Discovery is compiler-owned metadata, not a new declaration grammar or annotation system. A test is
+an ordinary Terrane function that can also be called by another Terrane function. Filtering changes
+which valid tests execute, never which test sources are compiled and checked.
+
+#### Terrane testing surface
+
+Provide the main framework as bundled Terrane source in `/core/testing`:
+
+- `test-failure` and `test-skip` throwable classes carrying message, assertion source, and bounded
+  structured details;
+- boolean `assert` and `deny`, explicit `fail`, equality/inequality assertions, optional
+  present/none assertions, floating near-equality with an explicit tolerance, and
+  `assert-throws` over a typed callback and expected throwable descriptor;
+- assertion forms that evaluate every supplied expression exactly once and report the authored
+  assertion site. Equality remains the language's typed equality rather than string comparison;
+  concrete operand types stay statically known and must not be routed through a universal boxed
+  value merely to make the API generic;
+- useful failure rendering for values that implement ordinary display or the
+  `/core/testing::test-value` protocol, with type and source information retained when a value is
+  intentionally not renderable. Secret/redacted values must never be revealed by a failed assertion;
+- `skip; reason`, per-test timeout/deadline access, a unique temporary directory, controlled
+  environment and argument fixtures, and deterministic pseudo-random seed access;
+- end-to-end process fixtures that take an artifact, lossless arguments/environment, optional
+  standard input, and deadline, then return exact exit status plus captured stdout and stderr.
+  The host spawn/capture primitive is a narrow audited adapter; orchestration and assertions remain
+  Terrane;
+- a named test profile selected through the manifest, defaulting to the package's ordinary profile
+  without silently adding capabilities. Temporary directories and child-process fixtures require
+  the same explicit filesystem/process grants as ordinary Terrane code;
+
+Ordinary Terrane control flow supplies table-driven tests and local setup/cleanup. The initial
+framework does not add parameterized-test syntax, decorators, automatic retries, snapshot rewriting,
+mock generation, or a second matcher DSL. Those can be considered only after real suites show that
+functions, loops, callbacks, `try`/`finally`, and the core assertions are insufficient.
+
+Terrane currently lacks a concise expression for a short-lived heterogeneous object with named
+members. While building the framework and its first real suites, record every case where a class is
+introduced solely to bundle one-off fixture or intermediate values, along with why a tuple, map,
+document value, or named class was inadequate. This is design evidence, not a commitment to
+anonymous objects: the eventual answer may be anonymous compiler-generated classes, lightweight
+named records, better fixture construction, or no new construct if the pressure is weak. Revisit the
+question after the milestone's representative unit, integration, and end-to-end suites exist.
+
+#### Isolation, reporting, and command behavior
+
+Deliver:
+
+- compile each tier once, then execute every selected case in an isolated process by default so an
+  explicit exit, panic, timeout, leaked global state, or malformed end-to-end child cannot prevent
+  later cases from running;
+- a fresh working directory and test context per case, bounded stdout/stderr capture, deterministic
+  ordering of the final report, and explicit cleanup even when a case fails or times out;
+- bounded parallel execution through `--jobs`, stable substring filtering, `--list`, `--fail-fast`,
+  and an explicit per-case timeout; scheduling may vary but report order and identities may not;
+- concise human output by default, captured output on failure with an opt-in successful-output view,
+  and a versioned machine-readable report containing case identity, tier, status, duration, source,
+  structured failure/cause, stdout, and stderr;
+- distinct passed, failed, skipped, timed-out, crashed, compile-failed, and infrastructure-failed
+  states. Zero exit means every selected executable case passed or explicitly skipped; assertion,
+  uncaught throwable, timeout, crash, and unexpected process result are test failures, while
+  compiler and infrastructure failures retain their existing distinct CLI exit classes;
+- no dependency on Cargo's test target model, Rust `#[test]`, or `libtest`. Generated Rust may use
+  ordinary native functions and executables, but Rust testing infrastructure is not the semantic
+  runner for Terrane code.
+
+Exit criterion: one purpose-built package runs unit, integration, asynchronous, and end-to-end tests
+written entirely in Terrane; demonstrates every initial assertion category, skip, failure, timeout,
+temporary-directory isolation, argument/environment control, stdout/stderr capture, and deterministic
+filter/report behavior; proves private unit access and public-only integration access; and shows that
+one crashing or exiting test does not suppress later results. The framework's own behavioral suite
+must be Terrane tests run by `terrane test`, while compiler discovery/lowering and the narrow host
+adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
+and accepted framework cases carry canonical generated-Rust evidence.
+
+Completion evidence:
+
+- the purpose-built `tests/native-testing` package exercises unit, integration, asynchronous,
+  process-fixture, and end-to-end behavior entirely through `terrane test`, including isolation,
+  filtering, deterministic reports, controlled test context, assertions, skip/failure/timeout, and
+  continuation after failed, timed-out, and signal-killed cases;
+- focused compiler package, native CLI, host-adapter, and canonical
+  `native-testing-surface` conformance coverage passed, including a real process-level regression
+  that sends `SIGKILL` to an isolated runner and verifies human and JSON crash reporting;
+- generated runners and the workspace pass strict Clippy with warnings denied; and
+- the bounded-parallel workspace scorecard at `74e1b06f` recorded 1,084 passed timings, zero
+  failures, and zero ignored tests, with synchronized README, full/concise specifications,
+  repository guidance, reference manual, and tutorial material.
