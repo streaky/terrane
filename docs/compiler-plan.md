@@ -3897,7 +3897,7 @@ real compiler; no consumer reparses or re-resolves Terrane independently; the ex
 fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
 suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
 
-Completion evidence after the third correctness review:
+Completion evidence after the fourth correctness review:
 
 - `cargo clippy --workspace --all-targets -- -D warnings`;
 - focused parser, compiler tooling, external CLI-client, language-server, and protocol suites passed;
