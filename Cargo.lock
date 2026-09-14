@@ -1599,6 +1599,7 @@ dependencies = [
 name = "terrane-language-server"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
  "terrane-compiler",
  "tokio",

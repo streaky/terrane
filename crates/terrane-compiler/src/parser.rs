@@ -1,4 +1,4 @@
-use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
+use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree, is_reserved_declaration_name};
 use crate::tokens::{Attachment, LexedSource, Token, TokenKind};
 use crate::{Diagnostic, SourceFile, Span};
 
@@ -188,7 +188,7 @@ impl Parser<'_> {
         self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
-            self.reject_contextual_declaration_name();
+            self.reject_keyword_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else {
             self.error_here("S1034", "object declaration requires a name");
@@ -408,7 +408,7 @@ impl Parser<'_> {
             children.push(self.leaf(SyntaxKind::Visibility));
         }
         if self.at(TokenKind::Identifier) {
-            self.reject_contextual_declaration_name();
+            self.reject_keyword_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else if self.at(TokenKind::Dot) && self.peek_kind(1) == Some(TokenKind::Identifier) {
             self.error_here_with_help(
@@ -555,7 +555,7 @@ impl Parser<'_> {
         children.extend(self.parse_function_qualifiers(true));
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
-            self.reject_contextual_declaration_name();
+            self.reject_keyword_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
             if self.at_text("of") {
                 self.error_here(
@@ -645,7 +645,7 @@ impl Parser<'_> {
         while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
-                self.reject_contextual_declaration_name();
+                self.reject_keyword_declaration_name();
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
                 if !(self.at(TokenKind::Assign)
                     || self.at(TokenKind::Comma)
@@ -1562,8 +1562,8 @@ impl Parser<'_> {
         }
     }
 
-    fn reject_contextual_declaration_name(&mut self) {
-        if matches!(self.text(), "instance" | "self" | "this") {
+    fn reject_keyword_declaration_name(&mut self) {
+        if is_reserved_declaration_name(self.text()) {
             self.error_here(
                 "S1095",
                 format!("`{}` is reserved and cannot be declared", self.text()),

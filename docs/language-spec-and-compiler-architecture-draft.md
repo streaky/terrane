@@ -566,7 +566,12 @@ ordinary binding named `import`. Likewise, `select` is structural at statement s
 resolve an ordinary binding in that position.
 
 The language should use contextual rather than gratuitously reserved keywords where doing so
-remains unambiguous.
+remains unambiguous. Declaration-name slots reserve the declaration introducer `function` and the
+intrinsic object words `instance`, `self`, and `this`; other contextual words remain usable as
+ordinary names when their surrounding grammar is unambiguous. This keeps source editing and
+identity-safe rename from turning a declaration into a function construct. Compiler syntax owns
+both the language-keyword inventory and the declaration-name reservation policy used by parsing,
+highlighting, and tooling validation.
 
 ### 6.7 Text literals
 
@@ -5940,6 +5945,31 @@ terrane trace
 terrane profile
 terrane package
 ```
+
+The implemented source-intelligence entry points are `terrane tooling --stdio` for a long-lived
+JSON-lines service and `terrane query --request <json-file>` for one request. Both expose schema
+`1.0` from the compiler-owned snapshot engine; `docs/tooling-schema.md` is the compatibility
+reference. A response identifies the compiler/schema, immutable content-derived snapshot,
+logical source and source hash. Semantic and generated facts are explicit opt-in snapshot phases.
+
+The public syntax projection retains authored tokens, trivia, UTF-8 byte spans, named child fields,
+and complete/error/recovery/unsupported state even when semantic analysis is invalid. Semantic
+queries add canonical symbol/descriptor identity, definition/reference locations, type, ownership,
+capability, and explicit fact availability. Structural matching is deliberately bounded to kind,
+child field, containing span, text/token, and canonical identity constraints; ordered pages use
+snapshot/query-bound opaque continuations rather than an executable query language.
+
+Snapshots and continuations have deterministic bounded retention. Mutations are validated edit
+proposals, never a mutable public AST: affected hashes and non-overlapping byte replacements are
+preflighted, changed source is reparsed, semantic snapshots are reanalysed, and stale disk bytes are
+refused before writing. LSP consumers receive versioned workspace edits instead of compiler-owned
+disk mutation. Generated associations are available only for an exact build ID.
+
+The language server stores shared compiler snapshot IDs for diagnostics, semantic hover,
+definitions, references, rename, document symbols, and formatting. It negotiates UTF-8, UTF-16, or
+UTF-32 LSP positions and converts them only at the protocol boundary; compiler spans remain UTF-8
+bytes. Direct lexing remains only to encode semantic-token classifications and is not a second
+syntax or resolution authority.
 
 ### 31.2 Formatter
 

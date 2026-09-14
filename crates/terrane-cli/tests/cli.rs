@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
@@ -391,4 +392,283 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
     assert!(stderr.contains("at /runtime-error::main (case.trn:11:3-11:9)"));
     assert!(!stderr.contains("panicked"));
     assert!(!stderr.contains("src/authored"));
+}
+
+#[test]
+fn external_tooling_clients_receive_versioned_protocol_frames() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("tooling-client");
+    fs::create_dir_all(directory.path()).unwrap();
+    let request = serde_json::json!({
+        "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+        "request_id": "open-one-shot",
+        "operation": "open-snapshot",
+        "sources": [{
+            "uri": "file:///workspace/client.trn",
+            "text": "namespace client\n\nfunction main;\n"
+        }],
+        "options": {
+            "semantic": true,
+            "generated": true,
+            "generated_entrypoint": "generated/client.rs"
+        }
+    });
+    let batch = serde_json::json!([
+        request.clone(),
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "syntax-one-shot",
+            "operation": "syntax",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn"
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "generated-one-shot",
+            "operation": "generated-rust",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn",
+            "node_id": 0,
+            "build_id": "$last-build"
+        }
+    ]);
+    let request_path = directory.path().join("request.json");
+    fs::write(&request_path, batch.to_string()).unwrap();
+    let one_shot = Command::new(binary)
+        .args(["query", "--request"])
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    assert!(one_shot.status.success(), "{one_shot:?}");
+    assert!(one_shot.stderr.is_empty(), "{one_shot:?}");
+    let responses = String::from_utf8(one_shot.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(responses.len(), 3);
+    assert_eq!(responses[0]["request_id"], "open-one-shot");
+    assert_eq!(responses[1]["request_id"], "syntax-one-shot");
+    assert_eq!(responses[2]["request_id"], "generated-one-shot");
+    assert_eq!(
+        responses[0]["schema_version"],
+        terrane_compiler::tooling::SCHEMA_VERSION
+    );
+    assert!(
+        responses[0]["snapshot_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert!(
+        responses[0]["source_hash"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert_eq!(responses[1]["result"]["root"]["kind"], "CompilationUnit");
+    assert!(
+        responses[2]["result"]["known"]
+            .as_array()
+            .is_some_and(|locations| locations.iter().any(|location| {
+                location["path"]
+                    .as_str()
+                    .is_some_and(|path| path.ends_with("generated/client.rs"))
+            }))
+    );
+}
+
+#[test]
+fn tooling_stdio_returns_envelopes_for_malformed_requests() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let request = serde_json::json!({
+        "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+        "request_id": "open-stdio",
+        "operation": "open-snapshot",
+        "sources": [{
+            "uri": "file:///workspace/client.trn",
+            "text": "namespace client\n\nfunction main;\n"
+        }],
+        "options": {"semantic": true, "generated": true}
+    });
+    let mut service = Command::new(binary)
+        .args(["tooling", "--stdio"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = service.stdin.take().unwrap();
+    writeln!(stdin, "{request}").unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "syntax-stdio",
+            "operation": "syntax",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn"
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "generated-stdio",
+            "operation": "generated-rust",
+            "snapshot_id": "$last",
+            "uri": "file:///workspace/client.trn",
+            "node_id": 0,
+            "build_id": "$last-build"
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": "999.0",
+            "request_id": "future-schema",
+            "operation": "unknown-future-operation"
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        serde_json::json!({
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": 42,
+            "operation": "syntax",
+            "snapshot_id": "sha256:missing",
+            "uri": "file:///workspace/client.trn",
+            "node_id": null
+        })
+    )
+    .unwrap();
+    writeln!(stdin, "{{not-json").unwrap();
+    drop(stdin);
+    let output = service.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let frames = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 6);
+    assert!(frames[0]["error"].is_null());
+    assert_eq!(frames[1]["result"]["root"]["kind"], "CompilationUnit");
+    assert!(frames[2]["result"]["known"].is_array());
+    assert_eq!(frames[3]["error"]["code"], "unsupported-schema");
+    assert_eq!(frames[4]["request_id"], "42");
+    assert_eq!(frames[4]["error"]["code"], "invalid-json");
+    assert_eq!(frames[5]["error"]["code"], "invalid-json");
+}
+
+#[test]
+fn external_query_client_applies_a_multi_file_rename() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("external-rename");
+    let app = directory.path().join("app");
+    let child_directory = app.join("child");
+    fs::create_dir_all(&child_directory).unwrap();
+    let manifest_path = directory.path().join("package.toml");
+    let main_path = app.join("main.trn");
+    let child_path = child_directory.join("child.trn");
+    let request_path = directory.path().join("rename.json");
+    let manifest = "package = \"external-rename\"\n[namespaces]\napp = \"app\"\n";
+    let main = "namespace app\n\npublic function answer int;\n    return 1\n";
+    let child = "namespace app/child\n\nfunction use-answer int;\n    return answer;\n";
+    fs::write(&manifest_path, manifest).unwrap();
+    fs::write(&main_path, main).unwrap();
+    fs::write(&child_path, child).unwrap();
+    let main_uri = format!("file://{}", main_path.display());
+    let child_uri = format!("file://{}", child_path.display());
+    let manifest_uri = format!("file://{}", manifest_path.display());
+    let requests = serde_json::json!([
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "open-rename",
+            "operation": "open-snapshot",
+            "sources": [
+                {"uri": main_uri, "text": main},
+                {"uri": child_uri, "text": child}
+            ],
+            "manifest": {"uri": manifest_uri, "text": manifest},
+            "options": {"semantic": true}
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "propose-rename",
+            "operation": "propose-rename",
+            "snapshot_id": "$last",
+            "uri": child_uri,
+            "offset": child.rfind("answer").unwrap(),
+            "new_name": "computed-answer"
+        },
+        {
+            "schema_version": terrane_compiler::tooling::SCHEMA_VERSION,
+            "request_id": "apply-rename",
+            "operation": "apply-edits",
+            "proposal_id": "$last-proposal"
+        }
+    ]);
+    fs::write(&request_path, requests.to_string()).unwrap();
+    let output = Command::new(binary)
+        .args(["query", "--request"])
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let frames = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(frames.lines().count(), 3);
+    assert!(
+        fs::read_to_string(main_path)
+            .unwrap()
+            .contains("function computed-answer int")
+    );
+    assert!(
+        fs::read_to_string(child_path)
+            .unwrap()
+            .contains("return computed-answer;")
+    );
+}
+
+#[test]
+fn source_formatter_checks_then_applies_an_idempotent_edit() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("formatter");
+    fs::create_dir_all(directory.path()).unwrap();
+    let source = directory.path().join("format.trn");
+    fs::write(&source, "function main;   \r\n    value int = 1   \r\n").unwrap();
+
+    let check = Command::new(binary)
+        .args(["fmt", "--check"])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert_eq!(check.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(check.stdout).unwrap().trim(),
+        source.display().to_string()
+    );
+    let apply = Command::new(binary)
+        .arg("fmt")
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(apply.status.success(), "{apply:?}");
+    assert_eq!(
+        fs::read_to_string(&source).unwrap(),
+        "function main;\r\n    value int = 1\r\n"
+    );
+    let clean = Command::new(binary)
+        .args(["fmt", "--check"])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(clean.status.success(), "{clean:?}");
+    assert!(clean.stdout.is_empty());
 }

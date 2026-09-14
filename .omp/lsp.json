@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "terrane-language-server": {
+      "command": "./target/debug/terrane-language-server",
+      "args": [],
+      "fileTypes": [".trn"],
+      "languageId": "terrane",
+      "rootMarkers": ["Cargo.toml"]
+    }
+  }
+}

@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",

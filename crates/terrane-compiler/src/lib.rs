@@ -15,6 +15,7 @@ pub mod semantics;
 pub mod source;
 pub mod syntax;
 pub mod tokens;
+pub mod tooling;
 pub mod types;
 
 mod projection_oracle;

@@ -205,138 +205,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 30.0 — Compiler-backed source intelligence and structural tooling
-
-Terrane already owns recovered syntax, retained tokens/trivia and byte spans, canonical semantic
-descriptors, generated-Rust source associations, and an initial language server. Turn that internal
-foundation into one versioned source-intelligence service used by the compiler CLI, language
-server, test discovery, editors, refactoring tools, and coding agents. Do not introduce a second
-parser, resolver, formatter authority, or public serialization of internal Rust structs.
-
-#### Public trees, snapshots, and identities
-
-Expose two deliberately different read-only projections:
-
-- a lossless syntax tree containing exact tokens, trivia, indentation, punctuation, named child
-  fields, byte spans, and explicit complete/error/recovery state, available even when semantic
-  analysis cannot complete; and
-- a compact semantic tree containing resolved declarations/references, canonical symbol and
-  descriptor identities, authored and inferred types/effects/invocation modes, ownership and
-  capability facts, diagnostics, and optional build-bound generated-Rust associations.
-
-Neither tree is lowering IR. Generated Rust remains the readable public realization, while the
-public schemas remain independently versioned projections whose fields are chosen for consumers.
-`SyntaxTree::normalized` remains a parser-golden representation and is not promoted accidentally
-into the compatibility contract.
-
-Every response carries compiler version, public schema version, immutable snapshot ID, logical
-source URI, source content hash, and canonical UTF-8 byte offsets. A package-semantic snapshot also
-identifies manifest and lock inputs, target, profile/capabilities, dependency projection artifacts,
-and analysis options. Unsaved editor overlays are explicit snapshot inputs; a query never silently
-substitutes disk contents for an open overlay.
-
-Syntax-node IDs are deterministic only within one snapshot. Canonical semantic symbol and
-descriptor identities are distinct from positional node IDs and retain namespace-qualified owners,
-aliases, applied interfaces, and inherited/projected members. Generated spans carry a separate
-build identity and are unavailable in parse-only snapshots. No public promise makes node IDs stable
-through arbitrary edits.
-
-Facts report `known`, `unresolved`, `invalid`, `not-yet-analyzed`, or `unsupported` availability.
-Unavailable types, exact throwable sets, reference indexes, ownership facts, or generated spans are
-never represented as empty/default values. Semantic queries reuse the compiler's canonical
-`DescriptorContract` and package analysis rather than rebuilding member inventories from names.
-
-#### Query protocol and language-server consolidation
-
-Provide one shared in-process query engine plus:
-
-- a versioned JSON-lines stdio service, initially invoked as `terrane tooling --stdio`, for
-  long-lived external clients; and
-- a one-shot `terrane query --request <json-file>` wrapper using the identical request/response
-  schemas for scripts and agent harnesses.
-
-Initial operations are: open/close snapshot, return syntax diagnostics/tree or one node, locate the
-syntax/semantic object at a position, resolve declaration/definition/references, return type,
-ownership, effect, capability and member facts, find syntax nodes by structured selector, map a
-source node to generated Rust for an exact build, and propose validated source edits. Transport
-request IDs, cancellation, schema negotiation, error envelopes, and snapshot expiry are explicit;
-stdout carries protocol frames only and logs use stderr.
-
-Start structural matching with bounded selectors for node kind, named child field, containing
-span, text/token constraints, and canonical symbol/descriptor identity. Do not begin with a
-second general pattern language or executable query DSL. Matching recovery nodes is opt-in, and
-damaged syntax cannot produce successful semantic matches merely by spelling resemblance.
-
-Results use deterministic logical-path/byte-offset ordering, bounded pages, explicit completeness,
-and opaque continuation tokens tied to snapshot and query. Cancellation or a result limit is not
-“no matches”. Expired tokens request a fresh query and never resume against changed source. Bound
-retained snapshots by count/bytes and evict deterministically. Syntax-only queries never invoke
-Cargo, fetch dependencies, or execute extensions; semantic dependency resolution is explicit and
-uses the normal locked compiler pipeline.
-
-Extend the existing language server to consume this shared snapshot/query engine. Preserve and
-complete standard LSP diagnostics, synchronization, semantic tokens, completion, hover, signature
-help, symbols, definitions, implementations, references, rename, code actions, and source/Rust
-navigation. LSP positions convert at the negotiated encoding boundary while compiler spans remain
-UTF-8 bytes. The server and CLI must not maintain independent parser or resolver state.
-
-#### Structural edits and source formatting
-
-The first mutation surface returns edits rather than a mutable public AST. An edit proposal records
-its snapshot, every affected file hash, non-overlapping byte replacements, preview diagnostics, and
-whether semantic reanalysis completed. Apply validates every precondition before writing.
-
-The CLI owns disk edits; LSP returns a versioned workspace edit for the editor to apply. Reparse all
-changed files in a candidate snapshot. Semantic refactors—especially rename, imports, and member
-migration—use canonical identity, reanalyze affected packages, and reject capture or changed
-targets. Already-invalid input reports remaining errors rather than claiming compilation success.
-Preserve untouched bytes, comments, multiline text, and newline style.
-
-Add the compiler-owned Terrane source formatter through the same lossless tree, exposed explicitly
-through `terrane fmt` and LSP formatting. Formatting is idempotent, preserves meaning/comments
-and malformed regions it cannot safely format, and never treats generated-Rust canonicalization as
-a source formatter. `--check` reports drift without writing. Generated Rust and dependency/cache
-source remain read-only by default.
-
-Multi-file disk apply validates every file before its first write and uses same-directory temporary
-replacement where supported. Do not promise crash-atomicity across filesystems; on partial host
-failure report every committed/uncommitted file and retain recovery bytes rather than continuing
-best-effort writes.
-
-#### Implementation and evidence
-
-Refactor existing source/lexer/token/syntax/parser, semantic-package, language-server, and
-`rust_ir::SourceAssociation` data behind compiler-owned snapshot/query interfaces. Preserve the one
-`check`/`rust`/`build`/`run` frontend. Extend generated associations only through final rendered
-output; do not infer source identity from encoded Rust names. Public schema compatibility is
-additive within a schema major version; unknown enum values/fields remain rejectable or ignorable
-according to negotiated client capability, never silently reinterpreted.
-
-Prove the milestone with real external clients:
-
-- parse valid, incomplete, and malformed Unicode/CRLF/multiline source and preserve exact spans,
-  trivia, recovery state, and diagnostics;
-- query aliases, shadowing, inheritance, applied projected interfaces, ownership, and exact
-  throwable facts, distinguishing unavailable from empty;
-- page and cancel corpus queries, expire snapshots, change dependencies and overlays, and reject
-  stale continuations;
-- propose/apply a local structural rewrite and multi-file semantic rename, proving comment
-  preservation, capture rejection, full preflight, and stale-write refusal;
-- format representative valid and recovered files twice with byte-identical second output;
-- exercise the same analysis through CLI and LSP, including negotiated position encoding; and
-- navigate one exact compiled snapshot to final generated application/support Rust while refusing a
-  mismatched build.
-
-The initial milestone excludes arbitrary executable query languages, a mutable AST, public compiler
-Rust layouts, evaluation of extensions during syntax inspection, editing generated Rust, and a
-Tree-sitter grammar as semantic authority. A secondary advisory grammar or generic-tool adapter may
-follow only after the compiler-native contract is proven.
-
-Exit criterion: the public syntax/semantic schemas, snapshot and build identities, bounded query
-protocol, validated edits, source formatter, and shared LSP analysis work end to end through the
-real compiler; no consumer reparses or re-resolves Terrane independently; the external-client
-fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
-suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
 
 ### Milestone 30.1 — Terrane-native testing framework
 
@@ -3895,3 +3763,144 @@ and full/concise specifications, implemented surface, manual reference, capabili
 reflection, and tooling agree; focused conformance, real-host smoke coverage, strict Clippy, the
 complete conformance matrix, and the measured workspace suite all pass.
 
+### Milestone 30.0 — Compiler-backed source intelligence and structural tooling
+**Status:** completed on `compiler-backed-source-intelligence`.
+
+Terrane already owns recovered syntax, retained tokens/trivia and byte spans, canonical semantic
+descriptors, generated-Rust source associations, and an initial language server. Turn that internal
+foundation into one versioned source-intelligence service used by the compiler CLI, language
+server, test discovery, editors, refactoring tools, and coding agents. Do not introduce a second
+parser, resolver, formatter authority, or public serialization of internal Rust structs.
+
+#### Public trees, snapshots, and identities
+
+Expose two deliberately different read-only projections:
+
+- a lossless syntax tree containing exact tokens, trivia, indentation, punctuation, named child
+  fields, byte spans, and explicit complete/error/recovery state, available even when semantic
+  analysis cannot complete; and
+- a compact semantic tree containing resolved declarations/references, canonical symbol and
+  descriptor identities, authored and inferred types/effects/invocation modes, ownership and
+  capability facts, diagnostics, and optional build-bound generated-Rust associations.
+
+Neither tree is lowering IR. Generated Rust remains the readable public realization, while the
+public schemas remain independently versioned projections whose fields are chosen for consumers.
+`SyntaxTree::normalized` remains a parser-golden representation and is not promoted accidentally
+into the compatibility contract.
+
+Every response carries compiler version, public schema version, immutable snapshot ID, logical
+source URI, source content hash, and canonical UTF-8 byte offsets. A package-semantic snapshot also
+identifies manifest and lock inputs, target, profile/capabilities, dependency projection artifacts,
+and analysis options. Unsaved editor overlays are explicit snapshot inputs; a query never silently
+substitutes disk contents for an open overlay.
+
+Syntax-node IDs are deterministic only within one snapshot. Canonical semantic symbol and
+descriptor identities are distinct from positional node IDs and retain namespace-qualified owners,
+aliases, applied interfaces, and inherited/projected members. Generated spans carry a separate
+build identity and are unavailable in parse-only snapshots. No public promise makes node IDs stable
+through arbitrary edits.
+
+Facts report `known`, `unresolved`, `invalid`, `not-yet-analyzed`, or `unsupported` availability.
+Unavailable types, exact throwable sets, reference indexes, ownership facts, or generated spans are
+never represented as empty/default values. Semantic queries reuse the compiler's canonical
+`DescriptorContract` and package analysis rather than rebuilding member inventories from names.
+
+#### Query protocol and language-server consolidation
+
+Provide one shared in-process query engine plus:
+
+- a versioned JSON-lines stdio service, initially invoked as `terrane tooling --stdio`, for
+  long-lived external clients; and
+- a one-shot `terrane query --request <json-file>` wrapper using the identical request/response
+  schemas for scripts and agent harnesses.
+
+Initial operations are: open/close snapshot, return syntax diagnostics/tree or one node, locate the
+syntax/semantic object at a position, resolve declaration/definition/references, return type,
+ownership, effect, capability and member facts, find syntax nodes by structured selector, map a
+source node to generated Rust for an exact build, and propose validated source edits. Transport
+request IDs, cancellation, schema negotiation, error envelopes, and snapshot expiry are explicit;
+stdout carries protocol frames only and logs use stderr.
+
+Start structural matching with bounded selectors for node kind, named child field, containing
+span, text/token constraints, and canonical symbol/descriptor identity. Do not begin with a
+second general pattern language or executable query DSL. Matching recovery nodes is opt-in, and
+damaged syntax cannot produce successful semantic matches merely by spelling resemblance.
+
+Results use deterministic logical-path/byte-offset ordering, bounded pages, explicit completeness,
+and opaque continuation tokens tied to snapshot and query. Cancellation or a result limit is not
+“no matches”. Expired tokens request a fresh query and never resume against changed source. Bound
+retained snapshots by count/bytes and evict deterministically. Syntax-only queries never invoke
+Cargo, fetch dependencies, or execute extensions; semantic dependency resolution is explicit and
+uses the normal locked compiler pipeline.
+
+Extend the existing language server to consume this shared snapshot/query engine. Preserve and
+complete standard LSP diagnostics, synchronization, semantic tokens, completion, hover, signature
+help, symbols, definitions, implementations, references, rename, code actions, and source/Rust
+navigation. LSP positions convert at the negotiated encoding boundary while compiler spans remain
+UTF-8 bytes. The server and CLI must not maintain independent parser or resolver state.
+
+#### Structural edits and source formatting
+
+The first mutation surface returns edits rather than a mutable public AST. An edit proposal records
+its snapshot, every affected file hash, non-overlapping byte replacements, preview diagnostics, and
+whether semantic reanalysis completed. Apply validates every precondition before writing.
+
+The CLI owns disk edits; LSP returns a versioned workspace edit for the editor to apply. Reparse all
+changed files in a candidate snapshot. Semantic refactors—especially rename, imports, and member
+migration—use canonical identity, reanalyze affected packages, and reject capture or changed
+targets. Already-invalid input reports remaining errors rather than claiming compilation success.
+Preserve untouched bytes, comments, multiline text, and newline style.
+
+Add the compiler-owned Terrane source formatter through the same lossless tree, exposed explicitly
+through `terrane fmt` and LSP formatting. Formatting is idempotent, preserves meaning/comments
+and malformed regions it cannot safely format, and never treats generated-Rust canonicalization as
+a source formatter. `--check` reports drift without writing. Generated Rust and dependency/cache
+source remain read-only by default.
+
+Multi-file disk apply validates every file before its first write and uses same-directory temporary
+replacement where supported. Do not promise crash-atomicity across filesystems; on partial host
+failure report every committed/uncommitted file and retain recovery bytes rather than continuing
+best-effort writes.
+
+#### Implementation and evidence
+
+Refactor existing source/lexer/token/syntax/parser, semantic-package, language-server, and
+`rust_ir::SourceAssociation` data behind compiler-owned snapshot/query interfaces. Preserve the one
+`check`/`rust`/`build`/`run` frontend. Extend generated associations only through final rendered
+output; do not infer source identity from encoded Rust names. Public schema compatibility is
+additive within a schema major version. Schema 1.0 rejects unknown request fields rather than
+silently reinterpreting them; any future ignorable-field behavior requires explicit negotiation.
+
+Prove the milestone with real external clients:
+
+- parse valid, incomplete, and malformed Unicode/CRLF/multiline source and preserve exact spans,
+  trivia, recovery state, and diagnostics;
+- query aliases, shadowing, inheritance, applied projected interfaces, ownership, and exact
+  throwable facts, distinguishing unavailable from empty;
+- page and cancel corpus queries, expire snapshots, change dependencies and overlays, and reject
+  stale continuations;
+- propose/apply a local structural rewrite and multi-file semantic rename, proving comment
+  preservation, capture rejection, full preflight, and stale-write refusal;
+- format representative valid and recovered files twice with byte-identical second output;
+- exercise the same analysis through CLI and LSP, including negotiated position encoding; and
+- navigate one exact compiled snapshot to final generated application/support Rust while refusing a
+  mismatched build.
+
+The initial milestone excludes arbitrary executable query languages, a mutable AST, public compiler
+Rust layouts, evaluation of extensions during syntax inspection, editing generated Rust, and a
+Tree-sitter grammar as semantic authority. A secondary advisory grammar or generic-tool adapter may
+follow only after the compiler-native contract is proven.
+
+Exit criterion: the public syntax/semantic schemas, snapshot and build identities, bounded query
+protocol, validated edits, source formatter, and shared LSP analysis work end to end through the
+real compiler; no consumer reparses or re-resolves Terrane independently; the external-client
+fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
+suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
+
+Completion evidence after the fifth correctness review:
+
+- `cargo clippy --workspace --all-targets -- -D warnings`;
+- focused parser, compiler tooling, external CLI-client, language-server, and protocol suites passed;
+  and
+- `python3 docs/measure-test-times.py` passed the complete workspace suite and refreshed the
+  scoreboard with 1,055 recorded timings for 1,068 tests.

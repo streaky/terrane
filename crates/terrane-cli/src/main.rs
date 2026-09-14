@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
+use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
@@ -63,6 +64,9 @@ enum CliCommand {
     Rust,
     Build,
     Run,
+    Tooling,
+    Query,
+    Format,
     Toolchains,
     Help,
     Version,
@@ -75,6 +79,9 @@ impl CliCommand {
             "rust" => Some(Self::Rust),
             "build" => Some(Self::Build),
             "run" => Some(Self::Run),
+            "tooling" => Some(Self::Tooling),
+            "query" => Some(Self::Query),
+            "fmt" => Some(Self::Format),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -145,6 +152,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             println!("{}", usage());
             return Ok(ExitCode::SUCCESS);
         }
+        CliCommand::Tooling => return run_tooling(arguments),
+        CliCommand::Query => return run_query(arguments),
+        CliCommand::Format => return run_format(arguments),
         CliCommand::Check | CliCommand::Rust | CliCommand::Build | CliCommand::Run => {}
     }
     let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
@@ -1094,10 +1104,308 @@ fn report_toolchains() {
     }
 }
 
+fn run_tooling(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    if arguments != [OsString::from("tooling"), OsString::from("--stdio")] {
+        return Err(CliFailure::usage());
+    }
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let mut output = stdout.lock();
+    let mut session = ToolingSession::default();
+    for line in stdin.lock().lines() {
+        let line = line.map_err(|error| {
+            CliFailure::diagnostic(
+                PathBuf::from("<stdin>"),
+                "S3001",
+                format!("cannot read tooling request: {error}"),
+                4,
+            )
+        })?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let response = match serde_json::from_str(&line) {
+            Ok(value) => session.handle_value(value),
+            Err(error) => protocol_parse_error(&error, None),
+        };
+        serde_json::to_writer(&mut output, &response).map_err(|error| {
+            CliFailure::diagnostic(
+                PathBuf::from("<stdout>"),
+                "S3002",
+                format!("cannot encode tooling response: {error}"),
+                4,
+            )
+        })?;
+        writeln!(output).map_err(|error| {
+            CliFailure::diagnostic(
+                PathBuf::from("<stdout>"),
+                "S3003",
+                format!("cannot write tooling response: {error}"),
+                4,
+            )
+        })?;
+        output.flush().map_err(|error| {
+            CliFailure::diagnostic(
+                PathBuf::from("<stdout>"),
+                "S3003",
+                format!("cannot flush tooling response: {error}"),
+                4,
+            )
+        })?;
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn run_query(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    let [_, flag, request_path] = arguments else {
+        return Err(CliFailure::usage());
+    };
+    if flag != "--request" {
+        return Err(CliFailure::usage());
+    }
+    let request_path = PathBuf::from(request_path);
+    let request_text = fs::read_to_string(&request_path).map_err(|error| {
+        CliFailure::diagnostic(request_path.clone(), "S3004", error.to_string(), 4)
+    })?;
+    let values = match serde_json::from_str::<serde_json::Value>(&request_text) {
+        Ok(serde_json::Value::Array(values)) => values,
+        Ok(value) => vec![value],
+        Err(error) => {
+            println!(
+                "{}",
+                serde_json::to_string(&protocol_parse_error(&error, None))
+                    .expect("tooling responses are serializable")
+            );
+            return Ok(ExitCode::from(4));
+        }
+    };
+    let mut session = ToolingSession::default();
+    let mut failed = false;
+    for value in values {
+        let response = session.handle_value(value);
+        failed |= response.error.is_some();
+        println!(
+            "{}",
+            serde_json::to_string(&response).expect("tooling responses are serializable")
+        );
+    }
+    Ok(if failed {
+        ExitCode::from(4)
+    } else {
+        ExitCode::SUCCESS
+    })
+}
+
+fn run_format(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    let mut index = 1;
+    let check = arguments
+        .get(index)
+        .is_some_and(|argument| argument == "--check");
+    if check {
+        index += 1;
+    }
+    if arguments.len() != index + 1 {
+        return Err(CliFailure::usage());
+    }
+    let requested = PathBuf::from(&arguments[index]);
+    let package = if requested.is_dir()
+        || requested
+            .extension()
+            .is_some_and(|extension| extension == "toml")
+    {
+        terrane_compiler::Package::load(&requested).map_err(|errors| CliFailure {
+            code: 3,
+            message: errors
+                .into_iter()
+                .map(|error| error.diagnostic.render(&error.source))
+                .collect(),
+        })?
+    } else {
+        let text = fs::read_to_string(&requested).map_err(|error| {
+            CliFailure::diagnostic(requested.clone(), "S0000", error.to_string(), 3)
+        })?;
+        terrane_compiler::Package::implicit(&requested, text)
+    };
+    let sources = package
+        .units
+        .iter()
+        .map(|unit| {
+            let path = fs::canonicalize(unit.source.path()).map_err(|error| {
+                CliFailure::diagnostic(
+                    unit.source.path().to_path_buf(),
+                    "S3006",
+                    format!("cannot identify formatting source: {error}"),
+                    3,
+                )
+            })?;
+            Ok(terrane_compiler::tooling::SourceInput {
+                uri: format!("file://{}", path.display()),
+                text: unit.source.text().to_owned(),
+            })
+        })
+        .collect::<Result<Vec<_>, CliFailure>>()?;
+    let mut engine = terrane_compiler::tooling::ToolingEngine::default();
+    let snapshot = engine
+        .open_snapshot(
+            sources,
+            None,
+            None,
+            terrane_compiler::tooling::SnapshotOptions::default(),
+        )
+        .map_err(tooling_failure)?;
+    let mut replacements = Vec::new();
+    for source in &snapshot.sources {
+        let formatted = engine
+            .format(&snapshot.snapshot_id, &source.uri)
+            .map_err(tooling_failure)?;
+        if formatted.changed {
+            println!("{}", source.uri.trim_start_matches("file://"));
+            replacements.extend(formatted.edits);
+        }
+    }
+    if replacements.is_empty() {
+        return Ok(ExitCode::SUCCESS);
+    }
+    if check {
+        return Ok(ExitCode::from(1));
+    }
+    let proposal = engine
+        .propose_edits(&snapshot.snapshot_id, replacements)
+        .map_err(tooling_failure)?;
+    engine
+        .apply_edits(&proposal.proposal_id)
+        .map_err(tooling_failure)?;
+    Ok(ExitCode::SUCCESS)
+}
+
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "map_err transfers the owned protocol error into CLI rendering"
+)]
+fn tooling_failure(error: terrane_compiler::tooling::ProtocolError) -> CliFailure {
+    CliFailure::diagnostic(
+        PathBuf::from("<tooling>"),
+        "S3000",
+        format!("{}: {}", error.code, error.message),
+        4,
+    )
+}
+
+#[derive(Default)]
+struct ToolingSession {
+    engine: terrane_compiler::tooling::ToolingEngine,
+    last_snapshot: Option<String>,
+    last_build: Option<String>,
+    last_proposal: Option<String>,
+}
+
+impl ToolingSession {
+    fn handle_value(
+        &mut self,
+        mut value: serde_json::Value,
+    ) -> terrane_compiler::tooling::ResponseEnvelope {
+        let request_id = request_id_from_value(&value);
+        if let Some(schema_version) = value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_str)
+            && schema_version != terrane_compiler::tooling::SCHEMA_VERSION
+        {
+            return protocol_error_response(
+                "unsupported-schema",
+                format!(
+                    "unsupported schema version `{schema_version}`; expected `{}`",
+                    terrane_compiler::tooling::SCHEMA_VERSION
+                ),
+                request_id,
+            );
+        }
+        if value.get("snapshot_id").and_then(serde_json::Value::as_str) == Some("$last")
+            && let Some(snapshot_id) = &self.last_snapshot
+        {
+            value["snapshot_id"] = serde_json::Value::String(snapshot_id.clone());
+        }
+        if value.get("build_id").and_then(serde_json::Value::as_str) == Some("$last-build")
+            && let Some(build_id) = &self.last_build
+        {
+            value["build_id"] = serde_json::Value::String(build_id.clone());
+        }
+        if value.get("proposal_id").and_then(serde_json::Value::as_str) == Some("$last-proposal")
+            && let Some(proposal_id) = &self.last_proposal
+        {
+            value["proposal_id"] = serde_json::Value::String(proposal_id.clone());
+        }
+        let response = match serde_json::from_value(value) {
+            Ok(request) => self.engine.handle(request),
+            Err(error) => protocol_parse_error(&error, request_id),
+        };
+        if response.error.is_none() && response.snapshot_id.is_some() {
+            self.last_snapshot.clone_from(&response.snapshot_id);
+        }
+        if let Some(build_id) = response
+            .result
+            .as_ref()
+            .and_then(|result| result.get("build_id"))
+            .and_then(|build_id| build_id.get("known"))
+            .and_then(serde_json::Value::as_str)
+        {
+            self.last_build = Some(build_id.to_owned());
+        }
+        if let Some(proposal_id) = response
+            .result
+            .as_ref()
+            .and_then(|result| result.get("proposal_id"))
+            .and_then(serde_json::Value::as_str)
+        {
+            self.last_proposal = Some(proposal_id.to_owned());
+        }
+        response
+    }
+}
+
+fn request_id_from_value(value: &serde_json::Value) -> Option<String> {
+    value.get("request_id").map(|request_id| {
+        request_id
+            .as_str()
+            .map_or_else(|| request_id.to_string(), str::to_owned)
+    })
+}
+
+fn protocol_error_response(
+    code: &str,
+    message: String,
+    request_id: Option<String>,
+) -> terrane_compiler::tooling::ResponseEnvelope {
+    terrane_compiler::tooling::ResponseEnvelope {
+        compiler_version: terrane_compiler::VERSION.to_owned(),
+        schema_version: terrane_compiler::tooling::SCHEMA_VERSION.to_owned(),
+        request_id: request_id.unwrap_or_default(),
+        snapshot_id: None,
+        source_uri: None,
+        source_hash: None,
+        result: None,
+        error: Some(terrane_compiler::tooling::ProtocolError {
+            code: code.to_owned(),
+            message,
+            retry_fresh_query: false,
+            apply_report: None,
+        }),
+    }
+}
+
+fn protocol_parse_error(
+    error: &serde_json::Error,
+    request_id: Option<String>,
+) -> terrane_compiler::tooling::ResponseEnvelope {
+    protocol_error_response("invalid-json", error.to_string(), request_id)
+}
+
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
      terrane <file-or-manifest> [program arguments]\n\
+     terrane tooling --stdio\n\
+     terrane query --request <json-file>\n\
+     terrane fmt [--check] <file-or-manifest>\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1105,10 +1413,11 @@ fn usage() -> String {
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program\n  \
+     tooling  serve versioned JSON-lines source-intelligence requests\n  \
+     query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1139,6 +1448,9 @@ mod tests {
             "rust",
             "build",
             "run",
+            "tooling",
+            "query",
+            "fmt",
             "toolchains",
             "--help",
             "-h",

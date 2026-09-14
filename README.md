@@ -199,10 +199,16 @@ Cargo pipeline. They differ only in how far they take the result:
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
+| `terrane fmt [--check] <path>` | Formats source through the compiler lossless tree, or reports drift without writing. |
+| `terrane tooling --stdio` | Serves versioned source-intelligence requests as JSON Lines. |
+| `terrane query --request <json-file>` | Executes one source-intelligence request. |
 
 Use `--release` with `build` or `run` for an optimized executable. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
+
+The source-intelligence protocol, snapshot identities, availability states, queries, and edit
+preconditions are documented in [`docs/tooling-schema.md`](docs/tooling-schema.md).
 
 A standalone source file can also be an executable script:
 

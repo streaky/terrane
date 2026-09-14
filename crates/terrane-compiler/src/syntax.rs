@@ -1,5 +1,85 @@
 use crate::{Span, tokens::LexedSource};
 
+/// Complete compiler-owned inventory of Terrane language keywords.
+///
+/// The list is sorted so keyword checks do not require allocation.
+pub const KEYWORDS: &[&str] = &[
+    "a",
+    "and",
+    "as",
+    "async",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "constant",
+    "construct",
+    "continue",
+    "destruct",
+    "else",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "from",
+    "function",
+    "global",
+    "goto",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instance",
+    "interface",
+    "is",
+    "label",
+    "match",
+    "move",
+    "namespace",
+    "not",
+    "of",
+    "or",
+    "private",
+    "protected",
+    "public",
+    "ref",
+    "return",
+    "rust",
+    "select",
+    "self",
+    "shared",
+    "static",
+    "this",
+    "throw",
+    "throws",
+    "to",
+    "trait",
+    "true",
+    "try",
+    "unsafe",
+    "use",
+    "uses",
+    "when",
+    "while",
+    "yield",
+];
+
+/// Returns whether `text` is reserved by Terrane syntax.
+#[must_use]
+pub fn is_keyword(text: &str) -> bool {
+    KEYWORDS.binary_search(&text).is_ok()
+}
+
+/// Complete set of names forbidden in ordinary declaration-name slots.
+pub const RESERVED_DECLARATION_NAMES: &[&str] = &["function", "instance", "self", "this"];
+
+/// Returns whether `text` is forbidden in an ordinary declaration-name slot.
+#[must_use]
+pub fn is_reserved_declaration_name(text: &str) -> bool {
+    RESERVED_DECLARATION_NAMES.binary_search(&text).is_ok()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SyntaxKind {
     CompilationUnit,
@@ -65,6 +145,47 @@ pub enum SyntaxKind {
     FunctionType,
     Error,
     Unsupported,
+}
+
+impl SyntaxKind {
+    /// Stable child-role label used by compiler-owned syntax projections.
+    #[must_use]
+    pub fn child_field(self, index: usize, child: Self) -> &'static str {
+        if child == Self::Name
+            && matches!(
+                self,
+                Self::Binding
+                    | Self::FunctionDeclaration
+                    | Self::ClassDeclaration
+                    | Self::InterfaceDeclaration
+                    | Self::TraitDeclaration
+            )
+        {
+            return "name";
+        }
+        match (self, child, index) {
+            (Self::Binding, Self::TypeExpression, _) => "type",
+            (Self::Binding, _, _)
+            | (Self::Assignment, _, 1)
+            | (Self::ReturnStatement | Self::ThrowStatement, _, 0) => "value",
+            (Self::FunctionDeclaration, Self::TypeExpression, _) => "return-type",
+            (Self::FunctionDeclaration, Self::EffectClause, _) => "effects",
+            (Self::FunctionDeclaration, Self::DeclarationQualifier, _) => "qualifier",
+            (Self::Assignment, _, 0) => "target",
+            (Self::CallExpression, _, 0) => "callee",
+            (Self::CallExpression, _, 1) => "arguments",
+            (Self::MemberExpression | Self::StaticMemberExpression, _, 0) => "receiver",
+            (Self::MemberExpression | Self::StaticMemberExpression, _, 1) => "member",
+            (Self::IfStatement | Self::WhileStatement, _, 0) => "condition",
+            (
+                Self::FunctionDeclaration | Self::IfStatement | Self::WhileStatement,
+                Self::Block,
+                _,
+            ) => "body",
+            (Self::CompilationUnit | Self::Block, _, _) => "item",
+            _ => "child",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -1075,6 +1075,26 @@ multiple admitted instantiations. `S2031` names removed members and their versio
 payload under one exact cache identity is rejected as replay drift. Completion, signature help, and
 hover remain advisory; Cargo and rustc are authoritative.
 
+## Compiler-backed source intelligence
+
+`terrane tooling --stdio` exposes versioned JSON-lines requests and `terrane query --request
+<json-file>` executes the same schema once. The compiler owns immutable content-hashed snapshots,
+lossless recovered syntax projections, canonical semantic identities, deterministic bounded
+structural queries, exact-build generated-Rust associations, edit proposals, semantic rename, and
+source formatting. Facts distinguish known, unresolved, invalid, not-yet-analysed, and unsupported;
+closed/evicted snapshots and stale continuations explicitly require a fresh query.
+
+`terrane fmt [--check] <file-or-manifest>` uses the recovered compiler tree. It canonicalises
+parser-proven assignment/infix spacing and safe trailing whitespace while retaining comments,
+multiline source, newline style, operator-bearing identifiers, and malformed source it cannot
+safely rewrite. Check mode reports drift without writing.
+
+The language server stores the same compiler snapshot IDs for diagnostics, semantic hover,
+definitions, references, identity-safe rename, document symbols, and formatting. Rename returns
+versioned workspace edits; UTF-8/UTF-16/UTF-32 LSP positions are negotiated and converted at the
+edge. Semantic-token encoding still reads the compiler lexer directly but owns no syntax or
+resolution model. The complete protocol contract is `docs/tooling-schema.md`.
+
 ## Major planned surface absent today
 
 The authoritative language draft proposes a much larger ontology. None of the following should be inferred from compiler-owned names or Rust support internals as implemented Terrane API:

@@ -1278,7 +1278,8 @@ pub struct SemanticUnit {
 
 impl SemanticUnit {
     /// Returns the compiler-resolved value type for an expression when it is statically known.
-    pub(crate) fn inferred_value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
+    #[must_use]
+    pub fn inferred_value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
         infer_value_type(self, node, &self.typed_bindings)
             .ok()
             .flatten()

@@ -652,6 +652,13 @@ fn rejects_every_reserved_statement_keyword() {
 }
 
 #[test]
+fn rejects_language_keywords_in_declaration_name_positions() {
+    for source in ["function function;\n", "class instance\n"] {
+        rejected(source, "S1095");
+    }
+}
+
+#[test]
 fn rejects_invalid_postfix_and_control_flow_boundaries() {
     rejected("value = thing.\n", "S1014");
     rejected("value = values[\n", "S1019");
