@@ -210,8 +210,15 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
-            debug_information: command == CliCommand::Debug,
-            embed_debug_sources,
+            debug_build: if command == CliCommand::Debug {
+                if embed_debug_sources {
+                    terrane_compiler::DebugBuild::EmbeddedSources
+                } else {
+                    terrane_compiler::DebugBuild::ExternalSources
+                }
+            } else {
+                terrane_compiler::DebugBuild::Disabled
+            },
         },
     ) {
         Ok(compilation) => compilation,
@@ -359,10 +366,9 @@ fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String), CliFa
     Ok((target, sysroot))
 }
 
-fn parse_input(
-    arguments: &[OsString],
-    command: CliCommand,
-) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool, bool), CliFailure> {
+type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool);
+
+fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
     let mut require_canonical_rust = false;

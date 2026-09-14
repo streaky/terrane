@@ -9,11 +9,28 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum DebugBuild {
+    #[default]
+    Disabled,
+    ExternalSources,
+    EmbeddedSources,
+}
+
+impl DebugBuild {
+    fn enabled(self) -> bool {
+        self != Self::Disabled
+    }
+
+    fn embeds_sources(self) -> bool {
+        self == Self::EmbeddedSources
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
-    pub debug_information: bool,
-    pub embed_debug_sources: bool,
+    pub debug_build: DebugBuild,
 }
 
 #[derive(Clone, Debug)]
@@ -62,7 +79,7 @@ impl Compilation {
 
     /// Builds final-file debugger metadata for the exact generated Rust paths.
     ///
-    /// Returns `None` unless compilation requested [`CompilerOptions::debug_information`].
+    /// Returns `None` unless [`CompilerOptions::debug_build`] is enabled.
     ///
     /// # Errors
     ///
@@ -262,7 +279,7 @@ pub fn compile_package_with_options(
         .map(|unit| unit.source.clone())
         .collect();
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower(&semantic, options.debug_information)
+    let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
@@ -278,8 +295,11 @@ pub fn compile_package_with_options(
         rust,
         review_rust,
         rendered_rust,
-        debug_symbols: options.debug_information.then(|| {
-            crate::debugging::DebugSymbols::from_semantic(&semantic, options.embed_debug_sources)
+        debug_symbols: options.debug_build.enabled().then(|| {
+            crate::debugging::DebugSymbols::from_semantic(
+                &semantic,
+                options.debug_build.embeds_sources(),
+            )
         }),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,
@@ -530,8 +550,9 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_information)
-        .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rust_ir =
+        crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
+            .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
     if options.require_canonical_rust {
@@ -548,8 +569,11 @@ pub fn compile_discovered_test_tier(
         rust: standalone_file.contents,
         review_rust: rendered_rust.review_file(),
         rendered_rust,
-        debug_symbols: options.debug_information.then(|| {
-            crate::debugging::DebugSymbols::from_semantic(&semantic, options.embed_debug_sources)
+        debug_symbols: options.debug_build.enabled().then(|| {
+            crate::debugging::DebugSymbols::from_semantic(
+                &semantic,
+                options.debug_build.embeds_sources(),
+            )
         }),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,

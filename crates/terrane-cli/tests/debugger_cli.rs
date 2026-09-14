@@ -270,6 +270,10 @@ impl Drop for DapClient {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one protocol transcript verifies ordering, breakpoint lifecycle, frames, values, output, and disconnect"
+)]
 #[test]
 fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     let fixture = DebugFixture::new();

@@ -114,7 +114,7 @@ pub(super) fn run_cli(
             ),
             ("break", location) => {
                 let (path, line) = parse_breakpoint(location)?;
-                let id = breakpoints.add(&provenance, path, line);
+                let id = breakpoints.add(&provenance, &path, line);
                 breakpoints.sync(&mut backend, &provenance)?;
                 breakpoints.print(id);
             }
@@ -426,7 +426,7 @@ impl Adapter {
             return Ok(messages);
         }
         if command == "setBreakpoints" {
-            return self.set_breakpoints(arguments);
+            return self.set_breakpoints(&arguments);
         }
         if command == "stackTrace" {
             let provenance = self.provenance.clone();
@@ -575,7 +575,7 @@ impl Adapter {
             .ok_or_else(|| debugger_failure("initialize must be the first request"))
     }
 
-    fn set_breakpoints(&mut self, arguments: Value) -> Result<Vec<Value>, CliFailure> {
+    fn set_breakpoints(&mut self, arguments: &Value) -> Result<Vec<Value>, CliFailure> {
         let source_path = arguments["source"]["path"]
             .as_str()
             .map(PathBuf::from)
@@ -900,26 +900,26 @@ struct BreakpointManager {
 }
 
 impl BreakpointManager {
-    fn add(&mut self, provenance: &ProvenanceManifest, path: PathBuf, line: usize) -> i64 {
-        if let Some(existing) = self.by_source.get_mut(&path).and_then(|breakpoints| {
+    fn add(&mut self, provenance: &ProvenanceManifest, path: &Path, line: usize) -> i64 {
+        if let Some(existing) = self.by_source.get_mut(path).and_then(|breakpoints| {
             breakpoints
                 .iter_mut()
                 .find(|item| item.requested_line == line)
         }) {
             existing.enabled = true;
-            existing.resolutions = resolve_breakpoint(provenance, &path, line);
+            existing.resolutions = resolve_breakpoint(provenance, path, line);
             return existing.id;
         }
         let id = self.allocate_id();
         self.by_source
-            .entry(path.clone())
+            .entry(path.to_path_buf())
             .or_default()
             .push(LogicalBreakpoint {
                 id,
-                source_path: path.clone(),
+                source_path: path.to_path_buf(),
                 requested_line: line,
                 enabled: true,
-                resolutions: resolve_breakpoint(provenance, &path, line),
+                resolutions: resolve_breakpoint(provenance, path, line),
                 verified: false,
             });
         id
@@ -937,8 +937,7 @@ impl BreakpointManager {
             let id = old_ids
                 .iter()
                 .position(|item| item.requested_line == line)
-                .map(|index| old_ids.remove(index).id)
-                .unwrap_or_else(|| self.allocate_id());
+                .map_or_else(|| self.allocate_id(), |index| old_ids.remove(index).id);
             replacements.push(LogicalBreakpoint {
                 id,
                 source_path: path.clone(),
@@ -1438,6 +1437,10 @@ fn frame_stop_contexts(
         .collect()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "value translation keeps privacy, scope, layout, and response bounds in one reviewable boundary"
+)]
 fn translate_variables(
     body: &mut Value,
     provenance: &ProvenanceManifest,
@@ -1811,6 +1814,10 @@ fn mapped_stop_location(
     }))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "temporary breakpoint ownership and cleanup remain visibly paired"
+)]
 fn temporary_sequence_step(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,

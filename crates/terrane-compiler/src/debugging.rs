@@ -633,7 +633,7 @@ mod tests {
             "debug.trn",
             source.to_owned(),
             CompilerOptions {
-                debug_information: true,
+                debug_build: crate::DebugBuild::ExternalSources,
                 ..CompilerOptions::default()
             },
         )
@@ -673,8 +673,7 @@ mod tests {
             "embedded.trn",
             source.to_owned(),
             CompilerOptions {
-                debug_information: true,
-                embed_debug_sources: true,
+                debug_build: crate::DebugBuild::EmbeddedSources,
                 ..CompilerOptions::default()
             },
         )
@@ -697,7 +696,7 @@ mod tests {
             )
             .to_owned(),
             CompilerOptions {
-                debug_information: true,
+                debug_build: crate::DebugBuild::ExternalSources,
                 ..CompilerOptions::default()
             },
         )
@@ -742,7 +741,7 @@ mod tests {
             )
             .to_owned(),
             CompilerOptions {
-                debug_information: true,
+                debug_build: crate::DebugBuild::ExternalSources,
                 ..CompilerOptions::default()
             },
         )
