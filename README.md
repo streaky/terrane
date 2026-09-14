@@ -214,11 +214,14 @@ Use `--release` with `build` or `run` for an optimized executable. Use
 bundled formatter.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
-`tests/integration`, and `tests/end-to-end`. Semantic discovery always covers all populated roots;
-`--list` and an empty selection stop before lowering or native compilation. Repeatable
-`--tier <tier>` and one of substring `--filter <text>`, exact `--exact <identity>`,
-`--glob <pattern>`, or `--regex <pattern>` select the tier runners and cases that are built and
-executed. `--jobs`, `--timeout`, `--fail-fast`, and `--show-output` control execution.
+`tests/integration`, and `tests/end-to-end`. Semantic analysis covers production sources and every
+populated test root before selection, so filters cannot hide parse, name-resolution, or type errors.
+Only tiers containing selected cases are lowered and backend-validated; an unselected tier's
+generated-Rust/backend error is therefore reported when that tier is selected. `--list` and an empty
+selection stop before lowering or native compilation. Repeatable `--tier <tier>` and one of substring
+`--filter <text>`, exact `--exact <identity>`, `--glob <pattern>`, or `--regex <pattern>` select the
+tier runners and cases that are built and executed. `--jobs`, `--timeout`, `--fail-fast`, and
+`--show-output` control execution.
 `--argument <value>` supplies one controlled process argument to each test and may be repeated.
 Bare `--timeout` values are seconds; `ms` and `s` suffixes are explicit.
 `--report <path>` writes schema `1.2.0` JSON with effective tiers, a numeric timeout, per-tier

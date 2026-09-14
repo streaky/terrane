@@ -6043,10 +6043,13 @@ The initial framework provides boolean assertion and denial, explicit failure, c
 equality and inequality for scalar and byte values, matching concrete optional present/none checks,
 floating near-equality with explicit tolerance, throwable assertions with an expected descriptor
 identity, explicit skip, a typed per-case deadline, temporary directories, controlled process
-arguments, and deterministic pseudo-random seeds. Assertions evaluate each operand exactly once,
-preserve authored source frames in structured causes, retain statically known operand types, and
-never introduce a universal boxed value merely for testing. Failure rendering includes bounded,
-useful actual and expected values and follows ordinary display or the explicit
+arguments, and deterministic pseudo-random seeds. Reading this runner-supplied test context is
+intentionally ungated: it confers no external authority. Operations performed with context values
+retain their ordinary capability requirements; in particular, child process creation remains
+gated through `/core/testing/process`. Assertions evaluate each operand exactly once, preserve
+authored source frames in structured causes, retain statically known operand types, and never
+introduce a universal boxed value merely for testing. Failure rendering includes bounded, useful
+actual and expected values and follows ordinary display or the explicit
 `/core/testing::test-value` protocol where available.
 
 Milestone 30.1 also records the required anonymous-object design evidence. The test-only
@@ -6060,9 +6063,11 @@ Test targets use an explicitly selected manifest profile and never acquire a cap
 absent from both the inherited ordinary profile and explicit `[testing.profile]` declarations.
 
 Discovery and final reporting are deterministic by the explicit unit, integration, end-to-end tier
-order, then logical path, source order, and test name. Semantic discovery covers every populated root, so
-filtering never hides source errors; only tiers containing selected cases are lowered and built.
-`--list` and an empty selection stop after discovery. Human output is serialized and counts failure,
+order, then logical path, source order, and test name. Semantic analysis covers production sources
+and every populated test root, so filtering never hides parse, name-resolution, or type errors.
+Only tiers containing selected cases are lowered and backend-validated; backend-only failures in an
+unselected tier are reported when that tier is selected. `--list` and an empty selection stop after
+discovery. Human output is serialized and counts failure,
 timeout, crash, and infrastructure outcomes independently. Schema `1.2.0` machine reports include
 effective tiers, numeric timeout milliseconds, per-tier compilation status and diagnostics, plus
 structured causes for assertion failure, uncaught throwable, skip, timeout, crash, compile failure,
