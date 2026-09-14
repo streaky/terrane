@@ -2110,7 +2110,6 @@ fn temporary_sequence_step(
         .collect::<BTreeSet<_>>();
     let current_file = frame["source"]["path"].as_str().unwrap_or_default();
     let suspended_ids = breakpoints.backend_ids_at(current_file, current.generated.line);
-    set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
 
     let existing_ids = backend_breakpoint_ids(backend)?;
     let command_file = TemporaryBreakpointCommands::write(provenance, &targets)?;
@@ -2134,6 +2133,7 @@ fn temporary_sequence_step(
         let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
         return Ok(None);
     }
+    set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
     let result = (|| {
         backend.request(
             "continue",
