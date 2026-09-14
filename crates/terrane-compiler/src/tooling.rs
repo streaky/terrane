@@ -1048,24 +1048,24 @@ impl ToolingEngine {
             return Ok(Availability::Known(Vec::new()));
         };
         let mut locations = Vec::new();
-        if let Some(function) = &target.function {
-            for candidate in all_functions(semantic).filter(|candidate| {
-                candidate.name == function.name
-                    && candidate.span != function.span
-                    && candidate
-                        .owner_identity
-                        .as_ref()
-                        .is_some_and(|candidate_owner| {
+        if target.function.is_some() {
+            let identities = rename_identity_family(semantic, &target);
+            if identities.len() > 1 {
+                for candidate in all_functions(semantic).filter(|candidate| {
+                    identities.contains(&function_target(semantic, candidate).identity)
+                        && candidate.owner_identity.as_ref().is_some_and(|owner| {
                             all_descriptors(semantic)
-                                .find(|descriptor| descriptor.identity == *candidate_owner)
+                                .find(|descriptor| descriptor.identity == *owner)
                                 .is_some_and(|descriptor| {
-                                    descriptor_lineage(semantic, descriptor).contains(&owner)
+                                    descriptor.kind != crate::semantics::ObjectKind::Interface
                                 })
                         })
-            }) {
-                let candidate = function_target(semantic, candidate);
-                if let Some(location) = declaration_location(snapshot, &candidate) {
-                    locations.push(location);
+                }) {
+                    if let Some(location) =
+                        declaration_location(snapshot, &function_target(semantic, candidate))
+                    {
+                        locations.push(location);
+                    }
                 }
             }
         } else {
@@ -1296,6 +1296,7 @@ impl ToolingEngine {
                 "rename requires a complete semantic snapshot",
             ));
         };
+        let identities = rename_identity_family(semantic, &target);
         let mut replacements = Vec::new();
         for unit in semantic
             .units
@@ -1315,7 +1316,7 @@ impl ToolingEngine {
             walk_nodes(&unit.tree.root, None, &mut |node, _field, _id| {
                 if node.kind == SyntaxKind::Name
                     && resolve_semantic_target(snapshot, document, node)
-                        .is_some_and(|candidate| candidate.identity == target.identity)
+                        .is_some_and(|candidate| identities.contains(&candidate.identity))
                 {
                     replacements.push(Replacement {
                         uri: source_uri.to_owned(),
@@ -1345,14 +1346,29 @@ impl ToolingEngine {
                     "rename source left the semantic snapshot",
                 ));
             };
-            if rename_would_capture(semantic, unit, &target, new_name, replacement.span.start) {
+            if rename_would_capture(
+                semantic,
+                unit,
+                &target,
+                &identities,
+                new_name,
+                replacement.span.start,
+            ) {
                 return Err(ProtocolError::new(
                     "rename-capture",
                     format!("`{new_name}` would capture an existing symbol"),
                 ));
             }
         }
-        self.propose_edits(snapshot_id, replacements)
+        let proposal = self.propose_edits(snapshot_id, replacements)?;
+        if !proposal.semantic_reanalysis || !proposal.preview_diagnostics.is_empty() {
+            self.proposals.remove(&proposal.proposal_id);
+            return Err(ProtocolError::new(
+                "invalid-rename",
+                "rename candidate does not preserve valid package semantics",
+            ));
+        }
+        Ok(proposal)
     }
 
     /// # Errors
@@ -1362,6 +1378,7 @@ impl ToolingEngine {
         let proposal = self.proposals.get(proposal_id).cloned().ok_or_else(|| {
             ProtocolError::new("unknown-proposal", "edit proposal does not exist")
         })?;
+        validate_applicable_proposal(&proposal)?;
         let snapshot = self.snapshot(&proposal.snapshot_id)?;
         let mut new_contents = BTreeMap::new();
         let mut paths = BTreeMap::new();
@@ -1977,30 +1994,18 @@ fn member_target(
     };
     let descriptor = all_descriptors(semantic)
         .find(|descriptor| descriptor.identity.qualified() == descriptor_identity)?;
-    let lineage = descriptor_lineage(semantic, descriptor);
-    if let Some(function) = all_functions(semantic).find(|function| {
-        function.name == name
-            && function
-                .owner_identity
-                .as_ref()
-                .is_some_and(|owner| lineage.contains(&owner.qualified()))
-    }) {
+    let is_static = member_expression.kind == SyntaxKind::StaticMemberExpression;
+    if let Some(field_target) = resolved_member_field_target(semantic, descriptor, name, is_static)
+    {
+        return Some(field_target);
+    }
+    if let Some(function) = resolved_member_function(semantic, descriptor, name, is_static) {
         return Some(function_target(semantic, function));
     }
+    let lineage = descriptor_lineage(semantic, descriptor);
     for owner in lineage {
         let descriptor = all_descriptors(semantic)
             .find(|descriptor| descriptor.identity.qualified() == owner)?;
-        if let Some(field) = descriptor.fields.iter().find(|field| field.name == name) {
-            return Some(SemanticTarget {
-                name: name.to_owned(),
-                identity: format!("{}::{name}", descriptor.identity.qualified()),
-                declaration_span: Some(field.span),
-                descriptor_identity: Some(descriptor.identity.qualified()),
-                value_type: Some(field.value_type.clone()),
-                function: None,
-                descriptor: None,
-            });
-        }
         if descriptor.members.contains(name) || descriptor.static_members.contains(name) {
             return Some(SemanticTarget {
                 name: name.to_owned(),
@@ -2015,7 +2020,7 @@ fn member_target(
                     unit,
                     &descriptor.identity,
                     name,
-                    member_expression.kind == SyntaxKind::StaticMemberExpression,
+                    is_static,
                 ),
                 function: None,
                 descriptor: None,
@@ -2023,6 +2028,109 @@ fn member_target(
         }
     }
     None
+}
+
+fn resolved_member_field_target(
+    semantic: &crate::SemanticPackage,
+    descriptor: &crate::semantics::DescriptorContract,
+    name: &str,
+    is_static: bool,
+) -> Option<SemanticTarget> {
+    fn resolve(
+        semantic: &crate::SemanticPackage,
+        descriptor: &crate::semantics::DescriptorContract,
+        name: &str,
+        is_static: bool,
+        visited: &mut BTreeSet<crate::semantics::ObjectIdentity>,
+    ) -> Option<SemanticTarget> {
+        if !visited.insert(descriptor.identity.clone()) {
+            return None;
+        }
+        if let Some(field) = descriptor
+            .fields
+            .iter()
+            .find(|field| field.name == name && field.is_static == is_static)
+        {
+            return Some(SemanticTarget {
+                name: name.to_owned(),
+                identity: format!("{}::{name}", descriptor.identity.qualified()),
+                declaration_span: Some(field.span),
+                descriptor_identity: Some(descriptor.identity.qualified()),
+                value_type: Some(field.value_type.clone()),
+                function: None,
+                descriptor: None,
+            });
+        }
+        descriptor
+            .traits
+            .iter()
+            .filter_map(|identity| {
+                all_descriptors(semantic).find(|candidate| candidate.identity == *identity)
+            })
+            .find_map(|parent| resolve(semantic, parent, name, is_static, visited))
+            .or_else(|| {
+                descriptor
+                    .base
+                    .as_ref()
+                    .and_then(|identity| {
+                        all_descriptors(semantic).find(|candidate| candidate.identity == *identity)
+                    })
+                    .and_then(|parent| resolve(semantic, parent, name, is_static, visited))
+            })
+    }
+    resolve(semantic, descriptor, name, is_static, &mut BTreeSet::new())
+}
+
+fn resolved_member_function<'a>(
+    semantic: &'a crate::SemanticPackage,
+    descriptor: &crate::semantics::DescriptorContract,
+    name: &str,
+    is_static: bool,
+) -> Option<&'a crate::FunctionContract> {
+    fn resolve<'a>(
+        semantic: &'a crate::SemanticPackage,
+        descriptor: &crate::semantics::DescriptorContract,
+        name: &str,
+        is_static: bool,
+        visited: &mut BTreeSet<crate::semantics::ObjectIdentity>,
+    ) -> Option<&'a crate::FunctionContract> {
+        if !visited.insert(descriptor.identity.clone()) {
+            return None;
+        }
+        if let Some(method) = all_functions(semantic).find(|function| {
+            function.owner_identity.as_ref() == Some(&descriptor.identity)
+                && function.name == name
+                && function.is_static == is_static
+        }) {
+            return Some(method);
+        }
+        descriptor
+            .traits
+            .iter()
+            .filter_map(|identity| {
+                all_descriptors(semantic).find(|candidate| candidate.identity == *identity)
+            })
+            .find_map(|parent| resolve(semantic, parent, name, is_static, visited))
+            .or_else(|| {
+                descriptor
+                    .base
+                    .as_ref()
+                    .and_then(|identity| {
+                        all_descriptors(semantic).find(|candidate| candidate.identity == *identity)
+                    })
+                    .and_then(|parent| resolve(semantic, parent, name, is_static, visited))
+            })
+            .or_else(|| {
+                descriptor
+                    .interfaces
+                    .iter()
+                    .filter_map(|identity| {
+                        all_descriptors(semantic).find(|candidate| candidate.identity == *identity)
+                    })
+                    .find_map(|parent| resolve(semantic, parent, name, is_static, visited))
+            })
+    }
+    resolve(semantic, descriptor, name, is_static, &mut BTreeSet::new())
 }
 
 fn function_target(
@@ -2140,6 +2248,54 @@ fn descriptor_lineage(
     output
 }
 
+fn rename_identity_family(
+    semantic: &crate::SemanticPackage,
+    target: &SemanticTarget,
+) -> BTreeSet<String> {
+    let mut identities = BTreeSet::from([target.identity.clone()]);
+    let Some(function) = &target.function else {
+        return identities;
+    };
+    let Some(owner) = function.owner_identity.as_ref().and_then(|owner| {
+        all_descriptors(semantic).find(|descriptor| descriptor.identity == *owner)
+    }) else {
+        return identities;
+    };
+    let owner_lineage = descriptor_lineage(semantic, owner);
+    let contracts = all_descriptors(semantic)
+        .filter(|descriptor| {
+            descriptor.kind == crate::semantics::ObjectKind::Interface
+                && owner_lineage.contains(&descriptor.identity.qualified())
+                && all_functions(semantic).any(|candidate| {
+                    candidate.owner_identity.as_ref() == Some(&descriptor.identity)
+                        && candidate.name == function.name
+                        && candidate.is_static == function.is_static
+                })
+        })
+        .map(|descriptor| descriptor.identity.qualified())
+        .collect::<BTreeSet<_>>();
+    if contracts.is_empty() {
+        return identities;
+    }
+    for candidate in all_functions(semantic).filter(|candidate| {
+        candidate.name == function.name
+            && candidate.is_static == function.is_static
+            && candidate
+                .owner_identity
+                .as_ref()
+                .and_then(|owner| {
+                    all_descriptors(semantic).find(|descriptor| descriptor.identity == *owner)
+                })
+                .is_some_and(|owner| {
+                    let lineage = descriptor_lineage(semantic, owner);
+                    contracts.iter().any(|contract| lineage.contains(contract))
+                })
+    }) {
+        identities.insert(function_target(semantic, candidate).identity);
+    }
+    identities
+}
+
 fn unwrapped_value_type(value_type: &crate::ValueType) -> &crate::ValueType {
     match value_type {
         crate::ValueType::Reference(inner) | crate::ValueType::SharedReference(inner) => {
@@ -2213,32 +2369,45 @@ fn nearest_name(node: &SyntaxNode, offset: usize) -> Option<&SyntaxNode> {
                 .or_else(|| nearest_name(child, offset))
         })
 }
-
 fn rename_would_capture(
     semantic: &crate::SemanticPackage,
     unit: &crate::SemanticUnit,
     target: &SemanticTarget,
+    identities: &BTreeSet<String>,
     new_name: &str,
     offset: usize,
 ) -> bool {
-    if let Some(function) = &target.function
-        && let Some(owner) = &function.owner_identity
+    if target
+        .function
+        .as_ref()
+        .and_then(|function| function.owner_identity.as_ref())
+        .is_some()
     {
-        if all_descriptors(semantic).any(|descriptor| {
-            descriptor.identity == *owner
-                && descriptor.fields.iter().any(|field| field.name == new_name)
-        }) {
-            return true;
+        for function in all_functions(semantic)
+            .filter(|function| identities.contains(&function_target(semantic, function).identity))
+        {
+            let Some(owner) = &function.owner_identity else {
+                continue;
+            };
+            if all_descriptors(semantic).any(|descriptor| {
+                descriptor.identity == *owner
+                    && descriptor.fields.iter().any(|field| field.name == new_name)
+            }) {
+                return true;
+            }
+            if all_functions(semantic).any(|candidate| {
+                candidate.name == new_name
+                    && candidate.owner_identity.as_ref() == Some(owner)
+                    && !identities.contains(&function_target(semantic, candidate).identity)
+            }) {
+                return true;
+            }
         }
-        return all_functions(semantic).any(|candidate| {
-            candidate.name == new_name
-                && candidate.owner_identity.as_ref() == Some(owner)
-                && candidate.span != function.span
-        });
+        return false;
     }
     semantic
         .resolve_name_at(unit, offset, new_name)
-        .is_some_and(|candidate| candidate.identity != target.identity)
+        .is_some_and(|candidate| !identities.contains(&candidate.identity))
 }
 
 fn declaration_location(snapshot: &Snapshot, target: &SemanticTarget) -> Option<Location> {
@@ -2457,6 +2626,16 @@ fn selector_matches(
         }
     }
     true
+}
+
+fn validate_applicable_proposal(proposal: &EditProposal) -> Result<(), ProtocolError> {
+    if !proposal.preview_diagnostics.is_empty() {
+        return Err(ProtocolError::new(
+            "invalid-proposal",
+            "edit proposal has preview diagnostics and cannot be applied",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_replacements(
@@ -3181,6 +3360,28 @@ mod tests {
         let mut engine = ToolingEngine::default();
         let snapshot = open(&mut engine, &uri, original, SnapshotOptions::default());
         let start = original.find('1').expect("literal");
+        let invalid = engine
+            .propose_edits(
+                &snapshot.snapshot_id,
+                vec![Replacement {
+                    uri: uri.clone(),
+                    span: PublicSpan {
+                        start,
+                        end: start + 1,
+                    },
+                    text: ")".to_owned(),
+                }],
+            )
+            .expect("diagnostic proposal");
+        assert!(!invalid.preview_diagnostics.is_empty());
+        let error = engine
+            .apply_edits(&invalid.proposal_id)
+            .expect_err("diagnostic proposal must not apply");
+        assert_eq!(error.code, "invalid-proposal");
+        assert_eq!(
+            fs::read_to_string(&path).expect("unchanged source"),
+            original
+        );
         let proposal = engine
             .propose_edits(
                 &snapshot.snapshot_id,
@@ -3249,7 +3450,7 @@ mod tests {
     fn member_navigation_uses_receiver_type_instead_of_bare_name_resolution() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/members.trn";
-        let text = "namespace members\n\nclass first\n    count int = 0\n\n    function answer int;\n        return 1\n\nclass second\n    function answer int;\n        return 2\n\nfunction main;\n    left = instance first;\n    right = instance second;\n    one int = left.answer;\n    two int = right.answer;\n";
+        let text = "namespace members\n\ninterface responder\n    function answer int;\n\nclass first implements responder\n    count int = 0\n\n    function answer int;\n        return 1\n\nclass second\n    function answer int;\n        return 2\n\nfunction main;\n    left = instance first;\n    right = instance second;\n    one int = left.answer;\n    two int = right.answer;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3274,6 +3475,37 @@ mod tests {
             panic!("right definition should be known");
         };
         assert_ne!(left_definition.span, right_definition.span);
+        let answer_declarations = text
+            .match_indices("function answer")
+            .map(|(offset, _)| offset + "function ".len())
+            .collect::<Vec<_>>();
+        assert_eq!(answer_declarations.len(), 3);
+        assert_eq!(left_definition.span.start, answer_declarations[1]);
+        assert_eq!(right_definition.span.start, answer_declarations[2]);
+        let interface_object = engine
+            .locate(&metadata.snapshot_id, uri, answer_declarations[0])
+            .expect("interface query")
+            .expect("interface method object");
+        let concrete_object = engine
+            .locate(&metadata.snapshot_id, uri, left_use)
+            .expect("concrete query")
+            .expect("concrete method object");
+        let plain_object = engine
+            .locate(&metadata.snapshot_id, uri, right_use)
+            .expect("plain query")
+            .expect("plain method object");
+        assert_eq!(
+            interface_object.symbol_identity,
+            Availability::Known("/members::responder::answer".to_owned())
+        );
+        assert_eq!(
+            concrete_object.symbol_identity,
+            Availability::Known("/members::first::answer".to_owned())
+        );
+        assert_eq!(
+            plain_object.symbol_identity,
+            Availability::Known("/members::second::answer".to_owned())
+        );
         let Availability::Known(left_references) = engine
             .references(&metadata.snapshot_id, uri, left_use)
             .expect("left references")
@@ -3336,6 +3568,40 @@ mod tests {
             panic!("concrete method implementations should be known");
         };
         assert_eq!(concrete_methods, methods);
+        let interface_rename = engine
+            .propose_rename(&metadata.snapshot_id, uri, method_offset, "execute")
+            .expect("interface contract rename");
+        assert!(interface_rename.preview_diagnostics.is_empty());
+        assert!(interface_rename.semantic_reanalysis);
+        assert_eq!(interface_rename.replacements.len(), 4);
+        let concrete_rename = engine
+            .propose_rename(
+                &metadata.snapshot_id,
+                uri,
+                concrete_method_offset,
+                "execute",
+            )
+            .expect("concrete contract rename");
+        assert_eq!(concrete_rename.replacements, interface_rename.replacements);
+        let broken = engine
+            .propose_edits(
+                &metadata.snapshot_id,
+                vec![Replacement {
+                    uri: uri.to_owned(),
+                    span: PublicSpan {
+                        start: method_offset,
+                        end: method_offset + "run".len(),
+                    },
+                    text: "broken".to_owned(),
+                }],
+            )
+            .expect("diagnostic interface proposal");
+        assert!(!broken.semantic_reanalysis);
+        assert!(!broken.preview_diagnostics.is_empty());
+        let error = engine
+            .apply_edits(&broken.proposal_id)
+            .expect_err("diagnostic interface proposal must not be applicable");
+        assert_eq!(error.code, "invalid-proposal");
     }
 
     #[test]
