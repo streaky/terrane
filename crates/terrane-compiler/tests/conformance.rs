@@ -410,36 +410,7 @@ fn conformance_jobs(work_items: usize) -> usize {
     .unwrap_or_else(|message| panic!("{message}"))
 }
 
-fn package_manifest_has_rust_dependencies(manifest: &str) -> bool {
-    manifest.lines().any(|line| {
-        let line = line.trim();
-        line == "[rust-dependencies]" || line.starts_with("[rust-dependencies.")
-    })
-}
-
-fn conformance_warmup_index(manifests: &[PathBuf]) -> usize {
-    manifests
-        .iter()
-        .position(|manifest_path| {
-            let manifest = fs::read_to_string(manifest_path).unwrap();
-            if field(&manifest, "entrypoint") != Some(terrane_compiler::MANIFEST_FILE_NAME) {
-                return false;
-            }
-            manifest_path
-                .parent()
-                .map(|case| case.join(terrane_compiler::MANIFEST_FILE_NAME))
-                .and_then(|package| fs::read_to_string(package).ok())
-                .is_some_and(|package| package_manifest_has_rust_dependencies(&package))
-        })
-        .unwrap_or(0)
-}
-
-fn parallel_map_indexed<T, R, F>(
-    items: &[T],
-    jobs: usize,
-    warmup_index: usize,
-    operation: F,
-) -> Vec<R>
+fn parallel_map_indexed<T, R, F>(items: &[T], jobs: usize, operation: F) -> Vec<R>
 where
     T: Sync,
     R: Send,
@@ -448,25 +419,7 @@ where
     if items.is_empty() {
         return Vec::new();
     }
-    assert!(warmup_index < items.len(), "warmup index is in range");
-    let warmup_result = operation(warmup_index, &items[warmup_index]);
-    let mut results = std::iter::repeat_with(|| None)
-        .take(items.len())
-        .collect::<Vec<_>>();
-    results[warmup_index] = Some(warmup_result);
-    if jobs <= 1 {
-        for (index, item) in items.iter().enumerate() {
-            if index != warmup_index {
-                results[index] = Some(operation(index, item));
-            }
-        }
-        return results
-            .into_iter()
-            .map(|result| result.expect("every conformance job returns one result"))
-            .collect();
-    }
-
-    let worker_count = jobs.min(items.len() - 1);
+    let worker_count = jobs.min(items.len()).max(1);
     let next = AtomicUsize::new(0);
     let (sender, receiver) = mpsc::channel();
     std::thread::scope(|scope| {
@@ -480,9 +433,6 @@ where
                     let Some(item) = items.get(index) else {
                         break;
                     };
-                    if index == warmup_index {
-                        continue;
-                    }
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         operation(index, item)
                     }));
@@ -491,18 +441,23 @@ where
             });
         }
         drop(sender);
-        for _ in 1..items.len() {
+        let mut results = std::iter::repeat_with(|| None)
+            .take(items.len())
+            .collect::<Vec<_>>();
+        for _ in items {
             let (index, result) = receiver.recv().unwrap();
-            results[index] = Some(match result {
-                Ok(result) => result,
-                Err(payload) => std::panic::resume_unwind(payload),
-            });
+            results[index] = Some(result);
         }
-    });
-    results
-        .into_iter()
-        .map(|result| result.expect("every conformance job returns one result"))
-        .collect()
+        results
+            .into_iter()
+            .map(
+                |result| match result.expect("every conformance job returns one result") {
+                    Ok(result) => result,
+                    Err(payload) => std::panic::resume_unwind(payload),
+                },
+            )
+            .collect()
+    })
 }
 
 fn prepare_conformance_case(
@@ -591,12 +546,10 @@ fn prepare_conformance_case(
 fn every_manifest_drives_a_conformance_case() {
     let update_goldens = golden_updates_from_environment();
     let manifests = selected_manifests();
-    let warmup_index = conformance_warmup_index(&manifests);
     let build = ConformanceBuild::new();
     let prepared = parallel_map_indexed(
         &manifests,
         conformance_jobs(manifests.len()),
-        warmup_index,
         |case_index, manifest_path| {
             prepare_conformance_case(case_index, manifest_path, &build, update_goldens)
         },
@@ -1255,30 +1208,11 @@ fn conformance_worker_count_is_bounded() {
 }
 
 #[test]
-fn projected_dependency_tables_are_cache_warmup_candidates() {
-    assert!(package_manifest_has_rust_dependencies(
-        "[rust-dependencies.reqwest]\nversion = \"=0.12.23\"\n"
-    ));
-    assert!(package_manifest_has_rust_dependencies(
-        "[rust-dependencies]\nreqwest = \"=0.12.23\"\n"
-    ));
-    assert!(!package_manifest_has_rust_dependencies(
-        "[dependencies]\nlocal = \"../local\"\n"
-    ));
-}
-
-#[test]
 fn parallel_conformance_preparation_preserves_manifest_order() {
     let items = (0..12).collect::<Vec<_>>();
     let active = AtomicUsize::new(0);
     let maximum = AtomicUsize::new(0);
-    let warmed = std::sync::atomic::AtomicBool::new(false);
-    let results = parallel_map_indexed(&items, 3, 0, |index, item| {
-        if index == 0 {
-            warmed.store(true, Ordering::SeqCst);
-        } else {
-            assert!(warmed.load(Ordering::SeqCst));
-        }
+    let results = parallel_map_indexed(&items, 3, |index, item| {
         let active_now = active.fetch_add(1, Ordering::SeqCst) + 1;
         maximum.fetch_max(active_now, Ordering::SeqCst);
         std::thread::sleep(std::time::Duration::from_millis(
