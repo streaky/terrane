@@ -3921,3 +3921,22 @@ value inspection, stale-artifact rejection, raw native escape hatches, and DAP/C
 against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
 debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
 suite pass; and optimized/unsupported cases report limitations rather than false fidelity.
+
+Completion evidence:
+
+- compiler-owned schema `1.0` metadata now binds logical source, final formatted Rust,
+  sequence points, semantic function/scope/binding/object identities, privacy policy, build
+  inputs, relocation roots, and the native executable by deterministic hashes;
+- `terrane debug` and `terrane debug-adapter --stdio` share one LLDB DAP translation engine with
+  source breakpoint fan-out/adjustment, mapped frames, compiler-owned temporary sequence
+  breakpoints, bounded native fallback, exact adaptive integer tiers, bounded string/byte values,
+  secret-field redaction, native/generated/register/memory/backend escape hatches, and explicit
+  launch/attach disconnect policy;
+- five Linux x86-64 `lldb-dap` 22 integration fixtures exercise CLI and framed DAP launch,
+  requested/resolved source breakpoints, stack mapping, CLI and DAP stepping, an async suspension,
+  fixed and adaptive scalars, strings, Unicode paths, stale source, mismatched executable identity,
+  raw-native fallback, and debuggee output isolation;
+- focused debugger/compiler tests and `cargo clippy --workspace --all-targets -- -D warnings`
+  passed; and
+- the final bounded-parallel workspace scorecard recorded 1,094 passed timings, zero failures,
+  and zero ignored tests, including the complete conformance matrix.
