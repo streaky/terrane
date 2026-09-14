@@ -84,7 +84,7 @@ impl Drop for DebugFixture {
 fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let fixture = DebugFixture::new();
     let commands = format!(
-        "break {}:8\ncontinue\nlocals\nnext\ncontinue\n",
+        "break {}:8\ncontinue\nframes\nframe 0\nsource 1\ngenerated 1\nlocals\nvalue text\nnext\ncontinue\n",
         fixture.source.display()
     );
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -120,6 +120,9 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     );
     assert!(stderr.contains("/debugger::main"), "{stderr}");
     assert!(stderr.contains("small = 41"), "{stderr}");
+    assert!(stderr.contains("#0"), "{stderr}");
+    assert!(stderr.contains(">     8 |   small = small + 1"), "{stderr}");
+    assert!(stderr.contains("src/main.rs:"), "{stderr}");
     assert!(stderr.contains("wide = 9223372036854775808"), "{stderr}");
     assert!(
         stderr.contains("big = 170141183460469231731687303715884105728"),
@@ -127,6 +130,51 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     );
     assert!(stderr.contains("text = \"hello\""), "{stderr}");
     assert!(stderr.contains(":9"), "{stderr}");
+}
+
+#[test]
+fn cli_expands_focused_values_without_exposing_secret_fields() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/output import print\n",
+            "class credentials\n",
+            "  username string = 'alice'\n",
+            "  token string = 'hidden' metadata (secret = true)\n",
+            "function main;\n",
+            "  auth = instance credentials;\n",
+            "  print; auth.username\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:8\ncontinue\nvalue auth\nquit\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("auth = credentials"), "{stderr}");
+    assert!(stderr.contains("username = \"alice\""), "{stderr}");
+    assert!(stderr.contains("token = <secret>"), "{stderr}");
+    assert!(!stderr.contains("token = \"hidden\""), "{stderr}");
 }
 
 struct DapClient {

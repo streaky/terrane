@@ -77,6 +77,7 @@ pub(super) fn run_cli(
     let stopped = backend.wait_for_event(&["stopped", "terminated"])?;
     backend.emit_debuggee_output()?;
     let mut thread_id = stopped["body"]["threadId"].as_i64().unwrap_or(1);
+    let mut selected_frame_index = 0_usize;
     eprintln!("Terrane debugger stopped at entry. Type `help` for commands.");
     let stdin = io::stdin();
     let mut input = String::new();
@@ -94,7 +95,7 @@ pub(super) fn run_cli(
         }
         match command.split_once(' ').unwrap_or((command, "")) {
             ("help", _) => eprintln!(
-                "break <source>:<line> | continue | next | step | out | frames | native | locals | registers | generated | lldb <command> | quit"
+                "break <source>:<line> | continue | next | step | out | frames | frame <index> | source [radius] | locals | value <name> | generated [radius] | native | registers | lldb <command> | quit"
             ),
             ("break", location) => {
                 let (path, line) = parse_breakpoint(location)?;
@@ -147,6 +148,7 @@ pub(super) fn run_cli(
                     return Ok(ExitCode::SUCCESS);
                 }
                 thread_id = event["body"]["threadId"].as_i64().unwrap_or(thread_id);
+                selected_frame_index = 0;
                 show_top_frame(&mut backend, &provenance, thread_id)?;
             }
             ("next" | "step" | "out", _) => {
@@ -155,15 +157,56 @@ pub(super) fn run_cli(
                     "step" => "stepIn",
                     _ => "stepOut",
                 };
-                step_to_source(&mut backend, &provenance, request, thread_id)?;
+                let event = step_to_source(&mut backend, &provenance, request, thread_id)?;
                 backend.emit_debuggee_output()?;
+                if event["event"] != "stopped" {
+                    return Ok(ExitCode::SUCCESS);
+                }
+                thread_id = event["body"]["threadId"].as_i64().unwrap_or(thread_id);
+                selected_frame_index = 0;
                 show_top_frame(&mut backend, &provenance, thread_id)?;
             }
             ("frames", _) => show_frames(&mut backend, &provenance, thread_id, false)?,
+            ("frame", index) if !index.is_empty() => {
+                selected_frame_index = parse_frame_index(index)?;
+                show_selected_frame(&mut backend, &provenance, thread_id, selected_frame_index)?;
+            }
+            ("source", radius) => show_source(
+                &mut backend,
+                &provenance,
+                thread_id,
+                selected_frame_index,
+                parse_context_radius(radius)?,
+            )?,
+            ("locals", _) => show_variables(
+                &mut backend,
+                &provenance,
+                thread_id,
+                selected_frame_index,
+                false,
+            )?,
+            ("value", name) if !name.is_empty() => show_value(
+                &mut backend,
+                &provenance,
+                thread_id,
+                selected_frame_index,
+                name,
+            )?,
+            ("generated", radius) => show_generated(
+                &mut backend,
+                &provenance,
+                thread_id,
+                selected_frame_index,
+                parse_context_radius(radius)?,
+            )?,
             ("native", _) => show_frames(&mut backend, &provenance, thread_id, true)?,
-            ("locals", _) => show_variables(&mut backend, &provenance, thread_id, false)?,
-            ("registers", _) => show_variables(&mut backend, &provenance, thread_id, true)?,
-            ("generated", _) => show_generated(&mut backend, &provenance, thread_id)?,
+            ("registers", _) => show_variables(
+                &mut backend,
+                &provenance,
+                thread_id,
+                selected_frame_index,
+                true,
+            )?,
             ("lldb", expression) if !expression.is_empty() => {
                 let response = backend.request(
                     "evaluate",
@@ -533,7 +576,9 @@ impl Adapter {
 }
 
 fn event(name: &str, body: Value) -> Value {
-    json!({"seq": 0, "type": "event", "event": name, "body": body})
+    let mut value = json!({"seq": 0, "type": "event", "event": name});
+    value["body"] = body;
+    value
 }
 
 fn response(body: Value) -> Value {
@@ -702,7 +747,9 @@ impl Backend {
                 print!("{output}");
                 io::stdout().flush().map_err(io_failure)?;
             } else {
-                if output.starts_with("To get started with the debug console try ") {
+                if output.starts_with("To get started with the debug console try ")
+                    || output.starts_with("For more information visit https://lldb.llvm.org/")
+                {
                     continue;
                 }
                 eprint!("{output}");
@@ -950,6 +997,8 @@ fn translate_variables(
                 })
             });
         if let Some((name, object_id, secret, type_name)) = presentation {
+            let is_object = object_id.is_some();
+            let object_name = debug_object_name(object_id.as_deref(), type_name);
             variable["name"] = name.into();
             if secret {
                 variable["value"] = "<secret>".into();
@@ -964,7 +1013,9 @@ fn translate_variables(
                     variable_objects.insert(reference, object_id);
                 }
                 let raw = variable["value"].as_str().unwrap_or_default();
-                if type_name == "Scalar(Int)" {
+                if is_object {
+                    variable["value"] = object_name.into();
+                } else if type_name == "Scalar(Int)" {
                     let summary = variable["memoryReference"]
                         .as_str()
                         .and_then(|reference| value_summaries.get(reference))
@@ -997,6 +1048,13 @@ fn translate_variables(
         }
     }
 }
+fn debug_object_name(object_id: Option<&str>, fallback: &str) -> String {
+    object_id
+        .and_then(|id| id.rsplit_once("::").map(|(_, name)| name))
+        .unwrap_or(fallback)
+        .to_owned()
+}
+
 fn request_terrane_variables(backend: &mut Backend, arguments: Value) -> Result<Value, CliFailure> {
     let _ = backend.request(
         "evaluate",
@@ -1400,23 +1458,87 @@ fn show_frames(
     Ok(())
 }
 
-fn selected_frame(backend: &mut Backend, thread_id: i64) -> Result<i64, CliFailure> {
-    let response = backend.request(
-        "stackTrace",
-        json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
-    )?;
-    response["body"]["stackFrames"][0]["id"]
-        .as_i64()
-        .ok_or_else(|| debugger_failure("selected thread has no frame"))
+fn mapped_frames(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    thread_id: i64,
+) -> Result<Vec<(Value, Value)>, CliFailure> {
+    let response = backend.request("stackTrace", json!({"threadId": thread_id}))?;
+    let native = response["body"]["stackFrames"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut translated = response["body"].clone();
+    translate_stack_frames(&mut translated, provenance, false);
+    let translated = translated["stackFrames"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    Ok(native
+        .into_iter()
+        .zip(translated)
+        .filter(|(_, frame)| frame["presentationHint"] != "subtle")
+        .collect())
+}
+
+fn selected_frame(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    thread_id: i64,
+    index: usize,
+) -> Result<(Value, Value), CliFailure> {
+    mapped_frames(backend, provenance, thread_id)?
+        .into_iter()
+        .nth(index)
+        .ok_or_else(|| debugger_failure(format!("no mapped Terrane frame #{index}")))
+}
+
+fn print_frame(index: usize, frame: &Value) {
+    eprintln!(
+        "#{index:<3} {} at {}:{}",
+        frame["name"].as_str().unwrap_or("<native>"),
+        frame["source"]["path"].as_str().unwrap_or("<unknown>"),
+        frame["line"].as_u64().unwrap_or(0)
+    );
+}
+
+fn show_selected_frame(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    thread_id: i64,
+    index: usize,
+) -> Result<(), CliFailure> {
+    let (_, frame) = selected_frame(backend, provenance, thread_id, index)?;
+    print_frame(index, &frame);
+    Ok(())
+}
+
+fn show_source(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    thread_id: i64,
+    frame_index: usize,
+    radius: usize,
+) -> Result<(), CliFailure> {
+    let (_, frame) = selected_frame(backend, provenance, thread_id, frame_index)?;
+    let path = frame["source"]["path"]
+        .as_str()
+        .map(PathBuf::from)
+        .ok_or_else(|| debugger_failure("selected frame has no Terrane source"))?;
+    show_source_context(&path, frame["line"].as_u64().unwrap_or(0), radius)
 }
 
 fn show_variables(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,
     thread_id: i64,
+    frame_index: usize,
     registers: bool,
 ) -> Result<(), CliFailure> {
-    let frame_id = selected_frame(backend, thread_id)?;
+    let (frame, _) = selected_frame(backend, provenance, thread_id, frame_index)?;
+    let frame_id = frame["id"]
+        .as_i64()
+        .ok_or_else(|| debugger_failure("selected thread has no frame"))?;
     let scopes = backend.request("scopes", json!({"frameId": frame_id}))?;
     let mut variable_objects = BTreeMap::new();
     for scope in scopes["body"]["scopes"]
@@ -1430,8 +1552,11 @@ fn show_variables(
         })
     {
         let reference = scope["variablesReference"].as_i64().unwrap_or(0);
-        let response =
-            request_terrane_variables(backend, json!({"variablesReference": reference}))?;
+        let response = if registers {
+            backend.request("variables", json!({"variablesReference": reference}))?
+        } else {
+            request_terrane_variables(backend, json!({"variablesReference": reference}))?
+        };
         let mut body = response["body"].clone();
         if !registers {
             let value_summaries =
@@ -1457,23 +1582,184 @@ fn show_variables(
     Ok(())
 }
 
+fn show_value(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    thread_id: i64,
+    frame_index: usize,
+    name: &str,
+) -> Result<(), CliFailure> {
+    let (frame, _) = selected_frame(backend, provenance, thread_id, frame_index)?;
+    let frame_id = frame["id"]
+        .as_i64()
+        .ok_or_else(|| debugger_failure("selected thread has no frame"))?;
+    let scopes = backend.request("scopes", json!({"frameId": frame_id}))?;
+    let mut variable_objects = BTreeMap::new();
+    for scope in scopes["body"]["scopes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|scope| {
+            scope["name"]
+                .as_str()
+                .is_some_and(|name| name.eq_ignore_ascii_case("locals"))
+        })
+    {
+        let reference = scope["variablesReference"].as_i64().unwrap_or(0);
+        let response =
+            request_terrane_variables(backend, json!({"variablesReference": reference}))?;
+        let mut body = response["body"].clone();
+        let summaries = read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
+        translate_variables(
+            &mut body,
+            provenance,
+            reference,
+            &mut variable_objects,
+            &summaries,
+        );
+        if let Some(variable) = body["variables"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|variable| variable["name"].as_str() == Some(name))
+        {
+            let mut visited = std::collections::BTreeSet::new();
+            let mut remaining = 256_usize;
+            print_value_tree(
+                backend,
+                provenance,
+                variable,
+                &mut variable_objects,
+                &mut visited,
+                &mut remaining,
+                0,
+            )?;
+            return Ok(());
+        }
+    }
+    Err(debugger_failure(format!(
+        "selected frame has no local named `{name}`"
+    )))
+}
+
+fn print_value_tree(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    variable: &Value,
+    variable_objects: &mut BTreeMap<i64, String>,
+    visited: &mut std::collections::BTreeSet<i64>,
+    remaining: &mut usize,
+    depth: usize,
+) -> Result<(), CliFailure> {
+    if *remaining == 0 {
+        eprintln!("{}<truncated>", "  ".repeat(depth));
+        return Ok(());
+    }
+    *remaining -= 1;
+    eprintln!(
+        "{}{} = {}",
+        "  ".repeat(depth),
+        variable["name"].as_str().unwrap_or("?"),
+        variable["value"]
+            .as_str()
+            .unwrap_or("<unavailable debug information>")
+    );
+    let reference = variable["variablesReference"].as_i64().unwrap_or(0);
+    if reference == 0 {
+        return Ok(());
+    }
+    if depth >= 6 {
+        eprintln!("{}<maximum depth reached>", "  ".repeat(depth + 1));
+        return Ok(());
+    }
+    if !visited.insert(reference) {
+        eprintln!("{}<cycle>", "  ".repeat(depth + 1));
+        return Ok(());
+    }
+    let response = request_terrane_variables(backend, json!({"variablesReference": reference}))?;
+    let mut body = response["body"].clone();
+    let summaries = read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
+    translate_variables(
+        &mut body,
+        provenance,
+        reference,
+        variable_objects,
+        &summaries,
+    );
+    for child in body["variables"].as_array().into_iter().flatten() {
+        print_value_tree(
+            backend,
+            provenance,
+            child,
+            variable_objects,
+            visited,
+            remaining,
+            depth + 1,
+        )?;
+    }
+    Ok(())
+}
+
 fn show_generated(
     backend: &mut Backend,
-    _provenance: &ProvenanceManifest,
+    provenance: &ProvenanceManifest,
     thread_id: i64,
+    frame_index: usize,
+    radius: usize,
 ) -> Result<(), CliFailure> {
-    let response = backend.request(
-        "stackTrace",
-        json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
-    )?;
-    let frame = &response["body"]["stackFrames"][0];
+    let (frame, _) = selected_frame(backend, provenance, thread_id, frame_index)?;
     let path = frame["source"]["path"]
         .as_str()
         .map(PathBuf::from)
         .ok_or_else(|| debugger_failure("selected frame has no generated source"))?;
-    let line = frame["line"].as_u64().unwrap_or(0);
+    show_source_context(&path, frame["line"].as_u64().unwrap_or(0), radius)
+}
+
+fn show_source_context(path: &Path, line: u64, radius: usize) -> Result<(), CliFailure> {
+    let line = usize::try_from(line)
+        .ok()
+        .filter(|line| *line > 0)
+        .ok_or_else(|| debugger_failure("selected frame has no source line"))?;
+    let contents = fs::read_to_string(path).map_err(|error| {
+        debugger_failure(format!(
+            "cannot read source context {}: {error}",
+            path.display()
+        ))
+    })?;
+    let lines = contents.lines().collect::<Vec<_>>();
+    let start = line.saturating_sub(radius).max(1);
+    let end = line.saturating_add(radius).min(lines.len());
     eprintln!("{}:{line}", path.display());
+    for current in start..=end {
+        eprintln!(
+            "{} {current:>5} | {}",
+            if current == line { ">" } else { " " },
+            lines[current - 1]
+        );
+    }
     Ok(())
+}
+
+fn parse_frame_index(index: &str) -> Result<usize, CliFailure> {
+    index
+        .parse()
+        .map_err(|_| debugger_failure("frame index must be a non-negative integer"))
+}
+
+fn parse_context_radius(radius: &str) -> Result<usize, CliFailure> {
+    let radius = if radius.is_empty() {
+        3
+    } else {
+        radius
+            .parse()
+            .map_err(|_| debugger_failure("context radius must be an integer from 0 through 20"))?
+    };
+    if radius > 20 {
+        return Err(debugger_failure(
+            "context radius must be an integer from 0 through 20",
+        ));
+    }
+    Ok(radius)
 }
 
 fn parse_breakpoint(location: &str) -> Result<(PathBuf, usize), CliFailure> {
