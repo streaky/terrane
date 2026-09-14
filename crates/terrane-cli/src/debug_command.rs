@@ -336,11 +336,14 @@ impl Adapter {
         if command == "variables" {
             let parent_reference = arguments["variablesReference"].as_i64().unwrap_or(0);
             let provenance = self.provenance.clone();
+            let selected_layout = provenance
+                .as_ref()
+                .is_some_and(|provenance| provenance.target == "x86_64-linux");
             let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = backend.request(command, arguments)?;
                 let body = backend_response["body"].clone();
-                let value_summaries = read_value_summaries(backend, &body);
+                let value_summaries = read_value_summaries(backend, &body, selected_layout);
                 (body, value_summaries, std::mem::take(&mut backend.events))
             };
             if let Some(provenance) = &provenance {
@@ -894,28 +897,42 @@ fn translate_variables(
         }
     }
 }
-fn read_value_summaries(backend: &mut Backend, body: &Value) -> BTreeMap<String, String> {
+fn read_value_summaries(
+    backend: &mut Backend,
+    body: &Value,
+    selected_layout: bool,
+) -> BTreeMap<String, String> {
     let mut summaries = BTreeMap::new();
     for variable in body["variables"].as_array().into_iter().flatten() {
         let Some(reference) = variable["memoryReference"].as_str() else {
             continue;
         };
         let type_name = variable["type"].as_str().unwrap_or_default();
-        let summary = if type_name == "terrane_int_support::Int" {
-            Some(decode_adaptive_int(backend, reference))
-        } else if type_name.contains("string::String") {
-            Some(decode_string(backend, reference))
-        } else if type_name.contains("Vec<u8") {
-            Some(decode_bytes(backend, reference))
-        } else {
-            None
-        };
-        if let Some(summary) = summary {
+        let has_recipe = type_name == "terrane_int_support::Int"
+            || type_name.contains("string::String")
+            || type_name.contains("Vec<u8");
+        if !has_recipe {
+            continue;
+        }
+        if !selected_layout {
             summaries.insert(
                 reference.to_owned(),
-                summary.unwrap_or_else(|failure| failure),
+                "<unsupported layout: debugger value recipe is unavailable for this target>"
+                    .to_owned(),
             );
+            continue;
         }
+        let summary = if type_name == "terrane_int_support::Int" {
+            decode_adaptive_int(backend, reference)
+        } else if type_name.contains("string::String") {
+            decode_string(backend, reference)
+        } else {
+            decode_bytes(backend, reference)
+        };
+        summaries.insert(
+            reference.to_owned(),
+            summary.unwrap_or_else(|failure| failure),
+        );
     }
     summaries
 }
@@ -1278,7 +1295,8 @@ fn show_variables(
         let response = backend.request("variables", json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
         if !registers {
-            let value_summaries = read_value_summaries(backend, &body);
+            let value_summaries =
+                read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
             translate_variables(
                 &mut body,
                 provenance,
