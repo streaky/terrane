@@ -3799,7 +3799,6 @@ Completion evidence:
 ### Milestone 30.2 — LLDB-backed Terrane source debugging
 **Status:** completed on `lldb-backed-source-debugging`.
 
-
 Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
 Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
 native process control, unwinding, registers, memory, and machine breakpoints to a selected
