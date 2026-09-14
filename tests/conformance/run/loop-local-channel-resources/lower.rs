@@ -32,8 +32,8 @@ fn main() {
             if value.is_some() {
                 println!(
                     "{}{}{}", terrane_scalar_support::scalar_text(&sent.accepted),
-                    terrane_scalar_support::scalar_text(&* value.as_ref()
-                    .expect("semantic optional narrowing")),
+                    terrane_scalar_support::scalar_text(&value.as_ref()
+                    .expect("semantic optional narrowing").clone()),
                     terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(remaining
                     .length()))
                 );

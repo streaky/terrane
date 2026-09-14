@@ -325,6 +325,45 @@ fn with_compilation_dependencies(
     (compilation, dependencies)
 }
 
+fn verify_reviewed_rust(
+    case: &Path,
+    lower_path: &Path,
+    expected: &str,
+    compilation: &terrane_compiler::Compilation,
+    update_goldens: bool,
+) {
+    let normalized = normalized_review_rust(compilation);
+    if update_goldens {
+        write_reviewed_golden(lower_path, expected, &normalized);
+    } else {
+        assert_eq!(normalized, expected, "{}", case.display());
+    }
+}
+
+fn compile_package_case(
+    source_path: &Path,
+    options: terrane_compiler::CompilerOptions,
+    native_test: bool,
+    case: &Path,
+    update_goldens: bool,
+) -> (
+    terrane_compiler::Compilation,
+    Vec<terrane_compiler::RustDependency>,
+) {
+    if native_test {
+        let test_package = terrane_compiler::testing::TestPackage::load(source_path).unwrap();
+        let mut tiers = terrane_compiler::compile_test_package(&test_package, options).unwrap();
+        assert_eq!(tiers.len(), 1, "{}", case.display());
+        with_compilation_dependencies(tiers.remove(0).compilation)
+    } else {
+        let package = terrane_compiler::Package::load(source_path).unwrap();
+        let compilation =
+            terrane_compiler::compile_package_with_options(&package, options).unwrap();
+        verify_reviewed_projection(case, source_path, update_goldens);
+        with_compilation_dependencies(compilation)
+    }
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let update_goldens = golden_updates_from_environment();
@@ -351,21 +390,13 @@ fn every_manifest_drives_a_conformance_case() {
                 let lower_path = case.join("lower.rs");
                 let expected = read_reviewed_golden(&lower_path, update_goldens);
                 let (compilation, dependencies) = if package_case {
-                    if boolean_field(&manifest, "native-test").unwrap_or(false) {
-                        let test_package =
-                            terrane_compiler::testing::TestPackage::load(&source_path).unwrap();
-                        let mut tiers =
-                            terrane_compiler::compile_test_package(&test_package, options).unwrap();
-                        assert_eq!(tiers.len(), 1, "{}", case.display());
-                        with_compilation_dependencies(tiers.remove(0).compilation)
-                    } else {
-                        let package = terrane_compiler::Package::load(&source_path).unwrap();
-                        let compilation =
-                            terrane_compiler::compile_package_with_options(&package, options)
-                                .unwrap();
-                        verify_reviewed_projection(case, &source_path, update_goldens);
-                        with_compilation_dependencies(compilation)
-                    }
+                    compile_package_case(
+                        &source_path,
+                        options,
+                        boolean_field(&manifest, "native-test").unwrap_or(false),
+                        case,
+                        update_goldens,
+                    )
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =
@@ -374,12 +405,7 @@ fn every_manifest_drives_a_conformance_case() {
                     (compilation, Vec::new())
                 };
                 assert_expected_warnings(case, &manifest, &compilation);
-                let normalized = normalized_review_rust(&compilation);
-                if update_goldens {
-                    write_reviewed_golden(&lower_path, &expected, &normalized);
-                } else {
-                    assert_eq!(normalized, expected, "{}", case.display());
-                }
+                verify_reviewed_rust(case, &lower_path, &expected, &compilation, update_goldens);
                 // Only dependency-free binaries can safely share one Cargo manifest and build.
                 if dependencies.is_empty() && field(&manifest, "dependency-panic-test").is_none() {
                     stage_generated_binary(

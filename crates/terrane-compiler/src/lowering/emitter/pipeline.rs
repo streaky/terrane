@@ -199,7 +199,9 @@ fn lower_with_tests(
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
-    let uses_errors = package_uses_structured_errors(package) || package_uses_task_scope(package);
+    let uses_errors = tests.is_some()
+        || package_uses_structured_errors(package)
+        || package_uses_task_scope(package);
     let uses_typed_documents = package_uses_typed_documents(package);
     let uses_log_error = package_uses_log_error(package);
     let has_dependency = package

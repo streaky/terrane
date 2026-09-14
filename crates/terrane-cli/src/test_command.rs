@@ -81,6 +81,14 @@ struct TestOptions {
     arguments: Vec<OsString>,
 }
 
+struct TestRecord {
+    outcome: String,
+    descriptor: String,
+    message: String,
+    details: Vec<String>,
+    source_frames: Vec<String>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TestStatus {
     Passed,
@@ -485,11 +493,11 @@ fn execute_case(
     let directory = run_root.join(format!("{}-{work_index}", std::process::id()));
     let _ = fs::remove_dir_all(&directory);
     if let Err(error) = fs::create_dir_all(&directory) {
-        return infrastructure_result(case, format!("cannot create test directory: {error}"));
+        return infrastructure_result(case, &format!("cannot create test directory: {error}"));
     }
     let started = Instant::now();
     let Some(executable) = executables.get(&case.tier) else {
-        return infrastructure_result(case, "test tier runner is unavailable".to_owned());
+        return infrastructure_result(case, "test tier runner is unavailable");
     };
     let mut command = Command::new(executable);
     command
@@ -517,7 +525,7 @@ fn execute_case(
         Ok(child) => child,
         Err(error) => {
             let _ = fs::remove_dir_all(&directory);
-            return infrastructure_result(case, format!("cannot start test process: {error}"));
+            return infrastructure_result(case, &format!("cannot start test process: {error}"));
         }
     };
     let stdout = child.stdout.take().expect("piped test stdout");
@@ -541,34 +549,56 @@ fn execute_case(
         .ok()
         .map(|record| parse_test_record(&record));
     let _ = fs::remove_dir_all(&directory);
-    let exit_code = status.as_ref().and_then(std::process::ExitStatus::code);
-    let (status, cause) = if timed_out {
-        (
-            TestStatus::TimedOut,
-            Some(TestCause {
-                kind: "timeout",
-                descriptor: None,
-                message: format!(
-                    "deadline exceeded after {} milliseconds",
-                    timeout.as_millis()
-                ),
-                details: Vec::new(),
-                source_frames: Vec::new(),
-            }),
-        )
-    } else if status
-        .as_ref()
-        .is_some_and(std::process::ExitStatus::success)
-    {
-        (TestStatus::Passed, None)
-    } else if matches!(exit_code, Some(101 | 102)) {
-        match record {
-            Some(Ok((outcome, descriptor, message, details, source_frames)))
-                if (exit_code == Some(102) && outcome == "skipped")
-                    || (exit_code == Some(101) && outcome == "failed") =>
+    let (test_status, failure_cause) =
+        classify_test_result(status.as_ref(), timed_out, record, timeout);
+    TestResult {
+        case: case.clone(),
+        status: test_status,
+        duration: started.elapsed(),
+        stdout,
+        stderr,
+        cause: failure_cause,
+    }
+}
+
+fn timeout_result(timeout: Duration) -> (TestStatus, Option<TestCause>) {
+    (
+        TestStatus::TimedOut,
+        Some(TestCause {
+            kind: "timeout",
+            descriptor: None,
+            message: format!(
+                "deadline exceeded after {} milliseconds",
+                timeout.as_millis()
+            ),
+            details: Vec::new(),
+            source_frames: Vec::new(),
+        }),
+    )
+}
+
+fn classify_test_result(
+    process_status: Option<&std::process::ExitStatus>,
+    timed_out: bool,
+    record: Option<Result<TestRecord, String>>,
+    timeout: Duration,
+) -> (TestStatus, Option<TestCause>) {
+    let exit_code = process_status.and_then(std::process::ExitStatus::code);
+    if timed_out {
+        return timeout_result(timeout);
+    }
+    if process_status.is_some_and(std::process::ExitStatus::success) {
+        return (TestStatus::Passed, None);
+    }
+    if matches!(exit_code, Some(101 | 102)) {
+        return match record {
+            Some(Ok(record))
+                if (exit_code == Some(102) && record.outcome == "skipped")
+                    || (exit_code == Some(101) && record.outcome == "failed") =>
             {
-                let skipped = outcome == "skipped";
-                let infrastructure = descriptor == "/core/testing::test-infrastructure-failure";
+                let skipped = record.outcome == "skipped";
+                let infrastructure =
+                    record.descriptor == "/core/testing::test-infrastructure-failure";
                 (
                     if skipped {
                         TestStatus::Skipped
@@ -580,17 +610,17 @@ fn execute_case(
                     Some(TestCause {
                         kind: if skipped {
                             "skip"
-                        } else if descriptor == "/core/testing::test-failure" {
+                        } else if record.descriptor == "/core/testing::test-failure" {
                             "assertion"
                         } else if infrastructure {
                             "infrastructure"
                         } else {
                             "uncaught-throwable"
                         },
-                        descriptor: Some(descriptor),
-                        message,
-                        details,
-                        source_frames,
+                        descriptor: Some(record.descriptor),
+                        message: record.message,
+                        details: record.details,
+                        source_frames: record.source_frames,
                     }),
                 )
             }
@@ -610,12 +640,10 @@ fn execute_case(
                 TestStatus::InfrastructureFailed,
                 Some(protocol_cause("test runner exited without a result record")),
             ),
-        }
-    } else if status
-        .as_ref()
-        .is_some_and(|status| status.code().is_none())
-    {
-        (
+        };
+    }
+    if process_status.is_some_and(|status| status.code().is_none()) {
+        return (
             TestStatus::Crashed,
             Some(TestCause {
                 kind: "crash",
@@ -624,45 +652,37 @@ fn execute_case(
                 details: Vec::new(),
                 source_frames: Vec::new(),
             }),
-        )
-    } else if exit_code == Some(103) || status.is_none() {
-        (
+        );
+    }
+    if exit_code == Some(103) || process_status.is_none() {
+        return (
             TestStatus::InfrastructureFailed,
             Some(protocol_cause("test runner dispatch failed")),
-        )
-    } else {
-        (
-            TestStatus::Failed,
-            Some(TestCause {
-                kind: "exit",
-                descriptor: None,
-                message: format!(
-                    "test process exited with status {}",
-                    exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
-                ),
-                details: Vec::new(),
-                source_frames: Vec::new(),
-            }),
-        )
-    };
-    TestResult {
-        case: case.clone(),
-        status,
-        duration: started.elapsed(),
-        stdout,
-        stderr,
-        cause,
+        );
     }
+    (
+        TestStatus::Failed,
+        Some(TestCause {
+            kind: "exit",
+            descriptor: None,
+            message: format!(
+                "test process exited with status {}",
+                exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
+            ),
+            details: Vec::new(),
+            source_frames: Vec::new(),
+        }),
+    )
 }
 
-fn infrastructure_result(case: &TestCase, detail: String) -> TestResult {
+fn infrastructure_result(case: &TestCase, detail: &str) -> TestResult {
     TestResult {
         case: case.clone(),
         status: TestStatus::InfrastructureFailed,
         duration: Duration::ZERO,
         stdout: CapturedOutput::default(),
         stderr: CapturedOutput::default(),
-        cause: Some(protocol_cause(&detail)),
+        cause: Some(protocol_cause(detail)),
     }
 }
 
@@ -676,9 +696,7 @@ fn protocol_cause(message: &str) -> TestCause {
     }
 }
 
-fn parse_test_record(
-    record: &str,
-) -> Result<(String, String, String, Vec<String>, Vec<String>), String> {
+fn parse_test_record(record: &str) -> Result<TestRecord, String> {
     let mut lines = record.lines();
     if lines.next() != Some("1") {
         return Err("unsupported protocol version".to_owned());
@@ -713,16 +731,25 @@ fn parse_test_record(
     if details.len() != detail_count || frames.len() != frame_count || lines.next().is_some() {
         return Err("detail or frame count does not match record".to_owned());
     }
-    Ok((outcome.to_owned(), descriptor, message, details, frames))
+    Ok(TestRecord {
+        outcome: outcome.to_owned(),
+        descriptor,
+        message,
+        details,
+        source_frames: frames,
+    })
 }
 
 fn decode_hex(value: &str) -> Result<String, String> {
     if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal field".to_owned());
     }
-    let bytes = value
-        .as_bytes()
-        .chunks_exact(2)
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
+        return Err("odd-length hexadecimal field".to_owned());
+    }
+    let bytes = pairs
+        .iter()
         .map(|pair| {
             let text = std::str::from_utf8(pair).expect("ASCII hexadecimal pair");
             u8::from_str_radix(text, 16).map_err(|_| "invalid hexadecimal field".to_owned())

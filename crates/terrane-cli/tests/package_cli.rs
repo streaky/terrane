@@ -417,70 +417,72 @@ fn copy_fixture(source: &std::path::Path, destination: &std::path::Path) {
     }
 }
 
+const DETERMINISTIC_TEST_CASES: &str = concat!(
+    "namespace cli/app\n",
+    "from /core/errors import throwable\n",
+    "from /core/process import exit, make-exit-status\n",
+    "from /core/time import clock, duration\n",
+    "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deny, fail, skip, temporary-directory, test-failure, test-skip\n",
+    "function expected-error none throws test-failure;\n",
+    "    fail; 'expected'\n    return none\n",
+    "function test-pass none throws test-failure;\n",
+    "    assert; true\n",
+    "    deny; false\n",
+    "    assert-equal-int; 4, 4\n",
+    "    assert-not-equal-int; 4, 5\n",
+    "    assert-equal-string; 'a', 'a'\n",
+    "    assert-not-equal-string; 'a', 'b'\n",
+    "    assert-equal-bool; true, true\n",
+    "    assert-not-equal-bool; true, false\n",
+    "    assert-equal-float64; 1.5, 1.5\n",
+    "    assert-not-equal-float64; 1.5, 2.5\n",
+    "    assert-equal-bytes; b'a', b'a'\n",
+    "    assert-not-equal-bytes; b'a', b'b'\n",
+    "    assert-present-string; 'present'\n",
+    "    assert-none-string; none\n",
+    "    assert-near; 1.0, 1.1, 0.2\n",
+    "    assert-throws; expected-error, test-failure.identity\n",
+    "    assert-present-string; (temporary-directory;)\n",
+    "    assert-present-int; 1\n",
+    "    assert-none-int; none\n",
+    "    assert-present-bool; true\n",
+    "    assert-none-bool; none\n",
+    "    assert-present-float64; 1.0\n",
+    "    assert-none-float64; none\n",
+    "    assert-present-bytes; b'a'\n",
+    "    assert-none-bytes; none\n",
+    "    return none\n",
+    "function test-fail none throws test-failure;\n",
+    "    assert-equal-int; 3, 4\n    return none\n",
+    "function test-exit;\n",
+    "    exit; (make-exit-status; 7)\n",
+    "function test-ignored none throws test-skip;\n",
+    "    skip; 'not available'\n    return none\n",
+    "function test-controlled-time none throws throwable;\n",
+    "    started = clock::monotonic;\n",
+    "    advance-time; 25\n",
+    "    later = clock::monotonic;\n",
+    "    elapsed = started.duration-until; ref later\n",
+    "    assert-equal-int; elapsed.nanoseconds, 25\n",
+    "    return none\n",
+    "async function test-async none throws throwable;\n",
+    "    advance-time; 25\n",
+    "    started = clock::monotonic;\n",
+    "    interval = duration::nanoseconds; 25\n",
+    "    ignored = await clock::sleep; interval\n",
+    "    later = clock::monotonic;\n",
+    "    elapsed = started.duration-until; ref later\n",
+    "    assert-equal-int; elapsed.nanoseconds, 25\n",
+    "    return none\n",
+);
+
 #[test]
 fn native_test_command_reports_isolated_cases_deterministically() {
     let package = TempPackage::new();
     fs::create_dir_all(package.0.join("tests/unit")).unwrap();
     fs::write(
         package.0.join("tests/unit/cases.trn"),
-        concat!(
-            "namespace cli/app\n",
-            "from /core/errors import throwable\n",
-            "from /core/process import exit, make-exit-status\n",
-            "from /core/time import clock, duration\n",
-            "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deny, fail, skip, temporary-directory, test-failure, test-skip\n",
-            "function expected-error none throws test-failure;\n",
-            "    fail; 'expected'\n    return none\n",
-            "function test-pass none throws test-failure;\n",
-            "    assert; true\n",
-            "    deny; false\n",
-            "    assert-equal-int; 4, 4\n",
-            "    assert-not-equal-int; 4, 5\n",
-            "    assert-equal-string; 'a', 'a'\n",
-            "    assert-not-equal-string; 'a', 'b'\n",
-            "    assert-equal-bool; true, true\n",
-            "    assert-not-equal-bool; true, false\n",
-            "    assert-equal-float64; 1.5, 1.5\n",
-            "    assert-not-equal-float64; 1.5, 2.5\n",
-            "    assert-equal-bytes; b'a', b'a'\n",
-            "    assert-not-equal-bytes; b'a', b'b'\n",
-            "    assert-present-string; 'present'\n",
-            "    assert-none-string; none\n",
-            "    assert-near; 1.0, 1.1, 0.2\n",
-            "    assert-throws; expected-error, test-failure.identity\n",
-            "    assert-present-string; (temporary-directory;)\n",
-            "    assert-present-int; 1\n",
-            "    assert-none-int; none\n",
-            "    assert-present-bool; true\n",
-            "    assert-none-bool; none\n",
-            "    assert-present-float64; 1.0\n",
-            "    assert-none-float64; none\n",
-            "    assert-present-bytes; b'a'\n",
-            "    assert-none-bytes; none\n",
-            "    return none\n",
-            "function test-fail none throws test-failure;\n",
-            "    assert-equal-int; 3, 4\n    return none\n",
-            "function test-exit;\n",
-            "    exit; (make-exit-status; 7)\n",
-            "function test-ignored none throws test-skip;\n",
-            "    skip; 'not available'\n    return none\n",
-            "function test-controlled-time none throws throwable;\n",
-            "    started = clock::monotonic;\n",
-            "    advance-time; 25\n",
-            "    later = clock::monotonic;\n",
-            "    elapsed = started.duration-until; ref later\n",
-            "    assert-equal-int; elapsed.nanoseconds, 25\n",
-            "    return none\n",
-            "async function test-async none throws throwable;\n",
-            "    started = clock::monotonic;\n",
-            "    advance-time; 25\n",
-            "    interval = duration::nanoseconds; 25\n",
-            "    await (clock::sleep; interval)\n",
-            "    later = clock::monotonic;\n",
-            "    elapsed = started.duration-until; ref later\n",
-            "    assert-equal-int; elapsed.nanoseconds, 25\n",
-            "    return none\n",
-        ),
+        DETERMINISTIC_TEST_CASES,
     )
     .unwrap();
     let report = package.0.join("test-report.json");
@@ -518,7 +520,10 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         report["cases"][1]["cause"]["descriptor"],
         "/core/testing::test-failure"
     );
-    assert_eq!(report["cases"][1]["cause"]["message"], "integer values differ");
+    assert_eq!(
+        report["cases"][1]["cause"]["message"],
+        "integer values differ"
+    );
     assert_eq!(
         report["cases"][1]["cause"]["details"],
         serde_json::json!(["actual: 3", "expected: 4"])
@@ -541,24 +546,7 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         "/cli/app::test-pass [unit]\n"
     );
 
-    for (option, pattern) in [
-        ("--exact", "/cli/app::test-pass"),
-        ("--glob", "*/app::test-p?ss"),
-        ("--regex", "::test-p[a-z]+$"),
-    ] {
-        let selected = Command::new(env!("CARGO_BIN_EXE_terrane"))
-            .arg("test")
-            .args(["--list", option, pattern])
-            .arg(&package.0)
-            .output()
-            .unwrap();
-        assert!(selected.status.success(), "{option}");
-        assert_eq!(
-            String::from_utf8(selected.stdout).unwrap(),
-            "/cli/app::test-pass [unit]\n",
-            "{option}"
-        );
-    }
+    assert_explicit_selectors(&package.0);
 
     let filtered = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
@@ -572,6 +560,27 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             .unwrap()
             .contains("skipped /cli/app::test-ignored"),
     );
+}
+
+fn assert_explicit_selectors(package: &Path) {
+    for (option, pattern) in [
+        ("--exact", "/cli/app::test-pass"),
+        ("--glob", "*/app::test-p?ss"),
+        ("--regex", "::test-p[a-z]+$"),
+    ] {
+        let selected = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(["--list", option, pattern])
+            .arg(package)
+            .output()
+            .unwrap();
+        assert!(selected.status.success(), "{option}");
+        assert_eq!(
+            String::from_utf8(selected.stdout).unwrap(),
+            "/cli/app::test-pass [unit]\n",
+            "{option}"
+        );
+    }
 }
 
 #[test]
@@ -703,11 +712,10 @@ fn native_test_compile_failures_write_structured_reports() {
     assert_eq!(report["run"]["status"], "compile-failed");
     assert_eq!(report["compilation"]["status"], "compile-failed");
     assert!(
-        report["compilation"]["diagnostics"]
+        !report["compilation"]["diagnostics"]
             .as_array()
             .unwrap()
-            .len()
-            > 0
+            .is_empty()
     );
     assert_eq!(report["cases"].as_array().unwrap().len(), 0);
 }

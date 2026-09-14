@@ -54,6 +54,7 @@ pub struct TestConfiguration {
 }
 
 impl TestConfiguration {
+    #[must_use]
     pub fn conventional(profile: CapabilityProfile) -> Self {
         Self {
             roots: BTreeMap::from([

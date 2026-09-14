@@ -293,7 +293,7 @@ pub(super) fn collect_declaration(
 
 pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/core/streams" | "/core/process" => &["process"],
+        "/core/streams" | "/core/process" | "/core/testing/process" => &["process"],
         "/core/filesystem" => &["filesystem"],
         "/core/random" | "/core/random/uuid" => &["entropy"],
         "/core/networking" => &["networking"],
@@ -303,7 +303,6 @@ pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str]
         "/core/concurrency" => &["threads"],
         "/core/time" => &["clocks"],
         "/core/process-signals" => &["process-signals"],
-        "/core/testing/process" => &["process"],
         _ => &[],
     }
 }

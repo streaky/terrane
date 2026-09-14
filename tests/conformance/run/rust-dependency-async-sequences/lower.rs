@@ -158,6 +158,22 @@ impl TerraneError {
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
     }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
     #[cold]
     #[inline(never)]
     fn render(&self) -> String {
@@ -409,7 +425,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+    pub static DESCRIPTORS: [&str; 2] = [
+        "/core/errors::dependency-error",
+        "/core/errors::dependency-panic",
+    ];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -550,8 +569,8 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
     let first_value: Option<String> = first.value;
     if first_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* first_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&first_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let second: terrane_collection_support::AsyncIterationStep<String> = __terrane_traced(
@@ -612,8 +631,8 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
     let second_value: Option<String> = second.value;
     if second_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* second_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&second_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let ended: terrane_collection_support::AsyncIterationStep<String> = __terrane_traced(
@@ -780,8 +799,8 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
     let first_value: Option<terrane_int_support::Int> = first.value;
     if first_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* first_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&first_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let second: terrane_collection_support::AsyncIterationStep<
@@ -846,8 +865,8 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
     let second_value: Option<terrane_int_support::Int> = second.value;
     if second_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* second_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&second_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let ended: terrane_collection_support::AsyncIterationStep<
@@ -1014,8 +1033,8 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
     let first_value: Option<String> = first.value;
     if first_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* first_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&first_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let second: terrane_collection_support::AsyncIterationStep<String> = __terrane_traced(
@@ -1076,8 +1095,8 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
     let second_value: Option<String> = second.value;
     if second_value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* second_value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&second_value.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let ended: terrane_collection_support::AsyncIterationStep<String> = __terrane_traced(

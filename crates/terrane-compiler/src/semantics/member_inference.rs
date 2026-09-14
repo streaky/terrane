@@ -269,8 +269,7 @@ pub(super) fn infer_member_value_type(
         )
     {
         return match member_name {
-            "descriptor" => Ok(Some(ValueType::Scalar(ScalarType::String))),
-            "message" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "descriptor" | "message" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             "cause" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
                 ObjectIdentity::new("/core/errors", "throwable"),
             ))))),

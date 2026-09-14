@@ -2,7 +2,16 @@ namespace sample
 
 from /core/errors import throwable
 from /core/time import clock, duration
-from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deterministic-seed, fail, temporary-directory, test-arguments, test-deadline, test-failure, test-identity, test-tier
+from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deterministic-seed, fail, fail-values, temporary-directory, test-arguments, test-deadline, test-failure, test-identity, test-tier, test-value
+
+class sample-value implements test-value
+    value int
+
+    function construct; initial int
+        this.value = initial
+
+    function render string;
+        return 'sample-value'
 
 function expected-failure none throws test-failure;
     fail; 'expected failure'
@@ -46,11 +55,18 @@ function test-assertions-and-private-access none throws throwable;
     assert; limit.total-nanoseconds > 0
     return none
 
+function test-custom-value-comparison none throws test-failure;
+    actual = instance sample-value; 7
+    expected = instance sample-value; 7
+    if actual.value != expected.value
+        fail-values; 'sample values differ', actual, expected
+    return none
+
 async function test-controlled-async-time none throws throwable;
-    started = clock::monotonic;
     advance-time; 25
+    started = clock::monotonic;
     interval = duration::nanoseconds; 25
-    await (clock::sleep; interval)
+    ignored = await clock::sleep; interval
     later = clock::monotonic;
     elapsed = started.duration-until; ref later
     assert-equal-int; elapsed.nanoseconds, 25

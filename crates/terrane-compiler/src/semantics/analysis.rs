@@ -429,21 +429,21 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
-    if package.purpose == crate::PackagePurpose::Production {
-        if let Some(import) = discovered_imports.iter().find(|import| {
+    if package.purpose == crate::PackagePurpose::Production
+        && let Some(import) = discovered_imports.iter().find(|import| {
             !import.bundled
                 && (import.target == "/core/testing" || import.target.starts_with("/core/testing/"))
-        }) {
-            return Err(failure(
-                &import.source,
-                "S2053",
-                format!(
-                    "test-only namespace `{}` is unavailable to production sources",
-                    import.target
-                ),
-                import.span,
-            ));
-        }
+        })
+    {
+        return Err(failure(
+            &import.source,
+            "S2053",
+            format!(
+                "test-only namespace `{}` is unavailable to production sources",
+                import.target
+            ),
+            import.span,
+        ));
     }
     for import in discovered_imports.iter().filter(|import| !import.bundled) {
         for capability in namespace_capabilities(&import.target) {

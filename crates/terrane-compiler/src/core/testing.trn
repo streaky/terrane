@@ -63,6 +63,10 @@ private function fail-comparison none throws test-failure; failure-message strin
     failure.details = details
     throw failure
 
+function fail-values none throws test-failure; failure-message string, actual test-value, expected test-value
+    fail-comparison; failure-message, (actual.render;), (expected.render;)
+    return none
+
 private function fail-near none throws test-failure; actual float64, expected float64, tolerance float64
     details list of string = list
     details.append; ('actual: '.concat; (host-test-render-float64; actual))
