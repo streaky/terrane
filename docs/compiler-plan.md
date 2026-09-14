@@ -211,29 +211,35 @@ This section contains only work that remains required by the settled version-one
 
 The source debugger proves the identity path from authored Terrane through final generated Rust to
 the exact native executable. Reuse that path to explain representative production performance
-without turning the debugger into a profiler or inventing a Terrane-only sampling backend. Native
-tools own measurement; Terrane owns exact-build validation, semantic attribution, accounting, and
-source-first presentation.
+without turning the debugger into a profiler or inventing Terrane-only collectors. Existing native
+tools own measurement; Terrane owns exact-build validation, semantic attribution, accounting, the
+versioned artifact, and one source-first presentation layer.
 
-The first vertical slice is deliberately one optimized CPU-sampling profile on Linux x86-64. The
-shared attribution model must admit later wall-clock/off-CPU samples, allocation events, hardware
-counters, and async runtime events, but those evidence kinds are not advertised until separately
-captured and exercised.
+`terrane profile` is the single user-facing tool and `.trnprof` is the single typed artifact family
+for CPU, allocation, retention, and process-memory evidence. A flame graph is one shared view over
+weighted stacks, not the stored evidence model and not a collector. Milestone 30.3 delivers the
+first vertical slice—optimized CPU sampling on Linux x86-64—and establishes the common contracts;
+milestone 30.4 adds allocation/retention and process-memory evidence without introducing another
+profiling command, artifact, or attribution implementation. Later off-CPU samples, hardware
+counters, and async runtime events must extend the same typed evidence envelope but are not
+advertised until separately captured and exercised.
 
 #### Command and collection boundary
 
 Deliver:
 
-- `terrane profile record [--output <profile.trnprof>] <source-or-package> [-- arguments]` to build
-  a representative optimized artifact, run it under the selected native sampler, preserve program
-  output and exit status, and write a profile even when the workload exits unsuccessfully or is
+- `terrane profile record --cpu [--output <profile.trnprof>] <source-or-package> [-- arguments]`
+  builds a representative optimized artifact, runs it under the selected native sampler, preserves
+  output and exit status, and writes a profile even when the workload exits unsuccessfully or is
   interrupted after usable evidence has been collected;
 - `terrane profile show <profile.trnprof> [--focus <source>:<line>]` for progressive source-first
   inspection; `--generated` and `--native` expose lower layers, while `--format text|json` and
   `--limit <rows>` provide bounded human or machine-readable output for editor and CI consumers;
-- one selected native CPU-sampling backend proven end to end on Linux x86-64, with explicit
-  detection, version, permissions, unsupported-host diagnostics, and collection failure behavior;
-  backend selection must follow a measured fixture spike rather than convenience alone; and
+- one selected existing native CPU-sampling backend proven end to end on Linux x86-64, with
+  explicit detection, version, permissions, unsupported-host diagnostics, and collection failure
+  behavior; evaluate Linux `perf` first, but select it only after a measured fixture proves the
+  required stack, module-relative address, inlining, loss-accounting, and process-lifecycle
+  behavior; and
 - explicit collection conditions in every report: compiler and sampler versions, host/target,
   optimized build profile, workload and arguments policy, included processes/threads, sample
   period/frequency, elapsed and active collection time, warmup if any, process exit, lost samples,
@@ -258,11 +264,12 @@ Factor the debugger's compiler-owned build identity into a shared provenance env
 parsing a debugger report or creating a second definition of source/build identity. A versioned
 `.trnprof` artifact records:
 
+- a declared evidence kind and unit whose schema is shared by CPU and later memory captures;
 - compiler, schema, Rust toolchain, target, ABI recipe, optimization/codegen profile, manifest,
   projection lock, support component, generated-file, executable, and native module identities;
 - source hashes and optional explicitly requested embedded snapshots, with path relocation kept
   separate from identity;
-- the selected sampler and its raw collection configuration;
+- the selected collector and its raw collection configuration;
 - normalized native evidence as process/thread identity, module identity, load-relative instruction
   locations, and sampled stacks, retaining enough raw data to re-run attribution and inspect native
   frames; and
@@ -332,6 +339,22 @@ Folded or eliminated operations may have no sampled identity. Async stacks are n
 stacks unless compiler/runtime continuation identity explicitly proves a logical relationship;
 generated future names alone are not Terrane task provenance.
 
+#### Shared profile presentation
+
+All evidence kinds use the same semantic frame identities, source/generated/native expansion,
+quality labels, filtering, privacy policy, and bounded text/JSON response envelope. Tables and call
+trees remain the default diagnostic views. A shared flame-graph renderer consumes typed weighted
+stacks and labels the weight everywhere: CPU sample count or estimated CPU time in 30.3; allocated
+bytes, allocation count, or retained bytes in 30.4. It must never compare unlike units on one width
+scale or describe allocation volume as memory retained.
+
+Flame graphs are derived views. The `.trnprof` artifact retains normalized events/stacks so a later
+viewer can change semantic grouping, switch exclusive/inclusive cost, recalculate retained memory,
+inspect ambiguity, or expand generated/native evidence without recollecting. A source frame may
+collapse several generated/native frames by stable semantic identity and must expand back to those
+constituents. Differential flame graphs require two separately valid exact-build captures and
+preserve each capture's denominators, units, attribution quality, and statistical limitations.
+
 #### Workflow, evidence, and exclusions
 
 The default report answers source-level questions first: hottest authored spans/functions,
@@ -362,20 +385,146 @@ only buckets, an external dependency frame, Unicode and relocated paths, an unsu
 interruption and cleanup, backend unavailability, lost samples, and bounded large captures. Record
 the profiling build's overhead and the backend's total-event reconciliation.
 
-This milestone does not add allocation profiling, hardware-counter interpretation, off-CPU or
-wall-clock attribution, flame-graph-only storage, statistical comparison/regression policy, PGO,
-continuous or production telemetry, distributed traces, logical async task reconstruction,
-system-wide/privileged collection, or another native backend. Those must reuse the event and
-attribution model and earn separate backend, overhead, privacy, and end-to-end evidence.
+This milestone does not itself collect allocation, retention, or process-memory evidence; milestone
+30.4 adds those evidence kinds through the same tool, artifact, attribution, and presentation
+contracts. It also does not add hardware-counter interpretation, off-CPU or wall-clock attribution,
+statistical comparison/regression policy, PGO, continuous or production telemetry, distributed
+traces, logical async task reconstruction, system-wide/privileged collection, or another CPU
+backend. Those capabilities must reuse the typed event and attribution model and earn separate
+backend, overhead, privacy, and end-to-end evidence.
 
-Exit criterion: one representative optimized Terrane workload can be captured through the selected
-Linux x86-64 native sampler, bound to its exact compiler/toolchain/source/generated/executable
-identity, attributed without double counting into source-first semantic groups plus explicit
-non-source and reduced-fidelity buckets, expanded into generated and native evidence, serialized
-and re-read through a bounded versioned profile artifact, and compared before/after a source fix.
-Real-backend fixtures, deterministic attribution tests, strict Clippy, the complete conformance
-matrix, and the measured workspace suite pass; documentation clearly distinguishes debugger
-hypothesis validation from profiler measurement and does not advertise deferred evidence kinds.
+Exit criterion: one representative optimized Terrane workload can be captured with
+`terrane profile record --cpu` through the selected Linux x86-64 native sampler, bound to its exact
+compiler/toolchain/source/generated/executable identity, attributed without double counting into
+source-first semantic groups plus explicit non-source and reduced-fidelity buckets, rendered as a
+table, call tree, and correctly labelled CPU flame graph, expanded into generated and native
+evidence, serialized and re-read through a bounded versioned profile artifact, and compared
+before/after a source fix. Real-backend fixtures, deterministic attribution tests, strict Clippy,
+the complete conformance matrix, and the measured workspace suite pass; documentation clearly
+distinguishes debugger hypothesis validation from profiler measurement and does not advertise
+deferred evidence kinds.
+
+### Milestone 30.4 — Allocation and process-memory profiling in the unified profiler
+
+Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
+mapper, or flame-graph implementation. CPU cost, allocation traffic, retained heap, and resident
+process memory answer different questions, so they share identity and presentation machinery while
+retaining distinct collectors, event schemas, units, accounting rules, and fidelity statements.
+
+#### Collection and artifact boundary
+
+Deliver:
+
+- `terrane profile record --allocations <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for allocation/free evidence and derived allocation, lifetime,
+  live, retained, and peak-live metrics;
+- `terrane profile record --memory-timeline <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for bounded RSS/PSS and operating-system memory counters over time;
+- exactly one primary evidence kind per version-one capture—`--cpu`, `--allocations`, or
+  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; an allocation
+  capture may include a clearly auxiliary process-memory timeline when the selected backend and
+  sampling policy can do so without changing its primary accounting;
+- one selected existing Linux x86-64 allocation collector, evaluated with `heaptrack` as the first
+  candidate, plus the operating-system process-memory interface selected through a measured spike;
+  report backend availability, permissions, interposition/instrumentation, allocator changes,
+  sampling interval, event loss, stack quality, and workload overhead; and
+- the existing `profile show`, source table, call tree, flame graph, generated/native expansion,
+  filtering, bounded JSON, relocation, stale-artifact fallback, and privacy behavior for the new
+  typed evidence.
+
+Prefer an external collector that observes the representative optimized executable. If the selected
+allocation backend interposes on or replaces the allocator, record that fact and every changed
+module/build/runtime input, measure its effect, and describe the capture as instrumented rather than
+production-identical. Do not add compiler allocator hooks merely to simplify collection. The
+profiler retains the same process-tree, signal, output, unsuccessful-exit, interruption, and cleanup
+ownership established by 30.3.
+
+Extend `.trnprof` with versioned allocation events containing a capture-local allocation identity,
+size, alignment when available, process/thread, monotonic ordering or timestamp, allocation stack,
+and matched reallocation/free transition. Raw addresses are observations, not stable allocation
+identity, because allocators reuse them. Preserve enough normalized transitions to recompute live
+sets and selected snapshots. Process-memory samples record timestamp, process, RSS, PSS where
+available, relevant private/shared/anonymous/file-backed counters, page faults where available,
+sampling interval, missed intervals, and operating-system definitions. Keep unavailable fields
+explicit rather than substituting a nearby metric.
+
+#### Allocation, retention, and process-memory semantics
+
+The allocation profile offers separately labelled metrics:
+
+- **allocation count** and **allocated bytes** for traffic;
+- **freed bytes** and allocation lifetime distributions for churn;
+- **live bytes** at a selected point;
+- **retained bytes** at normal exit or an explicit snapshot;
+- **peak-live bytes** and the allocation sites contributing to the selected peak; and
+- **unmatched/unavailable transitions** when collection loss prevents a valid lifetime.
+
+Allocation-site stacks own allocated and retained bytes; a later reader or mutator does not become
+the allocation owner without separately captured access evidence. Reallocation has one documented
+transition rule and may not count the unchanged portion twice. An allocation still live at exit is
+“retained at exit,” not automatically a leak; leak claims require a separate lifetime/root policy.
+Zero-size allocations, allocator metadata, mappings, stacks, code pages, shared libraries, runtime
+arenas, and fragmentation remain visible in their supported native/runtime/process buckets rather
+than being forced onto authored source.
+
+Apply the 30.3 exact-build join and attribution-quality buckets to allocation stacks. For each
+complete allocation capture:
+
+```text
+tracked live bytes at point T
+= allocated bytes through T
+- freed bytes through T
++ documented reallocation adjustment
+```
+
+Reconcile allocation count and byte totals independently. Lost or unmatched events sit outside the
+complete-transition invariant and make retained/peak results explicitly partial. Exclusive source
+cost assigns each allocation event once; inclusive call-path and semantic-parent views overlap and
+are labelled. Allocation-count, allocated-byte, live-byte, and retained-byte flame graphs are
+different views with different widths even when they use the same stack topology.
+
+RSS/PSS is a time series, not an allocation stack metric. Present current/peak RSS and PSS with
+timestamps and sampling resolution. When an allocation capture also has a memory timeline, compare
+tracked live bytes with process memory as separate series and expose the unattributed gap; never
+force that gap into allocation sites or claim that a sampled RSS maximum is the exact instantaneous
+peak. A timeline uses charts/tables rather than fabricating stack-shaped ownership, although its
+selected time may choose the live-allocation snapshot rendered by the shared flame-graph viewer.
+
+#### Evidence and exclusions
+
+Use deterministic synthetic event streams for allocation/free/reallocation pairing, address reuse,
+loss, snapshots, peak selection, lifetime buckets, source ambiguity, runtime/native allocations,
+and every byte/count invariant. Real-backend scenarios distinguish:
+
+- a high-allocation, low-retention workload from a low-allocation, high-retention workload;
+- temporary allocation churn from the allocation sites responsible for peak-live memory;
+- allocator-tracked live bytes from RSS/PSS and their honestly unattributed difference;
+- Terrane-authored allocation sites from compiler runtime and external native-library sites; and
+- an exact capture from relocated, stale-source, mismatched-executable, interrupted, unsuccessful,
+  unsupported-host, and backend-unavailable cases.
+
+Exercise multiple threads, nested/recursive allocation stacks, zero-size and reallocation behavior,
+Unicode/relocated paths, bounded large captures, output/argument privacy, sampler loss, and cleanup.
+Measure collector overhead and any allocator/interposition effect against the same optimized
+workload without collection. The report and tutorial must teach which question each metric answers
+and show the same semantic stack rendered under CPU samples, allocated bytes, and retained bytes
+without implying that the widths are comparable.
+
+This milestone does not add garbage-collector reachability, object/reference-graph retention,
+use-after-free or leak diagnosis, memory-access attribution, cache/bandwidth/latency counters, heap
+dump browsing, platform allocator replacement, Windows/macOS collectors, continuous production
+telemetry, or simultaneous multi-backend recording. These remain separate evidence/backends rather
+than hidden meanings of “memory usage.”
+
+Exit criterion: the same `terrane profile` command and `.trnprof` reader can capture and present one
+real optimized allocation workload and one process-memory timeline on Linux x86-64; distinguish
+allocation traffic, churn, live/retained/peak-live bytes, and RSS/PSS; uphold event and byte
+accounting or mark partial evidence; attribute supported allocation stacks through exact Terrane
+provenance; render correctly labelled table, call-tree, timeline, and flame-graph views; retain
+generated/native expansion and raw evidence; and demonstrate high-churn and high-retention programs
+producing meaningfully different reports. Deterministic aggregation tests, real-backend fixtures,
+overhead measurements, strict Clippy, the complete conformance matrix, and the measured workspace
+suite pass.
 
 ### Milestone 32 — First-version hardening and release gate
 
@@ -424,8 +573,9 @@ The release pipeline must prove, from a clean checkout:
 7. build every file under `examples/`;
 8. run `terrane rust` twice for selected cases and compare generated artifacts byte-for-byte;
 9. verify no test enumerated, parsed, or built anything under `demos/`;
-10. record and show an optimized profiling fixture, verify exact-build attribution and accounting,
-    and expand one source cost center into generated and native evidence;
+10. record and show optimized CPU, allocation, and process-memory profiling fixtures; verify their
+    exact-build attribution, metric-specific accounting, and correctly labelled flame-graph or
+    timeline views; expand one source cost center into generated and native evidence;
 11. package the `terrane` executable and install that artifact into a second clean environment;
 12. compile and run `examples/build-report.trn` using only the installed artifact and Rust toolchain prerequisites.
 
@@ -463,8 +613,8 @@ The release pipeline must prove, from a clean checkout:
 - secure and pseudo-random sources, hex and base64 codecs, digests and MACs, UUIDs, and bounded compression;
 - networking addresses, DNS, TCP and UDP resources, and validated TLS;
 - structured logging over profile sinks;
-- LLDB-backed source debugging and compiler-attributed native CPU profiling over exact build
-  provenance;
+- LLDB-backed source debugging and one unified compiler-attributed profiler for native CPU,
+  allocation/retention, and process-memory evidence over exact build provenance;
 - direct Rust dependency declaration with a locked Cargo graph, the `reqwest::blocking` slice, and resolution-aware editor integration.
 
 ### Explicitly deferred
@@ -479,7 +629,8 @@ The release pipeline must prove, from a clean checkout:
 - custom declaration modifiers and package-defined type constructors;
 - custom importers and registries beyond the locked Cargo graph version one requires;
 - C ABI export and foreign-runtime adapters, including Python;
-- tracing and profiling evidence beyond the initial compiler-attributed native CPU-sampling slice;
+- tracing, off-CPU/wall-clock attribution, hardware-counter interpretation, memory-access
+  attribution, and profiling evidence beyond the initial CPU and memory slices;
 - stateful hot-code replacement and time-travel or replay;
 - locale-policy-rich text APIs until deterministic policy objects are specified;
 - `no_std`, embedded, firmware, and kernel compilation.
@@ -588,8 +739,9 @@ prototype evidence because their surrounding unsupported constructs confound the
 
 Section 7 is the authoritative remaining-work list. In milestone order, the open work is:
 
-- add compiler-attributed native CPU profiling over representative optimized artifacts
-  (milestone 30.3);
+- add compiler-attributed native CPU profiling over representative optimized artifacts and the
+  shared profile artifact/presentation model (milestone 30.3);
+- add allocation/retention and process-memory evidence to the unified profiler (milestone 30.4);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
