@@ -255,11 +255,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
-    let debug_profile = if command == CliCommand::Debug {
-        DebugProfile::Full
-    } else {
-        DebugProfile::None
-    };
+    let debug_profile = (command == CliCommand::Debug)
+        .then_some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE);
     write_generated_crate(
         &crate_dir,
         &rust_files,
@@ -299,7 +296,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .debug_information(rust_entrypoint)
             .map_err(CliFailure::rust_artifact)?
             .expect("debug compilation produces debugger metadata");
-        let (target, rust_sysroot) = rust_debug_build_identity(&crate_dir)?;
+        let (target, rust_sysroot, rustc_release) = rust_debug_build_identity(&crate_dir)?;
         let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
             &package,
             debug,
@@ -307,6 +304,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             &crate_dir,
             target,
             rust_sysroot,
+            rustc_release,
+            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
         )
         .map_err(CliFailure::backend)?;
         let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
@@ -326,7 +325,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
-fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String), CliFailure> {
+fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String, String), CliFailure> {
     let verbose = Command::new("rustc")
         .arg("-vV")
         .current_dir(crate_dir)
@@ -339,8 +338,10 @@ fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String), CliFa
             "debug Rust compiler did not report its target triple".to_owned(),
         ));
     }
-    let verbose = String::from_utf8_lossy(&verbose.stdout);
-    let target = verbose
+    let rustc_release = String::from_utf8(verbose.stdout).map_err(|_| {
+        CliFailure::backend("debug Rust compiler output was not valid UTF-8".to_owned())
+    })?;
+    let target = rustc_release
         .lines()
         .find_map(|line| line.strip_prefix("host: "))
         .ok_or_else(|| {
@@ -363,7 +364,7 @@ fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String), CliFa
         .map_err(|_| CliFailure::backend("debug Rust sysroot was not valid UTF-8".to_owned()))?
         .trim()
         .to_owned();
-    Ok((target, sysroot))
+    Ok((target, sysroot, rustc_release))
 }
 
 type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool);
@@ -393,6 +394,11 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
             _ => break,
         }
         input_index += 1;
+    }
+    if release && command == CliCommand::Debug {
+        return Err(CliFailure::usage_with(
+            "`terrane debug --release` is unsupported: debugger source fidelity requires the compiler-owned unoptimized debug profile",
+        ));
     }
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
@@ -836,11 +842,7 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum DebugProfile {
-    None,
-    Full,
-}
+type DebugProfile = Option<terrane_compiler::debugging::DebugArtifactProfile>;
 
 #[derive(Clone, Copy)]
 struct GeneratedCrateOptions {
@@ -873,13 +875,18 @@ fn append_build_profiles(
     panic: terrane_compiler::PanicProfile,
     debug_profile: DebugProfile,
 ) {
-    if panic == terrane_compiler::PanicProfile::Abort || debug_profile == DebugProfile::Full {
+    if panic == terrane_compiler::PanicProfile::Abort || debug_profile.is_some() {
         manifest.push_str("\n[profile.dev]\n");
         if panic == terrane_compiler::PanicProfile::Abort {
             manifest.push_str("panic = \"abort\"\n");
         }
-        if debug_profile == DebugProfile::Full {
-            manifest.push_str("opt-level = 0\ndebug = 2\nstrip = \"none\"\n");
+        if let Some(profile) = debug_profile {
+            writeln!(manifest, "opt-level = {}", profile.optimization)
+                .expect("writing to a string cannot fail");
+            writeln!(manifest, "debug = {}", profile.cargo_debug)
+                .expect("writing to a string cannot fail");
+            writeln!(manifest, "strip = {:?}", profile.stripping)
+                .expect("writing to a string cannot fail");
         }
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
@@ -1735,7 +1742,7 @@ mod tests {
                     uses_async_runtime: true,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    debug_profile: DebugProfile::Full,
+                    debug_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
                 },
             )
             .is_ok()
@@ -1782,7 +1789,7 @@ mod tests {
                     uses_async_runtime: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    debug_profile: DebugProfile::None,
+                    debug_profile: None,
                 },
             )
             .is_ok()

@@ -216,14 +216,18 @@ and Cargo pipeline. They differ only in how far they take the result:
 | `terrane debug-adapter --stdio` | Serves the same source/native translation layer to DAP clients. |
 | `terrane query --request <json-file>` | Executes one source-intelligence request. |
 
-Use `--release` with `build` or `run` for an optimized executable. Use
+Use `--release` with `build` or `run` for an optimized executable. `terrane debug --release` is
+rejected because optimized source fidelity is not part of the supported debugger contract. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
-Debug builds write deterministic, exact-build schema `1.1` provenance beside generated Rust and the
-executable. Provenance records target, ABI recipe, Rust sysroot, unoptimized/full-debug/no-inline
-profile, lexical scopes, final-Rust sequence points, hashes, and explicit relocation roots.
-Translation is enabled only when those identities and the selected Linux x86-64 layout recipe match;
-otherwise raw native debugging remains available with a machine-readable `terrane/fidelity` reason.
+Debug builds write deterministic, exact-build schema `1.2` provenance beside generated Rust and the
+executable. Cargo emission and provenance consume the same named `terrane-debug-v1` profile
+(optimization 0, full debug information, no stripping, and compiler-default inlining at that
+optimization level). Provenance also records the exact `rustc -vV` release and binds the selected
+ABI recipe to it, along with target, Rust sysroot, lexical scopes, final-Rust sequence points,
+hashes, and explicit relocation roots. Translation is enabled only when those identities and the
+selected Linux x86-64 layout recipe match; otherwise raw native debugging remains available with a
+machine-readable `terrane/fidelity` reason.
 Source breakpoints, mapped frame selection, bounded source/generated context, source-point stepping,
 scope- and shadow-aware locals, bounded focused values, secret-field redaction, and
 generated/native escape hatches are available. The adapter deliberately does not advertise

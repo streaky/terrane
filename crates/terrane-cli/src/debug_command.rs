@@ -79,12 +79,15 @@ pub(super) fn run_cli(
         &mut backend_arguments,
         discover_rust_lldb_formatter(&provenance.rust_sysroot).as_deref(),
     );
-    let _ = backend.request_with_timeout(
+    let (launch_sequence, launch_response) = backend.request_with_timeout(
         "launch",
         backend_arguments,
         Some(Duration::from_millis(500)),
     )?;
     backend.request("configurationDone", json!({}))?;
+    if launch_response.is_none() {
+        backend.finish_request(launch_sequence, Duration::from_millis(500))?;
+    }
     let stopped = backend.wait_for_event(&["stopped", "terminated"])?;
     backend.emit_debuggee_output()?;
     if stopped["event"] != "stopped" {
@@ -114,6 +117,12 @@ pub(super) fn run_cli(
             ),
             ("break", location) => {
                 let (path, line) = parse_breakpoint(location)?;
+                let Some(path) = known_source_path(&provenance, &path) else {
+                    return Err(debugger_failure(format!(
+                        "{} is not an authored source in this exact debug build",
+                        path.display()
+                    )));
+                };
                 let id = breakpoints.add(&provenance, &path, line);
                 breakpoints.sync(&mut backend, &provenance)?;
                 breakpoints.print(id);
@@ -273,6 +282,7 @@ struct Adapter {
     variable_objects: BTreeMap<i64, String>,
     frame_contexts: BTreeMap<i64, StopContext>,
     variable_contexts: BTreeMap<i64, StopContext>,
+    pending_launch_response: Option<i64>,
     breakpoints: BreakpointManager,
 }
 
@@ -373,15 +383,20 @@ impl Adapter {
             {
                 backend_arguments["cwd"] = provenance.relocation.source_root.clone().into();
             }
-            let backend = self
+            let (sequence, backend_response) = self
                 .backend
                 .as_mut()
-                .ok_or_else(|| debugger_failure("initialize must precede launch or attach"))?;
-            let backend_response = backend
-                .request_with_timeout(command, backend_arguments, Some(Duration::from_millis(500)))?
-                .unwrap_or_else(|| response(json!({})));
+                .ok_or_else(|| debugger_failure("initialize must precede launch or attach"))?
+                .request_with_timeout(
+                    command,
+                    backend_arguments,
+                    Some(Duration::from_millis(500)),
+                )?;
+            self.pending_launch_response = backend_response.is_none().then_some(sequence);
+            let backend_response = backend_response.unwrap_or_else(|| response(json!({})));
             self.launched = command == "launch";
             self.executable = Some(executable);
+            let backend = self.backend.as_mut().expect("backend initialized above");
             let mut messages =
                 with_backend_events(backend, response(backend_response["body"].clone()));
             match translation {
@@ -395,7 +410,9 @@ impl Adapter {
                             "sourceTranslation": true,
                             "target": provenance.target,
                             "abiRecipe": provenance.abi_recipe,
-                            "inlining": provenance.inlining
+                            "inlining": provenance.inlining,
+                            "artifactProfile": provenance.artifact_profile,
+                            "rustcRelease": provenance.rustc_release
                         }),
                     ));
                     self.provenance = Some(provenance);
@@ -472,9 +489,9 @@ impl Adapter {
             let parent_reference = arguments["variablesReference"].as_i64().unwrap_or(0);
             let provenance = self.provenance.clone();
             let stop_context = self.variable_contexts.get(&parent_reference).cloned();
-            let selected_layout = provenance.as_ref().is_some_and(|provenance| {
-                provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1"
-            });
+            let selected_layout = provenance
+                .as_ref()
+                .is_some_and(supports_adaptive_int_layout);
             let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = if provenance.is_some() {
@@ -552,8 +569,14 @@ impl Adapter {
                 response(backend_response["body"].clone()),
             ));
         }
+        let pending_launch = (command == "configurationDone")
+            .then(|| self.pending_launch_response.take())
+            .flatten();
         let backend = self.backend_mut()?;
         let backend_response = backend.request(command, arguments)?;
+        if let Some(sequence) = pending_launch {
+            backend.finish_request(sequence, Duration::from_millis(500))?;
+        }
         let terminal_event = if matches!(
             command,
             "continue" | "next" | "stepIn" | "stepOut" | "configurationDone"
@@ -587,6 +610,11 @@ impl Adapter {
             .filter_map(|breakpoint| breakpoint["line"].as_u64())
             .filter_map(|line| usize::try_from(line).ok())
             .collect::<Vec<_>>();
+        let source_path = self
+            .provenance
+            .as_ref()
+            .and_then(|provenance| known_source_path(provenance, &source_path))
+            .unwrap_or(source_path);
         self.breakpoints
             .replace_source(self.provenance.as_ref(), source_path.clone(), requested);
         if let (Some(provenance), Some(backend)) = (&self.provenance, self.backend.as_mut()) {
@@ -634,7 +662,7 @@ fn take_backend_events(backend: &mut Backend) -> impl Iterator<Item = Value> + '
     backend
         .events
         .drain(..)
-        .filter(|event| event["event"] != "initialized")
+        .filter(|event| !matches!(event["event"].as_str(), Some("initialized" | "breakpoint")))
 }
 
 fn with_backend_events(backend: &mut Backend, response: Value) -> Vec<Value> {
@@ -743,6 +771,7 @@ impl Backend {
 
     fn request(&mut self, command: &str, arguments: Value) -> Result<Value, CliFailure> {
         self.request_with_timeout(command, arguments, None)?
+            .1
             .ok_or_else(|| debugger_failure("lldb-dap request timed out"))
     }
 
@@ -751,8 +780,24 @@ impl Backend {
         command: &str,
         arguments: Value,
         timeout: Option<Duration>,
-    ) -> Result<Option<Value>, CliFailure> {
+    ) -> Result<(i64, Option<Value>), CliFailure> {
         let sequence = self.send(command, arguments)?;
+        self.wait_for_response(sequence, timeout)
+            .map(|response| (sequence, response))
+    }
+
+    fn finish_request(&mut self, sequence: i64, timeout: Duration) -> Result<Value, CliFailure> {
+        self.wait_for_response(sequence, Some(timeout))?
+            .ok_or_else(|| {
+                debugger_failure("lldb-dap launch response timed out after configuration")
+            })
+    }
+
+    fn wait_for_response(
+        &mut self,
+        sequence: i64,
+        timeout: Option<Duration>,
+    ) -> Result<Option<Value>, CliFailure> {
         if let Some(response) = self.responses.remove(&sequence) {
             return validate_backend_response(response).map(Some);
         }
@@ -1024,10 +1069,10 @@ impl BreakpointManager {
                     }
                 }
             }
-            backend
-                .events
-                .retain(|event| event["event"] != "breakpoint");
         }
+        backend
+            .events
+            .retain(|event| !matches!(event["event"].as_str(), Some("initialized" | "breakpoint")));
         for breakpoint in self.by_source.values_mut().flatten() {
             breakpoint.verified = verified.contains(&breakpoint.id);
         }
@@ -1138,6 +1183,10 @@ impl BreakpointManager {
         }
     }
 
+    fn contains_backend_id(&self, id: i64) -> bool {
+        self.backend_ids.values().any(|ids| ids.contains(&id))
+    }
+
     fn allocate_id(&mut self) -> i64 {
         self.next_id += 1;
         self.next_id
@@ -1239,9 +1288,50 @@ struct BreakpointResolution {
     message: String,
 }
 
+fn normalized_source_path(provenance: &ProvenanceManifest, path: &Path) -> PathBuf {
+    let rooted = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        Path::new(&provenance.relocation.source_root).join(path)
+    };
+    rooted
+        .canonicalize()
+        .unwrap_or_else(|_| lexical_normalize(&rooted))
+}
+
+fn lexical_normalize(path: &Path) -> PathBuf {
+    use std::path::Component;
+
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() && !path.is_absolute() {
+                    normalized.push(component);
+                }
+            }
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                normalized.push(component);
+            }
+        }
+    }
+    normalized
+}
+
+fn known_source_path(provenance: &ProvenanceManifest, requested: &Path) -> Option<PathBuf> {
+    let requested = normalized_source_path(provenance, requested);
+    provenance
+        .debug
+        .sources
+        .iter()
+        .any(|source| normalized_source_path(provenance, Path::new(&source.uri)) == requested)
+        .then_some(requested)
+}
+
 fn source_matches(provenance: &ProvenanceManifest, requested: &Path, uri: &str) -> bool {
-    requested == Path::new(uri)
-        || requested == Path::new(&provenance.relocation.source_root).join(uri)
+    normalized_source_path(provenance, requested)
+        == normalized_source_path(provenance, Path::new(uri))
 }
 
 fn all_source_associations(
@@ -1412,6 +1502,17 @@ fn translate_stack_frames(body: &mut Value, provenance: &ProvenanceManifest, inc
     }
 }
 
+fn frame_stop_context(frame: &Value, provenance: &ProvenanceManifest) -> Option<StopContext> {
+    let association = association_for_frame(provenance, frame)?;
+    let cause = association.causes.first()?;
+    Some(StopContext {
+        source_id: cause.source_id,
+        position: cause.start,
+        function_id: association.function_id.clone(),
+        scope_ids: association.scope_ids.clone(),
+    })
+}
+
 fn frame_stop_contexts(
     body: &Value,
     provenance: &ProvenanceManifest,
@@ -1421,17 +1522,9 @@ fn frame_stop_contexts(
         .into_iter()
         .flatten()
         .filter_map(|frame| {
-            let frame_id = frame["id"].as_i64()?;
-            let association = association_for_frame(provenance, frame)?;
-            let cause = association.causes.first()?;
             Some((
-                frame_id,
-                StopContext {
-                    source_id: cause.source_id,
-                    position: cause.start,
-                    function_id: association.function_id.clone(),
-                    scope_ids: association.scope_ids.clone(),
-                },
+                frame["id"].as_i64()?,
+                frame_stop_context(frame, provenance)?,
             ))
         })
         .collect()
@@ -1837,6 +1930,10 @@ fn temporary_sequence_step(
     let Some(current) = association_for_frame(provenance, frame) else {
         return Ok(None);
     };
+    let origin_depth = response["body"]["totalFrames"]
+        .as_u64()
+        .and_then(|depth| usize::try_from(depth).ok())
+        .unwrap_or(frames.len());
     let caller = frames
         .get(1)
         .and_then(|frame| association_for_frame(provenance, frame));
@@ -1846,11 +1943,11 @@ fn temporary_sequence_step(
             if !association.sequence_point {
                 continue;
             }
-            let same_current_point = (association.causes.iter().any(|candidate| {
+            let same_current_point = association.causes.iter().any(|candidate| {
                 current.causes.iter().any(|cause| {
                     candidate.source_id == cause.source_id && candidate.line == cause.line
                 })
-            })) || (file.path
+            }) || (file.path
                 == frame["source"]["path"].as_str().unwrap_or_default()
                 && association.generated.line == current.generated.line);
             let same_function = association.function_id == current.function_id;
@@ -1863,9 +1960,13 @@ fn temporary_sequence_step(
             }
         }
     }
-    if targets.is_empty() || targets.len() > 512 {
+    if targets.is_empty() {
         return Ok(None);
     }
+    let target_locations = targets
+        .iter()
+        .map(|(path, line)| (lexical_normalize(&generated_path(provenance, path)), *line))
+        .collect::<BTreeSet<_>>();
     let current_file = frame["source"]["path"].as_str().unwrap_or_default();
     let suspended_ids = breakpoints.backend_ids_at(current_file, current.generated.line);
     if !suspended_ids.is_empty() {
@@ -1880,32 +1981,83 @@ fn temporary_sequence_step(
         )?;
     }
 
-    let mut breakpoint_ids = Vec::new();
+    let mut temporary_ids = Vec::new();
     let result = (|| {
         for (path, line) in targets {
             let path = generated_path(provenance, &path);
-            let command = format!(
-                "`breakpoint set --one-shot true --file {} --line {line}",
-                lldb_quote(&path.to_string_lossy())
-            );
             let response = backend.request(
                 "evaluate",
-                json!({"expression": command, "context": "repl"}),
+                json!({
+                    "expression": format!(
+                        "`breakpoint set --file {} --line {line}",
+                        lldb_quote(&path.to_string_lossy())
+                    ),
+                    "context": "repl"
+                }),
             )?;
-            if let Some(id) = response["body"]["result"]
+            let id = response["body"]["result"]
                 .as_str()
                 .and_then(parse_lldb_breakpoint_id)
-            {
-                breakpoint_ids.push(id);
-            }
+                .ok_or_else(|| {
+                    debugger_failure(format!(
+                        "lldb-dap did not identify temporary source breakpoint at {}:{line}",
+                        path.display()
+                    ))
+                })?;
+            temporary_ids.push(id);
         }
         backend.request(
             "continue",
             json!({"threadId": thread_id, "singleThread": false}),
         )?;
-        backend.wait_for_event(&["stopped", "terminated"])
+        loop {
+            let mut event = backend.wait_for_event(&["stopped", "terminated"])?;
+            if event["event"] != "stopped" {
+                return Ok(event);
+            }
+            let reason = event["body"]["reason"].as_str().unwrap_or_default();
+            if reason != "breakpoint" {
+                return Ok(event);
+            }
+            let hit_ids = event["body"]["hitBreakpointIds"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_i64)
+                .collect::<BTreeSet<_>>();
+            if hit_ids
+                .iter()
+                .any(|id| breakpoints.contains_backend_id(*id))
+            {
+                return Ok(event);
+            }
+            let location = mapped_stop_location(backend, provenance, thread_id)?;
+            let at_temporary_location = location.as_ref().is_some_and(|location| {
+                target_locations.contains(&(
+                    lexical_normalize(Path::new(&location.generated_path)),
+                    location.generated_line,
+                ))
+            });
+            let hit_temporary = hit_ids.iter().any(|id| temporary_ids.contains(id))
+                || (hit_ids.is_empty() && at_temporary_location);
+            if !hit_temporary {
+                return Ok(event);
+            }
+            if location.is_some_and(|location| location.frame_depth <= origin_depth) {
+                event["body"]["reason"] = "step".into();
+                if let Some(body) = event["body"].as_object_mut() {
+                    body.remove("description");
+                    body.remove("hitBreakpointIds");
+                }
+                return Ok(event);
+            }
+            backend.request(
+                "continue",
+                json!({"threadId": thread_id, "singleThread": false}),
+            )?;
+        }
     })();
-    for id in breakpoint_ids {
+    for id in temporary_ids {
         let _ = backend.request(
             "evaluate",
             json!({
@@ -1928,7 +2080,7 @@ fn temporary_sequence_step(
     result.map(Some)
 }
 
-fn parse_lldb_breakpoint_id(output: &str) -> Option<usize> {
+fn parse_lldb_breakpoint_id(output: &str) -> Option<i64> {
     output.lines().find_map(|line| {
         line.trim()
             .strip_prefix("Breakpoint ")?
@@ -2136,6 +2288,7 @@ fn show_variables(
     let frame_id = frame["id"]
         .as_i64()
         .ok_or_else(|| debugger_failure("selected thread has no frame"))?;
+    let stop_context = frame_stop_context(&frame, provenance);
     let scopes = backend.request("scopes", json!({"frameId": frame_id}))?;
     let mut variable_objects = BTreeMap::new();
     for scope in scopes["body"]["scopes"]
@@ -2156,18 +2309,15 @@ fn show_variables(
         };
         let mut body = response["body"].clone();
         if !registers {
-            let value_summaries = read_value_summaries(
-                backend,
-                &body,
-                provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
-            );
+            let value_summaries =
+                read_value_summaries(backend, &body, supports_adaptive_int_layout(provenance));
             translate_variables(
                 &mut body,
                 provenance,
                 reference,
                 &mut variable_objects,
                 &value_summaries,
-                None,
+                stop_context.as_ref(),
             );
         }
         for variable in body["variables"].as_array().into_iter().flatten() {
@@ -2194,6 +2344,7 @@ fn show_value(
     let frame_id = frame["id"]
         .as_i64()
         .ok_or_else(|| debugger_failure("selected thread has no frame"))?;
+    let stop_context = frame_stop_context(&frame, provenance);
     let scopes = backend.request("scopes", json!({"frameId": frame_id}))?;
     let mut variable_objects = BTreeMap::new();
     for scope in scopes["body"]["scopes"]
@@ -2210,18 +2361,15 @@ fn show_value(
         let response =
             request_terrane_variables(backend, json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
-        let summaries = read_value_summaries(
-            backend,
-            &body,
-            provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
-        );
+        let summaries =
+            read_value_summaries(backend, &body, supports_adaptive_int_layout(provenance));
         translate_variables(
             &mut body,
             provenance,
             reference,
             &mut variable_objects,
             &summaries,
-            None,
+            stop_context.as_ref(),
         );
         if let Some(variable) = body["variables"]
             .as_array()
@@ -2239,6 +2387,7 @@ fn show_value(
                 &mut visited,
                 &mut remaining,
                 0,
+                stop_context.as_ref(),
             )?;
             return Ok(());
         }
@@ -2256,6 +2405,7 @@ fn print_value_tree(
     visited: &mut std::collections::BTreeSet<i64>,
     remaining: &mut usize,
     depth: usize,
+    stop_context: Option<&StopContext>,
 ) -> Result<(), CliFailure> {
     if *remaining == 0 {
         eprintln!("{}<truncated>", "  ".repeat(depth));
@@ -2284,18 +2434,14 @@ fn print_value_tree(
     }
     let response = request_terrane_variables(backend, json!({"variablesReference": reference}))?;
     let mut body = response["body"].clone();
-    let summaries = read_value_summaries(
-        backend,
-        &body,
-        provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
-    );
+    let summaries = read_value_summaries(backend, &body, supports_adaptive_int_layout(provenance));
     translate_variables(
         &mut body,
         provenance,
         reference,
         variable_objects,
         &summaries,
-        None,
+        stop_context,
     );
     for child in body["variables"].as_array().into_iter().flatten() {
         print_value_tree(
@@ -2306,6 +2452,7 @@ fn print_value_tree(
             visited,
             remaining,
             depth + 1,
+            stop_context,
         )?;
     }
     Ok(())
@@ -2392,10 +2539,12 @@ fn load_and_validate(
     let mut provenance: ProvenanceManifest = serde_json::from_slice(&bytes).map_err(|error| debugger_failure(format!("Terrane translation unavailable: invalid provenance sidecar {}: {error}; raw native debugging remains available", sidecar.display())))?;
     if let Some(relocation) = relocation {
         if let Some(build_root) = relocation["buildRoot"].as_str() {
-            build_root.clone_into(&mut provenance.relocation.build_root);
+            provenance.relocation.build_root =
+                canonical_relocation_root(Path::new(build_root), "build")?;
         }
         if let Some(source_root) = relocation["sourceRoot"].as_str() {
-            source_root.clone_into(&mut provenance.relocation.source_root);
+            provenance.relocation.source_root =
+                canonical_relocation_root(Path::new(source_root), "source")?;
         }
     }
     if provenance.schema_version != terrane_compiler::debugging::SCHEMA_VERSION {
@@ -2410,20 +2559,30 @@ fn load_and_validate(
             provenance.compiler_version
         )));
     }
-    let expected_recipe = terrane_compiler::debugging::abi_recipe_for_target(&provenance.target);
+    let expected_recipe = terrane_compiler::debugging::abi_recipe_for_toolchain(
+        &provenance.target,
+        &provenance.rustc_release,
+    );
     if expected_recipe == "unsupported" || provenance.abi_recipe != expected_recipe {
         return Err(debugger_failure(format!(
-            "unsupported debug target or ABI recipe: {} / {}",
+            "unsupported debug target, toolchain, or ABI recipe: {} / {}",
             provenance.target, provenance.abi_recipe
         )));
     }
-    if provenance.optimization != "0"
-        || provenance.debug_information != "full"
-        || provenance.inlining != "disabled"
+    let profile = terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE;
+    if provenance.artifact_profile != profile.id
+        || provenance.optimization != profile.optimization
+        || provenance.debug_information != profile.debug_information
+        || provenance.inlining != profile.inlining
+        || provenance.stripping != profile.stripping
     {
         return Err(debugger_failure(format!(
-            "unsupported debug artifact profile: optimization={}, debug-information={}, inlining={}",
-            provenance.optimization, provenance.debug_information, provenance.inlining
+            "unsupported debug artifact profile {}: optimization={}, debug-information={}, inlining={}, stripping={}",
+            provenance.artifact_profile,
+            provenance.optimization,
+            provenance.debug_information,
+            provenance.inlining,
+            provenance.stripping
         )));
     }
     provenance
@@ -2442,6 +2601,26 @@ fn load_and_validate(
         }
     }
     Ok(provenance)
+}
+
+fn supports_adaptive_int_layout(provenance: &ProvenanceManifest) -> bool {
+    provenance.target == "x86_64-unknown-linux-gnu"
+        && provenance.abi_recipe
+            == terrane_compiler::debugging::abi_recipe_for_toolchain(
+                &provenance.target,
+                &provenance.rustc_release,
+            )
+}
+
+fn canonical_relocation_root(path: &Path, kind: &str) -> Result<String, CliFailure> {
+    path.canonicalize()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| {
+            debugger_failure(format!(
+                "Terrane translation unavailable: cannot canonicalize relocated {kind} root {}: {error}; raw native debugging remains available",
+                path.display()
+            ))
+        })
 }
 
 fn read_message(reader: &mut impl BufRead) -> io::Result<Option<Value>> {
@@ -2504,19 +2683,22 @@ mod tests {
     use super::*;
 
     fn provenance() -> ProvenanceManifest {
-        serde_json::from_value(json!({
-            "schema_version": "1.1",
+        let mut provenance: ProvenanceManifest = serde_json::from_value(json!({
+            "schema_version": "1.2",
             "compiler_version": env!("CARGO_PKG_VERSION"),
             "rust_toolchain": "system",
             "target": "x86_64-unknown-linux-gnu",
             "rust_sysroot": "/tmp/sysroot",
-            "abi_recipe": "terrane-rust-x86_64-linux-gnu-v1",
+            "rustc_release": "rustc fixture",
+            "abi_recipe": "",
+            "artifact_profile": "terrane-debug-v1",
             "optimization": "0",
             "debug_information": "full",
-            "inlining": "disabled",
+            "inlining": "compiler-default-at-opt-level-0",
+            "stripping": "none",
             "inputs": [],
             "debug": {
-                "schema_version": "1.1",
+                "schema_version": "1.2",
                 "compiler_version": env!("CARGO_PKG_VERSION"),
                 "sources": [{
                     "id": 1,
@@ -2593,7 +2775,12 @@ mod tests {
             "native_module": {"file_name": "program", "content_hash": "sha256:module"},
             "relocation": {"build_root": "/build", "source_root": "/source"}
         }))
-        .unwrap()
+        .unwrap();
+        provenance.abi_recipe = terrane_compiler::debugging::abi_recipe_for_toolchain(
+            &provenance.target,
+            &provenance.rustc_release,
+        );
+        provenance
     }
 
     #[test]

@@ -6092,26 +6092,31 @@ compiler owns authored-source, generated-Rust, semantic-identity, scope, variabl
 privacy knowledge. The translator does not patch generated Rust, rewrite DWARF, infer semantics
 from emitted names, or silently substitute another native backend.
 
-`terrane debug [--embed-sources] <file-or-manifest> [-- arguments]` selects optimization level
-zero, full debug information, disabled inlining, and no stripping. Source embedding is an explicit
-opt-in. Its source view supports stable session-local mapped-frame selection, bounded
-source/generated context, and bounded recursive focused-value expansion. `terrane debug-adapter
---stdio` exposes the same translator through DAP and writes only framed protocol messages to
-stdout. Linux x86-64 with LLDB 22 is the selected end-to-end host. Launch is supported there;
-attach is experimental and additionally governed by host process policy. Other hosts and
-optimized or stripped modules report native fidelity with a precise reason.
+`terrane debug [--embed-sources] <file-or-manifest> [-- arguments]` selects the named
+`terrane-debug-v1` artifact profile shared by Cargo manifest emission and provenance: optimization
+level zero, full debug information, no stripping, and the Rust compiler's default inlining behavior
+at that optimization level. `terrane debug --release` is rejected rather than claiming unsupported
+optimized source fidelity. Source embedding is an explicit opt-in. Its source view supports stable
+session-local mapped-frame selection, bounded source/generated context, and bounded recursive
+focused-value expansion. `terrane debug-adapter --stdio` exposes the same translator through DAP
+and writes only framed protocol messages to stdout. Linux x86-64 with LLDB 22 is the selected
+end-to-end host. Launch is supported there; attach is experimental and additionally governed by
+host process policy. Other hosts and optimized or stripped modules report native fidelity with a
+precise reason.
 
-Each build writes deterministic schema `1.1` provenance beside final generated Rust and the
-executable. It records compiler/toolchain/sysroot/target/ABI-recipe/profile identity; manifest,
-projection-lock, logical-source, final-generated-file, and executable hashes; authored/generated
-associations; sequence points; semantic function/scope/binding/object identities; field secrecy;
-inlining state; and explicit source/build relocation roots. Translation requires matching sidecar,
-executable, generated files, selected source bytes, compiler/schema, selected target/ABI recipe,
-and unoptimized full-debug profile. Explicit relocation may replace roots for copied-but-identical
-artifacts but never changes identity. After launch or attach the adapter emits a machine-readable
-`terrane/fidelity` event naming `source` or `native` mode and, in source mode, the selected target,
-ABI recipe, and inlining status. A mismatch disables Terrane translation with a diagnostic while
-raw native debugging remains available.
+Each build writes deterministic schema `1.2` provenance beside final generated Rust and the
+executable. It records compiler/toolchain/exact-`rustc`-release/sysroot/target identity, an ABI
+recipe bound to that compiler release, and the named artifact profile; manifest, projection-lock,
+logical-source, final-generated-file, and executable hashes; authored/generated associations;
+sequence points; semantic function/scope/binding/object identities; field secrecy; inlining and
+stripping state; and explicit source/build relocation roots. Translation requires matching sidecar,
+executable, generated files, selected source bytes, compiler/schema, selected
+target/toolchain-bound ABI recipe, and every named artifact-profile property. Explicit relocation
+may replace roots for copied-but-identical artifacts but never changes identity. After launch or
+attach the adapter emits a machine-readable `terrane/fidelity` event naming `source` or `native`
+mode and, in source mode, the selected target, ABI recipe, artifact profile, exact Rust compiler
+release, and inlining status. A mismatch disables Terrane translation with a diagnostic while raw
+native debugging remains available.
 
 Source breakpoints resolve through compiler-declared executable sequence points in final formatted
 Rust and preserve every native location for a source point. A non-executable line may adjust only

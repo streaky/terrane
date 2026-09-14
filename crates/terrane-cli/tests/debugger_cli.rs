@@ -270,6 +270,19 @@ impl Drop for DapClient {
     }
 }
 
+#[test]
+fn debug_rejects_release_profile_instead_of_claiming_source_fidelity() {
+    let fixture = DebugFixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--release"])
+        .arg(&fixture.source)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(stderr.contains("debug --release"));
+    assert!(stderr.contains("compiler-owned unoptimized debug profile"));
+}
 #[expect(
     clippy::too_many_lines,
     reason = "one protocol transcript verifies ordering, breakpoint lifecycle, frames, values, output, and disconnect"
@@ -302,6 +315,7 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
             "source": {"path": fixture.source},
             "breakpoints": [{"line": 8}, {"line": 9}],
             "sourceModified": false
+
         }),
     );
     let pending = dap.response(set_breakpoints);
@@ -341,11 +355,22 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     let fidelity = fidelity.unwrap();
     assert_eq!(fidelity["body"]["mode"], "source");
     assert_eq!(fidelity["body"]["sourceTranslation"], true);
-    assert_eq!(
-        fidelity["body"]["abiRecipe"],
-        "terrane-rust-x86_64-linux-gnu-v1"
+    assert!(
+        fidelity["body"]["abiRecipe"]
+            .as_str()
+            .unwrap()
+            .starts_with("terrane-rust-x86_64-linux-gnu-v2@sha256:")
     );
-    assert_eq!(fidelity["body"]["inlining"], "disabled");
+    assert_eq!(fidelity["body"]["artifactProfile"], "terrane-debug-v1");
+    assert_eq!(
+        fidelity["body"]["inlining"],
+        "compiler-default-at-opt-level-0"
+    );
+    assert!(
+        fidelity["body"]["rustcRelease"]
+            .as_str()
+            .is_some_and(|release| release.starts_with("rustc "))
+    );
     assert!(changed.iter().all(|message| {
         message["body"]["reason"] == "changed" && message["body"]["breakpoint"]["verified"] == true
     }));

@@ -1106,12 +1106,12 @@ tests remain distinct. `/core/testing` is the first-party framework for code aut
 ## DEBUGGING
 
 ```yaml
-commands: terrane debug [--embed-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio
+commands: terrane debug [--embed-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected
 backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
-build: full debug information, optimization 0, no stripping, inlining disabled; optional --embed-sources records build-time source snapshots
-provenance: deterministic schema 1.1 sidecar beside generated Rust and executable
-identity: compiler/toolchain/sysroot/target/ABI-recipe/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
-validation: translation requires matching sidecar, executable, generated files, source bytes, compiler/schema, selected target/ABI recipe, and debug profile; mismatch reports native fidelity without disabling raw native debugging
+build: named terrane-debug-v1 profile shared by Cargo emission and provenance; full debug information, optimization 0, no stripping, compiler-default inlining at that optimization; optional --embed-sources records build-time source snapshots
+provenance: deterministic schema 1.2 sidecar beside generated Rust and executable
+identity: compiler/toolchain/exact rustc release/sysroot/target/toolchain-bound ABI recipe/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
+validation: translation requires matching sidecar, executable, generated files, source bytes, compiler/schema, selected target/toolchain-bound ABI recipe, and every named debug-profile property; mismatch reports native fidelity without disabling raw native debugging
 breakpoints: every final-Rust location for an authored sequence point; non-executable lines adjust only forward within the same exact lexical scope; requested and resolved Terrane/generated locations are reported; unresolved requests remain pending
 frames: stable session-local mapped-frame indices, explicit frame selection, Terrane namespace/function identities, logical source positions, and bounded source context; generated/runtime/native frames remain available through explicit escape hatches
 stepping: next targets a different authored sequence point in the same frame or its caller, including loop re-entry; step-out requires an exact depth decrease; only a current-location user breakpoint may be suspended while leaving that point, all other user breakpoints remain active, and temporary breakpoints are removed individually on every exit
@@ -1120,7 +1120,7 @@ privacy: secret object fields are redacted and stripped of child, memory, and ev
 limits: 100 variables plus an explicit continuation marker, 4096 display bytes, focused depth/cycle/count bounds, context radius up to 20, and at most 64 native fallback steps
 protocol: standard framed DAP only on stdout; exactly one initialized event; correlated backend responses are retained; variable handles are stop-local; cancel is not advertised; launched debuggee exit status becomes CLI exit status
 rust_formatters: imported only from the exact recorded Rust sysroot before client init commands; formatter absence is non-fatal
-fidelity: terrane/fidelity reports source/native mode, target, ABI recipe, inlining state, and a reason for degradation
+fidelity: terrane/fidelity reports source/native mode, target, toolchain-bound ABI recipe, artifact profile, exact rustc release, inlining state, and a reason for degradation
 supported_host: Linux x86-64 with LLDB 22 is exercised end to end; attach additionally depends on host process policy
 experimental: CLI/DAP/provenance schema in 0.1; other hosts, attach regimes, optimized/stripped source fidelity, and unsupported layouts report limitations
 excluded: direct isolated test-runner debugging pending a separate process-ownership/context/timeout/temp-directory/reporting contract; conditional breakpoints, logpoints, restart, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time travel

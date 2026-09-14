@@ -8,8 +8,27 @@ use crate::rust_ir::RenderedFile;
 use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
-pub const SCHEMA_VERSION: &str = "1.1";
+pub const SCHEMA_VERSION: &str = "1.2";
 const DEBUG_MARKER: &str = "/* terrane-debug-point:";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DebugArtifactProfile {
+    pub id: &'static str,
+    pub optimization: &'static str,
+    pub cargo_debug: &'static str,
+    pub debug_information: &'static str,
+    pub stripping: &'static str,
+    pub inlining: &'static str,
+}
+
+pub const DEBUG_ARTIFACT_PROFILE: DebugArtifactProfile = DebugArtifactProfile {
+    id: "terrane-debug-v1",
+    optimization: "0",
+    cargo_debug: "2",
+    debug_information: "full",
+    stripping: "none",
+    inlining: "compiler-default-at-opt-level-0",
+};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -501,10 +520,13 @@ pub struct ProvenanceManifest {
     pub rust_toolchain: String,
     pub target: String,
     pub rust_sysroot: String,
+    pub rustc_release: String,
     pub abi_recipe: String,
+    pub artifact_profile: String,
     pub optimization: String,
     pub debug_information: String,
     pub inlining: String,
+    pub stripping: String,
     pub inputs: Vec<InputIdentity>,
     pub debug: DebugInformation,
     pub native_module: NativeModuleIdentity,
@@ -524,7 +546,21 @@ impl ProvenanceManifest {
         build_root: &Path,
         target: String,
         rust_sysroot: String,
+        rustc_release: String,
+        artifact_profile: DebugArtifactProfile,
     ) -> Result<Self, String> {
+        let build_root = std::fs::canonicalize(build_root).map_err(|error| {
+            format!(
+                "cannot canonicalize debug build root {}: {error}",
+                build_root.display()
+            )
+        })?;
+        let source_root = std::fs::canonicalize(&package.root).map_err(|error| {
+            format!(
+                "cannot canonicalize debug source root {}: {error}",
+                package.root.display()
+            )
+        })?;
         let executable_bytes = std::fs::read(executable).map_err(|error| {
             format!(
                 "cannot read debug executable {}: {error}",
@@ -548,12 +584,15 @@ impl ProvenanceManifest {
                 crate::BuildToolchain::Pinned => crate::BUILD_TOOLCHAIN.to_owned(),
                 crate::BuildToolchain::System => "system".to_owned(),
             },
-            abi_recipe: abi_recipe_for_target(&target).to_owned(),
+            abi_recipe: abi_recipe_for_toolchain(&target, &rustc_release),
             target,
             rust_sysroot,
-            optimization: "0".to_owned(),
-            debug_information: "full".to_owned(),
-            inlining: "disabled".to_owned(),
+            rustc_release,
+            artifact_profile: artifact_profile.id.to_owned(),
+            optimization: artifact_profile.optimization.to_owned(),
+            debug_information: artifact_profile.debug_information.to_owned(),
+            inlining: artifact_profile.inlining.to_owned(),
+            stripping: artifact_profile.stripping.to_owned(),
             inputs,
             debug,
             native_module: NativeModuleIdentity {
@@ -566,7 +605,7 @@ impl ProvenanceManifest {
             },
             relocation: RelocationMapping {
                 build_root: build_root.to_string_lossy().into_owned(),
-                source_root: package.root.to_string_lossy().into_owned(),
+                source_root: source_root.to_string_lossy().into_owned(),
             },
         })
     }
@@ -608,10 +647,15 @@ impl ProvenanceManifest {
 }
 
 #[must_use]
-pub fn abi_recipe_for_target(target: &str) -> &'static str {
+pub fn abi_recipe_for_toolchain(target: &str, rustc_release: &str) -> String {
     match target {
-        "x86_64-unknown-linux-gnu" => "terrane-rust-x86_64-linux-gnu-v1",
-        _ => "unsupported",
+        "x86_64-unknown-linux-gnu" => {
+            format!(
+                "terrane-rust-x86_64-linux-gnu-v2@{}",
+                hash_bytes(rustc_release.as_bytes())
+            )
+        }
+        _ => "unsupported".to_owned(),
     }
 }
 
