@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run stable Rust libtest serially and update the test timing scoreboard."""
+"""Run stable Rust libtest with bounded parallelism and update the timing scoreboard."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ RESULT_RE = re.compile(r"^test (.+) \.\.\. (ok|FAILED|ignored)$")
 TIMING_RECORD_PREFIX = "terrane-test-timing-v1"
 HISTORY_LIMIT = 8
 RUN_LIMIT = 12
+MAX_SCORECARD_JOBS = 8
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,13 +55,16 @@ def base_scoreboard() -> dict[str, Any]:
         "title": "Terrane test timing scoreboard",
         "metadata": {
             "description": (
-                "Serial wall-clock measurements from stable Rust libtest plus compiler-owned "
-                "nested case timings. Dependency-free generated-crate compilation has its own "
-                "shared timing row instead of being estimated per case; durations include small "
-                "runner and output overhead and are intended for relative development feedback."
+                "Bounded-parallel wall-clock measurements from stable Rust libtest plus "
+                "compiler-owned nested case timings. Libtest durations are inferred from its "
+                "deterministic alphabetical queue and completion events. Dependency-free "
+                "generated-crate compilation has its own shared timing row instead of being "
+                "estimated per case; durations include small runner and output overhead and are "
+                "intended for relative development feedback."
             ),
             "timing_mode": (
-                "cargo test with --test-threads=1; libtest completion deltas plus nested timing records"
+                "cargo test with bounded --test-threads; scheduler-inferred active durations plus "
+                "nested timing records"
             ),
             "history_limit": HISTORY_LIMIT,
         },
@@ -106,8 +110,60 @@ def nested_timings(path: Path) -> list[dict[str, Any]]:
     return measured
 
 
+def scorecard_jobs() -> int:
+    available = os.cpu_count() or 1
+    written = os.environ.get("TERRANE_SCORECARD_JOBS")
+    if written is None:
+        requested = MAX_SCORECARD_JOBS
+    else:
+        try:
+            requested = int(written)
+        except ValueError as error:
+            raise ValueError(
+                "TERRANE_SCORECARD_JOBS must be a positive integer"
+            ) from error
+        if requested < 1:
+            raise ValueError("TERRANE_SCORECARD_JOBS must be a positive integer")
+    return min(requested, MAX_SCORECARD_JOBS, available)
+
+
+def inferred_parallel_timings(
+    target: str,
+    started: float,
+    events: list[tuple[str, str, float]],
+    jobs: int,
+) -> list[dict[str, Any]]:
+    queue = sorted(name for name, _, _ in events)
+    active = {name: started for name in queue[:jobs]}
+    next_index = len(active)
+    measured = []
+    for name, status, completed in events:
+        test_started = active.pop(name, started)
+        measured.append(
+            {
+                "id": f"{target}::{name}",
+                "target": target,
+                "name": name,
+                "kind": "libtest",
+                "status": status,
+                "seconds": round(max(0.0, completed - test_started), 6),
+            }
+        )
+        if next_index < len(queue):
+            active[queue[next_index]] = completed
+            next_index += 1
+    return measured
+
+
 def run_tests(cargo_args: list[str]) -> tuple[int, float, list[dict[str, Any]], list[str]]:
-    command = ["cargo", "test", *(cargo_args or ["--workspace"]), "--", "--test-threads=1"]
+    jobs = scorecard_jobs()
+    command = [
+        "cargo",
+        "test",
+        *(cargo_args or ["--workspace"]),
+        "--",
+        f"--test-threads={jobs}",
+    ]
     timing_file = tempfile.NamedTemporaryFile(prefix="terrane-test-timings-", delete=False)
     timing_path = Path(timing_file.name)
     timing_file.close()
@@ -126,43 +182,41 @@ def run_tests(cargo_args: list[str]) -> tuple[int, float, list[dict[str, Any]], 
         )
         assert process.stdout is not None
         target = "unknown test binary"
-        previous_event = started
+        target_started = started
+        target_events: list[tuple[str, str, float]] = []
         for line in process.stdout:
             print(line, end="", flush=True)
             text = line.rstrip("\n")
             running = RUNNING_RE.match(text)
             if running:
+                measured.extend(
+                    inferred_parallel_timings(target, target_started, target_events, jobs)
+                )
+                target_events = []
                 target = normalized_target(running.group(1), running.group(2))
-                previous_event = time.monotonic()
+                target_started = time.monotonic()
                 continue
             doctest = DOCTEST_RE.match(text)
             if doctest:
+                measured.extend(
+                    inferred_parallel_timings(target, target_started, target_events, jobs)
+                )
+                target_events = []
                 target = f"doc tests [{doctest.group(1)}]"
-                previous_event = time.monotonic()
+                target_started = time.monotonic()
                 continue
             if COUNT_RE.match(text):
-                previous_event = time.monotonic()
+                target_started = time.monotonic()
                 continue
             result = RESULT_RE.match(text)
             if result:
-                now = time.monotonic()
                 status = {
                     "ok": "passed",
                     "FAILED": "failed",
                     "ignored": "ignored",
                 }[result.group(2)]
-                name = result.group(1)
-                measured.append(
-                    {
-                        "id": f"{target}::{name}",
-                        "target": target,
-                        "name": name,
-                        "kind": "libtest",
-                        "status": status,
-                        "seconds": round(max(0.0, now - previous_event), 6),
-                    }
-                )
-                previous_event = now
+                target_events.append((result.group(1), status, time.monotonic()))
+        measured.extend(inferred_parallel_timings(target, target_started, target_events, jobs))
         exit_code = process.wait()
         measured.extend(nested_timings(timing_path))
     finally:
