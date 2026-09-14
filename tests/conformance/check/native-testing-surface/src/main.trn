@@ -13,6 +13,6 @@ function main none throws test-failure;
     assert-present-string; 'present'
     assert-none-string; none
     assert-near; 1.0, 1.1, 0.2
-    assert-throws; expected-error
+    assert-throws; expected-error, test-failure.identity
     temporary-directory;
     return none

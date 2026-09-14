@@ -2,7 +2,8 @@ namespace core/testing
 
 from /core/errors import throwable
 from /core/collections import list
-from /core/process import environment, environment-entry
+from /core/process import arguments, environment, environment-entry, native-string
+from /core/time import duration, invalid-duration
 
 interface test-value
     function render string;
@@ -13,7 +14,7 @@ class test-failure implements throwable
     details list of string = list
 
     function construct; failure-message string
-        this.message = 'TERRANE_TEST_FAILURE:'.concat; failure-message
+        this.message = failure-message
 
     function render string;
         return this.message
@@ -24,7 +25,16 @@ class test-skip implements throwable
     details list of string = list
 
     function construct; reason string
-        this.message = 'TERRANE_TEST_SKIP:'.concat; reason
+        this.message = reason
+
+    function render string;
+        return this.message
+
+class test-infrastructure-failure implements throwable
+    message string = ''
+
+    function construct; failure-message string
+        this.message = failure-message
 
     function render string;
         return this.message
@@ -45,34 +55,65 @@ function deny none throws test-failure; condition bool
         fail; 'denied condition was true'
     return none
 
+
 function assert-equal-int none throws test-failure; actual int, expected int
     if actual != expected
-        fail; 'integer values are not equal'
+        fail; ('expected '.concat; (host-test-render-int; expected), ' but received ', (host-test-render-int; actual))
     return none
 
 function assert-not-equal-int none throws test-failure; actual int, expected int
     if actual == expected
-        fail; 'integer values are equal'
+        fail; ('expected a value other than '.concat; (host-test-render-int; expected))
     return none
 
 function assert-equal-string none throws test-failure; actual string, expected string
     if actual != expected
-        fail; 'string values are not equal'
+        fail; ('expected `'.concat; expected, '` but received `', actual, '`')
     return none
 
 function assert-not-equal-string none throws test-failure; actual string, expected string
     if actual == expected
-        fail; 'string values are equal'
+        fail; ('expected a string other than `'.concat; expected, '`')
     return none
 
 function assert-equal-bool none throws test-failure; actual bool, expected bool
     if actual != expected
-        fail; 'boolean values are not equal'
+        fail; ('expected '.concat; (host-test-render-bool; expected), ' but received ', (host-test-render-bool; actual))
     return none
 
 function assert-not-equal-bool none throws test-failure; actual bool, expected bool
     if actual == expected
-        fail; 'boolean values are equal'
+        fail; ('expected a boolean other than '.concat; (host-test-render-bool; expected))
+    return none
+
+function assert-equal-float64 none throws test-failure; actual float64, expected float64
+    if actual != expected
+        fail; ('expected '.concat; (host-test-render-float64; expected), ' but received ', (host-test-render-float64; actual))
+    return none
+
+function assert-not-equal-float64 none throws test-failure; actual float64, expected float64
+    if actual == expected
+        fail; ('expected a floating value other than '.concat; (host-test-render-float64; expected))
+    return none
+
+function assert-equal-bytes none throws test-failure; actual bytes, expected bytes
+    if actual != expected
+        fail; ('expected '.concat; (host-test-render-bytes; expected), ' but received ', (host-test-render-bytes; actual))
+    return none
+
+function assert-not-equal-bytes none throws test-failure; actual bytes, expected bytes
+    if actual == expected
+        fail; ('expected bytes differing from '.concat; (host-test-render-bytes; expected))
+    return none
+
+function assert-present-int none throws test-failure; actual int|none
+    if actual == none
+        fail; 'expected a present integer'
+    return none
+
+function assert-none-int none throws test-failure; actual int|none
+    if actual != none
+        fail; 'expected no integer'
     return none
 
 function assert-present-string none throws test-failure; actual string|none
@@ -85,29 +126,73 @@ function assert-none-string none throws test-failure; actual string|none
         fail; 'expected no string'
     return none
 
+function assert-present-bool none throws test-failure; actual bool|none
+    if actual == none
+        fail; 'expected a present boolean'
+    return none
+
+function assert-none-bool none throws test-failure; actual bool|none
+    if actual != none
+        fail; 'expected no boolean'
+    return none
+
+function assert-present-float64 none throws test-failure; actual float64|none
+    if actual == none
+        fail; 'expected a present floating value'
+    return none
+
+function assert-none-float64 none throws test-failure; actual float64|none
+    if actual != none
+        fail; 'expected no floating value'
+    return none
+
+function assert-present-bytes none throws test-failure; actual bytes|none
+    if actual == none
+        fail; 'expected present bytes'
+    return none
+
+function assert-none-bytes none throws test-failure; actual bytes|none
+    if actual != none
+        fail; 'expected no bytes'
+    return none
+
 function assert-near none throws test-failure; actual float64, expected float64, tolerance float64
     if tolerance < 0.0
-        fail; 'near-equality tolerance must not be negative'
+        fail; ('near-equality tolerance must not be negative: '.concat; (host-test-render-float64; tolerance))
     difference = actual - expected
     if difference < 0.0
         difference = 0.0 - difference
     if difference > tolerance
-        fail; 'floating values differ beyond tolerance'
+        fail; ('expected '.concat; (host-test-render-float64; expected), ' ± ', (host-test-render-float64; tolerance), ' but received ', (host-test-render-float64; actual))
     return none
 
-function assert-throws none throws test-failure; operation function to none throws test-failure
+function assert-throws none throws test-failure; operation function to none throws throwable, expected-descriptor string
     try
         operation;
-    catch test-failure
-        return none
-    fail; 'expected callback to throw'
+    catch throwable as error
+        if error.descriptor == expected-descriptor
+            return none
+        fail; ('expected throwable descriptor '.concat; expected-descriptor, ' but received ', error.descriptor)
+    fail; ('expected callback to throw '.concat; expected-descriptor)
     return none
 
 function context-value string|none; name string
     for entry in environment;
         if entry.name.is-text and entry.value.is-text and entry.name.text == name
+
             return entry.value.text
     return none
+function test-arguments list of native-string;
+    supplied = arguments;
+    controlled list of native-string = list
+    index int = 1
+    while index < supplied.length
+        controlled.append; supplied[index]
+        index = index + 1
+    return controlled
+
+function test-deadline duration throws invalid-duration;
+    return duration::nanoseconds; (host-test-deadline-nanoseconds;)
 
 function temporary-directory string|none;
     return context-value; 'TMPDIR'
@@ -118,11 +203,8 @@ function deterministic-seed string|none;
 function test-identity string|none;
     return context-value; 'TERRANE_TEST_ID'
 
-function application-artifact string;
-    for entry in environment;
-        if entry.name.is-text and entry.value.is-text and entry.name.text == 'TERRANE_TEST_ARTIFACT'
-            return entry.value.text
-    return ''
+function application-artifact string|none;
+    return context-value; 'TERRANE_TEST_ARTIFACT'
 
 function test-tier string|none;
     return context-value; 'TERRANE_TEST_TIER'

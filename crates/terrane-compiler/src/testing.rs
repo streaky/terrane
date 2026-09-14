@@ -406,18 +406,18 @@ fn manifest_test_error(
 ) -> PackageLoadError {
     let start = text.find(needle).unwrap_or(0);
     PackageLoadError {
-        source: SourceFile::new(0, path.to_path_buf(), text.to_owned()),
+        source: SourceFile::new(u32::MAX, path.to_path_buf(), text.to_owned()),
         diagnostic: Diagnostic::error(
             "S2050",
             message,
-            Span::new(0, start, start.saturating_add(needle.len())),
+            Span::new(u32::MAX, start, start.saturating_add(needle.len())),
         ),
     }
 }
 
 fn test_load_error(path: PathBuf, message: String) -> PackageLoadError {
     PackageLoadError {
-        source: SourceFile::new(0, path, String::new()),
+        source: SourceFile::new(u32::MAX, path, String::new()),
         diagnostic: Diagnostic::unlocated_error("S2050", message),
     }
 }

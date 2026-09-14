@@ -792,7 +792,7 @@ impl Emitter<'_> {
                 || format!("!__terrane_handled_{index}"),
                 |descriptor| {
                     let name = self.error_kind(descriptor);
-                    if name == "error" {
+                    if name == "error" || self.is_builtin(descriptor, "/core/errors::throwable") {
                         format!("!__terrane_handled_{index}")
                     } else {
                         format!(

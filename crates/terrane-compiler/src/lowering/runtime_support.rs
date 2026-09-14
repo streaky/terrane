@@ -407,6 +407,24 @@ pub(super) fn emit_error_support(
                     .and_then(|detail| detail.message.as_deref())
                     .unwrap_or_else(|| self.kind.default_message())
             }
+            fn descriptor_name(&self) -> &str {
+                self.kind.display_name()
+            }
+            fn source_frames(&self) -> Vec<String> {
+                let mut frames = Vec::new();
+                if self.origin != TERRANE_NO_SITE {
+                    frames.push(__terrane_trace::render(self.origin));
+                }
+                if let Some(detail) = &self.detail {
+                    frames.extend(
+                        detail
+                            .frames
+                            .iter()
+                            .map(|frame| __terrane_trace::render(*frame)),
+                    );
+                }
+                frames
+            }
             #[cold]
             #[inline(never)]
             fn render(&self) -> String {
@@ -705,8 +723,8 @@ pub(super) fn emit_site_tables(output: &mut String, registry: &LoweringRegistry)
         descriptors.len()
     )
     .expect("writing to a String cannot fail");
-    for (_, name) in descriptors.iter() {
-        writeln!(output, "        {name:?},").expect("writing to a String cannot fail");
+    for (identity, _) in descriptors.iter() {
+        writeln!(output, "        {identity:?},").expect("writing to a String cannot fail");
     }
     output.push_str("    ];\n}\n");
     output.push_str(indoc! {r"

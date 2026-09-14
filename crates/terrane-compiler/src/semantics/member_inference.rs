@@ -118,7 +118,7 @@ fn optional_object_inner_has_member(
         return false;
     };
     (identity == &ObjectIdentity::new("/core/errors", "throwable")
-        && matches!(member, "message" | "cause" | "render"))
+        && matches!(member, "descriptor" | "message" | "cause" | "render"))
         || object_member_type(unit, identity, member, false).is_some()
 }
 
@@ -269,6 +269,7 @@ pub(super) fn infer_member_value_type(
         )
     {
         return match member_name {
+            "descriptor" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             "message" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             "cause" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
                 ObjectIdentity::new("/core/errors", "throwable"),

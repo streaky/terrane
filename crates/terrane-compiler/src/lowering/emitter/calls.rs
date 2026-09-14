@@ -1232,6 +1232,11 @@ impl Emitter<'_> {
             ("test-result-stdout", "test_result_stdout"),
             ("test-result-stderr", "test_result_stderr"),
             ("test-time-advance", "test_time_advance"),
+            ("test-render-int", "test_render_int"),
+            ("test-render-float64", "test_render_float64"),
+            ("test-render-bytes", "test_render_bytes"),
+            ("test-render-bool", "test_render_bool"),
+            ("test-deadline-nanoseconds", "test_deadline_nanoseconds"),
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
@@ -1244,7 +1249,7 @@ impl Emitter<'_> {
                 .enumerate()
                 .map(|(index, value)| {
                     if (function == "test_spawn" && index == 4)
-                        || (function == "test_time_advance" && index == 0)
+                        || matches!(function, "test_time_advance" | "test_render_int") && index == 0
                     {
                         self.expression_as(value, ValueType::Scalar(ScalarType::Int))
                     } else {

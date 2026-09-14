@@ -100,7 +100,34 @@ fn package_has_async_finally(package: &SemanticPackage) -> bool {
 
 fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]) -> String {
     let mut output = String::from(
-        "fn main() {\n    let selected = std::env::args().nth(1).unwrap_or_default();\n    match selected.as_str() {\n",
+        r#"fn __terrane_test_hex(value: &str) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(value.len() * 2);
+    for byte in value.as_bytes() {
+        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    encoded
+}
+fn __terrane_test_record(outcome: &str, error: &TerraneError) {
+    let Ok(path) = std::env::var("TERRANE_TEST_RESULT") else { return; };
+    let frames = error.source_frames();
+    let mut record = format!(
+        "1\n{}\n{}\n{}\n{}\n",
+        outcome,
+        __terrane_test_hex(&error.descriptor_name()),
+        __terrane_test_hex(error.message()),
+        frames.len(),
+    );
+    for frame in frames {
+        record.push_str(&__terrane_test_hex(&frame));
+        record.push('\n');
+    }
+    let _ = std::fs::write(path, record);
+}
+fn main() {
+    let selected = std::env::args().nth(1).unwrap_or_default();
+    match selected.as_str() {
+"#,
     );
     for (index, test) in tests.iter().enumerate() {
         let contract = package
@@ -123,7 +150,7 @@ fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]
         if test.throws {
             write!(
                 output,
-                "if let Err(error) = {call} {{ eprintln!(\"__TERRANE_TEST_THROWN__\\n{{}}\", error.render()); std::process::exit(101); }}"
+                "if let Err(error) = {call} {{ let skipped = error.descriptor_name() == \"/core/testing::test-skip\"; __terrane_test_record(if skipped {{ \"skipped\" }} else {{ \"failed\" }}, &error); std::process::exit(if skipped {{ 102 }} else {{ 101 }}); }}"
             )
             .unwrap();
         } else {
@@ -135,7 +162,7 @@ fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]
         output.push_str(" }\n");
     }
     output.push_str(
-        "        _ => { eprintln!(\"unknown Terrane test case\"); std::process::exit(102); }\n    }\n}\n",
+        "        _ => { eprintln!(\"unknown Terrane test case\"); std::process::exit(103); }\n    }\n}\n",
     );
     output
 }
@@ -476,6 +503,12 @@ fn lower_with_tests(
                 "../../runtime/platform_process.rs"
             )));
             source_files.push("platform_process.rs");
+            if tests.is_some() {
+                items.push(Item::generated(include_str!(
+                    "../../runtime/platform_testing.rs"
+                )));
+                source_files.push("platform_testing.rs");
+            }
         }
         runtime.push(GeneratedModule {
             name: "platform_system",

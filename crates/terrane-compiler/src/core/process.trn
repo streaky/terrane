@@ -144,6 +144,14 @@ function native-raw native-string; value bytes
     encoded = host-platform-value-from-bytes; value
     return instance native-string; encoded
 
+function native-text-value string|none; value native-string
+    if value.is-text
+        return value.text
+    return none
+
+function native-raw-value bytes; value native-string
+    return value.raw
+
 function environment-pair environment-entry; key native-string, item native-string
     return instance environment-entry; key, item
 

@@ -17,7 +17,7 @@ use terrane_compiler::{
     testing::{TestCase, TestPackage, TestTier},
 };
 const CAPTURE_LIMIT: usize = 1024 * 1024;
-const REPORT_SCHEMA_VERSION: &str = "1.0.0";
+const REPORT_SCHEMA_VERSION: &str = "1.1.0";
 
 #[derive(Clone, Debug)]
 struct TestOptions {
@@ -30,6 +30,7 @@ struct TestOptions {
     jobs: usize,
     timeout: Duration,
     report: Option<PathBuf>,
+    arguments: Vec<OsString>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,13 +67,20 @@ struct CapturedOutput {
 }
 
 #[derive(Clone, Debug)]
+struct TestCause {
+    kind: &'static str,
+    descriptor: Option<String>,
+    message: String,
+    source_frames: Vec<String>,
+}
+#[derive(Clone, Debug)]
 struct TestResult {
     case: TestCase,
     status: TestStatus,
     duration: Duration,
     stdout: CapturedOutput,
     stderr: CapturedOutput,
-    detail: Option<String>,
+    cause: Option<TestCause>,
 }
 
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
@@ -84,11 +92,18 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
             .map(|error| error.diagnostic.render(&error.source))
             .collect(),
     })?;
-    let compiled_tiers = terrane_compiler::compile_test_package(
+    let compiled_tiers = match terrane_compiler::compile_test_package(
         &test_package,
         terrane_compiler::CompilerOptions::default(),
-    )
-    .map_err(CliFailure::compilation)?;
+    ) {
+        Ok(compiled) => compiled,
+        Err(failure) => {
+            if let Some(path) = &options.report {
+                write_compile_failure_report(path, &failure, &options)?;
+            }
+            return Err(CliFailure::compilation(failure));
+        }
+    };
     for tier in &compiled_tiers {
         emit_warnings(&tier.compilation);
     }
@@ -154,9 +169,10 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
         &cases,
         &options,
     );
+    let _ = fs::remove_dir_all(&run_root);
     render_human_report(&results, options.show_output);
     if let Some(path) = &options.report {
-        write_machine_report(path, &results)?;
+        write_machine_report(path, &results, &options)?;
     }
     if results
         .iter()
@@ -180,6 +196,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
     let mut jobs = std::thread::available_parallelism().map_or(1, usize::from);
     let mut timeout = Duration::from_secs(30);
     let mut report = None;
+    let mut test_arguments = Vec::new();
     let mut index = 1;
     while index < arguments.len() {
         let argument = arguments[index].to_str().ok_or_else(CliFailure::usage)?;
@@ -226,6 +243,15 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
                 )
                 .ok_or_else(CliFailure::usage)?;
             }
+            "--argument" => {
+                index += 1;
+                test_arguments.push(
+                    arguments
+                        .get(index)
+                        .cloned()
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
             "--report" => {
                 index += 1;
                 report = Some(
@@ -250,6 +276,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
         jobs,
         timeout,
         report,
+        arguments: test_arguments,
     })
 }
 
@@ -341,6 +368,7 @@ fn execute_cases(
                 index,
                 case,
                 options.timeout,
+                &options.arguments,
             );
             let stop = options.fail_fast && !result.status.successful();
             results.push(result);
@@ -369,6 +397,7 @@ fn execute_cases(
                         index,
                         case,
                         options.timeout,
+                        &options.arguments,
                     );
                     results
                         .lock()
@@ -393,6 +422,7 @@ fn execute_case(
     work_index: usize,
     case: &TestCase,
     timeout: Duration,
+    arguments: &[OsString],
 ) -> TestResult {
     let directory = run_root.join(format!("{}-{work_index}", std::process::id()));
     let _ = fs::remove_dir_all(&directory);
@@ -406,12 +436,18 @@ fn execute_case(
     let mut command = Command::new(executable);
     command
         .arg(case.selector.to_string())
+        .args(arguments)
         .current_dir(&directory)
         .env_clear()
         .env("TERRANE_TEST_ID", &case.identity)
         .env("TERRANE_TEST_TIER", case.tier.name())
         .env("TERRANE_TEST_SEED", deterministic_seed(&case.identity))
         .env("TMPDIR", &directory)
+        .env(
+            "TERRANE_TEST_DEADLINE_NANOSECONDS",
+            timeout.as_nanos().to_string(),
+        )
+        .env("TERRANE_TEST_RESULT", directory.join(".terrane-result"))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -443,43 +479,109 @@ fn execute_case(
     };
     let stdout = stdout_reader.join().unwrap_or_default();
     let stderr = stderr_reader.join().unwrap_or_default();
+    let record = fs::read_to_string(directory.join(".terrane-result"))
+        .ok()
+        .map(|record| parse_test_record(&record));
     let _ = fs::remove_dir_all(&directory);
     let exit_code = status.as_ref().and_then(std::process::ExitStatus::code);
-    let status = if timed_out {
-        TestStatus::TimedOut
+    let (status, cause) = if timed_out {
+        (
+            TestStatus::TimedOut,
+            Some(TestCause {
+                kind: "timeout",
+                descriptor: None,
+                message: format!(
+                    "deadline exceeded after {} milliseconds",
+                    timeout.as_millis()
+                ),
+                source_frames: Vec::new(),
+            }),
+        )
     } else if status
         .as_ref()
         .is_some_and(std::process::ExitStatus::success)
     {
-        TestStatus::Passed
-    } else if stderr
-        .bytes
-        .windows(b"TERRANE_TEST_SKIP:".len())
-        .any(|part| part == b"TERRANE_TEST_SKIP:")
-    {
-        TestStatus::Skipped
+        (TestStatus::Passed, None)
+    } else if matches!(exit_code, Some(101 | 102)) {
+        match record {
+            Some(Ok((outcome, descriptor, message, source_frames)))
+                if (exit_code == Some(102) && outcome == "skipped")
+                    || (exit_code == Some(101) && outcome == "failed") =>
+            {
+                let skipped = outcome == "skipped";
+                let infrastructure = descriptor == "/core/testing::test-infrastructure-failure";
+                (
+                    if skipped {
+                        TestStatus::Skipped
+                    } else if infrastructure {
+                        TestStatus::InfrastructureFailed
+                    } else {
+                        TestStatus::Failed
+                    },
+                    Some(TestCause {
+                        kind: if skipped {
+                            "skip"
+                        } else if descriptor == "/core/testing::test-failure" {
+                            "assertion"
+                        } else if infrastructure {
+                            "infrastructure"
+                        } else {
+                            "uncaught-throwable"
+                        },
+                        descriptor: Some(descriptor),
+                        message,
+                        source_frames,
+                    }),
+                )
+            }
+            Some(Ok(_)) => (
+                TestStatus::InfrastructureFailed,
+                Some(protocol_cause(
+                    "test result outcome disagrees with runner exit status",
+                )),
+            ),
+            Some(Err(error)) => (
+                TestStatus::InfrastructureFailed,
+                Some(protocol_cause(&format!(
+                    "invalid test result record: {error}"
+                ))),
+            ),
+            None => (
+                TestStatus::InfrastructureFailed,
+                Some(protocol_cause("test runner exited without a result record")),
+            ),
+        }
     } else if status
         .as_ref()
         .is_some_and(|status| status.code().is_none())
     {
-        TestStatus::Crashed
-    } else if status.is_some() {
-        TestStatus::Failed
+        (
+            TestStatus::Crashed,
+            Some(TestCause {
+                kind: "crash",
+                descriptor: None,
+                message: "test process terminated without an exit code".to_owned(),
+                source_frames: Vec::new(),
+            }),
+        )
+    } else if exit_code == Some(103) || status.is_none() {
+        (
+            TestStatus::InfrastructureFailed,
+            Some(protocol_cause("test runner dispatch failed")),
+        )
     } else {
-        TestStatus::InfrastructureFailed
-    };
-    let detail = match status {
-        TestStatus::TimedOut => Some(format!(
-            "deadline exceeded after {} milliseconds",
-            timeout.as_millis()
-        )),
-        TestStatus::Crashed => Some("test process terminated without an exit code".to_owned()),
-        TestStatus::Failed => Some(format!(
-            "test process exited with status {}",
-            exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
-        )),
-        TestStatus::Skipped => Some("test requested an explicit skip".to_owned()),
-        TestStatus::Passed | TestStatus::InfrastructureFailed => None,
+        (
+            TestStatus::Failed,
+            Some(TestCause {
+                kind: "exit",
+                descriptor: None,
+                message: format!(
+                    "test process exited with status {}",
+                    exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
+                ),
+                source_frames: Vec::new(),
+            }),
+        )
     };
     TestResult {
         case: case.clone(),
@@ -487,7 +589,7 @@ fn execute_case(
         duration: started.elapsed(),
         stdout,
         stderr,
-        detail,
+        cause,
     }
 }
 
@@ -498,8 +600,60 @@ fn infrastructure_result(case: &TestCase, detail: String) -> TestResult {
         duration: Duration::ZERO,
         stdout: CapturedOutput::default(),
         stderr: CapturedOutput::default(),
-        detail: Some(detail),
+        cause: Some(protocol_cause(&detail)),
     }
+}
+
+fn protocol_cause(message: &str) -> TestCause {
+    TestCause {
+        kind: "infrastructure",
+        descriptor: None,
+        message: message.to_owned(),
+        source_frames: Vec::new(),
+    }
+}
+
+fn parse_test_record(record: &str) -> Result<(String, String, String, Vec<String>), String> {
+    let mut lines = record.lines();
+    if lines.next() != Some("1") {
+        return Err("unsupported protocol version".to_owned());
+    }
+    let outcome = lines.next().ok_or_else(|| "missing outcome".to_owned())?;
+    let descriptor = decode_hex(
+        lines
+            .next()
+            .ok_or_else(|| "missing descriptor".to_owned())?,
+    )?;
+    let message = decode_hex(lines.next().ok_or_else(|| "missing message".to_owned())?)?;
+    let frame_count = lines
+        .next()
+        .ok_or_else(|| "missing frame count".to_owned())?
+        .parse::<usize>()
+        .map_err(|_| "invalid frame count".to_owned())?;
+    let frames = lines
+        .by_ref()
+        .take(frame_count)
+        .map(decode_hex)
+        .collect::<Result<Vec<_>, _>>()?;
+    if frames.len() != frame_count || lines.next().is_some() {
+        return Err("frame count does not match record".to_owned());
+    }
+    Ok((outcome.to_owned(), descriptor, message, frames))
+}
+
+fn decode_hex(value: &str) -> Result<String, String> {
+    if !value.len().is_multiple_of(2) {
+        return Err("odd-length hexadecimal field".to_owned());
+    }
+    let bytes = value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let text = std::str::from_utf8(pair).expect("ASCII hexadecimal pair");
+            u8::from_str_radix(text, 16).map_err(|_| "invalid hexadecimal field".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    String::from_utf8(bytes).map_err(|_| "result field is not UTF-8".to_owned())
 }
 
 fn read_bounded(mut stream: impl std::io::Read) -> CapturedOutput {
@@ -545,7 +699,7 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
                 );
             }
             if !result.stderr.bytes.is_empty() {
-                eprintln!(
+                println!(
                     "--- stderr{} ---\n{}",
                     if result.stderr.truncated {
                         " (truncated)"
@@ -555,8 +709,19 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
                     String::from_utf8_lossy(&result.stderr.bytes)
                 );
             }
-            if let Some(detail) = &result.detail {
-                eprintln!("--- cause ---\n{detail}");
+            if let Some(cause) = &result.cause {
+                println!(
+                    "--- cause: {}{} ---\n{}",
+                    cause.kind,
+                    cause
+                        .descriptor
+                        .as_deref()
+                        .map_or_else(String::new, |descriptor| format!(" ({descriptor})")),
+                    cause.message
+                );
+                for frame in &cause.source_frames {
+                    println!("at {frame}");
+                }
             }
         }
     }
@@ -572,7 +737,59 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
     println!("{passed} passed; {skipped} skipped; {failed} failed");
 }
 
-fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFailure> {
+fn report_run_metadata(options: &TestOptions, status: &str) -> serde_json::Value {
+    serde_json::json!({
+        "status": status,
+        "package": options.input,
+        "filter": options.filter,
+        "tiers": options.tiers.iter().map(|tier| tier.name()).collect::<Vec<_>>(),
+        "jobs": options.jobs,
+        "timeout_milliseconds": options.timeout.as_millis().to_string(),
+        "fail_fast": options.fail_fast,
+        "show_output": options.show_output,
+    })
+}
+
+fn write_compile_failure_report(
+    path: &Path,
+    failure: &terrane_compiler::CompilationFailure,
+    options: &TestOptions,
+) -> Result<(), CliFailure> {
+    let diagnostics = failure
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            serde_json::json!({
+                "code": diagnostic.code,
+                "message": diagnostic.message,
+                "severity": format!("{:?}", diagnostic.severity).to_ascii_lowercase(),
+                "source": diagnostic.primary.map(|span| serde_json::json!({
+                    "path": failure.source.path(),
+                    "start": span.start,
+                    "end": span.end,
+                })),
+            })
+        })
+        .collect::<Vec<_>>();
+    write_report_value(
+        path,
+        &serde_json::json!({
+            "schema_version": REPORT_SCHEMA_VERSION,
+            "run": report_run_metadata(options, "compile-failed"),
+            "compilation": {
+                "status": "compile-failed",
+                "diagnostics": diagnostics,
+            },
+            "cases": [],
+        }),
+    )
+}
+
+fn write_machine_report(
+    path: &Path,
+    results: &[TestResult],
+    options: &TestOptions,
+) -> Result<(), CliFailure> {
     let cases = results
         .iter()
         .map(|result| {
@@ -586,7 +803,12 @@ fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFa
                     "start": result.case.source_span.start,
                     "end": result.case.source_span.end,
                 },
-                "cause": result.detail,
+                "cause": result.cause.as_ref().map(|cause| serde_json::json!({
+                    "kind": cause.kind,
+                    "descriptor": cause.descriptor,
+                    "message": cause.message,
+                    "source_frames": cause.source_frames,
+                })),
                 "stdout": result.stdout.bytes,
                 "stdout_truncated": result.stdout.truncated,
                 "stderr": result.stderr.bytes,
@@ -596,8 +818,13 @@ fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFa
         .collect::<Vec<_>>();
     let report = serde_json::json!({
         "schema_version": REPORT_SCHEMA_VERSION,
+        "run": report_run_metadata(options, "completed"),
         "cases": cases,
     });
+    write_report_value(path, &report)
+}
+
+fn write_report_value(path: &Path, report: &serde_json::Value) -> Result<(), CliFailure> {
     if let Some(parent) = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -608,7 +835,7 @@ fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFa
     }
     fs::write(
         path,
-        serde_json::to_vec_pretty(&report).expect("test report is serializable"),
+        serde_json::to_vec_pretty(report).expect("test report is serializable"),
     )
     .map_err(|error| CliFailure::backend(format!("cannot write test report: {error}")))
 }

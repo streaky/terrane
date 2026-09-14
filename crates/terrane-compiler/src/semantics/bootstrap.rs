@@ -275,7 +275,14 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         &mut namespaces,
         "/core/testing",
         "testing",
-        ["test-time-advance"],
+        [
+            "test-time-advance",
+            "test-render-int",
+            "test-render-float64",
+            "test-render-bytes",
+            "test-render-bool",
+            "test-deadline-nanoseconds",
+        ],
     );
     add_private_host_bindings(
         &mut namespaces,

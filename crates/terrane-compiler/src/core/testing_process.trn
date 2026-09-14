@@ -2,7 +2,7 @@ namespace core/testing/process
 
 from /core/collections import list
 from /core/process import encode-native-string, environment-entry, native-string
-from /core/testing import fail, test-failure
+from /core/testing import test-infrastructure-failure
 
 class process-fixture
     artifact string = ''
@@ -28,7 +28,7 @@ class process-result
         this.stdout = output
         this.stderr = errors
 
-function run-process process-result throws test-failure; fixture process-fixture
+function run-process process-result throws test-infrastructure-failure; fixture process-fixture
     encoded-arguments list of string = list
     for argument in fixture.arguments
         encoded-arguments.append; (encode-native-string; argument)
@@ -38,5 +38,5 @@ function run-process process-result throws test-failure; fixture process-fixture
         encoded-environment.append; (encode-native-string; entry.value)
     raw = host-test-spawn; fixture.artifact, encoded-arguments, encoded-environment, fixture.standard-input, fixture.deadline-milliseconds
     if host-test-result-failed; raw
-        fail; (host-test-result-message; raw)
+        throw instance test-infrastructure-failure; (host-test-result-message; raw)
     return instance process-result; (host-test-result-exit-code; raw), (host-test-result-crashed; raw), (host-test-result-deadline-exceeded; raw), (host-test-result-stdout; raw), (host-test-result-stderr; raw)

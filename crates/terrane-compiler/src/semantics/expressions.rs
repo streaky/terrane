@@ -862,7 +862,11 @@ pub(super) fn infer_value_type(
                     | "intrinsic:process-signals::process-signal-result-detail"
                     | "intrinsic:system::platform-value-from-bytes"
                     | "intrinsic:system::platform-value-from-text"
-                    | "intrinsic:testing::test-result-message" => {
+                    | "intrinsic:testing::test-result-message"
+                    | "intrinsic:testing::test-render-int"
+                    | "intrinsic:testing::test-render-float64"
+                    | "intrinsic:testing::test-render-bytes"
+                    | "intrinsic:testing::test-render-bool" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "intrinsic:system::result-bytes"
@@ -881,7 +885,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:concurrency::result-int"
                     | "intrinsic:process-signals::process-signal-result-int"
                     | "intrinsic:process-signals::process-signal-result-exact-int"
-                    | "intrinsic:testing::test-result-exit-code" => {
+                    | "intrinsic:testing::test-result-exit-code"
+                    | "intrinsic:testing::test-deadline-nanoseconds" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "intrinsic:system::process-arguments"
