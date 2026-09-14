@@ -1139,26 +1139,3 @@ fn write_report_value(path: &Path, report: &serde_json::Value) -> Result<(), Cli
     )
     .map_err(|error| CliFailure::backend(format!("cannot write test report: {error}")))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[cfg(unix)]
-    #[test]
-    fn signal_terminated_test_process_is_classified_as_crashed() {
-        use std::os::unix::process::ExitStatusExt;
-
-        let status = std::process::ExitStatus::from_raw(15);
-        let (classification, cause) =
-            classify_test_result(Some(&status), false, None, Duration::from_secs(1));
-
-        assert_eq!(classification, TestStatus::Crashed);
-        let cause = cause.unwrap();
-        assert_eq!(cause.kind, "crash");
-        assert_eq!(
-            cause.message,
-            "test process terminated without an exit code"
-        );
-    }
-}

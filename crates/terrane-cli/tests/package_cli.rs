@@ -3,7 +3,11 @@ use std::io::{Read as _, Write as _};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[cfg(target_os = "linux")]
+use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(target_os = "linux")]
+use std::time::{Duration, Instant};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -47,6 +51,34 @@ impl Drop for TempPackage {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
+}
+
+#[cfg(target_os = "linux")]
+fn direct_children(process: u32) -> Vec<u32> {
+    fs::read_to_string(format!("/proc/{process}/task/{process}/children"))
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter_map(|child| child.parse().ok())
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        for child in direct_children(process) {
+            let command_line = fs::read(format!("/proc/{child}/cmdline")).unwrap_or_default();
+            if command_line
+                .split(|byte| *byte == 0)
+                .nth(1)
+                .is_some_and(|argument| argument == b"0")
+            {
+                return Some(child);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    None
 }
 
 #[test]
@@ -833,6 +865,71 @@ fn native_test_timeout_terminates_the_isolated_process() {
     );
     let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
     assert_eq!(report["cases"][0]["status"], "timed-out");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native_test_signal_termination_reports_a_crashed_process() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/crash.trn"),
+        "namespace cli/app\nfunction test-crash;\n    while true\n        continue\n",
+    )
+    .unwrap();
+    let report = package.0.join("crash-report.json");
+
+    let mut command = Command::new(env!("CARGO_BIN_EXE_terrane"));
+    command
+        .arg("test")
+        .args(["--jobs", "1", "--timeout", "60s", "--report"])
+        .arg(&report)
+        .arg(&package.0)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut cli = command.spawn().unwrap();
+    let runner = wait_for_test_runner(cli.id(), Duration::from_secs(180));
+    let Some(runner) = runner else {
+        let _ = cli.kill();
+        let output = cli.wait_with_output().unwrap();
+        panic!(
+            "native test runner did not start\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    let kill = Command::new("kill")
+        .args(["-KILL", &runner.to_string()])
+        .status()
+        .expect("invoke platform signal command");
+    if !kill.success() {
+        let _ = cli.kill();
+        let _ = cli.wait();
+        panic!("platform signal command failed with {kill}");
+    }
+    let output = cli.wait_with_output().unwrap();
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("crashed /cli/app::test-crash"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "0 passed; 0 skipped; 0 failed; 0 timed out; 1 crashed; 0 infrastructure failed"
+        ),
+        "{stdout}"
+    );
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["cases"][0]["status"], "crashed");
+    assert_eq!(report["cases"][0]["cause"]["kind"], "crash");
+    assert_eq!(
+        report["cases"][0]["cause"]["message"],
+        "test process terminated without an exit code"
+    );
 }
 
 #[test]
