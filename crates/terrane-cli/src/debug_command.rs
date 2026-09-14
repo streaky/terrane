@@ -1161,24 +1161,46 @@ fn step_to_source(
 ) -> Result<Value, CliFailure> {
     let frames = backend.request(
         "stackTrace",
-        json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
+        json!({"threadId": thread_id, "startFrame": 0, "levels": 13}),
     )?;
-    let frame = &frames["body"]["stackFrames"][0];
+    let Some(frames) = frames["body"]["stackFrames"].as_array() else {
+        return bounded_native_step(backend, provenance, command, thread_id);
+    };
+    let Some(frame) = frames.first() else {
+        return bounded_native_step(backend, provenance, command, thread_id);
+    };
     let Some(current) = association_for_frame(provenance, frame) else {
         return bounded_native_step(backend, provenance, command, thread_id);
     };
+    let current_file = frame["source"]["path"].as_str().unwrap_or_default();
+    let caller = frames.iter().skip(1).find_map(|frame| {
+        association_for_frame(provenance, frame).map(|association| (frame, association))
+    });
+
     let mut targets = std::collections::BTreeSet::new();
     for file in &provenance.debug.generated_files {
         for association in &file.associations {
             if !association.sequence_point
-                || (Path::new(frame["source"]["path"].as_str().unwrap_or_default())
-                    .ends_with(&file.path)
+                || (Path::new(current_file).ends_with(&file.path)
                     && association.generated.line == current.generated.line)
             {
                 continue;
             }
             let selected = match command {
-                "next" => association.function_id == current.function_id,
+                "next" => {
+                    let later_in_current = association.function_id == current.function_id
+                        && Path::new(current_file).ends_with(&file.path)
+                        && association.generated.line > current.generated.line;
+                    let later_in_caller = caller.is_some_and(|(caller_frame, caller)| {
+                        association.function_id == caller.function_id
+                            && Path::new(
+                                caller_frame["source"]["path"].as_str().unwrap_or_default(),
+                            )
+                            .ends_with(&file.path)
+                            && association.generated.line > caller.generated.line
+                    });
+                    later_in_current || later_in_caller
+                }
                 "stepOut" => association.function_id != current.function_id,
                 _ => true,
             };
@@ -1195,30 +1217,32 @@ fn step_to_source(
         "evaluate",
         json!({"expression": "`breakpoint disable", "context": "repl"}),
     );
-
     let mut breakpoint_ids = Vec::new();
-    for (path, line) in targets {
-        let path = generated_path(provenance, &path);
-        let command = format!(
-            "`breakpoint set --one-shot true --file {} --line {line}",
-            lldb_quote(&path.to_string_lossy())
-        );
-        let response = backend.request(
-            "evaluate",
-            json!({"expression": command, "context": "repl"}),
-        )?;
-        if let Some(id) = response["body"]["result"]
-            .as_str()
-            .and_then(parse_lldb_breakpoint_id)
-        {
-            breakpoint_ids.push(id);
+    let result = (|| {
+        for (path, line) in targets {
+            let path = generated_path(provenance, &path);
+            let command = format!(
+                "`breakpoint set --one-shot true --file {} --line {line}",
+                lldb_quote(&path.to_string_lossy())
+            );
+            let response = backend.request(
+                "evaluate",
+                json!({"expression": command, "context": "repl"}),
+            )?;
+            if let Some(id) = response["body"]["result"]
+                .as_str()
+                .and_then(parse_lldb_breakpoint_id)
+            {
+                breakpoint_ids.push(id);
+            }
         }
-    }
-    backend.request(
-        "continue",
-        json!({"threadId": thread_id, "singleThread": false}),
-    )?;
-    let event = backend.wait_for_event(&["stopped", "terminated"])?;
+        backend.request(
+            "continue",
+            json!({"threadId": thread_id, "singleThread": false}),
+        )?;
+        backend.wait_for_event(&["stopped", "terminated"])
+    })();
+
     if !breakpoint_ids.is_empty() {
         let ids = breakpoint_ids
             .iter()
@@ -1237,7 +1261,7 @@ fn step_to_source(
         "evaluate",
         json!({"expression": "`breakpoint enable", "context": "repl"}),
     );
-    Ok(event)
+    result
 }
 
 fn bounded_native_step(

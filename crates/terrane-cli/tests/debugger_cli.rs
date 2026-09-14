@@ -408,3 +408,47 @@ fn cli_steps_across_async_function_boundaries_in_source_space() {
     assert!(stderr.contains("/async-debugger::main"), "{stderr}");
     assert!(stderr.contains(":7"), "{stderr}");
 }
+
+#[test]
+fn cli_next_returns_from_a_helpers_final_sequence_point() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "function answer int;\n",
+            "  return 42\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "  value int = answer;\n",
+            "  print; value\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:3\ncontinue\nframes\nnext\nframes\ncontinue\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"42\r\n");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("/debugger::answer"), "{stderr}");
+    assert!(stderr.contains("/debugger::main"), "{stderr}");
+    assert!(stderr.contains(":6"), "{stderr}");
+}
