@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::OsString;
 use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
@@ -78,6 +78,7 @@ pub(super) fn run_cli(
     backend.emit_debuggee_output()?;
     let mut thread_id = stopped["body"]["threadId"].as_i64().unwrap_or(1);
     let mut selected_frame_index = 0_usize;
+    let mut breakpoints = BreakpointManager::default();
     eprintln!("Terrane debugger stopped at entry. Type `help` for commands.");
     let stdin = io::stdin();
     let mut input = String::new();
@@ -95,50 +96,26 @@ pub(super) fn run_cli(
         }
         match command.split_once(' ').unwrap_or((command, "")) {
             ("help", _) => eprintln!(
-                "break <source>:<line> | continue | next | step | out | frames | frame <index> | source [radius] | locals | value <name> | generated [radius] | native | registers | lldb <command> | quit"
+                "break <source>:<line> | breakpoints | delete <id|all> | disable <id|all> | enable <id|all> | continue | next | step | out | frames | frame <index> | source [radius] | locals | value <name> | generated [radius] | native | registers | lldb <command> | quit"
             ),
             ("break", location) => {
                 let (path, line) = parse_breakpoint(location)?;
-                let resolutions = resolve_breakpoint(&provenance, &path, line);
-                if resolutions.is_empty() {
-                    eprintln!(
-                        "unverified breakpoint at {}:{line}: no executable sequence point",
-                        path.display()
-                    );
-                    continue;
-                }
-                for resolution in &resolutions {
-                    let response = backend.request(
-                        "setBreakpoints",
-                        json!({
-                            "source": {"path": generated_path(&provenance, &resolution.generated_path)},
-                            "breakpoints": [{"line": resolution.generated_line}],
-                            "sourceModified": false
-                        }),
-                    )?;
-                    let verified = response["body"]["breakpoints"][0]["verified"]
-                        .as_bool()
-                        .unwrap_or(false);
-                    let status = if verified { "verified" } else { "unverified" };
-                    if resolution.source_line == line {
-                        eprintln!(
-                            "{status} breakpoint {}:{} (generated at {}:{})",
-                            path.display(),
-                            resolution.source_line,
-                            resolution.generated_path,
-                            resolution.generated_line
-                        );
-                    } else {
-                        eprintln!(
-                            "{status} breakpoint {}:{line} adjusted to {}:{} (generated at {}:{})",
-                            path.display(),
-                            path.display(),
-                            resolution.source_line,
-                            resolution.generated_path,
-                            resolution.generated_line
-                        );
-                    }
-                }
+                let id = breakpoints.add(&provenance, path, line);
+                breakpoints.sync(&mut backend, &provenance)?;
+                breakpoints.print(id);
+            }
+            ("breakpoints", _) => breakpoints.print_all(),
+            ("delete", selector) if !selector.is_empty() => {
+                breakpoints.remove(selector)?;
+                breakpoints.sync(&mut backend, &provenance)?;
+            }
+            ("disable", selector) if !selector.is_empty() => {
+                breakpoints.set_enabled(selector, false)?;
+                breakpoints.sync(&mut backend, &provenance)?;
+            }
+            ("enable", selector) if !selector.is_empty() => {
+                breakpoints.set_enabled(selector, true)?;
+                breakpoints.sync(&mut backend, &provenance)?;
             }
             ("continue", _) => {
                 backend.request("continue", json!({"threadId": thread_id}))?;
@@ -157,7 +134,8 @@ pub(super) fn run_cli(
                     "step" => "stepIn",
                     _ => "stepOut",
                 };
-                let event = step_to_source(&mut backend, &provenance, request, thread_id)?;
+                let event =
+                    step_to_source(&mut backend, &provenance, &breakpoints, request, thread_id)?;
                 backend.emit_debuggee_output()?;
                 if event["event"] != "stopped" {
                     return Ok(ExitCode::SUCCESS);
@@ -279,6 +257,7 @@ struct Adapter {
     executable: Option<PathBuf>,
     launched: bool,
     variable_objects: BTreeMap<i64, String>,
+    breakpoints: BreakpointManager,
 }
 
 impl Adapter {
@@ -364,6 +343,8 @@ impl Adapter {
             let mut messages = with_backend_events(backend, response(json!({})));
             match translation {
                 Ok(provenance) => {
+                    self.breakpoints.resolve_all(&provenance);
+                    self.breakpoints.sync(backend, &provenance)?;
                     self.provenance = Some(provenance);
                     messages.push(event(
                         "terrane/fidelity",
@@ -395,7 +376,7 @@ impl Adapter {
             return Ok(messages);
         }
         if command == "setBreakpoints" {
-            return self.set_breakpoints(&arguments);
+            return self.set_breakpoints(arguments);
         }
         if command == "stackTrace" {
             let provenance = self.provenance.clone();
@@ -458,8 +439,9 @@ impl Adapter {
             && let Some(provenance) = self.provenance.clone()
         {
             let thread_id = arguments["threadId"].as_i64().unwrap_or(1);
+            let breakpoints = self.breakpoints.clone();
             let backend = self.backend_mut()?;
-            let event = step_to_source(backend, &provenance, command, thread_id)?;
+            let event = step_to_source(backend, &provenance, &breakpoints, command, thread_id)?;
             let mut messages = with_backend_events(backend, response(json!({})));
             messages.push(event);
             return Ok(messages);
@@ -501,57 +483,26 @@ impl Adapter {
             .ok_or_else(|| debugger_failure("initialize must be the first request"))
     }
 
-    fn set_breakpoints(&mut self, arguments: &Value) -> Result<Vec<Value>, CliFailure> {
-        let provenance = self
-            .provenance
-            .as_ref()
-            .ok_or_else(|| debugger_failure("launch or attach must precede source breakpoints"))?
-            .clone();
+    fn set_breakpoints(&mut self, arguments: Value) -> Result<Vec<Value>, CliFailure> {
         let source_path = arguments["source"]["path"]
             .as_str()
             .map(PathBuf::from)
-            .ok_or_else(|| debugger_failure("source breakpoints require a source path"))?;
+            .ok_or_else(|| debugger_failure("source breakpoint request requires a source path"))?;
         let requested = arguments["breakpoints"]
             .as_array()
-            .cloned()
-            .unwrap_or_default();
-        let mut returned = Vec::new();
-        for breakpoint in requested {
-            let line = breakpoint["line"]
-                .as_u64()
-                .and_then(|line| usize::try_from(line).ok())
-                .unwrap_or(0);
-            let resolutions = resolve_breakpoint(&provenance, &source_path, line);
-            if resolutions.is_empty() {
-                returned.push(json!({"verified": false, "line": line, "message": "no executable Terrane sequence point in this function/scope"}));
-                continue;
-            }
-            for resolution in resolutions {
-                let backend = self.backend_mut()?;
-                let backend_response = backend.request(
-                    "setBreakpoints",
-                    json!({
-                        "source": {"path": generated_path(&provenance, &resolution.generated_path)},
-                        "breakpoints": [{"line": resolution.generated_line}],
-                        "sourceModified": false
-                    }),
-                )?;
-                let mut native = backend_response["body"]["breakpoints"][0].clone();
-                native["line"] = resolution.source_line.into();
-                native["source"] = json!({"path": source_path});
-                native["message"] = format!(
-                    "{} at {}:{}; generated location {}:{}",
-                    resolution.message,
-                    source_path.display(),
-                    resolution.source_line,
-                    resolution.generated_path,
-                    resolution.generated_line
-                )
-                .into();
-                returned.push(native);
-            }
+            .into_iter()
+            .flatten()
+            .filter_map(|breakpoint| breakpoint["line"].as_u64())
+            .filter_map(|line| usize::try_from(line).ok())
+            .collect::<Vec<_>>();
+        self.breakpoints
+            .replace_source(self.provenance.as_ref(), source_path.clone(), requested);
+        if let (Some(provenance), Some(backend)) = (&self.provenance, self.backend.as_mut()) {
+            self.breakpoints.sync(backend, provenance)?;
         }
-        Ok(vec![response(json!({"breakpoints": returned}))])
+        Ok(vec![response(json!({
+            "breakpoints": self.breakpoints.dap_breakpoints(&source_path)
+        }))])
     }
 
     fn generated_source(&self, arguments: &Value) -> Result<Vec<Value>, CliFailure> {
@@ -777,11 +728,360 @@ impl Drop for Backend {
 }
 
 #[derive(Clone)]
+struct LogicalBreakpoint {
+    id: i64,
+    source_path: PathBuf,
+    requested_line: usize,
+    enabled: bool,
+    resolutions: Vec<BreakpointResolution>,
+    verified: bool,
+}
+
+#[derive(Clone, Default)]
+struct BreakpointManager {
+    next_id: i64,
+    by_source: BTreeMap<PathBuf, Vec<LogicalBreakpoint>>,
+    backend_files: BTreeSet<String>,
+    backend_ids: BTreeMap<i64, BTreeSet<i64>>,
+}
+
+impl BreakpointManager {
+    fn add(&mut self, provenance: &ProvenanceManifest, path: PathBuf, line: usize) -> i64 {
+        if let Some(existing) = self.by_source.get_mut(&path).and_then(|breakpoints| {
+            breakpoints
+                .iter_mut()
+                .find(|item| item.requested_line == line)
+        }) {
+            existing.enabled = true;
+            existing.resolutions = resolve_breakpoint(provenance, &path, line);
+            return existing.id;
+        }
+        let id = self.allocate_id();
+        self.by_source
+            .entry(path.clone())
+            .or_default()
+            .push(LogicalBreakpoint {
+                id,
+                source_path: path.clone(),
+                requested_line: line,
+                enabled: true,
+                resolutions: resolve_breakpoint(provenance, &path, line),
+                verified: false,
+            });
+        id
+    }
+
+    fn replace_source(
+        &mut self,
+        provenance: Option<&ProvenanceManifest>,
+        path: PathBuf,
+        lines: Vec<usize>,
+    ) {
+        let mut old_ids = self.by_source.remove(&path).unwrap_or_default();
+        let mut replacements = Vec::with_capacity(lines.len());
+        for line in lines {
+            let id = old_ids
+                .iter()
+                .position(|item| item.requested_line == line)
+                .map(|index| old_ids.remove(index).id)
+                .unwrap_or_else(|| self.allocate_id());
+            replacements.push(LogicalBreakpoint {
+                id,
+                source_path: path.clone(),
+                requested_line: line,
+                enabled: true,
+                resolutions: provenance
+                    .map(|provenance| resolve_breakpoint(provenance, &path, line))
+                    .unwrap_or_default(),
+                verified: false,
+            });
+        }
+        self.by_source.insert(path, replacements);
+    }
+
+    fn resolve_all(&mut self, provenance: &ProvenanceManifest) {
+        for breakpoint in self.by_source.values_mut().flatten() {
+            breakpoint.resolutions = resolve_breakpoint(
+                provenance,
+                &breakpoint.source_path,
+                breakpoint.requested_line,
+            );
+            breakpoint.verified = false;
+        }
+    }
+
+    fn sync(
+        &mut self,
+        backend: &mut Backend,
+        provenance: &ProvenanceManifest,
+    ) -> Result<(), CliFailure> {
+        let mut grouped = BTreeMap::<String, BTreeMap<usize, BTreeSet<i64>>>::new();
+        for breakpoint in self
+            .by_source
+            .values()
+            .flatten()
+            .filter(|item| item.enabled)
+        {
+            for resolution in &breakpoint.resolutions {
+                grouped
+                    .entry(resolution.generated_path.clone())
+                    .or_default()
+                    .entry(resolution.generated_line)
+                    .or_default()
+                    .insert(breakpoint.id);
+            }
+        }
+
+        let files = self
+            .backend_files
+            .iter()
+            .cloned()
+            .chain(grouped.keys().cloned())
+            .collect::<BTreeSet<_>>();
+        let mut verified = BTreeSet::<i64>::new();
+        let mut backend_ids = BTreeMap::<i64, BTreeSet<i64>>::new();
+        for file in &files {
+            let points = grouped.get(file);
+            let lines = points
+                .into_iter()
+                .flat_map(BTreeMap::keys)
+                .copied()
+                .collect::<Vec<_>>();
+            let backend_response = backend.request(
+                "setBreakpoints",
+                json!({
+                    "source": {"path": generated_path(provenance, file)},
+                    "breakpoints": lines.iter().map(|line| json!({"line": line})).collect::<Vec<_>>(),
+                    "sourceModified": false
+                }),
+            )?;
+            for (index, line) in lines.iter().enumerate() {
+                if backend_response["body"]["breakpoints"][index]["verified"]
+                    .as_bool()
+                    .unwrap_or(false)
+                    && let Some(ids) = points.and_then(|points| points.get(line))
+                {
+                    verified.extend(ids.iter().copied());
+                    if let Some(backend_id) =
+                        backend_response["body"]["breakpoints"][index]["id"].as_i64()
+                    {
+                        for id in ids {
+                            backend_ids.entry(*id).or_default().insert(backend_id);
+                        }
+                    }
+                }
+            }
+            backend
+                .events
+                .retain(|event| event["event"] != "breakpoint");
+        }
+        for breakpoint in self.by_source.values_mut().flatten() {
+            breakpoint.verified = verified.contains(&breakpoint.id);
+        }
+        self.backend_ids = backend_ids;
+        self.backend_files = grouped.into_keys().collect();
+        Ok(())
+    }
+
+    fn backend_ids_at(&self, generated_file: &str, generated_line: usize) -> Vec<i64> {
+        self.by_source
+            .values()
+            .flatten()
+            .filter(|breakpoint| {
+                breakpoint.enabled
+                    && breakpoint.resolutions.iter().any(|resolution| {
+                        Path::new(generated_file).ends_with(&resolution.generated_path)
+                            && resolution.generated_line == generated_line
+                    })
+            })
+            .flat_map(|breakpoint| {
+                self.backend_ids
+                    .get(&breakpoint.id)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect()
+    }
+
+    fn dap_breakpoints(&self, source: &Path) -> Vec<Value> {
+        self.by_source
+            .get(source)
+            .into_iter()
+            .flatten()
+            .map(|breakpoint| {
+                let mut value = json!({
+                    "id": breakpoint.id,
+                    "verified": breakpoint.verified,
+                    "line": breakpoint.resolved_line(),
+                    "source": {"path": breakpoint.source_path}
+                });
+                value["message"] = breakpoint.message().into();
+                value
+            })
+            .collect()
+    }
+
+    fn remove(&mut self, selector: &str) -> Result<(), CliFailure> {
+        if selector == "all" {
+            self.by_source.clear();
+            return Ok(());
+        }
+        let id = parse_breakpoint_id(selector)?;
+        let mut found = false;
+        for breakpoints in self.by_source.values_mut() {
+            let before = breakpoints.len();
+            breakpoints.retain(|breakpoint| breakpoint.id != id);
+            found |= breakpoints.len() != before;
+        }
+        if !found {
+            return Err(debugger_failure(format!("no breakpoint #{id}")));
+        }
+        Ok(())
+    }
+
+    fn set_enabled(&mut self, selector: &str, enabled: bool) -> Result<(), CliFailure> {
+        let mut found = false;
+        for breakpoint in self.by_source.values_mut().flatten() {
+            if selector == "all" || parse_breakpoint_id(selector).ok() == Some(breakpoint.id) {
+                breakpoint.enabled = enabled;
+                found = true;
+            }
+        }
+        if !found {
+            return Err(debugger_failure(format!(
+                "no breakpoint matching `{selector}`"
+            )));
+        }
+        Ok(())
+    }
+
+    fn print(&self, id: i64) {
+        if let Some(breakpoint) = self
+            .by_source
+            .values()
+            .flatten()
+            .find(|breakpoint| breakpoint.id == id)
+        {
+            eprintln!("{}", breakpoint.cli_description());
+        }
+    }
+
+    fn print_all(&self) {
+        let mut breakpoints = self.by_source.values().flatten().collect::<Vec<_>>();
+        breakpoints.sort_by_key(|breakpoint| breakpoint.id);
+        if breakpoints.is_empty() {
+            eprintln!("no source breakpoints");
+        }
+        for breakpoint in breakpoints {
+            eprintln!("{}", breakpoint.cli_description());
+        }
+    }
+
+    fn allocate_id(&mut self) -> i64 {
+        self.next_id += 1;
+        self.next_id
+    }
+}
+
+impl LogicalBreakpoint {
+    fn resolved_line(&self) -> usize {
+        self.resolutions
+            .first()
+            .map_or(self.requested_line, |resolution| resolution.source_line)
+    }
+
+    fn message(&self) -> String {
+        let Some(resolution) = self.resolutions.first() else {
+            return "pending: no executable sequence point is currently loaded".to_owned();
+        };
+        let locations = if self.resolutions.len() > 1 {
+            format!("; {} native locations", self.resolutions.len())
+        } else {
+            String::new()
+        };
+        format!(
+            "{} at {}:{}; generated location {}:{}{}",
+            resolution.message,
+            self.source_path.display(),
+            resolution.source_line,
+            resolution.generated_path,
+            resolution.generated_line,
+            locations
+        )
+    }
+
+    fn cli_description(&self) -> String {
+        let state = if !self.enabled {
+            "disabled"
+        } else if self.verified {
+            "verified"
+        } else {
+            "unverified"
+        };
+        let Some(resolution) = self.resolutions.first() else {
+            return format!(
+                "#{:<3} {state} breakpoint {}:{}: pending executable sequence point",
+                self.id,
+                self.source_path.display(),
+                self.requested_line
+            );
+        };
+        let adjusted = if resolution.source_line == self.requested_line {
+            String::new()
+        } else {
+            format!(
+                " adjusted to {}:{}",
+                self.source_path.display(),
+                resolution.source_line
+            )
+        };
+        let locations = if self.resolutions.len() > 1 {
+            format!(", {} native locations", self.resolutions.len())
+        } else {
+            String::new()
+        };
+        format!(
+            "#{:<3} {state} breakpoint {}:{}{} (generated at {}:{}{})",
+            self.id,
+            self.source_path.display(),
+            self.requested_line,
+            adjusted,
+            resolution.generated_path,
+            resolution.generated_line,
+            locations
+        )
+    }
+}
+
+fn parse_breakpoint_id(value: &str) -> Result<i64, CliFailure> {
+    value
+        .trim_start_matches('#')
+        .parse()
+        .map_err(|_| debugger_failure("breakpoint selector must be an id or `all`"))
+}
+
+#[derive(Clone)]
 struct BreakpointResolution {
     generated_path: String,
     generated_line: usize,
     source_line: usize,
     message: String,
+}
+
+fn source_matches(provenance: &ProvenanceManifest, requested: &Path, uri: &str) -> bool {
+    requested == Path::new(uri)
+        || requested == Path::new(&provenance.relocation.source_root).join(uri)
+}
+
+fn all_source_associations(
+    provenance: &ProvenanceManifest,
+) -> impl Iterator<Item = (&str, &DebugAssociation)> {
+    provenance.debug.generated_files.iter().flat_map(|file| {
+        file.associations
+            .iter()
+            .map(move |association| (file.path.as_str(), association))
+    })
 }
 
 fn resolve_breakpoint(
@@ -807,6 +1107,18 @@ fn resolve_breakpoint(
                 && function.source.end_line >= line
         })
         .min_by_key(|function| function.source.end - function.source.start);
+    let scope = provenance
+        .debug
+        .scopes
+        .iter()
+        .filter(|scope| {
+            scope.source.source_id == source.id
+                && scope.source.line <= line
+                && scope.source.end_line >= line
+                && function
+                    .is_none_or(|function| scope.function_id.as_deref() == Some(&function.id))
+        })
+        .min_by_key(|scope| scope.source.end - scope.source.start);
     let mut candidates = all_source_associations(provenance)
         .filter(|(_, association)| {
             association.sequence_point
@@ -818,13 +1130,18 @@ fn resolve_breakpoint(
         .collect::<Vec<_>>();
     let adjusted = candidates.is_empty();
     if adjusted {
-        let Some(function) = function else {
+        let (Some(function), Some(scope)) = (function, scope) else {
             return Vec::new();
         };
         candidates = all_source_associations(provenance)
             .filter(|(_, association)| {
                 association.sequence_point
                     && association.function_id.as_deref() == Some(&function.id)
+                    && association.scope_ids.contains(&scope.id)
+                    && association
+                        .causes
+                        .iter()
+                        .any(|cause| cause.source_id == source.id && cause.line >= line)
             })
             .collect();
         let Some(distance) = candidates
@@ -833,17 +1150,17 @@ fn resolve_breakpoint(
                 association
                     .causes
                     .iter()
-                    .map(|cause| cause.line.abs_diff(line))
+                    .filter(|cause| cause.source_id == source.id && cause.line >= line)
+                    .map(|cause| cause.line - line)
             })
             .min()
         else {
             return Vec::new();
         };
         candidates.retain(|(_, association)| {
-            association
-                .causes
-                .iter()
-                .any(|cause| cause.line.abs_diff(line) == distance)
+            association.causes.iter().any(|cause| {
+                cause.source_id == source.id && cause.line >= line && cause.line - line == distance
+            })
         });
     }
     candidates
@@ -855,31 +1172,13 @@ fn resolve_breakpoint(
                 generated_line: association.generated.line,
                 source_line,
                 message: if adjusted {
-                    format!(
-                        "requested line {line}; adjusted to declared sequence point {source_line}"
-                    )
+                    format!("adjusted to executable line {source_line}")
                 } else {
-                    format!("requested and resolved line {line}")
+                    "exact executable sequence point".to_owned()
                 },
             }
         })
         .collect()
-}
-
-fn all_source_associations(
-    provenance: &ProvenanceManifest,
-) -> impl Iterator<Item = (&str, &DebugAssociation)> {
-    provenance.debug.generated_files.iter().flat_map(|file| {
-        file.associations
-            .iter()
-            .map(move |association| (file.path.as_str(), association))
-    })
-}
-
-fn source_matches(provenance: &ProvenanceManifest, requested: &Path, uri: &str) -> bool {
-    requested == Path::new(uri)
-        || requested.ends_with(uri)
-        || Path::new(&provenance.relocation.source_root).join(uri) == requested
 }
 
 fn generated_path(provenance: &ProvenanceManifest, relative: &str) -> PathBuf {
@@ -1250,70 +1549,104 @@ fn decode_adaptive_int(backend: &mut Backend, reference: &str) -> Result<String,
     }
 }
 
-fn step_to_source(
+#[derive(Clone, Eq, PartialEq)]
+struct StopLocation {
+    frame_depth: usize,
+    generated_path: String,
+    generated_line: usize,
+    function_id: Option<String>,
+}
+
+fn mapped_stop_location(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,
-    command: &str,
     thread_id: i64,
-) -> Result<Value, CliFailure> {
-    let frames = backend.request(
+) -> Result<Option<StopLocation>, CliFailure> {
+    let response = backend.request(
         "stackTrace",
-        json!({"threadId": thread_id, "startFrame": 0, "levels": 13}),
+        json!({"threadId": thread_id, "startFrame": 0}),
     )?;
-    let Some(frames) = frames["body"]["stackFrames"].as_array() else {
-        return bounded_native_step(backend, provenance, command, thread_id);
+    let frames = response["body"]["stackFrames"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let frame_depth = response["body"]["totalFrames"]
+        .as_u64()
+        .and_then(|depth| usize::try_from(depth).ok())
+        .unwrap_or(frames.len());
+    Ok(frames.into_iter().find_map(|frame| {
+        let association = association_for_frame(provenance, &frame)?;
+        Some(StopLocation {
+            frame_depth,
+            generated_path: frame["source"]["path"].as_str()?.to_owned(),
+            generated_line: association.generated.line,
+            function_id: association.function_id.clone(),
+        })
+    }))
+}
+
+fn temporary_sequence_step(
+    backend: &mut Backend,
+    provenance: &ProvenanceManifest,
+    breakpoints: &BreakpointManager,
+    thread_id: i64,
+) -> Result<Option<Value>, CliFailure> {
+    let response = backend.request(
+        "stackTrace",
+        json!({"threadId": thread_id, "startFrame": 0}),
+    )?;
+    let Some(frames) = response["body"]["stackFrames"].as_array() else {
+        return Ok(None);
     };
     let Some(frame) = frames.first() else {
-        return bounded_native_step(backend, provenance, command, thread_id);
+        return Ok(None);
     };
     let Some(current) = association_for_frame(provenance, frame) else {
-        return bounded_native_step(backend, provenance, command, thread_id);
+        return Ok(None);
     };
-    let current_file = frame["source"]["path"].as_str().unwrap_or_default();
-    let caller = frames.iter().skip(1).find_map(|frame| {
-        association_for_frame(provenance, frame).map(|association| (frame, association))
-    });
-
-    let mut targets = std::collections::BTreeSet::new();
+    let caller = frames
+        .get(1)
+        .and_then(|frame| association_for_frame(provenance, frame));
+    let mut targets = BTreeSet::new();
     for file in &provenance.debug.generated_files {
         for association in &file.associations {
-            if !association.sequence_point
-                || (Path::new(current_file).ends_with(&file.path)
-                    && association.generated.line == current.generated.line)
-            {
+            if !association.sequence_point {
                 continue;
             }
-            let selected = match command {
-                "next" => {
-                    let later_in_current = association.function_id == current.function_id
-                        && Path::new(current_file).ends_with(&file.path)
-                        && association.generated.line > current.generated.line;
-                    let later_in_caller = caller.is_some_and(|(caller_frame, caller)| {
-                        association.function_id == caller.function_id
-                            && Path::new(
-                                caller_frame["source"]["path"].as_str().unwrap_or_default(),
-                            )
-                            .ends_with(&file.path)
-                            && association.generated.line > caller.generated.line
-                    });
-                    later_in_current || later_in_caller
-                }
-                "stepOut" => association.function_id != current.function_id,
-                _ => true,
-            };
-            if selected {
+            let same_current_point = (association.causes.iter().any(|candidate| {
+                current.causes.iter().any(|cause| {
+                    candidate.source_id == cause.source_id && candidate.line == cause.line
+                })
+            })) || (file.path
+                == frame["source"]["path"].as_str().unwrap_or_default()
+                && association.generated.line == current.generated.line);
+            let same_function = association.function_id == current.function_id;
+            let caller_function = caller.is_some_and(|caller| {
+                association.function_id == caller.function_id
+                    && association.generated.line != caller.generated.line
+            });
+            if !same_current_point && (same_function || caller_function) {
                 targets.insert((file.path.clone(), association.generated.line));
             }
         }
     }
     if targets.is_empty() || targets.len() > 512 {
-        return bounded_native_step(backend, provenance, command, thread_id);
+        return Ok(None);
+    }
+    let current_file = frame["source"]["path"].as_str().unwrap_or_default();
+    let suspended_ids = breakpoints.backend_ids_at(current_file, current.generated.line);
+    if !suspended_ids.is_empty() {
+        let ids = suspended_ids
+            .iter()
+            .map(i64::to_string)
+            .collect::<Vec<_>>()
+            .join(" ");
+        backend.request(
+            "evaluate",
+            json!({"expression": format!("`breakpoint disable {ids}"), "context": "repl"}),
+        )?;
     }
 
-    let _ = backend.request(
-        "evaluate",
-        json!({"expression": "`breakpoint disable", "context": "repl"}),
-    );
     let mut breakpoint_ids = Vec::new();
     let result = (|| {
         for (path, line) in targets {
@@ -1339,48 +1672,88 @@ fn step_to_source(
         )?;
         backend.wait_for_event(&["stopped", "terminated"])
     })();
-
-    if !breakpoint_ids.is_empty() {
-        let ids = breakpoint_ids
-            .iter()
-            .map(usize::to_string)
-            .collect::<Vec<_>>()
-            .join(" ");
+    for id in breakpoint_ids {
         let _ = backend.request(
             "evaluate",
             json!({
-                "expression": format!("`breakpoint delete {ids}"),
+                "expression": format!("`breakpoint delete {id}"),
                 "context": "repl"
             }),
         );
     }
-    let _ = backend.request(
-        "evaluate",
-        json!({"expression": "`breakpoint enable", "context": "repl"}),
-    );
-    result
+    if !suspended_ids.is_empty() {
+        let ids = suspended_ids
+            .iter()
+            .map(i64::to_string)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let _ = backend.request(
+            "evaluate",
+            json!({"expression": format!("`breakpoint enable {ids}"), "context": "repl"}),
+        );
+    }
+    result.map(Some)
 }
 
-fn bounded_native_step(
+fn parse_lldb_breakpoint_id(output: &str) -> Option<usize> {
+    output.lines().find_map(|line| {
+        line.trim()
+            .strip_prefix("Breakpoint ")?
+            .split_once(':')?
+            .0
+            .parse()
+            .ok()
+    })
+}
+
+fn step_to_source(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,
+    breakpoints: &BreakpointManager,
     command: &str,
     thread_id: i64,
 ) -> Result<Value, CliFailure> {
+    if command == "next"
+        && let Some(event) = temporary_sequence_step(backend, provenance, breakpoints, thread_id)?
+    {
+        return Ok(event);
+    }
+    let origin = mapped_stop_location(backend, provenance, thread_id)?;
+    let mut native_command = command;
     for _ in 0..MAX_RAW_STEPS {
         backend.request(
-            command,
+            native_command,
             json!({"threadId": thread_id, "singleThread": true, "granularity": "statement"}),
         )?;
         let event = backend.wait_for_event(&["stopped", "terminated"])?;
         if event["event"] != "stopped" {
             return Ok(event);
         }
-        let frames = backend.request(
-            "stackTrace",
-            json!({"threadId": thread_id, "startFrame": 0, "levels": 1}),
-        )?;
-        if association_for_frame(provenance, &frames["body"]["stackFrames"][0]).is_some() {
+        let reason = event["body"]["reason"].as_str().unwrap_or_default();
+        if !matches!(reason, "step" | "entry" | "") {
+            return Ok(event);
+        }
+        if command == "stepOut" {
+            native_command = "next";
+        }
+        let Some(current) = mapped_stop_location(backend, provenance, thread_id)? else {
+            continue;
+        };
+        let Some(origin) = &origin else {
+            return Ok(event);
+        };
+        let changed_point = current.generated_path != origin.generated_path
+            || current.generated_line != origin.generated_line
+            || current.function_id != origin.function_id;
+        let reached_source_target = match command {
+            "next" => {
+                current.frame_depth < origin.frame_depth
+                    || (current.frame_depth == origin.frame_depth && changed_point)
+            }
+            "stepOut" => current.frame_depth < origin.frame_depth,
+            _ => current.frame_depth > origin.frame_depth || changed_point,
+        };
+        if reached_source_target {
             return Ok(event);
         }
     }
@@ -1393,15 +1766,6 @@ fn bounded_native_step(
         "event": "stopped",
         "body": {"reason": "step", "threadId": thread_id}
     }))
-}
-
-fn parse_lldb_breakpoint_id(output: &str) -> Option<usize> {
-    output
-        .strip_prefix("Breakpoint ")?
-        .split_once(':')?
-        .0
-        .parse()
-        .ok()
 }
 
 fn lldb_quote(value: &str) -> String {

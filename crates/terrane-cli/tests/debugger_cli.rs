@@ -310,7 +310,7 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
         "setBreakpoints",
         json!({
             "source": {"path": fixture.source},
-            "breakpoints": [{"line": 8}],
+            "breakpoints": [{"line": 8}, {"line": 9}],
             "sourceModified": false
         }),
     );
@@ -318,6 +318,12 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     assert!(response["success"].as_bool().unwrap());
     assert!(
         response["body"]["breakpoints"][0]["verified"]
+            .as_bool()
+            .unwrap()
+    );
+    assert_eq!(response["body"]["breakpoints"].as_array().unwrap().len(), 2);
+    assert!(
+        response["body"]["breakpoints"][1]["verified"]
             .as_bool()
             .unwrap()
     );
@@ -354,6 +360,22 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     );
     let stack = dap.response(stack);
     assert_eq!(stack["body"]["stackFrames"][0]["line"], 9);
+    let clear_breakpoints = dap.send(
+        "setBreakpoints",
+        json!({
+            "source": {"path": fixture.source},
+            "breakpoints": [],
+            "sourceModified": false
+        }),
+    );
+    let response = dap.response(clear_breakpoints);
+    assert!(response["success"].as_bool().unwrap());
+    assert!(
+        response["body"]["breakpoints"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
 
     let continue_request = dap.send("continue", json!({"threadId": thread}));
     let (_, _, messages) = dap.response_and_event(continue_request, "terminated");
@@ -467,7 +489,12 @@ fn cli_steps_across_async_function_boundaries_in_source_space() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(output.stdout, b"42\r\n");
+    assert_eq!(
+        output.stdout,
+        b"42\r\n",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("/async-debugger::main"), "{stderr}");
     assert!(stderr.contains("#0"), "{stderr}");
@@ -516,4 +543,113 @@ fn cli_next_returns_from_a_helpers_final_sequence_point() {
     assert!(stderr.contains("/debugger::answer"), "{stderr}");
     assert!(stderr.contains("/debugger::main"), "{stderr}");
     assert!(stderr.contains(":6"), "{stderr}");
+}
+
+#[test]
+fn cli_preserves_breakpoints_and_reenters_loop_sequence_points() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace loop\n",
+            "from /core/output import print\n",
+            "function helper int;\n",
+            "  x = 1\n",
+            "  return x + 1\n",
+            "function main;\n",
+            "  total = 0\n",
+            "  i = 0\n",
+            "  while i < 3\n",
+            "    total = total + i\n",
+            "    i = i + 1\n",
+            "  y = helper;\n",
+            "  print; total\n",
+            "  print; y\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:10\nbreak {}:13\ncontinue\nframes\nnext\nframes\nnext\nframes\nnext\nframes\ndisable 1\ncontinue\nframes\nbreakpoints\ndelete all\ncontinue\n",
+        fixture.source.display(),
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"3\r\n2\r\n",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.matches(":10").count() >= 2, "{stderr}");
+    assert!(stderr.contains(":11"), "{stderr}");
+    assert!(stderr.contains(":9"), "{stderr}");
+    assert!(stderr.contains(":13"), "{stderr}");
+    assert!(stderr.contains("#1   disabled breakpoint"), "{stderr}");
+    assert!(stderr.contains("#2   verified breakpoint"), "{stderr}");
+}
+
+#[test]
+fn cli_step_out_returns_to_the_exact_caller() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace depth\n",
+            "from /core/output import print\n",
+            "function inner int;\n",
+            "  return 2\n",
+            "function outer int;\n",
+            "  value = inner;\n",
+            "  return value\n",
+            "function main;\n",
+            "  before = 1\n",
+            "  result = outer;\n",
+            "  print; before + result\n",
+        ),
+    )
+    .unwrap();
+    let commands = format!(
+        "break {}:6\ncontinue\nout\nframes\ncontinue\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"3\r\n");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("/depth::outer"), "{stderr}");
+    assert!(stderr.contains("/depth::main"), "{stderr}");
+    assert!(stderr.contains(":11"), "{stderr}");
+    assert!(!stderr.contains("/depth::inner at"), "{stderr}");
 }
