@@ -1,6 +1,7 @@
 mod bundled;
 pub mod cargo_toolchain;
 mod compiler;
+pub mod debugging;
 pub mod diagnostic;
 mod execution;
 pub mod highlight;
@@ -21,7 +22,7 @@ pub mod types;
 
 mod projection_oracle;
 pub use compiler::{
-    Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile,
+    Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,
     compile_test_package, compile_test_package_tiers, compile_with_options, discover_test_package,
 };

@@ -1576,6 +1576,8 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 name = "terrane-cli"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "num-bigint",
  "regex",
  "serde_json",
  "sha2",

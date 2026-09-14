@@ -65,7 +65,7 @@ fn unsupported_reference_address_shape_returns_a_lowering_failure() {
     let mut semantic = crate::semantics::analyze(&package).expect("source must pass semantics");
     assert!(replace_reference_operand(&mut semantic.units[0].tree.root));
 
-    let Err(failure) = super::lower(&semantic) else {
+    let Err(failure) = super::lower(&semantic, false) else {
         panic!("unsupported address lowering must not produce a program");
     };
     assert_eq!(

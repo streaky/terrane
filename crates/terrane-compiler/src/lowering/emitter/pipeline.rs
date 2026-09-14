@@ -173,15 +173,19 @@ fn main() {
     output
 }
 
-pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailure> {
-    lower_with_tests(package, None)
+pub(crate) fn lower(
+    package: &SemanticPackage,
+    debug_information: bool,
+) -> Result<Program, LoweringFailure> {
+    lower_with_tests(package, None, debug_information)
 }
 
 pub(crate) fn lower_tests(
     package: &SemanticPackage,
     tests: &[super::super::TestRunnerCase],
+    debug_information: bool,
 ) -> Result<Program, LoweringFailure> {
-    lower_with_tests(package, Some(tests))
+    lower_with_tests(package, Some(tests), debug_information)
 }
 
 #[expect(
@@ -191,6 +195,7 @@ pub(crate) fn lower_tests(
 fn lower_with_tests(
     package: &SemanticPackage,
     tests: Option<&[super::super::TestRunnerCase]>,
+    debug_information: bool,
 ) -> Result<Program, LoweringFailure> {
     debug_assert!(
         package.execution_requirements.is_consistent(),
@@ -672,7 +677,7 @@ fn lower_with_tests(
         .iter()
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
-                let mut emitter = Emitter::new(&registry, package, unit);
+                let mut emitter = Emitter::new(&registry, package, unit, debug_information);
                 for node in &unit.tree.root.children {
                     if node.kind == SyntaxKind::InterfaceDeclaration {
                         emitter.object(node);
@@ -687,7 +692,7 @@ fn lower_with_tests(
                     items: vec![Item::generated(&rust)],
                 });
             }
-            let mut emitter = Emitter::new(&registry, package, unit);
+            let mut emitter = Emitter::new(&registry, package, unit, debug_information);
             emitter.emit_union_types();
             let mut items = Vec::new();
             if !emitter.output.is_empty() {

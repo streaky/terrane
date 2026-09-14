@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Span {
@@ -18,20 +19,21 @@ impl Span {
 pub struct SourceFile {
     id: u32,
     path: PathBuf,
-    text: String,
-    line_starts: Vec<usize>,
+    text: Arc<str>,
+    line_starts: Arc<[usize]>,
 }
 
 impl SourceFile {
     #[must_use]
     pub fn new(id: u32, path: PathBuf, text: String) -> Self {
-        let mut line_starts = vec![0];
-        line_starts.extend(text.match_indices('\n').map(|(offset, _)| offset + 1));
+        let line_starts = std::iter::once(0)
+            .chain(text.match_indices('\n').map(|(offset, _)| offset + 1))
+            .collect::<Vec<_>>();
         Self {
             id,
             path,
-            text,
-            line_starts,
+            text: text.into(),
+            line_starts: line_starts.into(),
         }
     }
 

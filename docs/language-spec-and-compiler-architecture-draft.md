@@ -6083,7 +6083,89 @@ The compiler also retains its lower-level compile-pass, compile-fail, generated-
 and host implementation tests. The Terrane framework is the application-facing test system, not a
 claim that compiler implementation verification itself must be expressed through compiled Terrane.
 
-### 31.6 Conformance suite
+### 31.6 Debugging
+
+Terrane source debugging is an experimental 0.1 tooling surface implemented as a translation
+layer over one selected `lldb-dap`/LLDB backend. LLDB alone owns process launch and attach,
+machine breakpoints, threads, unwinding, registers, memory, and native failure reporting. The
+compiler owns authored-source, generated-Rust, semantic-identity, scope, variable-name, and
+privacy knowledge. The translator does not patch generated Rust, rewrite DWARF, infer semantics
+from emitted names, or silently substitute another native backend.
+
+`terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> [-- arguments]`
+selects the named `terrane-debug-v1` artifact profile shared by Cargo manifest
+emission and provenance: optimization level zero, full debug information, no stripping, and the
+Rust compiler's default inlining behavior at that optimization level. `terrane debug --release` is
+rejected rather than claiming unsupported optimized source fidelity. Authored and generated source
+embedding are independent explicit opt-ins. Its source view supports stable session-local
+mapped-frame selection, bounded source/generated context (falling back to an exact explicitly
+embedded generated snapshot when its build-tree file is unavailable), and bounded recursive
+focused-value expansion. `terrane debug-adapter --stdio` exposes the same translator through DAP
+and writes only framed protocol messages to stdout. Linux x86-64 with LLDB 22 is the selected
+end-to-end host. Launch is supported there; attach is experimental and additionally governed by
+host process policy. Other hosts and optimized or stripped modules report native fidelity with a
+precise reason.
+
+Each build writes deterministic schema `1.2` provenance beside final generated Rust and the
+executable. It records compiler/toolchain/exact-`rustc`-release/sysroot/target identity, an ABI
+recipe bound to that compiler release, and the named artifact profile; manifest, projection-lock,
+logical-source, final-generated-file, and executable hashes; authored/generated associations;
+sequence points; semantic function/scope/binding/object identities; field secrecy; inlining and
+stripping state; and explicit source/build relocation roots. Translation requires matching sidecar,
+executable, generated files, selected source bytes, compiler/schema, selected
+target/toolchain-bound ABI recipe, and every named artifact-profile property. Explicit relocation
+may replace roots for copied-but-identical artifacts but never changes identity; the adapter also
+forwards the recorded-to-relocated build/source mapping to LLDB so native line tables and Terrane
+provenance resolve the same copied artifact. After launch or attach the adapter emits a
+machine-readable `terrane/fidelity` event naming `source` or `native`
+mode and, in source mode, the selected target, ABI recipe, artifact profile, exact Rust compiler
+release, and inlining status. A mismatch disables Terrane translation with a diagnostic while raw
+native debugging remains available.
+
+Source breakpoints resolve through compiler-declared executable sequence points in final formatted
+Rust and preserve every native location for a source point. Relative paths resolve from the
+debugger invocation directory before the package root. A non-executable line may adjust only
+forward to the nearest declared point inside the same exact lexical scope; otherwise it remains
+pending and unverified. Resolved Terrane and generated locations are both reported. Mapped frames
+use canonical Terrane names, logical locations, and session-local indices. Generated, runtime, and
+native frames remain explicit escape hatches. `next` targets a different authored sequence point
+in the selected frame or its caller, including loop re-entry; `stepOut` requires an exact native
+frame-depth decrease. Leaving a breakpoint suspends the user breakpoint at the current native
+location while preserving every other user breakpoint. Up to 512 temporary source targets are
+installed and removed in batched LLDB requests. Larger target sets fall back without truncation to
+at most 64 native steps before the native stop and limitation are exposed.
+
+Variables use compiler lexical names selected by the exact stop, binding visibility range, lexical
+scope ancestry, and innermost shadow. On the selected ABI recipe the translator presents exact
+fixed scalars, adaptive integers across small/wide/arbitrary-precision tiers, and bounded
+strings/bytes without invoking arbitrary debuggee methods. Without that recipe it preserves raw
+backend scalar values rather than guessing a layout. Object and collection children stay lazy;
+focused value expansion is depth-, cycle-, and count-bounded. Responses are bounded to 100 values
+plus an explicit continuation marker and 4096 displayed bytes, and distinguish optimized-out,
+unavailable, and truncated states. The adapter does not claim a distinct moved-value state because
+the current LLDB data does not prove source ownership transitions. Secret fields are redacted
+before frontend exposure and lose child, memory, and evaluation references; explicit raw inspection
+may expose physical memory. The debugger imports Rust LLDB formatters only from the exact sysroot
+recorded in provenance, before client initialization commands; formatter absence is non-fatal.
+
+DAP initialization produces exactly one immediate `initialized` event. Backend responses are
+correlated and retained even when another request is currently expected; delayed launch/attach
+results are validated after configuration completes. Variable handles are invalidated on resume.
+Request ingress remains serialized, so cancellation is not advertised. Client disconnect
+terminates a launched debuggee by default and never implicitly kills an attached process. Thirty
+Linux x86-64/LLDB 22 integration scenarios cover pre- and post-launch breakpoint ordering,
+standard DAP step-in/step-out, recursive step-over, fatal native stops, queued disconnect, delayed
+launch failure, relocated exact builds, host-policy attach outcomes, split generated support,
+shadowed locals, relative invocation paths, debugger-like debuggee output isolation, explicit
+temporary-breakpoint cleanup, and more than 500 sequence points. Conditional breakpoints,
+logpoints, restart, Terrane-language
+expression evaluation, DWARF rewriting, alternate native backends, and time-travel debugging are
+not supported. Direct isolated test-case debugging is also deferred:
+before it can be exposed, the test runner must separately specify debugger ownership, case
+selection, context, timeouts, temporary-directory lifetime, and reporting when the debugger
+replaces or controls the runner supervisor.
+
+### 31.7 Conformance suite
 
 The language needs a public conformance corpus covering:
 
@@ -6107,7 +6189,7 @@ The conformance suite should contain many minimal Terrane snippets, each isolati
 
 Not every minimal snapshot needs its own Cargo invocation. The harness may combine independent accepted snippets into deterministic generated crates for batched `cargo check`, while cases whose contract depends on crate structure, linking, diagnostics, or runtime behaviour remain individually compiled or executed. Snapshot agreement proves what the compiler emitted; Rust compilation proves that emission is valid; selected execution tests remain the authority for observable language semantics.
 
-### 31.7 Fuzzing
+### 31.8 Fuzzing
 
 The lexer/parser, importer request decoder, source-map mapper, and diagnostic translator should be fuzzed early.
 

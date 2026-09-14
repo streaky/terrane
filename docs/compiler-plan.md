@@ -206,129 +206,325 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.2 — LLDB-backed Terrane source debugging
 
-Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
-Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
-native process control, unwinding, registers, memory, and machine breakpoints to a selected
-`lldb-dap`/LLDB backend.
+### Milestone 30.3 — Native profiling with compiler-owned source attribution
 
-Milestone 30.0 supplies snapshot, symbol/descriptor, query, and source-to-final-Rust identities.
-Milestone 30.1 supplies repeatable executable fixtures, process isolation, and test discovery.
-Existing runtime source sites and `rust_ir::SourceAssociation` ranges are inputs, not sufficient
-debugger metadata: this milestone adds build identity, user-visible sequence points, lexical
-scopes, binding recipes, and async/internal provenance roles.
+The source debugger proves the identity path from authored Terrane through final generated Rust to
+the exact native executable. Reuse that path to explain representative production performance
+without turning the debugger into a profiler or inventing Terrane-only collectors. Existing native
+tools own measurement; Terrane owns exact-build validation, semantic attribution, accounting, the
+versioned artifact, and one source-first presentation layer.
 
-#### Commands, build identity, and provenance
+`terrane profile` is the single user-facing tool and `.trnprof` is the single typed artifact family
+for CPU, allocation, retention, and process-memory evidence. A flame graph is one shared view over
+weighted stacks, not the stored evidence model and not a collector. Milestone 30.3 delivers the
+first vertical slice—optimized CPU sampling on Linux x86-64—and establishes the common contracts;
+milestone 30.4 adds allocation/retention and process-memory evidence without introducing another
+profiling command, artifact, or attribution implementation. Later off-CPU samples, hardware
+counters, and async runtime events must extend the same typed evidence envelope but are not
+advertised until separately captured and exercised.
+
+#### Command and collection boundary
 
 Deliver:
 
-- `terrane debug <source-or-package> [-- program-arguments]` to build an unoptimized
-  debug-information-bearing artifact and launch it through the translation engine;
-- `terrane debug-adapter --stdio` for DAP clients, with protocol stdout isolated from debuggee
-  stdout/stderr and adapter/backend logs;
-- explicit attach support only on hosts where LLDB and permissions are exercised, with launch and
-  attach termination policy reported rather than inferred; and
-- transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
-  registers, and backend LLDB requests.
+- `terrane profile record --cpu [--output <profile.trnprof>] <source-or-package> [-- arguments]`
+  builds a representative optimized artifact, runs it under the selected native sampler, preserves
+  output and exit status, and writes a profile even when the workload exits unsuccessfully or is
+  interrupted after usable evidence has been collected;
+- `terrane profile show <profile.trnprof> [--focus <source>:<line>]` for progressive source-first
+  inspection; `--generated` and `--native` expose lower layers, while `--format text|json` and
+  `--limit <rows>` provide bounded human or machine-readable output for editor and CI consumers;
+- one selected existing native CPU-sampling backend proven end to end on Linux x86-64, with
+  explicit detection, version, permissions, unsupported-host diagnostics, and collection failure
+  behavior; evaluate Linux `perf` first, but select it only after a measured fixture proves the
+  required stack, module-relative address, inlining, loss-accounting, and process-lifecycle
+  behavior; and
+- explicit collection conditions in every report: compiler and sampler versions, host/target,
+  optimized build profile, workload and arguments policy, included processes/threads, sample
+  period/frequency, elapsed and active collection time, warmup if any, process exit, lost samples,
+  and relevant backend settings.
 
-Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
-compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
-projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
-native executable/module identity. Record relocation/path-prefix mappings separately from identity.
-Native addresses are resolved by LLDB against the loaded module and load address, never stored as
-portable addresses.
+Profiling must run the artifact whose identity is recorded. It may not rebuild between collection
+and attribution, combine samples from merely similar binaries, or use an unoptimized debugger
+artifact as representative performance evidence. Define a dedicated profiling build policy from
+the release profile: preserve optimization, ThinLTO, panic policy, and codegen settings while
+retaining only the native location and inlining information the selected backend demonstrably
+needs. Measure and record any size, startup, or runtime effect of that retained information.
 
-Extend final `RenderedFile` source associations so entries can represent one-to-many source/Rust
-ranges, generated code with multiple source causes, source-free plumbing, stable snapshot-scoped
-function/binding/type identities, lexical scopes, user-visible sequence points, and generated,
-runtime, cleanup, or hidden roles. Associations must describe the final application and support
-files compiled by rustc, not pre-format offsets.
+The profiler owns its launched process tree, signal forwarding, output draining, and cleanup. Reuse
+the bounded process-supervision machinery where its ownership contract matches; do not route
+profiling through the test runner or silently inherit test deadlines, temporary-directory policy,
+or output truncation. Attaching to an existing process, system-wide profiling, elevated collection,
+and remote hosts are separate capabilities and remain unsupported in this milestone.
 
-On launch or attach, validate executable/module and generated-file identities before translation.
-A missing or mismatched sidecar disables Terrane translation with a clear diagnostic while
-preserving raw native debugging. Changed source is reported as stale or displayed from an
-explicitly selected build-time snapshot; never place current-source breakpoints through an older
-binary's plausible-looking map. Embedding source is opt-in because source and build paths may be
-sensitive.
+#### Exact-build profile artifact
 
-#### Breakpoints, frames, and stepping
+Factor the debugger's compiler-owned build identity into a shared provenance envelope rather than
+parsing a debugger report or creating a second definition of source/build identity. A versioned
+`.trnprof` artifact records:
 
-Map one requested Terrane source breakpoint to every executable native location for its documented
-sequence point. A non-executable line may adjust only to a declared nearby sequence point in the
-same function/scope, reporting requested and resolved locations, or remain unverified with a useful
-reason. Preserve unresolved breakpoints for later module loads. User breakpoints and fatal/native
-stops are never hidden or removed by source-level stepping.
+- a declared evidence kind and unit whose schema is shared by CPU and later memory captures;
+- compiler, schema, Rust toolchain, target, ABI recipe, optimization/codegen profile, manifest,
+  projection lock, support component, generated-file, executable, and native module identities;
+- source hashes and optional explicitly requested embedded snapshots, with path relocation kept
+  separate from identity;
+- the selected collector and its raw collection configuration;
+- normalized native evidence as process/thread identity, module identity, load-relative instruction
+  locations, and sampled stacks, retaining enough raw data to re-run attribution and inspect native
+  frames; and
+- the attribution schema/version used for any cached aggregates.
 
-Translate stopped frames to logical Terrane source paths, spans, namespace-qualified function
-identity, and inlining status. Generated/runtime-only frames are hidden by default but remain
-inspectable. The first complete profile is unoptimized; optimized or stripped artifacts report
-precise limitations instead of fabricating source frames.
+Captured samples are inherently nondeterministic; the artifact promises canonical encoding,
+stable identities, bounded data, and reproducible re-attribution of the same capture, not
+byte-identical profiles from repeated runs. Absolute process addresses are never portable profile
+identity. Validate every loaded module and generated-file identity before source attribution.
+Relocation of an identical artifact is allowed; changed source, executable, generated Rust,
+toolchain, profile, or projection inputs produce an explicit reduced-fidelity result rather than a
+plausible-looking source report. Usable raw native evidence remains available when source
+translation is rejected.
 
-`step over`, `step in`, and `step out` operate on executed sequence-point transitions and selected
-thread/frame depth, not merely changed line numbers. Loop re-entry at the same source point may
-therefore stop again. Temporary native breakpoints belong to one step request and are removed on
-completion, interruption, exception, disconnect, or exit. Bound repeated raw stepping; if no
-source progress is available, expose the native stop instead of hanging behind frame filtering.
+Profile artifacts can disclose source paths, symbol names, arguments, and timing. Source embedding
+is opt-in, secret values are never sampled or added by compiler metadata, arguments are retained
+only under an explicit policy, and reports state which potentially sensitive fields they contain.
 
-Native frames are not logical Terrane task stacks. An `await` may resume in another poll frame or
-executor thread. The initial debugger provides honest mapped stops in async code but does not
-invent a logical continuation stack. Task-aware async stepping requires explicit compiler/runtime
-task and continuation identities and a measured debug-profile cost before it is advertised.
-Authored `finally`/`destruct` and projected finalizer code remains user-visible where sourced.
-When Milestones 29.1 and 29.3 are implemented, `select` construction, winner, loser drain, deferred
-cancellation, timer, and signal regions receive distinct provenance roles.
+#### Attribution and accounting
 
-#### Variables, privacy, and DAP lifecycle
+Symbolize native instruction locations to final generated file/line and inline call-site records,
+then join them to final-file provenance associations and semantic identities. Never infer Terrane
+ownership from demangled Rust names, path similarity, display line alone, or a nearby association.
+Default grouping uses the widest meaningful authored construct represented by a stable tuple such
+as source identity, authored byte span, function identity, and semantic operation/association role.
+One Terrane operation may own several generated Rust ranges; those ranges form one source-level
+cost center rather than several unrelated hot lines.
 
-Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
-finite unions, value/COW collections, references, and projected values only as exact layouts are
-proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
-location recipes. Report `moved`, `out of scope`, `optimized out`, `unsupported layout`, or
-`unavailable debug information`; never substitute `none`, zero, or a guessed Rust temporary.
+Each captured event has exactly one exclusive accounting outcome:
 
-Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
-`truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
-detection, and lazy children. Honor secret metadata in ordinary summaries. Raw memory/native views
-are an explicit privileged escape hatch, not a promise to conceal secrets from someone controlling
-the debugger.
+- **exact authored attribution:** one most-specific valid Terrane association owns it;
+- **shared or ambiguous attribution:** optimization leaves multiple valid authored owners;
+- **runtime-associated:** generated support work has an explicit authored semantic parent;
+- **generated-only:** generated/runtime work has no valid authored owner;
+- **native-only:** native evidence cannot be joined to generated provenance; or
+- **unavailable:** the event cannot be decoded or validated under the recorded profile.
 
-The DAP layer owns initialization order, request/response correlation, advertised capabilities,
-cancellation, stopped/continued/terminated events, and lifetime of source/frame/variable handles.
-Client disconnect never implicitly kills an attached process; launched-process policy is explicit.
-Only operations exercised end to end with the selected backend are advertised. CLI and DAP share
-one translation engine.
+Overlapping or one-to-many associations never multiply exclusive cost. Other contributing spans
+remain related-cause links. Inclusive views may aggregate exclusive cost through semantic parents
+and sampled call stacks, but must be labelled as overlapping and must never be presented as another
+partition of the total. For every unfiltered profile:
 
-#### Delivery evidence and exclusions
+```text
+exact authored
++ shared or ambiguous
++ runtime-associated
++ generated-only
++ native-only
++ unavailable
+= all captured events
+```
 
-Deliver in staged vertical slices:
+Unreadable captured events belong in the unavailable bucket. Backend-reported lost events were
+never captured and cannot be attributed; retain them as separate collection-loss accounting,
+report them alongside the captured-event denominator, and never present the captured distribution
+as all attempted observations. The primary CPU-sampling unit is event count and percentage of
+captured events. Any derived CPU-time estimate must state the recorded sampling period and remain
+labelled as an estimate; elapsed wall-clock time is context, not an interchangeable cost unit.
+Filtering and focusing may change the displayed subset but not the recorded whole-profile totals.
+Every source row can expand to its constituent generated ranges, native symbols/instructions,
+attribution-quality labels, related causes, exclusive cost, and inclusive cost.
 
-1. prove final-file provenance and build/stale identity without changing program behavior;
-2. launch one unoptimized fixture, hit a Terrane source breakpoint, inspect a scalar, and open the
-   exact generated Rust;
-3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
-   native stops, and temporary-breakpoint cleanup;
-4. add bounded structured values plus explicit unavailable/moved states, attach, relocation, and
-   reconnect; and
-5. add async continuation/task presentation only after explicit identity instrumentation exists.
+Inlining must not manufacture a source call that did not execute. Reconstruct an inline chain only
+from validated native inline records joined to exact compiler provenance; otherwise attribute the
+instruction to the most-specific supported association and mark the uncertain caller relationship.
+Folded or eliminated operations may have no sampled identity. Async stacks are native task-poll
+stacks unless compiler/runtime continuation identity explicitly proves a logical relationship;
+generated future names alone are not Terrane task provenance.
 
-Run the actual selected debugger against disposable compiled fixtures for each advertised
-host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
-paths, shadowed/moved locals, stripped and optimized output, a runtime/internal fatal stop, client
-disconnect during a step, and debuggee output while DAP traffic remains valid. At minimum the first
-slice must run on the release's Linux debugger host; macOS/Windows support is advertised only after
-equivalent end-to-end evidence exists.
+#### Shared profile presentation
 
-The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
-Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
-backend. Conditional breakpoints/logpoints remain unavailable until their expression language and
-side-effect contract are separately settled.
+All evidence kinds use the same semantic frame identities, source/generated/native expansion,
+quality labels, filtering, privacy policy, and bounded text/JSON response envelope. Tables and call
+trees remain the default diagnostic views. A shared flame-graph renderer consumes typed weighted
+stacks and labels the weight everywhere: CPU sample count or estimated CPU time in 30.3; allocated
+bytes, allocation count, or retained bytes in 30.4. It must never compare unlike units on one width
+scale or describe allocation volume as memory retained.
 
-Exit criterion: source breakpoints, mapped stack frames, sequence-point stepping, honest bounded
-value inspection, stale-artifact rejection, raw native escape hatches, and DAP/CLI lifecycle work
-against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
-debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
-suite pass; and optimized/unsupported cases report limitations rather than false fidelity.
+Flame graphs are derived views. The `.trnprof` artifact retains normalized events/stacks so a later
+viewer can change semantic grouping, switch exclusive/inclusive cost, recalculate retained memory,
+inspect ambiguity, or expand generated/native evidence without recollecting. A source frame may
+collapse several generated/native frames by stable semantic identity and must expand back to those
+constituents. Differential flame graphs require two separately valid exact-build captures and
+preserve each capture's denominators, units, attribution quality, and statistical limitations.
+
+#### Workflow, evidence, and exclusions
+
+The default report answers source-level questions first: hottest authored spans/functions,
+exclusive versus inclusive cost, attribution quality, and generated/runtime overhead. A focused
+row then exposes generated Rust and native detail. Keep debugger and profiler roles explicit:
+debugging validates selected live state in an intentionally unoptimized artifact; profiling
+establishes where representative optimized execution spends time or resources.
+
+Deliver in vertical slices:
+
+1. select the native sampler with a disposable optimized fixture and prove exact executable,
+   module, address, generated-location, and source-association joins;
+2. define the shared provenance and `.trnprof` schemas, record a capture, and reject stale or
+   mismatched inputs while retaining raw native evidence;
+3. implement exclusive attribution, quality buckets, accounting invariants, and source/function
+   aggregation before adding inclusive call-path views;
+4. add progressive generated/native expansion, relocation, bounded machine-readable output, and
+   honest inline/async presentation; and
+5. run a before/after performance investigation where an intentionally excessive Terrane loop
+   bound is dominant in the first optimized capture and the corrected exact build changes samples,
+   runtime, executable identity, output, and attribution coherently.
+
+Use deterministic synthetic native-event fixtures for exact aggregation, overlap, inlining,
+relocation, stale identity, and accounting tests. Use the real selected sampler for end-to-end
+evidence, but assert robust dominance/range properties rather than exact sample counts. Cover
+multiple generated ranges for one source operation, ambiguous ownership, generated/runtime/native
+only buckets, an external dependency frame, Unicode and relocated paths, an unsuccessful workload,
+interruption and cleanup, backend unavailability, lost samples, and bounded large captures. Record
+the profiling build's overhead and the backend's total-event reconciliation.
+
+This milestone does not itself collect allocation, retention, or process-memory evidence; milestone
+30.4 adds those evidence kinds through the same tool, artifact, attribution, and presentation
+contracts. It also does not add hardware-counter interpretation, off-CPU or wall-clock attribution,
+statistical comparison/regression policy, PGO, continuous or production telemetry, distributed
+traces, logical async task reconstruction, system-wide/privileged collection, or another CPU
+backend. Those capabilities must reuse the typed event and attribution model and earn separate
+backend, overhead, privacy, and end-to-end evidence.
+
+Exit criterion: one representative optimized Terrane workload can be captured with
+`terrane profile record --cpu` through the selected Linux x86-64 native sampler, bound to its exact
+compiler/toolchain/source/generated/executable identity, attributed without double counting into
+source-first semantic groups plus explicit non-source and reduced-fidelity buckets, rendered as a
+table, call tree, and correctly labelled CPU flame graph, expanded into generated and native
+evidence, serialized and re-read through a bounded versioned profile artifact, and compared
+before/after a source fix. Real-backend fixtures, deterministic attribution tests, strict Clippy,
+the complete conformance matrix, and the measured workspace suite pass; documentation clearly
+distinguishes debugger hypothesis validation from profiler measurement and does not advertise
+deferred evidence kinds.
+
+### Milestone 30.4 — Allocation and process-memory profiling in the unified profiler
+
+Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
+mapper, or flame-graph implementation. CPU cost, allocation traffic, retained heap, and resident
+process memory answer different questions, so they share identity and presentation machinery while
+retaining distinct collectors, event schemas, units, accounting rules, and fidelity statements.
+
+#### Collection and artifact boundary
+
+Deliver:
+
+- `terrane profile record --allocations <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for allocation/free evidence and derived allocation, lifetime,
+  live, retained, and peak-live metrics;
+- `terrane profile record --memory-timeline <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for bounded RSS/PSS and operating-system memory counters over time;
+- exactly one primary evidence kind per version-one capture—`--cpu`, `--allocations`, or
+  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; an allocation
+  capture may include a clearly auxiliary process-memory timeline when the selected backend and
+  sampling policy can do so without changing its primary accounting;
+- one selected existing Linux x86-64 allocation collector, evaluated with `heaptrack` as the first
+  candidate, plus the operating-system process-memory interface selected through a measured spike;
+  report backend availability, permissions, interposition/instrumentation, allocator changes,
+  sampling interval, event loss, stack quality, and workload overhead; and
+- the existing `profile show`, source table, call tree, flame graph, generated/native expansion,
+  filtering, bounded JSON, relocation, stale-artifact fallback, and privacy behavior for the new
+  typed evidence.
+
+Prefer an external collector that observes the representative optimized executable. If the selected
+allocation backend interposes on or replaces the allocator, record that fact and every changed
+module/build/runtime input, measure its effect, and describe the capture as instrumented rather than
+production-identical. Do not add compiler allocator hooks merely to simplify collection. The
+profiler retains the same process-tree, signal, output, unsuccessful-exit, interruption, and cleanup
+ownership established by 30.3.
+
+Extend `.trnprof` with versioned allocation events containing a capture-local allocation identity,
+size, alignment when available, process/thread, monotonic ordering or timestamp, allocation stack,
+and matched reallocation/free transition. Raw addresses are observations, not stable allocation
+identity, because allocators reuse them. Preserve enough normalized transitions to recompute live
+sets and selected snapshots. Process-memory samples record timestamp, process, RSS, PSS where
+available, relevant private/shared/anonymous/file-backed counters, page faults where available,
+sampling interval, missed intervals, and operating-system definitions. Keep unavailable fields
+explicit rather than substituting a nearby metric.
+
+#### Allocation, retention, and process-memory semantics
+
+The allocation profile offers separately labelled metrics:
+
+- **allocation count** and **allocated bytes** for traffic;
+- **freed bytes** and allocation lifetime distributions for churn;
+- **live bytes** at a selected point;
+- **retained bytes** at normal exit or an explicit snapshot;
+- **peak-live bytes** and the allocation sites contributing to the selected peak; and
+- **unmatched/unavailable transitions** when collection loss prevents a valid lifetime.
+
+Allocation-site stacks own allocated and retained bytes; a later reader or mutator does not become
+the allocation owner without separately captured access evidence. Reallocation has one documented
+transition rule and may not count the unchanged portion twice. An allocation still live at exit is
+“retained at exit,” not automatically a leak; leak claims require a separate lifetime/root policy.
+Zero-size allocations, allocator metadata, mappings, stacks, code pages, shared libraries, runtime
+arenas, and fragmentation remain visible in their supported native/runtime/process buckets rather
+than being forced onto authored source.
+
+Apply the 30.3 exact-build join and attribution-quality buckets to allocation stacks. For each
+complete allocation capture:
+
+```text
+tracked live bytes at point T
+= allocated bytes through T
+- freed bytes through T
++ documented reallocation adjustment
+```
+
+Reconcile allocation count and byte totals independently. Lost or unmatched events sit outside the
+complete-transition invariant and make retained/peak results explicitly partial. Exclusive source
+cost assigns each allocation event once; inclusive call-path and semantic-parent views overlap and
+are labelled. Allocation-count, allocated-byte, live-byte, and retained-byte flame graphs are
+different views with different widths even when they use the same stack topology.
+
+RSS/PSS is a time series, not an allocation stack metric. Present current/peak RSS and PSS with
+timestamps and sampling resolution. When an allocation capture also has a memory timeline, compare
+tracked live bytes with process memory as separate series and expose the unattributed gap; never
+force that gap into allocation sites or claim that a sampled RSS maximum is the exact instantaneous
+peak. A timeline uses charts/tables rather than fabricating stack-shaped ownership, although its
+selected time may choose the live-allocation snapshot rendered by the shared flame-graph viewer.
+
+#### Evidence and exclusions
+
+Use deterministic synthetic event streams for allocation/free/reallocation pairing, address reuse,
+loss, snapshots, peak selection, lifetime buckets, source ambiguity, runtime/native allocations,
+and every byte/count invariant. Real-backend scenarios distinguish:
+
+- a high-allocation, low-retention workload from a low-allocation, high-retention workload;
+- temporary allocation churn from the allocation sites responsible for peak-live memory;
+- allocator-tracked live bytes from RSS/PSS and their honestly unattributed difference;
+- Terrane-authored allocation sites from compiler runtime and external native-library sites; and
+- an exact capture from relocated, stale-source, mismatched-executable, interrupted, unsuccessful,
+  unsupported-host, and backend-unavailable cases.
+
+Exercise multiple threads, nested/recursive allocation stacks, zero-size and reallocation behavior,
+Unicode/relocated paths, bounded large captures, output/argument privacy, sampler loss, and cleanup.
+Measure collector overhead and any allocator/interposition effect against the same optimized
+workload without collection. The report and tutorial must teach which question each metric answers
+and show the same semantic stack rendered under CPU samples, allocated bytes, and retained bytes
+without implying that the widths are comparable.
+
+This milestone does not add garbage-collector reachability, object/reference-graph retention,
+use-after-free or leak diagnosis, memory-access attribution, cache/bandwidth/latency counters, heap
+dump browsing, platform allocator replacement, Windows/macOS collectors, continuous production
+telemetry, or simultaneous multi-backend recording. These remain separate evidence/backends rather
+than hidden meanings of “memory usage.”
+
+Exit criterion: the same `terrane profile` command and `.trnprof` reader can capture and present one
+real optimized allocation workload and one process-memory timeline on Linux x86-64; distinguish
+allocation traffic, churn, live/retained/peak-live bytes, and RSS/PSS; uphold event and byte
+accounting or mark partial evidence; attribute supported allocation stacks through exact Terrane
+provenance; render correctly labelled table, call-tree, timeline, and flame-graph views; retain
+generated/native expansion and raw evidence; and demonstrate high-churn and high-retention programs
+producing meaningfully different reports. Deterministic aggregation tests, real-backend fixtures,
+overhead measurements, strict Clippy, the complete conformance matrix, and the measured workspace
+suite pass.
 
 ### Milestone 32 — First-version hardening and release gate
 
@@ -377,8 +573,11 @@ The release pipeline must prove, from a clean checkout:
 7. build every file under `examples/`;
 8. run `terrane rust` twice for selected cases and compare generated artifacts byte-for-byte;
 9. verify no test enumerated, parsed, or built anything under `demos/`;
-10. package the `terrane` executable and install that artifact into a second clean environment;
-11. compile and run `examples/build-report.trn` using only the installed artifact and Rust toolchain prerequisites.
+10. record and show optimized CPU, allocation, and process-memory profiling fixtures; verify their
+    exact-build attribution, metric-specific accounting, and correctly labelled flame-graph or
+    timeline views; expand one source cost center into generated and native evidence;
+11. package the `terrane` executable and install that artifact into a second clean environment;
+12. compile and run `examples/build-report.trn` using only the installed artifact and Rust toolchain prerequisites.
 
 ## 9. Initial feature boundary
 
@@ -414,6 +613,8 @@ The release pipeline must prove, from a clean checkout:
 - secure and pseudo-random sources, hex and base64 codecs, digests and MACs, UUIDs, and bounded compression;
 - networking addresses, DNS, TCP and UDP resources, and validated TLS;
 - structured logging over profile sinks;
+- LLDB-backed source debugging and one unified compiler-attributed profiler for native CPU,
+  allocation/retention, and process-memory evidence over exact build provenance;
 - direct Rust dependency declaration with a locked Cargo graph, the `reqwest::blocking` slice, and resolution-aware editor integration.
 
 ### Explicitly deferred
@@ -428,7 +629,8 @@ The release pipeline must prove, from a clean checkout:
 - custom declaration modifiers and package-defined type constructors;
 - custom importers and registries beyond the locked Cargo graph version one requires;
 - C ABI export and foreign-runtime adapters, including Python;
-- debugger integration, tracing, and profiling beyond the retained reflection metadata;
+- tracing, off-CPU/wall-clock attribution, hardware-counter interpretation, memory-access
+  attribution, and profiling evidence beyond the initial CPU and memory slices;
 - stateful hot-code replacement and time-travel or replay;
 - locale-policy-rich text APIs until deterministic policy objects are specified;
 - `no_std`, embedded, firmware, and kernel compilation.
@@ -537,15 +739,9 @@ prototype evidence because their surrounding unsupported constructs confound the
 
 Section 7 is the authoritative remaining-work list. In milestone order, the open work is:
 
-- add efficient keyed map removal and stable ordered list traversal (milestone 29.0);
-- add deterministic, fair, heterogeneous asynchronous selection with structured loser cleanup
-  (milestone 29.1);
-- add native exact clocks, wake-driven timers/tickers, typed deadlines, and semantic process-signal
-  subscriptions (milestone 29.3);
-- establish compiler-backed source intelligence, structural querying/editing, source formatting,
-  and consolidated language-server analysis (milestone 30.0);
-- add LLDB-backed Terrane source debugging with build-bound provenance and shared DAP/CLI
-  translation (milestone 30.2);
+- add compiler-attributed native CPU profiling over representative optimized artifacts and the
+  shared profile artifact/presentation model (milestone 30.3);
+- add allocation/retention and process-memory evidence to the unified profiler (milestone 30.4);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
@@ -3918,3 +4114,163 @@ Completion evidence:
 - the bounded-parallel workspace scorecard at `74e1b06f` recorded 1,084 passed timings, zero
   failures, and zero ignored tests, with synchronized README, full/concise specifications,
   repository guidance, reference manual, and tutorial material.
+
+### Milestone 30.2 — LLDB-backed Terrane source debugging
+**Status:** completed on `lldb-backed-source-debugging`.
+
+Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
+Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
+native process control, unwinding, registers, memory, and machine breakpoints to a selected
+`lldb-dap`/LLDB backend.
+
+Milestone 30.0 supplies snapshot, symbol/descriptor, query, and source-to-final-Rust identities.
+Milestone 30.1 supplies repeatable executable fixtures, process isolation, and test discovery.
+Existing runtime source sites and `rust_ir::SourceAssociation` ranges are inputs, not sufficient
+debugger metadata: this milestone adds build identity, user-visible sequence points, lexical
+scopes, binding recipes, and async/internal provenance roles.
+
+#### Commands, build identity, and provenance
+
+Deliver:
+
+- `terrane debug <source-or-package> [-- program-arguments]` to build an unoptimized
+  debug-information-bearing artifact and launch it through the translation engine;
+- `terrane debug-adapter --stdio` for DAP clients, with protocol stdout isolated from debuggee
+  stdout/stderr and adapter/backend logs;
+- explicit attach support only on hosts where LLDB and permissions are exercised, with launch and
+  attach termination policy reported rather than inferred; and
+- transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
+  registers, and backend LLDB requests.
+
+Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
+compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
+projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
+native executable/module identity. Record relocation/path-prefix mappings separately from identity.
+Native addresses are resolved by LLDB against the loaded module and load address, never stored as
+portable addresses.
+
+Extend final `RenderedFile` source associations so entries can represent one-to-many source/Rust
+ranges, generated code with multiple source causes, source-free plumbing, stable snapshot-scoped
+function/binding/type identities, lexical scopes, user-visible sequence points, and generated,
+runtime, cleanup, or hidden roles. Associations must describe the final application and support
+files compiled by rustc, not pre-format offsets.
+
+On launch or attach, validate executable/module and generated-file identities before translation.
+A missing or mismatched sidecar disables Terrane translation with a clear diagnostic while
+preserving raw native debugging. Changed source is reported as stale or displayed from an
+explicitly selected build-time snapshot; never place current-source breakpoints through an older
+binary's plausible-looking map. Embedding source is opt-in because source and build paths may be
+sensitive.
+
+#### Breakpoints, frames, and stepping
+
+Map one requested Terrane source breakpoint to every executable native location for its documented
+sequence point. A non-executable line may adjust only to a declared nearby sequence point in the
+same function/scope, reporting requested and resolved locations, or remain unverified with a useful
+reason. Preserve unresolved breakpoints for later module loads. User breakpoints and fatal/native
+stops are never hidden or removed by source-level stepping.
+
+Translate stopped frames to logical Terrane source paths, spans, namespace-qualified function
+identity, and inlining status. Generated/runtime-only frames are hidden by default but remain
+inspectable. The first complete profile is unoptimized; optimized or stripped artifacts report
+precise limitations instead of fabricating source frames.
+
+`step over`, `step in`, and `step out` operate on executed sequence-point transitions and selected
+thread/frame depth, not merely changed line numbers. Loop re-entry at the same source point may
+therefore stop again. Temporary native breakpoints belong to one step request and are removed on
+completion, interruption, exception, disconnect, or exit. Bound repeated raw stepping; if no
+source progress is available, expose the native stop instead of hanging behind frame filtering.
+
+Native frames are not logical Terrane task stacks. An `await` may resume in another poll frame or
+executor thread. The initial debugger provides honest mapped stops in async code but does not
+invent a logical continuation stack. Task-aware async stepping requires explicit compiler/runtime
+task and continuation identities and a measured debug-profile cost before it is advertised.
+Authored `finally`/`destruct` and projected finalizer code remains user-visible where sourced.
+When Milestones 29.1 and 29.3 are implemented, `select` construction, winner, loser drain, deferred
+cancellation, timer, and signal regions receive distinct provenance roles.
+
+#### Variables, privacy, and DAP lifecycle
+
+Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
+finite unions, value/COW collections, references, and projected values only as exact layouts are
+proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
+layout recipes. Each value reports its actual state—live, optimized out, unavailable, unsupported,
+truncated, or moved only when the selected backend proves an ownership transition. Never substitute
+`none`, zero, or a guessed Rust temporary for unavailable state.
+
+Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
+`truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
+detection, and lazy children. Honor secret metadata in ordinary summaries. Raw memory/native views
+are an explicit privileged escape hatch, not a promise to conceal secrets from someone controlling
+the debugger.
+
+The DAP layer owns initialization order, request/response correlation, advertised capabilities,
+cancellation, stopped/continued/terminated events, and lifetime of source/frame/variable handles.
+Client disconnect never implicitly kills an attached process; launched-process policy is explicit.
+Only operations exercised end to end with the selected backend are advertised. CLI and DAP share
+one translation engine.
+
+#### Delivery evidence and exclusions
+
+Deliver in staged vertical slices:
+
+1. prove final-file provenance and build/stale identity without changing program behavior;
+2. launch one unoptimized fixture, hit a Terrane source breakpoint, inspect a scalar, and open the
+   exact generated Rust;
+3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
+   native stops, and temporary-breakpoint cleanup;
+4. exercise shadowing, privacy, unavailable/optimized/truncated states, evidence-backed ownership
+   transitions, and DAP lifecycle through disconnect/reconnect; and
+5. add async continuation/task presentation only after explicit identity instrumentation exists.
+
+Run the actual selected debugger against disposable compiled fixtures for each advertised
+host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
+and whitespace paths, shadowed locals, evidence-backed ownership transitions, large functions,
+fatal signals, relocation, disconnect during a step, and debuggee output while DAP traffic remains
+valid. At minimum the first slice must run on the release's Linux debugger host; macOS/Windows
+support is advertised only after equivalent end-to-end evidence exists.
+
+The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
+Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
+backend. Conditional breakpoints/logpoints remain unavailable until their expression language and
+side-effect contract are separately settled.
+
+Exit criterion: source breakpoints, mapped stack frames, sequence-point stepping, honest bounded
+value inspection, stale-artifact rejection, raw native escape hatches, and DAP/CLI lifecycle work
+against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
+debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
+suite pass; and optimized/unsupported cases report limitations rather than false fidelity.
+
+Completion evidence:
+
+- compiler-owned schema `1.2` metadata binds shared logical source text/line indices without
+  eager embedding, optional independently selected authored and generated snapshots, final
+  formatted Rust, sequence points, multi-cause source associations, semantic
+  function/scope/binding/object identities, privacy policy, exact Rust
+  release/sysroot/toolchain-bound ABI recipe and shared named debug profile, build inputs,
+  canonical relocation roots, and the native executable by deterministic hashes;
+- `terrane debug` and `terrane debug-adapter --stdio` share one LLDB DAP translation engine with
+  uncapped grouped user-breakpoint fan-out, invocation-directory-first relative paths, forward
+  same-scope adjustment, pending breakpoint re-resolution, mapped frames,
+  loop/caller/recursion-aware source stepping, batched and capped temporary sequence targets,
+  untruncated bounded native fallback, exact ABI-gated adaptive integer tiers, raw fallback
+  values, scope/shadow-aware bindings, bounded string/byte values, secret-field redaction,
+  native/generated/register/memory escape hatches, source/native/inlining fidelity events,
+  correlated and time-bounded backend responses including delayed launch failures, one standard
+  initialized event, stop-local variable handles, serialized request ingress, and explicit
+  launch/attach disconnect policy;
+- thirty Linux x86-64 `lldb-dap` 22 integration scenarios exercise CLI and framed DAP launch,
+  standard initialization, pre- and post-launch breakpoint ordering, more than 500 logical
+  sequence points, grouped/pending/lifecycle-managed breakpoints, current-breakpoint suspension,
+  explicit temporary-breakpoint cleanup, exact and adjusted locations, relative invocation paths,
+  stack mapping, loop/call/recursion/async stepping, standard DAP step-in/step-out, fixed and
+  adaptive values, shadowed locals, strings, Unicode paths, fatal native stops,
+  stale/malformed/profile/ABI mismatches, copied exact-build relocation, split generated support,
+  opt-in embedded generated sources, raw-native fallback, delayed launch failure, queued
+  disconnect, exit propagation, fixture cleanup, and debugger-like debuggee output isolation;
+- attach remains experimental because success depends on host ptrace/process policy; direct
+  isolated test-case debugging remains excluded pending a separate runner ownership, selection,
+  context, timeout, temporary-directory, and reporting contract;
+- focused debugger/compiler tests and strict workspace Clippy are part of final verification; and
+- the final workspace scorecard recorded 1,128 passed timings, zero failures, and zero ignored
+  tests, including the complete conformance matrix.

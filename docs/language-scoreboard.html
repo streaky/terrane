@@ -2104,17 +2104,19 @@
       "id": "lldb-source-debugging",
       "name": "LLDB-backed Terrane source debugging",
       "category": "interop",
-      "status": "planned",
-      "completion": 0,
+      "status": "done",
+      "completion": 100,
       "milestone": "30.2",
       "reference": {
-        "state": "planned",
+        "state": "documented",
         "paths": [
           "manual/reference/records/tooling/debugging.yaml"
         ]
       },
-      "notes": "Will provide build-bound source provenance, breakpoints, mapped frames, sequence-point stepping, bounded value views, and shared DAP/CLI translation over LLDB.",
+      "notes": "Thirty Linux x86-64 LLDB 22 scenarios exercise schema 1.2 exact-build Rust release/sysroot/target/profile/ABI provenance, copied-artifact relocation, split or embedded generated sources, uncapped grouped and pending user breakpoints, invocation-relative paths, mapped frames, batched/capped temporary targets with untruncated bounded fallback, loop/caller/recursion/async and standard DAP stepping, scope/shadow-aware bounded values, privacy, malformed/stale/unsupported-artifact rejection, delayed launch failures, debugger-like output isolation, fatal native stops, raw native fallback, and serialized time-bounded DAP/CLI lifecycle. Cancellation is not advertised; attach remains host-policy-dependent; optimized or stripped source fidelity and direct isolated test-case debugging remain explicit exclusions.",
       "sources": [
+        "docs/language-spec-concise.md#DEBUGGING",
+        "docs/language-spec-and-compiler-architecture-draft.md#31.6-Debugging",
         "docs/compiler-plan.md#Milestone 30.2"
       ]
     },

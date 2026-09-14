@@ -2,6 +2,24 @@ use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn statement(&mut self, node: &SyntaxNode) {
+        if matches!(
+            node.kind,
+            SyntaxKind::Binding
+                | SyntaxKind::Assignment
+                | SyntaxKind::CallExpression
+                | SyntaxKind::PostfixExpression
+                | SyntaxKind::IfStatement
+                | SyntaxKind::WhileStatement
+                | SyntaxKind::ForStatement
+                | SyntaxKind::SelectStatement
+                | SyntaxKind::ReturnStatement
+                | SyntaxKind::ThrowStatement
+                | SyntaxKind::TryStatement
+                | SyntaxKind::BreakStatement
+                | SyntaxKind::ContinueStatement
+        ) {
+            self.debug_point(node, "user");
+        }
         match node.kind {
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {

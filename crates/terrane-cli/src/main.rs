@@ -1,3 +1,4 @@
+mod debug_command;
 mod test_command;
 
 use sha2::{Digest, Sha256};
@@ -73,6 +74,8 @@ enum CliCommand {
     Rust,
     Build,
     Run,
+    Debug,
+    DebugAdapter,
     Test,
     Tooling,
     Query,
@@ -90,6 +93,8 @@ impl CliCommand {
             "build" => Some(Self::Build),
             "test" => Some(Self::Test),
             "run" => Some(Self::Run),
+            "debug" => Some(Self::Debug),
+            "debug-adapter" => Some(Self::DebugAdapter),
             "tooling" => Some(Self::Tooling),
             "query" => Some(Self::Query),
             "fmt" => Some(Self::Format),
@@ -167,10 +172,22 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
-        CliCommand::Check | CliCommand::Rust | CliCommand::Build | CliCommand::Run => {}
+        CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
+        CliCommand::Check
+        | CliCommand::Rust
+        | CliCommand::Build
+        | CliCommand::Run
+        | CliCommand::Debug => {}
     }
-    let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
-        parse_input(arguments, command)?;
+    let (
+        input_path,
+        output_path,
+        require_canonical_rust,
+        lint_name_style,
+        release,
+        embed_debug_sources,
+        embed_generated_sources,
+    ) = parse_input(arguments, command)?;
     let source_input = !input_path.is_dir()
         && input_path
             .extension()
@@ -194,6 +211,16 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
+            debug_build: if command == CliCommand::Debug {
+                match (embed_debug_sources, embed_generated_sources) {
+                    (false, false) => terrane_compiler::DebugBuild::ExternalSources,
+                    (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
+                    (false, true) => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
+                    (true, true) => terrane_compiler::DebugBuild::EmbeddedAllSources,
+                }
+            } else {
+                terrane_compiler::DebugBuild::Disabled
+            },
         },
     ) {
         Ok(compilation) => compilation,
@@ -230,6 +257,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
+    let debug_profile = (command == CliCommand::Debug)
+        .then_some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE);
     write_generated_crate(
         &crate_dir,
         &rust_files,
@@ -241,6 +270,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
+            debug_profile,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -258,10 +288,29 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
     }
-    let executable = executable.expect("build and run prepare an executable");
+    let executable = executable.expect("build, run, and debug prepare an executable");
     if command == CliCommand::Build {
         println!("{}", executable.display());
         return Ok(ExitCode::SUCCESS);
+    }
+    if command == CliCommand::Debug {
+        let debug = compilation
+            .debug_information(rust_entrypoint)
+            .map_err(CliFailure::rust_artifact)?
+            .expect("debug compilation produces debugger metadata");
+        let build_identity = rust_debug_build_identity(&crate_dir)?;
+        let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
+            &package,
+            debug,
+            &executable,
+            &crate_dir,
+            build_identity,
+        )
+        .map_err(CliFailure::backend)?;
+        let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
+        let separator = arguments.iter().position(|argument| argument == "--");
+        let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
+        return debug_command::run_cli(&executable, &sidecar, program_arguments);
     }
     let separator = arguments.iter().position(|argument| argument == "--");
     let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
@@ -275,21 +324,74 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
+fn rust_debug_build_identity(
+    crate_dir: &Path,
+) -> Result<terrane_compiler::debugging::DebugBuildIdentity, CliFailure> {
+    let verbose = Command::new("rustc")
+        .arg("-vV")
+        .current_dir(crate_dir)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to inspect debug Rust compiler: {error}"))
+        })?;
+    if !verbose.status.success() {
+        return Err(CliFailure::backend(
+            "debug Rust compiler did not report its target triple".to_owned(),
+        ));
+    }
+    let rustc_release = String::from_utf8(verbose.stdout).map_err(|_| {
+        CliFailure::backend("debug Rust compiler output was not valid UTF-8".to_owned())
+    })?;
+    let target = rustc_release
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .ok_or_else(|| {
+            CliFailure::backend("debug Rust compiler output omitted its target triple".to_owned())
+        })?
+        .to_owned();
+    let sysroot = Command::new("rustc")
+        .args(["--print", "sysroot"])
+        .current_dir(crate_dir)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to inspect debug Rust sysroot: {error}"))
+        })?;
+    if !sysroot.status.success() {
+        return Err(CliFailure::backend(
+            "debug Rust compiler did not report its sysroot".to_owned(),
+        ));
+    }
+    let sysroot = String::from_utf8(sysroot.stdout)
+        .map_err(|_| CliFailure::backend("debug Rust sysroot was not valid UTF-8".to_owned()))?
+        .trim()
+        .to_owned();
+    Ok(terrane_compiler::debugging::DebugBuildIdentity {
+        target,
+        rust_sysroot: sysroot,
+        rustc_release,
+        artifact_profile: terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+    })
+}
 
-fn parse_input(
-    arguments: &[OsString],
-    command: CliCommand,
-) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool), CliFailure> {
+type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool);
+
+fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
     let mut release = false;
+    let mut embed_debug_sources = false;
+    let mut embed_generated_sources = false;
     while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--release" => release = true,
+            "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
+            "--embed-generated-sources" if command == CliCommand::Debug => {
+                embed_generated_sources = true;
+            }
             "-o" | "--output" if command == CliCommand::Rust && output_path.is_none() => {
                 input_index += 1;
                 output_path = Some(
@@ -303,10 +405,15 @@ fn parse_input(
         }
         input_index += 1;
     }
+    if release && command == CliCommand::Debug {
+        return Err(CliFailure::usage_with(
+            "`terrane debug --release` is unsupported: debugger source fidelity requires the compiler-owned unoptimized debug profile",
+        ));
+    }
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
-    let has_valid_arity = if command == CliCommand::Run {
+    let has_valid_arity = if matches!(command, CliCommand::Run | CliCommand::Debug) {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
     } else {
@@ -325,6 +432,8 @@ fn parse_input(
         require_canonical_rust,
         lint_name_style,
         release,
+        embed_debug_sources,
+        embed_generated_sources,
     ))
 }
 
@@ -744,6 +853,8 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
+type DebugProfile = Option<terrane_compiler::debugging::DebugArtifactProfile>;
+
 #[derive(Clone, Copy)]
 struct GeneratedCrateOptions {
     panic: terrane_compiler::PanicProfile,
@@ -751,6 +862,7 @@ struct GeneratedCrateOptions {
     uses_async_runtime: bool,
     uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
+    debug_profile: DebugProfile,
 }
 
 fn base_generated_manifest() -> String {
@@ -767,6 +879,28 @@ fn base_generated_manifest() -> String {
         terrane_compiler::BUILD_TOOLCHAIN,
         terrane_compiler::UNICODE_DATA_VERSION
     )
+}
+
+fn append_build_profiles(
+    manifest: &mut String,
+    panic: terrane_compiler::PanicProfile,
+    debug_profile: DebugProfile,
+) {
+    if panic == terrane_compiler::PanicProfile::Abort || debug_profile.is_some() {
+        manifest.push_str("\n[profile.dev]\n");
+        if panic == terrane_compiler::PanicProfile::Abort {
+            manifest.push_str("panic = \"abort\"\n");
+        }
+        if let Some(profile) = debug_profile {
+            writeln!(manifest, "opt-level = {}", profile.optimization)
+                .expect("writing to a string cannot fail");
+            writeln!(manifest, "debug = {}", profile.cargo_debug)
+                .expect("writing to a string cannot fail");
+            writeln!(manifest, "strip = {:?}", profile.stripping)
+                .expect("writing to a string cannot fail");
+        }
+    }
+    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
 
 fn write_generated_crate(
@@ -816,10 +950,7 @@ fn write_generated_crate(
             write_rust_dependency(&mut manifest, dependency);
         }
     }
-    if options.panic == terrane_compiler::PanicProfile::Abort {
-        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
-    }
-    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
+    append_build_profiles(&mut manifest, options.panic, options.debug_profile);
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -1413,7 +1544,10 @@ fn protocol_parse_error(
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
+     [--release] <file-or-manifest> [-- program arguments]\n\
+     terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
+     [-- program arguments]\n\
+     terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] <package-or-manifest>\n\
@@ -1425,9 +1559,12 @@ fn usage() -> String {
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
+     --embed-sources  include authored source snapshots in debug provenance (debug only)\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program\n  \
+     debug  build and launch the LLDB-backed Terrane source debugger\n  \
+     debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
@@ -1503,7 +1640,15 @@ mod tests {
         assert_eq!(
             parse_input(&build, CliCommand::Build)
                 .unwrap_or_else(|_| panic!("release build should parse")),
-            (PathBuf::from("package.toml"), None, false, false, true)
+            (
+                PathBuf::from("package.toml"),
+                None,
+                false,
+                false,
+                true,
+                false,
+                false
+            )
         );
 
         let check = [
@@ -1610,6 +1755,7 @@ mod tests {
                     uses_async_runtime: true,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                    debug_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
                 },
             )
             .is_ok()
@@ -1617,6 +1763,7 @@ mod tests {
 
         let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
         assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
+        assert!(manifest.contains("opt-level = 0\ndebug = 2\nstrip = \"none\"\n"));
         assert!(
             manifest
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
@@ -1655,6 +1802,7 @@ mod tests {
                     uses_async_runtime: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                    debug_profile: None,
                 },
             )
             .is_ok()

@@ -460,6 +460,7 @@ fn restore_terrane_module_comments(rendered: &str, marker: &str) -> String {
 
 fn restore_terrane_metadata(rendered: &str, module_comment_marker: Option<&str>) -> String {
     let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
+    let restored = restore_terrane_module_comments(&restored, "__terrane_debug_point");
     let restored = match module_comment_marker {
         Some(marker) => restore_terrane_module_comments(&restored, marker),
         None => restored,

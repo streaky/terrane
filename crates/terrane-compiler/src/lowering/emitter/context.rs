@@ -955,6 +955,17 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn debug_point(&mut self, node: &SyntaxNode, role: &str) {
+        if !self.debug_information {
+            return;
+        }
+        let comment = format!(
+            "/* terrane-debug-point:{}:{}:{}:{role} */",
+            node.span.file, node.span.start, node.span.end
+        );
+        self.line(&format!("__terrane_debug_point!({comment:?});"));
+    }
+
     pub(super) fn line(&mut self, text: &str) {
         self.line_start();
         self.output.push_str(text);
