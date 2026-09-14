@@ -116,9 +116,11 @@ python docs/measure-test-times.py -- --workspace
 The collector runs each libtest binary with up to eight worker threads and infers active per-test
 durations from libtest's deterministic alphabetical queue and completion events. Set
 `TERRANE_SCORECARD_JOBS=1..8` to lower the bound on a constrained host. Do not run another Cargo
-build or test process concurrently with the collector. It returns Cargo's exit status, updates
-`docs/test-scoreboard.yaml`, and regenerates `docs/test-scoreboard.html`; review and commit those two
-generated files together when the timing history is intentionally refreshed.
+build or test process concurrently with the collector. A timing-mode change retains aggregate run
+history but starts a fresh per-test comparison baseline, avoiding false regressions across unlike
+execution modes. The collector returns Cargo's exit status, updates `docs/test-scoreboard.yaml`, and
+regenerates `docs/test-scoreboard.html`; review and commit those two generated files together when
+the timing history is intentionally refreshed.
 
 To regenerate or verify only the test scoreboard view:
 

@@ -238,12 +238,15 @@ def command_text(command: list[str]) -> str:
 def update_scoreboard(
     data: dict[str, Any], measured: list[dict[str, Any]], command: list[str], elapsed: float, exit_code: int
 ) -> dict[str, Any]:
-    data["metadata"] = base_scoreboard()["metadata"]
+    metadata = base_scoreboard()["metadata"]
+    previous_mode = data.get("metadata", {}).get("timing_mode")
+    reset_history = previous_mode != metadata["timing_mode"]
+    data["metadata"] = metadata
     measured_at = dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     replacing_aggregate = any(result.get("kind") == "nested" for result in measured)
     prior = {
         test["id"]: test
-        for test in data.get("tests", [])
+        for test in ([] if reset_history else data.get("tests", []))
         if isinstance(test, dict)
         and not (
             replacing_aggregate
@@ -289,7 +292,7 @@ def main() -> int:
     if cargo_args[:1] == ["--"]:
         cargo_args = cargo_args[1:]
     if "--" in cargo_args:
-        raise SystemExit("pass Cargo options only; the collector supplies libtest's serial options")
+        raise SystemExit("pass Cargo options only; the collector supplies libtest's worker options")
     try:
         data = load_scoreboard(args.output)
         exit_code, elapsed, measured, command = run_tests(cargo_args)
