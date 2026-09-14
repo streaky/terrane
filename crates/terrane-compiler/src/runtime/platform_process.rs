@@ -14,8 +14,25 @@ pub fn terrane_unhex(text: &str) -> Vec<u8> {
         .collect()
 }
 
+fn terrane_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    encoded
+}
+
 pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
+}
+
+fn terrane_platform_value_from_text(value: &str) -> String {
+    format!("text:{value}")
+}
+
+fn terrane_platform_value_from_bytes(value: &[u8]) -> String {
+    format!("raw:{}", terrane_hex(value))
 }
 
 
@@ -48,3 +65,4 @@ pub fn terrane_process_exit(code: terrane_int_support::Int) {
     let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
     std::process::exit(code)
 }
+

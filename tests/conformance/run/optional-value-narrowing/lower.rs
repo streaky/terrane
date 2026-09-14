@@ -78,7 +78,7 @@ fn main() {
         if found.is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&found.as_ref()
-                .expect("semantic optional narrowing").text().to_owned())
+                .expect("semantic optional narrowing").clone().text().to_owned())
             );
         }
     }

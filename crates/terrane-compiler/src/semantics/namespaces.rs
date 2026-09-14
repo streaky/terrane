@@ -269,10 +269,21 @@ pub(super) fn collect_declaration(
         return Ok(());
     }
     if table.contains_key(&declaration.name) {
+        let test_identity = unit.role != crate::SourceRole::Production
+            && unit.role != crate::SourceRole::Bundled
+            && declaration.kind == SymbolKind::Function
+            && declaration.name.starts_with("test-");
         return Err(failure(
             &unit.source,
-            "S2005",
-            format!("duplicate declaration `{}`", declaration.name),
+            if test_identity { "S2052" } else { "S2005" },
+            if test_identity {
+                format!(
+                    "duplicate test identity `{}::{}`",
+                    unit.namespace, declaration.name
+                )
+            } else {
+                format!("duplicate declaration `{}`", declaration.name)
+            },
             node.span,
         ));
     }
@@ -282,7 +293,7 @@ pub(super) fn collect_declaration(
 
 pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/core/streams" | "/core/process" => &["process"],
+        "/core/streams" | "/core/process" | "/core/testing/process" => &["process"],
         "/core/filesystem" => &["filesystem"],
         "/core/random" | "/core/random/uuid" => &["entropy"],
         "/core/networking" => &["networking"],

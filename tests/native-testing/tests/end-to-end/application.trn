@@ -1,0 +1,16 @@
+namespace sample-end-to-end
+
+from /core/errors import throwable
+from /core/testing import application-artifact, assert-equal-int, fail
+from /core/testing/process import process-fixture, run-process
+
+function test-production-application none throws throwable;
+    artifact = application-artifact;
+    if artifact != none
+        fixture = instance process-fixture; artifact
+        result = run-process; fixture
+        assert-equal-int; result.exit-code, 0
+        assert-equal-int; result.stdout.length, 6
+    else
+        fail; 'missing application artifact'
+    return none

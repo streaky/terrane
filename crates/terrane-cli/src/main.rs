@@ -1,3 +1,5 @@
+mod test_command;
+
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::ffi::OsString;
@@ -17,6 +19,13 @@ impl CliFailure {
         Self {
             code: 2,
             message: usage(),
+        }
+    }
+
+    fn usage_with(message: impl AsRef<str>) -> Self {
+        Self {
+            code: 2,
+            message: format!("error: {}\n\n{}", message.as_ref(), usage()),
         }
     }
 
@@ -64,6 +73,7 @@ enum CliCommand {
     Rust,
     Build,
     Run,
+    Test,
     Tooling,
     Query,
     Format,
@@ -78,6 +88,7 @@ impl CliCommand {
             "check" => Some(Self::Check),
             "rust" => Some(Self::Rust),
             "build" => Some(Self::Build),
+            "test" => Some(Self::Test),
             "run" => Some(Self::Run),
             "tooling" => Some(Self::Tooling),
             "query" => Some(Self::Query),
@@ -155,6 +166,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Tooling => return run_tooling(arguments),
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
+        CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::Check | CliCommand::Rust | CliCommand::Build | CliCommand::Run => {}
     }
     let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
@@ -1402,6 +1414,9 @@ fn protocol_parse_error(
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
+     terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
+     [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
+     [--show-output] [--report <json-file>] <package-or-manifest>\n\
      terrane <file-or-manifest> [program arguments]\n\
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\
@@ -1413,6 +1428,7 @@ fn usage() -> String {
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program\n  \
+     test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
@@ -1535,6 +1551,7 @@ mod tests {
             relative_path: PathBuf::from("case.trn"),
             source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
+            role: terrane_compiler::SourceRole::Production,
         }];
 
         let failure = run_cargo(

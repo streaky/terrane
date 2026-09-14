@@ -59,7 +59,9 @@ impl Widget {
             .lock()
             .expect("static field lock poisoned")
             .clone()
-            .expect("semantic optional narrowing");
+            .as_ref()
+            .expect("semantic optional narrowing")
+            .clone();
     }
 }
 fn main() {

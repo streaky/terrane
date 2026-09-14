@@ -66,6 +66,7 @@ struct TerraneErrorDetail {
     message: Option<String>,
     cause: Option<Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
@@ -102,6 +103,7 @@ impl TerraneError {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -125,6 +127,7 @@ impl TerraneError {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .cause = Some(Box::new(cause));
@@ -146,6 +149,7 @@ impl TerraneError {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -157,6 +161,39 @@ impl TerraneError {
             .as_ref()
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
+    }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
     }
     #[cold]
     #[inline(never)]
@@ -409,7 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+    pub static DESCRIPTORS: [&str; 2] = [
+        "/core/errors::dependency-error",
+        "/core/errors::dependency-panic",
+    ];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -523,8 +563,8 @@ fn main() {
         if received_first_value.is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&received_first.available),
-                terrane_scalar_support::scalar_text(&* received_first_value.as_ref()
-                .expect("semantic optional narrowing"))
+                terrane_scalar_support::scalar_text(&received_first_value.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         let delivered: TerraneTaskOutcome<TerraneChannelSendOutcome<String>> = __terrane_await(
@@ -538,7 +578,7 @@ fn main() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&delivered.completed),
                 terrane_scalar_support::scalar_text(&delivered_value.as_ref()
-                .expect("semantic optional narrowing").accepted)
+                .expect("semantic optional narrowing").clone().accepted)
             );
         }
         tx.close();
@@ -576,8 +616,8 @@ fn main() {
         let rejected_value: Option<String> = refused.rejected_value;
         if rejected_value.is_some() {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* rejected_value.as_ref()
-                .expect("semantic optional narrowing"))
+                "{}", terrane_scalar_support::scalar_text(&rejected_value.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         failing_tx.close();
@@ -613,8 +653,8 @@ fn main() {
         let newest_dropped_value: Option<String> = newest_drop.dropped_value;
         if newest_dropped_value.is_some() {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* newest_dropped_value
-                .as_ref().expect("semantic optional narrowing"))
+                "{}", terrane_scalar_support::scalar_text(&newest_dropped_value.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         println!(
@@ -631,8 +671,8 @@ fn main() {
         if newest_result.is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&newest_value.available),
-                terrane_scalar_support::scalar_text(&* newest_result.as_ref()
-                .expect("semantic optional narrowing"))
+                terrane_scalar_support::scalar_text(&newest_result.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         let oldest_pair: TerraneChannelPair<String> = TerraneChannelPair::new(
@@ -655,8 +695,8 @@ fn main() {
         let oldest_dropped_value: Option<String> = oldest_drop.dropped_value;
         if oldest_dropped_value.is_some() {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* oldest_dropped_value
-                .as_ref().expect("semantic optional narrowing"))
+                "{}", terrane_scalar_support::scalar_text(&oldest_dropped_value.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         println!(
@@ -673,8 +713,8 @@ fn main() {
         if oldest_result.is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&oldest_value.available),
-                terrane_scalar_support::scalar_text(&* oldest_result.as_ref()
-                .expect("semantic optional narrowing"))
+                terrane_scalar_support::scalar_text(&oldest_result.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         let cancelled_pair: TerraneChannelPair<String> = TerraneChannelPair::new(
@@ -788,7 +828,7 @@ fn main() {
                 "{}{}{}", terrane_scalar_support::scalar_text(&closed_fill.accepted),
                 terrane_scalar_support::scalar_text(&closed_outcome.completed),
                 terrane_scalar_support::scalar_text(&closed_result.as_ref()
-                .expect("semantic optional narrowing").closed)
+                .expect("semantic optional narrowing").clone().closed)
             );
         }
         let rejected_pair: TerraneChannelPair<String> = TerraneChannelPair::new(
@@ -809,8 +849,8 @@ fn main() {
         let rejected_item: Option<String> = rejected_send.rejected_value;
         if rejected_item.is_some() {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* rejected_item.as_ref()
-                .expect("semantic optional narrowing"))
+                "{}", terrane_scalar_support::scalar_text(&rejected_item.as_ref()
+                .expect("semantic optional narrowing").clone())
             );
         }
         println!(
@@ -863,12 +903,12 @@ fn main() {
         if rendezvous_value.is_some() {
             if rendezvous_outcome.is_some() {
                 println!(
-                    "{}{}{}{}", terrane_scalar_support::scalar_text(&* rendezvous_value
-                    .as_ref().expect("semantic optional narrowing")),
+                    "{}{}{}{}", terrane_scalar_support::scalar_text(&rendezvous_value
+                    .as_ref().expect("semantic optional narrowing").clone()),
                     terrane_scalar_support::scalar_text(&rendezvous_delivered.completed),
                     terrane_scalar_support::scalar_text(&rendezvous_delivered.cancelled),
                     terrane_scalar_support::scalar_text(&rendezvous_outcome.as_ref()
-                    .expect("semantic optional narrowing").accepted)
+                    .expect("semantic optional narrowing").clone().accepted)
                 );
             }
         }
@@ -913,8 +953,8 @@ fn main() {
             let stress_value: Option<terrane_int_support::Int> = stress_received.value;
             if stress_value.is_some() {
                 println!(
-                    "{}", terrane_scalar_support::scalar_text(&* stress_value.as_ref()
-                    .expect("semantic optional narrowing"))
+                    "{}", terrane_scalar_support::scalar_text(&stress_value.as_ref()
+                    .expect("semantic optional narrowing").clone())
                 );
             }
             remaining = remaining.clone() - terrane_int_support::Int::from(1_i128);
@@ -944,7 +984,7 @@ fn main() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&message_send.accepted),
                 terrane_scalar_support::scalar_text(&message_value.as_ref()
-                .expect("semantic optional narrowing").text)
+                .expect("semantic optional narrowing").clone().text)
             );
         }
         let mut values: terrane_collection_support::List<String> = terrane_collection_support::List::<
@@ -974,9 +1014,10 @@ fn main() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&batch_send.accepted),
                 terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(batch_value
-                .as_ref().expect("semantic optional narrowing").values.length())),
+                .as_ref().expect("semantic optional narrowing").clone().values
+                .length())),
                 terrane_scalar_support::scalar_text(&__terrane_raised(batch_value
-                .as_ref().expect("semantic optional narrowing").values
+                .as_ref().expect("semantic optional narrowing").clone().values
                 .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                 1 /* terrane-site: src/main.trn:174:60-174:81 */)),
                 1 /* terrane-site: src/main.trn:174:60-174:81 */))

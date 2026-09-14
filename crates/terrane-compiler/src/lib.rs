@@ -14,20 +14,23 @@ pub mod rust_ir;
 pub mod semantics;
 pub mod source;
 pub mod syntax;
+pub mod testing;
 pub mod tokens;
 pub mod tooling;
 pub mod types;
 
 mod projection_oracle;
 pub use compiler::{
-    Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile, compile_package,
-    compile_package_with_options, compile_with_options,
+    Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile,
+    compile_discovered_test_tier, compile_package, compile_package_with_options,
+    compile_test_package, compile_test_package_tiers, compile_with_options, discover_test_package,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
 pub use package::{
     BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
-    Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
+    Package, PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile, RustDependency,
+    SourceRole, SourceUnit,
 };
 pub use projection_oracle::{
     BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,

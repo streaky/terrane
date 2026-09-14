@@ -6,6 +6,7 @@ pub(super) fn parse_unit(
     expected_namespace: Option<&str>,
     prelude: bool,
     bundled: bool,
+    role: crate::SourceRole,
 ) -> Result<SemanticUnit, SemanticFailure> {
     let lexed = lexer::lex(source).map_err(|diagnostics| SemanticFailure {
         source: source.clone(),
@@ -60,6 +61,7 @@ pub(super) fn parse_unit(
         namespace,
         prelude,
         bundled,
+        role,
         scopes: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
@@ -100,6 +102,7 @@ pub(super) fn parse_units(
                 unit.expected_namespace.as_deref(),
                 package.prelude,
                 false,
+                unit.role,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -141,6 +144,7 @@ pub(super) fn parse_units(
             Some(&namespace),
             package.prelude,
             true,
+            crate::SourceRole::Bundled,
         )?);
     }
     let mut index = 0;
@@ -168,6 +172,7 @@ pub(super) fn parse_units(
                 Some(bundled.namespace),
                 package.prelude,
                 true,
+                crate::SourceRole::Bundled,
             )?);
         }
         index += 1;
@@ -385,6 +390,32 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         }
         namespaces.entry(unit.namespace.clone()).or_default();
     }
+    let production_namespaces = units
+        .iter()
+        .filter(|unit| unit.role == crate::SourceRole::Production)
+        .map(|unit| unit.namespace.as_str())
+        .collect::<BTreeSet<_>>();
+    if let Some(unit) = units.iter().find(|unit| {
+        unit.role == crate::SourceRole::IntegrationTest
+            && production_namespaces.contains(unit.namespace.as_str())
+    }) {
+        let span = unit
+            .tree
+            .root
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
+            .map_or(Span::new(unit.source.id(), 0, 0), |node| node.span);
+        return Err(failure(
+            &unit.source,
+            "S2054",
+            format!(
+                "integration test cannot declare production namespace `{}`",
+                unit.namespace
+            ),
+            span,
+        ));
+    }
 
     let mut imports = Vec::new();
     let mut globals = BTreeMap::<String, Symbol>::new();
@@ -398,6 +429,22 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
+    if package.purpose == crate::PackagePurpose::Production
+        && let Some(import) = discovered_imports.iter().find(|import| {
+            !import.bundled
+                && (import.target == "/core/testing" || import.target.starts_with("/core/testing/"))
+        })
+    {
+        return Err(failure(
+            &import.source,
+            "S2053",
+            format!(
+                "test-only namespace `{}` is unavailable to production sources",
+                import.target
+            ),
+            import.span,
+        ));
+    }
     for import in discovered_imports.iter().filter(|import| !import.bundled) {
         for capability in namespace_capabilities(&import.target) {
             if !package.profile.allows(capability) {
@@ -411,6 +458,51 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                     import.span,
                 ));
             }
+        }
+    }
+    let test_only_namespaces = units
+        .iter()
+        .filter(|unit| {
+            matches!(
+                unit.role,
+                crate::SourceRole::UnitTest
+                    | crate::SourceRole::IntegrationTest
+                    | crate::SourceRole::EndToEndTest
+            )
+        })
+        .map(|unit| unit.namespace.as_str())
+        .filter(|namespace| !production_namespaces.contains(namespace))
+        .collect::<BTreeSet<_>>();
+    for import in &discovered_imports {
+        let role = units
+            .iter()
+            .find(|unit| unit.source.id() == import.source.id())
+            .map_or(crate::SourceRole::Bundled, |unit| unit.role);
+        if role == crate::SourceRole::Production
+            && test_only_namespaces.contains(import.target.as_str())
+        {
+            return Err(failure(
+                &import.source,
+                "S2055",
+                format!(
+                    "production source cannot import test-only namespace `{}`",
+                    import.target
+                ),
+                import.span,
+            ));
+        }
+        if role == crate::SourceRole::EndToEndTest
+            && production_namespaces.contains(import.target.as_str())
+        {
+            return Err(failure(
+                &import.source,
+                "S2054",
+                format!(
+                    "end-to-end test must drive the application artifact instead of importing `{}`",
+                    import.target
+                ),
+                import.span,
+            ));
         }
     }
     for import in &discovered_imports {
@@ -958,6 +1050,15 @@ impl SemanticPackage {
     #[must_use]
     pub(crate) fn function_is_referenced(&self, declaration: Span) -> bool {
         self.referenced_functions.contains(&span_key(declaration))
+    }
+
+    pub(crate) fn mark_functions_referenced(
+        &mut self,
+        declarations: impl IntoIterator<Item = Span>,
+    ) {
+        self.referenced_functions
+            .extend(declarations.into_iter().map(span_key));
+        super::bindings::synchronize_execution_requirements(self);
     }
 
     #[must_use]

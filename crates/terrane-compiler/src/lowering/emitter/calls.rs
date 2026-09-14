@@ -221,14 +221,17 @@ impl Emitter<'_> {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
                     let callable_type = self.value_type(callable);
-                    let throws = self
-                        .contract_for_call(callable)
-                        .is_some_and(|contract| contract.throws)
-                        || matches!(
-                            callable_type,
-                            Some(ValueType::AsyncFunction(_, _, _, ref effects))
-                                if effects.requires_throwing_abi()
-                        );
+                    let direct_contract = self.contract_for_call(callable);
+                    let throws = direct_contract.map_or_else(
+                        || {
+                            matches!(
+                                callable_type,
+                                Some(ValueType::AsyncFunction(_, _, _, ref effects))
+                                    if effects.requires_throwing_abi()
+                            )
+                        },
+                        |contract| contract.throws,
+                    );
                     let foreign_error = callable.kind == SyntaxKind::Name
                         && self
                             .package
@@ -1219,6 +1222,58 @@ impl Emitter<'_> {
             }
             return format!("({value}).{field}");
         }
+        let testing_call = [
+            ("test-spawn", "test_spawn"),
+            ("test-result-failed", "test_result_failed"),
+            (
+                "test-result-deadline-exceeded",
+                "test_result_deadline_exceeded",
+            ),
+            ("test-result-message", "test_result_message"),
+            ("test-result-exit-code", "test_result_exit_code"),
+            ("test-result-crashed", "test_result_crashed"),
+            ("test-result-stdout", "test_result_stdout"),
+            ("test-result-stderr", "test_result_stderr"),
+            (
+                "test-result-stdout-truncated",
+                "test_result_stdout_truncated",
+            ),
+            (
+                "test-result-stderr-truncated",
+                "test_result_stderr_truncated",
+            ),
+            ("test-time-advance", "test_time_advance"),
+            ("test-render-int", "test_render_int"),
+            ("test-render-float64", "test_render_float64"),
+            ("test-render-bytes", "test_render_bytes"),
+            ("test-render-bool", "test_render_bool"),
+            ("test-deadline-nanoseconds", "test_deadline_nanoseconds"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("intrinsic:testing::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = testing_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    if (function == "test_spawn" && index == 4)
+                        || matches!(function, "test_time_advance" | "test_render_int") && index == 0
+                    {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if function.starts_with("test_result_") {
+                return format!("terrane_{function}(&({values}))");
+            }
+            return format!("terrane_{function}({values})");
+        }
         let system_call = [
             (
                 "acquire-filesystem-authority",
@@ -1242,6 +1297,8 @@ impl Emitter<'_> {
             ("platform-value-is-text", "platform_value_is_text"),
             ("platform-value-text", "platform_value_text"),
             ("platform-value-bytes", "platform_value_bytes"),
+            ("platform-value-from-bytes", "platform_value_from_bytes"),
+            ("platform-value-from-text", "platform_value_from_text"),
             ("process-arguments", "process_arguments"),
             ("environment-entries", "environment_entries"),
             ("process-exit", "process_exit"),

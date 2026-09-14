@@ -1,9 +1,11 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::{
-    Diagnostic, Package, RustDependency, SourceFile, Span,
+    Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
     rust_ir::RenderedFile,
-    semantics::{self, SymbolKind},
+    semantics::{self, SymbolKind, ValueType},
+    testing::{TestCase, TestPackage, TestTier, TestTierDiscovery},
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -258,6 +260,279 @@ pub fn compile_package_with_options(
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
+    })
+}
+
+/// Compiles every populated test tier as an independent native dispatch runner.
+///
+/// Each tier is analyzed and lowered once. Test functions are ordinary top-level functions whose
+/// names begin with `test-`; they may be asynchronous and throwing, but must take no parameters and
+/// return `none`.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
+pub fn compile_test_package(
+    test_package: &TestPackage,
+    options: CompilerOptions,
+) -> Result<Vec<crate::testing::TestTierCompilation>, CompilationFailure> {
+    let tiers = test_package.tier_packages.keys().copied().collect();
+    compile_test_package_tiers(test_package, options, &tiers)
+}
+
+/// Compiles only the selected populated test tiers as independent native dispatch runners.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
+pub fn compile_test_package_tiers(
+    test_package: &TestPackage,
+    options: CompilerOptions,
+    tiers: &BTreeSet<TestTier>,
+) -> Result<Vec<crate::testing::TestTierCompilation>, CompilationFailure> {
+    let mut compiled = Vec::new();
+    let mut identities = BTreeMap::<String, Span>::new();
+    for (&tier, package) in test_package
+        .tier_packages
+        .iter()
+        .filter(|(tier, _)| tiers.contains(tier))
+    {
+        let discovery = discover_test_tier(package, tier, options)?;
+        for case in &discovery.cases {
+            if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
+                return Err(duplicate_test_identity_failure(
+                    &discovery.semantic.units[0].source,
+                    case,
+                    previous,
+                ));
+            }
+        }
+        compiled.push(compile_discovered_test_tier(discovery, options)?);
+    }
+    Ok(compiled)
+}
+
+/// Discovers test cases through semantic analysis without lowering native dispatch runners.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
+pub fn discover_test_package(
+    test_package: &TestPackage,
+    options: CompilerOptions,
+) -> Result<Vec<TestTierDiscovery>, CompilationFailure> {
+    let mut discovered = Vec::new();
+    let mut identities = BTreeMap::<String, Span>::new();
+    for (&tier, package) in &test_package.tier_packages {
+        let discovery = discover_test_tier(package, tier, options)?;
+        for case in &discovery.cases {
+            if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
+                return Err(duplicate_test_identity_failure(
+                    &discovery.semantic.units[0].source,
+                    case,
+                    previous,
+                ));
+            }
+        }
+        discovered.push(discovery);
+    }
+    Ok(discovered)
+}
+
+fn duplicate_test_identity_failure(
+    source: &SourceFile,
+    case: &TestCase,
+    previous: Span,
+) -> CompilationFailure {
+    CompilationFailure {
+        source: source.clone(),
+        diagnostics: vec![
+            Diagnostic::error(
+                "S2052",
+                format!("duplicate test identity `{}`", case.identity),
+                case.source_span,
+            )
+            .with_help(format!(
+                "the first test with this identity starts at byte {}",
+                previous.start
+            )),
+        ],
+    }
+}
+
+fn discover_test_tier(
+    package: &Package,
+    tier: TestTier,
+    options: CompilerOptions,
+) -> Result<TestTierDiscovery, CompilationFailure> {
+    let mut semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
+        source: failure.source,
+        diagnostics: failure.diagnostics,
+    })?;
+    let role = match tier {
+        TestTier::Unit => crate::SourceRole::UnitTest,
+        TestTier::Integration => crate::SourceRole::IntegrationTest,
+        TestTier::EndToEnd => crate::SourceRole::EndToEndTest,
+    };
+    let mut cases = Vec::new();
+    let mut diagnostics = Vec::new();
+    for unit in &semantic.units {
+        if unit.role != role {
+            continue;
+        }
+        for contract in unit.functions.iter().filter(|contract| {
+            contract.span.file == unit.source.id()
+                && contract.owner.is_none()
+                && contract.name.starts_with("test-")
+        }) {
+            let returns_none = contract
+                .return_type
+                .as_ref()
+                .is_none_or(|value| *value == ValueType::Scalar(ScalarType::None));
+            if !contract.parameters.is_empty() || !returns_none {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "S2051",
+                        format!(
+                            "test function `{}` must be parameterless and return `none`",
+                            contract.name
+                        ),
+                        contract.span,
+                    )
+                    .with_help(
+                        "use ordinary local functions to supply table rows or parameterized setup",
+                    ),
+                );
+                continue;
+            }
+            cases.push(TestCase {
+                identity: format!(
+                    "{}::{}",
+                    unit.namespace.trim_end_matches('/'),
+                    contract.name
+                ),
+                tier,
+                source_path: unit.source_path.clone(),
+                source_span: contract.span,
+                is_async: contract.is_async,
+                throws: contract.throws,
+                selector: 0,
+            });
+        }
+    }
+    cases.sort_by(|left, right| {
+        (&left.source_path, left.source_span.start, &left.identity).cmp(&(
+            &right.source_path,
+            right.source_span.start,
+            &right.identity,
+        ))
+    });
+    for (selector, case) in cases.iter_mut().enumerate() {
+        case.selector = selector;
+    }
+    semantic.mark_functions_referenced(cases.iter().map(|case| case.source_span));
+    if !diagnostics.is_empty() {
+        let span = diagnostics[0]
+            .primary
+            .unwrap_or_else(|| Span::new(semantic.units[0].source.id(), 0, 0));
+        let source = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == span.file)
+            .map_or_else(
+                || semantic.units[0].source.clone(),
+                |unit| unit.source.clone(),
+            );
+        return Err(CompilationFailure {
+            source,
+            diagnostics,
+        });
+    }
+    let sources = semantic
+        .units
+        .iter()
+        .map(|unit| unit.source.clone())
+        .collect();
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    Ok(TestTierDiscovery {
+        tier,
+        cases,
+        warnings,
+        sources,
+        package: package.clone(),
+        semantic,
+    })
+}
+
+/// Lowers one previously discovered test tier without repeating semantic analysis.
+///
+/// # Errors
+///
+/// Returns source-oriented lowering or generated-Rust validation diagnostics.
+pub fn compile_discovered_test_tier(
+    discovery: TestTierDiscovery,
+    options: CompilerOptions,
+) -> Result<crate::testing::TestTierCompilation, CompilationFailure> {
+    let TestTierDiscovery {
+        tier,
+        cases,
+        warnings: _,
+        sources,
+        package,
+        semantic,
+    } = discovery;
+    let runner_cases = cases
+        .iter()
+        .map(|case| crate::lowering::TestRunnerCase {
+            span: case.source_span,
+            is_async: case.is_async,
+            throws: case.throws,
+        })
+        .collect::<Vec<_>>();
+    let entry_span = cases.first().map_or_else(
+        || Span::new(semantic.units[0].source.id(), 0, 0),
+        |case| case.source_span,
+    );
+    let source = semantic
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == entry_span.file)
+        .map_or_else(
+            || semantic.units[0].source.clone(),
+            |unit| unit.source.clone(),
+        );
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases)
+        .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rendered_rust = rust_ir.rendered();
+    let standalone_file = rendered_rust.standalone_file("<stdout>");
+    if options.require_canonical_rust {
+        validate_canonical_rust(
+            std::slice::from_ref(&standalone_file),
+            &sources,
+            &source,
+            entry_span,
+        )?;
+    }
+    let compilation = Compilation {
+        source,
+        sources,
+        rust: standalone_file.contents,
+        review_rust: rendered_rust.review_file(),
+        rendered_rust,
+        require_canonical_rust: options.require_canonical_rust,
+        entry_span,
+        requires_platform_support: rust_ir.requires_platform_support,
+        requires_async_runtime: rust_ir.requires_async_runtime,
+        warnings,
+        rust_dependencies: compilation_rust_dependencies(&package, &semantic.projection),
+        dependency_containment: semantic.projection.containment,
+    };
+    Ok(crate::testing::TestTierCompilation {
+        tier,
+        package: package.clone(),
+        compilation,
+        cases,
     })
 }
 

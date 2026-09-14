@@ -267,6 +267,38 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "platform-value-is-text",
             "platform-value-text",
             "platform-value-bytes",
+            "platform-value-from-bytes",
+            "platform-value-from-text",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/testing",
+        "testing",
+        [
+            "test-time-advance",
+            "test-render-int",
+            "test-render-float64",
+            "test-render-bytes",
+            "test-render-bool",
+            "test-deadline-nanoseconds",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/testing/process",
+        "testing",
+        [
+            "test-spawn",
+            "test-result-failed",
+            "test-result-deadline-exceeded",
+            "test-result-message",
+            "test-result-exit-code",
+            "test-result-crashed",
+            "test-result-stdout",
+            "test-result-stderr",
+            "test-result-stdout-truncated",
+            "test-result-stderr-truncated",
         ],
     );
     add_private_host_bindings(

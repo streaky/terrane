@@ -23,7 +23,7 @@ impl WorkItem {
         let current: Option<terrane_int_support::Int> = self.estimate.clone();
         if current.is_some() {
             return Some(
-                (*current.as_ref().expect("semantic optional narrowing")).clone()
+                current.as_ref().expect("semantic optional narrowing").clone().clone()
                     + terrane_int_support::Int::from(1_i128),
             );
         }
@@ -37,15 +37,15 @@ fn main() {
     let estimate: Option<terrane_int_support::Int> = item.estimate_units();
     if estimate.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* estimate.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&estimate.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
     let next: Option<terrane_int_support::Int> = item.next_estimate();
     if next.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* next.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&next.as_ref()
+            .expect("semantic optional narrowing").clone())
         );
     }
 }

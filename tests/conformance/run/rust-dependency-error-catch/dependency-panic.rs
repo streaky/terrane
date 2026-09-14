@@ -11,7 +11,7 @@ mod dependency_panic_tests {
         );
         assert_eq!(
             error.render(),
-            "dependency-panic: Rust dependency `fixture-crate` member `fixture_crate::explode` panicked: fixture panic"
+            "/core/errors::dependency-panic: Rust dependency `fixture-crate` member `fixture_crate::explode` panicked: fixture panic"
         );
     }
 }

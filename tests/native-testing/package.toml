@@ -1,0 +1,10 @@
+package = "native-testing-suite"
+prelude = false
+
+[profile]
+name = "testable"
+capabilities = ["clocks", "process"]
+panic = "unwind"
+
+[namespaces]
+sample = "src"

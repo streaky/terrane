@@ -1,0 +1,8 @@
+package = "native-testing-surface"
+prelude = false
+[profile]
+name = "testable"
+capabilities = ["process"]
+
+[namespaces]
+native-testing-surface = "src"

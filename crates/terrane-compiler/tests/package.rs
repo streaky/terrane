@@ -3,7 +3,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
-    BuildToolchain, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze, compile_package,
+    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze,
+    compile_discovered_test_tier, compile_package, compile_test_package, discover_test_package,
+    testing::{TestPackage, TestTier},
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -615,4 +617,325 @@ fn unknown_capability_and_effect_names_are_rejected() {
 
     assert!(messages.contains(&"unknown profile capability `telepathy`"));
     assert!(messages.contains(&"Rust dependency `http` declares unknown effect `prophecy`"));
+}
+
+#[test]
+fn test_packages_discover_and_lower_tiered_ordinary_functions() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/z-last.trn",
+        "namespace app\nasync function test-later;\n",
+    );
+    package.write(
+        "tests/unit/a-first.trn",
+        "namespace app\nfunction test-first;\n",
+    );
+    package.write(
+        "tests/integration/public.trn",
+        "namespace app-tests\nfrom /app import value\nfunction test-public;\n  value\n",
+    );
+
+    let test_package = TestPackage::load(&package.0).unwrap();
+    let compiled = compile_test_package(
+        &test_package,
+        CompilerOptions {
+            require_canonical_rust: true,
+            ..CompilerOptions::default()
+        },
+    )
+    .unwrap();
+    let cases = compiled
+        .iter()
+        .flat_map(|tier| tier.cases.iter())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        cases
+            .iter()
+            .map(|case| (case.tier, case.identity.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (TestTier::Unit, "/app::test-first"),
+            (TestTier::Unit, "/app::test-later"),
+            (TestTier::Integration, "/app-tests::test-public"),
+        ]
+    );
+    assert_eq!(compiled.len(), 2);
+    assert!(
+        compiled
+            .iter()
+            .all(|tier| tier.compilation.rust.contains("match selected.as_str()"))
+    );
+    assert!(
+        compiled
+            .iter()
+            .all(|tier| tier.compilation.rust.contains("\"0\" =>"))
+    );
+    assert!(
+        compiled
+            .iter()
+            .find(|tier| tier.tier == TestTier::Unit)
+            .unwrap()
+            .compilation
+            .rust
+            .contains("__terrane_run(async move")
+    );
+}
+
+#[test]
+fn discovered_test_tiers_lower_without_rediscovery_warnings() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"discovered-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfunction test-discovered;\n  value\n",
+    );
+    let test_package = TestPackage::load(&package.0).unwrap();
+    let mut discovered = discover_test_package(&test_package, CompilerOptions::default()).unwrap();
+
+    assert_eq!(discovered.len(), 1);
+    assert!(
+        discovered[0]
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "W4005")
+    );
+    let compiled =
+        compile_discovered_test_tier(discovered.pop().unwrap(), CompilerOptions::default())
+            .unwrap();
+    assert_eq!(compiled.cases[0].identity, "/app::test-discovered");
+    assert!(
+        compiled
+            .compilation
+            .rust
+            .contains("match selected.as_str()")
+    );
+}
+
+#[test]
+fn invalid_test_signatures_are_source_diagnostics() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"invalid-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("src/library.trn", "namespace app\nconstant value = 1\n");
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfunction test-invalid int; supplied int\n  return supplied\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2051");
+    assert!(failure.source.path().ends_with("tests/unit/case.trn"));
+}
+
+#[test]
+fn test_manifest_roots_are_bounded_and_profiled() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        concat!(
+            "package = \"configured-native-tests\"\n",
+            "prelude = false\n",
+            "[namespaces]\napp = \"src\"\n",
+            "[testing]\nunit = \"spec/unit\"\n",
+            "[testing.profile]\nname = \"test\"\ncapabilities = []\npanic = \"abort\"\n",
+        ),
+    );
+    package.write("src/library.trn", "namespace app\nconstant value = 1\n");
+    package.write(
+        "spec/unit/case.trn",
+        "namespace app\nfunction test-configured;\n",
+    );
+
+    let loaded = TestPackage::load(&package.0).unwrap();
+    assert_eq!(loaded.configuration.profile.name, "test");
+    assert!(
+        loaded
+            .configuration
+            .profile
+            .capabilities
+            .as_ref()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(loaded.configuration.profile.panic, PanicProfile::Abort);
+    assert_eq!(
+        loaded.tier_packages.keys().copied().collect::<Vec<_>>(),
+        [TestTier::Unit]
+    );
+}
+
+#[test]
+fn integration_tests_cannot_import_private_package_bindings() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"private-integration-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\nprivate constant secret int = 42\n",
+    );
+    package.write(
+        "tests/integration/private.trn",
+        "namespace app-tests\nfrom /app import secret\nfunction test-private;\n    secret\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2010");
+    assert!(
+        failure
+            .source
+            .path()
+            .ends_with("tests/integration/private.trn")
+    );
+}
+
+#[test]
+fn duplicate_test_identities_use_a_test_specific_diagnostic() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"duplicate-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("src/library.trn", "namespace app\nconstant value int = 1\n");
+    package.write(
+        "tests/unit/first.trn",
+        "namespace app\nfunction test-same;\n",
+    );
+    package.write(
+        "tests/unit/second.trn",
+        "namespace app\nfunction test-same;\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2052");
+    assert!(
+        failure.diagnostics[0]
+            .message
+            .contains("duplicate test identity")
+    );
+}
+
+#[test]
+fn production_sources_cannot_import_test_only_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"test-boundary\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/main.trn",
+        "namespace app\nfrom /test-helpers import helper\nfunction main;\n  helper\n",
+    );
+    package.write(
+        "tests/unit/helper.trn",
+        "namespace test-helpers\nconstant helper = 1\nfunction test-helper;\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2055");
+    assert!(
+        failure.diagnostics[0]
+            .message
+            .contains("production source cannot import test-only namespace")
+    );
+}
+
+#[test]
+fn integration_tests_cannot_join_production_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"integration-boundary\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/integration/private.trn",
+        "namespace app\nfunction test-private;\n  value\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2054");
+}
+
+#[test]
+fn testing_process_fixtures_require_process_capability() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"testing-capabilities\"\nprelude = false\n[profile]\nname = \"confined\"\ncapabilities = []\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfrom /core/testing/process import process-fixture\nfunction test-process;\n  fixture = instance process-fixture; ''\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2032");
+    assert!(failure.diagnostics[0].message.contains("process"));
+}
+
+#[test]
+fn production_compilation_rejects_test_only_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"production-testing-import\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/main.trn",
+        "namespace app\nfrom /core/testing import assert\nfunction main;\n  assert; true\n",
+    );
+
+    let failure = compile_package(&Package::load(&package.0).unwrap()).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2053");
 }

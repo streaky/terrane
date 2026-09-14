@@ -1126,7 +1126,7 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
     synchronize_execution_requirements(package);
 }
 
-fn synchronize_execution_requirements(package: &mut SemanticPackage) {
+pub(super) fn synchronize_execution_requirements(package: &mut SemanticPackage) {
     let contracts = package
         .units
         .iter()

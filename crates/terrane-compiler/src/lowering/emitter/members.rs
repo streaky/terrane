@@ -314,6 +314,7 @@ impl Emitter<'_> {
         if self.text(member) != "type" && self.is_throwable_value(receiver) {
             let receiver = self.expression(receiver);
             return match self.text(member) {
+                "descriptor" => format!("({receiver}).descriptor_name().to_owned()"),
                 "message" => format!("({receiver}).message().to_owned()"),
                 "cause" => format!(
                     "({receiver}).detail.as_ref().and_then(|detail| detail.cause.as_deref()).cloned()"

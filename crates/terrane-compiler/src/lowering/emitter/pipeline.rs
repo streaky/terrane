@@ -98,11 +98,100 @@ fn package_has_async_finally(package: &SemanticPackage) -> bool {
     })
 }
 
+fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]) -> String {
+    let mut output = String::from(
+        r#"fn __terrane_test_hex(value: &str) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(value.len() * 2);
+    for byte in value.as_bytes() {
+        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    encoded
+}
+fn __terrane_test_record(outcome: &str, error: &TerraneError) {
+    let Ok(path) = std::env::var("TERRANE_TEST_RESULT") else { return; };
+    let details = error.structured_details();
+    let frames = error.source_frames();
+    let mut record = format!(
+        "1\n{}\n{}\n{}\n{}\n{}\n",
+        outcome,
+        __terrane_test_hex(&error.descriptor_name()),
+        __terrane_test_hex(error.message()),
+        details.len(),
+        frames.len(),
+    );
+    for detail in details {
+        record.push_str(&__terrane_test_hex(detail));
+        record.push('\n');
+    }
+    for frame in frames {
+        record.push_str(&__terrane_test_hex(&frame));
+        record.push('\n');
+    }
+    let _ = std::fs::write(path, record);
+}
+fn main() {
+    let selected = std::env::args().nth(1).unwrap_or_default();
+    match selected.as_str() {
+"#,
+    );
+    for (index, test) in tests.iter().enumerate() {
+        let contract = package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.functions)
+            .find(|contract| contract.span == test.span)
+            .expect("test runner case must resolve to an analyzed function");
+        let function = function_name(package, contract);
+        let selector = index.to_string();
+        write!(output, "        {selector:?} => {{ ").unwrap();
+        let call = if test.is_async {
+            format!("{function}().await")
+        } else {
+            format!("{function}()")
+        };
+        if test.is_async {
+            output.push_str("__terrane_run(async move { ");
+        }
+        if test.throws {
+            write!(
+                output,
+                "if let Err(error) = {call} {{ let skipped = error.descriptor_name() == \"/core/testing::test-skip\"; __terrane_test_record(if skipped {{ \"skipped\" }} else {{ \"failed\" }}, &error); std::process::exit(if skipped {{ 102 }} else {{ 101 }}); }}"
+            )
+            .unwrap();
+        } else {
+            write!(output, "{call};").unwrap();
+        }
+        if test.is_async {
+            output.push_str(" });");
+        }
+        output.push_str(" }\n");
+    }
+    output.push_str(
+        "        _ => { eprintln!(\"unknown Terrane test case\"); std::process::exit(103); }\n    }\n}\n",
+    );
+    output
+}
+
+pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailure> {
+    lower_with_tests(package, None)
+}
+
+pub(crate) fn lower_tests(
+    package: &SemanticPackage,
+    tests: &[super::super::TestRunnerCase],
+) -> Result<Program, LoweringFailure> {
+    lower_with_tests(package, Some(tests))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
 )]
-pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailure> {
+fn lower_with_tests(
+    package: &SemanticPackage,
+    tests: Option<&[super::super::TestRunnerCase]>,
+) -> Result<Program, LoweringFailure> {
     debug_assert!(
         package.execution_requirements.is_consistent(),
         "semantic execution requirements must form a coherent strategy request"
@@ -110,7 +199,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
-    let uses_errors = package_uses_structured_errors(package) || package_uses_task_scope(package);
+    let uses_errors = tests.is_some()
+        || package_uses_structured_errors(package)
+        || package_uses_task_scope(package);
     let uses_typed_documents = package_uses_typed_documents(package);
     let uses_log_error = package_uses_log_error(package);
     let has_dependency = package
@@ -125,11 +216,12 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         .units
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async));
-    let has_async_entry = package
-        .units
-        .iter()
-        .flat_map(|unit| &unit.functions)
-        .any(|function| function.name == "main" && function.is_async);
+    let has_async_entry = tests.into_iter().flatten().any(|test| test.is_async)
+        || package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.functions)
+            .any(|function| function.name == "main" && function.is_async);
     let package_has_callable = |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
         package.units.iter().any(|unit| {
             unit.typed_bindings
@@ -336,10 +428,18 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         }
     }
     if uses_time {
+        let (source_file, source) = if tests.is_some() {
+            (
+                "time_testing.rs",
+                include_str!("../../runtime/time_testing.rs"),
+            )
+        } else {
+            ("time_base.rs", include_str!("../../runtime/time_base.rs"))
+        };
         runtime.push(GeneratedModule {
             name: "time",
-            source_files: vec!["time_base.rs"],
-            items: vec![Item::generated(include_str!("../../runtime/time_base.rs"))],
+            source_files: vec![source_file],
+            items: vec![Item::generated(source)],
         });
     } else if native_cancellation || package_uses_task_scope(package) {
         runtime.push(GeneratedModule {
@@ -411,6 +511,12 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
                 "../../runtime/platform_process.rs"
             )));
             source_files.push("platform_process.rs");
+            if tests.is_some() {
+                items.push(Item::generated(include_str!(
+                    "../../runtime/platform_testing.rs"
+                )));
+                source_files.push("platform_testing.rs");
+            }
         }
         runtime.push(GeneratedModule {
             name: "platform_system",
@@ -561,7 +667,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
         runtime.push(descriptor_runtime_module());
     }
     emit_global_storage(package, &registry, &mut globals);
-    let modules = package
+    let mut modules = package
         .units
         .iter()
         .map(|unit| {
@@ -593,7 +699,22 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
                     SyntaxKind::Binding | SyntaxKind::Assignment => {
                         emitter.namespace_binding(node);
                     }
-                    SyntaxKind::FunctionDeclaration => emitter.function(node),
+                    SyntaxKind::FunctionDeclaration => {
+                        let contract = unit
+                            .functions
+                            .iter()
+                            .find(|contract| contract.span == node.span)
+                            .expect("analyzed function declaration must have a contract");
+                        if tests.is_some() && contract.owner.is_none() && contract.name == "main" {
+                            emitter.emit_function_as(
+                                node,
+                                None,
+                                Some(&format!("__terrane_application_main_f{}", node.span.file)),
+                            );
+                        } else {
+                            emitter.function(node);
+                        }
+                    }
                     SyntaxKind::ClassDeclaration
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::TraitDeclaration => emitter.object(node),
@@ -615,6 +736,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailur
             })
         })
         .collect::<Result<Vec<_>, LoweringFailure>>()?;
+    if let Some(tests) = tests {
+        modules.push(Module {
+            source_path: "<compiler-generated test registry>".to_owned(),
+            namespace: "/core/testing/runner".to_owned(),
+            destination: ModuleDestination::Application,
+            items: vec![Item::generated(&test_runner(package, tests))],
+        });
+    }
     if uses_errors || !registry.sites.borrow().is_empty() {
         let mut support = String::new();
         emit_error_support(

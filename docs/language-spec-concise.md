@@ -1067,6 +1067,7 @@ prelude = true            # optional; defaults true
 "example/generated" = "generated"
 ```
 - Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist drawn from `build | entropy | filesystem | networking | process | threads | tls`; `panic` is `unwind` (default) or `abort`. Rust dependency effects and gated bundled core imports must be allowed. Missing capability is source diagnostic S2032 naming profile, capability, imported namespace, and importer. Gates: `/core/streams` + `/core/process` -> `process`; `/core/filesystem` -> `filesystem`; `/core/random` + `/core/random/uuid` -> `entropy`; `/core/networking` -> `networking`; `/core/networking/tls` -> `networking` + `tls`; `/core/concurrency` -> `threads`.
+- Optional `[testing]`: `unit`, `integration`, and `end-to-end` override the conventional relative roots. `[testing.profile]` selects a named test profile with the same `capabilities` and `panic` fields as `[profile]`; omitted fields inherit the ordinary profile, so test compilation cannot acquire an undeclared capability implicitly.
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
@@ -1080,19 +1081,21 @@ prelude = true            # optional; defaults true
 ## TESTING
 
 ```yaml
-command: terrane test [package-or-source]
-implementation: public framework/case execution/reporting in bundled Terrane /core/testing; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
-discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; optional manifest overrides; top-level zero-parameter test-* functions; sync/async/throwing
-order: tier, logical path, source order, function name; filters change execution only, never compilation
-unit: package source set; ordinary namespace-private access only in the declaring namespace
-integration: external consumer view; public package surface only
-end_to_end: drive actual built artifact through explicit lossless args/env/input/deadline and bounded stdout/stderr process fixture
-test_profile: explicit manifest selection; defaults to ordinary package profile; testing never grants omitted capabilities
-entrypoint: generated runner main is compiler-owned; ordinary programs/scripts still require authored parameterless main
-isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases
-assertions: assert | deny | fail | typed equal/not-equal | optional present/none | float near with tolerance | typed assert-throws | skip
-assertion_invariants: operands evaluated once; exact source retained; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
-reporting: deterministic human plus versioned machine report; pass/fail/skip/timeout/crash/compile/infrastructure states; bounded captured output
+command: terrane test [--list] [--filter TEXT|--exact IDENTITY|--glob PATTERN|--regex PATTERN] [--tier unit|integration|end-to-end] [--jobs N] [--timeout Nms|Ns] [--argument VALUE] [--fail-fast] [--show-output] [--report FILE] PACKAGE
+implementation: public framework/case execution/reporting in bundled Terrane /core/testing; process fixtures in capability-gated /core/testing/process; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
+discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; bounded manifest overrides; top-level zero-parameter test-* functions returning none; sync/async/throwing
+order: explicit unit -> integration -> end-to-end tier order, then logical path, source order, and function name; substring/exact/glob/regex filters are mutually exclusive; semantic analysis covers production sources and every populated test root, while only tiers containing selected cases are lowered and backend-validated
+unit: production source set plus unit source set; ordinary namespace-private access only in the declaring namespace
+integration: independently compiled external consumer view; public package surface only
+end_to_end: independently compiled tests drive the actual production artifact exposed as string|none; /core/testing/process process-fixture carries lossless encoded args/environment, byte-exact input/output, exit/crash/deadline state, bounded incremental stdout/stderr capture, and independent truncation flags; it requires process capability
+test_profile: [testing.profile] explicitly selects name/capabilities/panic; omitted fields inherit the ordinary package profile; no capability appears unless it is declared by one of those profiles
+entrypoint: one compiler-owned generated runner main per selected populated tier; --list and an empty selection perform semantic discovery without runner lowering or native compilation; ordinary programs/scripts still require authored parameterless main
+isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases; completed run directories are removed; parent-side process and pipe closure waits are bounded
+assertions: assert | deny | fail | fail-values for caller-owned typed comparisons with test-value rendering | concrete scalar/bytes equal/not-equal | concrete scalar/bytes optional present/none | float near with tolerance | throwable callback assert-throws with expected descriptor identity | skip
+assertion_invariants: operands evaluated once; structured causes retain source frames and bounded useful values; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
+context: stable identity/tier/seed/temporary-directory, typed deadline duration, repeatable controlled process arguments, checked explicit monotonic-time advancement, and test-clock sleeps that advance immediately to their target when awaited; reading this runner-supplied context is intentionally ungated, while operations such as process spawning remain capability-gated
+reporting: deterministic human counts distinguish pass/fail/skip/timeout/crash/infrastructure outcomes; schema 1.2.0 JSON has effective run metadata, numeric timeout milliseconds, per-tier compilation status/diagnostics, structured causes, and bounded byte-array streams with independent truncation flags
+timeout_units: bare values are seconds; ms and s suffixes are accepted
 non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
 host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
 ```

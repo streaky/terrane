@@ -1765,11 +1765,7 @@ impl<'a> Emitter<'a> {
                 .return_type
                 .clone()
                 .is_none_or(|ty| ty == ValueType::Scalar(ScalarType::None))
-            && node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Block)
-                .is_some_and(block_may_fall_through)
+            && block.is_none_or(block_may_fall_through)
         {
             self.line("Ok(())");
         }

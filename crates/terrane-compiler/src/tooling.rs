@@ -723,6 +723,7 @@ impl ToolingEngine {
                 relative_path: PathBuf::from(format!("snapshot/{file_id}.trn")),
                 source: source.clone(),
                 expected_namespace: None,
+                role: crate::SourceRole::Production,
             });
             documents.insert(
                 input.uri,
@@ -1623,17 +1624,20 @@ fn snapshot_package(
     }
     let capabilities =
         (!options.capabilities.is_empty()).then(|| options.capabilities.iter().cloned().collect());
+    let profile = CapabilityProfile {
+        name: options.profile.clone(),
+        capabilities,
+        panic: PanicProfile::Unwind,
+    };
     Ok(Package {
         identity,
         root: PathBuf::from("."),
         prelude: true,
         reflection: ReflectionProfile::Ordinary,
         executor: ExecutorProfile::Threaded,
-        profile: CapabilityProfile {
-            name: options.profile.clone(),
-            capabilities,
-            panic: PanicProfile::Unwind,
-        },
+        testing: crate::testing::TestConfiguration::conventional(profile.clone()),
+        profile,
+        purpose: crate::PackagePurpose::Production,
         build_toolchain: BuildToolchain::Pinned,
         units,
         rust_dependencies: Vec::new(),
@@ -2716,6 +2720,7 @@ fn candidate_sources(
             ),
             source,
             expected_namespace: original.and_then(|unit| unit.expected_namespace.clone()),
+            role: original.map_or(crate::SourceRole::Production, |unit| unit.role),
         });
         candidate.insert(uri.clone(), text);
     }
