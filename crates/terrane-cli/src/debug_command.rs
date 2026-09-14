@@ -220,6 +220,7 @@ struct Adapter {
     provenance: Option<ProvenanceManifest>,
     executable: Option<PathBuf>,
     launched: bool,
+    variable_objects: BTreeMap<i64, String>,
 }
 
 impl Adapter {
@@ -331,14 +332,27 @@ impl Adapter {
             return Ok(with_backend_events(backend, response(body)));
         }
         if command == "variables" {
+            let parent_reference = arguments["variablesReference"].as_i64().unwrap_or(0);
             let provenance = self.provenance.clone();
-            let backend = self.backend_mut()?;
-            let backend_response = backend.request(command, arguments)?;
-            let mut body = backend_response["body"].clone();
+            let (mut body, events) = {
+                let backend = self.backend_mut()?;
+                let backend_response = backend.request(command, arguments)?;
+                (
+                    backend_response["body"].clone(),
+                    std::mem::take(&mut backend.events),
+                )
+            };
             if let Some(provenance) = &provenance {
-                translate_variables(&mut body, provenance);
+                translate_variables(
+                    &mut body,
+                    provenance,
+                    parent_reference,
+                    &mut self.variable_objects,
+                );
             }
-            return Ok(with_backend_events(backend, response(body)));
+            let mut messages = vec![response(body)];
+            messages.extend(events);
+            return Ok(messages);
         }
         if command == "terrane/generatedSource" {
             return self.generated_source(&arguments);
@@ -765,7 +779,12 @@ fn translate_stack_frames(body: &mut Value, provenance: &ProvenanceManifest, inc
     }
 }
 
-fn translate_variables(body: &mut Value, provenance: &ProvenanceManifest) {
+fn translate_variables(
+    body: &mut Value,
+    provenance: &ProvenanceManifest,
+    parent_reference: i64,
+    variable_objects: &mut BTreeMap<i64, String>,
+) {
     const MAX_VARIABLES: usize = 100;
     const MAX_VALUE_BYTES: usize = 4_096;
     let bindings = provenance
@@ -774,27 +793,69 @@ fn translate_variables(body: &mut Value, provenance: &ProvenanceManifest) {
         .iter()
         .map(|binding| (binding.rust_name.as_str(), binding))
         .collect::<BTreeMap<_, _>>();
+    let parent_object = variable_objects.get(&parent_reference).and_then(|id| {
+        provenance
+            .debug
+            .objects
+            .iter()
+            .find(|object| object.id == *id)
+    });
     let Some(variables) = body["variables"].as_array_mut() else {
         return;
     };
     variables.truncate(MAX_VARIABLES);
     for variable in variables {
-        let binding = variable["name"]
-            .as_str()
-            .and_then(|name| bindings.get(name))
-            .copied();
-        if let Some(binding) = binding {
-            variable["name"] = binding.name.clone().into();
-            let raw = variable["value"].as_str().unwrap_or_default();
-            if binding.type_name == "Scalar(Int)"
-                && (raw.contains("terrane_int_support::Int") || raw == binding.type_name)
-            {
-                variable["value"] = "<unsupported layout: adaptive int>".into();
+        let rust_name = variable["name"].as_str().unwrap_or_default();
+        let presentation = parent_object
+            .and_then(|object| {
+                object
+                    .fields
+                    .iter()
+                    .find(|field| field.rust_name == rust_name)
+                    .map(|field| {
+                        (
+                            field.name.clone(),
+                            field.object_id.clone(),
+                            field.secret,
+                            field.type_name.as_str(),
+                        )
+                    })
+            })
+            .or_else(|| {
+                bindings.get(rust_name).map(|binding| {
+                    (
+                        binding.name.clone(),
+                        binding.object_id.clone(),
+                        false,
+                        binding.type_name.as_str(),
+                    )
+                })
+            });
+        if let Some((name, object_id, secret, type_name)) = presentation {
+            variable["name"] = name.into();
+            if secret {
+                variable["value"] = "<secret>".into();
                 variable["variablesReference"] = 0.into();
-            } else if raw.contains("optimized out") {
-                variable["value"] = "<optimized out>".into();
-            } else if raw.contains("unavailable") {
-                variable["value"] = "<unavailable debug information>".into();
+                variable["memoryReference"] = Value::Null;
+                variable["evaluateName"] = Value::Null;
+            } else {
+                let reference = variable["variablesReference"].as_i64().unwrap_or(0);
+                if reference != 0
+                    && let Some(object_id) = object_id
+                {
+                    variable_objects.insert(reference, object_id);
+                }
+                let raw = variable["value"].as_str().unwrap_or_default();
+                if type_name == "Scalar(Int)"
+                    && (raw.contains("terrane_int_support::Int") || raw == type_name)
+                {
+                    variable["value"] = "<unsupported layout: adaptive int>".into();
+                    variable["variablesReference"] = 0.into();
+                } else if raw.contains("optimized out") {
+                    variable["value"] = "<optimized out>".into();
+                } else if raw.contains("unavailable") {
+                    variable["value"] = "<unavailable debug information>".into();
+                }
             }
         }
         if let Some(value) = variable["value"].as_str()
@@ -910,6 +971,7 @@ fn show_variables(
 ) -> Result<(), CliFailure> {
     let frame_id = selected_frame(backend, thread_id)?;
     let scopes = backend.request("scopes", json!({"frameId": frame_id}))?;
+    let mut variable_objects = BTreeMap::new();
     for scope in scopes["body"]["scopes"]
         .as_array()
         .into_iter()
@@ -924,7 +986,7 @@ fn show_variables(
         let response = backend.request("variables", json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
         if !registers {
-            translate_variables(&mut body, provenance);
+            translate_variables(&mut body, provenance, reference, &mut variable_objects);
         }
         for variable in body["variables"].as_array().into_iter().flatten() {
             eprintln!(
@@ -1060,4 +1122,147 @@ fn protocol_failure(error: io::Error) -> CliFailure {
 )]
 fn io_failure(error: io::Error) -> CliFailure {
     debugger_failure(format!("debugger terminal I/O failure: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn provenance() -> ProvenanceManifest {
+        serde_json::from_value(json!({
+            "schema_version": "1.0",
+            "compiler_version": "0.1.0",
+            "rust_toolchain": "system",
+            "target": "x86_64-linux",
+            "optimization": "0",
+            "debug_information": "full",
+            "inputs": [],
+            "debug": {
+                "schema_version": "1.0",
+                "compiler_version": "0.1.0",
+                "sources": [{
+                    "id": 1,
+                    "uri": "source.trn",
+                    "content_hash": "sha256:test"
+                }],
+                "generated_files": [{
+                    "path": "src/main.rs",
+                    "content_hash": "sha256:generated",
+                    "associations": [{
+                        "generated": {"start": 0, "end": 4, "line": 10, "column": 1, "end_line": 10, "end_column": 5},
+                        "causes": [{"source_id": 1, "start": 20, "end": 24, "line": 4, "column": 3, "end_line": 4, "end_column": 7}],
+                        "role": "user",
+                        "sequence_point": true,
+                        "function_id": "function",
+                        "scope_ids": ["scope"]
+                    }, {
+                        "generated": {"start": 5, "end": 9, "line": 12, "column": 1, "end_line": 12, "end_column": 5},
+                        "causes": [{"source_id": 1, "start": 20, "end": 24, "line": 4, "column": 3, "end_line": 4, "end_column": 7}],
+                        "role": "user",
+                        "sequence_point": true,
+                        "function_id": "function",
+                        "scope_ids": ["scope"]
+                    }]
+                }],
+                "functions": [{
+                    "id": "function",
+                    "name": "/source::main",
+                    "namespace": "/source",
+                    "source": {"source_id": 1, "start": 10, "end": 50, "line": 2, "column": 1, "end_line": 6, "end_column": 1},
+                    "rust_name": "main",
+                    "is_async": false
+                }],
+                "scopes": [{
+                    "id": "scope",
+                    "source": {"source_id": 1, "start": 10, "end": 50, "line": 2, "column": 1, "end_line": 6, "end_column": 1}
+                }],
+                "bindings": [{
+                    "id": "binding",
+                    "name": "credentials",
+                    "rust_name": "credentials",
+                    "source": {"source_id": 1, "start": 20, "end": 24, "line": 4, "column": 3, "end_line": 4, "end_column": 7},
+                    "visible_from": 24,
+                    "type_name": "Object(credentials)",
+                    "object_id": "/source::credentials",
+                    "mutable": false
+                }],
+                "objects": [{
+                    "id": "/source::credentials",
+                    "fields": [{
+                        "name": "username",
+                        "rust_name": "username",
+                        "type_name": "Scalar(String)",
+                        "secret": false
+                    }, {
+                        "name": "token",
+                        "rust_name": "token",
+                        "type_name": "Scalar(String)",
+                        "secret": true
+                    }]
+                }]
+            },
+            "native_module": {"file_name": "program", "content_hash": "sha256:module"},
+            "relocation": {"build_root": "/build", "source_root": "/source"}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn breakpoint_resolution_preserves_every_native_location_and_adjusts_in_function() {
+        let provenance = provenance();
+        let exact = resolve_breakpoint(&provenance, Path::new("/source/source.trn"), 4);
+        assert_eq!(
+            exact
+                .iter()
+                .map(|location| location.generated_line)
+                .collect::<Vec<_>>(),
+            [10, 12]
+        );
+        assert!(exact.iter().all(|location| location.source_line == 4));
+
+        let adjusted = resolve_breakpoint(&provenance, Path::new("source.trn"), 5);
+        assert_eq!(adjusted.len(), 2);
+        assert!(
+            adjusted
+                .iter()
+                .all(|location| location.message.contains("adjusted"))
+        );
+        assert!(resolve_breakpoint(&provenance, Path::new("unknown.trn"), 4).is_empty());
+    }
+
+    #[test]
+    fn variable_translation_redacts_secret_fields_before_frontend_exposure() {
+        let provenance = provenance();
+        let mut references = BTreeMap::new();
+        let mut locals = json!({"variables": [{
+            "name": "credentials",
+            "value": "Credentials",
+            "variablesReference": 7,
+            "memoryReference": "0x1234",
+            "evaluateName": "credentials"
+        }]});
+        translate_variables(&mut locals, &provenance, 1, &mut references);
+        assert_eq!(
+            references.get(&7).map(String::as_str),
+            Some("/source::credentials")
+        );
+
+        let mut fields = json!({"variables": [{
+            "name": "username",
+            "value": "visible",
+            "variablesReference": 0
+        }, {
+            "name": "token",
+            "value": "must-not-escape",
+            "variablesReference": 9,
+            "memoryReference": "0x2345",
+            "evaluateName": "credentials.token"
+        }]});
+        translate_variables(&mut fields, &provenance, 7, &mut references);
+        assert_eq!(fields["variables"][0]["value"], "visible");
+        assert_eq!(fields["variables"][1]["value"], "<secret>");
+        assert_eq!(fields["variables"][1]["variablesReference"], 0);
+        assert!(fields["variables"][1]["memoryReference"].is_null());
+        assert!(fields["variables"][1]["evaluateName"].is_null());
+    }
 }

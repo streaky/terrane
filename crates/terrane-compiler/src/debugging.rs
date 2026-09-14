@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::rust_ir::RenderedFile;
-use crate::semantics::{SemanticPackage, SemanticUnit};
+use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
 pub const SCHEMA_VERSION: &str = "1.0";
@@ -99,7 +99,25 @@ pub struct DebugBinding {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
     pub type_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object_id: Option<String>,
     pub mutable: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct DebugObjectField {
+    pub name: String,
+    pub rust_name: String,
+    pub type_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object_id: Option<String>,
+    pub secret: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct DebugObject {
+    pub id: String,
+    pub fields: Vec<DebugObjectField>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -111,6 +129,7 @@ pub struct DebugInformation {
     pub functions: Vec<DebugFunction>,
     pub scopes: Vec<DebugScope>,
     pub bindings: Vec<DebugBinding>,
+    pub objects: Vec<DebugObject>,
 }
 
 #[derive(Clone, Debug)]
@@ -119,6 +138,7 @@ pub(crate) struct DebugSymbols {
     functions: Vec<DebugFunction>,
     scopes: Vec<DebugScope>,
     bindings: Vec<DebugBinding>,
+    objects: Vec<DebugObject>,
     source_files: BTreeMap<u32, SourceFile>,
 }
 
@@ -128,6 +148,7 @@ impl DebugSymbols {
         let mut functions = Vec::new();
         let mut scopes = Vec::new();
         let mut bindings = Vec::new();
+        let mut objects = Vec::new();
         let mut source_files = BTreeMap::new();
         for unit in &semantic.units {
             source_files.insert(unit.source.id(), unit.source.clone());
@@ -137,13 +158,21 @@ impl DebugSymbols {
                 content_hash: hash_bytes(unit.source.text().as_bytes()),
                 embedded_source: None,
             });
-            append_unit_symbols(semantic, unit, &mut functions, &mut scopes, &mut bindings);
+            append_unit_symbols(
+                semantic,
+                unit,
+                &mut functions,
+                &mut scopes,
+                &mut bindings,
+                &mut objects,
+            );
         }
         Self {
             sources,
             functions,
             scopes,
             bindings,
+            objects,
             source_files,
         }
     }
@@ -165,6 +194,7 @@ impl DebugSymbols {
             functions: self.functions.clone(),
             scopes: self.scopes.clone(),
             bindings: self.bindings.clone(),
+            objects: self.objects.clone(),
         }
     }
 }
@@ -175,7 +205,25 @@ fn append_unit_symbols(
     functions: &mut Vec<DebugFunction>,
     scopes: &mut Vec<DebugScope>,
     bindings: &mut Vec<DebugBinding>,
+    objects: &mut Vec<DebugObject>,
 ) {
+    for descriptor in &unit.descriptors {
+        objects.push(DebugObject {
+            id: object_id(&descriptor.identity),
+            fields: descriptor
+                .fields
+                .iter()
+                .filter(|field| !field.is_static)
+                .map(|field| DebugObjectField {
+                    name: field.name.clone(),
+                    rust_name: crate::lowering::debug_rust_name(&field.name),
+                    type_name: format!("{:?}", field.value_type),
+                    object_id: value_object_id(&field.value_type),
+                    secret: field.metadata.secret,
+                })
+                .collect(),
+        });
+    }
     for function in &unit.functions {
         let id = function_id(
             unit,
@@ -226,9 +274,24 @@ fn append_unit_symbols(
             visible_from: binding.visible_from,
             scope_id,
             type_name: format!("{:?}", binding.value_type),
+            object_id: value_object_id(&binding.value_type),
             mutable: binding.mutable,
         });
     }
+}
+
+fn value_object_id(value_type: &ValueType) -> Option<String> {
+    match value_type {
+        ValueType::Object(identity) => Some(object_id(identity)),
+        ValueType::Reference(element) | ValueType::SharedReference(element) => {
+            value_object_id(&element.value_type())
+        }
+        _ => None,
+    }
+}
+
+fn object_id(identity: &crate::semantics::ObjectIdentity) -> String {
+    format!("{}::{}", identity.namespace, identity.name)
 }
 
 fn marker_associations(file: &RenderedFile, symbols: &DebugSymbols) -> Vec<DebugAssociation> {
@@ -559,6 +622,47 @@ mod tests {
                 .debug_information(Path::new("src/main.rs"))
                 .unwrap()
                 .is_none()
+        );
+    }
+    #[test]
+    fn debug_information_carries_secret_field_policy() {
+        let compilation = compile_with_options(
+            "secret.trn",
+            concat!(
+                "namespace secret\n",
+                "class credentials\n",
+                "  username string = ''\n",
+                "  token string = '' metadata (secret = true)\n",
+                "function main;\n",
+            )
+            .to_owned(),
+            CompilerOptions {
+                debug_information: true,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let debug = compilation
+            .debug_information(Path::new("src/main.rs"))
+            .unwrap()
+            .unwrap();
+        let object = debug
+            .objects
+            .iter()
+            .find(|object| object.id == "/secret::credentials")
+            .unwrap();
+
+        assert!(
+            object
+                .fields
+                .iter()
+                .any(|field| field.name == "token" && field.secret)
+        );
+        assert!(
+            object
+                .fields
+                .iter()
+                .any(|field| field.name == "username" && !field.secret)
         );
     }
 }
