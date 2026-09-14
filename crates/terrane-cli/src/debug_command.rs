@@ -77,7 +77,7 @@ pub(super) fn run_cli(
     });
     add_rust_lldb_init_commands(
         &mut backend_arguments,
-        discover_rust_lldb_formatter().as_deref(),
+        discover_rust_lldb_formatter(&provenance.rust_sysroot).as_deref(),
     );
     let _ = backend.request_with_timeout(
         "launch",
@@ -271,7 +271,17 @@ struct Adapter {
     executable: Option<PathBuf>,
     launched: bool,
     variable_objects: BTreeMap<i64, String>,
+    frame_contexts: BTreeMap<i64, StopContext>,
+    variable_contexts: BTreeMap<i64, StopContext>,
     breakpoints: BreakpointManager,
+}
+
+#[derive(Clone)]
+struct StopContext {
+    source_id: u32,
+    position: usize,
+    function_id: Option<String>,
+    scope_ids: Vec<String>,
 }
 
 impl Adapter {
@@ -285,6 +295,8 @@ impl Adapter {
             "continue" | "next" | "stepIn" | "stepOut" | "configurationDone"
         ) {
             self.variable_objects.clear();
+            self.frame_contexts.clear();
+            self.variable_contexts.clear();
         }
         if command == "initialize" {
             let backend = self.backend.get_or_insert(Backend::start()?);
@@ -350,7 +362,11 @@ impl Adapter {
             }
             add_rust_lldb_init_commands(
                 &mut backend_arguments,
-                discover_rust_lldb_formatter().as_deref(),
+                translation
+                    .as_ref()
+                    .ok()
+                    .and_then(|provenance| discover_rust_lldb_formatter(&provenance.rust_sysroot))
+                    .as_deref(),
             );
             if command == "launch"
                 && let Ok(provenance) = &translation
@@ -372,11 +388,17 @@ impl Adapter {
                 Ok(provenance) => {
                     self.breakpoints.resolve_all(&provenance);
                     self.breakpoints.sync(backend, &provenance)?;
-                    self.provenance = Some(provenance);
                     messages.push(event(
                         "terrane/fidelity",
-                        json!({"mode": "source", "sourceTranslation": true}),
+                        json!({
+                            "mode": "source",
+                            "sourceTranslation": true,
+                            "target": provenance.target,
+                            "abiRecipe": provenance.abi_recipe,
+                            "inlining": provenance.inlining
+                        }),
                     ));
+                    self.provenance = Some(provenance);
                     messages.extend(self.breakpoints.verification_events());
                 }
                 Err(failure) => {
@@ -408,20 +430,51 @@ impl Adapter {
         }
         if command == "stackTrace" {
             let provenance = self.provenance.clone();
-            let backend = self.backend_mut()?;
-            let backend_response = backend.request(command, arguments)?;
-            let mut body = backend_response["body"].clone();
+            let (mut body, events) = {
+                let backend = self.backend_mut()?;
+                let backend_response = backend.request(command, arguments)?;
+                (
+                    backend_response["body"].clone(),
+                    std::mem::take(&mut backend.events),
+                )
+            };
             if let Some(provenance) = &provenance {
+                self.frame_contexts = frame_stop_contexts(&body, provenance);
                 translate_stack_frames(&mut body, provenance, false);
             }
-            return Ok(with_backend_events(backend, response(body)));
+            let mut messages = vec![response(body)];
+            messages.extend(events);
+            return Ok(messages);
+        }
+        if command == "scopes" {
+            let frame_id = arguments["frameId"].as_i64().unwrap_or(0);
+            let context = self.frame_contexts.get(&frame_id).cloned();
+            let (body, events) = {
+                let backend = self.backend_mut()?;
+                let backend_response = backend.request(command, arguments)?;
+                (
+                    backend_response["body"].clone(),
+                    std::mem::take(&mut backend.events),
+                )
+            };
+            if let Some(context) = context {
+                for scope in body["scopes"].as_array().into_iter().flatten() {
+                    if let Some(reference) = scope["variablesReference"].as_i64() {
+                        self.variable_contexts.insert(reference, context.clone());
+                    }
+                }
+            }
+            let mut messages = vec![response(body)];
+            messages.extend(events);
+            return Ok(messages);
         }
         if command == "variables" {
             let parent_reference = arguments["variablesReference"].as_i64().unwrap_or(0);
             let provenance = self.provenance.clone();
-            let selected_layout = provenance
-                .as_ref()
-                .is_some_and(|provenance| provenance.target == "x86_64-linux");
+            let stop_context = self.variable_contexts.get(&parent_reference).cloned();
+            let selected_layout = provenance.as_ref().is_some_and(|provenance| {
+                provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1"
+            });
             let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = if provenance.is_some() {
@@ -440,7 +493,18 @@ impl Adapter {
                     parent_reference,
                     &mut self.variable_objects,
                     &value_summaries,
+                    stop_context.as_ref(),
                 );
+                if let Some(context) = stop_context {
+                    for variable in body["variables"].as_array().into_iter().flatten() {
+                        if let Some(reference) = variable["variablesReference"]
+                            .as_i64()
+                            .filter(|reference| *reference != 0)
+                        {
+                            self.variable_contexts.insert(reference, context.clone());
+                        }
+                    }
+                }
             }
             let mut messages = vec![response(body)];
             messages.extend(events);
@@ -588,17 +652,8 @@ struct Backend {
     responses: BTreeMap<i64, Value>,
 }
 
-fn discover_rust_lldb_formatter() -> Option<PathBuf> {
-    let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
-    let output = Command::new(rustc)
-        .args(["--print", "sysroot"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let sysroot = String::from_utf8(output.stdout).ok()?;
-    let formatter = Path::new(sysroot.trim())
+fn discover_rust_lldb_formatter(rust_sysroot: &str) -> Option<PathBuf> {
+    let formatter = Path::new(rust_sysroot)
         .join("lib")
         .join("rustlib")
         .join("etc")
@@ -1358,21 +1413,73 @@ fn translate_stack_frames(body: &mut Value, provenance: &ProvenanceManifest, inc
     }
 }
 
+fn frame_stop_contexts(
+    body: &Value,
+    provenance: &ProvenanceManifest,
+) -> BTreeMap<i64, StopContext> {
+    body["stackFrames"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|frame| {
+            let frame_id = frame["id"].as_i64()?;
+            let association = association_for_frame(provenance, frame)?;
+            let cause = association.causes.first()?;
+            Some((
+                frame_id,
+                StopContext {
+                    source_id: cause.source_id,
+                    position: cause.start,
+                    function_id: association.function_id.clone(),
+                    scope_ids: association.scope_ids.clone(),
+                },
+            ))
+        })
+        .collect()
+}
+
 fn translate_variables(
     body: &mut Value,
     provenance: &ProvenanceManifest,
     parent_reference: i64,
     variable_objects: &mut BTreeMap<i64, String>,
     value_summaries: &BTreeMap<String, String>,
+    stop_context: Option<&StopContext>,
 ) {
     const MAX_VARIABLES: usize = 100;
     const MAX_VALUE_BYTES: usize = 4_096;
-    let bindings = provenance
-        .debug
-        .bindings
-        .iter()
-        .map(|binding| (binding.rust_name.as_str(), binding))
-        .collect::<BTreeMap<_, _>>();
+    let mut bindings = BTreeMap::new();
+    for binding in &provenance.debug.bindings {
+        let visible = stop_context.is_none_or(|context| {
+            binding.source.source_id == context.source_id
+                && binding.visible_from <= context.position
+                && binding.visible_until >= context.position
+                && binding.function_id == context.function_id
+                && binding
+                    .scope_id
+                    .as_ref()
+                    .is_none_or(|scope| context.scope_ids.contains(scope))
+        });
+        if !visible {
+            continue;
+        }
+        let rank = stop_context
+            .and_then(|context| {
+                binding
+                    .scope_id
+                    .as_ref()
+                    .and_then(|scope| context.scope_ids.iter().position(|id| id == scope))
+            })
+            .unwrap_or(0);
+        let replace = bindings.get(binding.rust_name.as_str()).is_none_or(
+            |(current_rank, current): &(usize, &terrane_compiler::debugging::DebugBinding)| {
+                (rank, binding.visible_from) > (*current_rank, current.visible_from)
+            },
+        );
+        if replace {
+            bindings.insert(binding.rust_name.as_str(), (rank, binding));
+        }
+    }
     let parent_object = variable_objects.get(&parent_reference).and_then(|id| {
         provenance
             .debug
@@ -1383,8 +1490,9 @@ fn translate_variables(
     let Some(variables) = body["variables"].as_array_mut() else {
         return;
     };
+    let truncated_variables = variables.len().saturating_sub(MAX_VARIABLES);
     variables.truncate(MAX_VARIABLES);
-    for variable in variables {
+    for variable in variables.iter_mut() {
         let rust_name = variable["name"].as_str().unwrap_or_default();
         let presentation = parent_object
             .and_then(|object| {
@@ -1402,7 +1510,7 @@ fn translate_variables(
                     })
             })
             .or_else(|| {
-                bindings.get(rust_name).map(|binding| {
+                bindings.get(rust_name).map(|(_, binding)| {
                     (
                         binding.name.clone(),
                         binding.object_id.clone(),
@@ -1431,12 +1539,12 @@ fn translate_variables(
                 if is_object {
                     variable["value"] = object_name.into();
                 } else if type_name == "Scalar(Int)" {
-                    let summary = variable["memoryReference"]
+                    if let Some(summary) = variable["memoryReference"]
                         .as_str()
                         .and_then(|reference| value_summaries.get(reference))
-                        .cloned()
-                        .unwrap_or_else(|| "<unavailable debug information>".to_owned());
-                    variable["value"] = summary.into();
+                    {
+                        variable["value"] = summary.clone().into();
+                    }
                     variable["variablesReference"] = 0.into();
                 } else if matches!(type_name, "Scalar(String)" | "Bytes")
                     && let Some(summary) = variable["memoryReference"]
@@ -1447,6 +1555,8 @@ fn translate_variables(
                     variable["variablesReference"] = 0.into();
                 } else if raw.contains("optimized out") {
                     variable["value"] = "<optimized out>".into();
+                } else if raw.contains("moved") {
+                    variable["value"] = "<moved>".into();
                 } else if raw.contains("unavailable") {
                     variable["value"] = "<unavailable debug information>".into();
                 }
@@ -1461,6 +1571,13 @@ fn translate_variables(
             }
             variable["value"] = format!("{}… <truncated>", &value[..end]).into();
         }
+    }
+    if truncated_variables != 0 {
+        variables.push(json!({
+            "name": "…",
+            "value": format!("<truncated: {truncated_variables} more values; request another DAP page>"),
+            "variablesReference": 0
+        }));
     }
 }
 fn debug_object_name(object_id: Option<&str>, fallback: &str) -> String {
@@ -1501,11 +1618,6 @@ fn read_value_summaries(
             continue;
         }
         if !selected_layout {
-            summaries.insert(
-                reference.to_owned(),
-                "<unsupported layout: debugger value recipe is unavailable for this target>"
-                    .to_owned(),
-            );
             continue;
         }
         let summary = if type_name == "terrane_int_support::Int" {
@@ -1567,11 +1679,9 @@ fn decode_vec_bytes(backend: &mut Backend, reference: &str) -> Result<(Vec<u8>, 
         return Err("<unavailable debug information>".to_owned());
     }
     let word = |index: usize| {
-        u64::from_le_bytes(
-            header[index * 8..index * 8 + 8]
-                .try_into()
-                .expect("bounded word slice"),
-        )
+        let mut bytes = [0_u8; 8];
+        bytes.copy_from_slice(&header[index * 8..index * 8 + 8]);
+        u64::from_ne_bytes(bytes)
     };
     let pointer = word(1);
     let length = usize::try_from(word(2))
@@ -2039,14 +2149,18 @@ fn show_variables(
         };
         let mut body = response["body"].clone();
         if !registers {
-            let value_summaries =
-                read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
+            let value_summaries = read_value_summaries(
+                backend,
+                &body,
+                provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
+            );
             translate_variables(
                 &mut body,
                 provenance,
                 reference,
                 &mut variable_objects,
                 &value_summaries,
+                None,
             );
         }
         for variable in body["variables"].as_array().into_iter().flatten() {
@@ -2089,13 +2203,18 @@ fn show_value(
         let response =
             request_terrane_variables(backend, json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
-        let summaries = read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
+        let summaries = read_value_summaries(
+            backend,
+            &body,
+            provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
+        );
         translate_variables(
             &mut body,
             provenance,
             reference,
             &mut variable_objects,
             &summaries,
+            None,
         );
         if let Some(variable) = body["variables"]
             .as_array()
@@ -2158,13 +2277,18 @@ fn print_value_tree(
     }
     let response = request_terrane_variables(backend, json!({"variablesReference": reference}))?;
     let mut body = response["body"].clone();
-    let summaries = read_value_summaries(backend, &body, provenance.target == "x86_64-linux");
+    let summaries = read_value_summaries(
+        backend,
+        &body,
+        provenance.abi_recipe == "terrane-rust-x86_64-linux-gnu-v1",
+    );
     translate_variables(
         &mut body,
         provenance,
         reference,
         variable_objects,
         &summaries,
+        None,
     );
     for child in body["variables"].as_array().into_iter().flatten() {
         print_value_tree(
@@ -2273,6 +2397,28 @@ fn load_and_validate(
             provenance.schema_version
         )));
     }
+    if provenance.compiler_version != terrane_compiler::VERSION {
+        return Err(debugger_failure(format!(
+            "unsupported debug provenance compiler {}",
+            provenance.compiler_version
+        )));
+    }
+    let expected_recipe = terrane_compiler::debugging::abi_recipe_for_target(&provenance.target);
+    if expected_recipe == "unsupported" || provenance.abi_recipe != expected_recipe {
+        return Err(debugger_failure(format!(
+            "unsupported debug target or ABI recipe: {} / {}",
+            provenance.target, provenance.abi_recipe
+        )));
+    }
+    if provenance.optimization != "0"
+        || provenance.debug_information != "full"
+        || provenance.inlining != "disabled"
+    {
+        return Err(debugger_failure(format!(
+            "unsupported debug artifact profile: optimization={}, debug-information={}, inlining={}",
+            provenance.optimization, provenance.debug_information, provenance.inlining
+        )));
+    }
     provenance
         .validate_executable(executable)
         .map_err(debugger_failure)?;
@@ -2352,16 +2498,19 @@ mod tests {
 
     fn provenance() -> ProvenanceManifest {
         serde_json::from_value(json!({
-            "schema_version": "1.0",
-            "compiler_version": "0.1.0",
+            "schema_version": "1.1",
+            "compiler_version": env!("CARGO_PKG_VERSION"),
             "rust_toolchain": "system",
-            "target": "x86_64-linux",
+            "target": "x86_64-unknown-linux-gnu",
+            "rust_sysroot": "/tmp/sysroot",
+            "abi_recipe": "terrane-rust-x86_64-linux-gnu-v1",
             "optimization": "0",
             "debug_information": "full",
+            "inlining": "disabled",
             "inputs": [],
             "debug": {
-                "schema_version": "1.0",
-                "compiler_version": "0.1.0",
+                "schema_version": "1.1",
+                "compiler_version": env!("CARGO_PKG_VERSION"),
                 "sources": [{
                     "id": 1,
                     "uri": "source.trn",
@@ -2412,6 +2561,9 @@ mod tests {
                     "rust_name": "credentials",
                     "source": {"source_id": 1, "start": 20, "end": 24, "line": 4, "column": 3, "end_line": 4, "end_column": 7},
                     "visible_from": 24,
+                    "visible_until": 50,
+                    "function_id": "function",
+                    "scope_id": "scope",
                     "type_name": "Object(credentials)",
                     "object_id": "/source::credentials",
                     "mutable": false
@@ -2501,6 +2653,7 @@ mod tests {
             1,
             &mut references,
             &BTreeMap::new(),
+            None,
         );
         assert_eq!(
             references.get(&7).map(String::as_str),
@@ -2525,12 +2678,74 @@ mod tests {
             7,
             &mut references,
             &BTreeMap::new(),
+            None,
         );
         assert_eq!(fields["variables"][0]["value"], "visible");
         assert_eq!(fields["variables"][1]["value"], "<secret>");
         assert_eq!(fields["variables"][1]["variablesReference"], 0);
         assert!(fields["variables"][1]["memoryReference"].is_null());
         assert!(fields["variables"][1]["evaluateName"].is_null());
+    }
+
+    #[test]
+    fn variable_translation_selects_the_innermost_visible_shadow() {
+        let mut provenance = provenance();
+        let mut outer = provenance.debug.bindings[0].clone();
+        outer.name = "outer".to_owned();
+        outer.rust_name = "value".to_owned();
+        outer.object_id = None;
+        outer.type_name = "Scalar(Int64)".to_owned();
+        outer.visible_from = 10;
+        let mut inner = outer.clone();
+        inner.name = "inner".to_owned();
+        inner.scope_id = Some("inner-scope".to_owned());
+        inner.visible_from = 25;
+        provenance.debug.bindings = vec![outer, inner];
+        let mut variables = json!({"variables": [{
+            "name": "value",
+            "value": "7",
+            "variablesReference": 0
+        }]});
+        translate_variables(
+            &mut variables,
+            &provenance,
+            1,
+            &mut BTreeMap::new(),
+            &BTreeMap::new(),
+            Some(&StopContext {
+                source_id: 1,
+                position: 30,
+                function_id: Some("function".to_owned()),
+                scope_ids: vec!["scope".to_owned(), "inner-scope".to_owned()],
+            }),
+        );
+        assert_eq!(variables["variables"][0]["name"], "inner");
+    }
+
+    #[test]
+    fn scalar_values_remain_raw_without_a_matching_abi_recipe() {
+        let mut provenance = provenance();
+        let binding = &mut provenance.debug.bindings[0];
+        binding.name = "value".to_owned();
+        binding.rust_name = "value".to_owned();
+        binding.object_id = None;
+        binding.type_name = "Scalar(Int)".to_owned();
+        let mut variables = json!({"variables": [{
+            "name": "value",
+            "value": "41",
+            "variablesReference": 7,
+            "memoryReference": "0x1234"
+        }]});
+        translate_variables(
+            &mut variables,
+            &provenance,
+            1,
+            &mut BTreeMap::new(),
+            &BTreeMap::new(),
+            None,
+        );
+        assert_eq!(variables["variables"][0]["value"], "41");
+        assert_eq!(variables["variables"][0]["variablesReference"], 0);
     }
 
     #[test]

@@ -8,7 +8,7 @@ use crate::rust_ir::RenderedFile;
 use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
-pub const SCHEMA_VERSION: &str = "1.0";
+pub const SCHEMA_VERSION: &str = "1.1";
 const DEBUG_MARKER: &str = "/* terrane-debug-point:";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -98,6 +98,9 @@ pub struct DebugBinding {
     pub visible_from: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
+    pub visible_until: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_id: Option<String>,
     pub type_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_id: Option<String>,
@@ -144,7 +147,7 @@ pub(crate) struct DebugSymbols {
 }
 
 impl DebugSymbols {
-    pub(crate) fn from_semantic(semantic: &SemanticPackage) -> Self {
+    pub(crate) fn from_semantic(semantic: &SemanticPackage, embed_sources: bool) -> Self {
         let mut sources = Vec::new();
         let mut functions = Vec::new();
         let mut scopes = Vec::new();
@@ -159,7 +162,7 @@ impl DebugSymbols {
                 id: unit.source.id(),
                 uri: unit.source_path.clone(),
                 content_hash: hash_bytes(unit.source.text().as_bytes()),
-                embedded_source: None,
+                embedded_source: embed_sources.then(|| unit.source.text().to_owned()),
             });
             append_unit_symbols(
                 semantic,
@@ -307,6 +310,10 @@ fn append_unit_symbols(
             scope_id,
             type_name: format!("{:?}", binding.value_type),
             object_id: value_object_id(&binding.value_type),
+            visible_until: binding
+                .scope
+                .map_or(unit.source.text().len(), |scope| scope.end),
+            function_id: containing_function_id(unit, binding.span.start),
             mutable: binding.mutable,
         });
     }
@@ -337,6 +344,7 @@ fn marker_associations(file: &RenderedFile, symbols: &DebugSymbols) -> Vec<Debug
             .and_then(|value| value.strip_suffix(" */"))
         {
             if let Some((span, role)) = parse_marker(marker) {
+                pending.clear();
                 pending.push((span, role));
             }
         } else if !pending.is_empty() && !trimmed.is_empty() {
@@ -492,8 +500,11 @@ pub struct ProvenanceManifest {
     pub compiler_version: String,
     pub rust_toolchain: String,
     pub target: String,
+    pub rust_sysroot: String,
+    pub abi_recipe: String,
     pub optimization: String,
     pub debug_information: String,
+    pub inlining: String,
     pub inputs: Vec<InputIdentity>,
     pub debug: DebugInformation,
     pub native_module: NativeModuleIdentity,
@@ -511,6 +522,8 @@ impl ProvenanceManifest {
         debug: DebugInformation,
         executable: &Path,
         build_root: &Path,
+        target: String,
+        rust_sysroot: String,
     ) -> Result<Self, String> {
         let executable_bytes = std::fs::read(executable).map_err(|error| {
             format!(
@@ -535,9 +548,12 @@ impl ProvenanceManifest {
                 crate::BuildToolchain::Pinned => crate::BUILD_TOOLCHAIN.to_owned(),
                 crate::BuildToolchain::System => "system".to_owned(),
             },
-            target: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
+            abi_recipe: abi_recipe_for_target(&target).to_owned(),
+            target,
+            rust_sysroot,
             optimization: "0".to_owned(),
             debug_information: "full".to_owned(),
+            inlining: "disabled".to_owned(),
             inputs,
             debug,
             native_module: NativeModuleIdentity {
@@ -592,6 +608,14 @@ impl ProvenanceManifest {
 }
 
 #[must_use]
+pub fn abi_recipe_for_target(target: &str) -> &'static str {
+    match target {
+        "x86_64-unknown-linux-gnu" => "terrane-rust-x86_64-linux-gnu-v1",
+        _ => "unsupported",
+    }
+}
+
+#[must_use]
 pub fn hash_bytes(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
@@ -621,6 +645,12 @@ mod tests {
 
         assert_eq!(debug.schema_version, super::SCHEMA_VERSION);
         assert!(debug.sources.iter().any(|source| source.uri == "debug.trn"));
+        assert!(
+            debug
+                .sources
+                .iter()
+                .all(|source| source.embedded_source.is_none())
+        );
         assert!(debug.generated_files.iter().any(|file| {
             file.path == "src/main.rs"
                 && file
@@ -639,6 +669,49 @@ mod tests {
                 .iter()
                 .any(|binding| binding.name == "value" && binding.rust_name == "value")
         );
+        let embedded = compile_with_options(
+            "embedded.trn",
+            source.to_owned(),
+            CompilerOptions {
+                debug_information: true,
+                embed_debug_sources: true,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap()
+        .debug_information(Path::new("src/main.rs"))
+        .unwrap()
+        .unwrap();
+        assert_eq!(embedded.sources[0].embedded_source.as_deref(), Some(source));
+    }
+
+    #[test]
+    fn sequence_markers_do_not_drift_from_non_emitting_statements() {
+        let compilation = compile_with_options(
+            "markers.trn",
+            concat!(
+                "namespace markers\n",
+                "global = 1\n",
+                "function main;\n",
+                "  local = 2\n",
+            )
+            .to_owned(),
+            CompilerOptions {
+                debug_information: true,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let debug = compilation
+            .debug_information(Path::new("src/main.rs"))
+            .unwrap()
+            .unwrap();
+        assert!(debug.generated_files.iter().all(|file| {
+            file.associations.iter().all(|association| {
+                !association.sequence_point
+                    || association.causes.iter().all(|cause| cause.line != 2)
+            })
+        }));
     }
 
     #[test]

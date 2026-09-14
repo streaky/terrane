@@ -13,6 +13,7 @@ pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
     pub debug_information: bool,
+    pub embed_debug_sources: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -277,9 +278,9 @@ pub fn compile_package_with_options(
         rust,
         review_rust,
         rendered_rust,
-        debug_symbols: options
-            .debug_information
-            .then(|| crate::debugging::DebugSymbols::from_semantic(&semantic)),
+        debug_symbols: options.debug_information.then(|| {
+            crate::debugging::DebugSymbols::from_semantic(&semantic, options.embed_debug_sources)
+        }),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
@@ -547,9 +548,9 @@ pub fn compile_discovered_test_tier(
         rust: standalone_file.contents,
         review_rust: rendered_rust.review_file(),
         rendered_rust,
-        debug_symbols: options
-            .debug_information
-            .then(|| crate::debugging::DebugSymbols::from_semantic(&semantic)),
+        debug_symbols: options.debug_information.then(|| {
+            crate::debugging::DebugSymbols::from_semantic(&semantic, options.embed_debug_sources)
+        }),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,

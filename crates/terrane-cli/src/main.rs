@@ -179,8 +179,14 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         | CliCommand::Run
         | CliCommand::Debug => {}
     }
-    let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
-        parse_input(arguments, command)?;
+    let (
+        input_path,
+        output_path,
+        require_canonical_rust,
+        lint_name_style,
+        release,
+        embed_debug_sources,
+    ) = parse_input(arguments, command)?;
     let source_input = !input_path.is_dir()
         && input_path
             .extension()
@@ -205,6 +211,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             require_canonical_rust,
             lint_name_style,
             debug_information: command == CliCommand::Debug,
+            embed_debug_sources,
         },
     ) {
         Ok(compilation) => compilation,
@@ -285,11 +292,14 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .debug_information(rust_entrypoint)
             .map_err(CliFailure::rust_artifact)?
             .expect("debug compilation produces debugger metadata");
+        let (target, rust_sysroot) = rust_debug_build_identity(&crate_dir)?;
         let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
             &package,
             debug,
             &executable,
             &crate_dir,
+            target,
+            rust_sysroot,
         )
         .map_err(CliFailure::backend)?;
         let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
@@ -309,21 +319,62 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
+fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String), CliFailure> {
+    let verbose = Command::new("rustc")
+        .arg("-vV")
+        .current_dir(crate_dir)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to inspect debug Rust compiler: {error}"))
+        })?;
+    if !verbose.status.success() {
+        return Err(CliFailure::backend(
+            "debug Rust compiler did not report its target triple".to_owned(),
+        ));
+    }
+    let verbose = String::from_utf8_lossy(&verbose.stdout);
+    let target = verbose
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .ok_or_else(|| {
+            CliFailure::backend("debug Rust compiler output omitted its target triple".to_owned())
+        })?
+        .to_owned();
+    let sysroot = Command::new("rustc")
+        .args(["--print", "sysroot"])
+        .current_dir(crate_dir)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to inspect debug Rust sysroot: {error}"))
+        })?;
+    if !sysroot.status.success() {
+        return Err(CliFailure::backend(
+            "debug Rust compiler did not report its sysroot".to_owned(),
+        ));
+    }
+    let sysroot = String::from_utf8(sysroot.stdout)
+        .map_err(|_| CliFailure::backend("debug Rust sysroot was not valid UTF-8".to_owned()))?
+        .trim()
+        .to_owned();
+    Ok((target, sysroot))
+}
 
 fn parse_input(
     arguments: &[OsString],
     command: CliCommand,
-) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool), CliFailure> {
+) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool, bool), CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
     let mut release = false;
+    let mut embed_debug_sources = false;
     while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--release" => release = true,
+            "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
             "-o" | "--output" if command == CliCommand::Rust && output_path.is_none() => {
                 input_index += 1;
                 output_path = Some(
@@ -359,6 +410,7 @@ fn parse_input(
         require_canonical_rust,
         lint_name_style,
         release,
+        embed_debug_sources,
     ))
 }
 
@@ -1562,7 +1614,14 @@ mod tests {
         assert_eq!(
             parse_input(&build, CliCommand::Build)
                 .unwrap_or_else(|_| panic!("release build should parse")),
-            (PathBuf::from("package.toml"), None, false, false, true)
+            (
+                PathBuf::from("package.toml"),
+                None,
+                false,
+                false,
+                true,
+                false
+            )
         );
 
         let check = [
