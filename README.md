@@ -222,10 +222,11 @@ bundled formatter.
 
 Debug builds write deterministic, exact-build provenance beside generated Rust and the executable.
 The 0.1 debugger surface is experimental and currently exercised end to end on Linux x86-64 with
-LLDB 22. Source breakpoints, mapped frames, bounded stepping and values, secret-field redaction, and
-generated/native escape hatches are available; conditional breakpoints, logpoints, restart, and a
-Terrane expression evaluator are not advertised. See the debugging reference for the complete
-support boundary.
+LLDB 22. Source breakpoints, mapped frame selection, bounded source/generated context, focused
+recursive values, bounded stepping, secret-field redaction, and generated/native escape hatches are
+available. The adapter reports source-versus-native fidelity explicitly; conditional breakpoints,
+logpoints, restart, direct test-case debugging, and a Terrane expression evaluator are not
+advertised. See the debugging reference for the complete support boundary.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
 `tests/integration`, and `tests/end-to-end`. Semantic analysis covers production sources and every

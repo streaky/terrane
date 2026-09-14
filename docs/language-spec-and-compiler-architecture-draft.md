@@ -6093,10 +6093,12 @@ privacy knowledge. The translator does not patch generated Rust, rewrite DWARF, 
 from emitted names, or silently substitute another native backend.
 
 `terrane debug <file-or-manifest> [-- arguments]` selects optimization level zero, full debug
-information, and no stripping. `terrane debug-adapter --stdio` exposes the same translator through
-DAP and writes only framed protocol messages to stdout. Linux x86-64 with LLDB 22 is the selected
-end-to-end host. Launch is supported there; attach is experimental and additionally governed by
-host process policy. Other hosts and optimized or stripped modules report reduced fidelity.
+information, and no stripping. Its source view supports stable session-local mapped-frame selection,
+bounded source/generated context, and bounded recursive focused-value expansion. `terrane
+debug-adapter --stdio` exposes the same translator through DAP and writes only framed protocol
+messages to stdout. Linux x86-64 with LLDB 22 is the selected end-to-end host. Launch is supported
+there; attach is experimental and additionally governed by host process policy. Other hosts and
+optimized or stripped modules report reduced fidelity.
 
 Each build writes deterministic schema `1.0` provenance beside final generated Rust and the
 executable. It records compiler/toolchain/target/profile identity; manifest, projection-lock,
@@ -6104,25 +6106,32 @@ logical-source, final-generated-file, and executable hashes; authored/generated 
 sequence points; semantic function/scope/binding/object identities; field secrecy; and explicit
 source/build relocation roots. Translation requires matching sidecar, executable, generated
 files, and selected source bytes. Explicit relocation may replace roots for copied-but-identical
-artifacts but never changes identity. A mismatch disables Terrane translation with a diagnostic
-while raw native debugging remains available.
+artifacts but never changes identity. After launch or attach the adapter emits a machine-readable
+`terrane/fidelity` event naming `source` or `native` mode. A mismatch disables Terrane translation
+with a diagnostic while raw native debugging remains available.
 
 Source breakpoints resolve through compiler-declared executable sequence points in final formatted
 Rust and preserve every native location for a source point. A non-executable line may adjust only
-to the nearest declared point inside the same function; otherwise it stays unverified. Mapped
-frames use canonical Terrane names and logical locations. Generated, runtime, and native frames
-remain explicit escape hatches. Source stepping delegates control to LLDB and suppresses unmapped
-internal stops for at most 64 native steps before exposing the native stop and limitation.
+to the nearest declared point inside the same function; otherwise it stays unverified. Resolved
+Terrane and generated locations are both reported. Mapped frames use canonical Terrane names,
+logical locations, and session-local indices. Generated, runtime, and native frames remain explicit
+escape hatches. Source stepping delegates control to LLDB, can target a caller after the current
+function's final sequence point, and suppresses unmapped internal stops for at most 64 native steps
+before exposing the native stop and limitation.
 
 Variables use compiler lexical names. On the selected layout the translator presents exact fixed
 scalars, adaptive integers across small/wide/arbitrary-precision tiers, and bounded strings/bytes
-without invoking arbitrary debuggee methods. Object and collection children stay lazy. Responses
-are bounded to 100 variables and 4096 displayed bytes and distinguish unavailable, optimized-out,
-unsupported-layout, and truncated states. Secret fields are redacted before frontend exposure and
-lose child, memory, and evaluation references; explicit raw inspection may expose physical memory.
+without invoking arbitrary debuggee methods. Object and collection children stay lazy; focused
+value expansion is depth-, cycle-, and count-bounded. Responses are bounded to 100 variables and
+4096 displayed bytes and distinguish unavailable, optimized-out, unsupported-layout, and truncated
+states. Secret fields are redacted before frontend exposure and lose child, memory, and evaluation
+references; explicit raw inspection may expose physical memory. When the active Rust sysroot
+provides its LLDB Python formatters, the debugger loads them before client initialization commands
+without making their presence a launch requirement.
 
-Conditional breakpoints, logpoints, restart, Terrane-language expression evaluation, DWARF
-rewriting, alternate native backends, and time-travel debugging are not supported.
+DAP initialization produces exactly one immediate `initialized` event. Conditional breakpoints,
+logpoints, restart, direct isolated test-case debugging, Terrane-language expression evaluation,
+DWARF rewriting, alternate native backends, and time-travel debugging are not supported.
 
 ### 31.7 Conformance suite
 
