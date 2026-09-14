@@ -1545,15 +1545,17 @@ features:
 - id: lldb-source-debugging
   name: LLDB-backed Terrane source debugging
   category: interop
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '30.2'
   reference:
-    state: planned
+    state: current
     paths:
     - manual/reference/records/tooling/debugging.yaml
-  notes: Will provide build-bound source provenance, breakpoints, mapped frames, sequence-point stepping, bounded value views, and shared DAP/CLI translation over LLDB.
+  notes: Linux x86-64 with lldb-dap 22 is exercised end to end for exact-build provenance, source breakpoints and frames, bounded stepping and values, privacy, stale-artifact rejection, raw native fallback, and DAP/CLI lifecycle. Other hosts, attach permission regimes, optimized or stripped modules, and the 0.1 protocol/schema remain explicitly experimental.
   sources:
+  - docs/language-spec-concise.md#DEBUGGING
+  - docs/language-spec-and-compiler-architecture-draft.md#31.6-Debugging
   - docs/compiler-plan.md#Milestone 30.2
 - id: rust-lowering
   name: Deterministic readable Rust lowering

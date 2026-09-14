@@ -1103,6 +1103,25 @@ host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust on
 The compiler's own conformance, compile-fail, lowering-golden, diagnostic, and host implementation
 tests remain distinct. `/core/testing` is the first-party framework for code authored in Terrane.
 
+## DEBUGGING
+
+```yaml
+commands: terrane debug FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio
+backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
+debug_build: full debug information, optimization 0, no stripping; deterministic schema 1.0 sidecar beside generated Rust and executable
+provenance: compiler/toolchain/target/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
+validation: translation requires matching sidecar, executable, generated files, and source bytes; explicit relocation changes paths, never identity; mismatch reports loss of fidelity and preserves raw native debugging
+breakpoints: every final-Rust location for an authored sequence point; non-executable lines adjust only within the same function to a declared point; unresolved requests remain unverified with reasons
+frames: source view uses Terrane namespace/function identities and logical source positions; generated/runtime/native frames remain available through explicit escape hatches
+stepping: continue and step requests delegate to LLDB; source stepping suppresses unmapped internal stops only up to a fixed 64-step bound, then exposes the native stop with an explanation
+values: Terrane lexical names; exact preserved fixed scalars and adaptive integer small/wide/big tiers on the selected 64-bit Linux layout; bounded strings/bytes; lazy structured children; explicit moved/optimized-out/unavailable/unsupported/truncated states
+privacy: secret object fields are redacted and stripped of child, memory, and evaluation references before ordinary frontend exposure; explicit raw native inspection is a separate opt-in path
+protocol: DAP frames are the only adapter stdout content; debuggee output remains framed; launch owns and normally terminates its child, while attach disconnect never terminates the target
+supported_host: Linux x86-64 with LLDB 22 is exercised end to end; attach additionally depends on host process policy
+experimental: CLI/DAP/provenance schema in 0.1; other hosts, optimized or stripped fidelity, and unsupported layouts report limitations
+excluded: conditional breakpoints, logpoints, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time-travel
+```
+
 ## CORE LIBRARY PRINCIPLE
 
 ```yaml

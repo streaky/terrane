@@ -6083,7 +6083,48 @@ The compiler also retains its lower-level compile-pass, compile-fail, generated-
 and host implementation tests. The Terrane framework is the application-facing test system, not a
 claim that compiler implementation verification itself must be expressed through compiled Terrane.
 
-### 31.6 Conformance suite
+### 31.6 Debugging
+
+Terrane source debugging is an experimental 0.1 tooling surface implemented as a translation
+layer over one selected `lldb-dap`/LLDB backend. LLDB alone owns process launch and attach,
+machine breakpoints, threads, unwinding, registers, memory, and native failure reporting. The
+compiler owns authored-source, generated-Rust, semantic-identity, scope, variable-name, and
+privacy knowledge. The translator does not patch generated Rust, rewrite DWARF, infer semantics
+from emitted names, or silently substitute another native backend.
+
+`terrane debug <file-or-manifest> [-- arguments]` selects optimization level zero, full debug
+information, and no stripping. `terrane debug-adapter --stdio` exposes the same translator through
+DAP and writes only framed protocol messages to stdout. Linux x86-64 with LLDB 22 is the selected
+end-to-end host. Launch is supported there; attach is experimental and additionally governed by
+host process policy. Other hosts and optimized or stripped modules report reduced fidelity.
+
+Each build writes deterministic schema `1.0` provenance beside final generated Rust and the
+executable. It records compiler/toolchain/target/profile identity; manifest, projection-lock,
+logical-source, final-generated-file, and executable hashes; authored/generated associations;
+sequence points; semantic function/scope/binding/object identities; field secrecy; and explicit
+source/build relocation roots. Translation requires matching sidecar, executable, generated
+files, and selected source bytes. Explicit relocation may replace roots for copied-but-identical
+artifacts but never changes identity. A mismatch disables Terrane translation with a diagnostic
+while raw native debugging remains available.
+
+Source breakpoints resolve through compiler-declared executable sequence points in final formatted
+Rust and preserve every native location for a source point. A non-executable line may adjust only
+to the nearest declared point inside the same function; otherwise it stays unverified. Mapped
+frames use canonical Terrane names and logical locations. Generated, runtime, and native frames
+remain explicit escape hatches. Source stepping delegates control to LLDB and suppresses unmapped
+internal stops for at most 64 native steps before exposing the native stop and limitation.
+
+Variables use compiler lexical names. On the selected layout the translator presents exact fixed
+scalars, adaptive integers across small/wide/arbitrary-precision tiers, and bounded strings/bytes
+without invoking arbitrary debuggee methods. Object and collection children stay lazy. Responses
+are bounded to 100 variables and 4096 displayed bytes and distinguish unavailable, optimized-out,
+unsupported-layout, and truncated states. Secret fields are redacted before frontend exposure and
+lose child, memory, and evaluation references; explicit raw inspection may expose physical memory.
+
+Conditional breakpoints, logpoints, restart, Terrane-language expression evaluation, DWARF
+rewriting, alternate native backends, and time-travel debugging are not supported.
+
+### 31.7 Conformance suite
 
 The language needs a public conformance corpus covering:
 
@@ -6107,7 +6148,7 @@ The conformance suite should contain many minimal Terrane snippets, each isolati
 
 Not every minimal snapshot needs its own Cargo invocation. The harness may combine independent accepted snippets into deterministic generated crates for batched `cargo check`, while cases whose contract depends on crate structure, linking, diagnostics, or runtime behaviour remain individually compiled or executed. Snapshot agreement proves what the compiler emitted; Rust compilation proves that emission is valid; selected execution tests remain the authority for observable language semantics.
 
-### 31.7 Fuzzing
+### 31.8 Fuzzing
 
 The lexer/parser, importer request decoder, source-map mapper, and diagnostic translator should be fuzzed early.
 

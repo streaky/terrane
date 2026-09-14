@@ -206,129 +206,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.2 — LLDB-backed Terrane source debugging
-
-Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
-Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
-native process control, unwinding, registers, memory, and machine breakpoints to a selected
-`lldb-dap`/LLDB backend.
-
-Milestone 30.0 supplies snapshot, symbol/descriptor, query, and source-to-final-Rust identities.
-Milestone 30.1 supplies repeatable executable fixtures, process isolation, and test discovery.
-Existing runtime source sites and `rust_ir::SourceAssociation` ranges are inputs, not sufficient
-debugger metadata: this milestone adds build identity, user-visible sequence points, lexical
-scopes, binding recipes, and async/internal provenance roles.
-
-#### Commands, build identity, and provenance
-
-Deliver:
-
-- `terrane debug <source-or-package> [-- program-arguments]` to build an unoptimized
-  debug-information-bearing artifact and launch it through the translation engine;
-- `terrane debug-adapter --stdio` for DAP clients, with protocol stdout isolated from debuggee
-  stdout/stderr and adapter/backend logs;
-- explicit attach support only on hosts where LLDB and permissions are exercised, with launch and
-  attach termination policy reported rather than inferred; and
-- transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
-  registers, and backend LLDB requests.
-
-Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
-compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
-projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
-native executable/module identity. Record relocation/path-prefix mappings separately from identity.
-Native addresses are resolved by LLDB against the loaded module and load address, never stored as
-portable addresses.
-
-Extend final `RenderedFile` source associations so entries can represent one-to-many source/Rust
-ranges, generated code with multiple source causes, source-free plumbing, stable snapshot-scoped
-function/binding/type identities, lexical scopes, user-visible sequence points, and generated,
-runtime, cleanup, or hidden roles. Associations must describe the final application and support
-files compiled by rustc, not pre-format offsets.
-
-On launch or attach, validate executable/module and generated-file identities before translation.
-A missing or mismatched sidecar disables Terrane translation with a clear diagnostic while
-preserving raw native debugging. Changed source is reported as stale or displayed from an
-explicitly selected build-time snapshot; never place current-source breakpoints through an older
-binary's plausible-looking map. Embedding source is opt-in because source and build paths may be
-sensitive.
-
-#### Breakpoints, frames, and stepping
-
-Map one requested Terrane source breakpoint to every executable native location for its documented
-sequence point. A non-executable line may adjust only to a declared nearby sequence point in the
-same function/scope, reporting requested and resolved locations, or remain unverified with a useful
-reason. Preserve unresolved breakpoints for later module loads. User breakpoints and fatal/native
-stops are never hidden or removed by source-level stepping.
-
-Translate stopped frames to logical Terrane source paths, spans, namespace-qualified function
-identity, and inlining status. Generated/runtime-only frames are hidden by default but remain
-inspectable. The first complete profile is unoptimized; optimized or stripped artifacts report
-precise limitations instead of fabricating source frames.
-
-`step over`, `step in`, and `step out` operate on executed sequence-point transitions and selected
-thread/frame depth, not merely changed line numbers. Loop re-entry at the same source point may
-therefore stop again. Temporary native breakpoints belong to one step request and are removed on
-completion, interruption, exception, disconnect, or exit. Bound repeated raw stepping; if no
-source progress is available, expose the native stop instead of hanging behind frame filtering.
-
-Native frames are not logical Terrane task stacks. An `await` may resume in another poll frame or
-executor thread. The initial debugger provides honest mapped stops in async code but does not
-invent a logical continuation stack. Task-aware async stepping requires explicit compiler/runtime
-task and continuation identities and a measured debug-profile cost before it is advertised.
-Authored `finally`/`destruct` and projected finalizer code remains user-visible where sourced.
-When Milestones 29.1 and 29.3 are implemented, `select` construction, winner, loser drain, deferred
-cancellation, timer, and signal regions receive distinct provenance roles.
-
-#### Variables, privacy, and DAP lifecycle
-
-Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
-finite unions, value/COW collections, references, and projected values only as exact layouts are
-proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
-location recipes. Report `moved`, `out of scope`, `optimized out`, `unsupported layout`, or
-`unavailable debug information`; never substitute `none`, zero, or a guessed Rust temporary.
-
-Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
-`truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
-detection, and lazy children. Honor secret metadata in ordinary summaries. Raw memory/native views
-are an explicit privileged escape hatch, not a promise to conceal secrets from someone controlling
-the debugger.
-
-The DAP layer owns initialization order, request/response correlation, advertised capabilities,
-cancellation, stopped/continued/terminated events, and lifetime of source/frame/variable handles.
-Client disconnect never implicitly kills an attached process; launched-process policy is explicit.
-Only operations exercised end to end with the selected backend are advertised. CLI and DAP share
-one translation engine.
-
-#### Delivery evidence and exclusions
-
-Deliver in staged vertical slices:
-
-1. prove final-file provenance and build/stale identity without changing program behavior;
-2. launch one unoptimized fixture, hit a Terrane source breakpoint, inspect a scalar, and open the
-   exact generated Rust;
-3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
-   native stops, and temporary-breakpoint cleanup;
-4. add bounded structured values plus explicit unavailable/moved states, attach, relocation, and
-   reconnect; and
-5. add async continuation/task presentation only after explicit identity instrumentation exists.
-
-Run the actual selected debugger against disposable compiled fixtures for each advertised
-host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
-paths, shadowed/moved locals, stripped and optimized output, a runtime/internal fatal stop, client
-disconnect during a step, and debuggee output while DAP traffic remains valid. At minimum the first
-slice must run on the release's Linux debugger host; macOS/Windows support is advertised only after
-equivalent end-to-end evidence exists.
-
-The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
-Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
-backend. Conditional breakpoints/logpoints remain unavailable until their expression language and
-side-effect contract are separately settled.
-
-Exit criterion: source breakpoints, mapped stack frames, sequence-point stepping, honest bounded
-value inspection, stale-artifact rejection, raw native escape hatches, and DAP/CLI lifecycle work
-against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
-debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
-suite pass; and optimized/unsupported cases report limitations rather than false fidelity.
 
 ### Milestone 32 — First-version hardening and release gate
 
@@ -3918,3 +3795,129 @@ Completion evidence:
 - the bounded-parallel workspace scorecard at `74e1b06f` recorded 1,084 passed timings, zero
   failures, and zero ignored tests, with synchronized README, full/concise specifications,
   repository guidance, reference manual, and tutorial material.
+
+### Milestone 30.2 — LLDB-backed Terrane source debugging
+**Status:** completed on `lldb-backed-source-debugging`.
+
+
+Provide source-level native debugging without teaching LLDB the Terrane language or replacing the
+Rust lowering pipeline. A Terrane DAP/CLI translation layer owns source semantics and delegates
+native process control, unwinding, registers, memory, and machine breakpoints to a selected
+`lldb-dap`/LLDB backend.
+
+Milestone 30.0 supplies snapshot, symbol/descriptor, query, and source-to-final-Rust identities.
+Milestone 30.1 supplies repeatable executable fixtures, process isolation, and test discovery.
+Existing runtime source sites and `rust_ir::SourceAssociation` ranges are inputs, not sufficient
+debugger metadata: this milestone adds build identity, user-visible sequence points, lexical
+scopes, binding recipes, and async/internal provenance roles.
+
+#### Commands, build identity, and provenance
+
+Deliver:
+
+- `terrane debug <source-or-package> [-- program-arguments]` to build an unoptimized
+  debug-information-bearing artifact and launch it through the translation engine;
+- `terrane debug-adapter --stdio` for DAP clients, with protocol stdout isolated from debuggee
+  stdout/stderr and adapter/backend logs;
+- explicit attach support only on hosts where LLDB and permissions are exercised, with launch and
+  attach termination policy reported rather than inferred; and
+- transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
+  registers, and backend LLDB requests.
+
+Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
+compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
+projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
+native executable/module identity. Record relocation/path-prefix mappings separately from identity.
+Native addresses are resolved by LLDB against the loaded module and load address, never stored as
+portable addresses.
+
+Extend final `RenderedFile` source associations so entries can represent one-to-many source/Rust
+ranges, generated code with multiple source causes, source-free plumbing, stable snapshot-scoped
+function/binding/type identities, lexical scopes, user-visible sequence points, and generated,
+runtime, cleanup, or hidden roles. Associations must describe the final application and support
+files compiled by rustc, not pre-format offsets.
+
+On launch or attach, validate executable/module and generated-file identities before translation.
+A missing or mismatched sidecar disables Terrane translation with a clear diagnostic while
+preserving raw native debugging. Changed source is reported as stale or displayed from an
+explicitly selected build-time snapshot; never place current-source breakpoints through an older
+binary's plausible-looking map. Embedding source is opt-in because source and build paths may be
+sensitive.
+
+#### Breakpoints, frames, and stepping
+
+Map one requested Terrane source breakpoint to every executable native location for its documented
+sequence point. A non-executable line may adjust only to a declared nearby sequence point in the
+same function/scope, reporting requested and resolved locations, or remain unverified with a useful
+reason. Preserve unresolved breakpoints for later module loads. User breakpoints and fatal/native
+stops are never hidden or removed by source-level stepping.
+
+Translate stopped frames to logical Terrane source paths, spans, namespace-qualified function
+identity, and inlining status. Generated/runtime-only frames are hidden by default but remain
+inspectable. The first complete profile is unoptimized; optimized or stripped artifacts report
+precise limitations instead of fabricating source frames.
+
+`step over`, `step in`, and `step out` operate on executed sequence-point transitions and selected
+thread/frame depth, not merely changed line numbers. Loop re-entry at the same source point may
+therefore stop again. Temporary native breakpoints belong to one step request and are removed on
+completion, interruption, exception, disconnect, or exit. Bound repeated raw stepping; if no
+source progress is available, expose the native stop instead of hanging behind frame filtering.
+
+Native frames are not logical Terrane task stacks. An `await` may resume in another poll frame or
+executor thread. The initial debugger provides honest mapped stops in async code but does not
+invent a logical continuation stack. Task-aware async stepping requires explicit compiler/runtime
+task and continuation identities and a measured debug-profile cost before it is advertised.
+Authored `finally`/`destruct` and projected finalizer code remains user-visible where sourced.
+When Milestones 29.1 and 29.3 are implemented, `select` construction, winner, loser drain, deferred
+cancellation, timer, and signal regions receive distinct provenance roles.
+
+#### Variables, privacy, and DAP lifecycle
+
+Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
+finite unions, value/COW collections, references, and projected values only as exact layouts are
+proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
+location recipes. Report `moved`, `out of scope`, `optimized out`, `unsupported layout`, or
+`unavailable debug information`; never substitute `none`, zero, or a guessed Rust temporary.
+
+Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
+`truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
+detection, and lazy children. Honor secret metadata in ordinary summaries. Raw memory/native views
+are an explicit privileged escape hatch, not a promise to conceal secrets from someone controlling
+the debugger.
+
+The DAP layer owns initialization order, request/response correlation, advertised capabilities,
+cancellation, stopped/continued/terminated events, and lifetime of source/frame/variable handles.
+Client disconnect never implicitly kills an attached process; launched-process policy is explicit.
+Only operations exercised end to end with the selected backend are advertised. CLI and DAP share
+one translation engine.
+
+#### Delivery evidence and exclusions
+
+Deliver in staged vertical slices:
+
+1. prove final-file provenance and build/stale identity without changing program behavior;
+2. launch one unoptimized fixture, hit a Terrane source breakpoint, inspect a scalar, and open the
+   exact generated Rust;
+3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
+   native stops, and temporary-breakpoint cleanup;
+4. add bounded structured values plus explicit unavailable/moved states, attach, relocation, and
+   reconnect; and
+5. add async continuation/task presentation only after explicit identity instrumentation exists.
+
+Run the actual selected debugger against disposable compiled fixtures for each advertised
+host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
+paths, shadowed/moved locals, stripped and optimized output, a runtime/internal fatal stop, client
+disconnect during a step, and debuggee output while DAP traffic remains valid. At minimum the first
+slice must run on the release's Linux debugger host; macOS/Windows support is advertised only after
+equivalent end-to-end evidence exists.
+
+The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
+Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
+backend. Conditional breakpoints/logpoints remain unavailable until their expression language and
+side-effect contract are separately settled.
+
+Exit criterion: source breakpoints, mapped stack frames, sequence-point stepping, honest bounded
+value inspection, stale-artifact rejection, raw native escape hatches, and DAP/CLI lifecycle work
+against the selected LLDB backend; the provenance manifest remains deterministic and build-bound;
+debugger integration fixtures, strict Clippy, complete conformance matrix, and measured workspace
+suite pass; and optimized/unsupported cases report limitations rather than false fidelity.

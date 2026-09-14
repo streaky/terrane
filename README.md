@@ -193,11 +193,12 @@ Then check, run, build, or inspect it:
 ./target/release/terrane check hello.trn
 ./target/release/terrane run hello.trn
 ./target/release/terrane build hello.trn
+./target/release/terrane debug hello.trn
 ./target/release/terrane rust hello.trn
 ```
 
-`check`, `rust`, `build`, and `run` all use the same source, resolution, semantic, lowering, and
-Cargo pipeline. They differ only in how far they take the result:
+`check`, `rust`, `build`, `run`, and `debug` use the same source, resolution, semantic, lowering,
+and Cargo pipeline. They differ only in how far they take the result:
 
 | Command | Result |
 | --- | --- |
@@ -206,16 +207,25 @@ Cargo pipeline. They differ only in how far they take the result:
 | `terrane rust -o app.rs <path>` | Writes authored lowering to `app.rs` and support code to `app.support.rs`. |
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
+| `terrane debug <path>` | Builds with full debug information and opens the LLDB-backed Terrane source debugger. |
 | `terrane test [options] <package>` | Compiles one isolated runner per populated tier and runs native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
 | `terrane fmt [--check] <path>` | Formats source through the compiler lossless tree, or reports drift without writing. |
 | `terrane tooling --stdio` | Serves versioned source-intelligence requests as JSON Lines. |
+| `terrane debug-adapter --stdio` | Serves the same source/native translation layer to DAP clients. |
 | `terrane query --request <json-file>` | Executes one source-intelligence request. |
 
 Use `--release` with `build` or `run` for an optimized executable. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
+
+Debug builds write deterministic, exact-build provenance beside generated Rust and the executable.
+The 0.1 debugger surface is experimental and currently exercised end to end on Linux x86-64 with
+LLDB 22. Source breakpoints, mapped frames, bounded stepping and values, secret-field redaction, and
+generated/native escape hatches are available; conditional breakpoints, logpoints, restart, and a
+Terrane expression evaluator are not advertised. See the debugging reference for the complete
+support boundary.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
 `tests/integration`, and `tests/end-to-end`. Semantic analysis covers production sources and every
