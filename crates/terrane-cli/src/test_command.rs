@@ -472,7 +472,7 @@ fn build_native_compilation(
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
-            debug_information: false,
+            debug_profile: crate::DebugProfile::None,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;

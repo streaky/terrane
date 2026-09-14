@@ -241,6 +241,11 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
+    let debug_profile = if command == CliCommand::Debug {
+        DebugProfile::Full
+    } else {
+        DebugProfile::None
+    };
     write_generated_crate(
         &crate_dir,
         &rust_files,
@@ -252,7 +257,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
-            debug_information: command == CliCommand::Debug,
+            debug_profile,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -773,6 +778,12 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum DebugProfile {
+    None,
+    Full,
+}
+
 #[derive(Clone, Copy)]
 struct GeneratedCrateOptions {
     panic: terrane_compiler::PanicProfile,
@@ -780,7 +791,7 @@ struct GeneratedCrateOptions {
     uses_async_runtime: bool,
     uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
-    debug_information: bool,
+    debug_profile: DebugProfile,
 }
 
 fn base_generated_manifest() -> String {
@@ -797,6 +808,23 @@ fn base_generated_manifest() -> String {
         terrane_compiler::BUILD_TOOLCHAIN,
         terrane_compiler::UNICODE_DATA_VERSION
     )
+}
+
+fn append_build_profiles(
+    manifest: &mut String,
+    panic: terrane_compiler::PanicProfile,
+    debug_profile: DebugProfile,
+) {
+    if panic == terrane_compiler::PanicProfile::Abort || debug_profile == DebugProfile::Full {
+        manifest.push_str("\n[profile.dev]\n");
+        if panic == terrane_compiler::PanicProfile::Abort {
+            manifest.push_str("panic = \"abort\"\n");
+        }
+        if debug_profile == DebugProfile::Full {
+            manifest.push_str("opt-level = 0\ndebug = 2\nstrip = \"none\"\n");
+        }
+    }
+    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
 
 fn write_generated_crate(
@@ -846,16 +874,7 @@ fn write_generated_crate(
             write_rust_dependency(&mut manifest, dependency);
         }
     }
-    if options.panic == terrane_compiler::PanicProfile::Abort || options.debug_information {
-        manifest.push_str("\n[profile.dev]\n");
-        if options.panic == terrane_compiler::PanicProfile::Abort {
-            manifest.push_str("panic = \"abort\"\n");
-        }
-        if options.debug_information {
-            manifest.push_str("opt-level = 0\ndebug = 2\nstrip = \"none\"\n");
-        }
-    }
-    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
+    append_build_profiles(&mut manifest, options.panic, options.debug_profile);
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -1650,7 +1669,7 @@ mod tests {
                     uses_async_runtime: true,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    debug_information: true,
+                    debug_profile: DebugProfile::Full,
                 },
             )
             .is_ok()
@@ -1697,7 +1716,7 @@ mod tests {
                     uses_async_runtime: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    debug_information: false,
+                    debug_profile: DebugProfile::None,
                 },
             )
             .is_ok()

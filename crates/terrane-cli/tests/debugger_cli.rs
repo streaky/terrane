@@ -137,8 +137,8 @@ impl DapClient {
     fn send(&mut self, command: &str, arguments: Value) -> i64 {
         let sequence = self.sequence;
         self.sequence += 1;
-        let value =
-            json!({"seq": sequence, "type": "request", "command": command, "arguments": arguments});
+        let mut value = json!({"seq": sequence, "type": "request", "command": command});
+        value["arguments"] = arguments;
         let bytes = serde_json::to_vec(&value).unwrap();
         write!(self.input, "Content-Length: {}\r\n\r\n", bytes.len()).unwrap();
         self.input.write_all(&bytes).unwrap();

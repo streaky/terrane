@@ -406,6 +406,11 @@ pub struct ProvenanceManifest {
 }
 
 impl ProvenanceManifest {
+    /// Binds compiler metadata to one native module and its build/source relocation roots.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the executable cannot be read for identity hashing.
     pub fn create(
         package: &Package,
         debug: DebugInformation,
@@ -455,6 +460,11 @@ impl ProvenanceManifest {
         })
     }
 
+    /// Confirms that an executable is the exact module named by this provenance.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the executable cannot be read or its identity differs.
     pub fn validate_executable(&self, executable: &Path) -> Result<(), String> {
         let bytes = std::fs::read(executable)
             .map_err(|error| format!("cannot read executable {}: {error}", executable.display()))?;
@@ -470,6 +480,8 @@ impl ProvenanceManifest {
         Ok(())
     }
 
+    /// Returns logical source paths that are missing or differ from their build-time identity.
+    #[must_use]
     pub fn validate_sources(&self, root: &Path) -> Vec<String> {
         self.debug
             .sources

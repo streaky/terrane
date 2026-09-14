@@ -38,6 +38,10 @@ pub(super) fn write_provenance(
     Ok(generated_sidecar)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the compact interactive command grammar keeps debugger session state in one loop"
+)]
 pub(super) fn run_cli(
     executable: &Path,
     sidecar: &Path,
@@ -219,6 +223,10 @@ struct Adapter {
 }
 
 impl Adapter {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "central dispatch keeps DAP request correlation and debugger lifecycle ordering explicit"
+    )]
     fn handle(&mut self, command: &str, arguments: Value) -> Result<Vec<Value>, CliFailure> {
         if command == "initialize" {
             let backend = self.backend.get_or_insert(Backend::start()?);
@@ -247,10 +255,10 @@ impl Adapter {
                 .ok_or_else(|| {
                     debugger_failure("launch/attach requires a native `program` path")
                 })?;
-            let sidecar = arguments["terraneProvenance"]
-                .as_str()
-                .map(PathBuf::from)
-                .unwrap_or_else(|| executable.with_extension("terrane-debug.json"));
+            let sidecar = arguments["terraneProvenance"].as_str().map_or_else(
+                || executable.with_extension("terrane-debug.json"),
+                PathBuf::from,
+            );
             let translation = load_and_validate(
                 &sidecar,
                 &executable,
@@ -270,11 +278,7 @@ impl Adapter {
             });
             let mut backend_arguments = arguments;
             backend_arguments["program"] = executable.to_string_lossy().into_owned().into();
-            for name in [
-                "terraneProvenance",
-                "terraneRelocation",
-                "useBuildSnapshot",
-            ] {
+            for name in ["terraneProvenance", "terraneRelocation", "useBuildSnapshot"] {
                 backend_arguments
                     .as_object_mut()
                     .expect("DAP arguments are an object")
@@ -314,7 +318,7 @@ impl Adapter {
             return Ok(messages);
         }
         if command == "setBreakpoints" {
-            return self.set_breakpoints(arguments);
+            return self.set_breakpoints(&arguments);
         }
         if command == "stackTrace" {
             let provenance = self.provenance.clone();
@@ -337,7 +341,7 @@ impl Adapter {
             return Ok(with_backend_events(backend, response(body)));
         }
         if command == "terrane/generatedSource" {
-            return self.generated_source(arguments);
+            return self.generated_source(&arguments);
         }
         if command == "terrane/nativeStackTrace" {
             let backend = self.backend_mut()?;
@@ -390,7 +394,7 @@ impl Adapter {
             .ok_or_else(|| debugger_failure("initialize must be the first request"))
     }
 
-    fn set_breakpoints(&mut self, arguments: Value) -> Result<Vec<Value>, CliFailure> {
+    fn set_breakpoints(&mut self, arguments: &Value) -> Result<Vec<Value>, CliFailure> {
         let provenance = self
             .provenance
             .as_ref()
@@ -435,7 +439,7 @@ impl Adapter {
         Ok(vec![response(json!({"breakpoints": returned}))])
     }
 
-    fn generated_source(&self, arguments: Value) -> Result<Vec<Value>, CliFailure> {
+    fn generated_source(&self, arguments: &Value) -> Result<Vec<Value>, CliFailure> {
         let provenance = self
             .provenance
             .as_ref()
@@ -457,7 +461,9 @@ impl Adapter {
 }
 
 fn response(body: Value) -> Value {
-    json!({"seq": 0, "type": "response", "success": true, "body": body})
+    let mut value = json!({"seq": 0, "type": "response", "success": true});
+    value["body"] = body;
+    value
 }
 
 fn with_backend_events(backend: &mut Backend, response: Value) -> Vec<Value> {
@@ -500,16 +506,13 @@ impl Backend {
     fn send(&mut self, command: &str, arguments: Value) -> Result<i64, CliFailure> {
         let sequence = self.sequence;
         self.sequence += 1;
-        write_message(
-            &mut self.input,
-            &json!({
-                "seq": sequence,
-                "type": "request",
-                "command": command,
-                "arguments": arguments
-            }),
-        )
-        .map_err(protocol_failure)?;
+        let mut request = json!({
+            "seq": sequence,
+            "type": "request",
+            "command": command,
+        });
+        request["arguments"] = arguments;
+        write_message(&mut self.input, &request).map_err(protocol_failure)?;
         Ok(sequence)
     }
 
@@ -974,10 +977,10 @@ fn load_and_validate(
     let mut provenance: ProvenanceManifest = serde_json::from_slice(&bytes).map_err(|error| debugger_failure(format!("Terrane translation unavailable: invalid provenance sidecar {}: {error}; raw native debugging remains available", sidecar.display())))?;
     if let Some(relocation) = relocation {
         if let Some(build_root) = relocation["buildRoot"].as_str() {
-            provenance.relocation.build_root = build_root.to_owned();
+            build_root.clone_into(&mut provenance.relocation.build_root);
         }
         if let Some(source_root) = relocation["sourceRoot"].as_str() {
-            provenance.relocation.source_root = source_root.to_owned();
+            source_root.clone_into(&mut provenance.relocation.source_root);
         }
     }
     if provenance.schema_version != terrane_compiler::debugging::SCHEMA_VERSION {
@@ -1043,10 +1046,18 @@ fn debugger_failure(message: impl Into<String>) -> CliFailure {
     CliFailure::diagnostic(PathBuf::from("<debugger>"), "S5001", message.into(), 5)
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "map_err transfers the owned protocol error into debugger diagnostics"
+)]
 fn protocol_failure(error: io::Error) -> CliFailure {
     debugger_failure(format!("debug adapter protocol failure: {error}"))
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "map_err transfers the owned I/O error into debugger diagnostics"
+)]
 fn io_failure(error: io::Error) -> CliFailure {
     debugger_failure(format!("debugger terminal I/O failure: {error}"))
 }
