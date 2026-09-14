@@ -665,6 +665,7 @@ pub(super) fn infer_value_type(
                     | "intrinsic:logging::log-drain"
                     | "intrinsic:logging::log-drain-fallback"
                     | "intrinsic:logging::log-install-dependency-bridge"
+                    | "intrinsic:testing::test-spawn"
                     | "intrinsic:time::time-wall" => Some(ValueType::PlatformResult),
                     "intrinsic:data::empty-document"
                     | "intrinsic:data::make-document-none"
@@ -816,7 +817,11 @@ pub(super) fn infer_value_type(
                     | "intrinsic:adapters::result-failed"
                     | "intrinsic:adapters::result-bool"
                     | "intrinsic:process-signals::process-signal-result-failed"
-                    | "intrinsic:process-signals::process-signal-result-bool" => {
+                    | "intrinsic:process-signals::process-signal-result-bool"
+                    | "intrinsic:testing::test-result-failed"
+                    | "intrinsic:testing::test-result-deadline-exceeded"
+                    | "intrinsic:testing::test-result-crashed"
+                    | "intrinsic:testing::test-time-advance" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "intrinsic:logging::log-result-message"
@@ -854,12 +859,15 @@ pub(super) fn infer_value_type(
                     | "intrinsic:adapters::result-message"
                     | "intrinsic:adapters::result-text"
                     | "intrinsic:process-signals::process-signal-result-message"
-                    | "intrinsic:process-signals::process-signal-result-detail" => {
+                    | "intrinsic:process-signals::process-signal-result-detail"
+                    | "intrinsic:testing::test-result-message" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "intrinsic:system::result-bytes"
                     | "intrinsic:system::platform-value-bytes"
-                    | "intrinsic:capabilities::result-bytes" => {
+                    | "intrinsic:capabilities::result-bytes"
+                    | "intrinsic:testing::test-result-stdout"
+                    | "intrinsic:testing::test-result-stderr" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
                     "intrinsic:logging::log-discarded-count"
@@ -870,7 +878,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::result-int"
                     | "intrinsic:concurrency::result-int"
                     | "intrinsic:process-signals::process-signal-result-int"
-                    | "intrinsic:process-signals::process-signal-result-exact-int" => {
+                    | "intrinsic:process-signals::process-signal-result-exact-int"
+                    | "intrinsic:testing::test-result-exit-code" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "intrinsic:system::process-arguments"

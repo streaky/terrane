@@ -1219,6 +1219,45 @@ impl Emitter<'_> {
             }
             return format!("({value}).{field}");
         }
+        let testing_call = [
+            ("test-spawn", "test_spawn"),
+            ("test-result-failed", "test_result_failed"),
+            (
+                "test-result-deadline-exceeded",
+                "test_result_deadline_exceeded",
+            ),
+            ("test-result-message", "test_result_message"),
+            ("test-result-exit-code", "test_result_exit_code"),
+            ("test-result-crashed", "test_result_crashed"),
+            ("test-result-stdout", "test_result_stdout"),
+            ("test-result-stderr", "test_result_stderr"),
+            ("test-time-advance", "test_time_advance"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("intrinsic:testing::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = testing_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    if (function == "test_spawn" && index == 4)
+                        || (function == "test_time_advance" && index == 0)
+                    {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if function.starts_with("test_result_") {
+                return format!("terrane_{function}(&({values}))");
+            }
+            return format!("terrane_{function}({values})");
+        }
         let system_call = [
             (
                 "acquire-filesystem-authority",

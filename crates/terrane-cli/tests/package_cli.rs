@@ -416,3 +416,61 @@ fn copy_fixture(source: &std::path::Path, destination: &std::path::Path) {
         }
     }
 }
+
+#[test]
+fn native_test_command_reports_isolated_cases_deterministically() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/cases.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /core/testing import assert, fail, skip, test-failure, test-skip\n",
+            "function test-pass none throws test-failure;\n",
+            "    assert; true\n    return none\n",
+            "function test-fail none throws test-failure;\n",
+            "    fail; 'observable failure'\n    return none\n",
+            "function test-ignored none throws test-skip;\n",
+            "    skip; 'not available'\n    return none\n",
+        ),
+    )
+    .unwrap();
+    let report = package.0.join("test-report.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--jobs", "2", "--report"])
+        .arg(&report)
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.find("/cli/app::test-pass").unwrap()
+            < stdout.find("/cli/app::test-ignored").unwrap()
+    );
+    assert!(stdout.contains("1 passed; 1 skipped; 1 failed"));
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["schema_version"], "1.0.0");
+    assert_eq!(report["cases"][0]["identity"], "/cli/app::test-pass");
+    assert!(report["cases"][0]["stdout"].is_array());
+    assert_eq!(report["cases"][1]["status"], "failed");
+    assert_eq!(report["cases"][2]["status"], "skipped");
+
+    let listed = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--list", "--filter", "pass"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(listed.status.success());
+    assert_eq!(
+        String::from_utf8(listed.stdout).unwrap(),
+        "/cli/app::test-pass [unit]\n"
+    );
+}

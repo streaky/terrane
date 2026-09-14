@@ -1,0 +1,170 @@
+namespace core/testing
+
+from /core/errors import throwable
+from /core/collections import list
+from /core/process import environment, environment-entry, native-string
+
+interface test-value
+    function render string;
+
+class test-failure implements throwable
+    message string = ''
+    assertion-source string = ''
+    details list of string = list
+
+    function construct; failure-message string
+        this.message = 'TERRANE_TEST_FAILURE:'.concat; failure-message
+
+    function render string;
+        return this.message
+
+class test-skip implements throwable
+    message string = ''
+    assertion-source string = ''
+    details list of string = list
+
+    function construct; reason string
+        this.message = 'TERRANE_TEST_SKIP:'.concat; reason
+
+    function render string;
+        return this.message
+
+function fail none throws test-failure; message string
+    throw instance test-failure; message
+
+function skip none throws test-skip; reason string
+    throw instance test-skip; reason
+
+function assert none throws test-failure; condition bool
+    if not condition
+        fail; 'assertion was false'
+    return none
+
+function deny none throws test-failure; condition bool
+    if condition
+        fail; 'denied condition was true'
+    return none
+
+function assert-equal-int none throws test-failure; actual int, expected int
+    if actual != expected
+        fail; 'integer values are not equal'
+    return none
+
+function assert-not-equal-int none throws test-failure; actual int, expected int
+    if actual == expected
+        fail; 'integer values are equal'
+    return none
+
+function assert-equal-string none throws test-failure; actual string, expected string
+    if actual != expected
+        fail; 'string values are not equal'
+    return none
+
+function assert-not-equal-string none throws test-failure; actual string, expected string
+    if actual == expected
+        fail; 'string values are equal'
+    return none
+
+function assert-equal-bool none throws test-failure; actual bool, expected bool
+    if actual != expected
+        fail; 'boolean values are not equal'
+    return none
+
+function assert-not-equal-bool none throws test-failure; actual bool, expected bool
+    if actual == expected
+        fail; 'boolean values are equal'
+    return none
+
+function assert-present-string none throws test-failure; actual string|none
+    if actual == none
+        fail; 'expected a present string'
+    return none
+
+function assert-none-string none throws test-failure; actual string|none
+    if actual != none
+        fail; 'expected no string'
+    return none
+
+function assert-near none throws test-failure; actual float64, expected float64, tolerance float64
+    if tolerance < 0.0
+        fail; 'near-equality tolerance must not be negative'
+    difference = actual - expected
+    if difference < 0.0
+        difference = 0.0 - difference
+    if difference > tolerance
+        fail; 'floating values differ beyond tolerance'
+    return none
+
+function assert-throws none throws test-failure; operation function to none throws throwable
+    try
+        operation;
+    catch throwable
+        return none
+    fail; 'expected callback to throw'
+
+    return none
+function context-value string|none; name string
+    for entry in environment;
+        if entry.name.is-text and entry.value.is-text and entry.name.text == name
+            return entry.value.text
+    return none
+
+function temporary-directory string|none;
+    return context-value; 'TMPDIR'
+
+function deterministic-seed string|none;
+    return context-value; 'TERRANE_TEST_SEED'
+
+function test-identity string|none;
+    return context-value; 'TERRANE_TEST_ID'
+
+function application-artifact string|none;
+    return context-value; 'TERRANE_TEST_ARTIFACT'
+
+function test-tier string|none;
+    return context-value; 'TERRANE_TEST_TIER'
+
+class process-fixture
+    artifact string = ''
+    arguments list of native-string = list
+    environment list of environment-entry = list
+    standard-input bytes = b''
+    deadline-milliseconds int = 30000
+
+    function construct; executable string
+        this.artifact = executable
+
+class process-result
+
+    exit-code int = 0
+    crashed bool = false
+    timed-out bool = false
+    stdout bytes = b''
+    stderr bytes = b''
+
+    function construct; status int, did-crash bool, exceeded-deadline bool, output bytes, errors bytes
+        this.exit-code = status
+        this.crashed = did-crash
+        this.timed-out = exceeded-deadline
+        this.stdout = output
+        this.stderr = errors
+
+function run-process process-result throws test-failure; fixture process-fixture
+    encoded-arguments list of string = list
+    for argument in fixture.arguments
+        encoded-arguments.append; argument.encoded
+    encoded-environment list of string = list
+    for entry in fixture.environment
+        encoded-environment.append; entry.name.encoded
+        encoded-environment.append; entry.value.encoded
+    raw = host-test-spawn; fixture.artifact, encoded-arguments, encoded-environment, fixture.standard-input, fixture.deadline-milliseconds
+    if host-test-result-failed; raw
+        fail; (host-test-result-message; raw)
+    return instance process-result; (host-test-result-exit-code; raw), (host-test-result-crashed; raw), (host-test-result-deadline-exceeded; raw), (host-test-result-stdout; raw), (host-test-result-stderr; raw)
+
+function advance-time none throws test-failure; nanoseconds int
+    if nanoseconds < 0
+        fail; 'controlled time may only advance'
+    if not (host-test-time-advance; nanoseconds)
+        fail; 'controlled time advance exceeds the host clock range'
+    return none

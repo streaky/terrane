@@ -393,10 +393,18 @@ fn lower_with_tests(
         }
     }
     if uses_time {
+        let (source_file, source) = if tests.is_some() {
+            (
+                "time_testing.rs",
+                include_str!("../../runtime/time_testing.rs"),
+            )
+        } else {
+            ("time_base.rs", include_str!("../../runtime/time_base.rs"))
+        };
         runtime.push(GeneratedModule {
             name: "time",
-            source_files: vec!["time_base.rs"],
-            items: vec![Item::generated(include_str!("../../runtime/time_base.rs"))],
+            source_files: vec![source_file],
+            items: vec![Item::generated(source)],
         });
     } else if native_cancellation || package_uses_task_scope(package) {
         runtime.push(GeneratedModule {

@@ -5,9 +5,11 @@ from /core/collections import list
 class native-string
     is-text bool = true
     text string = ''
+    encoded string = ''
     raw bytes = b''
 
     function construct; encoded string
+        this.encoded = encoded
         this.is-text = host-platform-value-is-text; encoded
         this.text = host-platform-value-text; encoded
         this.raw = host-platform-value-bytes; encoded
