@@ -425,13 +425,33 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         package.0.join("tests/unit/cases.trn"),
         concat!(
             "namespace cli/app\n",
-            "from /core/testing import assert, fail, skip, test-failure, test-skip\n",
+            "from /core/errors import throwable\n",
+            "from /core/time import clock\n",
+            "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-int, assert-equal-string, assert-near, assert-none-string, assert-not-equal-bool, assert-not-equal-int, assert-not-equal-string, assert-present-string, deny, fail, skip, test-failure, test-skip\n",
             "function test-pass none throws test-failure;\n",
-            "    assert; true\n    return none\n",
+            "    assert; true\n",
+            "    deny; false\n",
+            "    assert-equal-int; 4, 4\n",
+            "    assert-not-equal-int; 4, 5\n",
+            "    assert-equal-string; 'a', 'a'\n",
+            "    assert-not-equal-string; 'a', 'b'\n",
+            "    assert-equal-bool; true, true\n",
+            "    assert-not-equal-bool; true, false\n",
+            "    assert-present-string; 'present'\n",
+            "    assert-none-string; none\n",
+            "    assert-near; 1.0, 1.1, 0.2\n",
+            "    return none\n",
             "function test-fail none throws test-failure;\n",
             "    fail; 'observable failure'\n    return none\n",
             "function test-ignored none throws test-skip;\n",
             "    skip; 'not available'\n    return none\n",
+            "function test-controlled-time none throws throwable;\n",
+            "    started = clock::monotonic;\n",
+            "    advance-time; 25\n",
+            "    later = clock::monotonic;\n",
+            "    elapsed = started.duration-until; ref later\n",
+            "    assert-equal-int; elapsed.nanoseconds, 25\n",
+            "    return none\n",
         ),
     )
     .unwrap();
@@ -454,7 +474,7 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         stdout.find("/cli/app::test-pass").unwrap()
             < stdout.find("/cli/app::test-ignored").unwrap()
     );
-    assert!(stdout.contains("1 passed; 1 skipped; 1 failed"));
+    assert!(stdout.contains("2 passed; 1 skipped; 1 failed"));
     let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
     assert_eq!(report["schema_version"], "1.0.0");
     assert_eq!(report["cases"][0]["identity"], "/cli/app::test-pass");
@@ -472,5 +492,46 @@ fn native_test_command_reports_isolated_cases_deterministically() {
     assert_eq!(
         String::from_utf8(listed.stdout).unwrap(),
         "/cli/app::test-pass [unit]\n"
+    );
+}
+
+#[test]
+fn end_to_end_tests_receive_the_built_application_artifact() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/end-to-end")).unwrap();
+    fs::write(
+        package.0.join("tests/end-to-end/application.trn"),
+        concat!(
+            "namespace cli/end-to-end\n",
+            "from /core/testing import application-artifact, assert-equal-int, fail, process-fixture, run-process, test-failure\n",
+            "function test-application none throws test-failure;\n",
+            "    artifact = application-artifact;\n",
+            "    if artifact != none\n",
+            "        fixture = instance process-fixture; artifact\n",
+            "        result = run-process; fixture\n",
+            "        assert-equal-int; result.exit-code, 0\n",
+            "        assert-equal-int; result.stdout.length, 13\n",
+            "    else\n",
+            "        fail; 'missing application artifact'\n",
+            "    return none\n",
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--filter", "test-application"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .contains("1 passed; 0 skipped; 0 failed")
     );
 }

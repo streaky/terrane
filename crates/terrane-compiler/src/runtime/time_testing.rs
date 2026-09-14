@@ -6,7 +6,9 @@ fn terrane_time_domain() -> terrane_int_support::Int {
 
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
 fn terrane_time_monotonic() -> terrane_int_support::Int {
-    terrane_int_support::Int::from(TERRANE_TEST_TIME_NANOS.load(std::sync::atomic::Ordering::Acquire))
+    terrane_int_support::Int::from_u128(u128::from(
+        TERRANE_TEST_TIME_NANOS.load(std::sync::atomic::Ordering::Acquire),
+    ))
 }
 
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
