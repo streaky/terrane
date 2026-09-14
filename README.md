@@ -209,15 +209,16 @@ Use `--release` with `build` or `run` for an optimized executable. Use
 bundled formatter.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
-`tests/integration`, and `tests/end-to-end`, compiling each populated tier independently.
-`--list`, repeatable `--tier <tier>`, and one of substring `--filter <text>`, exact
-`--exact <identity>`, `--glob <pattern>`, or `--regex <pattern>` selection choose cases
-without changing compilation. `--jobs`, `--timeout`, `--fail-fast`, and `--show-output`
-control execution.
+`tests/integration`, and `tests/end-to-end`. Semantic discovery always covers all populated roots;
+`--list` and an empty selection stop before lowering or native compilation. Repeatable
+`--tier <tier>` and one of substring `--filter <text>`, exact `--exact <identity>`,
+`--glob <pattern>`, or `--regex <pattern>` select the tier runners and cases that are built and
+executed. `--jobs`, `--timeout`, `--fail-fast`, and `--show-output` control execution.
 `--argument <value>` supplies one controlled process argument to each test and may be repeated.
 Bare `--timeout` values are seconds; `ms` and `s` suffixes are explicit.
-`--report <path>` writes schema `1.1.0` JSON with run metadata, structured failure causes
-and assertion details, byte-exact bounded stdout/stderr arrays, and truncation flags.
+`--report <path>` writes schema `1.2.0` JSON with effective tiers, a numeric timeout, per-tier
+compilation outcomes and diagnostics, structured failure causes and assertion details, and
+byte-exact bounded stdout/stderr arrays with independent truncation flags.
 Test roots and the explicitly declared test capability profile can be overridden in
 `package.toml`:
 

@@ -6035,8 +6035,9 @@ built application artifact through an explicit process fixture from capability-g
 `/core/testing/process`. `application-artifact` returns `string|none`; absence is explicit outside
 the end-to-end runner. Process fixtures are clonable value-style builders: each `run-process` call
 consumes an independent fixture snapshot. They carry lossless arguments and environment, optional
-input, deadline, exit status, and bounded stdout/stderr capture. Each selected case runs in a fresh
-working directory and isolated process by default.
+input, deadline, exit status, and incrementally bounded stdout/stderr capture with independent
+truncation flags. Child execution, pipe draining, and post-exit pipe closure all have bounded host
+waits. Each selected case runs in a fresh working directory and isolated process by default.
 
 The initial framework provides boolean assertion and denial, explicit failure, concrete typed
 equality and inequality for scalar and byte values, matching concrete optional present/none checks,
@@ -6048,16 +6049,30 @@ never introduce a universal boxed value merely for testing. Failure rendering in
 useful actual and expected values and follows ordinary display or the explicit
 `/core/testing::test-value` protocol where available.
 
+Milestone 30.1 also records the required anonymous-object design evidence. The test-only
+`sample-value` used to demonstrate `test-value` rendering is the sole localized construction that
+resembles a one-off anonymous object, but it implements a named protocol and its named class makes
+that conformance explicit. `process-fixture`, `process-result`, `test-failure`, and `test-skip` are
+durable domain types with reusable identity and behavior. The testing framework therefore adds no
+pressure strong enough to justify anonymous object syntax or semantics.
+
 Test targets use an explicitly selected manifest profile and never acquire a capability that is
 absent from both the inherited ordinary profile and explicit `[testing.profile]` declarations.
 
 Discovery and final reporting are deterministic by the explicit unit, integration, end-to-end tier
-order, then logical path, source order, and test name. Filtering never hides compile errors in
-otherwise unselected test source. Human output is serialized, and schema `1.1.0` machine reports
-include run metadata plus structured causes for assertion failure, uncaught throwable, skip,
-timeout, crash, compile failure, and harness infrastructure failure. A zero command exit means
-every selected executable case passed or explicitly skipped. Bare timeout values are seconds;
-`ms` and `s` suffixes make units explicit.
+order, then logical path, source order, and test name. Semantic discovery covers every populated root, so
+filtering never hides source errors; only tiers containing selected cases are lowered and built.
+`--list` and an empty selection stop after discovery. Human output is serialized and counts failure,
+timeout, crash, and infrastructure outcomes independently. Schema `1.2.0` machine reports include
+effective tiers, numeric timeout milliseconds, per-tier compilation status and diagnostics, plus
+structured causes for assertion failure, uncaught throwable, skip, timeout, crash, compile failure,
+and harness infrastructure failure. A zero command exit means every selected executable case passed
+or explicitly skipped. Bare timeout values are seconds; `ms` and `s` suffixes make units explicit.
+
+Test compilation installs a controlled monotonic clock. Awaiting a test-clock sleep advances that
+clock immediately to the sleep target rather than registering a host waker; `advance-time` remains
+the explicit checked operation for tests that need to move time without sleeping. The external
+per-case timeout is a separate process-liveness backstop.
 
 The compiler also retains its lower-level compile-pass, compile-fail, generated-Rust, diagnostic,
 and host implementation tests. The Terrane framework is the application-facing test system, not a
