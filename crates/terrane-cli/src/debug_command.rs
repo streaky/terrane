@@ -236,8 +236,7 @@ impl Adapter {
         if command == "initialize" {
             let backend = self.backend.get_or_insert(Backend::start()?);
             let _ = backend.request("initialize", arguments)?;
-            return Ok(with_backend_events(
-                backend,
+            let mut messages = vec![
                 response(json!({
                     "supportsConfigurationDoneRequest": true,
                     "supportsCancelRequest": true,
@@ -251,7 +250,10 @@ impl Adapter {
                     "supportsEvaluateForHovers": false,
                     "exceptionBreakpointFilters": []
                 })),
-            ));
+                event("initialized", json!({})),
+            ];
+            messages.extend(take_backend_events(backend));
+            return Ok(messages);
         }
         if command == "launch" || command == "attach" {
             let executable = arguments["program"]
@@ -307,21 +309,33 @@ impl Adapter {
             self.executable = Some(executable);
             let mut messages = with_backend_events(backend, response(json!({})));
             match translation {
-                Ok(provenance) => self.provenance = Some(provenance),
+                Ok(provenance) => {
+                    self.provenance = Some(provenance);
+                    messages.push(event(
+                        "terrane/fidelity",
+                        json!({"mode": "source", "sourceTranslation": true}),
+                    ));
+                }
                 Err(failure) => {
                     self.provenance = None;
-                    messages.push(json!({
-                        "seq": 0,
-                        "type": "event",
-                        "event": "output",
-                        "body": {
+                    messages.push(event(
+                        "terrane/fidelity",
+                        json!({
+                            "mode": "native",
+                            "sourceTranslation": false,
+                            "reason": failure.message
+                        }),
+                    ));
+                    messages.push(event(
+                        "output",
+                        json!({
                             "category": "console",
                             "output": format!(
-                                "{}Terrane source translation is disabled; raw native debugging remains available.\\n",
+                                "{}\nTerrane source translation is disabled; raw native debugging remains available.\n",
                                 failure.message
                             )
-                        }
-                    }));
+                        }),
+                    ));
                 }
             }
             return Ok(messages);
@@ -495,17 +509,26 @@ impl Adapter {
     }
 }
 
+fn event(name: &str, body: Value) -> Value {
+    json!({"seq": 0, "type": "event", "event": name, "body": body})
+}
+
 fn response(body: Value) -> Value {
     let mut value = json!({"seq": 0, "type": "response", "success": true});
     value["body"] = body;
     value
 }
 
+fn take_backend_events(backend: &mut Backend) -> impl Iterator<Item = Value> + '_ {
+    backend
+        .events
+        .drain(..)
+        .filter(|event| event["event"] != "initialized")
+}
+
 fn with_backend_events(backend: &mut Backend, response: Value) -> Vec<Value> {
     let mut messages = vec![response];
-    while let Some(event) = backend.events.pop_front() {
-        messages.push(event);
-    }
+    messages.extend(take_backend_events(backend));
     messages
 }
 

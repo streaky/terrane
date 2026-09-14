@@ -228,6 +228,9 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
             .as_bool()
             .unwrap()
     );
+    let initialized = dap.read();
+    assert_eq!(initialized["type"], "event");
+    assert_eq!(initialized["event"], "initialized");
 
     let launch = dap.send(
         "launch",
@@ -239,6 +242,10 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
         }),
     );
     assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let fidelity = dap.read();
+    assert_eq!(fidelity["event"], "terrane/fidelity");
+    assert_eq!(fidelity["body"]["mode"], "source");
+    assert_eq!(fidelity["body"]["sourceTranslation"], true);
 
     let set_breakpoints = dap.send(
         "setBreakpoints",
@@ -307,20 +314,23 @@ fn adapter_preserves_raw_native_debugging_for_mismatched_provenance() {
     let mut dap = DapClient::start();
     let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
     assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
     let launch = dap.send(
         "launch",
         json!({"program": "/bin/true", "terraneProvenance": provenance}),
     );
     let response = dap.response(launch);
     assert!(response["success"].as_bool().unwrap());
+    let fidelity = dap.read();
+    assert_eq!(fidelity["event"], "terrane/fidelity");
+    assert_eq!(fidelity["body"]["mode"], "native");
+    assert_eq!(fidelity["body"]["sourceTranslation"], false);
     let warning = dap.read();
     assert_eq!(warning["event"], "output");
-    assert!(
-        warning["body"]["output"]
-            .as_str()
-            .unwrap()
-            .contains("raw native debugging remains available")
-    );
+    let output = warning["body"]["output"].as_str().unwrap();
+    assert!(output.contains("raw native debugging remains available"));
+    assert!(output.contains('\n'));
+    assert!(!output.contains("\\n"));
 }
 
 #[test]
@@ -331,11 +341,21 @@ fn adapter_disables_source_translation_for_stale_sources() {
     let mut dap = DapClient::start();
     let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
     assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
     let launch = dap.send(
         "launch",
         json!({"program": executable, "terraneProvenance": provenance}),
     );
     assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let fidelity = dap.read();
+    assert_eq!(fidelity["event"], "terrane/fidelity");
+    assert_eq!(fidelity["body"]["mode"], "native");
+    assert!(
+        fidelity["body"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("source changed since this binary was built")
+    );
     let warning = dap.read();
     assert_eq!(warning["event"], "output");
     assert!(
