@@ -82,6 +82,11 @@ struct TestOptions {
     arguments: Vec<OsString>,
 }
 
+struct SelectedTestCases {
+    cases: Vec<TestCase>,
+    discovered_tiers: Vec<TestTierDiscovery>,
+}
+
 struct TestRecord {
     outcome: String,
     descriptor: String,
@@ -179,7 +184,7 @@ fn emit_discovery_warnings(discovered_tiers: &[TestTierDiscovery]) {
 fn discover_selected_cases(
     test_package: &TestPackage,
     options: &TestOptions,
-) -> Result<Option<(Vec<TestCase>, Vec<TestTierDiscovery>)>, CliFailure> {
+) -> Result<Option<SelectedTestCases>, CliFailure> {
     let discovered_tiers = match terrane_compiler::discover_test_package(
         test_package,
         terrane_compiler::CompilerOptions::default(),
@@ -214,7 +219,10 @@ fn discover_selected_cases(
         println!("0 tests selected");
         return Ok(None);
     }
-    Ok(Some((cases, discovered_tiers)))
+    Ok(Some(SelectedTestCases {
+        cases,
+        discovered_tiers,
+    }))
 }
 
 fn compile_selected_tiers(
@@ -248,10 +256,11 @@ fn compile_selected_tiers(
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let mut options = parse_test_options(arguments)?;
     let (package_root, test_package) = load_test_package(&mut options)?;
-    let Some((cases, discovered_tiers)) = discover_selected_cases(&test_package, &options)? else {
+    let Some(selected) = discover_selected_cases(&test_package, &options)? else {
         return Ok(ExitCode::SUCCESS);
     };
-    let compiled_tiers = compile_selected_tiers(discovered_tiers, &cases, &options)?;
+    let cases = selected.cases;
+    let compiled_tiers = compile_selected_tiers(selected.discovered_tiers, &cases, &options)?;
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
         let application_package = Package::load(&package_root).map_err(|errors| CliFailure {
@@ -305,6 +314,17 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     } else {
         Ok(ExitCode::SUCCESS)
     }
+}
+
+fn parse_test_timeout(value: Option<&OsString>) -> Result<Duration, CliFailure> {
+    let value = value
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| CliFailure::usage_with("missing value for --timeout"))?;
+    parse_duration(value).ok_or_else(|| {
+        CliFailure::usage_with(format!(
+            "invalid --timeout value `{value}`; expected a positive duration such as `500ms`, `2s`, or `1.5`"
+        ))
+    })
 }
 
 fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure> {
@@ -365,15 +385,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
             }
             "--timeout" => {
                 index += 1;
-                let value = arguments
-                    .get(index)
-                    .and_then(|value| value.to_str())
-                    .ok_or_else(|| CliFailure::usage_with("missing value for --timeout"))?;
-                timeout = parse_duration(value).ok_or_else(|| {
-                    CliFailure::usage_with(format!(
-                        "invalid --timeout value `{value}`; expected a positive duration such as `500ms`, `2s`, or `1.5`"
-                    ))
-                })?;
+                timeout = parse_test_timeout(arguments.get(index))?;
             }
             "--argument" => {
                 index += 1;
