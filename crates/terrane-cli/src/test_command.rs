@@ -142,7 +142,10 @@ struct TestResult {
 
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let options = parse_test_options(arguments)?;
-    let test_package = TestPackage::load(&options.input).map_err(|errors| CliFailure {
+    let package_root = fs::canonicalize(&options.input).map_err(|error| {
+        CliFailure::backend(format!("cannot resolve test package path: {error}"))
+    })?;
+    let test_package = TestPackage::load(&package_root).map_err(|errors| CliFailure {
         code: 3,
         message: errors
             .into_iter()
@@ -190,7 +193,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     }
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
-        let application_package = Package::load(&options.input).map_err(|errors| CliFailure {
+        let application_package = Package::load(&package_root).map_err(|errors| CliFailure {
             code: 3,
             message: errors
                 .into_iter()

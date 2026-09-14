@@ -563,6 +563,44 @@ fn native_test_command_reports_isolated_cases_deterministically() {
     );
 }
 
+#[test]
+fn native_test_relative_package_paths_preserve_failure_results() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/failure.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /core/testing import assert-equal-int, test-failure\n",
+            "function test-relative none throws test-failure;\n",
+            "    assert-equal-int; 41, 42\n",
+            "    return none\n",
+        ),
+    )
+    .unwrap();
+    let parent = package.0.parent().unwrap();
+    let relative = package.0.file_name().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .current_dir(parent)
+        .arg("test")
+        .args(["--filter", "relative"])
+        .arg(relative)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("failed /cli/app::test-relative"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("infrastructure-failed"), "{stdout}");
+}
+
 fn assert_explicit_selectors(package: &Path) {
     for (option, pattern) in [
         ("--exact", "/cli/app::test-pass"),
