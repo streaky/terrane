@@ -1,11 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::{
     Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
     rust_ir::RenderedFile,
     semantics::{self, SymbolKind, ValueType},
-    testing::{TestCase, TestPackage},
+    testing::{TestCase, TestPackage, TestTier, TestTierDiscovery},
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -276,26 +276,35 @@ pub fn compile_test_package(
     test_package: &TestPackage,
     options: CompilerOptions,
 ) -> Result<Vec<crate::testing::TestTierCompilation>, CompilationFailure> {
+    let tiers = test_package.tier_packages.keys().copied().collect();
+    compile_test_package_tiers(test_package, options, &tiers)
+}
+
+/// Compiles only the selected populated test tiers as independent native dispatch runners.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
+pub fn compile_test_package_tiers(
+    test_package: &TestPackage,
+    options: CompilerOptions,
+    tiers: &BTreeSet<TestTier>,
+) -> Result<Vec<crate::testing::TestTierCompilation>, CompilationFailure> {
     let mut compiled = Vec::new();
     let mut identities = BTreeMap::<String, Span>::new();
-    for (&tier, package) in &test_package.tier_packages {
+    for (&tier, package) in test_package
+        .tier_packages
+        .iter()
+        .filter(|(tier, _)| tiers.contains(tier))
+    {
         let tier_compilation = compile_test_tier(package, tier, options)?;
         for case in &tier_compilation.cases {
             if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
-                return Err(CompilationFailure {
-                    source: tier_compilation.compilation.source.clone(),
-                    diagnostics: vec![
-                        Diagnostic::error(
-                            "S2052",
-                            format!("duplicate test identity `{}`", case.identity),
-                            case.source_span,
-                        )
-                        .with_help(format!(
-                            "the first test with this identity starts at byte {}",
-                            previous.start
-                        )),
-                    ],
-                });
+                return Err(duplicate_test_identity_failure(
+                    &tier_compilation.compilation.source,
+                    case,
+                    previous,
+                ));
             }
         }
         compiled.push(tier_compilation);
@@ -303,23 +312,75 @@ pub fn compile_test_package(
     Ok(compiled)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one test-tier compilation follows the ordinary pipeline through runner assembly"
-)]
-fn compile_test_tier(
-    package: &Package,
-    tier: crate::testing::TestTier,
+/// Discovers test cases through semantic analysis without lowering native dispatch runners.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
+pub fn discover_test_package(
+    test_package: &TestPackage,
     options: CompilerOptions,
-) -> Result<crate::testing::TestTierCompilation, CompilationFailure> {
-    let mut semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
+) -> Result<Vec<TestTierDiscovery>, CompilationFailure> {
+    let mut discovered = Vec::new();
+    let mut identities = BTreeMap::<String, Span>::new();
+    for (&tier, package) in &test_package.tier_packages {
+        let (semantic, cases) = discover_test_tier(package, tier)?;
+        for case in &cases {
+            if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
+                return Err(duplicate_test_identity_failure(
+                    &semantic.units[0].source,
+                    case,
+                    previous,
+                ));
+            }
+        }
+        discovered.push(TestTierDiscovery {
+            tier,
+            cases,
+            warnings: semantics::warnings(&semantic, options.lint_name_style),
+            sources: semantic
+                .units
+                .iter()
+                .map(|unit| unit.source.clone())
+                .collect(),
+        });
+    }
+    Ok(discovered)
+}
+
+fn duplicate_test_identity_failure(
+    source: &SourceFile,
+    case: &TestCase,
+    previous: Span,
+) -> CompilationFailure {
+    CompilationFailure {
+        source: source.clone(),
+        diagnostics: vec![
+            Diagnostic::error(
+                "S2052",
+                format!("duplicate test identity `{}`", case.identity),
+                case.source_span,
+            )
+            .with_help(format!(
+                "the first test with this identity starts at byte {}",
+                previous.start
+            )),
+        ],
+    }
+}
+
+fn discover_test_tier(
+    package: &Package,
+    tier: TestTier,
+) -> Result<(semantics::SemanticPackage, Vec<TestCase>), CompilationFailure> {
+    let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
         source: failure.source,
         diagnostics: failure.diagnostics,
     })?;
     let role = match tier {
-        crate::testing::TestTier::Unit => crate::SourceRole::UnitTest,
-        crate::testing::TestTier::Integration => crate::SourceRole::IntegrationTest,
-        crate::testing::TestTier::EndToEnd => crate::SourceRole::EndToEndTest,
+        TestTier::Unit => crate::SourceRole::UnitTest,
+        TestTier::Integration => crate::SourceRole::IntegrationTest,
+        TestTier::EndToEnd => crate::SourceRole::EndToEndTest,
     };
     let mut cases = Vec::new();
     let mut diagnostics = Vec::new();
@@ -394,6 +455,15 @@ fn compile_test_tier(
             diagnostics,
         });
     }
+    Ok((semantic, cases))
+}
+
+fn compile_test_tier(
+    package: &Package,
+    tier: crate::testing::TestTier,
+    options: CompilerOptions,
+) -> Result<crate::testing::TestTierCompilation, CompilationFailure> {
+    let (mut semantic, cases) = discover_test_tier(package, tier)?;
     semantic.mark_functions_referenced(cases.iter().map(|case| case.source_span));
     let runner_cases = cases
         .iter()

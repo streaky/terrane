@@ -22,7 +22,8 @@ pub mod types;
 mod projection_oracle;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile, compile_package,
-    compile_package_with_options, compile_test_package, compile_with_options,
+    compile_package_with_options, compile_test_package, compile_test_package_tiers,
+    compile_with_options, discover_test_package,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;

@@ -88,6 +88,15 @@ pub struct TestCase {
     pub selector: usize,
 }
 
+/// Test cases and warnings discovered by semantic analysis without lowering a native runner.
+#[derive(Clone, Debug)]
+pub struct TestTierDiscovery {
+    pub tier: TestTier,
+    pub cases: Vec<TestCase>,
+    pub warnings: Vec<Diagnostic>,
+    pub sources: Vec<SourceFile>,
+}
+
 /// One independently analyzed and lowered test tier.
 #[derive(Clone, Debug)]
 pub struct TestTierCompilation {

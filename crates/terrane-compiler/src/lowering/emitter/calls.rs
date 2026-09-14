@@ -1231,6 +1231,14 @@ impl Emitter<'_> {
             ("test-result-crashed", "test_result_crashed"),
             ("test-result-stdout", "test_result_stdout"),
             ("test-result-stderr", "test_result_stderr"),
+            (
+                "test-result-stdout-truncated",
+                "test_result_stdout_truncated",
+            ),
+            (
+                "test-result-stderr-truncated",
+                "test_result_stderr_truncated",
+            ),
             ("test-time-advance", "test_time_advance"),
             ("test-render-int", "test_render_int"),
             ("test-render-float64", "test_render_float64"),

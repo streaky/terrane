@@ -21,15 +21,39 @@ fn terrane_decode_platform_value(value: String) -> std::ffi::OsString {
     }
 }
 
-fn terrane_read_process_output(mut stream: impl std::io::Read) -> Vec<u8> {
-    let mut output = Vec::new();
-    let _ = stream.read_to_end(&mut output);
+const TERRANE_TEST_PROCESS_CAPTURE_LIMIT: usize = 1024 * 1024;
+const TERRANE_TEST_PROCESS_POLL_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(5);
+const TERRANE_TEST_PROCESS_OUTPUT_CLOSE_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_millis(250);
+
+struct TerraneTestCapturedOutput {
+    bytes: Vec<u8>,
+    truncated: bool,
+}
+
+fn terrane_read_process_output(mut stream: impl std::io::Read) -> TerraneTestCapturedOutput {
+    let mut output = TerraneTestCapturedOutput {
+        bytes: Vec::new(),
+        truncated: false,
+    };
+    let mut buffer = [0_u8; 8192];
+    while let Ok(read) = stream.read(&mut buffer) {
+        if read == 0 {
+            break;
+        }
+        let available = TERRANE_TEST_PROCESS_CAPTURE_LIMIT.saturating_sub(output.bytes.len());
+        output
+            .bytes
+            .extend_from_slice(&buffer[..read.min(available)]);
+        output.truncated |= read > available;
+    }
     output
 }
 
 fn terrane_spawn_process_reader(
     stream: impl std::io::Read + Send + 'static,
-) -> std::sync::mpsc::Receiver<Vec<u8>> {
+) -> std::sync::mpsc::Receiver<TerraneTestCapturedOutput> {
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     std::thread::spawn(move || {
         let _ = sender.send(terrane_read_process_output(stream));
@@ -41,14 +65,14 @@ fn terrane_wait_fixture_child(
     child: &mut std::process::Child,
     timeout: std::time::Duration,
 ) -> Result<(std::process::ExitStatus, bool), String> {
-    // `std::process` has no portable timed wait. This bounded 5 ms poll keeps the generated runtime
+    // `std::process` has no portable timed wait. This bounded poll keeps the generated runtime
     // dependency-free while capping deadline overshoot; the child is killed and synchronously reaped.
     let started = std::time::Instant::now();
     loop {
         match child.try_wait() {
             Ok(Some(status)) => return Ok((status, false)),
             Ok(None) if started.elapsed() < timeout => {
-                std::thread::sleep(std::time::Duration::from_millis(5));
+                std::thread::sleep(TERRANE_TEST_PROCESS_POLL_INTERVAL);
             }
             Ok(None) => {
                 child
@@ -115,20 +139,23 @@ pub fn terrane_test_spawn(
         Ok(result) => result,
         Err(error) => return TerranePlatformResult::error(error),
     };
-    let reader_deadline = Duration::from_millis(250);
-    let output = match stdout.recv_timeout(reader_deadline) {
+    let output = match stdout.recv_timeout(TERRANE_TEST_PROCESS_OUTPUT_CLOSE_TIMEOUT) {
         Ok(output) => output,
         Err(_) => return TerranePlatformResult::error("fixture stdout did not close after exit"),
     };
-    let error = match stderr.recv_timeout(reader_deadline) {
+    let error = match stderr.recv_timeout(TERRANE_TEST_PROCESS_OUTPUT_CLOSE_TIMEOUT) {
         Ok(error) => error,
         Err(_) => return TerranePlatformResult::error("fixture stderr did not close after exit"),
     };
     TerranePlatformResult {
         failed: false,
         deadline_exceeded,
-        data: output,
-        entries: vec![format!("raw:{}", terrane_hex(&error))],
+        data: output.bytes,
+        entries: vec![
+            format!("raw:{}", terrane_hex(&error.bytes)),
+            output.truncated.to_string(),
+            error.truncated.to_string(),
+        ],
         number: status.code().map_or(-1, i128::from),
         flag: status.code().is_none(),
         ..TerranePlatformResult::default()
@@ -168,6 +195,14 @@ pub fn terrane_test_result_stderr(result: &TerranePlatformResult) -> Vec<u8> {
         .unwrap_or_default()
 }
 
+pub fn terrane_test_result_stdout_truncated(result: &TerranePlatformResult) -> bool {
+    result.entries.get(1).is_some_and(|value| value == "true")
+}
+
+pub fn terrane_test_result_stderr_truncated(result: &TerranePlatformResult) -> bool {
+    result.entries.get(2).is_some_and(|value| value == "true")
+}
+
 fn terrane_test_render_int(value: terrane_int_support::Int) -> String {
     value.to_string()
 }
@@ -193,9 +228,6 @@ fn terrane_test_deadline_nanoseconds() -> terrane_int_support::Int {
 
 static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
-static TERRANE_TEST_TIME_WAKERS: std::sync::LazyLock<
-    std::sync::Mutex<Vec<std::task::Waker>>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
 fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
     let Some(nanoseconds) = terrane_int_support::checked_coerce::<u64>(&nanoseconds) else {
@@ -211,13 +243,6 @@ fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
         .is_err()
     {
         return false;
-    }
-    for waker in TERRANE_TEST_TIME_WAKERS
-        .lock()
-        .expect("controlled time waker lock poisoned")
-        .drain(..)
-    {
-        waker.wake();
     }
     true
 }

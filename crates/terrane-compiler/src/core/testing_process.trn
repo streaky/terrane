@@ -22,13 +22,17 @@ class process-result
     timed-out bool = false
     stdout bytes = b''
     stderr bytes = b''
+    stdout-truncated bool = false
+    stderr-truncated bool = false
 
-    function construct; status int, did-crash bool, exceeded-deadline bool, output bytes, errors bytes
+    function construct; status int, did-crash bool, exceeded-deadline bool, output bytes, errors bytes, output-truncated bool, errors-truncated bool
         this.exit-code = status
         this.crashed = did-crash
         this.timed-out = exceeded-deadline
         this.stdout = output
         this.stderr = errors
+        this.stdout-truncated = output-truncated
+        this.stderr-truncated = errors-truncated
 
 function run-process process-result throws test-infrastructure-failure; fixture process-fixture
     encoded-arguments list of string = list
@@ -41,4 +45,4 @@ function run-process process-result throws test-infrastructure-failure; fixture 
     raw = host-test-spawn; fixture.artifact, encoded-arguments, encoded-environment, fixture.standard-input, fixture.deadline-milliseconds
     if host-test-result-failed; raw
         throw instance test-infrastructure-failure; (host-test-result-message; raw)
-    return instance process-result; (host-test-result-exit-code; raw), (host-test-result-crashed; raw), (host-test-result-deadline-exceeded; raw), (host-test-result-stdout; raw), (host-test-result-stderr; raw)
+    return instance process-result; (host-test-result-exit-code; raw), (host-test-result-crashed; raw), (host-test-result-deadline-exceeded; raw), (host-test-result-stdout; raw), (host-test-result-stderr; raw), (host-test-result-stdout-truncated; raw), (host-test-result-stderr-truncated; raw)

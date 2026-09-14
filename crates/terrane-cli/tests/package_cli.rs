@@ -422,6 +422,8 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
     "namespace cli/app\n",
     "from /core/errors import throwable\n",
     "from /core/process import exit, make-exit-status\n",
+    "from /core/output import print\n",
+    "from /core/streams import stderr\n",
     "from /core/time import clock, duration\n",
     "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deny, fail, skip, temporary-directory, test-failure, test-skip\n",
     "function expected-error none throws test-failure;\n",
@@ -454,6 +456,12 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
     "    assert-none-bytes; none\n",
     "    return none\n",
     "function test-fail none throws test-failure;\n",
+    "    print; 'captured output'\n",
+    "    errors = stderr;\n",
+    "    written = errors.write-all; b'captured error\\n'\n",
+    "    errors.close;\n",
+    "    if written.failed\n",
+    "        fail; written.message\n",
     "    assert-equal-int; 3, 4\n    return none\n",
     "function test-exit;\n",
     "    exit; (make-exit-status; 7)\n",
@@ -506,12 +514,14 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             < stdout.find("/cli/app::test-ignored").unwrap()
     );
     assert!(
-        stdout.contains("3 passed; 1 skipped; 2 failed"),
+        stdout.contains(
+            "3 passed; 1 skipped; 2 failed; 0 timed out; 0 crashed; 0 infrastructure failed"
+        ),
         "{stdout}\n{}",
         String::from_utf8_lossy(&output.stderr)
     );
     let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
-    assert_eq!(report["schema_version"], "1.1.0");
+    assert_eq!(report["schema_version"], "1.2.0");
     assert_eq!(report["run"]["status"], "completed");
     assert_eq!(report["cases"][0]["identity"], "/cli/app::test-pass");
     assert!(report["cases"][0]["stdout"].is_array());
@@ -529,7 +539,25 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         report["cases"][1]["cause"]["details"],
         serde_json::json!(["actual: 3", "expected: 4"])
     );
-    assert!(report["cases"][1]["cause"]["source_frames"].is_array());
+    assert!(
+        !report["cases"][1]["cause"]["source_frames"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        report["cases"][1]["stdout"],
+        serde_json::json!(b"captured output\n")
+    );
+    assert_eq!(
+        report["cases"][1]["stderr"],
+        serde_json::json!(b"captured error\n")
+    );
+    assert_eq!(
+        report["cases"][3]["cause"]["descriptor"],
+        "/core/testing::test-skip"
+    );
+    assert_eq!(report["cases"][3]["cause"]["message"], "not available");
     assert_eq!(report["cases"][2]["status"], "failed");
     assert_eq!(report["cases"][3]["status"], "skipped");
     assert_eq!(report["cases"][4]["status"], "passed");
@@ -623,6 +651,99 @@ fn assert_explicit_selectors(package: &Path) {
 }
 
 #[test]
+fn tracked_native_testing_package_covers_all_tiers() {
+    let package = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-testing");
+    let listed = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .arg("--list")
+        .arg(&package)
+        .output()
+        .unwrap();
+    assert!(
+        listed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&listed.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(listed.stdout).unwrap(),
+        concat!(
+            "/sample::test-assertions-and-private-access [unit]\n",
+            "/sample::test-custom-value-comparison [unit]\n",
+            "/sample::test-controlled-async-time [unit]\n",
+            "/sample::test-declared-throw-without-throw [unit]\n",
+            "/sample::test-declared-throw-with-implicit-return [unit]\n",
+            "/sample-integration::test-public-answer [integration]\n",
+            "/sample-end-to-end::test-production-application [end-to-end]\n",
+        )
+    );
+
+    let report_directory = TempPackage::new();
+    let report = report_directory.0.join("tracked-report.json");
+    let executed = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--jobs", "3", "--report"])
+        .arg(&report)
+        .arg(&package)
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["schema_version"], "1.2.0");
+    assert_eq!(
+        report["run"]["tiers"],
+        serde_json::json!(["unit", "integration", "end-to-end"])
+    );
+    assert!(report["run"]["timeout_milliseconds"].is_u64());
+    assert_eq!(report["compilation"].as_array().unwrap().len(), 3);
+    assert!(
+        report["compilation"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|tier| tier["status"] == "compiled")
+    );
+    assert_eq!(report["cases"].as_array().unwrap().len(), 7);
+    assert!(
+        report["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|case| case["status"] == "passed")
+    );
+}
+
+#[test]
+fn native_test_listing_and_empty_selection_do_not_build_runners() {
+    for arguments in [vec!["--list"], vec!["--filter", "does-not-exist"]] {
+        let package = TempPackage::new();
+        fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+        fs::write(
+            package.0.join("tests/unit/case.trn"),
+            "namespace cli/app\nfunction test-present;\n",
+        )
+        .unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(arguments)
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!package.0.join(".trn/build").exists());
+    }
+}
+
+#[test]
 fn end_to_end_tests_receive_the_built_application_artifact() {
     let package = TempPackage::new();
     fs::write(
@@ -676,11 +797,9 @@ fn end_to_end_tests_receive_the_built_application_artifact() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(
-        String::from_utf8(output.stdout)
-            .unwrap()
-            .contains("1 passed; 0 skipped; 0 failed")
-    );
+    assert!(String::from_utf8(output.stdout).unwrap().contains(
+        "1 passed; 0 skipped; 0 failed; 0 timed out; 0 crashed; 0 infrastructure failed"
+    ));
 }
 
 #[test]
@@ -747,15 +866,16 @@ fn native_test_compile_failures_write_structured_reports() {
 
     assert_eq!(output.status.code(), Some(3));
     let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
-    assert_eq!(report["schema_version"], "1.1.0");
+    assert_eq!(report["schema_version"], "1.2.0");
     assert_eq!(report["run"]["status"], "compile-failed");
-    assert_eq!(report["compilation"]["status"], "compile-failed");
+    assert_eq!(report["discovery"]["status"], "compile-failed");
     assert!(
-        !report["compilation"]["diagnostics"]
+        !report["discovery"]["diagnostics"]
             .as_array()
             .unwrap()
             .is_empty()
     );
+    assert_eq!(report["compilation"][0]["status"], "not-run");
     assert_eq!(report["cases"].as_array().unwrap().len(), 0);
 }
 
@@ -808,11 +928,9 @@ fn native_test_context_exposes_deadline_and_controlled_arguments() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(
-        String::from_utf8(output.stdout)
-            .unwrap()
-            .contains("1 passed; 0 skipped; 0 failed")
-    );
+    assert!(String::from_utf8(output.stdout).unwrap().contains(
+        "1 passed; 0 skipped; 0 failed; 0 timed out; 0 crashed; 0 infrastructure failed"
+    ));
 }
 
 #[test]
@@ -832,7 +950,7 @@ fn process_fixture_drains_large_output_while_the_child_runs() {
             "from /core/output import print\n",
             "function main;\n",
             "    index int = 0\n",
-            "    while index < 20000\n",
+            "    while index < 200000\n",
             "        print; 'output'\n",
             "        index++\n",
         ),
@@ -843,13 +961,15 @@ fn process_fixture_drains_large_output_while_the_child_runs() {
         concat!(
             "namespace fixture-pipes\n",
             "from /core/errors import throwable\n",
-            "from /core/testing import application-artifact, assert, fail\n",
+            "from /core/testing import application-artifact, assert, assert-equal-int, deny, fail\n",
             "from /core/testing/process import process-fixture, run-process\n",
             "function test-large-output none throws throwable;\n",
             "    artifact = application-artifact;\n",
             "    if artifact != none\n",
             "        result = run-process; (instance process-fixture; artifact)\n",
-            "        assert; result.stdout.length > 100000\n",
+            "        assert-equal-int; result.stdout.length, 1048576\n",
+            "        assert; result.stdout-truncated\n",
+            "        deny; result.stderr-truncated\n",
             "    else\n",
             "        fail; 'missing application artifact'\n",
             "    return none\n",

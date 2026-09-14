@@ -297,6 +297,8 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "test-result-crashed",
             "test-result-stdout",
             "test-result-stderr",
+            "test-result-stdout-truncated",
+            "test-result-stderr-truncated",
         ],
     );
     add_private_host_bindings(

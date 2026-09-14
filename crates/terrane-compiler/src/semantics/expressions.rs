@@ -821,6 +821,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:testing::test-result-failed"
                     | "intrinsic:testing::test-result-deadline-exceeded"
                     | "intrinsic:testing::test-result-crashed"
+                    | "intrinsic:testing::test-result-stdout-truncated"
+                    | "intrinsic:testing::test-result-stderr-truncated"
                     | "intrinsic:testing::test-time-advance" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
