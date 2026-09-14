@@ -121,12 +121,13 @@ impl Emitter<'_> {
                 .method(&identity.namespace, &identity.name, &contract.name, false)
                 .is_some()
         });
-        let function_value_throws = callee
-            .and_then(|callee| self.value_type(callee))
-            .is_some_and(|value_type| match value_type {
-                ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
-                _ => false,
-            });
+        let function_value_throws = contract.is_none()
+            && callee
+                .and_then(|callee| self.value_type(callee))
+                .is_some_and(|value_type| match value_type {
+                    ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
+                    _ => false,
+                });
         projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
     }
 
@@ -135,13 +136,14 @@ impl Emitter<'_> {
             && let Some(callee) = node.children.first()
         {
             let contract = self.contract_for_call(callee);
-            let callable_throws = self.value_type(callee).is_some_and(|value_type| {
-                matches!(
-                    value_type,
-                    ValueType::Function(_, _, ref effects)
-                        if effects.requires_throwing_abi()
-                )
-            });
+            let callable_throws = contract.is_none()
+                && self.value_type(callee).is_some_and(|value_type| {
+                    matches!(
+                        value_type,
+                        ValueType::Function(_, _, ref effects)
+                            if effects.requires_throwing_abi()
+                    )
+                });
             if contract.is_some_and(|contract| !contract.is_async && contract.throws)
                 || callable_throws
             {

@@ -221,14 +221,17 @@ impl Emitter<'_> {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
                     let callable_type = self.value_type(callable);
-                    let throws = self
-                        .contract_for_call(callable)
-                        .is_some_and(|contract| contract.throws)
-                        || matches!(
-                            callable_type,
-                            Some(ValueType::AsyncFunction(_, _, _, ref effects))
-                                if effects.requires_throwing_abi()
-                        );
+                    let direct_contract = self.contract_for_call(callable);
+                    let throws = direct_contract.map_or_else(
+                        || {
+                            matches!(
+                                callable_type,
+                                Some(ValueType::AsyncFunction(_, _, _, ref effects))
+                                    if effects.requires_throwing_abi()
+                            )
+                        },
+                        |contract| contract.throws,
+                    );
                     let foreign_error = callable.kind == SyntaxKind::Name
                         && self
                             .package

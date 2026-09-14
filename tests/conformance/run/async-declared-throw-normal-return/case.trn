@@ -1,0 +1,12 @@
+namespace sample
+
+from /core/errors import throwable
+from /core/output import print
+
+async function quiet none throws throwable;
+  observed int = 42
+  return none
+
+async function main;
+  ignored = await quiet;
+  print; 'completed'
