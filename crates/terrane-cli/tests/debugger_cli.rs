@@ -425,7 +425,12 @@ fn adapter_preserves_raw_native_debugging_for_mismatched_provenance() {
     );
     let response = dap.response(launch);
     assert!(response["success"].as_bool().unwrap());
-    let fidelity = dap.read();
+    let fidelity = loop {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            break message;
+        }
+    };
     assert_eq!(fidelity["event"], "terrane/fidelity");
     assert_eq!(fidelity["body"]["mode"], "native");
     assert_eq!(fidelity["body"]["sourceTranslation"], false);
@@ -451,7 +456,12 @@ fn adapter_disables_source_translation_for_stale_sources() {
         json!({"program": executable, "terraneProvenance": provenance}),
     );
     assert!(dap.response(launch)["success"].as_bool().unwrap());
-    let fidelity = dap.read();
+    let fidelity = loop {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            break message;
+        }
+    };
     assert_eq!(fidelity["event"], "terrane/fidelity");
     assert_eq!(fidelity["body"]["mode"], "native");
     assert!(
