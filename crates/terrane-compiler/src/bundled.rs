@@ -105,6 +105,11 @@ const SOURCES: &[BundledSource] = &[
         path: "core/testing.trn",
         text: include_str!("core/testing.trn"),
     },
+    BundledSource {
+        namespace: "/core/testing/process",
+        path: "core/testing_process.trn",
+        text: include_str!("core/testing_process.trn"),
+    },
 ];
 
 pub(crate) fn source(namespace: &str) -> Option<&'static BundledSource> {

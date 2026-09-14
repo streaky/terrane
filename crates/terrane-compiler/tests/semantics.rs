@@ -16,6 +16,10 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         build_toolchain: BuildToolchain::Pinned,
         executor: ExecutorProfile::Threaded,
         profile: CapabilityProfile::unrestricted(),
+        purpose: terrane_compiler::PackagePurpose::Production,
+        testing: terrane_compiler::testing::TestConfiguration::conventional(
+            CapabilityProfile::unrestricted(),
+        ),
         units: sources
             .iter()
             .enumerate()
@@ -26,6 +30,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
                     PathBuf::from(path),
                     (*text).to_owned(),
                 ),
+                role: terrane_compiler::SourceRole::Production,
                 expected_namespace: None,
             })
             .collect(),

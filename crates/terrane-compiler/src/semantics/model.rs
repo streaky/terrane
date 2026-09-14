@@ -1250,6 +1250,7 @@ pub struct SemanticUnit {
     pub tree: SyntaxTree,
     pub namespace: String,
     pub(super) prelude: bool,
+    pub role: crate::SourceRole,
     pub(crate) bundled: bool,
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,

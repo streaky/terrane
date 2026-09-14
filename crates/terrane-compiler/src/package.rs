@@ -7,6 +7,14 @@ use crate::{Diagnostic, SourceFile, Span};
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceRole {
+    Production,
+    UnitTest,
+    IntegrationTest,
+    EndToEndTest,
+    Bundled,
+}
 #[derive(Clone, Debug)]
 pub struct SourceUnit {
     /// Normalized path relative to [`Package::root`].
@@ -15,6 +23,7 @@ pub struct SourceUnit {
     pub relative_path: PathBuf,
     pub source: SourceFile,
     pub expected_namespace: Option<String>,
+    pub role: SourceRole,
 }
 
 impl SourceUnit {
@@ -44,6 +53,12 @@ pub enum PanicProfile {
 pub enum BuildToolchain {
     Pinned,
     System,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PackagePurpose {
+    Production,
+    Testing,
 }
 
 const CAPABILITY_NAMES: [&str; 10] = [
@@ -133,6 +148,8 @@ pub struct Package {
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
     pub profile: CapabilityProfile,
+    pub purpose: PackagePurpose,
+    pub testing: crate::testing::TestConfiguration,
     pub build_toolchain: BuildToolchain,
     pub units: Vec<SourceUnit>,
     pub rust_dependencies: Vec<RustDependency>,
@@ -177,10 +194,15 @@ impl Package {
             executor: ExecutorProfile::Threaded,
             build_toolchain: BuildToolchain::Pinned,
             profile: CapabilityProfile::unrestricted(),
+            purpose: PackagePurpose::Production,
+            testing: crate::testing::TestConfiguration::conventional(
+                CapabilityProfile::unrestricted(),
+            ),
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
                 expected_namespace: None,
+                role: SourceRole::Production,
             }],
             rust_dependencies: Vec::new(),
         }
@@ -220,6 +242,8 @@ impl Package {
             build_toolchain: manifest.build_toolchain,
             executor: manifest.executor,
             profile: manifest.profile,
+            testing: manifest.testing,
+            purpose: PackagePurpose::Production,
             units,
             rust_dependencies: manifest.rust_dependencies,
         })
@@ -280,6 +304,8 @@ impl Package {
             reflection: manifest.reflection,
             executor: manifest.executor,
             profile: manifest.profile,
+            testing: manifest.testing,
+            purpose: PackagePurpose::Production,
             build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,
@@ -294,6 +320,7 @@ struct ParsedManifest {
     build_toolchain: BuildToolchain,
     executor: ExecutorProfile,
     profile: CapabilityProfile,
+    testing: crate::testing::TestConfiguration,
     namespace_roots: Vec<NamespaceRoot>,
     rust_dependencies: Vec<RustDependency>,
 }
@@ -440,6 +467,13 @@ fn parse_manifest(
             }
         }
     }
+    let testing = match crate::testing::parse_configuration(manifest_path, text, &table, &profile) {
+        Ok(configuration) => Some(configuration),
+        Err(mut testing_errors) => {
+            errors.append(&mut testing_errors);
+            None
+        }
+    };
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
@@ -450,6 +484,7 @@ fn parse_manifest(
             profile,
             namespace_roots,
             rust_dependencies,
+            testing: testing.expect("validated testing configuration"),
         })
     } else {
         Err(errors)
@@ -857,6 +892,7 @@ fn discover_source_units(
                 relative_path,
                 source: SourceFile::new(source_id, source_path, source_text),
                 expected_namespace: Some(expected_namespace),
+                role: SourceRole::Production,
             }),
             Err(error) => errors.push(PackageLoadError::unreadable(
                 source_path,
@@ -1021,6 +1057,7 @@ mod tests {
             relative_path: ["app", "support", "values.trn"].iter().collect(),
             source: SourceFile::new(0, PathBuf::from("values.trn"), String::new()),
             expected_namespace: None,
+            role: SourceRole::Production,
         };
         assert_eq!(unit.relative_path_text(), "app/support/values.trn");
     }
@@ -1036,6 +1073,7 @@ mod tests {
                 relative_path: PathBuf::from(path),
                 source: SourceFile::new(0, PathBuf::from(path), String::new()),
                 expected_namespace: None,
+                role: SourceRole::Production,
             };
             assert_eq!(unit.relative_path_text(), expected);
         }

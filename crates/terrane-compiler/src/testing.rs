@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Conventional isolation tier for a Terrane test source.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TestTier {
     Unit,
     Integration,
@@ -24,6 +24,26 @@ impl TestTier {
             Self::EndToEnd => "end-to-end",
         }
     }
+
+    const fn order(self) -> u8 {
+        match self {
+            Self::Unit => 0,
+            Self::Integration => 1,
+            Self::EndToEnd => 2,
+        }
+    }
+}
+
+impl Ord for TestTier {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.order().cmp(&other.order())
+    }
+}
+
+impl PartialOrd for TestTier {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Manifest-selected roots and capability profile used by `terrane test`.
@@ -33,12 +53,25 @@ pub struct TestConfiguration {
     pub profile: CapabilityProfile,
 }
 
-/// A package augmented with its test-only source set.
+impl TestConfiguration {
+    pub fn conventional(profile: CapabilityProfile) -> Self {
+        Self {
+            roots: BTreeMap::from([
+                (TestTier::Unit, PathBuf::from("tests/unit")),
+                (TestTier::Integration, PathBuf::from("tests/integration")),
+                (TestTier::EndToEnd, PathBuf::from("tests/end-to-end")),
+            ]),
+            profile,
+        }
+    }
+}
+
+/// A production package plus independently compiled test-tier packages.
 #[derive(Clone, Debug)]
 pub struct TestPackage {
     pub package: Package,
     pub configuration: TestConfiguration,
-    pub source_tiers: BTreeMap<u32, TestTier>,
+    pub tier_packages: BTreeMap<TestTier, Package>,
 }
 
 /// One compiler-discovered ordinary Terrane test function.
@@ -54,8 +87,17 @@ pub struct TestCase {
     pub selector: usize,
 }
 
+/// One independently analyzed and lowered test tier.
+#[derive(Clone, Debug)]
+pub struct TestTierCompilation {
+    pub tier: TestTier,
+    pub package: Package,
+    pub compilation: crate::Compilation,
+    pub cases: Vec<TestCase>,
+}
+
 impl TestPackage {
-    /// Loads production sources plus the conventional or manifest-overridden test roots.
+    /// Loads production sources plus independently isolated test-tier source sets.
     ///
     /// Test roots are optional. Every discovered test source remains an ordinary package input and
     /// therefore participates in parsing, semantic analysis, lowering, and cache identity.
@@ -64,42 +106,18 @@ impl TestPackage {
     ///
     /// Returns package, manifest, containment, or source-read diagnostics.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
-        let requested = path.as_ref();
-        let manifest_path = if requested.is_dir() {
-            requested.join(crate::MANIFEST_FILE_NAME)
-        } else {
-            requested.to_path_buf()
-        };
-        let root = manifest_path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."))
-            .to_path_buf();
-        let text = fs::read_to_string(&manifest_path).map_err(|error| {
-            vec![test_load_error(
-                manifest_path.clone(),
-                format!("cannot read package manifest: {error}"),
-            )]
-        })?;
-        let table = text.parse::<toml::Table>().map_err(|error| {
-            vec![test_load_error(
-                manifest_path.clone(),
-                format!("invalid TOML: {error}"),
-            )]
-        })?;
-        let mut package = Package::load(&manifest_path)?;
-        let configuration = parse_configuration(&manifest_path, &text, &table, &package.profile)?;
-        package.profile = configuration.profile.clone();
+        let package = Package::load(path)?;
+        let root = package.root.clone();
+        let manifest_path = root.join(crate::MANIFEST_FILE_NAME);
+        let configuration = package.testing.clone();
 
-        let mut source_tiers = BTreeMap::new();
         let mut paths = BTreeMap::<PathBuf, TestTier>::new();
         let mut errors = Vec::new();
         for (tier, relative_root) in &configuration.roots {
             let absolute_root = root.join(relative_root);
-            if !absolute_root.exists() {
-                continue;
+            if absolute_root.exists() {
+                discover_test_files(&absolute_root, &root, *tier, &mut paths, &mut errors);
             }
-            discover_test_files(&absolute_root, &root, *tier, &mut paths, &mut errors);
         }
         for unit in &package.units {
             if let Some((_, tier)) = paths.get_key_value(&unit.relative_path) {
@@ -118,6 +136,7 @@ impl TestPackage {
                 "package has too many source units".to_owned(),
             )]
         })?;
+        let mut tier_units = BTreeMap::<TestTier, Vec<SourceUnit>>::new();
         for (offset, (relative_path, tier)) in paths.into_iter().enumerate() {
             let source_path = root.join(&relative_path);
             let Some(source_id) = u32::try_from(offset)
@@ -132,12 +151,16 @@ impl TestPackage {
             };
             match fs::read_to_string(&source_path) {
                 Ok(source) => {
-                    package.units.push(SourceUnit {
+                    tier_units.entry(tier).or_default().push(SourceUnit {
                         relative_path,
                         source: SourceFile::new(source_id, source_path, source),
                         expected_namespace: None,
+                        role: match tier {
+                            TestTier::Unit => crate::SourceRole::UnitTest,
+                            TestTier::Integration => crate::SourceRole::IntegrationTest,
+                            TestTier::EndToEnd => crate::SourceRole::EndToEndTest,
+                        },
                     });
-                    source_tiers.insert(source_id, tier);
                 }
                 Err(error) => errors.push(test_load_error(
                     source_path,
@@ -145,15 +168,24 @@ impl TestPackage {
                 )),
             }
         }
-        if errors.is_empty() {
-            Ok(Self {
-                package,
-                configuration,
-                source_tiers,
-            })
-        } else {
-            Err(errors)
+        if !errors.is_empty() {
+            return Err(errors);
         }
+        let tier_packages = tier_units
+            .into_iter()
+            .map(|(tier, units)| {
+                let mut tier_package = package.clone();
+                tier_package.profile = configuration.profile.clone();
+                tier_package.purpose = crate::PackagePurpose::Testing;
+                tier_package.units.extend(units);
+                (tier, tier_package)
+            })
+            .collect();
+        Ok(Self {
+            package,
+            configuration,
+            tier_packages,
+        })
     }
 }
 
@@ -161,18 +193,16 @@ impl TestPackage {
     clippy::too_many_lines,
     reason = "testing manifest diagnostics retain field-local source context in one parser"
 )]
-fn parse_configuration(
+pub(crate) fn parse_configuration(
     manifest_path: &Path,
     text: &str,
     table: &toml::Table,
     ordinary_profile: &CapabilityProfile,
 ) -> Result<TestConfiguration, Vec<PackageLoadError>> {
-    let mut roots = BTreeMap::from([
-        (TestTier::Unit, PathBuf::from("tests/unit")),
-        (TestTier::Integration, PathBuf::from("tests/integration")),
-        (TestTier::EndToEnd, PathBuf::from("tests/end-to-end")),
-    ]);
-    let mut profile = ordinary_profile.clone();
+    let TestConfiguration {
+        mut roots,
+        mut profile,
+    } = TestConfiguration::conventional(ordinary_profile.clone());
     let Some(testing) = table.get("testing") else {
         return Ok(TestConfiguration { roots, profile });
     };

@@ -644,7 +644,7 @@ fn test_packages_discover_and_lower_tiered_ordinary_functions() {
     );
 
     let test_package = TestPackage::load(&package.0).unwrap();
-    let (compilation, cases) = compile_test_package(
+    let compiled = compile_test_package(
         &test_package,
         CompilerOptions {
             require_canonical_rust: true,
@@ -652,6 +652,10 @@ fn test_packages_discover_and_lower_tiered_ordinary_functions() {
         },
     )
     .unwrap();
+    let cases = compiled
+        .iter()
+        .flat_map(|tier| tier.cases.iter())
+        .collect::<Vec<_>>();
 
     assert_eq!(
         cases
@@ -664,9 +668,26 @@ fn test_packages_discover_and_lower_tiered_ordinary_functions() {
             (TestTier::Integration, "/app-tests::test-public"),
         ]
     );
-    assert!(compilation.rust.contains("match selected.as_str()"));
-    assert!(compilation.rust.contains("\"0\" =>"));
-    assert!(compilation.rust.contains("__terrane_run(async move"));
+    assert_eq!(compiled.len(), 2);
+    assert!(
+        compiled
+            .iter()
+            .all(|tier| tier.compilation.rust.contains("match selected.as_str()"))
+    );
+    assert!(
+        compiled
+            .iter()
+            .all(|tier| tier.compilation.rust.contains("\"0\" =>"))
+    );
+    assert!(
+        compiled
+            .iter()
+            .find(|tier| tier.tier == TestTier::Unit)
+            .unwrap()
+            .compilation
+            .rust
+            .contains("__terrane_run(async move")
+    );
 }
 
 #[test]
@@ -723,7 +744,7 @@ fn test_manifest_roots_are_bounded_and_profiled() {
     );
     assert_eq!(loaded.configuration.profile.panic, PanicProfile::Abort);
     assert_eq!(
-        loaded.source_tiers.values().copied().collect::<Vec<_>>(),
+        loaded.tier_packages.keys().copied().collect::<Vec<_>>(),
         [TestTier::Unit]
     );
 }
@@ -786,4 +807,98 @@ fn duplicate_test_identities_use_a_test_specific_diagnostic() {
             .message
             .contains("duplicate test identity")
     );
+}
+
+#[test]
+fn production_sources_cannot_import_test_only_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"test-boundary\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/main.trn",
+        "namespace app\nfrom /test-helpers import helper\nfunction main;\n  helper\n",
+    );
+    package.write(
+        "tests/unit/helper.trn",
+        "namespace test-helpers\nconstant helper = 1\nfunction test-helper;\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2055");
+    assert!(
+        failure.diagnostics[0]
+            .message
+            .contains("production source cannot import test-only namespace")
+    );
+}
+
+#[test]
+fn integration_tests_cannot_join_production_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"integration-boundary\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/integration/private.trn",
+        "namespace app\nfunction test-private;\n  value\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2054");
+}
+
+#[test]
+fn testing_process_fixtures_require_process_capability() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"testing-capabilities\"\nprelude = false\n[profile]\nname = \"confined\"\ncapabilities = []\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfrom /core/testing/process import process-fixture\nfunction test-process;\n  fixture = instance process-fixture; ''\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2032");
+    assert!(failure.diagnostics[0].message.contains("process"));
+}
+
+#[test]
+fn production_compilation_rejects_test_only_namespaces() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"production-testing-import\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/main.trn",
+        "namespace app\nfrom /core/testing import assert\nfunction main;\n  assert; true\n",
+    );
+
+    let failure = compile_package(&Package::load(&package.0).unwrap()).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2053");
 }

@@ -2,7 +2,7 @@ namespace core/testing
 
 from /core/errors import throwable
 from /core/collections import list
-from /core/process import encode-native-string, environment, environment-entry, native-string
+from /core/process import environment, environment-entry
 
 interface test-value
     function render string;
@@ -127,43 +127,6 @@ function application-artifact string;
 function test-tier string|none;
     return context-value; 'TERRANE_TEST_TIER'
 
-class process-fixture
-    artifact string = ''
-    arguments list of native-string = list
-    environment list of environment-entry = list
-    standard-input bytes = b''
-    deadline-milliseconds int = 30000
-
-    function construct; executable string
-        this.artifact = executable
-
-class process-result
-
-    exit-code int = 0
-    crashed bool = false
-    timed-out bool = false
-    stdout bytes = b''
-    stderr bytes = b''
-
-    function construct; status int, did-crash bool, exceeded-deadline bool, output bytes, errors bytes
-        this.exit-code = status
-        this.crashed = did-crash
-        this.timed-out = exceeded-deadline
-        this.stdout = output
-        this.stderr = errors
-
-function run-process process-result throws test-failure; fixture process-fixture
-    encoded-arguments list of string = list
-    for argument in fixture.arguments
-        encoded-arguments.append; (encode-native-string; argument)
-    encoded-environment list of string = list
-    for entry in fixture.environment
-        encoded-environment.append; (encode-native-string; entry.name)
-        encoded-environment.append; (encode-native-string; entry.value)
-    raw = host-test-spawn; fixture.artifact, encoded-arguments, encoded-environment, fixture.standard-input, fixture.deadline-milliseconds
-    if host-test-result-failed; raw
-        fail; (host-test-result-message; raw)
-    return instance process-result; (host-test-result-exit-code; raw), (host-test-result-crashed; raw), (host-test-result-deadline-exceeded; raw), (host-test-result-stdout; raw), (host-test-result-stderr; raw)
 
 function advance-time none throws test-failure; nanoseconds int
     if nanoseconds < 0

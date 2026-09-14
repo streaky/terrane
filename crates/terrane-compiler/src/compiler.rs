@@ -263,51 +263,70 @@ pub fn compile_package_with_options(
     })
 }
 
-/// Compiles all test tiers into one native dispatch runner.
+/// Compiles every populated test tier as an independent native dispatch runner.
 ///
-/// Discovery is performed over the shared semantic package. Test functions are ordinary top-level
-/// functions whose names begin with `test-`; they may be asynchronous and throwing, but must take
-/// no parameters and return `none`.
+/// Each tier is analyzed and lowered once. Test functions are ordinary top-level functions whose
+/// names begin with `test-`; they may be asynchronous and throwing, but must take no parameters and
+/// return `none`.
 ///
 /// # Errors
 ///
-/// Returns ordinary frontend diagnostics or source-oriented invalid-test diagnostics.
-#[expect(
-    clippy::too_many_lines,
-    reason = "test compilation keeps semantic discovery and runner assembly in one auditable pipeline"
-)]
+/// Returns ordinary frontend diagnostics or source-oriented test-boundary diagnostics.
 pub fn compile_test_package(
     test_package: &TestPackage,
     options: CompilerOptions,
-) -> Result<(Compilation, Vec<TestCase>), CompilationFailure> {
-    let mut semantic = semantics::analyze(&test_package.package).map_err(|mut failure| {
-        for diagnostic in &mut failure.diagnostics {
-            if diagnostic.code == "S2005"
-                && diagnostic
-                    .primary
-                    .is_some_and(|span| test_package.source_tiers.contains_key(&span.file))
-                && diagnostic.message.contains("`test-")
-            {
-                diagnostic.code = "S2052";
-                diagnostic.message = diagnostic.message.replacen(
-                    "duplicate declaration",
-                    "duplicate test identity",
-                    1,
-                );
+) -> Result<Vec<crate::testing::TestTierCompilation>, CompilationFailure> {
+    let mut compiled = Vec::new();
+    let mut identities = BTreeMap::<String, Span>::new();
+    for (&tier, package) in &test_package.tier_packages {
+        let tier_compilation = compile_test_tier(package, tier, options)?;
+        for case in &tier_compilation.cases {
+            if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
+                return Err(CompilationFailure {
+                    source: tier_compilation.compilation.source.clone(),
+                    diagnostics: vec![
+                        Diagnostic::error(
+                            "S2052",
+                            format!("duplicate test identity `{}`", case.identity),
+                            case.source_span,
+                        )
+                        .with_help(format!(
+                            "the first test with this identity starts at byte {}",
+                            previous.start
+                        )),
+                    ],
+                });
             }
         }
-        CompilationFailure {
-            source: failure.source,
-            diagnostics: failure.diagnostics,
-        }
+        compiled.push(tier_compilation);
+    }
+    Ok(compiled)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one test-tier compilation follows the ordinary pipeline through runner assembly"
+)]
+fn compile_test_tier(
+    package: &Package,
+    tier: crate::testing::TestTier,
+    options: CompilerOptions,
+) -> Result<crate::testing::TestTierCompilation, CompilationFailure> {
+    let mut semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
+        source: failure.source,
+        diagnostics: failure.diagnostics,
     })?;
+    let role = match tier {
+        crate::testing::TestTier::Unit => crate::SourceRole::UnitTest,
+        crate::testing::TestTier::Integration => crate::SourceRole::IntegrationTest,
+        crate::testing::TestTier::EndToEnd => crate::SourceRole::EndToEndTest,
+    };
     let mut cases = Vec::new();
     let mut diagnostics = Vec::new();
-    let mut identities = BTreeMap::<String, Span>::new();
     for unit in &semantic.units {
-        let Some(tier) = test_package.source_tiers.get(&unit.source.id()).copied() else {
+        if unit.role != role {
             continue;
-        };
+        }
         for contract in unit.functions.iter().filter(|contract| {
             contract.span.file == unit.source.id()
                 && contract.owner.is_none()
@@ -333,27 +352,12 @@ pub fn compile_test_package(
                 );
                 continue;
             }
-            let identity = format!(
-                "{}::{}",
-                unit.namespace.trim_end_matches('/'),
-                contract.name
-            );
-            if let Some(previous) = identities.insert(identity.clone(), contract.span) {
-                diagnostics.push(
-                    Diagnostic::error(
-                        "S2052",
-                        format!("duplicate test identity `{identity}`"),
-                        contract.span,
-                    )
-                    .with_help(format!(
-                        "the first test with this identity starts at byte {}",
-                        previous.start
-                    )),
-                );
-                continue;
-            }
             cases.push(TestCase {
-                identity,
+                identity: format!(
+                    "{}::{}",
+                    unit.namespace.trim_end_matches('/'),
+                    contract.name
+                ),
                 tier,
                 source_path: unit.source_path.clone(),
                 source_span: contract.span,
@@ -364,18 +368,11 @@ pub fn compile_test_package(
         }
     }
     cases.sort_by(|left, right| {
-        (
-            left.tier,
-            &left.source_path,
-            left.source_span.start,
-            &left.identity,
-        )
-            .cmp(&(
-                right.tier,
-                &right.source_path,
-                right.source_span.start,
-                &right.identity,
-            ))
+        (&left.source_path, left.source_span.start, &left.identity).cmp(&(
+            &right.source_path,
+            right.source_span.start,
+            &right.identity,
+        ))
     });
     for (selector, case) in cases.iter_mut().enumerate() {
         case.selector = selector;
@@ -447,13 +444,15 @@ pub fn compile_test_package(
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
         warnings,
-        rust_dependencies: compilation_rust_dependencies(
-            &test_package.package,
-            &semantic.projection,
-        ),
+        rust_dependencies: compilation_rust_dependencies(package, &semantic.projection),
         dependency_containment: semantic.projection.containment,
     };
-    Ok((compilation, cases))
+    Ok(crate::testing::TestTierCompilation {
+        tier,
+        package: package.clone(),
+        compilation,
+        cases,
+    })
 }
 
 fn validate_canonical_rust(

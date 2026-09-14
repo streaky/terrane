@@ -547,7 +547,8 @@ fn end_to_end_tests_receive_the_built_application_artifact() {
         concat!(
             "namespace cli/end-to-end\n",
             "from /core/process import environment-pair, native-text\n",
-            "from /core/testing import application-artifact, assert-equal-int, process-fixture, run-process, test-failure\n",
+            "from /core/testing import application-artifact, assert-equal-int, test-failure\n",
+            "from /core/testing/process import process-fixture, run-process\n",
             "function test-application none throws test-failure;\n",
             "    artifact = application-artifact;\n",
             "    fixture = instance process-fixture; artifact\n",

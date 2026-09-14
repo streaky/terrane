@@ -275,11 +275,16 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         &mut namespaces,
         "/core/testing",
         "testing",
+        ["test-time-advance"],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/testing/process",
+        "testing",
         [
             "test-spawn",
             "test-result-failed",
             "test-result-deadline-exceeded",
-            "test-time-advance",
             "test-result-message",
             "test-result-exit-code",
             "test-result-crashed",

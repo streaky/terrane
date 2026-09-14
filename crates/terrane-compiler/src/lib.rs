@@ -28,7 +28,8 @@ pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
 pub use package::{
     BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
-    Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
+    Package, PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile, RustDependency,
+    SourceRole, SourceUnit,
 };
 pub use projection_oracle::{
     BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,

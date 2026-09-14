@@ -84,12 +84,18 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
             .map(|error| error.diagnostic.render(&error.source))
             .collect(),
     })?;
-    let (compilation, all_cases) = terrane_compiler::compile_test_package(
+    let compiled_tiers = terrane_compiler::compile_test_package(
         &test_package,
         terrane_compiler::CompilerOptions::default(),
     )
     .map_err(CliFailure::compilation)?;
-    emit_warnings(&compilation);
+    for tier in &compiled_tiers {
+        emit_warnings(&tier.compilation);
+    }
+    let all_cases = compiled_tiers
+        .iter()
+        .flat_map(|tier| tier.cases.iter().cloned())
+        .collect::<Vec<_>>();
     let cases = all_cases
         .into_iter()
         .filter(|case| {
@@ -128,7 +134,13 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     } else {
         None
     };
-    let executable = build_test_runner(&test_package, &compilation)?;
+    let mut executables = std::collections::BTreeMap::new();
+    for tier in &compiled_tiers {
+        executables.insert(
+            tier.tier,
+            build_native_compilation(&tier.package, &tier.compilation)?,
+        );
+    }
     let run_root = test_package.package.root.join(".trn/test/run");
     fs::create_dir_all(&run_root).map_err(|error| {
         CliFailure::backend(format!(
@@ -136,7 +148,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
         ))
     })?;
     let results = execute_cases(
-        &executable,
+        &executables,
         application_artifact.as_deref(),
         &run_root,
         &cases,
@@ -263,13 +275,6 @@ fn parse_duration(value: &str) -> Option<Duration> {
     }
 }
 
-fn build_test_runner(
-    test_package: &TestPackage,
-    compilation: &terrane_compiler::Compilation,
-) -> Result<PathBuf, CliFailure> {
-    build_native_compilation(&test_package.package, compilation)
-}
-
 fn build_native_compilation(
     package: &Package,
     compilation: &terrane_compiler::Compilation,
@@ -320,7 +325,7 @@ fn build_native_compilation(
 }
 
 fn execute_cases(
-    executable: &Path,
+    executables: &std::collections::BTreeMap<TestTier, PathBuf>,
     application_artifact: Option<&Path>,
     run_root: &Path,
     cases: &[TestCase],
@@ -330,7 +335,7 @@ fn execute_cases(
         let mut results = Vec::new();
         for (index, case) in cases.iter().enumerate() {
             let result = execute_case(
-                executable,
+                executables,
                 application_artifact,
                 run_root,
                 index,
@@ -358,7 +363,7 @@ fn execute_cases(
                         break;
                     };
                     let result = execute_case(
-                        executable,
+                        executables,
                         application_artifact,
                         run_root,
                         index,
@@ -382,7 +387,7 @@ fn execute_cases(
 }
 
 fn execute_case(
-    executable: &Path,
+    executables: &std::collections::BTreeMap<TestTier, PathBuf>,
     application_artifact: Option<&Path>,
     run_root: &Path,
     work_index: usize,
@@ -395,6 +400,9 @@ fn execute_case(
         return infrastructure_result(case, format!("cannot create test directory: {error}"));
     }
     let started = Instant::now();
+    let Some(executable) = executables.get(&case.tier) else {
+        return infrastructure_result(case, "test tier runner is unavailable".to_owned());
+    };
     let mut command = Command::new(executable);
     command
         .arg(case.selector.to_string())

@@ -1543,6 +1543,7 @@ mod tests {
             relative_path: PathBuf::from("case.trn"),
             source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
+            role: terrane_compiler::SourceRole::Production,
         }];
 
         let failure = run_cargo(
