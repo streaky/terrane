@@ -1362,11 +1362,17 @@ impl ToolingEngine {
         }
         let proposal = self.propose_edits(snapshot_id, replacements)?;
         if !proposal.semantic_reanalysis || !proposal.preview_diagnostics.is_empty() {
+            let message = proposal.preview_diagnostics.first().map_or_else(
+                || "rename candidate does not preserve valid package semantics".to_owned(),
+                |diagnostic| {
+                    format!(
+                        "rename candidate does not preserve valid package semantics; first diagnostic {}: {}",
+                        diagnostic.code, diagnostic.message
+                    )
+                },
+            );
             self.proposals.remove(&proposal.proposal_id);
-            return Err(ProtocolError::new(
-                "invalid-rename",
-                "rename candidate does not preserve valid package semantics",
-            ));
+            return Err(ProtocolError::new("invalid-rename", message));
         }
         Ok(proposal)
     }
@@ -3602,6 +3608,34 @@ mod tests {
             .apply_edits(&broken.proposal_id)
             .expect_err("diagnostic interface proposal must not be applicable");
         assert_eq!(error.code, "invalid-proposal");
+    }
+
+    #[test]
+    fn invalid_contract_rename_reports_the_first_preview_diagnostic() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/shared-method.trn";
+        let text = "namespace shared-method\n\ninterface shape\n    function area int;\n\ninterface sized\n    function area int;\n\nclass both implements shape, sized\n    function area int;\n        return 1\n\nfunction main;\n    item = instance both;\n    result int = item.area;\n";
+        let metadata = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let shape_method = text.find("function area").expect("shape method") + "function ".len();
+        let error = engine
+            .propose_rename(&metadata.snapshot_id, uri, shape_method, "surface")
+            .expect_err("unrelated interface contract must make the rename invalid");
+        assert_eq!(error.code, "invalid-rename");
+        assert!(
+            error.message.contains("first diagnostic"),
+            "{}",
+            error.message
+        );
+        assert!(error.message.contains("T0062"), "{}", error.message);
+        assert!(error.message.contains("sized.area"), "{}", error.message);
     }
 
     #[test]
