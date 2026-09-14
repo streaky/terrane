@@ -30,6 +30,14 @@ pub const DEBUG_ARTIFACT_PROFILE: DebugArtifactProfile = DebugArtifactProfile {
     inlining: "compiler-default-at-opt-level-0",
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DebugBuildIdentity {
+    pub target: String,
+    pub rust_sysroot: String,
+    pub rustc_release: String,
+    pub artifact_profile: DebugArtifactProfile,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProvenanceRole {
@@ -580,11 +588,14 @@ impl ProvenanceManifest {
         debug: DebugInformation,
         executable: &Path,
         build_root: &Path,
-        target: String,
-        rust_sysroot: String,
-        rustc_release: String,
-        artifact_profile: DebugArtifactProfile,
+        build: DebugBuildIdentity,
     ) -> Result<Self, String> {
+        let DebugBuildIdentity {
+            target,
+            rust_sysroot,
+            rustc_release,
+            artifact_profile,
+        } = build;
         let build_root = std::fs::canonicalize(build_root).map_err(|error| {
             format!(
                 "cannot canonicalize debug build root {}: {error}",

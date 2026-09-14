@@ -420,8 +420,7 @@ impl Adapter {
             self.pending_launch_context = backend_response.is_none().then(|| {
                 if command == "attach" {
                     format!(
-                        "attach to process {} was rejected by the host or debugger backend",
-                        attach_pid
+                        "attach to process {attach_pid} was rejected by the host or debugger backend"
                     )
                 } else {
                     format!("launch of {} failed", executable.display())
@@ -984,8 +983,10 @@ fn validate_backend_response(message: Value) -> Result<Value, CliFailure> {
                 .pointer("/body/error/format")
                 .and_then(Value::as_str)
         })
-        .map(str::to_owned)
-        .unwrap_or_else(|| format!("lldb-dap request failed: {}", message["body"]));
+        .map_or_else(
+            || format!("lldb-dap request failed: {}", message["body"]),
+            str::to_owned,
+        );
     Err(debugger_failure(detail))
 }
 
@@ -2470,18 +2471,13 @@ fn show_value(
             .flatten()
             .find(|variable| variable["name"].as_str() == Some(name))
         {
-            let mut visited = std::collections::BTreeSet::new();
-            let mut remaining = 256_usize;
-            print_value_tree(
-                backend,
-                provenance,
-                variable,
-                &mut variable_objects,
-                &mut visited,
-                &mut remaining,
-                0,
-                stop_context.as_ref(),
-            )?;
+            let mut traversal = ValueTraversal {
+                variable_objects: &mut variable_objects,
+                visited: std::collections::BTreeSet::new(),
+                remaining: 256,
+                stop_context: stop_context.as_ref(),
+            };
+            print_value_tree(backend, provenance, variable, &mut traversal, 0)?;
             return Ok(());
         }
     }
@@ -2490,21 +2486,25 @@ fn show_value(
     )))
 }
 
+struct ValueTraversal<'a> {
+    variable_objects: &'a mut BTreeMap<i64, String>,
+    visited: std::collections::BTreeSet<i64>,
+    remaining: usize,
+    stop_context: Option<&'a StopContext>,
+}
+
 fn print_value_tree(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,
     variable: &Value,
-    variable_objects: &mut BTreeMap<i64, String>,
-    visited: &mut std::collections::BTreeSet<i64>,
-    remaining: &mut usize,
+    traversal: &mut ValueTraversal<'_>,
     depth: usize,
-    stop_context: Option<&StopContext>,
 ) -> Result<(), CliFailure> {
-    if *remaining == 0 {
+    if traversal.remaining == 0 {
         eprintln!("{}<truncated>", "  ".repeat(depth));
         return Ok(());
     }
-    *remaining -= 1;
+    traversal.remaining -= 1;
     eprintln!(
         "{}{} = {}",
         "  ".repeat(depth),
@@ -2521,7 +2521,7 @@ fn print_value_tree(
         eprintln!("{}<maximum depth reached>", "  ".repeat(depth + 1));
         return Ok(());
     }
-    if !visited.insert(reference) {
+    if !traversal.visited.insert(reference) {
         eprintln!("{}<cycle>", "  ".repeat(depth + 1));
         return Ok(());
     }
@@ -2532,21 +2532,12 @@ fn print_value_tree(
         &mut body,
         provenance,
         reference,
-        variable_objects,
+        traversal.variable_objects,
         &summaries,
-        stop_context,
+        traversal.stop_context,
     );
     for child in body["variables"].as_array().into_iter().flatten() {
-        print_value_tree(
-            backend,
-            provenance,
-            child,
-            variable_objects,
-            visited,
-            remaining,
-            depth + 1,
-            stop_context,
-        )?;
+        print_value_tree(backend, provenance, child, traversal, depth + 1)?;
     }
     Ok(())
 }

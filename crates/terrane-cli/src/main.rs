@@ -298,16 +298,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .debug_information(rust_entrypoint)
             .map_err(CliFailure::rust_artifact)?
             .expect("debug compilation produces debugger metadata");
-        let (target, rust_sysroot, rustc_release) = rust_debug_build_identity(&crate_dir)?;
+        let build_identity = rust_debug_build_identity(&crate_dir)?;
         let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
             &package,
             debug,
             &executable,
             &crate_dir,
-            target,
-            rust_sysroot,
-            rustc_release,
-            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+            build_identity,
         )
         .map_err(CliFailure::backend)?;
         let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
@@ -327,7 +324,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
-fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String, String), CliFailure> {
+fn rust_debug_build_identity(
+    crate_dir: &Path,
+) -> Result<terrane_compiler::debugging::DebugBuildIdentity, CliFailure> {
     let verbose = Command::new("rustc")
         .arg("-vV")
         .current_dir(crate_dir)
@@ -366,7 +365,12 @@ fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String, String
         .map_err(|_| CliFailure::backend("debug Rust sysroot was not valid UTF-8".to_owned()))?
         .trim()
         .to_owned();
-    Ok((target, sysroot, rustc_release))
+    Ok(terrane_compiler::debugging::DebugBuildIdentity {
+        target,
+        rust_sysroot: sysroot,
+        rustc_release,
+        artifact_profile: terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+    })
 }
 
 type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool);
