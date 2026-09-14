@@ -324,16 +324,10 @@ impl Emitter<'_> {
             && let Some(ValueType::Optional(inner)) = self.value_type(node)
             && *inner == value_type
         {
-            let previous_assignment_target = self.assignment_target;
-            self.assignment_target = true;
-            let optional = self.expression(node);
-            self.assignment_target = previous_assignment_target;
-            let access = format!("({optional}).as_ref().expect(\"semantic optional narrowing\")");
-            return if rust_value_is_copy(&value_type) {
-                format!("*{access}")
-            } else {
-                format!("{access}.clone()")
-            };
+            let expression = self.expression(node);
+            return format!(
+                "({expression}).as_ref().expect(\"semantic optional narrowing\").clone()"
+            );
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()

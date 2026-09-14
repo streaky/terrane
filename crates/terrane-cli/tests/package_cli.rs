@@ -426,8 +426,11 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         concat!(
             "namespace cli/app\n",
             "from /core/errors import throwable\n",
+            "from /core/process import exit, make-exit-status\n",
             "from /core/time import clock\n",
-            "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-int, assert-equal-string, assert-near, assert-none-string, assert-not-equal-bool, assert-not-equal-int, assert-not-equal-string, assert-present-string, deny, fail, skip, test-failure, test-skip\n",
+            "from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-int, assert-equal-string, assert-near, assert-none-string, assert-not-equal-bool, assert-not-equal-int, assert-not-equal-string, assert-present-string, assert-throws, deny, fail, skip, temporary-directory, test-failure, test-skip\n",
+            "function expected-error none throws test-failure;\n",
+            "    fail; 'expected'\n    return none\n",
             "function test-pass none throws test-failure;\n",
             "    assert; true\n",
             "    deny; false\n",
@@ -440,9 +443,13 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             "    assert-present-string; 'present'\n",
             "    assert-none-string; none\n",
             "    assert-near; 1.0, 1.1, 0.2\n",
+            "    assert-throws; expected-error\n",
+            "    assert-present-string; (temporary-directory;)\n",
             "    return none\n",
             "function test-fail none throws test-failure;\n",
             "    fail; 'observable failure'\n    return none\n",
+            "function test-exit;\n",
+            "    exit; (make-exit-status; 7)\n",
             "function test-ignored none throws test-skip;\n",
             "    skip; 'not available'\n    return none\n",
             "function test-controlled-time none throws throwable;\n",
@@ -451,6 +458,8 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             "    later = clock::monotonic;\n",
             "    elapsed = started.duration-until; ref later\n",
             "    assert-equal-int; elapsed.nanoseconds, 25\n",
+            "    return none\n",
+            "async function test-async none;\n",
             "    return none\n",
         ),
     )
@@ -474,17 +483,24 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         stdout.find("/cli/app::test-pass").unwrap()
             < stdout.find("/cli/app::test-ignored").unwrap()
     );
-    assert!(stdout.contains("2 passed; 1 skipped; 1 failed"));
+    assert!(
+        stdout.contains("3 passed; 1 skipped; 2 failed"),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
     assert_eq!(report["schema_version"], "1.0.0");
     assert_eq!(report["cases"][0]["identity"], "/cli/app::test-pass");
     assert!(report["cases"][0]["stdout"].is_array());
     assert_eq!(report["cases"][1]["status"], "failed");
-    assert_eq!(report["cases"][2]["status"], "skipped");
+    assert_eq!(report["cases"][2]["status"], "failed");
+    assert_eq!(report["cases"][3]["status"], "skipped");
+    assert_eq!(report["cases"][4]["status"], "passed");
+    assert_eq!(report["cases"][5]["status"], "passed");
 
     let listed = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
-        .args(["--list", "--filter", "pass"])
+        .args(["--list", "--tier", "unit", "--filter", "pass"])
         .arg(&package.0)
         .output()
         .unwrap();
@@ -498,21 +514,36 @@ fn native_test_command_reports_isolated_cases_deterministically() {
 #[test]
 fn end_to_end_tests_receive_the_built_application_artifact() {
     let package = TempPackage::new();
+    fs::write(
+        package.0.join("app/main.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /core/output import print\n",
+            "from /core/process import arguments, environment\n",
+            "function main;\n",
+            "    received-arguments = arguments;\n",
+            "    received-environment = environment;\n",
+            "    print; received-arguments.length\n",
+            "    print; received-environment.length\n",
+        ),
+    )
+    .unwrap();
     fs::create_dir_all(package.0.join("tests/end-to-end")).unwrap();
     fs::write(
         package.0.join("tests/end-to-end/application.trn"),
         concat!(
             "namespace cli/end-to-end\n",
-            "from /core/testing import application-artifact, assert-equal-int, fail, process-fixture, run-process, test-failure\n",
+            "from /core/process import environment-pair, native-text\n",
+            "from /core/testing import application-artifact, assert-equal-int, process-fixture, run-process, test-failure\n",
             "function test-application none throws test-failure;\n",
             "    artifact = application-artifact;\n",
-            "    if artifact != none\n",
-            "        fixture = instance process-fixture; artifact\n",
-            "        result = run-process; fixture\n",
-            "        assert-equal-int; result.exit-code, 0\n",
-            "        assert-equal-int; result.stdout.length, 13\n",
-            "    else\n",
-            "        fail; 'missing application artifact'\n",
+            "    fixture = instance process-fixture; artifact\n",
+            "    fixture.arguments.append; (native-text; 'argument')\n",
+            "    fixture.environment.append; (environment-pair; (native-text; 'FIXTURE'), (native-text; 'controlled'))\n",
+            "    fixture.standard-input = b'input'\n",
+            "    result = run-process; fixture\n",
+            "    assert-equal-int; result.exit-code, 0\n",
+            "    assert-equal-int; result.stdout.length, 4\n",
             "    return none\n",
         ),
     )
@@ -534,4 +565,37 @@ fn end_to_end_tests_receive_the_built_application_artifact() {
             .unwrap()
             .contains("1 passed; 0 skipped; 0 failed")
     );
+}
+
+#[test]
+fn native_test_timeout_terminates_the_isolated_process() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/timeout.trn"),
+        "namespace cli/app\nfunction test-timeout;\n    while true\n        continue\n",
+    )
+    .unwrap();
+    let report = package.0.join("timeout-report.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--timeout", "20ms", "--report"])
+        .arg(&report)
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .contains("timed-out /cli/app::test-timeout")
+    );
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["cases"][0]["status"], "timed-out");
 }

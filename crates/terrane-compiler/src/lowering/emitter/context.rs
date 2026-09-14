@@ -56,10 +56,10 @@ impl Emitter<'_> {
                 "{}.as_ref().expect(\"semantic optional narrowing\")",
                 rust_name(source_name)
             );
-            return if rust_value_is_copy(&narrowed) {
+            return if matches!(narrowed, ValueType::Scalar(_)) {
                 format!("*{access}")
             } else {
-                format!("{access}.clone()")
+                access
             };
         }
         if let Some((_, local)) = self

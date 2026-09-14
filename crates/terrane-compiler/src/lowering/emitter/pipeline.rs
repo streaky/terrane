@@ -140,10 +140,6 @@ fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]
     output
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
-)]
 pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailure> {
     lower_with_tests(package, None)
 }
@@ -155,6 +151,10 @@ pub(crate) fn lower_tests(
     lower_with_tests(package, Some(tests))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
+)]
 fn lower_with_tests(
     package: &SemanticPackage,
     tests: Option<&[super::super::TestRunnerCase]>,

@@ -1281,6 +1281,8 @@ impl Emitter<'_> {
             ("platform-value-is-text", "platform_value_is_text"),
             ("platform-value-text", "platform_value_text"),
             ("platform-value-bytes", "platform_value_bytes"),
+            ("platform-value-from-bytes", "platform_value_from_bytes"),
+            ("platform-value-from-text", "platform_value_from_text"),
             ("process-arguments", "process_arguments"),
             ("environment-entries", "environment_entries"),
             ("process-exit", "process_exit"),

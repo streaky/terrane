@@ -27,6 +27,14 @@ pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
 }
 
+fn terrane_platform_value_from_text(value: &str) -> String {
+    format!("text:{value}")
+}
+
+fn terrane_platform_value_from_bytes(value: &[u8]) -> String {
+    format!("raw:{}", terrane_hex(value))
+}
+
 
 pub fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
@@ -117,7 +125,11 @@ pub fn terrane_test_spawn(
     }
     let mut child = match command.spawn() {
         Ok(child) => child,
-        Err(error) => return TerranePlatformResult::error(format!("cannot spawn fixture: {error}")),
+        Err(error) => {
+            return TerranePlatformResult::error(
+                format!("cannot spawn fixture: {error}"),
+            );
+        }
     };
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(&input);
@@ -193,12 +205,15 @@ pub fn terrane_test_result_stderr(result: &TerranePlatformResult) -> Vec<u8> {
         .unwrap_or_default()
 }
 
+#[allow(dead_code, reason = "controlled clock support is linked with the testing process adapter")]
 static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
+#[allow(dead_code, reason = "controlled clock support is linked with the testing process adapter")]
 static TERRANE_TEST_TIME_WAKERS: std::sync::LazyLock<
     std::sync::Mutex<Vec<std::task::Waker>>,
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
+#[allow(dead_code, reason = "controlled clock support is selected by imported test helpers")]
 fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
     let Some(nanoseconds) = terrane_int_support::checked_coerce::<u64>(&nanoseconds) else {
         return false;

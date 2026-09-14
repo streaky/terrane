@@ -1,0 +1,18 @@
+namespace native-testing-surface
+from /core/testing import assert, assert-equal-int, assert-near, assert-none-string, assert-not-equal-string, assert-present-string, assert-throws, deny, fail, temporary-directory, test-failure
+
+function expected-error none throws test-failure;
+    fail; 'expected'
+    return none
+
+function main none throws test-failure;
+    assert; true
+    deny; false
+    assert-equal-int; 4, 4
+    assert-not-equal-string; 'left', 'right'
+    assert-present-string; 'present'
+    assert-none-string; none
+    assert-near; 1.0, 1.1, 0.2
+    assert-throws; expected-error
+    temporary-directory;
+    return none

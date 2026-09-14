@@ -272,15 +272,35 @@ pub fn compile_package_with_options(
 /// # Errors
 ///
 /// Returns ordinary frontend diagnostics or source-oriented invalid-test diagnostics.
+#[expect(
+    clippy::too_many_lines,
+    reason = "test compilation keeps semantic discovery and runner assembly in one auditable pipeline"
+)]
 pub fn compile_test_package(
     test_package: &TestPackage,
     options: CompilerOptions,
 ) -> Result<(Compilation, Vec<TestCase>), CompilationFailure> {
-    let mut semantic =
-        semantics::analyze(&test_package.package).map_err(|failure| CompilationFailure {
+    let mut semantic = semantics::analyze(&test_package.package).map_err(|mut failure| {
+        for diagnostic in &mut failure.diagnostics {
+            if diagnostic.code == "S2005"
+                && diagnostic
+                    .primary
+                    .is_some_and(|span| test_package.source_tiers.contains_key(&span.file))
+                && diagnostic.message.contains("`test-")
+            {
+                diagnostic.code = "S2052";
+                diagnostic.message = diagnostic.message.replacen(
+                    "duplicate declaration",
+                    "duplicate test identity",
+                    1,
+                );
+            }
+        }
+        CompilationFailure {
             source: failure.source,
             diagnostics: failure.diagnostics,
-        })?;
+        }
+    })?;
     let mut cases = Vec::new();
     let mut diagnostics = Vec::new();
     let mut identities = BTreeMap::<String, Span>::new();
@@ -405,7 +425,12 @@ pub fn compile_test_package(
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
     if options.require_canonical_rust {
-        validate_canonical_rust(&[standalone_file.clone()], &sources, &source, entry_span)?;
+        validate_canonical_rust(
+            std::slice::from_ref(&standalone_file),
+            &sources,
+            &source,
+            entry_span,
+        )?;
     }
     let compilation = Compilation {
         source,

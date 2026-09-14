@@ -5,11 +5,9 @@ from /core/collections import list
 class native-string
     is-text bool = true
     text string = ''
-    encoded string = ''
     raw bytes = b''
 
     function construct; encoded string
-        this.encoded = encoded
         this.is-text = host-platform-value-is-text; encoded
         this.text = host-platform-value-text; encoded
         this.raw = host-platform-value-bytes; encoded
@@ -21,6 +19,7 @@ class environment-entry
     function construct; name native-string, entry-value native-string
         this.name = name
         this.value = entry-value
+
 class process-host-name-result
     failed bool = false
     available bool = false
@@ -136,3 +135,19 @@ function make-exit-status exit-status; requested int
 
 function exit; status exit-status
     host-process-exit; status.code
+
+function native-text native-string; value string
+    encoded = host-platform-value-from-text; value
+    return instance native-string; encoded
+
+function native-raw native-string; value bytes
+    encoded = host-platform-value-from-bytes; value
+    return instance native-string; encoded
+
+function environment-pair environment-entry; key native-string, item native-string
+    return instance environment-entry; key, item
+
+function encode-native-string string; value native-string
+    if value.is-text
+        return host-platform-value-from-text; value.text
+    return host-platform-value-from-bytes; value.raw

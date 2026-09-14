@@ -2,7 +2,7 @@ namespace core/testing
 
 from /core/errors import throwable
 from /core/collections import list
-from /core/process import environment, environment-entry, native-string
+from /core/process import encode-native-string, environment, environment-entry, native-string
 
 interface test-value
     function render string;
@@ -95,14 +95,14 @@ function assert-near none throws test-failure; actual float64, expected float64,
         fail; 'floating values differ beyond tolerance'
     return none
 
-function assert-throws none throws test-failure; operation function to none throws throwable
+function assert-throws none throws test-failure; operation function to none throws test-failure
     try
         operation;
-    catch throwable
+    catch test-failure
         return none
     fail; 'expected callback to throw'
-
     return none
+
 function context-value string|none; name string
     for entry in environment;
         if entry.name.is-text and entry.value.is-text and entry.name.text == name
@@ -118,8 +118,11 @@ function deterministic-seed string|none;
 function test-identity string|none;
     return context-value; 'TERRANE_TEST_ID'
 
-function application-artifact string|none;
-    return context-value; 'TERRANE_TEST_ARTIFACT'
+function application-artifact string;
+    for entry in environment;
+        if entry.name.is-text and entry.value.is-text and entry.name.text == 'TERRANE_TEST_ARTIFACT'
+            return entry.value.text
+    return ''
 
 function test-tier string|none;
     return context-value; 'TERRANE_TEST_TIER'
@@ -152,11 +155,11 @@ class process-result
 function run-process process-result throws test-failure; fixture process-fixture
     encoded-arguments list of string = list
     for argument in fixture.arguments
-        encoded-arguments.append; argument.encoded
+        encoded-arguments.append; (encode-native-string; argument)
     encoded-environment list of string = list
     for entry in fixture.environment
-        encoded-environment.append; entry.name.encoded
-        encoded-environment.append; entry.value.encoded
+        encoded-environment.append; (encode-native-string; entry.name)
+        encoded-environment.append; (encode-native-string; entry.value)
     raw = host-test-spawn; fixture.artifact, encoded-arguments, encoded-environment, fixture.standard-input, fixture.deadline-milliseconds
     if host-test-result-failed; raw
         fail; (host-test-result-message; raw)

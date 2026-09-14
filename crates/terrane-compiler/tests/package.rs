@@ -644,8 +644,14 @@ fn test_packages_discover_and_lower_tiered_ordinary_functions() {
     );
 
     let test_package = TestPackage::load(&package.0).unwrap();
-    let (compilation, cases) =
-        compile_test_package(&test_package, CompilerOptions::default()).unwrap();
+    let (compilation, cases) = compile_test_package(
+        &test_package,
+        CompilerOptions {
+            require_canonical_rust: true,
+            ..CompilerOptions::default()
+        },
+    )
+    .unwrap();
 
     assert_eq!(
         cases
@@ -719,5 +725,65 @@ fn test_manifest_roots_are_bounded_and_profiled() {
     assert_eq!(
         loaded.source_tiers.values().copied().collect::<Vec<_>>(),
         [TestTier::Unit]
+    );
+}
+
+#[test]
+fn integration_tests_cannot_import_private_package_bindings() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"private-integration-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\nprivate constant secret int = 42\n",
+    );
+    package.write(
+        "tests/integration/private.trn",
+        "namespace app-tests\nfrom /app import secret\nfunction test-private;\n    secret\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2010");
+    assert!(
+        failure
+            .source
+            .path()
+            .ends_with("tests/integration/private.trn")
+    );
+}
+
+#[test]
+fn duplicate_test_identities_use_a_test_specific_diagnostic() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"duplicate-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("src/library.trn", "namespace app\nconstant value int = 1\n");
+    package.write(
+        "tests/unit/first.trn",
+        "namespace app\nfunction test-same;\n",
+    );
+    package.write(
+        "tests/unit/second.trn",
+        "namespace app\nfunction test-same;\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2052");
+    assert!(
+        failure.diagnostics[0]
+            .message
+            .contains("duplicate test identity")
     );
 }

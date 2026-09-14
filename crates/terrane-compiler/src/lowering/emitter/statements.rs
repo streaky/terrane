@@ -1273,7 +1273,12 @@ impl Emitter<'_> {
         let condition = self.control_condition(condition);
         let prior_borrow_count =
             self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
-        self.line(&format!("while {condition} {{"));
+        let header = if condition == "true" {
+            "loop {".to_owned()
+        } else {
+            format!("while {condition} {{")
+        };
+        self.line(&header);
         self.indent += 1;
         let outer_continue = self.continue_label.take();
         let outer_break = self.break_label.take();
@@ -1369,7 +1374,12 @@ impl Emitter<'_> {
                 self.loop_counter += 1;
                 let continue_label = format!("__terrane_continue_{loop_index}");
                 let break_label = format!("__terrane_break_{loop_index}");
-                self.line(&format!("'{break_label}: while {condition} {{"));
+                let header = if condition == "true" {
+                    format!("'{break_label}: loop {{")
+                } else {
+                    format!("'{break_label}: while {condition} {{")
+                };
+                self.line(&header);
                 self.indent += 1;
                 self.line(&format!("'{continue_label}: {{"));
                 self.indent += 1;

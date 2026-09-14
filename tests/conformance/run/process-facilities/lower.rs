@@ -406,16 +406,16 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 20, column: 12, end_line: 20, end_column: 42 } },
         /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:20:44-20:73) */
         { Site { function: 0, file: 0, line: 20, column: 44, end_line: 20, end_column: 73 } },
-        /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:44:49-44:63) */
-        { Site { function: 1, file: 1, line: 44, column: 49, end_line: 44, end_column: 63 } },
-        /* terrane-site-row: site 11: /core/process::environment (core/process.trn:53:40-53:54) */
-        { Site { function: 2, file: 1, line: 53, column: 40, end_line: 53, end_column: 54 } },
-        /* terrane-site-row: site 12: /core/process::environment (core/process.trn:54:41-54:59) */
-        { Site { function: 2, file: 1, line: 54, column: 41, end_line: 54, end_column: 59 } },
-        /* terrane-site-row: site 13: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
-        { Site { function: 3, file: 1, line: 89, column: 20, end_line: 89, end_column: 35 } },
-        /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
-        { Site { function: 3, file: 1, line: 104, column: 43, end_line: 104, end_column: 62 } },
+        /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:45:49-45:63) */
+        { Site { function: 1, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
+        /* terrane-site-row: site 11: /core/process::environment (core/process.trn:54:40-54:54) */
+        { Site { function: 2, file: 1, line: 54, column: 40, end_line: 54, end_column: 54 } },
+        /* terrane-site-row: site 12: /core/process::environment (core/process.trn:55:41-55:59) */
+        { Site { function: 2, file: 1, line: 55, column: 41, end_line: 55, end_column: 59 } },
+        /* terrane-site-row: site 13: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
+        { Site { function: 3, file: 1, line: 90, column: 20, end_line: 90, end_column: 35 } },
+        /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
+        { Site { function: 3, file: 1, line: 105, column: 43, end_line: 105, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]
@@ -630,17 +630,17 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                 .get(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
-                                        10 /* terrane-site: core/process.trn:44:49-44:63 */,
+                                        10 /* terrane-site: core/process.trn:45:49-45:63 */,
                                     ),
                                 )
                                 .cloned()
                                 .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
-                                        10 /* terrane-site: core/process.trn:44:49-44:63 */,
+                                        10 /* terrane-site: core/process.trn:45:49-45:63 */,
                                     ),
                                 )),
-                            10 /* terrane-site: core/process.trn:44:49-44:63 */,
+                            10 /* terrane-site: core/process.trn:45:49-45:63 */,
                         ),
                     ),
                 );
@@ -666,17 +666,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         .get(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                11 /* terrane-site: core/process.trn:53:40-53:54 */,
+                                11 /* terrane-site: core/process.trn:54:40-54:54 */,
                             ),
                         )
                         .cloned()
                         .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                11 /* terrane-site: core/process.trn:53:40-53:54 */,
+                                11 /* terrane-site: core/process.trn:54:40-54:54 */,
                             ),
                         )),
-                    11 /* terrane-site: core/process.trn:53:40-53:54 */,
+                    11 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
             let value: NativeString = NativeString::terrane_construct(
@@ -687,7 +687,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 terrane_collection_support::index_from_int(
                                     &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                 ),
-                                12 /* terrane-site: core/process.trn:54:41-54:59 */,
+                                12 /* terrane-site: core/process.trn:55:41-55:59 */,
                             ),
                         )
                         .cloned()
@@ -696,10 +696,10 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 terrane_collection_support::index_from_int(
                                     &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                 ),
-                                12 /* terrane-site: core/process.trn:54:41-54:59 */,
+                                12 /* terrane-site: core/process.trn:55:41-55:59 */,
                             ),
                         )),
-                    12 /* terrane-site: core/process.trn:54:41-54:59 */,
+                    12 /* terrane-site: core/process.trn:55:41-55:59 */,
                 ),
             );
             __terrane_list_append_1
@@ -811,10 +811,10 @@ pub fn parse_command_line(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            13 /* terrane-site: core/process.trn:89:20-89:35 */,
+                            13 /* terrane-site: core/process.trn:90:20-90:35 */,
                         ),
                     ),
-                13 /* terrane-site: core/process.trn:89:20-89:35 */,
+                13 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
             if !argument.is_text {
                 __terrane_list_append_2.push(index.clone());
@@ -851,10 +851,10 @@ pub fn parse_command_line(
                                                 terrane_collection_support::index_from_int(
                                                     &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                                 ),
-                                                14 /* terrane-site: core/process.trn:104:43-104:62 */,
+                                                14 /* terrane-site: core/process.trn:105:43-105:62 */,
                                             ),
                                         ),
-                                    14 /* terrane-site: core/process.trn:104:43-104:62 */,
+                                    14 /* terrane-site: core/process.trn:105:43-105:62 */,
                                 ),
                             );
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -905,4 +905,21 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
 }
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
+}
+pub fn native_text(value: String) -> NativeString {
+    let encoded: String = terrane_platform_value_from_text(&value);
+    return NativeString::terrane_construct(encoded);
+}
+pub fn native_raw(value: Vec<u8>) -> NativeString {
+    let encoded: String = terrane_platform_value_from_bytes(&value);
+    return NativeString::terrane_construct(encoded);
+}
+pub fn environment_pair(key: NativeString, item: NativeString) -> EnvironmentEntry {
+    return EnvironmentEntry::terrane_construct(key.clone(), item.clone());
+}
+pub fn encode_native_string(value: NativeString) -> String {
+    if value.is_text {
+        return terrane_platform_value_from_text(&value.text);
+    }
+    return terrane_platform_value_from_bytes(&value.raw);
 }

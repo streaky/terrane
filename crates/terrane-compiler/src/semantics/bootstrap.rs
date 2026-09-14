@@ -267,6 +267,8 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "platform-value-is-text",
             "platform-value-text",
             "platform-value-bytes",
+            "platform-value-from-bytes",
+            "platform-value-from-text",
         ],
     );
     add_private_host_bindings(

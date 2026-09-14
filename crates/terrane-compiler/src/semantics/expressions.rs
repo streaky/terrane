@@ -860,6 +860,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:adapters::result-text"
                     | "intrinsic:process-signals::process-signal-result-message"
                     | "intrinsic:process-signals::process-signal-result-detail"
+                    | "intrinsic:system::platform-value-from-bytes"
+                    | "intrinsic:system::platform-value-from-text"
                     | "intrinsic:testing::test-result-message" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }

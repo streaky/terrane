@@ -1,0 +1,4 @@
+package = "native-testing-surface"
+prelude = false
+[namespaces]
+native-testing-surface = "src"

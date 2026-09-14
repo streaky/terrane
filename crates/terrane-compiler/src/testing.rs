@@ -155,6 +155,10 @@ impl TestPackage {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "testing manifest diagnostics retain field-local source context in one parser"
+)]
 fn parse_configuration(
     manifest_path: &Path,
     text: &str,
@@ -244,7 +248,7 @@ fn parse_configuration(
                     "name",
                 ));
             } else {
-                profile.name = name.to_owned();
+                name.clone_into(&mut profile.name);
             }
         }
         if let Some(capabilities) = fields.get("capabilities") {

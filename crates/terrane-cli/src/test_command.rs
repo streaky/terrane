@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,7 @@ struct TestOptions {
     list: bool,
     fail_fast: bool,
     show_output: bool,
+    tiers: BTreeSet<TestTier>,
     jobs: usize,
     timeout: Duration,
     report: Option<PathBuf>,
@@ -57,13 +59,19 @@ impl TestStatus {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct CapturedOutput {
+    bytes: Vec<u8>,
+    truncated: bool,
+}
+
 #[derive(Clone, Debug)]
 struct TestResult {
     case: TestCase,
     status: TestStatus,
     duration: Duration,
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
+    stdout: CapturedOutput,
+    stderr: CapturedOutput,
     detail: Option<String>,
 }
 
@@ -85,10 +93,11 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     let cases = all_cases
         .into_iter()
         .filter(|case| {
-            options
-                .filter
-                .as_ref()
-                .is_none_or(|filter| case.identity.contains(filter))
+            (options.tiers.is_empty() || options.tiers.contains(&case.tier))
+                && options
+                    .filter
+                    .as_ref()
+                    .is_none_or(|filter| case.identity.contains(filter))
         })
         .collect::<Vec<_>>();
     if options.list {
@@ -103,18 +112,17 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     }
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
-        let application = terrane_compiler::compile_package(
-            &Package::load(&options.input).map_err(|errors| CliFailure {
-                code: 3,
-                message: errors
-                    .into_iter()
-                    .map(|error| error.diagnostic.render(&error.source))
-                    .collect(),
-            })?,
-        )
-        .map_err(CliFailure::compilation)?;
+        let application_package = Package::load(&options.input).map_err(|errors| CliFailure {
+            code: 3,
+            message: errors
+                .into_iter()
+                .map(|error| error.diagnostic.render(&error.source))
+                .collect(),
+        })?;
+        let application = terrane_compiler::compile_package(&application_package)
+            .map_err(CliFailure::compilation)?;
         Some(build_native_compilation(
-            &test_package.package,
+            &application_package,
             &application,
         )?)
     } else {
@@ -138,12 +146,16 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     if let Some(path) = &options.report {
         write_machine_report(path, &results)?;
     }
-    let failed = results.iter().any(|result| !result.status.successful());
-    Ok(if failed {
-        ExitCode::from(1)
+    if results
+        .iter()
+        .any(|result| result.status == TestStatus::InfrastructureFailed)
+    {
+        Ok(ExitCode::from(5))
+    } else if results.iter().any(|result| !result.status.successful()) {
+        Ok(ExitCode::from(1))
     } else {
-        ExitCode::SUCCESS
-    })
+        Ok(ExitCode::SUCCESS)
+    }
 }
 
 fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure> {
@@ -152,6 +164,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
     let mut list = false;
     let mut fail_fast = false;
     let mut show_output = false;
+    let mut tiers = BTreeSet::new();
     let mut jobs = std::thread::available_parallelism().map_or(1, usize::from);
     let mut timeout = Duration::from_secs(30);
     let mut report = None;
@@ -171,6 +184,16 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
                         .ok_or_else(CliFailure::usage)?
                         .to_owned(),
                 );
+            }
+            "--tier" => {
+                index += 1;
+                let tier = match arguments.get(index).and_then(|value| value.to_str()) {
+                    Some("unit") => TestTier::Unit,
+                    Some("integration") => TestTier::Integration,
+                    Some("end-to-end") => TestTier::EndToEnd,
+                    _ => return Err(CliFailure::usage()),
+                };
+                tiers.insert(tier);
             }
             "--jobs" => {
                 index += 1;
@@ -211,6 +234,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
         list,
         fail_fast,
         show_output,
+        tiers,
         jobs,
         timeout,
         report,
@@ -412,6 +436,7 @@ fn execute_case(
     let stdout = stdout_reader.join().unwrap_or_default();
     let stderr = stderr_reader.join().unwrap_or_default();
     let _ = fs::remove_dir_all(&directory);
+    let exit_code = status.as_ref().and_then(std::process::ExitStatus::code);
     let status = if timed_out {
         TestStatus::TimedOut
     } else if status
@@ -420,6 +445,7 @@ fn execute_case(
     {
         TestStatus::Passed
     } else if stderr
+        .bytes
         .windows(b"TERRANE_TEST_SKIP:".len())
         .any(|part| part == b"TERRANE_TEST_SKIP:")
     {
@@ -434,13 +460,26 @@ fn execute_case(
     } else {
         TestStatus::InfrastructureFailed
     };
+    let detail = match status {
+        TestStatus::TimedOut => Some(format!(
+            "deadline exceeded after {} milliseconds",
+            timeout.as_millis()
+        )),
+        TestStatus::Crashed => Some("test process terminated without an exit code".to_owned()),
+        TestStatus::Failed => Some(format!(
+            "test process exited with status {}",
+            exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
+        )),
+        TestStatus::Skipped => Some("test requested an explicit skip".to_owned()),
+        TestStatus::Passed | TestStatus::InfrastructureFailed => None,
+    };
     TestResult {
         case: case.clone(),
         status,
         duration: started.elapsed(),
         stdout,
         stderr,
-        detail: None,
+        detail,
     }
 }
 
@@ -449,26 +488,26 @@ fn infrastructure_result(case: &TestCase, detail: String) -> TestResult {
         case: case.clone(),
         status: TestStatus::InfrastructureFailed,
         duration: Duration::ZERO,
-        stdout: Vec::new(),
-        stderr: Vec::new(),
+        stdout: CapturedOutput::default(),
+        stderr: CapturedOutput::default(),
         detail: Some(detail),
     }
 }
 
-fn read_bounded(mut stream: impl std::io::Read) -> Vec<u8> {
-    let mut kept = Vec::new();
+fn read_bounded(mut stream: impl std::io::Read) -> CapturedOutput {
+    let mut captured = CapturedOutput::default();
     let mut buffer = [0_u8; 8192];
-    loop {
-        let Ok(read) = stream.read(&mut buffer) else {
-            break;
-        };
+    while let Ok(read) = stream.read(&mut buffer) {
         if read == 0 {
             break;
         }
-        let available = CAPTURE_LIMIT.saturating_sub(kept.len());
-        kept.extend_from_slice(&buffer[..read.min(available)]);
+        let available = CAPTURE_LIMIT.saturating_sub(captured.bytes.len());
+        captured
+            .bytes
+            .extend_from_slice(&buffer[..read.min(available)]);
+        captured.truncated |= read > available;
     }
-    kept
+    captured
 }
 
 fn deterministic_seed(identity: &str) -> String {
@@ -486,20 +525,30 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
             result.duration.as_secs_f64()
         );
         if show_output || !result.status.successful() {
-            if !result.stdout.is_empty() {
+            if !result.stdout.bytes.is_empty() {
                 println!(
-                    "--- stdout ---\n{}",
-                    String::from_utf8_lossy(&result.stdout)
+                    "--- stdout{} ---\n{}",
+                    if result.stdout.truncated {
+                        " (truncated)"
+                    } else {
+                        ""
+                    },
+                    String::from_utf8_lossy(&result.stdout.bytes)
                 );
             }
-            if !result.stderr.is_empty() {
+            if !result.stderr.bytes.is_empty() {
                 eprintln!(
-                    "--- stderr ---\n{}",
-                    String::from_utf8_lossy(&result.stderr)
+                    "--- stderr{} ---\n{}",
+                    if result.stderr.truncated {
+                        " (truncated)"
+                    } else {
+                        ""
+                    },
+                    String::from_utf8_lossy(&result.stderr.bytes)
                 );
             }
             if let Some(detail) = &result.detail {
-                eprintln!("--- infrastructure ---\n{detail}");
+                eprintln!("--- cause ---\n{detail}");
             }
         }
     }
@@ -512,7 +561,7 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
         .filter(|result| result.status == TestStatus::Skipped)
         .count();
     let failed = results.len() - passed - skipped;
-    println!("{} passed; {} skipped; {} failed", passed, skipped, failed);
+    println!("{passed} passed; {skipped} skipped; {failed} failed");
 }
 
 fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFailure> {
@@ -530,8 +579,10 @@ fn write_machine_report(path: &Path, results: &[TestResult]) -> Result<(), CliFa
                     "end": result.case.source_span.end,
                 },
                 "cause": result.detail,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stdout": result.stdout.bytes,
+                "stdout_truncated": result.stdout.truncated,
+                "stderr": result.stderr.bytes,
+                "stderr_truncated": result.stderr.truncated,
             })
         })
         .collect::<Vec<_>>();
