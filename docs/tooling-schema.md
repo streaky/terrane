@@ -138,10 +138,13 @@ the position, augmented with nullable name and availability-tagged canonical sym
 descriptor identity, value type, ownership, exact effects, capability requirements, declaration,
 invocation mode, member facts, and inheritance. Ownership is `unsupported` until the semantic model
 exposes an authoritative ownership state. Locations contain `{uri,span}`. Definitions and references
-resolve by syntactic role and canonical semantic identity, not matching text. `implementations`
-returns implementing descriptors for an interface or implementing methods for an interface method.
-A query from a concrete method use first follows its resolved method's owning interface contract, so
-its result contains every method implementing that contract, including the resolved concrete method.
+resolve by syntactic role and canonical semantic identity, not matching text. A reference query for
+an interface method returns sites resolved directly to that interface identity; calls through a
+concrete receiver belong to the resolved concrete override and remain discoverable from the
+interface through `implementations`. `implementations` returns implementing descriptors for an
+interface or implementing methods for an interface method. A query from a concrete method use first
+follows its resolved method's owning interface contract, so its result contains every method
+implementing that contract, including the resolved concrete method.
 
 ### `find`
 
@@ -199,20 +202,23 @@ contains:
 Fields: `snapshot_id`, `uri`, `offset`, and `new_name`. Rename finds references by canonical symbol
 identity. Interface method contracts form one rename family with every implementing override, so a
 request from either the interface or a concrete implementation updates the entire contract. Rename
-rejects invalid identifiers, capture, and any candidate with parse or semantic diagnostics; rejected
-rename proposals are not retained. It returns the ordinary edit-proposal shape only for a clean
-semantic reanalysis.
+rejects invalid identifiers (`invalid-name`), capture (`rename-capture`), and any candidate with parse
+or semantic diagnostics (`invalid-rename`); the latter error includes the first preview diagnostic to
+explain which contract would be broken. Rejected rename proposals are not retained. A clean rename
+returns the ordinary edit-proposal shape only after successful semantic reanalysis.
 
 ### `apply-edits`
 
-Fields: `proposal_id`. Proposals carrying preview diagnostics are never applicable. Disk application
+Fields: `proposal_id`. Proposals carrying preview diagnostics fail with `invalid-proposal` and are
+never applicable. Disk application
 accepts `file://` sources only. It reads and validates every content hash before the first write,
 writes same-directory temporary files, then replaces originals. Stale content is never overwritten.
 Cross-file crash atomicity is not promised; a `partial-apply` error carries a structured
 `apply_report` with committed and uncommitted URIs and retained recovery paths.
 
 LSP clients do not call disk apply. The language server converts proposals to versioned workspace
-edits for the editor to apply.
+edits for the editor to apply. Rename engine errors surface as JSON-RPC invalid-params errors
+(`-32602`) whose message retains the tooling error code and explanation.
 
 ## Language-server surface
 
