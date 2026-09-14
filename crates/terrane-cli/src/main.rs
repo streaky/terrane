@@ -1521,7 +1521,7 @@ fn protocol_parse_error(
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
-     terrane debug <file-or-manifest> [-- program arguments]\n\
+     terrane debug [--embed-sources] <file-or-manifest> [-- program arguments]\n\
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
@@ -1534,6 +1534,7 @@ fn usage() -> String {
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
+     --embed-sources  include authored source snapshots in debug provenance (debug only)\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program\n  \

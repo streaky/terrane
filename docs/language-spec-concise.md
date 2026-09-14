@@ -1106,22 +1106,24 @@ tests remain distinct. `/core/testing` is the first-party framework for code aut
 ## DEBUGGING
 
 ```yaml
-commands: terrane debug FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio
+commands: terrane debug [--embed-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio
 backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
-debug_build: full debug information, optimization 0, no stripping; deterministic schema 1.0 sidecar beside generated Rust and executable
-provenance: compiler/toolchain/target/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
-validation: translation requires matching sidecar, executable, generated files, and source bytes; explicit relocation changes paths, never identity; mismatch reports loss of fidelity, emits `terrane/fidelity` mode `native`, and preserves raw native debugging
-breakpoints: every final-Rust location for an authored sequence point; non-executable lines adjust only within the same function to a declared point; resolved Terrane and generated locations are reported; unresolved requests remain unverified with reasons
-frames: source view uses session-local mapped-frame indices with explicit selection, Terrane namespace/function identities, logical source positions, and bounded source context; generated/runtime/native frames remain available through explicit escape hatches
-stepping: continue and step requests delegate to LLDB; source stepping suppresses unmapped internal stops only up to a fixed 64-step bound, then exposes the native stop with an explanation; stepping from a function's final point can stop at the caller's next declared point
-values: Terrane lexical names; exact preserved fixed scalars and adaptive integer small/wide/big tiers on the selected 64-bit Linux layout; bounded strings/bytes; bounded recursive focused-value expansion; lazy structured children; explicit moved/optimized-out/unavailable/unsupported/truncated states
-privacy: secret object fields are redacted and stripped of child, memory, and evaluation references before ordinary frontend exposure, including focused expansion; explicit raw native inspection is a separate opt-in path
-cli: `frames`, `frame N`, `source [RADIUS]`, `locals`, `value NAME`, `generated [RADIUS]`, `native`, `registers`, and `lldb COMMAND`; context radius is bounded to 20 and focused expansion is depth/cycle/count bounded
-protocol: DAP frames are the only adapter stdout content; initialize receives exactly one immediate `initialized` event; `terrane/fidelity` reports `source` or `native` translation mode after launch/attach; debuggee output remains framed; launch owns and normally terminates its child, while attach disconnect never terminates the target
-rust_formatters: when the active Rust sysroot provides `lldb_lookup.py`, launch/attach imports it before client init commands; absence is non-fatal and Terrane-owned value decoding remains authoritative
+build: full debug information, optimization 0, no stripping, inlining disabled; optional --embed-sources records build-time source snapshots
+provenance: deterministic schema 1.1 sidecar beside generated Rust and executable
+identity: compiler/toolchain/sysroot/target/ABI-recipe/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
+validation: translation requires matching sidecar, executable, generated files, source bytes, compiler/schema, selected target/ABI recipe, and debug profile; mismatch reports native fidelity without disabling raw native debugging
+breakpoints: every final-Rust location for an authored sequence point; non-executable lines adjust only forward within the same exact lexical scope; requested and resolved Terrane/generated locations are reported; unresolved requests remain pending
+frames: stable session-local mapped-frame indices, explicit frame selection, Terrane namespace/function identities, logical source positions, and bounded source context; generated/runtime/native frames remain available through explicit escape hatches
+stepping: next targets a different authored sequence point in the same frame or its caller, including loop re-entry; step-out requires an exact depth decrease; only a current-location user breakpoint may be suspended while leaving that point, all other user breakpoints remain active, and temporary breakpoints are removed individually on every exit
+values: lexical binding selection uses the selected stop, scope ancestry, visibility range, and innermost shadow; raw values remain authoritative without a matching ABI recipe; exact adaptive integers use the recorded x86-64 Linux recipe; bounded strings/bytes, recursive focused-value expansion, lazy structured children, and explicit moved/optimized-out/unavailable/truncated states
+privacy: secret object fields are redacted and stripped of child, memory, and evaluation references before ordinary frontend exposure; explicit raw native inspection is a separate opt-in path
+limits: 100 variables plus an explicit continuation marker, 4096 display bytes, focused depth/cycle/count bounds, context radius up to 20, and at most 64 native fallback steps
+protocol: standard framed DAP only on stdout; exactly one initialized event; correlated backend responses are retained; variable handles are stop-local; cancel is not advertised; launched debuggee exit status becomes CLI exit status
+rust_formatters: imported only from the exact recorded Rust sysroot before client init commands; formatter absence is non-fatal
+fidelity: terrane/fidelity reports source/native mode, target, ABI recipe, inlining state, and a reason for degradation
 supported_host: Linux x86-64 with LLDB 22 is exercised end to end; attach additionally depends on host process policy
-experimental: CLI/DAP/provenance schema in 0.1; other hosts, optimized or stripped fidelity, and unsupported layouts report limitations
-excluded: direct isolated `terrane test` case debugging pending a runner-lifecycle contract; conditional breakpoints, logpoints, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time-travel
+experimental: CLI/DAP/provenance schema in 0.1; other hosts, attach regimes, optimized/stripped source fidelity, and unsupported layouts report limitations
+excluded: direct isolated test-runner debugging pending a separate process-ownership/context/timeout/temp-directory/reporting contract; conditional breakpoints, logpoints, restart, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time travel
 ```
 
 ## CORE LIBRARY PRINCIPLE

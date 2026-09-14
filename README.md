@@ -207,7 +207,7 @@ and Cargo pipeline. They differ only in how far they take the result:
 | `terrane rust -o app.rs <path>` | Writes authored lowering to `app.rs` and support code to `app.support.rs`. |
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
-| `terrane debug <path>` | Builds with full debug information and opens the LLDB-backed Terrane source debugger. |
+| `terrane debug [--embed-sources] <path>` | Builds a native executable with exact target/toolchain/ABI provenance and opens the LLDB-backed Terrane source debugger; source snapshots are omitted unless requested. |
 | `terrane test [options] <package>` | Compiles one isolated runner per populated tier and runs native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
@@ -219,14 +219,18 @@ and Cargo pipeline. They differ only in how far they take the result:
 Use `--release` with `build` or `run` for an optimized executable. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
-
-Debug builds write deterministic, exact-build provenance beside generated Rust and the executable.
-The 0.1 debugger surface is experimental and currently exercised end to end on Linux x86-64 with
-LLDB 22. Source breakpoints, mapped frame selection, bounded source/generated context, focused
-recursive values, bounded stepping, secret-field redaction, and generated/native escape hatches are
-available. The adapter reports source-versus-native fidelity explicitly; conditional breakpoints,
-logpoints, restart, direct test-case debugging, and a Terrane expression evaluator are not
-advertised. See the debugging reference for the complete support boundary.
+Debug builds write deterministic, exact-build schema `1.1` provenance beside generated Rust and the
+executable. Provenance records target, ABI recipe, Rust sysroot, unoptimized/full-debug/no-inline
+profile, lexical scopes, final-Rust sequence points, hashes, and explicit relocation roots.
+Translation is enabled only when those identities and the selected Linux x86-64 layout recipe match;
+otherwise raw native debugging remains available with a machine-readable `terrane/fidelity` reason.
+Source breakpoints, mapped frame selection, bounded source/generated context, source-point stepping,
+scope- and shadow-aware locals, bounded focused values, secret-field redaction, and
+generated/native escape hatches are available. The adapter deliberately does not advertise
+cancellation; request ingress is serialized. Attach remains experimental and host-policy-dependent.
+Conditional breakpoints, logpoints, restart, direct isolated test-case debugging, a Terrane
+expression evaluator, optimized/stripped source fidelity, alternate backends, and time travel are
+not supported. See the debugging reference for the complete boundary.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
 `tests/integration`, and `tests/end-to-end`. Semantic analysis covers production sources and every

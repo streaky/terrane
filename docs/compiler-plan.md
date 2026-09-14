@@ -3923,19 +3923,26 @@ suite pass; and optimized/unsupported cases report limitations rather than false
 
 Completion evidence:
 
-- compiler-owned schema `1.0` metadata now binds logical source, final formatted Rust,
-  sequence points, semantic function/scope/binding/object identities, privacy policy, build
-  inputs, relocation roots, and the native executable by deterministic hashes;
+- compiler-owned schema `1.1` metadata binds logical source, optional embedded source snapshots,
+  final formatted Rust, sequence points, semantic function/scope/binding/object identities, privacy
+  policy, actual target/sysroot/ABI recipe and debug profile, build inputs, relocation roots, and
+  the native executable by deterministic hashes;
 - `terrane debug` and `terrane debug-adapter --stdio` share one LLDB DAP translation engine with
-  source breakpoint fan-out/adjustment, mapped frames, compiler-owned temporary sequence
-  breakpoints, bounded native fallback, exact adaptive integer tiers, bounded string/byte values,
-  secret-field redaction, native/generated/register/memory/backend escape hatches, and explicit
-  launch/attach disconnect policy;
-- five Linux x86-64 `lldb-dap` 22 integration fixtures exercise CLI and framed DAP launch,
-  requested/resolved source breakpoints, stack mapping, CLI and DAP stepping, an async suspension,
-  fixed and adaptive scalars, strings, Unicode paths, stale source, mismatched executable identity,
-  raw-native fallback, and debuggee output isolation;
-- focused debugger/compiler tests and `cargo clippy --workspace --all-targets -- -D warnings`
-  passed; and
+  grouped source breakpoint fan-out, forward same-scope adjustment, pending breakpoint
+  re-resolution, mapped frames, loop/caller-aware temporary sequence breakpoints, bounded native
+  fallback, exact ABI-gated adaptive integer tiers, raw fallback values, scope/shadow-aware
+  bindings, bounded string/byte values, secret-field redaction, native/generated/register/memory
+  escape hatches, source/native/inlining fidelity events, correlated backend responses, and
+  explicit launch/attach disconnect policy;
+- thirteen Linux x86-64 `lldb-dap` 22 integration scenarios exercise CLI and framed DAP launch,
+  standard initialization and pre-launch breakpoint ordering, grouped and lifecycle-managed
+  breakpoints, exact and adjusted locations, stack mapping, loop/call/async stepping, fixed and
+  adaptive values, strings, Unicode paths, stale sources, mismatched executable identity,
+  unsupported debug profiles, opt-in embedded sources, raw-native fallback, exit propagation, and
+  debuggee output isolation;
+- attach remains experimental because success depends on host ptrace/process policy; direct
+  isolated test-case debugging remains excluded pending a separate runner ownership, selection,
+  context, timeout, temporary-directory, and reporting contract;
+- focused debugger/compiler tests and strict workspace Clippy are part of final verification; and
 - the final bounded-parallel workspace scorecard recorded 1,094 passed timings, zero failures,
   and zero ignored tests, including the complete conformance matrix.

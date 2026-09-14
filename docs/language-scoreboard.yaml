@@ -1552,7 +1552,7 @@ features:
     state: current
     paths:
     - manual/reference/records/tooling/debugging.yaml
-  notes: Linux x86-64 with lldb-dap 22 is exercised end to end for exact-build provenance, source breakpoints and frames, bounded stepping and values, privacy, stale-artifact rejection, raw native fallback, and DAP/CLI lifecycle. Other hosts, attach permission regimes, optimized or stripped modules, and the 0.1 protocol/schema remain explicitly experimental.
+  notes: Linux x86-64 with lldb-dap 22 is exercised end to end for schema 1.1 exact-build target/sysroot/ABI provenance, grouped source breakpoints and pending lifecycle, mapped frames, loop/caller/async stepping, scope/shadow-aware bounded values, privacy, opt-in embedded source, stale/unsupported-artifact rejection, raw native fallback, and serialized DAP/CLI lifecycle. Cancellation is not advertised; attach remains host-policy-dependent; optimized or stripped source fidelity and direct isolated test-case debugging remain explicit exclusions.
   sources:
   - docs/language-spec-concise.md#DEBUGGING
   - docs/language-spec-and-compiler-architecture-draft.md#31.6-Debugging
