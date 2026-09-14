@@ -3897,10 +3897,10 @@ real compiler; no consumer reparses or re-resolves Terrane independently; the ex
 fixtures, focused Rust tests, strict Clippy, complete conformance matrix, and measured workspace
 suite pass; and the tooling/manual reference documents describe only demonstrated capabilities.
 
-Completion evidence after the fourth correctness review:
+Completion evidence after the fifth correctness review:
 
 - `cargo clippy --workspace --all-targets -- -D warnings`;
 - focused parser, compiler tooling, external CLI-client, language-server, and protocol suites passed;
   and
 - `python3 docs/measure-test-times.py` passed the complete workspace suite and refreshed the
-  scoreboard with 1,054 recorded timings for 1,067 tests.
+  scoreboard with 1,055 recorded timings for 1,068 tests.
