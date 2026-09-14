@@ -2128,7 +2128,7 @@ fn run_cargo(
     } else {
         Command::new("cargo")
     };
-    crate::cargo_toolchain::configure_cargo_command(&mut command);
+    crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
     if matches!(toolchain, CargoToolchain::RustdocNightly) {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
     }

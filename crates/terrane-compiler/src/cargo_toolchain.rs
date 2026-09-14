@@ -12,6 +12,18 @@ pub fn configure_cargo_command(command: &mut Command) {
     configure_cargo_command_from_path(command, path.as_deref());
 }
 
+pub(crate) fn configure_projection_cargo_command(command: &mut Command) {
+    configure_cargo_command(command);
+    for variable in [
+        "CARGO_ENCODED_RUSTFLAGS",
+        "CARGO_ENCODED_RUSTDOCFLAGS",
+        "RUSTFLAGS",
+        "RUSTDOCFLAGS",
+    ] {
+        command.env_remove(variable);
+    }
+}
+
 fn configure_cargo_command_from_path(command: &mut Command, path: Option<&OsStr>) {
     if let Some(sccache) = sccache_on_path(path) {
         command.env("RUSTC_WRAPPER", sccache);

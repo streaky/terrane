@@ -215,6 +215,7 @@ fn representative_dependency_projection_matches_reviewed_semantics() {
 
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .args(["check", package.0.to_str().unwrap()])
+        .env("RUSTFLAGS", "-D warnings")
         .output()
         .unwrap();
     assert!(
