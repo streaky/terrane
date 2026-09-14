@@ -118,14 +118,25 @@ pub(super) fn run_cli(
                     let verified = response["body"]["breakpoints"][0]["verified"]
                         .as_bool()
                         .unwrap_or(false);
-                    eprintln!(
-                        "{} breakpoint {}:{} -> {}:{}",
-                        if verified { "verified" } else { "unverified" },
-                        path.display(),
-                        line,
-                        resolution.generated_path,
-                        resolution.generated_line
-                    );
+                    let status = if verified { "verified" } else { "unverified" };
+                    if resolution.source_line == line {
+                        eprintln!(
+                            "{status} breakpoint {}:{} (generated at {}:{})",
+                            path.display(),
+                            resolution.source_line,
+                            resolution.generated_path,
+                            resolution.generated_line
+                        );
+                    } else {
+                        eprintln!(
+                            "{status} breakpoint {}:{line} adjusted to {}:{} (generated at {}:{})",
+                            path.display(),
+                            path.display(),
+                            resolution.source_line,
+                            resolution.generated_path,
+                            resolution.generated_line
+                        );
+                    }
                 }
             }
             ("continue", _) => {
@@ -361,7 +372,11 @@ impl Adapter {
                 .is_some_and(|provenance| provenance.target == "x86_64-linux");
             let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
-                let backend_response = backend.request(command, arguments)?;
+                let backend_response = if provenance.is_some() {
+                    request_terrane_variables(backend, arguments)?
+                } else {
+                    backend.request(command, arguments)?
+                };
                 let body = backend_response["body"].clone();
                 let value_summaries = read_value_summaries(backend, &body, selected_layout);
                 (body, value_summaries, std::mem::take(&mut backend.events))
@@ -481,7 +496,15 @@ impl Adapter {
                 let mut native = backend_response["body"]["breakpoints"][0].clone();
                 native["line"] = resolution.source_line.into();
                 native["source"] = json!({"path": source_path});
-                native["message"] = resolution.message.into();
+                native["message"] = format!(
+                    "{} at {}:{}; generated location {}:{}",
+                    resolution.message,
+                    source_path.display(),
+                    resolution.source_line,
+                    resolution.generated_path,
+                    resolution.generated_line
+                )
+                .into();
                 returned.push(native);
             }
         }
@@ -667,7 +690,6 @@ impl Backend {
             }
         }
     }
-
     fn emit_debuggee_output(&mut self) -> Result<(), CliFailure> {
         let mut retained = VecDeque::new();
         while let Some(event) = self.events.pop_front() {
@@ -680,7 +702,13 @@ impl Backend {
                 print!("{output}");
                 io::stdout().flush().map_err(io_failure)?;
             } else {
+                if output.starts_with("To get started with the debug console try ") {
+                    continue;
+                }
                 eprint!("{output}");
+                if !output.ends_with('\n') {
+                    eprintln!();
+                }
                 io::stderr().flush().map_err(io_failure)?;
             }
         }
@@ -936,9 +964,7 @@ fn translate_variables(
                     variable_objects.insert(reference, object_id);
                 }
                 let raw = variable["value"].as_str().unwrap_or_default();
-                if type_name == "Scalar(Int)"
-                    && (raw.contains("terrane_int_support::Int") || raw == type_name)
-                {
+                if type_name == "Scalar(Int)" {
                     let summary = variable["memoryReference"]
                         .as_str()
                         .and_then(|reference| value_summaries.get(reference))
@@ -971,6 +997,19 @@ fn translate_variables(
         }
     }
 }
+fn request_terrane_variables(backend: &mut Backend, arguments: Value) -> Result<Value, CliFailure> {
+    let _ = backend.request(
+        "evaluate",
+        json!({"expression": "`type category disable Rust", "context": "repl"}),
+    );
+    let result = backend.request("variables", arguments);
+    let _ = backend.request(
+        "evaluate",
+        json!({"expression": "`type category enable Rust", "context": "repl"}),
+    );
+    result
+}
+
 fn read_value_summaries(
     backend: &mut Backend,
     body: &Value,
@@ -1345,13 +1384,14 @@ fn show_frames(
     let response = backend.request("stackTrace", json!({"threadId": thread_id}))?;
     let mut body = response["body"].clone();
     translate_stack_frames(&mut body, provenance, native);
-    for frame in body["stackFrames"].as_array().into_iter().flatten() {
-        if !native && frame["presentationHint"] == "subtle" {
-            continue;
-        }
+    let frames = body["stackFrames"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|frame| native || frame["presentationHint"] != "subtle");
+    for (index, frame) in frames.enumerate() {
         eprintln!(
-            "#{:<3} {} at {}:{}",
-            frame["id"].as_i64().unwrap_or(0),
+            "#{index:<3} {} at {}:{}",
             frame["name"].as_str().unwrap_or("<native>"),
             frame["source"]["path"].as_str().unwrap_or("<unknown>"),
             frame["line"].as_u64().unwrap_or(0)
@@ -1390,7 +1430,8 @@ fn show_variables(
         })
     {
         let reference = scope["variablesReference"].as_i64().unwrap_or(0);
-        let response = backend.request("variables", json!({"variablesReference": reference}))?;
+        let response =
+            request_terrane_variables(backend, json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
         if !registers {
             let value_summaries =

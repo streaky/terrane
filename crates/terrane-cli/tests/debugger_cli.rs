@@ -107,6 +107,17 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     assert_eq!(output.stdout, b"42\r\n");
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("verified breakpoint"), "{stderr}");
+    assert!(
+        stderr.contains(&format!(
+            "verified breakpoint {}:8 (generated at ",
+            fixture.source.display()
+        )),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("To get started with the debug console"),
+        "{stderr}"
+    );
     assert!(stderr.contains("/debugger::main"), "{stderr}");
     assert!(stderr.contains("small = 41"), "{stderr}");
     assert!(stderr.contains("wide = 9223372036854775808"), "{stderr}");
@@ -262,6 +273,11 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
             .as_bool()
             .unwrap()
     );
+    let message = response["body"]["breakpoints"][0]["message"]
+        .as_str()
+        .unwrap();
+    assert!(message.contains(fixture.source.to_string_lossy().as_ref()));
+    assert!(message.contains("generated location src/main.rs:"));
 
     let configuration = dap.send("configurationDone", json!({}));
     let (_, stopped, _) = dap.response_and_event(configuration, "stopped");
@@ -406,6 +422,7 @@ fn cli_steps_across_async_function_boundaries_in_source_space() {
     assert_eq!(output.stdout, b"42\r\n");
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("/async-debugger::main"), "{stderr}");
+    assert!(stderr.contains("#0"), "{stderr}");
     assert!(stderr.contains(":7"), "{stderr}");
 }
 
