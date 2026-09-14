@@ -2112,6 +2112,7 @@ fn temporary_sequence_step(
     let suspended_ids = breakpoints.backend_ids_at(current_file, current.generated.line);
     set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
 
+    let existing_ids = backend_breakpoint_ids(backend)?;
     let command_file = TemporaryBreakpointCommands::write(provenance, &targets)?;
     let response = backend.request(
         "evaluate",
@@ -2123,14 +2124,15 @@ fn temporary_sequence_step(
             "context": "repl"
         }),
     )?;
-    let temporary_ids = parse_lldb_breakpoint_ids(&backend_console_output(backend, &response));
+    let _ = backend_console_output(backend, &response);
+    let temporary_ids = backend_breakpoint_ids(backend)?
+        .difference(&existing_ids)
+        .copied()
+        .collect::<Vec<_>>();
     if temporary_ids.len() != targets.len() {
-        set_backend_breakpoints_enabled(backend, &suspended_ids, true)?;
-        return Err(debugger_failure(format!(
-            "lldb-dap identified {} of {} temporary source breakpoints",
-            temporary_ids.len(),
-            targets.len()
-        )));
+        let _ = delete_backend_breakpoints(backend, &temporary_ids);
+        let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
+        return Ok(None);
     }
     let result = (|| {
         backend.request(
@@ -2185,18 +2187,7 @@ fn temporary_sequence_step(
         }
     })();
     if !temporary_ids.is_empty() {
-        let ids = temporary_ids
-            .iter()
-            .map(i64::to_string)
-            .collect::<Vec<_>>()
-            .join(" ");
-        let _ = backend.request(
-            "evaluate",
-            json!({
-                "expression": format!("`breakpoint delete {ids}"),
-                "context": "repl"
-            }),
-        );
+        let _ = delete_backend_breakpoints(backend, &temporary_ids);
     }
     let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
     result.map(Some)
@@ -2243,6 +2234,33 @@ impl Drop for TemporaryBreakpointCommands {
     }
 }
 
+fn backend_breakpoint_ids(backend: &mut Backend) -> Result<BTreeSet<i64>, CliFailure> {
+    let response = backend.request(
+        "evaluate",
+        json!({"expression": "`breakpoint list -b", "context": "repl"}),
+    )?;
+    Ok(
+        parse_lldb_breakpoint_ids(&backend_console_output(backend, &response))
+            .into_iter()
+            .collect(),
+    )
+}
+
+fn delete_backend_breakpoints(backend: &mut Backend, ids: &[i64]) -> Result<(), CliFailure> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let ids = ids.iter().map(i64::to_string).collect::<Vec<_>>().join(" ");
+    backend.request(
+        "evaluate",
+        json!({
+            "expression": format!("`breakpoint delete {ids}"),
+            "context": "repl"
+        }),
+    )?;
+    Ok(())
+}
+
 fn set_backend_breakpoints_enabled(
     backend: &mut Backend,
     ids: &[i64],
@@ -2269,12 +2287,13 @@ fn parse_lldb_breakpoint_ids(output: &str) -> Vec<i64> {
     output
         .lines()
         .filter_map(|line| {
-            line.trim()
-                .strip_prefix("Breakpoint ")?
+            let line = line.trim();
+            let identifier = line
+                .strip_prefix("Breakpoint ")
+                .unwrap_or(line)
                 .split_once(':')?
-                .0
-                .parse()
-                .ok()
+                .0;
+            identifier.parse().ok()
         })
         .collect()
 }
