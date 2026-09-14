@@ -6123,16 +6123,17 @@ release, and inlining status. A mismatch disables Terrane translation with a dia
 native debugging remains available.
 
 Source breakpoints resolve through compiler-declared executable sequence points in final formatted
-Rust and preserve every native location for a source point. A non-executable line may adjust only
+Rust and preserve every native location for a source point. Relative paths resolve from the
+debugger invocation directory before the package root. A non-executable line may adjust only
 forward to the nearest declared point inside the same exact lexical scope; otherwise it remains
 pending and unverified. Resolved Terrane and generated locations are both reported. Mapped frames
 use canonical Terrane names, logical locations, and session-local indices. Generated, runtime, and
 native frames remain explicit escape hatches. `next` targets a different authored sequence point
 in the selected frame or its caller, including loop re-entry; `stepOut` requires an exact native
-frame-depth decrease. Leaving a breakpoint may suspend only the breakpoint at the current native
-location. All other user breakpoints stay active, and temporary breakpoints are deleted
-individually on completion or interruption. Repeated raw fallback is capped at 64 steps before the
-native stop and limitation are exposed.
+frame-depth decrease. Leaving a breakpoint suspends the user breakpoint at the current native
+location while preserving every other user breakpoint. Up to 512 temporary source targets are
+installed and removed in batched LLDB requests. Larger target sets fall back without truncation to
+at most 64 native steps before the native stop and limitation are exposed.
 
 Variables use compiler lexical names selected by the exact stop, binding visibility range, lexical
 scope ancestry, and innermost shadow. On the selected ABI recipe the translator presents exact
@@ -6148,13 +6149,16 @@ may expose physical memory. The debugger imports Rust LLDB formatters only from 
 recorded in provenance, before client initialization commands; formatter absence is non-fatal.
 
 DAP initialization produces exactly one immediate `initialized` event. Backend responses are
-correlated and retained even when another request is currently expected; variable handles are
-invalidated on resume. Request ingress remains serialized, so cancellation is not advertised.
-Client disconnect terminates a launched debuggee by default and never implicitly kills an attached
-process. Linux x86-64/LLDB 22 integration evidence covers standard DAP step-in/step-out, recursive
-step-over, fatal native stops during translation, disconnect queued during source stepping,
-relocated exact builds, host-policy attach outcomes, split generated support, shadowed locals, and
-more than 500 sequence points. Conditional breakpoints, logpoints, restart, Terrane-language
+correlated and retained even when another request is currently expected; delayed launch/attach
+results are validated after configuration completes. Variable handles are invalidated on resume.
+Request ingress remains serialized, so cancellation is not advertised. Client disconnect
+terminates a launched debuggee by default and never implicitly kills an attached process. Thirty
+Linux x86-64/LLDB 22 integration scenarios cover pre- and post-launch breakpoint ordering,
+standard DAP step-in/step-out, recursive step-over, fatal native stops, queued disconnect, delayed
+launch failure, relocated exact builds, host-policy attach outcomes, split generated support,
+shadowed locals, relative invocation paths, debugger-like debuggee output isolation, explicit
+temporary-breakpoint cleanup, and more than 500 sequence points. Conditional breakpoints,
+logpoints, restart, Terrane-language
 expression evaluation, DWARF rewriting, alternate native backends, and time-travel debugging are
 not supported. Direct isolated test-case debugging is also deferred:
 before it can be exposed, the test runner must separately specify debugger ownership, case

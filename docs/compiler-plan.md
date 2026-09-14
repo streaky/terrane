@@ -4194,8 +4194,9 @@ cancellation, timer, and signal regions receive distinct provenance roles.
 Begin with preserved scalar locals under Terrane names, then add adaptive integers, strings/bytes,
 finite unions, value/COW collections, references, and projected values only as exact layouts are
 proven. Compiler metadata maps canonical descriptor/binding identity to DWARF variables or bounded
-location recipes. Report `moved`, `out of scope`, `optimized out`, `unsupported layout`, or
-`unavailable debug information`; never substitute `none`, zero, or a guessed Rust temporary.
+layout recipes. Each value reports its actual state—live, optimized out, unavailable, unsupported,
+truncated, or moved only when the selected backend proves an ownership transition. Never substitute
+`none`, zero, or a guessed Rust temporary for unavailable state.
 
 Value presentation is read-only by default and must not invoke source `render`, getters, coercions,
 `truth`, destructors, or arbitrary expression evaluation. Use bounded depth/item/byte limits, cycle
@@ -4218,16 +4219,16 @@ Deliver in staged vertical slices:
    exact generated Rust;
 3. prove multi-location/adjusted/unresolved breakpoints, mapped frames, loop/call stepping, fatal
    native stops, and temporary-breakpoint cleanup;
-4. add bounded structured values plus explicit unavailable/moved states, attach, relocation, and
-   reconnect; and
+4. exercise shadowing, privacy, unavailable/optimized/truncated states, evidence-backed ownership
+   transitions, and DAP lifecycle through disconnect/reconnect; and
 5. add async continuation/task presentation only after explicit identity instrumentation exists.
 
 Run the actual selected debugger against disposable compiled fixtures for each advertised
 host/backend version. Cover wrong executable, stale sidecar/source, split support files, Unicode
-paths, shadowed/moved locals, stripped and optimized output, a runtime/internal fatal stop, client
-disconnect during a step, and debuggee output while DAP traffic remains valid. At minimum the first
-slice must run on the release's Linux debugger host; macOS/Windows support is advertised only after
-equivalent end-to-end evidence exists.
+and whitespace paths, shadowed locals, evidence-backed ownership transitions, large functions,
+fatal signals, relocation, disconnect during a step, and debuggee output while DAP traffic remains
+valid. At minimum the first slice must run on the release's Linux debugger host; macOS/Windows
+support is advertised only after equivalent end-to-end evidence exists.
 
 The milestone does not add a Terrane expression evaluator, rewrite or augment DWARF, patch generated
 Rust, fork LLDB, expose arbitrary debuggee method calls as formatting, or introduce another native
@@ -4242,30 +4243,34 @@ suite pass; and optimized/unsupported cases report limitations rather than false
 
 Completion evidence:
 
-- compiler-owned schema `1.2` metadata binds logical source, optional independently selected
-  authored and generated source snapshots, final formatted Rust, sequence points, multi-cause
-  source associations, semantic function/scope/binding/object identities, privacy policy, exact
-  Rust release/sysroot/toolchain-bound ABI recipe and shared named debug profile, build inputs,
+- compiler-owned schema `1.2` metadata binds shared logical source text/line indices without
+  eager embedding, optional independently selected authored and generated snapshots, final
+  formatted Rust, sequence points, multi-cause source associations, semantic
+  function/scope/binding/object identities, privacy policy, exact Rust
+  release/sysroot/toolchain-bound ABI recipe and shared named debug profile, build inputs,
   canonical relocation roots, and the native executable by deterministic hashes;
 - `terrane debug` and `terrane debug-adapter --stdio` share one LLDB DAP translation engine with
-  uncapped grouped source breakpoint fan-out, forward same-scope adjustment, pending breakpoint
-  re-resolution, mapped frames, loop/caller/recursion-aware temporary sequence breakpoints,
-  bounded native fallback, exact ABI-gated adaptive integer tiers, raw fallback values,
-  scope/shadow-aware bindings, bounded string/byte values, secret-field redaction,
+  uncapped grouped user-breakpoint fan-out, invocation-directory-first relative paths, forward
+  same-scope adjustment, pending breakpoint re-resolution, mapped frames,
+  loop/caller/recursion-aware source stepping, batched and capped temporary sequence targets,
+  untruncated bounded native fallback, exact ABI-gated adaptive integer tiers, raw fallback
+  values, scope/shadow-aware bindings, bounded string/byte values, secret-field redaction,
   native/generated/register/memory escape hatches, source/native/inlining fidelity events,
-  correlated and time-bounded backend responses, one standard initialized event, stop-local
-  variable handles, serialized request ingress, and explicit launch/attach disconnect policy;
-- twenty-six Linux x86-64 `lldb-dap` 22 integration scenarios exercise CLI and framed DAP launch,
-  standard initialization and pre-launch breakpoint ordering, more than 500 logical sequence
-  points, grouped/pending/lifecycle-managed breakpoints, exact and adjusted locations, stack
-  mapping, loop/call/recursion/async stepping, standard DAP step-in/step-out, fixed and adaptive
-  values, shadowed locals, strings, Unicode paths, fatal native stops, stale/malformed/profile/ABI
-  mismatches, copied exact-build relocation, split generated support, opt-in embedded generated
-  sources, raw-native fallback, queued disconnect, exit propagation, fixture cleanup, and debuggee
-  output isolation;
+  correlated and time-bounded backend responses including delayed launch failures, one standard
+  initialized event, stop-local variable handles, serialized request ingress, and explicit
+  launch/attach disconnect policy;
+- thirty Linux x86-64 `lldb-dap` 22 integration scenarios exercise CLI and framed DAP launch,
+  standard initialization, pre- and post-launch breakpoint ordering, more than 500 logical
+  sequence points, grouped/pending/lifecycle-managed breakpoints, current-breakpoint suspension,
+  explicit temporary-breakpoint cleanup, exact and adjusted locations, relative invocation paths,
+  stack mapping, loop/call/recursion/async stepping, standard DAP step-in/step-out, fixed and
+  adaptive values, shadowed locals, strings, Unicode paths, fatal native stops,
+  stale/malformed/profile/ABI mismatches, copied exact-build relocation, split generated support,
+  opt-in embedded generated sources, raw-native fallback, delayed launch failure, queued
+  disconnect, exit propagation, fixture cleanup, and debugger-like debuggee output isolation;
 - attach remains experimental because success depends on host ptrace/process policy; direct
   isolated test-case debugging remains excluded pending a separate runner ownership, selection,
   context, timeout, temporary-directory, and reporting contract;
 - focused debugger/compiler tests and strict workspace Clippy are part of final verification; and
-- the final bounded-parallel workspace scorecard recorded 1,122 passed timings, zero failures,
-  and zero ignored tests, including the complete conformance matrix.
+- the final workspace scorecard recorded 1,128 passed timings, zero failures, and zero ignored
+  tests, including the complete conformance matrix.
