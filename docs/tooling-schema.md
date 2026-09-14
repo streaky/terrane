@@ -196,17 +196,20 @@ contains:
 
 ### `propose-rename`
 
-Fields: `snapshot_id`, `uri`, `offset`, and `new_name`. Rename finds all references by canonical symbol
-identity and rejects invalid identifiers or a spelling that resolves to another symbol at a changed
-site. It returns the ordinary edit-proposal shape.
+Fields: `snapshot_id`, `uri`, `offset`, and `new_name`. Rename finds references by canonical symbol
+identity. Interface method contracts form one rename family with every implementing override, so a
+request from either the interface or a concrete implementation updates the entire contract. Rename
+rejects invalid identifiers, capture, and any candidate with parse or semantic diagnostics; rejected
+rename proposals are not retained. It returns the ordinary edit-proposal shape only for a clean
+semantic reanalysis.
 
 ### `apply-edits`
 
-Fields: `proposal_id`. Disk application accepts `file://` sources only. It reads and validates every
-content hash before the first write, writes same-directory temporary files, then replaces originals.
-Stale content is never overwritten. Cross-file crash atomicity is not promised; a `partial-apply`
-error carries a structured `apply_report` with committed and uncommitted URIs and retained recovery
-paths.
+Fields: `proposal_id`. Proposals carrying preview diagnostics are never applicable. Disk application
+accepts `file://` sources only. It reads and validates every content hash before the first write,
+writes same-directory temporary files, then replaces originals. Stale content is never overwritten.
+Cross-file crash atomicity is not promised; a `partial-apply` error carries a structured
+`apply_report` with committed and uncommitted URIs and retained recovery paths.
 
 LSP clients do not call disk apply. The language server converts proposals to versioned workspace
 edits for the editor to apply.
