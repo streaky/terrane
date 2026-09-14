@@ -49,4 +49,11 @@ pub(crate) struct LoweringFailure {
     pub(crate) message: String,
 }
 
-pub(crate) use emitter::pipeline::lower;
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TestRunnerCase {
+    pub(crate) span: crate::Span,
+    pub(crate) is_async: bool,
+    pub(crate) throws: bool,
+}
+
+pub(crate) use emitter::pipeline::{lower, lower_tests};

@@ -14,6 +14,7 @@ pub mod rust_ir;
 pub mod semantics;
 pub mod source;
 pub mod syntax;
+pub mod testing;
 pub mod tokens;
 pub mod tooling;
 pub mod types;
@@ -21,7 +22,7 @@ pub mod types;
 mod projection_oracle;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile, compile_package,
-    compile_package_with_options, compile_with_options,
+    compile_package_with_options, compile_test_package, compile_with_options,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;

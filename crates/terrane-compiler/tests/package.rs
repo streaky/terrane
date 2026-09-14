@@ -3,7 +3,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
-    BuildToolchain, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze, compile_package,
+    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze,
+    compile_package, compile_test_package,
+    testing::{TestPackage, TestTier},
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -615,4 +617,107 @@ fn unknown_capability_and_effect_names_are_rejected() {
 
     assert!(messages.contains(&"unknown profile capability `telepathy`"));
     assert!(messages.contains(&"Rust dependency `http` declares unknown effect `prophecy`"));
+}
+
+#[test]
+fn test_packages_discover_and_lower_tiered_ordinary_functions() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/z-last.trn",
+        "namespace app\nasync function test-later;\n",
+    );
+    package.write(
+        "tests/unit/a-first.trn",
+        "namespace app\nfunction test-first;\n",
+    );
+    package.write(
+        "tests/integration/public.trn",
+        "namespace app-tests\nfrom /app import value\nfunction test-public;\n  value\n",
+    );
+
+    let test_package = TestPackage::load(&package.0).unwrap();
+    let (compilation, cases) =
+        compile_test_package(&test_package, CompilerOptions::default()).unwrap();
+
+    assert_eq!(
+        cases
+            .iter()
+            .map(|case| (case.tier, case.identity.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (TestTier::Unit, "/app::test-first"),
+            (TestTier::Unit, "/app::test-later"),
+            (TestTier::Integration, "/app-tests::test-public"),
+        ]
+    );
+    assert!(compilation.rust.contains("match selected.as_str()"));
+    assert!(compilation.rust.contains("\"0\" =>"));
+    assert!(compilation.rust.contains("__terrane_run(async move"));
+}
+
+#[test]
+fn invalid_test_signatures_are_source_diagnostics() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"invalid-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("src/library.trn", "namespace app\nconstant value = 1\n");
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfunction test-invalid int; supplied int\n  return supplied\n",
+    );
+
+    let failure = compile_test_package(
+        &TestPackage::load(&package.0).unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2051");
+    assert!(failure.source.path().ends_with("tests/unit/case.trn"));
+}
+
+#[test]
+fn test_manifest_roots_are_bounded_and_profiled() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        concat!(
+            "package = \"configured-native-tests\"\n",
+            "prelude = false\n",
+            "[namespaces]\napp = \"src\"\n",
+            "[testing]\nunit = \"spec/unit\"\n",
+            "[testing.profile]\nname = \"test\"\ncapabilities = []\npanic = \"abort\"\n",
+        ),
+    );
+    package.write("src/library.trn", "namespace app\nconstant value = 1\n");
+    package.write(
+        "spec/unit/case.trn",
+        "namespace app\nfunction test-configured;\n",
+    );
+
+    let loaded = TestPackage::load(&package.0).unwrap();
+    assert_eq!(loaded.configuration.profile.name, "test");
+    assert!(
+        loaded
+            .configuration
+            .profile
+            .capabilities
+            .as_ref()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(loaded.configuration.profile.panic, PanicProfile::Abort);
+    assert_eq!(
+        loaded.source_tiers.values().copied().collect::<Vec<_>>(),
+        [TestTier::Unit]
+    );
 }

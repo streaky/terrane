@@ -333,6 +333,7 @@ fn parse_manifest(
                 | "executor"
                 | "rust-toolchain"
                 | "profile"
+                | "testing"
                 | "namespaces"
                 | "rust-dependencies"
         ) {

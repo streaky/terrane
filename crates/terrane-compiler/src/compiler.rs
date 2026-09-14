@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    Diagnostic, Package, RustDependency, SourceFile, Span,
+    Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
     rust_ir::RenderedFile,
-    semantics::{self, SymbolKind},
+    semantics::{self, SymbolKind, ValueType},
+    testing::{TestCase, TestPackage},
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -259,6 +261,170 @@ pub fn compile_package_with_options(
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
     })
+}
+
+/// Compiles all test tiers into one native dispatch runner.
+///
+/// Discovery is performed over the shared semantic package. Test functions are ordinary top-level
+/// functions whose names begin with `test-`; they may be asynchronous and throwing, but must take
+/// no parameters and return `none`.
+///
+/// # Errors
+///
+/// Returns ordinary frontend diagnostics or source-oriented invalid-test diagnostics.
+pub fn compile_test_package(
+    test_package: &TestPackage,
+    options: CompilerOptions,
+) -> Result<(Compilation, Vec<TestCase>), CompilationFailure> {
+    let mut semantic =
+        semantics::analyze(&test_package.package).map_err(|failure| CompilationFailure {
+            source: failure.source,
+            diagnostics: failure.diagnostics,
+        })?;
+    let mut cases = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut identities = BTreeMap::<String, Span>::new();
+    for unit in &semantic.units {
+        let Some(tier) = test_package.source_tiers.get(&unit.source.id()).copied() else {
+            continue;
+        };
+        for contract in unit.functions.iter().filter(|contract| {
+            contract.span.file == unit.source.id()
+                && contract.owner.is_none()
+                && contract.name.starts_with("test-")
+        }) {
+            let returns_none = contract
+                .return_type
+                .as_ref()
+                .is_none_or(|value| *value == ValueType::Scalar(ScalarType::None));
+            if !contract.parameters.is_empty() || !returns_none {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "S2051",
+                        format!(
+                            "test function `{}` must be parameterless and return `none`",
+                            contract.name
+                        ),
+                        contract.span,
+                    )
+                    .with_help(
+                        "use ordinary local functions to supply table rows or parameterized setup",
+                    ),
+                );
+                continue;
+            }
+            let identity = format!(
+                "{}::{}",
+                unit.namespace.trim_end_matches('/'),
+                contract.name
+            );
+            if let Some(previous) = identities.insert(identity.clone(), contract.span) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        "S2052",
+                        format!("duplicate test identity `{identity}`"),
+                        contract.span,
+                    )
+                    .with_help(format!(
+                        "the first test with this identity starts at byte {}",
+                        previous.start
+                    )),
+                );
+                continue;
+            }
+            cases.push(TestCase {
+                identity,
+                tier,
+                source_path: unit.source_path.clone(),
+                source_span: contract.span,
+                is_async: contract.is_async,
+                throws: contract.throws,
+            });
+        }
+    }
+    cases.sort_by(|left, right| {
+        (
+            left.tier,
+            &left.source_path,
+            left.source_span.start,
+            &left.identity,
+        )
+            .cmp(&(
+                right.tier,
+                &right.source_path,
+                right.source_span.start,
+                &right.identity,
+            ))
+    });
+    if !diagnostics.is_empty() {
+        let span = diagnostics[0]
+            .primary
+            .unwrap_or_else(|| Span::new(semantic.units[0].source.id(), 0, 0));
+        let source = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == span.file)
+            .map_or_else(
+                || semantic.units[0].source.clone(),
+                |unit| unit.source.clone(),
+            );
+        return Err(CompilationFailure {
+            source,
+            diagnostics,
+        });
+    }
+    semantic.mark_functions_referenced(cases.iter().map(|case| case.source_span));
+    let runner_cases = cases
+        .iter()
+        .map(|case| crate::lowering::TestRunnerCase {
+            span: case.source_span,
+            is_async: case.is_async,
+            throws: case.throws,
+        })
+        .collect::<Vec<_>>();
+    let entry_span = cases.first().map_or_else(
+        || Span::new(semantic.units[0].source.id(), 0, 0),
+        |case| case.source_span,
+    );
+    let source = semantic
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == entry_span.file)
+        .map_or_else(
+            || semantic.units[0].source.clone(),
+            |unit| unit.source.clone(),
+        );
+    let sources = semantic
+        .units
+        .iter()
+        .map(|unit| unit.source.clone())
+        .collect::<Vec<_>>();
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases)
+        .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rendered_rust = rust_ir.rendered();
+    let standalone_file = rendered_rust.standalone_file("<stdout>");
+    if options.require_canonical_rust {
+        validate_canonical_rust(&[standalone_file.clone()], &sources, &source, entry_span)?;
+    }
+    let compilation = Compilation {
+        source,
+        sources,
+        rust: standalone_file.contents,
+        review_rust: rendered_rust.review_file(),
+        rendered_rust,
+        require_canonical_rust: options.require_canonical_rust,
+        entry_span,
+        requires_platform_support: rust_ir.requires_platform_support,
+        requires_async_runtime: rust_ir.requires_async_runtime,
+        warnings,
+        rust_dependencies: compilation_rust_dependencies(
+            &test_package.package,
+            &semantic.projection,
+        ),
+        dependency_containment: semantic.projection.containment,
+    };
+    Ok((compilation, cases))
 }
 
 fn validate_canonical_rust(

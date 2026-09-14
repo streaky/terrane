@@ -960,6 +960,15 @@ impl SemanticPackage {
         self.referenced_functions.contains(&span_key(declaration))
     }
 
+    pub(crate) fn mark_functions_referenced(
+        &mut self,
+        declarations: impl IntoIterator<Item = Span>,
+    ) {
+        self.referenced_functions
+            .extend(declarations.into_iter().map(span_key));
+        super::bindings::synchronize_execution_requirements(self);
+    }
+
     #[must_use]
     pub fn resolve_name(&self, namespace: &str, name: &str) -> Option<&Symbol> {
         namespace_chain(namespace)
