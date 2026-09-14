@@ -57,3 +57,14 @@ pub(crate) struct TestRunnerCase {
 }
 
 pub(crate) use emitter::pipeline::{lower, lower_tests};
+
+pub(crate) fn debug_rust_name(name: &str) -> String {
+    helpers::rust_name(name)
+}
+
+pub(crate) fn debug_function_name(
+    package: &crate::semantics::SemanticPackage,
+    contract: &crate::semantics::FunctionContract,
+) -> String {
+    helpers::function_name(package, contract)
+}

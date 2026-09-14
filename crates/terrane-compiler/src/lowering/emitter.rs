@@ -147,6 +147,7 @@ pub(super) struct Emitter<'a> {
     async_mutable_captures: BTreeSet<String>,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
+    debug_information: bool,
 }
 
 impl<'a> Emitter<'a> {
@@ -154,6 +155,7 @@ impl<'a> Emitter<'a> {
         registry: &'a LoweringRegistry,
         package: &'a SemanticPackage,
         unit: &'a SemanticUnit,
+        debug_information: bool,
     ) -> Self {
         Self {
             registry,
@@ -184,6 +186,7 @@ impl<'a> Emitter<'a> {
             async_mutable_captures: BTreeSet::new(),
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
+            debug_information,
         }
     }
 }

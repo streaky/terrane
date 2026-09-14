@@ -12,6 +12,7 @@ use crate::{
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
+    pub debug_information: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -28,6 +29,7 @@ pub struct Compilation {
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
     pub dependency_containment: crate::projection::Containment,
+    debug_symbols: Option<crate::debugging::DebugSymbols>,
 }
 
 impl Compilation {
@@ -55,6 +57,28 @@ impl Compilation {
                 .map_err(RustArtifactError::Compilation)?;
         }
         Ok(files)
+    }
+
+    /// Builds final-file debugger metadata for the exact generated Rust paths.
+    ///
+    /// Returns `None` unless compilation requested [`CompilerOptions::debug_information`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RustArtifactError::InvalidOutputPath`] when `entrypoint` cannot identify the
+    /// generated application and sibling support file.
+    pub fn debug_information(
+        &self,
+        entrypoint: &Path,
+    ) -> Result<Option<crate::debugging::DebugInformation>, RustArtifactError> {
+        let Some(symbols) = &self.debug_symbols else {
+            return Ok(None);
+        };
+        let files = self
+            .rendered_rust
+            .files(entrypoint)
+            .map_err(RustArtifactError::InvalidOutputPath)?;
+        Ok(Some(symbols.render(&files)))
     }
 }
 
@@ -237,7 +261,7 @@ pub fn compile_package_with_options(
         .map(|unit| unit.source.clone())
         .collect();
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower(&semantic)
+    let rust_ir = crate::lowering::lower(&semantic, options.debug_information)
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
@@ -253,6 +277,9 @@ pub fn compile_package_with_options(
         rust,
         review_rust,
         rendered_rust,
+        debug_symbols: options
+            .debug_information
+            .then(|| crate::debugging::DebugSymbols::from_semantic(&semantic)),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
@@ -502,7 +529,7 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases)
+    let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_information)
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
@@ -520,6 +547,9 @@ pub fn compile_discovered_test_tier(
         rust: standalone_file.contents,
         review_rust: rendered_rust.review_file(),
         rendered_rust,
+        debug_symbols: options
+            .debug_information
+            .then(|| crate::debugging::DebugSymbols::from_semantic(&semantic)),
         require_canonical_rust: options.require_canonical_rust,
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,

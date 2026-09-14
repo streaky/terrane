@@ -1,6 +1,7 @@
 mod bundled;
 pub mod cargo_toolchain;
 mod compiler;
+pub mod debugging;
 pub mod diagnostic;
 mod execution;
 pub mod highlight;
