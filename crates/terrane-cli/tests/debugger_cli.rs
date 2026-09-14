@@ -337,6 +337,11 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     let fidelity = fidelity.unwrap();
     assert_eq!(fidelity["body"]["mode"], "source");
     assert_eq!(fidelity["body"]["sourceTranslation"], true);
+    assert_eq!(
+        fidelity["body"]["abiRecipe"],
+        "terrane-rust-x86_64-linux-gnu-v1"
+    );
+    assert_eq!(fidelity["body"]["inlining"], "disabled");
     assert!(changed.iter().all(|message| {
         message["body"]["reason"] == "changed" && message["body"]["breakpoint"]["verified"] == true
     }));
@@ -720,5 +725,73 @@ fn cli_returns_the_debuggee_exit_status() {
         Some(7),
         "{}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn debug_build_embeds_sources_only_when_requested() {
+    let fixture = DebugFixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--embed-sources", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(b"continue\n")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let provenance = fs::read_dir(fixture.root.join(".trn/build"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path().join("terrane-debug.json"))
+        .find(|path| path.is_file())
+        .unwrap();
+    let provenance: Value = serde_json::from_slice(&fs::read(provenance).unwrap()).unwrap();
+    assert_eq!(
+        provenance["debug"]["sources"][0]["embedded_source"],
+        fs::read_to_string(&fixture.source).unwrap()
+    );
+}
+
+#[test]
+fn adapter_reports_unsupported_debug_profiles_as_native_fidelity() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance_path) = fixture.build();
+    let mut provenance: Value =
+        serde_json::from_slice(&fs::read(&provenance_path).unwrap()).unwrap();
+    provenance["optimization"] = "3".into();
+    fs::write(&provenance_path, serde_json::to_vec(&provenance).unwrap()).unwrap();
+
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance_path,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    let fidelity = loop {
+        let message = dap.read();
+        if message["event"] == "terrane/fidelity" {
+            break message;
+        }
+    };
+    assert_eq!(fidelity["body"]["mode"], "native");
+    assert!(
+        fidelity["body"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("unsupported debug artifact profile")
     );
 }
