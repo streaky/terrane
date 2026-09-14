@@ -599,8 +599,9 @@ fn compile_and_maybe_run(
             .unwrap();
         assert!(
             output.status.success(),
-            "{} generated dependency panic test failed:\n{}",
+            "{} generated dependency panic test failed:\nstdout:\n{}\nstderr:\n{}",
             case.display(),
+            String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
     }

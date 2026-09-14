@@ -66,6 +66,7 @@ struct TerraneErrorDetail {
     message: Option<String>,
     cause: Option<Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
@@ -102,6 +103,7 @@ impl TerraneError {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -125,6 +127,7 @@ impl TerraneError {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .cause = Some(Box::new(cause));
@@ -146,6 +149,7 @@ impl TerraneError {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -173,6 +177,23 @@ impl TerraneError {
                 );
         }
         frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
     }
     #[cold]
     #[inline(never)]
