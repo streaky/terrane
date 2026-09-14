@@ -2133,7 +2133,11 @@ fn temporary_sequence_step(
         let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
         return Ok(None);
     }
-    set_backend_breakpoints_enabled(backend, &suspended_ids, false)?;
+    if let Err(failure) = set_backend_breakpoints_enabled(backend, &suspended_ids, false) {
+        let _ = delete_backend_breakpoints(backend, &temporary_ids);
+        let _ = set_backend_breakpoints_enabled(backend, &suspended_ids, true);
+        return Err(failure);
+    }
     let result = (|| {
         backend.request(
             "continue",
