@@ -20,9 +20,57 @@ const CAPTURE_LIMIT: usize = 1024 * 1024;
 const REPORT_SCHEMA_VERSION: &str = "1.1.0";
 
 #[derive(Clone, Debug)]
+enum TestSelector {
+    Substring(String),
+    Exact(String),
+    Glob(String),
+    Regex(regex::Regex),
+}
+
+impl TestSelector {
+    fn matches(&self, identity: &str) -> bool {
+        match self {
+            Self::Substring(pattern) => identity.contains(pattern),
+            Self::Exact(pattern) => identity == pattern,
+            Self::Glob(pattern) => glob_matches(pattern.as_bytes(), identity.as_bytes()),
+            Self::Regex(pattern) => pattern.is_match(identity),
+        }
+    }
+
+    fn report(&self) -> serde_json::Value {
+        let (mode, pattern) = match self {
+            Self::Substring(pattern) => ("substring", pattern.as_str()),
+            Self::Exact(pattern) => ("exact", pattern.as_str()),
+            Self::Glob(pattern) => ("glob", pattern.as_str()),
+            Self::Regex(pattern) => ("regex", pattern.as_str()),
+        };
+        serde_json::json!({ "mode": mode, "pattern": pattern })
+    }
+}
+
+fn glob_matches(pattern: &[u8], value: &[u8]) -> bool {
+    let mut reachable = vec![false; value.len() + 1];
+    reachable[0] = true;
+    for token in pattern {
+        if *token == b'*' {
+            for index in 1..=value.len() {
+                reachable[index] |= reachable[index - 1];
+            }
+        } else {
+            for index in (1..=value.len()).rev() {
+                reachable[index] =
+                    reachable[index - 1] && (*token == b'?' || *token == value[index - 1]);
+            }
+            reachable[0] = false;
+        }
+    }
+    reachable[value.len()]
+}
+
+#[derive(Clone, Debug)]
 struct TestOptions {
     input: PathBuf,
-    filter: Option<String>,
+    filter: Option<TestSelector>,
     list: bool,
     fail_fast: bool,
     show_output: bool,
@@ -71,6 +119,7 @@ struct TestCause {
     kind: &'static str,
     descriptor: Option<String>,
     message: String,
+    details: Vec<String>,
     source_frames: Vec<String>,
 }
 #[derive(Clone, Debug)]
@@ -118,7 +167,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
                 && options
                     .filter
                     .as_ref()
-                    .is_none_or(|filter| case.identity.contains(filter))
+                    .is_none_or(|filter| filter.matches(&case.identity))
         })
         .collect::<Vec<_>>();
     if options.list {
@@ -204,15 +253,24 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
             "--list" => list = true,
             "--fail-fast" => fail_fast = true,
             "--show-output" => show_output = true,
-            "--filter" => {
+            "--filter" | "--exact" | "--glob" | "--regex" => {
                 index += 1;
-                filter = Some(
-                    arguments
-                        .get(index)
-                        .and_then(|value| value.to_str())
-                        .ok_or_else(CliFailure::usage)?
-                        .to_owned(),
-                );
+                if filter.is_some() {
+                    return Err(CliFailure::usage());
+                }
+                let pattern = arguments
+                    .get(index)
+                    .and_then(|value| value.to_str())
+                    .ok_or_else(CliFailure::usage)?;
+                filter = Some(match argument {
+                    "--filter" => TestSelector::Substring(pattern.to_owned()),
+                    "--exact" => TestSelector::Exact(pattern.to_owned()),
+                    "--glob" => TestSelector::Glob(pattern.to_owned()),
+                    "--regex" => TestSelector::Regex(
+                        regex::Regex::new(pattern).map_err(|_| CliFailure::usage())?,
+                    ),
+                    _ => unreachable!("matched selector option"),
+                });
             }
             "--tier" => {
                 index += 1;
@@ -494,6 +552,7 @@ fn execute_case(
                     "deadline exceeded after {} milliseconds",
                     timeout.as_millis()
                 ),
+                details: Vec::new(),
                 source_frames: Vec::new(),
             }),
         )
@@ -504,7 +563,7 @@ fn execute_case(
         (TestStatus::Passed, None)
     } else if matches!(exit_code, Some(101 | 102)) {
         match record {
-            Some(Ok((outcome, descriptor, message, source_frames)))
+            Some(Ok((outcome, descriptor, message, details, source_frames)))
                 if (exit_code == Some(102) && outcome == "skipped")
                     || (exit_code == Some(101) && outcome == "failed") =>
             {
@@ -530,6 +589,7 @@ fn execute_case(
                         },
                         descriptor: Some(descriptor),
                         message,
+                        details,
                         source_frames,
                     }),
                 )
@@ -561,6 +621,7 @@ fn execute_case(
                 kind: "crash",
                 descriptor: None,
                 message: "test process terminated without an exit code".to_owned(),
+                details: Vec::new(),
                 source_frames: Vec::new(),
             }),
         )
@@ -579,6 +640,7 @@ fn execute_case(
                     "test process exited with status {}",
                     exit_code.map_or_else(|| "unknown".to_owned(), |code| code.to_string())
                 ),
+                details: Vec::new(),
                 source_frames: Vec::new(),
             }),
         )
@@ -609,11 +671,14 @@ fn protocol_cause(message: &str) -> TestCause {
         kind: "infrastructure",
         descriptor: None,
         message: message.to_owned(),
+        details: Vec::new(),
         source_frames: Vec::new(),
     }
 }
 
-fn parse_test_record(record: &str) -> Result<(String, String, String, Vec<String>), String> {
+fn parse_test_record(
+    record: &str,
+) -> Result<(String, String, String, Vec<String>, Vec<String>), String> {
     let mut lines = record.lines();
     if lines.next() != Some("1") {
         return Err("unsupported protocol version".to_owned());
@@ -625,20 +690,30 @@ fn parse_test_record(record: &str) -> Result<(String, String, String, Vec<String
             .ok_or_else(|| "missing descriptor".to_owned())?,
     )?;
     let message = decode_hex(lines.next().ok_or_else(|| "missing message".to_owned())?)?;
+    let detail_count = lines
+        .next()
+        .ok_or_else(|| "missing detail count".to_owned())?
+        .parse::<usize>()
+        .map_err(|_| "invalid detail count".to_owned())?;
     let frame_count = lines
         .next()
         .ok_or_else(|| "missing frame count".to_owned())?
         .parse::<usize>()
         .map_err(|_| "invalid frame count".to_owned())?;
+    let details = lines
+        .by_ref()
+        .take(detail_count)
+        .map(decode_hex)
+        .collect::<Result<Vec<_>, _>>()?;
     let frames = lines
         .by_ref()
         .take(frame_count)
         .map(decode_hex)
         .collect::<Result<Vec<_>, _>>()?;
-    if frames.len() != frame_count || lines.next().is_some() {
-        return Err("frame count does not match record".to_owned());
+    if details.len() != detail_count || frames.len() != frame_count || lines.next().is_some() {
+        return Err("detail or frame count does not match record".to_owned());
     }
-    Ok((outcome.to_owned(), descriptor, message, frames))
+    Ok((outcome.to_owned(), descriptor, message, details, frames))
 }
 
 fn decode_hex(value: &str) -> Result<String, String> {
@@ -719,6 +794,9 @@ fn render_human_report(results: &[TestResult], show_output: bool) {
                         .map_or_else(String::new, |descriptor| format!(" ({descriptor})")),
                     cause.message
                 );
+                for detail in &cause.details {
+                    println!("{detail}");
+                }
                 for frame in &cause.source_frames {
                     println!("at {frame}");
                 }
@@ -741,7 +819,7 @@ fn report_run_metadata(options: &TestOptions, status: &str) -> serde_json::Value
     serde_json::json!({
         "status": status,
         "package": options.input,
-        "filter": options.filter,
+        "filter": options.filter.as_ref().map(TestSelector::report),
         "tiers": options.tiers.iter().map(|tier| tier.name()).collect::<Vec<_>>(),
         "jobs": options.jobs,
         "timeout_milliseconds": options.timeout.as_millis().to_string(),
@@ -807,6 +885,7 @@ fn write_machine_report(
                     "kind": cause.kind,
                     "descriptor": cause.descriptor,
                     "message": cause.message,
+                    "details": cause.details,
                     "source_frames": cause.source_frames,
                 })),
                 "stdout": result.stdout.bytes,

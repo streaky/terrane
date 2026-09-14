@@ -1,4 +1,5 @@
 phase = "check"
 status = "accept"
 entrypoint = "package.toml"
-canonical-rust = false
+canonical-rust = true
+native-test = true

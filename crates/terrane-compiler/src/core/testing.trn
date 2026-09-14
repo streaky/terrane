@@ -55,55 +55,71 @@ function deny none throws test-failure; condition bool
         fail; 'denied condition was true'
     return none
 
+private function fail-comparison none throws test-failure; failure-message string, actual string, expected string
+    details list of string = list
+    details.append; ('actual: '.concat; actual)
+    details.append; ('expected: '.concat; expected)
+    failure test-failure = instance test-failure; failure-message
+    failure.details = details
+    throw failure
+
+private function fail-near none throws test-failure; actual float64, expected float64, tolerance float64
+    details list of string = list
+    details.append; ('actual: '.concat; (host-test-render-float64; actual))
+    details.append; ('expected: '.concat; (host-test-render-float64; expected))
+    details.append; ('tolerance: '.concat; (host-test-render-float64; tolerance))
+    failure test-failure = instance test-failure; 'floating values differ beyond tolerance'
+    failure.details = details
+    throw failure
 
 function assert-equal-int none throws test-failure; actual int, expected int
     if actual != expected
-        fail; ('expected '.concat; (host-test-render-int; expected), ' but received ', (host-test-render-int; actual))
+        fail-comparison; 'integer values differ', (host-test-render-int; actual), (host-test-render-int; expected)
     return none
 
 function assert-not-equal-int none throws test-failure; actual int, expected int
     if actual == expected
-        fail; ('expected a value other than '.concat; (host-test-render-int; expected))
+        fail-comparison; 'integer values unexpectedly match', (host-test-render-int; actual), (host-test-render-int; expected)
     return none
 
 function assert-equal-string none throws test-failure; actual string, expected string
     if actual != expected
-        fail; ('expected `'.concat; expected, '` but received `', actual, '`')
+        fail-comparison; 'string values differ', actual, expected
     return none
 
 function assert-not-equal-string none throws test-failure; actual string, expected string
     if actual == expected
-        fail; ('expected a string other than `'.concat; expected, '`')
+        fail-comparison; 'string values unexpectedly match', actual, expected
     return none
 
 function assert-equal-bool none throws test-failure; actual bool, expected bool
     if actual != expected
-        fail; ('expected '.concat; (host-test-render-bool; expected), ' but received ', (host-test-render-bool; actual))
+        fail-comparison; 'boolean values differ', (host-test-render-bool; actual), (host-test-render-bool; expected)
     return none
 
 function assert-not-equal-bool none throws test-failure; actual bool, expected bool
     if actual == expected
-        fail; ('expected a boolean other than '.concat; (host-test-render-bool; expected))
+        fail-comparison; 'boolean values unexpectedly match', (host-test-render-bool; actual), (host-test-render-bool; expected)
     return none
 
 function assert-equal-float64 none throws test-failure; actual float64, expected float64
     if actual != expected
-        fail; ('expected '.concat; (host-test-render-float64; expected), ' but received ', (host-test-render-float64; actual))
+        fail-comparison; 'floating values differ', (host-test-render-float64; actual), (host-test-render-float64; expected)
     return none
 
 function assert-not-equal-float64 none throws test-failure; actual float64, expected float64
     if actual == expected
-        fail; ('expected a floating value other than '.concat; (host-test-render-float64; expected))
+        fail-comparison; 'floating values unexpectedly match', (host-test-render-float64; actual), (host-test-render-float64; expected)
     return none
 
 function assert-equal-bytes none throws test-failure; actual bytes, expected bytes
     if actual != expected
-        fail; ('expected '.concat; (host-test-render-bytes; expected), ' but received ', (host-test-render-bytes; actual))
+        fail-comparison; 'byte values differ', (host-test-render-bytes; actual), (host-test-render-bytes; expected)
     return none
 
 function assert-not-equal-bytes none throws test-failure; actual bytes, expected bytes
     if actual == expected
-        fail; ('expected bytes differing from '.concat; (host-test-render-bytes; expected))
+        fail-comparison; 'byte values unexpectedly match', (host-test-render-bytes; actual), (host-test-render-bytes; expected)
     return none
 
 function assert-present-int none throws test-failure; actual int|none
@@ -163,7 +179,7 @@ function assert-near none throws test-failure; actual float64, expected float64,
     if difference < 0.0
         difference = 0.0 - difference
     if difference > tolerance
-        fail; ('expected '.concat; (host-test-render-float64; expected), ' ± ', (host-test-render-float64; tolerance), ' but received ', (host-test-render-float64; actual))
+        fail-near; actual, expected, tolerance
     return none
 
 function assert-throws none throws test-failure; operation function to none throws throwable, expected-descriptor string

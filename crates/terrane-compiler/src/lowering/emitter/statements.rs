@@ -346,6 +346,17 @@ impl Emitter<'_> {
     }
 
     pub(super) fn rust_error_kind(&self, node: &SyntaxNode) -> String {
+        if let Some(ValueType::Object(identity)) = self.value_type(node)
+            && identity.qualified() != "/core/errors::throwable"
+        {
+            if let Some(kind) = rust_builtin_error_kind(&identity.name) {
+                return kind.to_owned();
+            }
+            let descriptor = self
+                .registry
+                .register_descriptor(&identity.qualified(), &identity.name);
+            return format!("Custom(DescriptorId({descriptor}))");
+        }
         let descriptor = if node.kind == SyntaxKind::CallExpression {
             node.children.first().unwrap_or(node)
         } else {
@@ -690,9 +701,20 @@ impl Emitter<'_> {
             let kind = self.rust_error_kind(error_node);
             if kind.starts_with("Custom(") {
                 let value = self.expression(error_node);
-                format!(
-                    "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
-                )
+                if matches!(
+                    self.value_type(error_node),
+                    Some(ValueType::Object(identity))
+                        if identity.qualified() == "/core/testing::test-failure"
+                ) || self.is_builtin(error_node, "/core/testing::test-failure")
+                {
+                    format!(
+                        "{{ let value = {value}; let details = value.details.clone().into_iter().collect(); TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}).with_structured_details(details) }}"
+                    )
+                } else {
+                    format!(
+                        "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
+                    )
+                }
             } else {
                 format!("TerraneError::raised(TerraneErrorKind::{kind}, {origin})")
             }

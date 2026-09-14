@@ -459,7 +459,7 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             "    assert-none-bytes; none\n",
             "    return none\n",
             "function test-fail none throws test-failure;\n",
-            "    fail; 'observable failure'\n    return none\n",
+            "    assert-equal-int; 3, 4\n    return none\n",
             "function test-exit;\n",
             "    exit; (make-exit-status; 7)\n",
             "function test-ignored none throws test-skip;\n",
@@ -518,7 +518,11 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         report["cases"][1]["cause"]["descriptor"],
         "/core/testing::test-failure"
     );
-    assert_eq!(report["cases"][1]["cause"]["message"], "observable failure");
+    assert_eq!(report["cases"][1]["cause"]["message"], "integer values differ");
+    assert_eq!(
+        report["cases"][1]["cause"]["details"],
+        serde_json::json!(["actual: 3", "expected: 4"])
+    );
     assert!(report["cases"][1]["cause"]["source_frames"].is_array());
     assert_eq!(report["cases"][2]["status"], "failed");
     assert_eq!(report["cases"][3]["status"], "skipped");
@@ -536,6 +540,25 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         String::from_utf8(listed.stdout).unwrap(),
         "/cli/app::test-pass [unit]\n"
     );
+
+    for (option, pattern) in [
+        ("--exact", "/cli/app::test-pass"),
+        ("--glob", "*/app::test-p?ss"),
+        ("--regex", "::test-p[a-z]+$"),
+    ] {
+        let selected = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(["--list", option, pattern])
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(selected.status.success(), "{option}");
+        assert_eq!(
+            String::from_utf8(selected.stdout).unwrap(),
+            "/cli/app::test-pass [unit]\n",
+            "{option}"
+        );
+    }
 
     let filtered = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
@@ -742,5 +765,158 @@ fn native_test_context_exposes_deadline_and_controlled_arguments() {
         String::from_utf8(output.stdout)
             .unwrap()
             .contains("1 passed; 0 skipped; 0 failed")
+    );
+}
+
+#[test]
+fn process_fixture_drains_large_output_while_the_child_runs() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("app")).unwrap();
+    fs::create_dir_all(package.0.join("tests/end-to-end")).unwrap();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"fixture-pipes\"\nprelude = false\n[profile]\nname = \"testable\"\ncapabilities = [\"process\"]\n[namespaces]\napp = \"app\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("app/main.trn"),
+        concat!(
+            "namespace app\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "    index int = 0\n",
+            "    while index < 20000\n",
+            "        print; 'output'\n",
+            "        index++\n",
+        ),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/end-to-end/pipes.trn"),
+        concat!(
+            "namespace fixture-pipes\n",
+            "from /core/errors import throwable\n",
+            "from /core/testing import application-artifact, assert, fail\n",
+            "from /core/testing/process import process-fixture, run-process\n",
+            "function test-large-output none throws throwable;\n",
+            "    artifact = application-artifact;\n",
+            "    if artifact != none\n",
+            "        result = run-process; (instance process-fixture; artifact)\n",
+            "        assert; result.stdout.length > 100000\n",
+            "    else\n",
+            "        fail; 'missing application artifact'\n",
+            "    return none\n",
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--timeout", "5s"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn process_fixture_adapter_failures_are_infrastructure_failures() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("src")).unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"fixture-infrastructure\"\nprelude = false\n[profile]\nname = \"testable\"\ncapabilities = [\"process\"]\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("src/library.trn"),
+        "namespace app\npublic constant available = true\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/unit/fixture.trn"),
+        concat!(
+            "namespace app\n",
+            "from /core/errors import throwable\n",
+            "from /core/testing/process import process-fixture, run-process\n",
+            "function test-missing-program none throws throwable;\n",
+            "    run-process; (instance process-fixture; '/definitely/missing/terrane-test-program')\n",
+            "    return none\n",
+        ),
+    )
+    .unwrap();
+    let report = package.0.join("report.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--report", report.to_str().unwrap()])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(5));
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["cases"][0]["status"], "infrastructure-failed");
+    assert_eq!(report["cases"][0]["cause"]["kind"], "infrastructure");
+    assert_eq!(
+        report["cases"][0]["cause"]["descriptor"],
+        "/core/testing::test-infrastructure-failure"
+    );
+}
+
+#[test]
+fn typed_assert_throws_rejects_the_wrong_descriptor() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("src")).unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"typed-throws\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("src/library.trn"),
+        "namespace app\npublic constant available = true\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/unit/throws.trn"),
+        concat!(
+            "namespace app\n",
+            "from /core/errors import throwable\n",
+            "from /core/testing import assert-throws, skip, test-failure, test-skip\n",
+            "function skips none throws test-skip;\n",
+            "    skip; 'not the expected descriptor'\n",
+            "    return none\n",
+            "function test-wrong-descriptor none throws throwable;\n",
+            "    assert-throws; skips, test-failure.identity\n",
+            "    return none\n",
+        ),
+    )
+    .unwrap();
+    let report = package.0.join("report.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--report", report.to_str().unwrap()])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["cases"][0]["cause"]["kind"], "assertion");
+    assert!(
+        report["cases"][0]["cause"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("expected throwable descriptor")
     );
 }

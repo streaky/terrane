@@ -4,6 +4,7 @@ from /core/collections import list
 from /core/process import encode-native-string, environment-entry, native-string
 from /core/testing import test-infrastructure-failure
 
+
 class process-fixture
     artifact string = ''
     arguments list of native-string = list
@@ -13,6 +14,7 @@ class process-fixture
 
     function construct; executable string
         this.artifact = executable
+
 
 class process-result
     exit-code int = 0

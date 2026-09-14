@@ -546,6 +546,11 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                 .children
                 .first()
                 .and_then(|error| {
+                    if let Ok(Some(ValueType::Object(identity))) =
+                        infer_value_type(unit, error, &unit.typed_bindings)
+                    {
+                        return Some(identity.qualified());
+                    }
                     let descriptor = if error.kind == SyntaxKind::CallExpression {
                         error.children.first().unwrap_or(error)
                     } else {
@@ -556,13 +561,14 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                     } else {
                         descriptor
                     };
-                    package.resolve_name_at(
-                        unit,
-                        descriptor.span.start,
-                        node_text(&unit.source, descriptor),
-                    )
+                    package
+                        .resolve_name_at(
+                            unit,
+                            descriptor.span.start,
+                            node_text(&unit.source, descriptor),
+                        )
+                        .map(|symbol| symbol.identity.clone())
                 })
-                .map(|symbol| symbol.identity.clone())
                 .into_iter()
                 .collect();
         }

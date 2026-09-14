@@ -110,14 +110,20 @@ fn test_runner(package: &SemanticPackage, tests: &[super::super::TestRunnerCase]
 }
 fn __terrane_test_record(outcome: &str, error: &TerraneError) {
     let Ok(path) = std::env::var("TERRANE_TEST_RESULT") else { return; };
+    let details = error.structured_details();
     let frames = error.source_frames();
     let mut record = format!(
-        "1\n{}\n{}\n{}\n{}\n",
+        "1\n{}\n{}\n{}\n{}\n{}\n",
         outcome,
         __terrane_test_hex(&error.descriptor_name()),
         __terrane_test_hex(error.message()),
+        details.len(),
         frames.len(),
     );
+    for detail in details {
+        record.push_str(&__terrane_test_hex(detail));
+        record.push('\n');
+    }
     for frame in frames {
         record.push_str(&__terrane_test_hex(&frame));
         record.push('\n');

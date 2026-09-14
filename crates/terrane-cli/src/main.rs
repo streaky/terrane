@@ -1407,8 +1407,9 @@ fn protocol_parse_error(
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
-     terrane test [--list] [--filter <text>] [--tier <tier>] [--jobs <count>] [--timeout <duration>] \
-     [--fail-fast] [--show-output] [--report <json-file>] <package-or-manifest>\n\
+     terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
+     [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
+     [--show-output] [--report <json-file>] <package-or-manifest>\n\
      terrane <file-or-manifest> [program arguments]\n\
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\

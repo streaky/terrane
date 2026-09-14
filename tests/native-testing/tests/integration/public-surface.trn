@@ -1,0 +1,8 @@
+namespace sample-integration
+
+from /sample import answer
+from /core/testing import assert-equal-int, test-failure
+
+function test-public-answer none throws test-failure;
+    assert-equal-int; answer, 42
+    return none

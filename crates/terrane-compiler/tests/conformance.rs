@@ -351,11 +351,21 @@ fn every_manifest_drives_a_conformance_case() {
                 let lower_path = case.join("lower.rs");
                 let expected = read_reviewed_golden(&lower_path, update_goldens);
                 let (compilation, dependencies) = if package_case {
-                    let package = terrane_compiler::Package::load(&source_path).unwrap();
-                    let compilation =
-                        terrane_compiler::compile_package_with_options(&package, options).unwrap();
-                    verify_reviewed_projection(case, &source_path, update_goldens);
-                    with_compilation_dependencies(compilation)
+                    if boolean_field(&manifest, "native-test").unwrap_or(false) {
+                        let test_package =
+                            terrane_compiler::testing::TestPackage::load(&source_path).unwrap();
+                        let mut tiers =
+                            terrane_compiler::compile_test_package(&test_package, options).unwrap();
+                        assert_eq!(tiers.len(), 1, "{}", case.display());
+                        with_compilation_dependencies(tiers.remove(0).compilation)
+                    } else {
+                        let package = terrane_compiler::Package::load(&source_path).unwrap();
+                        let compilation =
+                            terrane_compiler::compile_package_with_options(&package, options)
+                                .unwrap();
+                        verify_reviewed_projection(case, &source_path, update_goldens);
+                        with_compilation_dependencies(compilation)
+                    }
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =

@@ -1,0 +1,62 @@
+namespace sample
+
+from /core/errors import throwable
+from /core/time import clock, duration
+from /core/testing import advance-time, assert, assert-equal-bool, assert-equal-bytes, assert-equal-float64, assert-equal-int, assert-equal-string, assert-near, assert-none-bool, assert-none-bytes, assert-none-float64, assert-none-int, assert-none-string, assert-not-equal-bool, assert-not-equal-bytes, assert-not-equal-float64, assert-not-equal-int, assert-not-equal-string, assert-present-bool, assert-present-bytes, assert-present-float64, assert-present-int, assert-present-string, assert-throws, deterministic-seed, fail, temporary-directory, test-arguments, test-deadline, test-failure, test-identity, test-tier
+
+function expected-failure none throws test-failure;
+    fail; 'expected failure'
+    return none
+
+function overflowing-clock none throws test-failure;
+    advance-time; 18446744073709551616
+    return none
+
+function test-assertions-and-private-access none throws throwable;
+    assert-equal-int; secret, 7
+    assert-equal-int; answer, 42
+    assert-not-equal-int; answer, 41
+    assert-equal-string; 'terrane', 'terrane'
+    assert-not-equal-string; 'terrane', 'rust'
+    assert-equal-bool; true, true
+    assert-not-equal-bool; true, false
+    assert-equal-float64; 1.5, 1.5
+    assert-not-equal-float64; 1.5, 2.5
+    assert-equal-bytes; b'terrane', b'terrane'
+    assert-not-equal-bytes; b'terrane', b'rust'
+    assert-present-int; 1
+    assert-none-int; none
+    assert-present-string; 'present'
+    assert-none-string; none
+    assert-present-bool; true
+    assert-none-bool; none
+    assert-present-float64; 1.0
+    assert-none-float64; none
+    assert-present-bytes; b'present'
+    assert-none-bytes; none
+    assert-near; 1.0, 1.01, 0.02
+    assert-throws; expected-failure, test-failure.identity
+    assert-throws; overflowing-clock, test-failure.identity
+    assert-present-string; (temporary-directory;)
+    assert-present-string; (deterministic-seed;)
+    assert-present-string; (test-identity;)
+    assert-present-string; (test-tier;)
+    assert-equal-int; (test-arguments;).length, 0
+    limit = test-deadline;
+    assert; limit.total-nanoseconds > 0
+    return none
+
+async function test-controlled-async-time none throws throwable;
+    started = clock::monotonic;
+    advance-time; 25
+    interval = duration::nanoseconds; 25
+    await (clock::sleep; interval)
+    later = clock::monotonic;
+    elapsed = started.duration-until; ref later
+    assert-equal-int; elapsed.nanoseconds, 25
+    return none
+
+async function test-declared-throw-without-throw none throws test-failure;
+    return none
+
+async function test-declared-throw-with-implicit-return none throws test-failure;
