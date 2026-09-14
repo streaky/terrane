@@ -14,6 +14,8 @@ pub enum DebugBuild {
     Disabled,
     ExternalSources,
     EmbeddedSources,
+    EmbeddedGeneratedSources,
+    EmbeddedAllSources,
 }
 
 impl DebugBuild {
@@ -22,7 +24,14 @@ impl DebugBuild {
     }
 
     fn embeds_sources(self) -> bool {
-        self == Self::EmbeddedSources
+        matches!(self, Self::EmbeddedSources | Self::EmbeddedAllSources)
+    }
+
+    fn embeds_generated_sources(self) -> bool {
+        matches!(
+            self,
+            Self::EmbeddedGeneratedSources | Self::EmbeddedAllSources
+        )
     }
 }
 
@@ -299,6 +308,7 @@ pub fn compile_package_with_options(
             crate::debugging::DebugSymbols::from_semantic(
                 &semantic,
                 options.debug_build.embeds_sources(),
+                options.debug_build.embeds_generated_sources(),
             )
         }),
         require_canonical_rust: options.require_canonical_rust,
@@ -573,6 +583,7 @@ pub fn compile_discovered_test_tier(
             crate::debugging::DebugSymbols::from_semantic(
                 &semantic,
                 options.debug_build.embeds_sources(),
+                options.debug_build.embeds_generated_sources(),
             )
         }),
         require_canonical_rust: options.require_canonical_rust,

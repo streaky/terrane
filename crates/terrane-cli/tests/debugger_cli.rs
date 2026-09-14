@@ -46,8 +46,14 @@ impl DebugFixture {
     }
 
     fn build(&self) -> (PathBuf, PathBuf) {
+        self.build_with_flags(&[])
+    }
+
+    fn build_with_flags(&self, flags: &[&str]) -> (PathBuf, PathBuf) {
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-            .args(["debug", self.source.to_str().unwrap()])
+            .arg("debug")
+            .args(flags)
+            .arg(self.source.to_str().unwrap())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -765,6 +771,38 @@ fn cli_returns_the_debuggee_exit_status() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn adapter_renders_explicitly_embedded_generated_source_when_build_tree_is_unavailable() {
+    let fixture = DebugFixture::new();
+    let (executable, provenance) = fixture.build_with_flags(&["--embed-generated-sources"]);
+    let generated = provenance.parent().unwrap().join("src/main.rs");
+    let expected = fs::read_to_string(&generated).unwrap();
+    let mut dap = DapClient::start();
+    let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    assert_eq!(dap.read()["event"], "initialized");
+    let launch = dap.send(
+        "launch",
+        json!({
+            "program": executable,
+            "terraneProvenance": provenance,
+            "stopOnEntry": true
+        }),
+    );
+    assert!(dap.response(launch)["success"].as_bool().unwrap());
+    loop {
+        if dap.read()["event"] == "terrane/fidelity" {
+            break;
+        }
+    }
+    fs::remove_file(&generated).unwrap();
+    let request = dap.send("terrane/generatedSource", json!({"path": "src/main.rs"}));
+    let response = dap.response(request);
+    assert_eq!(response["body"]["content"], expected);
+    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    assert!(dap.response(disconnect)["success"].as_bool().unwrap());
 }
 
 #[test]

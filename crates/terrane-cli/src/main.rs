@@ -186,6 +186,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         lint_name_style,
         release,
         embed_debug_sources,
+        embed_generated_sources,
     ) = parse_input(arguments, command)?;
     let source_input = !input_path.is_dir()
         && input_path
@@ -211,10 +212,11 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             require_canonical_rust,
             lint_name_style,
             debug_build: if command == CliCommand::Debug {
-                if embed_debug_sources {
-                    terrane_compiler::DebugBuild::EmbeddedSources
-                } else {
-                    terrane_compiler::DebugBuild::ExternalSources
+                match (embed_debug_sources, embed_generated_sources) {
+                    (false, false) => terrane_compiler::DebugBuild::ExternalSources,
+                    (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
+                    (false, true) => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
+                    (true, true) => terrane_compiler::DebugBuild::EmbeddedAllSources,
                 }
             } else {
                 terrane_compiler::DebugBuild::Disabled
@@ -367,7 +369,7 @@ fn rust_debug_build_identity(crate_dir: &Path) -> Result<(String, String, String
     Ok((target, sysroot, rustc_release))
 }
 
-type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool);
+type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool);
 
 fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
@@ -376,12 +378,16 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
     let mut lint_name_style = false;
     let mut release = false;
     let mut embed_debug_sources = false;
+    let mut embed_generated_sources = false;
     while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--release" => release = true,
             "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
+            "--embed-generated-sources" if command == CliCommand::Debug => {
+                embed_generated_sources = true;
+            }
             "-o" | "--output" if command == CliCommand::Rust && output_path.is_none() => {
                 input_index += 1;
                 output_path = Some(
@@ -423,6 +429,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         lint_name_style,
         release,
         embed_debug_sources,
+        embed_generated_sources,
     ))
 }
 
@@ -1533,8 +1540,9 @@ fn protocol_parse_error(
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
-     terrane debug [--embed-sources] <file-or-manifest> [-- program arguments]\n\
+     [--release] <file-or-manifest> [-- program arguments]\n\
+     terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
+     [-- program arguments]\n\
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
@@ -1634,6 +1642,7 @@ mod tests {
                 false,
                 false,
                 true,
+                false,
                 false
             )
         );

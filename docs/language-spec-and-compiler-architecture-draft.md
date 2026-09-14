@@ -6092,12 +6092,14 @@ compiler owns authored-source, generated-Rust, semantic-identity, scope, variabl
 privacy knowledge. The translator does not patch generated Rust, rewrite DWARF, infer semantics
 from emitted names, or silently substitute another native backend.
 
-`terrane debug [--embed-sources] <file-or-manifest> [-- arguments]` selects the named
-`terrane-debug-v1` artifact profile shared by Cargo manifest emission and provenance: optimization
-level zero, full debug information, no stripping, and the Rust compiler's default inlining behavior
-at that optimization level. `terrane debug --release` is rejected rather than claiming unsupported
-optimized source fidelity. Source embedding is an explicit opt-in. Its source view supports stable
-session-local mapped-frame selection, bounded source/generated context, and bounded recursive
+`terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> [-- arguments]`
+selects the named `terrane-debug-v1` artifact profile shared by Cargo manifest
+emission and provenance: optimization level zero, full debug information, no stripping, and the
+Rust compiler's default inlining behavior at that optimization level. `terrane debug --release` is
+rejected rather than claiming unsupported optimized source fidelity. Authored and generated source
+embedding are independent explicit opt-ins. Its source view supports stable session-local
+mapped-frame selection, bounded source/generated context (falling back to an exact explicitly
+embedded generated snapshot when its build-tree file is unavailable), and bounded recursive
 focused-value expansion. `terrane debug-adapter --stdio` exposes the same translator through DAP
 and writes only framed protocol messages to stdout. Linux x86-64 with LLDB 22 is the selected
 end-to-end host. Launch is supported there; attach is experimental and additionally governed by

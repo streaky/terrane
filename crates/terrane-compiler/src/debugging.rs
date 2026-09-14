@@ -85,6 +85,8 @@ pub struct DebugAssociation {
 pub struct GeneratedFileIdentity {
     pub path: String,
     pub content_hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedded_source: Option<String>,
     pub associations: Vec<DebugAssociation>,
 }
 
@@ -163,10 +165,15 @@ pub(crate) struct DebugSymbols {
     source_roles: BTreeMap<u32, crate::SourceRole>,
     objects: Vec<DebugObject>,
     source_files: BTreeMap<u32, SourceFile>,
+    embed_generated_sources: bool,
 }
 
 impl DebugSymbols {
-    pub(crate) fn from_semantic(semantic: &SemanticPackage, embed_sources: bool) -> Self {
+    pub(crate) fn from_semantic(
+        semantic: &SemanticPackage,
+        embed_sources: bool,
+        embed_generated_sources: bool,
+    ) -> Self {
         let mut sources = Vec::new();
         let mut functions = Vec::new();
         let mut scopes = Vec::new();
@@ -200,6 +207,7 @@ impl DebugSymbols {
             source_roles,
             objects,
             source_files,
+            embed_generated_sources,
         }
     }
 
@@ -236,6 +244,7 @@ impl DebugSymbols {
                 GeneratedFileIdentity {
                     path: file.path.clone(),
                     content_hash: hash_bytes(file.contents.as_bytes()),
+                    embedded_source: self.embed_generated_sources.then(|| file.contents.clone()),
                     associations,
                 }
             })
@@ -717,7 +726,7 @@ mod tests {
             "embedded.trn",
             source.to_owned(),
             CompilerOptions {
-                debug_build: crate::DebugBuild::EmbeddedSources,
+                debug_build: crate::DebugBuild::EmbeddedAllSources,
                 ..CompilerOptions::default()
             },
         )
@@ -726,6 +735,12 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(embedded.sources[0].embedded_source.as_deref(), Some(source));
+        assert!(
+            embedded
+                .generated_files
+                .iter()
+                .all(|file| file.embedded_source.as_deref().is_some())
+        );
     }
 
     #[test]

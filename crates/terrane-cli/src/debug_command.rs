@@ -450,10 +450,7 @@ impl Adapter {
             let (mut body, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = backend.request(command, arguments)?;
-                (
-                    backend_response["body"].clone(),
-                    std::mem::take(&mut backend.events),
-                )
+                backend_body_and_events(backend, &backend_response)
             };
             if let Some(provenance) = &provenance {
                 self.frame_contexts = frame_stop_contexts(&body, provenance);
@@ -469,10 +466,7 @@ impl Adapter {
             let (body, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = backend.request(command, arguments)?;
-                (
-                    backend_response["body"].clone(),
-                    std::mem::take(&mut backend.events),
-                )
+                backend_body_and_events(backend, &backend_response)
             };
             if let Some(context) = context {
                 for scope in body["scopes"].as_array().into_iter().flatten() {
@@ -501,7 +495,8 @@ impl Adapter {
                 };
                 let body = backend_response["body"].clone();
                 let value_summaries = read_value_summaries(backend, &body, selected_layout);
-                (body, value_summaries, std::mem::take(&mut backend.events))
+                let (_, events) = backend_body_and_events(backend, &backend_response);
+                (body, value_summaries, events)
             };
             if let Some(provenance) = &provenance {
                 translate_variables(
@@ -633,13 +628,24 @@ impl Adapter {
         let path = arguments["path"]
             .as_str()
             .ok_or_else(|| debugger_failure("generated source request requires `path`"))?;
-        let path = generated_path(provenance, path);
-        let content = fs::read_to_string(&path).map_err(|error| {
-            debugger_failure(format!(
-                "cannot read generated source {}: {error}",
-                path.display()
-            ))
-        })?;
+        let generated = provenance
+            .debug
+            .generated_files
+            .iter()
+            .find(|generated| generated.path == path)
+            .ok_or_else(|| debugger_failure(format!("unknown generated source {path}")))?;
+        let disk_path = generated_path(provenance, path);
+        let disk_source = fs::read_to_string(&disk_path).ok().filter(|content| {
+            terrane_compiler::debugging::hash_bytes(content.as_bytes()) == generated.content_hash
+        });
+        let content = disk_source
+            .or_else(|| generated.embedded_source.clone())
+            .ok_or_else(|| {
+                debugger_failure(format!(
+                    "generated source {} is unavailable and was not embedded",
+                    disk_path.display()
+                ))
+            })?;
         Ok(vec![response(
             json!({"content": content, "mimeType": "text/x-rust"}),
         )])
@@ -669,6 +675,13 @@ fn with_backend_events(backend: &mut Backend, response: Value) -> Vec<Value> {
     let mut messages = vec![response];
     messages.extend(take_backend_events(backend));
     messages
+}
+
+fn backend_body_and_events(backend: &mut Backend, response: &Value) -> (Value, Vec<Value>) {
+    (
+        response["body"].clone(),
+        take_backend_events(backend).collect(),
+    )
 }
 
 struct Backend {
@@ -2592,8 +2605,22 @@ fn load_and_validate(
         let path = generated_path(&provenance, &generated.path);
         let actual = fs::read(&path)
             .ok()
-            .map(|bytes| terrane_compiler::debugging::hash_bytes(&bytes));
-        if actual.as_deref() != Some(generated.content_hash.as_str()) {
+            .filter(|bytes| {
+                terrane_compiler::debugging::hash_bytes(bytes) == generated.content_hash
+            })
+            .or_else(|| {
+                generated
+                    .embedded_source
+                    .as_deref()
+                    .map(str::as_bytes)
+                    .map(Vec::from)
+            });
+        if actual
+            .as_deref()
+            .map(terrane_compiler::debugging::hash_bytes)
+            .as_deref()
+            != Some(generated.content_hash.as_str())
+        {
             return Err(debugger_failure(format!(
                 "Terrane translation unavailable: generated source identity mismatch for {}; raw native debugging remains available",
                 path.display()

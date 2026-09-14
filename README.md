@@ -207,7 +207,7 @@ and Cargo pipeline. They differ only in how far they take the result:
 | `terrane rust -o app.rs <path>` | Writes authored lowering to `app.rs` and support code to `app.support.rs`. |
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
-| `terrane debug [--embed-sources] <path>` | Builds a native executable with exact target/toolchain/ABI provenance and opens the LLDB-backed Terrane source debugger; source snapshots are omitted unless requested. |
+| `terrane debug [--embed-sources] [--embed-generated-sources] <path>` | Builds a native executable with exact target/toolchain/ABI provenance and opens the LLDB-backed Terrane source debugger; authored and generated source snapshots are independently omitted unless requested. |
 | `terrane test [options] <package>` | Compiles one isolated runner per populated tier and runs native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
@@ -228,7 +228,8 @@ ABI recipe to it, along with target, Rust sysroot, lexical scopes, final-Rust se
 hashes, and explicit relocation roots. Translation is enabled only when those identities and the
 selected Linux x86-64 layout recipe match; otherwise raw native debugging remains available with a
 machine-readable `terrane/fidelity` reason.
-Source breakpoints, mapped frame selection, bounded source/generated context, source-point stepping,
+Source breakpoints, mapped frame selection, bounded source/generated context (including explicitly
+embedded generated-source fallback), source-point stepping,
 scope- and shadow-aware locals, bounded focused values, secret-field redaction, and
 generated/native escape hatches are available. The adapter deliberately does not advertise
 cancellation; request ingress is serialized. Attach remains experimental and host-policy-dependent.

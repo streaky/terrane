@@ -1106,14 +1106,14 @@ tests remain distinct. `/core/testing` is the first-party framework for code aut
 ## DEBUGGING
 
 ```yaml
-commands: terrane debug [--embed-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected
+commands: terrane debug [--embed-sources] [--embed-generated-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected
 backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
-build: named terrane-debug-v1 profile shared by Cargo emission and provenance; full debug information, optimization 0, no stripping, compiler-default inlining at that optimization; optional --embed-sources records build-time source snapshots
+build: named terrane-debug-v1 profile shared by Cargo emission and provenance; full debug information, optimization 0, no stripping, compiler-default inlining at that optimization; optional --embed-sources and --embed-generated-sources independently record authored and generated build-time snapshots
 provenance: deterministic schema 1.2 sidecar beside generated Rust and executable
 identity: compiler/toolchain/exact rustc release/sysroot/target/toolchain-bound ABI recipe/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
 validation: translation requires matching sidecar, executable, generated files, source bytes, compiler/schema, selected target/toolchain-bound ABI recipe, and every named debug-profile property; mismatch reports native fidelity without disabling raw native debugging
 breakpoints: every final-Rust location for an authored sequence point; non-executable lines adjust only forward within the same exact lexical scope; requested and resolved Terrane/generated locations are reported; unresolved requests remain pending
-frames: stable session-local mapped-frame indices, explicit frame selection, Terrane namespace/function identities, logical source positions, and bounded source context; generated/runtime/native frames remain available through explicit escape hatches
+frames: stable session-local mapped-frame indices, explicit frame selection, Terrane namespace/function identities, logical source positions, and bounded source context; generated source rendering uses an explicitly embedded snapshot when its exact build-tree file is unavailable; generated/runtime/native frames remain available through explicit escape hatches
 stepping: next targets a different authored sequence point in the same frame or its caller, including loop re-entry; step-out requires an exact depth decrease; only a current-location user breakpoint may be suspended while leaving that point, all other user breakpoints remain active, and temporary breakpoints are removed individually on every exit
 values: lexical binding selection uses the selected stop, scope ancestry, visibility range, and innermost shadow; raw values remain authoritative without a matching ABI recipe; exact adaptive integers use the recorded x86-64 Linux recipe; bounded strings/bytes, recursive focused-value expansion, lazy structured children, and explicit moved/optimized-out/unavailable/truncated states
 privacy: secret object fields are redacted and stripped of child, memory, and evaluation references before ordinary frontend exposure; explicit raw native inspection is a separate opt-in path
