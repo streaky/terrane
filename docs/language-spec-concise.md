@@ -1081,19 +1081,21 @@ prelude = true            # optional; defaults true
 ## TESTING
 
 ```yaml
-command: terrane test [--list] [--filter TEXT] [--tier unit|integration|end-to-end] [--jobs N] [--timeout Nms|Ns] [--fail-fast] [--show-output] [--report FILE] PACKAGE
-implementation: public framework/case execution/reporting in bundled Terrane /core/testing; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
+command: terrane test [--list] [--filter TEXT|--exact IDENTITY|--glob PATTERN|--regex PATTERN] [--tier unit|integration|end-to-end] [--jobs N] [--timeout Nms|Ns] [--argument VALUE] [--fail-fast] [--show-output] [--report FILE] PACKAGE
+implementation: public framework/case execution/reporting in bundled Terrane /core/testing; process fixtures in capability-gated /core/testing/process; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
 discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; bounded manifest overrides; top-level zero-parameter test-* functions returning none; sync/async/throwing
-order: tier, logical path, source order, function name; filters change execution only, never compilation
-unit: package source set; ordinary namespace-private access only in the declaring namespace
-integration: external consumer view; public package surface only
-end_to_end: actual production artifact exposed explicitly; /core/testing process-fixture carries lossless encoded args/environment, byte-exact input/output, exit/crash/deadline state
-test_profile: [testing.profile] selects name/capabilities/panic; defaults to ordinary package profile; testing never grants omitted capabilities
-entrypoint: generated runner main is compiler-owned; ordinary programs/scripts still require authored parameterless main
-isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases
-assertions: assert | deny | fail | typed equal/not-equal | string optional present/none | float near with tolerance | throwable callback assert-throws | skip
-assertion_invariants: operands evaluated once; exact source retained through ordinary throwing call frames; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
-reporting: deterministic human plus schema 1.0.0 JSON; pass/fail/skip/timeout/crash/compile/infrastructure states; stdout/stderr are bounded byte arrays with explicit truncation flags
+order: explicit unit -> integration -> end-to-end tier order, then logical path, source order, and function name; substring/exact/glob/regex filters are mutually exclusive and change execution only, never compilation
+unit: production source set plus unit source set; ordinary namespace-private access only in the declaring namespace
+integration: independently compiled external consumer view; public package surface only
+end_to_end: independently compiled tests drive the actual production artifact exposed as string|none; /core/testing/process process-fixture carries lossless encoded args/environment, byte-exact input/output, exit/crash/deadline state and requires process capability
+test_profile: [testing.profile] explicitly selects name/capabilities/panic; omitted fields inherit the ordinary package profile; no capability appears unless it is declared by one of those profiles
+entrypoint: one compiler-owned generated runner main per populated tier; ordinary programs/scripts still require authored parameterless main
+isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases; completed run directories are removed
+assertions: assert | deny | fail | fail-values for caller-owned typed comparisons with test-value rendering | concrete scalar/bytes equal/not-equal | concrete scalar/bytes optional present/none | float near with tolerance | throwable callback assert-throws with expected descriptor identity | skip
+assertion_invariants: operands evaluated once; structured causes retain source frames and bounded useful values; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
+context: stable identity/tier/seed/temporary-directory, typed deadline duration, repeatable controlled process arguments, and checked explicit monotonic-time advancement
+reporting: deterministic human plus schema 1.1.0 JSON with run metadata; pass/fail/skip/timeout/crash/compile/infrastructure states; stdout/stderr are bounded byte arrays with explicit truncation flags
+timeout_units: bare values are seconds; ms and s suffixes are accepted
 non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
 host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
 ```

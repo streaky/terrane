@@ -197,7 +197,7 @@ Cargo pipeline. They differ only in how far they take the result:
 | `terrane rust -o app.rs <path>` | Writes authored lowering to `app.rs` and support code to `app.support.rs`. |
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
-| `terrane test [options] <package>` | Discovers, builds once per package profile, and runs isolated native tests. |
+| `terrane test [options] <package>` | Compiles one isolated runner per populated tier and runs native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
 | `terrane fmt [--check] <path>` | Formats source through the compiler lossless tree, or reports drift without writing. |
@@ -209,12 +209,17 @@ Use `--release` with `build` or `run` for an optimized executable. Use
 bundled formatter.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
-`tests/integration`, and `tests/end-to-end`. `--list`, repeatable `--tier <tier>`, and
-`--filter <text>` select cases without changing compilation; `--jobs`, `--timeout`, `--fail-fast`,
-and `--show-output` control execution.
-`--report <path>` writes the versioned JSON report, including byte-exact bounded stdout/stderr
-arrays and truncation flags. Test roots and the non-escalating test capability profile can be
-overridden in `package.toml`:
+`tests/integration`, and `tests/end-to-end`, compiling each populated tier independently.
+`--list`, repeatable `--tier <tier>`, and one of substring `--filter <text>`, exact
+`--exact <identity>`, `--glob <pattern>`, or `--regex <pattern>` selection choose cases
+without changing compilation. `--jobs`, `--timeout`, `--fail-fast`, and `--show-output`
+control execution.
+`--argument <value>` supplies one controlled process argument to each test and may be repeated.
+Bare `--timeout` values are seconds; `ms` and `s` suffixes are explicit.
+`--report <path>` writes schema `1.1.0` JSON with run metadata, structured failure causes
+and assertion details, byte-exact bounded stdout/stderr arrays, and truncation flags.
+Test roots and the explicitly declared test capability profile can be overridden in
+`package.toml`:
 
 ```toml
 [testing]
