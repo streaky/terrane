@@ -385,11 +385,11 @@ fn execute_case(
     executable: &Path,
     application_artifact: Option<&Path>,
     run_root: &Path,
-    index: usize,
+    work_index: usize,
     case: &TestCase,
     timeout: Duration,
 ) -> TestResult {
-    let directory = run_root.join(format!("{}-{index}", std::process::id()));
+    let directory = run_root.join(format!("{}-{work_index}", std::process::id()));
     let _ = fs::remove_dir_all(&directory);
     if let Err(error) = fs::create_dir_all(&directory) {
         return infrastructure_result(case, format!("cannot create test directory: {error}"));
@@ -397,7 +397,7 @@ fn execute_case(
     let started = Instant::now();
     let mut command = Command::new(executable);
     command
-        .arg(index.to_string())
+        .arg(case.selector.to_string())
         .current_dir(&directory)
         .env_clear()
         .env("TERRANE_TEST_ID", &case.identity)

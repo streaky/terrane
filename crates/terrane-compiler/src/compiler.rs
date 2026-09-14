@@ -359,6 +359,7 @@ pub fn compile_test_package(
                 source_span: contract.span,
                 is_async: contract.is_async,
                 throws: contract.throws,
+                selector: 0,
             });
         }
     }
@@ -376,6 +377,9 @@ pub fn compile_test_package(
                 &right.identity,
             ))
     });
+    for (selector, case) in cases.iter_mut().enumerate() {
+        case.selector = selector;
+    }
     if !diagnostics.is_empty() {
         let span = diagnostics[0]
             .primary

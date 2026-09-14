@@ -50,6 +50,8 @@ pub struct TestCase {
     pub source_span: Span,
     pub is_async: bool,
     pub throws: bool,
+    /// Stable dispatch selector in the generated runner for this compiled test set.
+    pub selector: usize,
 }
 
 impl TestPackage {

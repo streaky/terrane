@@ -509,6 +509,19 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         String::from_utf8(listed.stdout).unwrap(),
         "/cli/app::test-pass [unit]\n"
     );
+
+    let filtered = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--filter", "ignored"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(filtered.status.success());
+    assert!(
+        String::from_utf8(filtered.stdout)
+            .unwrap()
+            .contains("skipped /cli/app::test-ignored"),
+    );
 }
 
 #[test]
