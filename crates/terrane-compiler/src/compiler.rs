@@ -297,17 +297,17 @@ pub fn compile_test_package_tiers(
         .iter()
         .filter(|(tier, _)| tiers.contains(tier))
     {
-        let tier_compilation = compile_test_tier(package, tier, options)?;
-        for case in &tier_compilation.cases {
+        let discovery = discover_test_tier(package, tier, options)?;
+        for case in &discovery.cases {
             if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
                 return Err(duplicate_test_identity_failure(
-                    &tier_compilation.compilation.source,
+                    &discovery.semantic.units[0].source,
                     case,
                     previous,
                 ));
             }
         }
-        compiled.push(tier_compilation);
+        compiled.push(compile_discovered_test_tier(discovery, options)?);
     }
     Ok(compiled)
 }
@@ -324,26 +324,17 @@ pub fn discover_test_package(
     let mut discovered = Vec::new();
     let mut identities = BTreeMap::<String, Span>::new();
     for (&tier, package) in &test_package.tier_packages {
-        let (semantic, cases) = discover_test_tier(package, tier)?;
-        for case in &cases {
+        let discovery = discover_test_tier(package, tier, options)?;
+        for case in &discovery.cases {
             if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
                 return Err(duplicate_test_identity_failure(
-                    &semantic.units[0].source,
+                    &discovery.semantic.units[0].source,
                     case,
                     previous,
                 ));
             }
         }
-        discovered.push(TestTierDiscovery {
-            tier,
-            cases,
-            warnings: semantics::warnings(&semantic, options.lint_name_style),
-            sources: semantic
-                .units
-                .iter()
-                .map(|unit| unit.source.clone())
-                .collect(),
-        });
+        discovered.push(discovery);
     }
     Ok(discovered)
 }
@@ -372,8 +363,9 @@ fn duplicate_test_identity_failure(
 fn discover_test_tier(
     package: &Package,
     tier: TestTier,
-) -> Result<(semantics::SemanticPackage, Vec<TestCase>), CompilationFailure> {
-    let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
+    options: CompilerOptions,
+) -> Result<TestTierDiscovery, CompilationFailure> {
+    let mut semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
         source: failure.source,
         diagnostics: failure.diagnostics,
     })?;
@@ -438,6 +430,7 @@ fn discover_test_tier(
     for (selector, case) in cases.iter_mut().enumerate() {
         case.selector = selector;
     }
+    semantic.mark_functions_referenced(cases.iter().map(|case| case.source_span));
     if !diagnostics.is_empty() {
         let span = diagnostics[0]
             .primary
@@ -455,16 +448,39 @@ fn discover_test_tier(
             diagnostics,
         });
     }
-    Ok((semantic, cases))
+    let sources = semantic
+        .units
+        .iter()
+        .map(|unit| unit.source.clone())
+        .collect();
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    Ok(TestTierDiscovery {
+        tier,
+        cases,
+        warnings,
+        sources,
+        package: package.clone(),
+        semantic,
+    })
 }
 
-fn compile_test_tier(
-    package: &Package,
-    tier: crate::testing::TestTier,
+/// Lowers one previously discovered test tier without repeating semantic analysis.
+///
+/// # Errors
+///
+/// Returns source-oriented lowering or generated-Rust validation diagnostics.
+pub fn compile_discovered_test_tier(
+    discovery: TestTierDiscovery,
     options: CompilerOptions,
 ) -> Result<crate::testing::TestTierCompilation, CompilationFailure> {
-    let (mut semantic, cases) = discover_test_tier(package, tier)?;
-    semantic.mark_functions_referenced(cases.iter().map(|case| case.source_span));
+    let TestTierDiscovery {
+        tier,
+        cases,
+        warnings: _,
+        sources,
+        package,
+        semantic,
+    } = discovery;
     let runner_cases = cases
         .iter()
         .map(|case| crate::lowering::TestRunnerCase {
@@ -485,11 +501,6 @@ fn compile_test_tier(
             || semantic.units[0].source.clone(),
             |unit| unit.source.clone(),
         );
-    let sources = semantic
-        .units
-        .iter()
-        .map(|unit| unit.source.clone())
-        .collect::<Vec<_>>();
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower_tests(&semantic, &runner_cases)
         .map_err(|failure| lowering_failure(&semantic, failure))?;
@@ -514,7 +525,7 @@ fn compile_test_tier(
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
         warnings,
-        rust_dependencies: compilation_rust_dependencies(package, &semantic.projection),
+        rust_dependencies: compilation_rust_dependencies(&package, &semantic.projection),
         dependency_containment: semantic.projection.containment,
     };
     Ok(crate::testing::TestTierCompilation {

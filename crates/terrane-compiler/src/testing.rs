@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::{
     CapabilityProfile, Diagnostic, Package, PackageLoadError, PanicProfile, SourceFile, SourceUnit,
-    Span,
+    Span, semantics::SemanticPackage,
 };
 
 /// Conventional isolation tier for a Terrane test source.
@@ -95,6 +95,8 @@ pub struct TestTierDiscovery {
     pub cases: Vec<TestCase>,
     pub warnings: Vec<Diagnostic>,
     pub sources: Vec<SourceFile>,
+    pub(crate) package: Package,
+    pub(crate) semantic: SemanticPackage,
 }
 
 /// One independently analyzed and lowered test tier.

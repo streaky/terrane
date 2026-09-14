@@ -840,6 +840,7 @@ fn native_test_compile_failures_write_structured_reports() {
     let package = TempPackage::new();
     fs::create_dir_all(package.0.join("src")).unwrap();
     fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::create_dir_all(package.0.join("tests/integration")).unwrap();
     fs::write(
         package.0.join("package.toml"),
         "package = \"compile-report\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
@@ -853,6 +854,11 @@ fn native_test_compile_failures_write_structured_reports() {
     fs::write(
         package.0.join("tests/unit/case.trn"),
         "namespace app\nfunction test-broken;\n  missing-name\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/integration/case.trn"),
+        "namespace app-tests\nfrom /app import answer\nfunction test-valid;\n  answer\n",
     )
     .unwrap();
     let report = package.0.join("report.json");
@@ -875,7 +881,15 @@ fn native_test_compile_failures_write_structured_reports() {
             .unwrap()
             .is_empty()
     );
-    assert_eq!(report["compilation"][0]["status"], "not-run");
+    assert_eq!(
+        report["compilation"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|tier| tier["status"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["not-run", "not-run"]
+    );
     assert_eq!(report["cases"].as_array().unwrap().len(), 0);
 }
 
@@ -1086,4 +1100,100 @@ fn typed_assert_throws_rejects_the_wrong_descriptor() {
             .unwrap()
             .contains("expected throwable descriptor")
     );
+}
+
+#[test]
+fn native_test_discovery_warnings_are_consistent_and_deduplicated() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("src")).unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::create_dir_all(package.0.join("tests/integration")).unwrap();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"warning-discovery\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("src/library.trn"),
+        "namespace app\nprivate constant secret int = 7\npublic constant answer int = 42\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/unit/unit.trn"),
+        "namespace app\nfunction test-unit;\n    answer\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("tests/integration/integration.trn"),
+        "namespace app-tests\nfrom /app import answer\nfunction test-integration;\n    ignored int = answer\n",
+    )
+    .unwrap();
+
+    for arguments in [
+        vec!["--list", "--tier", "unit"],
+        vec!["--filter", "missing"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(arguments)
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert_eq!(stderr.matches("binding `secret` is never read").count(), 1);
+        assert!(stderr.contains("binding `ignored` is never read"));
+        assert!(!stderr.contains("function `test-"));
+    }
+
+    let report_path = package.0.join("report.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--filter", "test-unit", "--report"])
+        .arg(&report_path)
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(stderr.matches("binding `secret` is never read").count(), 1);
+    assert!(stderr.contains("binding `ignored` is never read"));
+    assert!(!stderr.contains("function `test-"));
+    let report: serde_json::Value =
+        serde_json::from_slice(&fs::read(report_path).unwrap()).unwrap();
+    assert_eq!(
+        report["compilation"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|tier| (
+                tier["tier"].as_str().unwrap(),
+                tier["status"].as_str().unwrap()
+            ))
+            .collect::<Vec<_>>(),
+        [("unit", "compiled"), ("integration", "not-run")]
+    );
+}
+
+#[test]
+fn native_test_timeout_errors_name_the_invalid_argument() {
+    for arguments in [
+        vec!["test", "--timeout"],
+        vec!["test", "--timeout", "abc"],
+        vec!["test", "--timeout", "0"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.starts_with("error: "));
+        assert!(stderr.contains("--timeout"));
+        assert!(stderr.contains("usage: terrane"));
+    }
 }

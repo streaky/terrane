@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
     BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze,
-    compile_package, compile_test_package,
+    compile_discovered_test_tier, compile_package, compile_test_package, discover_test_package,
     testing::{TestPackage, TestTier},
 };
 
@@ -687,6 +687,43 @@ fn test_packages_discover_and_lower_tiered_ordinary_functions() {
             .compilation
             .rust
             .contains("__terrane_run(async move")
+    );
+}
+
+#[test]
+fn discovered_test_tiers_lower_without_rediscovery_warnings() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"discovered-native-tests\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/case.trn",
+        "namespace app\nfunction test-discovered;\n  value\n",
+    );
+    let test_package = TestPackage::load(&package.0).unwrap();
+    let mut discovered = discover_test_package(&test_package, CompilerOptions::default()).unwrap();
+
+    assert_eq!(discovered.len(), 1);
+    assert!(
+        discovered[0]
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "W4005")
+    );
+    let compiled =
+        compile_discovered_test_tier(discovered.pop().unwrap(), CompilerOptions::default())
+            .unwrap();
+    assert_eq!(compiled.cases[0].identity, "/app::test-discovered");
+    assert!(
+        compiled
+            .compilation
+            .rust
+            .contains("match selected.as_str()")
     );
 }
 

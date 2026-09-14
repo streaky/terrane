@@ -22,6 +22,13 @@ impl CliFailure {
         }
     }
 
+    fn usage_with(message: impl AsRef<str>) -> Self {
+        Self {
+            code: 2,
+            message: format!("error: {}\n\n{}", message.as_ref(), usage()),
+        }
+    }
+
     fn diagnostic(path: PathBuf, code: &'static str, message: String, exit_code: u8) -> Self {
         let source = terrane_compiler::SourceFile::new(0, path, String::new());
         let diagnostic = terrane_compiler::Diagnostic::unlocated_error(code, message);

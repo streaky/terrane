@@ -8,13 +8,12 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
 use super::{
-    CliCommand, CliFailure, GeneratedCrateOptions, emit_warnings, ensure_rust_toolchain,
-    generated_crate_path, prepare_artifact, record_and_prune_generated_crates,
-    write_generated_crate,
+    CliCommand, CliFailure, GeneratedCrateOptions, ensure_rust_toolchain, generated_crate_path,
+    prepare_artifact, record_and_prune_generated_crates, write_generated_crate,
 };
 use terrane_compiler::{
     Package,
-    testing::{TestCase, TestPackage, TestTier, TestTierCompilation},
+    testing::{TestCase, TestPackage, TestTier, TestTierCompilation, TestTierDiscovery},
 };
 const CAPTURE_LIMIT: usize = 1024 * 1024;
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(5);
@@ -161,10 +160,26 @@ fn load_test_package(options: &mut TestOptions) -> Result<(PathBuf, TestPackage)
     Ok((package_root, test_package))
 }
 
+fn emit_discovery_warnings(discovered_tiers: &[TestTierDiscovery]) {
+    let mut emitted = BTreeSet::new();
+    for tier in discovered_tiers {
+        for warning in &tier.warnings {
+            let source = warning
+                .primary
+                .and_then(|span| tier.sources.iter().find(|source| source.id() == span.file))
+                .unwrap_or(&tier.sources[0]);
+            let rendered = warning.render(source);
+            if emitted.insert(rendered.clone()) {
+                eprint!("{rendered}");
+            }
+        }
+    }
+}
+
 fn discover_selected_cases(
     test_package: &TestPackage,
     options: &TestOptions,
-) -> Result<Option<Vec<TestCase>>, CliFailure> {
+) -> Result<Option<(Vec<TestCase>, Vec<TestTierDiscovery>)>, CliFailure> {
     let discovered_tiers = match terrane_compiler::discover_test_package(
         test_package,
         terrane_compiler::CompilerOptions::default(),
@@ -177,6 +192,7 @@ fn discover_selected_cases(
             return Err(CliFailure::compilation(failure));
         }
     };
+    emit_discovery_warnings(&discovered_tiers);
     let cases = discovered_tiers
         .iter()
         .flat_map(|tier| tier.cases.iter().cloned())
@@ -189,15 +205,6 @@ fn discover_selected_cases(
         })
         .collect::<Vec<_>>();
     if options.list {
-        for tier in &discovered_tiers {
-            for warning in &tier.warnings {
-                let source = warning
-                    .primary
-                    .and_then(|span| tier.sources.iter().find(|source| source.id() == span.file))
-                    .unwrap_or(&tier.sources[0]);
-                eprint!("{}", warning.render(source));
-            }
-        }
         for case in &cases {
             println!("{} [{}]", case.identity, case.tier.name());
         }
@@ -207,37 +214,29 @@ fn discover_selected_cases(
         println!("0 tests selected");
         return Ok(None);
     }
-    Ok(Some(cases))
+    Ok(Some((cases, discovered_tiers)))
 }
 
 fn compile_selected_tiers(
-    test_package: &TestPackage,
+    discovered_tiers: Vec<TestTierDiscovery>,
     cases: &[TestCase],
     options: &TestOptions,
 ) -> Result<Vec<TestTierCompilation>, CliFailure> {
     let selected_tiers = cases.iter().map(|case| case.tier).collect::<BTreeSet<_>>();
     let mut compiled_tiers = Vec::new();
-    for tier in &selected_tiers {
-        let tiers = BTreeSet::from([*tier]);
-        match terrane_compiler::compile_test_package_tiers(
-            test_package,
+    for discovery in discovered_tiers
+        .into_iter()
+        .filter(|discovery| selected_tiers.contains(&discovery.tier))
+    {
+        let tier = discovery.tier;
+        match terrane_compiler::compile_discovered_test_tier(
+            discovery,
             terrane_compiler::CompilerOptions::default(),
-            &tiers,
         ) {
-            Ok(mut compiled) => {
-                emit_warnings(&compiled[0].compilation);
-                compiled_tiers.append(&mut compiled);
-            }
+            Ok(compiled) => compiled_tiers.push(compiled),
             Err(failure) => {
                 if let Some(path) = &options.report {
-                    write_compile_failure_report(
-                        path,
-                        &failure,
-                        *tier,
-                        &compiled_tiers,
-                        &selected_tiers,
-                        options,
-                    )?;
+                    write_compile_failure_report(path, &failure, tier, &compiled_tiers, options)?;
                 }
                 return Err(CliFailure::compilation(failure));
             }
@@ -249,10 +248,10 @@ fn compile_selected_tiers(
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let mut options = parse_test_options(arguments)?;
     let (package_root, test_package) = load_test_package(&mut options)?;
-    let Some(cases) = discover_selected_cases(&test_package, &options)? else {
+    let Some((cases, discovered_tiers)) = discover_selected_cases(&test_package, &options)? else {
         return Ok(ExitCode::SUCCESS);
     };
-    let compiled_tiers = compile_selected_tiers(&test_package, &cases, &options)?;
+    let compiled_tiers = compile_selected_tiers(discovered_tiers, &cases, &options)?;
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
         let application_package = Package::load(&package_root).map_err(|errors| CliFailure {
@@ -366,13 +365,15 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
             }
             "--timeout" => {
                 index += 1;
-                timeout = parse_duration(
-                    arguments
-                        .get(index)
-                        .and_then(|value| value.to_str())
-                        .ok_or_else(CliFailure::usage)?,
-                )
-                .ok_or_else(CliFailure::usage)?;
+                let value = arguments
+                    .get(index)
+                    .and_then(|value| value.to_str())
+                    .ok_or_else(|| CliFailure::usage_with("missing value for --timeout"))?;
+                timeout = parse_duration(value).ok_or_else(|| {
+                    CliFailure::usage_with(format!(
+                        "invalid --timeout value `{value}`; expected a positive duration such as `500ms`, `2s`, or `1.5`"
+                    ))
+                })?;
             }
             "--argument" => {
                 index += 1;
@@ -1052,7 +1053,6 @@ fn write_compile_failure_report(
     failure: &terrane_compiler::CompilationFailure,
     failed_tier: TestTier,
     compiled: &[TestTierCompilation],
-    selected: &BTreeSet<TestTier>,
     options: &TestOptions,
 ) -> Result<(), CliFailure> {
     write_report_value(
@@ -1062,7 +1062,7 @@ fn write_compile_failure_report(
             "run": report_run_metadata(options, "compile-failed"),
             "compilation": compilation_report(
                 compiled,
-                selected,
+                &options.tiers,
                 Some((failed_tier, failure)),
             ),
             "cases": [],
@@ -1103,11 +1103,10 @@ fn write_machine_report(
             })
         })
         .collect::<Vec<_>>();
-    let selected = compiled.iter().map(|tier| tier.tier).collect();
     let report = serde_json::json!({
         "schema_version": REPORT_SCHEMA_VERSION,
         "run": report_run_metadata(options, "completed"),
-        "compilation": compilation_report(compiled, &selected, None),
+        "compilation": compilation_report(compiled, &options.tiers, None),
         "cases": cases,
     });
     write_report_value(path, &report)
@@ -1127,4 +1126,27 @@ fn write_report_value(path: &Path, report: &serde_json::Value) -> Result<(), Cli
         serde_json::to_vec_pretty(report).expect("test report is serializable"),
     )
     .map_err(|error| CliFailure::backend(format!("cannot write test report: {error}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn signal_terminated_test_process_is_classified_as_crashed() {
+        use std::os::unix::process::ExitStatusExt;
+
+        let status = std::process::ExitStatus::from_raw(15);
+        let (classification, cause) =
+            classify_test_result(Some(&status), false, None, Duration::from_secs(1));
+
+        assert_eq!(classification, TestStatus::Crashed);
+        let cause = cause.unwrap();
+        assert_eq!(cause.kind, "crash");
+        assert_eq!(
+            cause.message,
+            "test process terminated without an exit code"
+        );
+    }
 }
