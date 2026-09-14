@@ -9,7 +9,7 @@ use terrane_compiler::highlight::{Highlight, HighlightKind, highlight};
 use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity};
 use terrane_compiler::{SourceFile, Span};
 use tokio::sync::RwLock;
-use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::jsonrpc::{Error as JsonRpcError, Result};
 use tower_lsp_server::ls_types::request::{GotoImplementationParams, GotoImplementationResponse};
 use tower_lsp_server::ls_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams,
@@ -758,10 +758,9 @@ impl LanguageServer for Backend {
                 offset,
                 &params.new_name,
             )
-            .ok();
-        let Some(proposal) = proposal else {
-            return Ok(None);
-        };
+            .map_err(|error| {
+                JsonRpcError::invalid_params(format!("{}: {}", error.code, error.message))
+            })?;
         let mut grouped = std::collections::BTreeMap::<String, Vec<_>>::new();
         for replacement in proposal.replacements {
             grouped

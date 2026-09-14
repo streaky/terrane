@@ -181,7 +181,7 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
     );
-    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nasync function main;\n    value int = answer;\n\ninterface worker\n    function work int;\n\nclass machine implements worker\n    function work int;\n        return 1\n";
+    let source = "namespace query\n\nfunction answer int;   \n    return 42\n\nasync function main;\n    value int = answer;\n\ninterface worker\n    function work int;\n\nclass machine implements worker\n    function work int;\n        return 1\n\nfunction inspect int;\n    item = instance machine;\n    result int = item.work;\n    return result\n";
     send(
         &mut stdin,
         &json!({
@@ -354,9 +354,49 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
 
     send(
         &mut stdin,
-        &json!({"jsonrpc": "2.0", "id": 10, "method": "shutdown", "params": null}),
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "textDocument/rename",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 9, "character": 13},
+                "newName": "execute"
+            }
+        }),
     );
-    let _ = receive_response(&mut stdout, 10);
+    let contract_rename = receive_response(&mut stdout, 10);
+    let contract_edits = contract_rename["result"]["documentChanges"][0]["edits"]
+        .as_array()
+        .expect("contract rename edits");
+    assert_eq!(contract_edits.len(), 3);
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "textDocument/rename",
+            "params": {
+                "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                "position": {"line": 9, "character": 13},
+                "newName": "function"
+            }
+        }),
+    );
+    let invalid_rename = receive_response(&mut stdout, 11);
+    assert_eq!(invalid_rename["error"]["code"], -32602);
+    assert!(
+        invalid_rename["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("invalid-name"))
+    );
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 12, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 12);
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
