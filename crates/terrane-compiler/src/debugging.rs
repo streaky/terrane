@@ -138,6 +138,7 @@ pub(crate) struct DebugSymbols {
     functions: Vec<DebugFunction>,
     scopes: Vec<DebugScope>,
     bindings: Vec<DebugBinding>,
+    source_roles: BTreeMap<u32, crate::SourceRole>,
     objects: Vec<DebugObject>,
     source_files: BTreeMap<u32, SourceFile>,
 }
@@ -149,8 +150,10 @@ impl DebugSymbols {
         let mut scopes = Vec::new();
         let mut bindings = Vec::new();
         let mut objects = Vec::new();
+        let mut source_roles = BTreeMap::new();
         let mut source_files = BTreeMap::new();
         for unit in &semantic.units {
+            source_roles.insert(unit.source.id(), unit.role);
             source_files.insert(unit.source.id(), unit.source.clone());
             sources.push(SourceIdentity {
                 id: unit.source.id(),
@@ -172,6 +175,7 @@ impl DebugSymbols {
             functions,
             scopes,
             bindings,
+            source_roles,
             objects,
             source_files,
         }
@@ -180,10 +184,38 @@ impl DebugSymbols {
     pub(crate) fn render(&self, files: &[RenderedFile]) -> DebugInformation {
         let generated_files = files
             .iter()
-            .map(|file| GeneratedFileIdentity {
-                path: file.path.clone(),
-                content_hash: hash_bytes(file.contents.as_bytes()),
-                associations: marker_associations(file, self),
+            .map(|file| {
+                let mut associations = marker_associations(file, self);
+                associations.extend(file.associations.iter().filter_map(|association| {
+                    let source = self.source_files.get(&association.source.file)?;
+                    let role = match self.source_roles.get(&association.source.file) {
+                        Some(
+                            crate::SourceRole::Production
+                            | crate::SourceRole::UnitTest
+                            | crate::SourceRole::IntegrationTest
+                            | crate::SourceRole::EndToEndTest,
+                        ) => ProvenanceRole::User,
+                        Some(crate::SourceRole::Bundled) => ProvenanceRole::Runtime,
+                        None => ProvenanceRole::Generated,
+                    };
+                    Some(DebugAssociation {
+                        generated: generated_range(
+                            &file.contents,
+                            association.generated_start,
+                            association.generated_end,
+                        ),
+                        causes: vec![source_span(source, association.source)],
+                        role,
+                        sequence_point: false,
+                        function_id: None,
+                        scope_ids: Vec::new(),
+                    })
+                }));
+                GeneratedFileIdentity {
+                    path: file.path.clone(),
+                    content_hash: hash_bytes(file.contents.as_bytes()),
+                    associations,
+                }
             })
             .collect();
         DebugInformation {

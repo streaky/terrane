@@ -9,6 +9,8 @@ use serde_json::{Value, json};
 use terrane_compiler::debugging::{DebugAssociation, ProvenanceManifest};
 
 use super::CliFailure;
+use base64::Engine as _;
+use num_bigint::BigUint;
 
 const MAX_RAW_STEPS: usize = 64;
 
@@ -334,13 +336,12 @@ impl Adapter {
         if command == "variables" {
             let parent_reference = arguments["variablesReference"].as_i64().unwrap_or(0);
             let provenance = self.provenance.clone();
-            let (mut body, events) = {
+            let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
                 let backend_response = backend.request(command, arguments)?;
-                (
-                    backend_response["body"].clone(),
-                    std::mem::take(&mut backend.events),
-                )
+                let body = backend_response["body"].clone();
+                let value_summaries = read_value_summaries(backend, &body);
+                (body, value_summaries, std::mem::take(&mut backend.events))
             };
             if let Some(provenance) = &provenance {
                 translate_variables(
@@ -348,6 +349,7 @@ impl Adapter {
                     provenance,
                     parent_reference,
                     &mut self.variable_objects,
+                    &value_summaries,
                 );
             }
             let mut messages = vec![response(body)];
@@ -736,9 +738,9 @@ fn association_for_frame<'a>(
         .iter()
         .find(|file| Path::new(path).ends_with(&file.path))
         .and_then(|file| {
-            file.associations
-                .iter()
-                .find(|association| association.generated.line == line)
+            file.associations.iter().find(|association| {
+                association.sequence_point && association.generated.line == line
+            })
         })
 }
 
@@ -784,6 +786,7 @@ fn translate_variables(
     provenance: &ProvenanceManifest,
     parent_reference: i64,
     variable_objects: &mut BTreeMap<i64, String>,
+    value_summaries: &BTreeMap<String, String>,
 ) {
     const MAX_VARIABLES: usize = 100;
     const MAX_VALUE_BYTES: usize = 4_096;
@@ -849,7 +852,19 @@ fn translate_variables(
                 if type_name == "Scalar(Int)"
                     && (raw.contains("terrane_int_support::Int") || raw == type_name)
                 {
-                    variable["value"] = "<unsupported layout: adaptive int>".into();
+                    let summary = variable["memoryReference"]
+                        .as_str()
+                        .and_then(|reference| value_summaries.get(reference))
+                        .cloned()
+                        .unwrap_or_else(|| "<unavailable debug information>".to_owned());
+                    variable["value"] = summary.into();
+                    variable["variablesReference"] = 0.into();
+                } else if matches!(type_name, "Scalar(String)" | "Bytes")
+                    && let Some(summary) = variable["memoryReference"]
+                        .as_str()
+                        .and_then(|reference| value_summaries.get(reference))
+                {
+                    variable["value"] = summary.clone().into();
                     variable["variablesReference"] = 0.into();
                 } else if raw.contains("optimized out") {
                     variable["value"] = "<optimized out>".into();
@@ -866,6 +881,173 @@ fn translate_variables(
                 end -= 1;
             }
             variable["value"] = format!("{}… <truncated>", &value[..end]).into();
+        }
+    }
+}
+fn read_value_summaries(backend: &mut Backend, body: &Value) -> BTreeMap<String, String> {
+    let mut summaries = BTreeMap::new();
+    for variable in body["variables"].as_array().into_iter().flatten() {
+        let Some(reference) = variable["memoryReference"].as_str() else {
+            continue;
+        };
+        let type_name = variable["type"].as_str().unwrap_or_default();
+        let summary = if type_name == "terrane_int_support::Int" {
+            Some(decode_adaptive_int(backend, reference))
+        } else if type_name.contains("string::String") {
+            Some(decode_string(backend, reference))
+        } else if type_name.contains("Vec<u8") {
+            Some(decode_bytes(backend, reference))
+        } else {
+            None
+        };
+        if let Some(summary) = summary {
+            summaries.insert(
+                reference.to_owned(),
+                summary.unwrap_or_else(|failure| failure),
+            );
+        }
+    }
+    summaries
+}
+
+fn decode_string(backend: &mut Backend, reference: &str) -> Result<String, String> {
+    let (bytes, truncated) = decode_vec_bytes(backend, reference)?;
+    let text = String::from_utf8(bytes)
+        .map_err(|_| "<unsupported layout: invalid string bytes>".to_owned())?;
+    Ok(if truncated {
+        format!("{text:?}… <truncated>")
+    } else {
+        format!("{text:?}")
+    })
+}
+
+fn decode_bytes(backend: &mut Backend, reference: &str) -> Result<String, String> {
+    use std::fmt::Write as _;
+
+    let (bytes, truncated) = decode_vec_bytes(backend, reference)?;
+    let mut rendered = String::from("b'");
+    for byte in bytes {
+        write!(rendered, "\\\\x{byte:02x}").expect("writing to a string cannot fail");
+    }
+    rendered.push('\'');
+    if truncated {
+        rendered.push_str("… <truncated>");
+    }
+    Ok(rendered)
+}
+
+fn decode_vec_bytes(backend: &mut Backend, reference: &str) -> Result<(Vec<u8>, bool), String> {
+    const MAX_BYTES: usize = 4_096;
+    let response = backend
+        .request(
+            "readMemory",
+            json!({"memoryReference": reference, "offset": 0, "count": 24}),
+        )
+        .map_err(|failure| format!("<unavailable debug information: {}>", failure.message))?;
+    let encoded = response["body"]["data"]
+        .as_str()
+        .ok_or_else(|| "<unavailable debug information>".to_owned())?;
+    let header = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|_| "<unsupported layout: invalid vector memory>".to_owned())?;
+    if header.len() < 24 {
+        return Err("<unavailable debug information>".to_owned());
+    }
+    let word = |index: usize| {
+        u64::from_le_bytes(
+            header[index * 8..index * 8 + 8]
+                .try_into()
+                .expect("bounded word slice"),
+        )
+    };
+    let pointer = word(1);
+    let length = usize::try_from(word(2))
+        .map_err(|_| "<unsupported layout: invalid vector length>".to_owned())?;
+    let selected = length.min(MAX_BYTES);
+    if selected == 0 {
+        return Ok((Vec::new(), false));
+    }
+    let response = backend
+        .request(
+            "readMemory",
+            json!({
+                "memoryReference": format!("0x{pointer:x}"),
+                "offset": 0,
+                "count": selected
+            }),
+        )
+        .map_err(|failure| format!("<unavailable debug information: {}>", failure.message))?;
+    let encoded = response["body"]["data"]
+        .as_str()
+        .ok_or_else(|| "<unavailable debug information>".to_owned())?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|_| "<unsupported layout: invalid vector contents>".to_owned())?;
+    Ok((bytes, selected < length))
+}
+
+fn decode_adaptive_int(backend: &mut Backend, reference: &str) -> Result<String, String> {
+    const NICHE: u64 = 1_u64 << 63;
+    let response = backend
+        .request(
+            "readMemory",
+            json!({"memoryReference": reference, "offset": 0, "count": 32}),
+        )
+        .map_err(|failure| format!("<unavailable debug information: {}>", failure.message))?;
+    let encoded = response["body"]["data"]
+        .as_str()
+        .ok_or_else(|| "<unavailable debug information>".to_owned())?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|_| "<unsupported layout: invalid adaptive-int memory>".to_owned())?;
+    if bytes.len() < 32 {
+        return Err("<unavailable debug information>".to_owned());
+    }
+    let word = |index: usize| {
+        u64::from_le_bytes(
+            bytes[index * 8..index * 8 + 8]
+                .try_into()
+                .expect("bounded word slice"),
+        )
+    };
+    match word(0) {
+        NICHE => Ok(word(1).cast_signed().to_string()),
+        tag if tag == NICHE + 1 => {
+            let value = i128::from_le_bytes(bytes[16..32].try_into().expect("wide payload"));
+            Ok(value.to_string())
+        }
+        _ => {
+            let length = usize::try_from(word(2))
+                .map_err(|_| "<unsupported layout: invalid bigint length>".to_owned())?;
+            if length > 1_024 {
+                return Err(format!("<truncated: adaptive int has {length} limbs>"));
+            }
+            let pointer = word(1);
+            let magnitude = backend
+                .request(
+                    "readMemory",
+                    json!({
+                        "memoryReference": format!("0x{pointer:x}"),
+                        "offset": 0,
+                        "count": length.saturating_mul(8)
+                    }),
+                )
+                .map_err(|failure| {
+                    format!("<unavailable debug information: {}>", failure.message)
+                })?;
+            let encoded = magnitude["body"]["data"]
+                .as_str()
+                .ok_or_else(|| "<unavailable debug information>".to_owned())?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .map_err(|_| "<unsupported layout: invalid bigint memory>".to_owned())?;
+            let magnitude = BigUint::from_bytes_le(&bytes).to_string();
+            match word(3) & 0xff {
+                0 => Ok(format!("-{magnitude}")),
+                1 => Ok("0".to_owned()),
+                2 => Ok(magnitude),
+                _ => Err("<unsupported layout: unknown bigint sign>".to_owned()),
+            }
         }
     }
 }
@@ -986,7 +1168,14 @@ fn show_variables(
         let response = backend.request("variables", json!({"variablesReference": reference}))?;
         let mut body = response["body"].clone();
         if !registers {
-            translate_variables(&mut body, provenance, reference, &mut variable_objects);
+            let value_summaries = read_value_summaries(backend, &body);
+            translate_variables(
+                &mut body,
+                provenance,
+                reference,
+                &mut variable_objects,
+                &value_summaries,
+            );
         }
         for variable in body["variables"].as_array().into_iter().flatten() {
             eprintln!(
@@ -1241,7 +1430,13 @@ mod tests {
             "memoryReference": "0x1234",
             "evaluateName": "credentials"
         }]});
-        translate_variables(&mut locals, &provenance, 1, &mut references);
+        translate_variables(
+            &mut locals,
+            &provenance,
+            1,
+            &mut references,
+            &BTreeMap::new(),
+        );
         assert_eq!(
             references.get(&7).map(String::as_str),
             Some("/source::credentials")
@@ -1258,7 +1453,13 @@ mod tests {
             "memoryReference": "0x2345",
             "evaluateName": "credentials.token"
         }]});
-        translate_variables(&mut fields, &provenance, 7, &mut references);
+        translate_variables(
+            &mut fields,
+            &provenance,
+            7,
+            &mut references,
+            &BTreeMap::new(),
+        );
         assert_eq!(fields["variables"][0]["value"], "visible");
         assert_eq!(fields["variables"][1]["value"], "<secret>");
         assert_eq!(fields["variables"][1]["variablesReference"], 0);

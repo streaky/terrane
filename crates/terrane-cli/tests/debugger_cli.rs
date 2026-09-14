@@ -33,9 +33,12 @@ impl DebugFixture {
                 "namespace debugger\n",
                 "from /core/output import print\n",
                 "function main;\n",
-                "  value int64 = 41\n",
-                "  value = value + 1\n",
-                "  print; value\n",
+                "  small = 41\n",
+                "  wide = 9223372036854775808\n",
+                "  big = 170141183460469231731687303715884105728\n",
+                "  text = 'hello'\n",
+                "  small = small + 1\n",
+                "  print; small\n",
             ),
         )
         .unwrap();
@@ -81,7 +84,7 @@ impl Drop for DebugFixture {
 fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let fixture = DebugFixture::new();
     let commands = format!(
-        "break {}:5\ncontinue\nlocals\ncontinue\n",
+        "break {}:8\ncontinue\nlocals\ncontinue\n",
         fixture.source.display()
     );
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -105,7 +108,13 @@ fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("verified breakpoint"), "{stderr}");
     assert!(stderr.contains("/debugger::main"), "{stderr}");
-    assert!(stderr.contains("value = 41"), "{stderr}");
+    assert!(stderr.contains("small = 41"), "{stderr}");
+    assert!(stderr.contains("wide = 9223372036854775808"), "{stderr}");
+    assert!(
+        stderr.contains("big = 170141183460469231731687303715884105728"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("text = \"hello\""), "{stderr}");
 }
 
 struct DapClient {
@@ -234,7 +243,7 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
         "setBreakpoints",
         json!({
             "source": {"path": fixture.source},
-            "breakpoints": [{"line": 5}],
+            "breakpoints": [{"line": 8}],
             "sourceModified": false
         }),
     );
@@ -262,7 +271,7 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
         stack["body"]["stackFrames"][0]["source"]["path"],
         fixture.source.to_string_lossy().as_ref()
     );
-    assert_eq!(stack["body"]["stackFrames"][0]["line"], 5);
+    assert_eq!(stack["body"]["stackFrames"][0]["line"], 8);
     assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::main");
 
     let continue_request = dap.send("continue", json!({"threadId": thread}));
