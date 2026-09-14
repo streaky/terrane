@@ -1067,6 +1067,7 @@ prelude = true            # optional; defaults true
 "example/generated" = "generated"
 ```
 - Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist drawn from `build | entropy | filesystem | networking | process | threads | tls`; `panic` is `unwind` (default) or `abort`. Rust dependency effects and gated bundled core imports must be allowed. Missing capability is source diagnostic S2032 naming profile, capability, imported namespace, and importer. Gates: `/core/streams` + `/core/process` -> `process`; `/core/filesystem` -> `filesystem`; `/core/random` + `/core/random/uuid` -> `entropy`; `/core/networking` -> `networking`; `/core/networking/tls` -> `networking` + `tls`; `/core/concurrency` -> `threads`.
+- Optional `[testing]`: `unit`, `integration`, and `end-to-end` override the conventional relative roots. `[testing.profile]` selects a named test profile with the same `capabilities` and `panic` fields as `[profile]`; omitted fields inherit the ordinary profile, so test compilation cannot acquire an undeclared capability implicitly.
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
@@ -1080,19 +1081,19 @@ prelude = true            # optional; defaults true
 ## TESTING
 
 ```yaml
-command: terrane test [package-or-source]
+command: terrane test [--list] [--filter TEXT] [--tier unit|integration|end-to-end] [--jobs N] [--timeout Nms|Ns] [--fail-fast] [--show-output] [--report FILE] PACKAGE
 implementation: public framework/case execution/reporting in bundled Terrane /core/testing; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
-discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; optional manifest overrides; top-level zero-parameter test-* functions; sync/async/throwing
+discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; bounded manifest overrides; top-level zero-parameter test-* functions returning none; sync/async/throwing
 order: tier, logical path, source order, function name; filters change execution only, never compilation
 unit: package source set; ordinary namespace-private access only in the declaring namespace
 integration: external consumer view; public package surface only
-end_to_end: drive actual built artifact through explicit lossless args/env/input/deadline and bounded stdout/stderr process fixture
-test_profile: explicit manifest selection; defaults to ordinary package profile; testing never grants omitted capabilities
+end_to_end: actual production artifact exposed explicitly; /core/testing process-fixture carries lossless encoded args/environment, byte-exact input/output, exit/crash/deadline state
+test_profile: [testing.profile] selects name/capabilities/panic; defaults to ordinary package profile; testing never grants omitted capabilities
 entrypoint: generated runner main is compiler-owned; ordinary programs/scripts still require authored parameterless main
 isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases
-assertions: assert | deny | fail | typed equal/not-equal | optional present/none | float near with tolerance | typed assert-throws | skip
-assertion_invariants: operands evaluated once; exact source retained; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
-reporting: deterministic human plus versioned machine report; pass/fail/skip/timeout/crash/compile/infrastructure states; bounded captured output
+assertions: assert | deny | fail | typed equal/not-equal | string optional present/none | float near with tolerance | throwable callback assert-throws | skip
+assertion_invariants: operands evaluated once; exact source retained through ordinary throwing call frames; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
+reporting: deterministic human plus schema 1.0.0 JSON; pass/fail/skip/timeout/crash/compile/infrastructure states; stdout/stderr are bounded byte arrays with explicit truncation flags
 non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
 host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
 ```

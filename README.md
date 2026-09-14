@@ -197,6 +197,7 @@ Cargo pipeline. They differ only in how far they take the result:
 | `terrane rust -o app.rs <path>` | Writes authored lowering to `app.rs` and support code to `app.support.rs`. |
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
+| `terrane test [options] <package>` | Discovers, builds once per package profile, and runs isolated native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
 | `terrane fmt [--check] <path>` | Formats source through the compiler lossless tree, or reports drift without writing. |
@@ -206,6 +207,26 @@ Cargo pipeline. They differ only in how far they take the result:
 Use `--release` with `build` or `run` for an optimized executable. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
+
+`terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
+`tests/integration`, and `tests/end-to-end`. `--list`, repeatable `--tier <tier>`, and
+`--filter <text>` select cases without changing compilation; `--jobs`, `--timeout`, `--fail-fast`,
+and `--show-output` control execution.
+`--report <path>` writes the versioned JSON report, including byte-exact bounded stdout/stderr
+arrays and truncation flags. Test roots and the non-escalating test capability profile can be
+overridden in `package.toml`:
+
+```toml
+[testing]
+unit = "spec/unit"
+integration = "spec/integration"
+end-to-end = "spec/end-to-end"
+
+[testing.profile]
+name = "test"
+capabilities = ["filesystem", "process"]
+panic = "unwind"
+```
 
 The source-intelligence protocol, snapshot identities, availability states, queries, and edit
 preconditions are documented in [`docs/tooling-schema.md`](docs/tooling-schema.md).
