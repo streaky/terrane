@@ -687,6 +687,12 @@ impl Projection {
             }
             sources.push((namespace.clone(), text, source_dependencies));
         }
+        Self::order_projected_sources(sources)
+    }
+
+    fn order_projected_sources(
+        mut sources: Vec<(String, String, BTreeSet<String>)>,
+    ) -> Vec<(String, String)> {
         let mut ordered = Vec::with_capacity(sources.len());
         while !sources.is_empty() {
             let remaining_names = sources

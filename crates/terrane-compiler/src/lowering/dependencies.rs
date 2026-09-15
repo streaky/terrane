@@ -122,12 +122,9 @@ fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String>
                 }
             }
             ProjectedType::BoxedInterface {
-                associated_type, ..
-            } => {
-                if let Some(associated) = associated_type {
-                    collect(&associated.ty, names);
-                }
-            }
+                associated_type: Some(associated),
+                ..
+            } => collect(&associated.ty, names),
             ProjectedType::Callback {
                 parameters, result, ..
             } => {

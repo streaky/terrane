@@ -1458,6 +1458,24 @@ impl Emitter<'_> {
                 )
             });
         let projected_chain_root = projected_chain_role == Some(crate::projection::ChainRole::Root);
+        let projected_interface_dispatch = callee
+            .children
+            .first()
+            .and_then(|receiver| self.value_type(receiver))
+            .and_then(|value_type| match value_type {
+                ValueType::Object(identity) => Some(identity),
+                _ => None,
+            })
+            .is_some_and(|identity| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .any(|descriptor| {
+                        descriptor.identity == identity
+                            && descriptor.kind == crate::semantics::ObjectKind::Interface
+                    })
+            });
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
@@ -1530,6 +1548,7 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.borrowed
+                            && !projected_interface_dispatch
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)
                                 || projected_chain_root
@@ -1733,24 +1752,6 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
-        let projected_interface_dispatch = callee
-            .children
-            .first()
-            .and_then(|receiver| self.value_type(receiver))
-            .and_then(|value_type| match value_type {
-                ValueType::Object(identity) => Some(identity),
-                _ => None,
-            })
-            .is_some_and(|identity| {
-                self.package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.descriptors)
-                    .any(|descriptor| {
-                        descriptor.identity == identity
-                            && descriptor.kind == crate::semantics::ObjectKind::Interface
-                    })
-            });
         let direct_projected_function = specialization
             .is_some_and(|specialization| specialization.direct_projected_call)
             || (callee.kind == SyntaxKind::Name

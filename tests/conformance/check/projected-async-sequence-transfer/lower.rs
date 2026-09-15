@@ -1,6 +1,6 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
+// Runtime support: async_native.rs, executor_parallel.rs, async_dependency.rs, tasks_native_parallel.rs, time_inactive.rs
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -461,43 +461,12 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 4] = [
-        "/app::load",
-        "/app::decoded-value",
-        "/app::make-number",
-        "/app::main",
-    ];
-    pub static SITES: [Site; 15] = [
-        /* terrane-site-row: site 0: /app::load (src/main.trn:9:14-9:18) */
-        { Site { function: 0, file: 0, line: 9, column: 14, end_line: 9, end_column: 18 } },
-        /* terrane-site-row: site 1: /app::load (src/main.trn:10:18-10:33) */
-        { Site { function: 0, file: 0, line: 10, column: 18, end_line: 10, end_column: 33 } },
-        /* terrane-site-row: site 2: /app::decoded-value (src/main.trn:13:12-13:16) */
-        { Site { function: 1, file: 0, line: 13, column: 12, end_line: 13, end_column: 16 } },
-        /* terrane-site-row: site 3: /app::decoded-value (src/main.trn:14:10-14:25) */
-        { Site { function: 1, file: 0, line: 14, column: 10, end_line: 14, end_column: 25 } },
-        /* terrane-site-row: site 4: /app::make-number (src/main.trn:17:10-17:24) */
-        { Site { function: 2, file: 0, line: 17, column: 10, end_line: 17, end_column: 24 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:38) */
-        { Site { function: 3, file: 0, line: 24, column: 25, end_line: 24, end_column: 38 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:29) */
-        { Site { function: 3, file: 0, line: 25, column: 16, end_line: 25, end_column: 29 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:39) */
-        { Site { function: 3, file: 0, line: 26, column: 26, end_line: 26, end_column: 39 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:45) */
-        { Site { function: 3, file: 0, line: 27, column: 32, end_line: 27, end_column: 45 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:37) */
-        { Site { function: 3, file: 0, line: 28, column: 24, end_line: 28, end_column: 37 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:29:31-29:43) */
-        { Site { function: 3, file: 0, line: 29, column: 31, end_line: 29, end_column: 43 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:30:38-30:58) */
-        { Site { function: 3, file: 0, line: 30, column: 38, end_line: 30, end_column: 58 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:31:20-31:40) */
-        { Site { function: 3, file: 0, line: 31, column: 20, end_line: 31, end_column: 40 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:32:12-32:16) */
-        { Site { function: 3, file: 0, line: 32, column: 12, end_line: 32, end_column: 16 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:33:24-33:39) */
-        { Site { function: 3, file: 0, line: 33, column: 24, end_line: 33, end_column: 39 } },
+    pub static FUNCTIONS: [&str; 2] = ["/app::wait-next", "/app::main"];
+    pub static SITES: [Site; 2] = [
+        /* terrane-site-row: site 0: /app::wait-next (src/main.trn:4:16-4:30) */
+        { Site { function: 0, file: 0, line: 4, column: 16, end_line: 4, end_column: 30 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:14-7:42) */
+        { Site { function: 1, file: 0, line: 7, column: 14, end_line: 7, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]
@@ -513,278 +482,112 @@ mod __terrane_trace {
 }
 // Source: src/main.trn
 // Namespace: app
-#[derive(Clone)]
-pub struct Record {
-    pub value: String,
-}
-impl Record {
-    pub fn terrane_construct() -> Self {
-        Self { value: String::from("") }
-    }
-    pub fn load(&mut self) {
-        let source: Row = __terrane_raised(
-            row(),
-            0 /* terrane-site: src/main.trn:9:14-9:18 */,
-        );
-        self.value = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| source.decoded::<String>()),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_generic_row_witness",
-                            "terrane_generic_row_witness::Row::decoded",
-                        ),
+async fn wait_next(mut sequence: TokioSequence) {
+    let step: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int> = __terrane_traced(
+        __terrane_await({
+                let __terrane_future = {
+                    let __terrane_call = (&mut sequence).next();
+                    async move {
+                        match crate::__terrane_dependency_await_unwind(__terrane_call)
+                            .await
+                        {
+                            Ok(Ok(value)) => {
+                                Ok(
+                                    match value {
+                                        Some(item) => {
+                                            terrane_collection_support::AsyncIterationStep::item(
+                                                terrane_int_support::Int::from(i128::from(item)),
+                                            )
+                                        }
+                                        None => {
+                                            terrane_collection_support::AsyncIterationStep::end()
+                                        }
+                                    },
+                                )
+                            }
+                            Ok(Err(error)) => {
+                                Err(
+                                    crate::TerraneForeignError(
+                                        crate::TerraneError::custom_raised(
+                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            format!(
+                                                "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
+                                            ),
+                                            crate::TERRANE_NO_SITE,
+                                        ),
+                                    ),
+                                )
+                            }
+                            Err(payload) => {
+                                Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_sequence_witness",
+                                        "terrane_sequence_witness::TokioSequence::next",
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                };
+                async move {
+                    __terrane_raised_err(
+                        __terrane_future.await,
+                        0 /* terrane-site: src/main.trn:4:16-4:30 */,
                     )
                 }
-            },
-            1 /* terrane-site: src/main.trn:10:18-10:33 */,
-        );
-    }
-}
-fn decoded_value() -> String {
-    let source: Row = __terrane_raised(
-        row(),
-        2 /* terrane-site: src/main.trn:13:12-13:16 */,
+            })
+            .await,
+        0 /* terrane-site: src/main.trn:4:16-4:30 */,
     );
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| source.decoded::<String>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "terrane_generic_row_witness",
-                        "terrane_generic_row_witness::Row::decoded",
-                    ),
-                )
-            }
-        },
-        3 /* terrane-site: src/main.trn:14:10-14:25 */,
-    );
-}
-fn make_number() -> i64 {
-    return __terrane_raised(
-        default_value::<i64>(),
-        4 /* terrane-site: src/main.trn:17:10-17:24 */,
-    );
-}
-fn accept_by_argument(value: String) {
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    let _ = &step;
 }
 fn main() {
-    let number: i64 = make_number();
-    let optional: Option<i64> = __terrane_raised(
-        sample_value::<Option<i64>>(),
-        5 /* terrane-site: src/main.trn:24:25-24:38 */,
-    );
-    let data: Vec<u8> = __terrane_raised(
-        sample_value::<Vec<u8>>(),
-        6 /* terrane-site: src/main.trn:25:16-25:29 */,
-    );
-    let values: terrane_collection_support::List<i64> = terrane_collection_support::List::new(
-        __terrane_raised(
-            sample_value::<std::vec::Vec<i64>>(),
-            7 /* terrane-site: src/main.trn:26:26-26:39 */,
-        ),
-    );
-    let names: terrane_collection_support::Map<String, i64> = terrane_collection_support::Map::new(
-        __terrane_raised(
-                sample_value::<std::collections::BTreeMap<String, i64>>(),
-                8 /* terrane-site: src/main.trn:27:32-27:45 */,
-            )
-            .into_iter()
-            .map(|(key, item)| terrane_collection_support::Entry::new(key, item))
-            .collect(),
-    );
-    let tags: terrane_collection_support::Set<String> = terrane_collection_support::Set::new(
-        __terrane_raised(
-                sample_value::<std::collections::BTreeSet<String>>(),
-                9 /* terrane-site: src/main.trn:28:24-28:37 */,
-            )
-            .into_iter()
-            .map(|item| item)
-            .collect(),
-    );
-    let rows: terrane_collection_support::Map<String, i64> = terrane_collection_support::Map::new(
-        __terrane_raised(
-                sample_rows::<i64>(),
-                10 /* terrane-site: src/main.trn:29:31-29:43 */,
-            )
-            .into_iter()
-            .map(|(key, item)| terrane_collection_support::Entry::new(key, item))
-            .collect(),
-    );
-    let numeric_rows: terrane_collection_support::Map<i64, i64> = terrane_collection_support::Map::new(
-        __terrane_raised(
-                sample_numeric_rows::<i64>(),
-                11 /* terrane-site: src/main.trn:30:38-30:58 */,
-            )
-            .into_iter()
-            .map(|(key, item)| terrane_collection_support::Entry::new(key, item))
-            .collect(),
-    );
-    let renamed: String = __terrane_raised(
-        renamed_bound_value::<String>(),
-        12 /* terrane-site: src/main.trn:31:20-31:40 */,
-    );
-    let source: Row = __terrane_raised(
-        row(),
-        13 /* terrane-site: src/main.trn:32:12-32:16 */,
-    );
-    accept_by_argument(
-        __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| source.decoded::<String>()),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_generic_row_witness",
-                            "terrane_generic_row_witness::Row::decoded",
-                        ),
+    __terrane_run(async move {
+        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let sequence: TokioSequence = __terrane_raised(
+            make_pending_tokio_sequence(),
+            1 /* terrane-site: src/main.trn:7:14-7:42 */,
+        );
+        let child: TerraneScopedTask<()> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = wait_next(sequence);
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
                     )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
                 }
-            },
-            14 /* terrane-site: src/main.trn:33:24-33:39 */,
-        ),
-    );
-    let returned: String = decoded_value();
-    println!("{}", terrane_scalar_support::scalar_text(&returned));
-    let mut item: Record = Record::terrane_construct();
-    item.load();
-    println!("{}", terrane_scalar_support::scalar_text(&item.value));
-    println!(
-        "{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&number),
-        terrane_scalar_support::scalar_text(&optional.is_some()),
-        terrane_scalar_support::scalar_text(&(data.len() as i128)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
-        .length())),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(names
-        .length())),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(tags
-        .length())),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(rows
-        .length())),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(numeric_rows
-        .length())), terrane_scalar_support::scalar_text(&renamed)
-    );
+            })
+        };
+        let outcome: TerraneTaskOutcome<()> = __terrane_await(scope.join(child)).await;
+        let _ = &outcome;
+    });
 }
-// Source: <terrane>/projected/deps/factory.trn
-// Namespace: deps/factory
-pub fn default_value<T: core::default::Default>() -> Result<
-    T,
+// Source: <terrane>/projected/deps/terrane-sequence-witness.trn
+// Namespace: deps/terrane-sequence-witness
+pub use terrane_sequence_witness::TokioSequence;
+pub fn make_pending_tokio_sequence() -> Result<
+    TokioSequence,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| factory::default_value::<T>()),
+        std::panic::AssertUnwindSafe(|| terrane_sequence_witness::make_pending_tokio_sequence()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
-                    "factory::default_value",
-                ),
-            )
-        }
-    }
-}
-pub fn renamed_bound_value<T: for<'value> factory::Decode<'value>>() -> Result<
-    T,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| factory::renamed_bound_value::<T>()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "factory",
-                    "factory::renamed_bound_value",
-                ),
-            )
-        }
-    }
-}
-pub fn sample_numeric_rows<T: factory::Sample>() -> Result<
-    std::collections::BTreeMap<i64, T>,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| factory::sample_numeric_rows::<T>()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "factory",
-                    "factory::sample_numeric_rows",
-                ),
-            )
-        }
-    }
-}
-pub fn sample_rows<T: factory::Sample>() -> Result<
-    std::collections::BTreeMap<String, T>,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| factory::sample_rows::<T>()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "factory",
-                    "factory::sample_rows",
-                ),
-            )
-        }
-    }
-}
-pub fn sample_value<T: factory::Sample>() -> Result<T, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| factory::sample_value::<T>()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "factory",
-                    "factory::sample_value",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/terrane-generic-row-witness.trn
-// Namespace: deps/terrane-generic-row-witness
-pub use terrane_generic_row_witness::Row;
-pub fn row() -> Result<Row, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_row_witness::row()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-generic-row-witness",
-                    "terrane_generic_row_witness::row",
+                    "terrane-sequence-witness",
+                    "terrane_sequence_witness::make_pending_tokio_sequence",
                 ),
             )
         }

@@ -918,47 +918,7 @@ fn write_generated_crate(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
     }
-    let declared_tokio = rust_dependencies.iter().find(|dependency| {
-        dependency.name == "tokio" && dependency.cargo_manifest_table() == "dependencies"
-    });
-    if options.uses_async_runtime {
-        if let Some(dependency) = declared_tokio {
-            let mut dependency = dependency.clone();
-            dependency.features.extend(
-                ["macros", "rt", "rt-multi-thread", "time"]
-                    .into_iter()
-                    .map(str::to_owned),
-            );
-            if options.uses_tokio_sync {
-                dependency.features.push("sync".to_owned());
-            }
-            dependency.features.sort();
-            dependency.features.dedup();
-            write_rust_dependency(&mut manifest, &dependency);
-        } else {
-            let sync = if options.uses_tokio_sync {
-                ", \"sync\""
-            } else {
-                ""
-            };
-            writeln!(
-                manifest,
-                "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}"
-            )
-            .expect("writing to a string cannot fail");
-        }
-    }
-    for dependency in rust_dependencies
-        .iter()
-        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
-        .filter(|dependency| {
-            !options.uses_async_runtime
-                || dependency.name != "tokio"
-                || dependency.cargo_manifest_table() != "dependencies"
-        })
-    {
-        write_rust_dependency(&mut manifest, dependency);
-    }
+    write_runtime_dependencies(&mut manifest, rust_dependencies, &options);
     let target_tables = rust_dependencies
         .iter()
         .map(terrane_compiler::RustDependency::cargo_manifest_table)
@@ -1027,6 +987,50 @@ fn write_generated_crate(
     write_if_changed(&directory.join("terrane-build.toml"), sources.as_bytes())
         .map_err(|error| CliFailure::backend(format!("cannot write build metadata: {error}")))?;
     Ok(())
+}
+
+fn write_runtime_dependencies(
+    manifest: &mut String,
+    rust_dependencies: &[terrane_compiler::RustDependency],
+    options: &GeneratedCrateOptions,
+) {
+    let declared_tokio = rust_dependencies.iter().find(|dependency| {
+        dependency.name == "tokio" && dependency.cargo_manifest_table() == "dependencies"
+    });
+    if options.uses_async_runtime {
+        if let Some(dependency) = declared_tokio {
+            let mut dependency = dependency.clone();
+            dependency.features.extend(
+                ["macros", "rt", "rt-multi-thread", "time"]
+                    .into_iter()
+                    .map(str::to_owned),
+            );
+            if options.uses_tokio_sync {
+                dependency.features.push("sync".to_owned());
+            }
+            dependency.features.sort();
+            dependency.features.dedup();
+            write_rust_dependency(manifest, &dependency);
+        } else {
+            let sync = if options.uses_tokio_sync {
+                ", \"sync\""
+            } else {
+                ""
+            };
+            writeln!(
+                manifest,
+                "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}"
+            )
+            .expect("writing to a string cannot fail");
+        }
+    }
+    for dependency in rust_dependencies
+        .iter()
+        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
+        .filter(|dependency| !options.uses_async_runtime || dependency.name != "tokio")
+    {
+        write_rust_dependency(manifest, dependency);
+    }
 }
 
 fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {

@@ -494,7 +494,7 @@ async fn identity_async(value: terrane_int_support::Int) -> terrane_int_support:
 }
 fn main() {
     __terrane_run(async move {
-        let _ = println!(
+        println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(| | terrane_callback_witness::open_callback(match |
             | -> Result < _, crate ::TerraneForeignError > {
@@ -524,7 +524,7 @@ fn main() {
                 terrane_int_support::Int::from(3_i128)
             ],
         );
-        let _ = println!(
+        println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(| | terrane_callback_witness::render_many(match | |
             -> Result < _, crate ::TerraneForeignError > { Ok(values.into_iter().map(|
@@ -537,7 +537,7 @@ fn main() {
             ::__terrane_dependency_panic(payload, "terrane_callback_witness",
             "terrane_callback_witness::render_many")) }, 1 /* terrane-site: src/main.trn:11:13-11:32 */))
         );
-        let _ = println!(
+        println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
             let __terrane_future = { let __terrane_call =
             terrane_callback_witness::open_async(match | | -> Result < _, crate

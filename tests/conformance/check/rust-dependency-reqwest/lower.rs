@@ -522,7 +522,7 @@ fn main() {
     __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
-                response.headers_mut();
+                let _ = response.headers_mut();
             }),
         ) {
             Ok(value) => Ok(value),

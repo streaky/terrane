@@ -451,11 +451,17 @@ fn main() {
     >::new(vec![]);
     let empty: Vec<u8> = bytes_from_octets(empty_octets);
     println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
-    let first: DigestResult = digest_bytes(sha1(), Vec::from([97, 98, 99]));
+    let first: DigestResult = digest_bytes_terrane_core_random(
+        sha1(),
+        Vec::from([97, 98, 99]),
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(first.value.value.clone()))
     );
-    let second: DigestResult = digest_bytes(md5(), Vec::from([97, 98, 99]));
+    let second: DigestResult = digest_bytes_terrane_core_random(
+        md5(),
+        Vec::from([97, 98, 99]),
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(second.value.value
         .clone()))
@@ -972,7 +978,10 @@ pub fn sha256() -> HashAlgorithm {
 pub fn sha512() -> HashAlgorithm {
     return HashAlgorithm::terrane_construct(String::from("sha-512"));
 }
-pub fn digest_bytes(algorithm: HashAlgorithm, data: Vec<u8>) -> DigestResult {
+pub fn digest_bytes_terrane_core_random(
+    algorithm: HashAlgorithm,
+    data: Vec<u8>,
+) -> DigestResult {
     let raw: TerranePlatformResult = terrane_platform_digest(&algorithm.name, data);
     let value: DigestValue = DigestValue::terrane_construct(
         algorithm.name.clone(),
@@ -1017,4 +1026,10 @@ pub fn sha1() -> HashAlgorithm {
 }
 pub fn md5() -> HashAlgorithm {
     return HashAlgorithm::terrane_construct(String::from("md5"));
+}
+pub fn digest_bytes_terrane_core_random_legacy_digests(
+    algorithm: HashAlgorithm,
+    data: Vec<u8>,
+) -> DigestResult {
+    return digest_bytes_terrane_core_random(algorithm, data);
 }

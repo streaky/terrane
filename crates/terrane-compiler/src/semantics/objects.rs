@@ -909,10 +909,12 @@ pub(super) fn validate_object_conformance(
                         object.span,
                     ));
                 };
-                if let Some(crate::projection::ProjectedKind::Interface(projected)) = package
-                    .projection
-                    .item(&resolved_interface.namespace, &resolved_interface.name)
-                    .map(|item| &item.kind)
+                if let Some(crate::projection::ProjectedKind::Interface(projected)) =
+                    resolved_interface
+                        .identity
+                        .rsplit_once("::")
+                        .and_then(|(namespace, name)| package.projection.item(namespace, name))
+                        .map(|item| &item.kind)
                 {
                     match (
                         projected.associated_type.as_ref(),
@@ -2786,21 +2788,9 @@ pub(crate) fn destination_projected_type(
                 item: Box::new(item),
             }
         }
-        ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
-            let ordered = matches!(value_type, ValueType::Map(_, _));
-            let key = destination_projected_type(package, key.value_type_ref())?;
-            let value = destination_projected_type(package, value.value_type_ref())?;
-            ProjectedType::Mapping {
-                rust_path: format!(
-                    "std::collections::{}<{}, {}>",
-                    if ordered { "BTreeMap" } else { "HashMap" },
-                    key.rust_type(),
-                    value.rust_type()
-                ),
-                key: Box::new(key),
-                value: Box::new(value),
-                ordered,
-            }
+        ValueType::Map(key, value) => destination_projected_mapping(package, key, value, true)?,
+        ValueType::UnorderedMap(key, value) => {
+            destination_projected_mapping(package, key, value, false)?
         }
         ValueType::Set(item) | ValueType::UnorderedSet(item) => {
             let ordered = matches!(value_type, ValueType::Set(_));
@@ -2820,68 +2810,16 @@ pub(crate) fn destination_projected_type(
             ProjectedType::Tuple(vec![item; *length])
         }
         ValueType::Function(parameters, result, _) => {
-            if parameters.iter().any(CallableParameterType::is_variadic) {
-                return Err("variadic source callables have no fixed Rust callback representation");
-            }
-            let parameters = parameters
-                .iter()
-                .map(|parameter| {
-                    destination_projected_type(package, parameter.element_type().value_type_ref())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let result = destination_projected_type(package, result.value_type_ref())?;
-            let rust_name = format!(
-                "fn({}) -> {}",
-                parameters
-                    .iter()
-                    .map(crate::projection::ProjectedType::rust_type)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                result.rust_type()
-            );
-            ProjectedType::Callback {
-                rust_name,
-                parameters,
-                result: Box::new(result),
-                invocation_mode: InvocationMode::Shared,
-                is_async: false,
-                retained: false,
-                send: true,
-                sync: true,
-            }
+            destination_projected_callback(package, parameters, result, false, true)?
         }
         ValueType::AsyncFunction(parameters, result, transferability, _) => {
-            if parameters.iter().any(CallableParameterType::is_variadic) {
-                return Err("variadic source callables have no fixed Rust callback representation");
-            }
-            let parameters = parameters
-                .iter()
-                .map(|parameter| {
-                    destination_projected_type(package, parameter.element_type().value_type_ref())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let result = destination_projected_type(package, result.value_type_ref())?;
-            let send = *transferability == TaskTransferability::Transferable;
-            let rust_name = format!(
-                "fn({}) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = {}>{}>>",
-                parameters
-                    .iter()
-                    .map(crate::projection::ProjectedType::rust_type)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                result.rust_type(),
-                if send { " + Send" } else { "" }
-            );
-            ProjectedType::Callback {
-                rust_name,
+            destination_projected_callback(
+                package,
                 parameters,
-                result: Box::new(result),
-                invocation_mode: InvocationMode::Shared,
-                is_async: true,
-                retained: false,
-                send,
-                sync: true,
-            }
+                result,
+                true,
+                *transferability == TaskTransferability::Transferable,
+            )?
         }
         ValueType::Object(identity) => {
             if let Some(projected) = package.projection.projected_type_named(&identity.name) {
@@ -2913,6 +2851,70 @@ pub(crate) fn destination_projected_type(
             return Err("borrowed results cannot escape a projected call");
         }
         _ => return Err("the destination is outside the closed projected result set"),
+    })
+}
+
+fn destination_projected_mapping(
+    package: &SemanticPackage,
+    key: &ElementType,
+    value: &ElementType,
+    ordered: bool,
+) -> Result<crate::projection::ProjectedType, &'static str> {
+    let key = destination_projected_type(package, key.value_type_ref())?;
+    let value = destination_projected_type(package, value.value_type_ref())?;
+    Ok(crate::projection::ProjectedType::Mapping {
+        rust_path: format!(
+            "std::collections::{}<{}, {}>",
+            if ordered { "BTreeMap" } else { "HashMap" },
+            key.rust_type(),
+            value.rust_type()
+        ),
+        key: Box::new(key),
+        value: Box::new(value),
+        ordered,
+    })
+}
+
+fn destination_projected_callback(
+    package: &SemanticPackage,
+    parameters: &[CallableParameterType],
+    result: &ElementType,
+    is_async: bool,
+    send: bool,
+) -> Result<crate::projection::ProjectedType, &'static str> {
+    if parameters.iter().any(CallableParameterType::is_variadic) {
+        return Err("variadic source callables have no fixed Rust callback representation");
+    }
+    let parameters = parameters
+        .iter()
+        .map(|parameter| {
+            destination_projected_type(package, parameter.element_type().value_type_ref())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let result = destination_projected_type(package, result.value_type_ref())?;
+    let parameters_rust = parameters
+        .iter()
+        .map(crate::projection::ProjectedType::rust_type)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let rust_name = if is_async {
+        format!(
+            "fn({parameters_rust}) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = {}>{}>>",
+            result.rust_type(),
+            if send { " + Send" } else { "" }
+        )
+    } else {
+        format!("fn({parameters_rust}) -> {}", result.rust_type())
+    };
+    Ok(crate::projection::ProjectedType::Callback {
+        rust_name,
+        parameters,
+        result: Box::new(result),
+        invocation_mode: InvocationMode::Shared,
+        is_async,
+        retained: false,
+        send,
+        sync: true,
     })
 }
 

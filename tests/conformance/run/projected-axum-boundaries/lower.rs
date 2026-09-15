@@ -499,12 +499,12 @@ async fn health() -> String {
 }
 async fn socket_task(socket: WebSocket) {
     let _ = &socket;
-    let _ = println!(
+    println!(
         "{}", terrane_scalar_support::scalar_text(&String::from("websocket upgraded"))
     );
 }
 async fn upgrade(request: WebSocketUpgrade) {
-    let _ = __terrane_raised(
+    __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let _ = request
@@ -692,7 +692,7 @@ fn main() {
             },
             5 /* terrane-site: src/main.trn:22:14-22:49 */,
         );
-        let _ = __terrane_traced(
+        __terrane_traced(
             __terrane_await({
                     let __terrane_future = verify_serve(router);
                     async move {
@@ -705,7 +705,7 @@ fn main() {
                 .await,
             7 /* terrane-site: src/main.trn:23:11-23:38 */,
         );
-        let _ = println!(
+        println!(
             "{}",
             terrane_scalar_support::scalar_text(&String::from("axum route and serve built"))
         );
