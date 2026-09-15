@@ -692,7 +692,8 @@ impl Projection {
     ///
     /// # Errors
     ///
-    /// Returns an error when imported projected sources form a cycle.
+    /// Returns an error when an imported projected name is ambiguous or projected sources form a
+    /// cycle.
     pub fn source_for_imports(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
@@ -705,6 +706,13 @@ impl Projection {
         let imports = expanded_source_imports(&all_items, imports);
         let mut sources = Vec::new();
         for (namespace, names) in &imports {
+            for name in names {
+                if let Some(details) = self.item_ambiguity(namespace, name) {
+                    return Err(format!(
+                        "projected import `{namespace}::{name}` is ambiguous: {details}"
+                    ));
+                }
+            }
             let selected = all_items
                 .iter()
                 .copied()
@@ -861,6 +869,26 @@ impl Projection {
             .filter(|item| item.namespace == namespace && item.name == name);
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
+    }
+
+    pub(crate) fn item_ambiguity(&self, namespace: &str, name: &str) -> Option<String> {
+        let mut paths = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.namespace == namespace && item.name == name)
+            .map(|item| item.rust_path.as_str())
+            .collect::<Vec<_>>();
+        if paths.len() < 2 {
+            return None;
+        }
+        paths.sort_unstable();
+        paths.dedup();
+        Some(if paths.len() == 1 {
+            format!("multiple projected items for Rust type `{}`", paths[0])
+        } else {
+            format!("projected Rust types `{}`", paths.join("`, `"))
+        })
     }
 
     #[must_use]
@@ -6979,8 +7007,22 @@ mod tests {
         *send = true;
         let direct = projection(vec![first, dependency("two", "two::Generic<B>")]);
         assert!(direct.item("/deps/shared", "Generic").is_none());
+        assert_eq!(
+            direct.item_ambiguity("/deps/shared", "Generic").as_deref(),
+            Some("projected Rust types `one::Generic<A>`, `two::Generic<B>`")
+        );
         assert!(direct.projected_type("/deps/shared", "Generic").is_none());
         assert!(!direct.projected_type_is_send("/deps/shared", "Generic"));
+        let source_error = direct
+            .source_for_imports(&BTreeMap::from([(
+                "/deps/shared".to_owned(),
+                BTreeSet::from(["Generic".to_owned()]),
+            )]))
+            .unwrap_err();
+        assert_eq!(
+            source_error,
+            "projected import `/deps/shared::Generic` is ambiguous: projected Rust types `one::Generic<A>`, `two::Generic<B>`"
+        );
         assert!(
             projection(vec![
                 nested_dependency("one", "one::Message"),

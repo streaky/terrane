@@ -2748,10 +2748,12 @@ fn collect_projected_destinations(
     Ok(())
 }
 
+type DestinationProjectionError = std::borrow::Cow<'static, str>;
+
 pub(crate) fn destination_projected_type(
     package: &SemanticPackage,
     value_type: &ValueType,
-) -> Result<crate::projection::ProjectedType, &'static str> {
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
     use crate::projection::ProjectedType;
     Ok(match value_type {
         ValueType::Scalar(ScalarType::None) => ProjectedType::None,
@@ -2823,21 +2825,27 @@ pub(crate) fn destination_projected_type(
         }
         ValueType::Object(identity) => destination_projected_object(package, identity)?,
         ValueType::Reference(_) | ValueType::SharedReference(_) => {
-            return Err("borrowed results cannot escape a projected call");
+            return Err("borrowed results cannot escape a projected call".into());
         }
-        _ => return Err("the destination is outside the closed projected result set"),
+        _ => return Err("the destination is outside the closed projected result set".into()),
     })
 }
 
 fn destination_projected_object(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
-) -> Result<crate::projection::ProjectedType, &'static str> {
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
     if let Some(projected) = package
         .projection
         .projected_type(&identity.namespace, &identity.name)
     {
         return Ok(projected);
+    }
+    if let Some(details) = package
+        .projection
+        .item_ambiguity(&identity.namespace, &identity.name)
+    {
+        return Err(format!("projected object `{identity}` is ambiguous: {details}").into());
     }
     let item = package
         .projection
@@ -2864,7 +2872,7 @@ fn destination_projected_mapping(
     key: &ElementType,
     value: &ElementType,
     ordered: bool,
-) -> Result<crate::projection::ProjectedType, &'static str> {
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
     let key = destination_projected_type(package, key.value_type_ref())?;
     let value = destination_projected_type(package, value.value_type_ref())?;
     Ok(crate::projection::ProjectedType::Mapping {
@@ -2886,9 +2894,9 @@ fn destination_projected_callback(
     result: &ElementType,
     is_async: bool,
     send: bool,
-) -> Result<crate::projection::ProjectedType, &'static str> {
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
     if parameters.iter().any(CallableParameterType::is_variadic) {
-        return Err("variadic source callables have no fixed Rust callback representation");
+        return Err("variadic source callables have no fixed Rust callback representation".into());
     }
     let parameters = parameters
         .iter()

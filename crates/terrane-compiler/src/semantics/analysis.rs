@@ -544,6 +544,17 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             ));
         }
         if projection.item(&import.target, &import.object).is_none() {
+            if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
+                return Err(failure(
+                    &import.source,
+                    "S2056",
+                    format!(
+                        "Rust dependency member `{}` in `{}` is ambiguous: {details}",
+                        import.object, import.target
+                    ),
+                    import.span,
+                ));
+            }
             if let Some(removed) = projection
                 .removed
                 .iter()
