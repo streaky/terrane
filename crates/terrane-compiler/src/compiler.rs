@@ -47,6 +47,11 @@ pub struct Compilation {
     pub source: SourceFile,
     pub sources: Vec<SourceFile>,
     pub rust: String,
+    /// Human-oriented lowering with runtime bodies elided.
+    ///
+    /// This is not a compilation artifact and carries no canonical-format guarantee. In
+    /// particular, authored module text is embedded for review as authored; use
+    /// [`Compilation::rust_files_for`] when canonical-format validation is required.
     pub review_rust: String,
     rendered_rust: crate::rust_ir::RenderedProgram,
     require_canonical_rust: bool,
