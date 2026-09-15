@@ -1,0 +1,15 @@
+namespace example/snapshot
+
+from /core/collections import list
+from /example/model import frame-body
+
+public class frame-state
+    bodies list of frame-body = list
+
+    function construct; bodies (list of frame-body)
+        this.bodies = bodies
+
+public function make-frame frame-state;
+    bodies list of frame-body = list
+    bodies.append; (instance frame-body; 7.5)
+    return instance frame-state; bodies

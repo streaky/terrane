@@ -1,0 +1,4 @@
+package = "member-access-without-type-import"
+
+[namespaces]
+example = "src"
