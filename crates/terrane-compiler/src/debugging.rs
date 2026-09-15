@@ -29,7 +29,7 @@ pub const DEBUG_ARTIFACT_PROFILE: DebugArtifactProfile = DebugArtifactProfile {
     panic: "package-policy",
 };
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProvenanceRole {
     User,
@@ -187,7 +187,8 @@ impl DebugSymbols {
                 id: unit.source.id(),
                 uri: unit.source_path.clone(),
                 content_hash: hash_bytes(unit.source.text().as_bytes()),
-                embedded_source: embed_sources.then(|| unit.source.text().to_owned()),
+                embedded_source: (embed_sources || unit.role == crate::SourceRole::Bundled)
+                    .then(|| unit.source.text().to_owned()),
             });
             append_unit_symbols(
                 semantic,
