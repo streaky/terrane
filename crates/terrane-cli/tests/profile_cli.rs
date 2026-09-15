@@ -72,13 +72,14 @@ fn perf_available(directory: &Path) -> bool {
 }
 
 fn workload(iterations: u64, exit: Option<i32>) -> String {
-    let exit_import = exit
-        .is_some()
-        .then_some("from /core/process import exit, make-exit-status\n\n")
-        .unwrap_or_default();
-    let exit_statement = exit
-        .map(|status| format!("  exit; (make-exit-status; {status})\n"))
-        .unwrap_or_default();
+    let exit_import = if exit.is_some() {
+        "from /core/process import exit, make-exit-status\n\n"
+    } else {
+        ""
+    };
+    let exit_statement = exit.map_or_else(String::new, |status| {
+        format!("  exit; (make-exit-status; {status})\n")
+    });
     format!(
         "namespace profile\n\n{exit_import}function main;\n  count int64 = {iterations}\n  index int64 = 0\n  total int64 = 0\n  while index < count\n    total = total + (index % 97)\n    index++\n  print; total\n{exit_statement}"
     )

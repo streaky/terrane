@@ -12,9 +12,9 @@ use std::time::{Duration, Instant};
 use terrane_compiler::debugging::DebugInformation;
 use terrane_compiler::profiling::{
     ATTRIBUTION_SCHEMA_VERSION, ArgumentPolicy, CapturedModule, CollectionConditions,
-    CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, EvidenceKind, EvidenceUnit,
-    MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame, NativeSourceLocation, PrivacyDeclaration,
-    ProfileArtifact, SCHEMA_VERSION,
+    CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, Disclosure, EvidenceKind,
+    EvidenceUnit, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame, NativeSourceLocation,
+    PrivacyDeclaration, ProfileArtifact, SCHEMA_VERSION,
 };
 use terrane_compiler::provenance::{BuildIdentity, BuildProvenance, hash_bytes};
 
@@ -97,10 +97,13 @@ struct ParsedPerfEvidence {
     truncated_events: u64,
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "recording binds one compiled artifact, its compiler metadata, and explicit CLI policy"
-)]
+#[derive(Debug)]
+struct CapturedRun {
+    status: ExitStatus,
+    elapsed: Duration,
+    evidence: ParsedPerfEvidence,
+}
+
 pub(super) fn record(
     options: &RecordOptions,
     package: &terrane_compiler::Package,
@@ -129,18 +132,51 @@ pub(super) fn record(
             "perf collection failed with {status} before recording usable CPU samples"
         )));
     }
-    let (exit_code, terminating_signal) = status_parts(&status);
-    let retained_arguments = options
-        .retain_arguments
-        .then(|| {
-            options
-                .program_arguments
-                .iter()
-                .map(|argument| argument.to_string_lossy().into_owned())
-                .collect()
-        })
-        .unwrap_or_default();
-    let artifact = ProfileArtifact {
+    let capture = CapturedRun {
+        status,
+        elapsed,
+        evidence,
+    };
+    let exit_code = command_exit_code(capture.status);
+    let artifact = assemble_artifact(
+        options,
+        debug,
+        executable,
+        provenance,
+        perf_version,
+        capture,
+    );
+    artifact.validate().map_err(CliFailure::backend)?;
+    write_artifact(&options.output, &artifact)?;
+    eprintln!(
+        "recorded {} CPU samples ({} lost, {} truncated) in {}",
+        artifact.evidence.samples.len(),
+        artifact.evidence.loss.lost_events,
+        artifact.evidence.loss.truncated_events,
+        options.output.display()
+    );
+    Ok(ExitCode::from(exit_code))
+}
+
+fn assemble_artifact(
+    options: &RecordOptions,
+    debug: DebugInformation,
+    executable: &Path,
+    provenance: BuildProvenance,
+    perf_version: String,
+    capture: CapturedRun,
+) -> ProfileArtifact {
+    let (exit_code, terminating_signal) = status_parts(capture.status);
+    let retained_arguments = if options.retain_arguments {
+        options
+            .program_arguments
+            .iter()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    ProfileArtifact {
         schema_version: SCHEMA_VERSION.to_owned(),
         evidence_kind: EvidenceKind::CpuSamples,
         evidence_unit: EvidenceUnit::SampleCount,
@@ -173,48 +209,50 @@ pub(super) fn record(
             included_threads: "all".to_owned(),
             sample_frequency_hz: DEFAULT_FREQUENCY_HZ,
             sample_period: "frequency-derived".to_owned(),
-            elapsed_nanoseconds: duration_nanoseconds(elapsed),
-            active_nanoseconds: duration_nanoseconds(elapsed),
+            elapsed_nanoseconds: duration_nanoseconds(capture.elapsed),
+            active_nanoseconds: duration_nanoseconds(capture.elapsed),
             warmup_nanoseconds: None,
             process_exit_code: exit_code,
             terminating_signal,
             interrupted: terminating_signal.is_some(),
         },
         privacy: PrivacyDeclaration {
-            source_paths: true,
-            symbol_names: true,
+            source_paths: Disclosure::Included,
+            symbol_names: Disclosure::Included,
             arguments: if options.retain_arguments {
                 ArgumentPolicy::Retained
             } else {
                 ArgumentPolicy::Omitted
             },
-            timing: true,
-            embedded_sources: options.embed_sources,
+            timing: Disclosure::Included,
+            embedded_sources: if options.embed_sources {
+                Disclosure::Included
+            } else {
+                Disclosure::Omitted
+            },
         },
         evidence: CpuEvidence {
             loss: CollectionLoss {
-                lost_events: evidence.lost_events,
-                captured_events: evidence.samples.len() as u64,
-                truncated_events: evidence.truncated_events,
+                lost_events: capture.evidence.lost_events,
+                captured_events: capture.evidence.samples.len() as u64,
+                truncated_events: capture.evidence.truncated_events,
             },
-            modules: evidence.modules,
-            samples: evidence.samples,
+            modules: capture.evidence.modules,
+            samples: capture.evidence.samples,
         },
-    };
-    artifact.validate().map_err(CliFailure::backend)?;
-    write_artifact(&options.output, &artifact)?;
-    eprintln!(
-        "recorded {} CPU samples ({} lost, {} truncated) in {}",
-        artifact.evidence.samples.len(),
-        artifact.evidence.loss.lost_events,
-        artifact.evidence.loss.truncated_events,
-        options.output.display()
-    );
-    Ok(ExitCode::from(
-        exit_code
-            .and_then(|code| u8::try_from(code).ok())
-            .unwrap_or_else(|| terminating_signal.map_or(1, |signal| 128 + signal as u8)),
-    ))
+    }
+}
+
+fn command_exit_code(status: ExitStatus) -> u8 {
+    let (exit_code, terminating_signal) = status_parts(status);
+    exit_code
+        .and_then(|code| u8::try_from(code).ok())
+        .or_else(|| {
+            terminating_signal
+                .and_then(|signal| u8::try_from(signal).ok())
+                .and_then(|signal| 128_u8.checked_add(signal))
+        })
+        .unwrap_or(1)
 }
 
 fn duration_nanoseconds(duration: Duration) -> u64 {
@@ -366,7 +404,7 @@ fn install_signal_flags() -> Result<Vec<(i32, Arc<AtomicBool>)>, CliFailure> {
         .collect()
 }
 
-fn status_parts(status: &ExitStatus) -> (Option<i32>, Option<i32>) {
+fn status_parts(status: ExitStatus) -> (Option<i32>, Option<i32>) {
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt as _;
@@ -405,7 +443,7 @@ fn parse_capture(
     }
     parse_perf_script(
         &String::from_utf8_lossy(&output.stdout),
-        build_ids,
+        &build_ids,
         executable,
         executable_hash,
     )
@@ -437,7 +475,7 @@ fn perf_build_ids(capture: &Path) -> Result<BTreeMap<String, String>, CliFailure
 
 fn parse_perf_script(
     script: &str,
-    build_ids: BTreeMap<String, String>,
+    build_ids: &BTreeMap<String, String>,
     executable: &Path,
     executable_hash: &str,
 ) -> Result<ParsedPerfEvidence, String> {
@@ -464,34 +502,7 @@ fn parse_perf_script(
                 current = None;
                 continue;
             }
-            let mut fields = line.split_whitespace();
-            let identity = fields
-                .next()
-                .ok_or_else(|| format!("cannot decode perf process identity from `{line}`"))?;
-            let (process_id, thread_id) = if let Some((process, thread)) = identity.split_once('/')
-            {
-                (process.parse().ok(), thread.parse().ok())
-            } else {
-                (
-                    identity.parse().ok(),
-                    fields.next().and_then(|value| value.parse().ok()),
-                )
-            };
-            let process_id = process_id
-                .ok_or_else(|| format!("cannot decode perf process identity from `{line}`"))?;
-            let thread_id = thread_id
-                .ok_or_else(|| format!("cannot decode perf thread identity from `{line}`"))?;
-            let timestamp = fields
-                .next()
-                .and_then(|value| value.trim_end_matches(':').parse::<f64>().ok())
-                .ok_or_else(|| format!("cannot decode perf timestamp from `{line}`"))?;
-            current = Some(CpuSample {
-                process_id,
-                thread_id,
-                monotonic_nanoseconds: (timestamp * 1_000_000_000.0).max(0.0) as u64,
-                stack: Vec::new(),
-                unreadable: false,
-            });
+            current = Some(parse_sample_header(line)?);
             continue;
         }
         let trimmed = line.trim();
@@ -506,39 +517,24 @@ fn parse_perf_script(
                 truncated_events = truncated_events.saturating_add(1);
                 continue;
             }
-            let module = if let Some(index) = module_indices.get(&module_path) {
-                *index
-            } else {
-                let path = PathBuf::from(&module_path);
-                let canonical = path.canonicalize().unwrap_or(path);
-                let is_profiled_executable = canonical == executable;
-                let content_hash = if is_profiled_executable {
-                    executable_hash.to_owned()
-                } else {
-                    fs::read(&canonical)
-                        .map(|bytes| hash_bytes(&bytes))
-                        .unwrap_or_else(|_| "unavailable".to_owned())
-                };
-                let index = modules.len();
-                modules.push(CapturedModule {
-                    path: module_path.clone(),
-                    build_id: build_ids
-                        .get(&module_path)
-                        .cloned()
-                        .unwrap_or_else(|| "unavailable".to_owned()),
-                    content_hash,
-                    is_profiled_executable,
-                });
-                module_indices.insert(module_path, index);
-                index
-            };
+            let module = module_index(
+                &module_path,
+                &mut module_indices,
+                &mut modules,
+                build_ids,
+                &executable,
+                executable_hash,
+            );
+            let inline = sample.stack.last().is_some_and(|caller| {
+                caller.module == module && caller.module_offset == module_offset
+            });
             sample.stack.push(NativeFrame {
                 module,
                 module_offset,
                 symbol,
                 symbol_offset,
                 generated_location: None,
-                inline: false,
+                inline,
             });
         } else if let Some(location) = parse_source_location(trimmed)
             && let Some(frame) = sample.stack.last_mut()
@@ -554,12 +550,99 @@ fn parse_perf_script(
             sample.unreadable = true;
         }
     }
+    if !modules.iter().any(|module| module.is_profiled_executable) {
+        let path = executable.to_string_lossy().into_owned();
+        modules.push(CapturedModule {
+            build_id: build_ids
+                .get(&path)
+                .cloned()
+                .unwrap_or_else(|| "unavailable".to_owned()),
+            path,
+            content_hash: executable_hash.to_owned(),
+            is_profiled_executable: true,
+        });
+    }
     Ok(ParsedPerfEvidence {
         modules,
         samples,
         lost_events,
         truncated_events,
     })
+}
+
+fn parse_sample_header(line: &str) -> Result<CpuSample, String> {
+    let mut fields = line.split_whitespace();
+    let identity = fields
+        .next()
+        .ok_or_else(|| format!("cannot decode perf process identity from `{line}`"))?;
+    let (process_id, thread_id) = if let Some((process, thread)) = identity.split_once('/') {
+        (process.parse().ok(), thread.parse().ok())
+    } else {
+        (
+            identity.parse().ok(),
+            fields.next().and_then(|value| value.parse().ok()),
+        )
+    };
+    let process_id =
+        process_id.ok_or_else(|| format!("cannot decode perf process identity from `{line}`"))?;
+    let thread_id =
+        thread_id.ok_or_else(|| format!("cannot decode perf thread identity from `{line}`"))?;
+    let timestamp = fields
+        .next()
+        .and_then(|value| parse_timestamp_nanoseconds(value.trim_end_matches(':')))
+        .ok_or_else(|| format!("cannot decode perf timestamp from `{line}`"))?;
+    Ok(CpuSample {
+        process_id,
+        thread_id,
+        monotonic_nanoseconds: timestamp,
+        stack: Vec::new(),
+        unreadable: false,
+    })
+}
+
+fn parse_timestamp_nanoseconds(value: &str) -> Option<u64> {
+    let (seconds, fraction) = value.split_once('.').unwrap_or((value, ""));
+    let seconds = seconds.parse::<u64>().ok()?;
+    let mut fraction = fraction.chars().take(9).collect::<String>();
+    fraction.extend(std::iter::repeat_n('0', 9 - fraction.len()));
+    seconds
+        .checked_mul(1_000_000_000)?
+        .checked_add(fraction.parse().ok()?)
+}
+
+fn module_index(
+    module_path: &str,
+    indices: &mut BTreeMap<String, usize>,
+    modules: &mut Vec<CapturedModule>,
+    build_ids: &BTreeMap<String, String>,
+    executable: &Path,
+    executable_hash: &str,
+) -> usize {
+    if let Some(index) = indices.get(module_path) {
+        return *index;
+    }
+    let path = PathBuf::from(module_path);
+    let canonical = path.canonicalize().unwrap_or(path);
+    let is_profiled_executable = canonical == executable;
+    let content_hash = if is_profiled_executable {
+        executable_hash.to_owned()
+    } else if let Ok(bytes) = fs::read(&canonical) {
+        hash_bytes(&bytes)
+    } else {
+        "unavailable".to_owned()
+    };
+    let index = modules.len();
+    modules.push(CapturedModule {
+        path: module_path.to_owned(),
+        build_id: build_ids
+            .get(module_path)
+            .cloned()
+            .unwrap_or_else(|| "unavailable".to_owned()),
+        content_hash,
+        is_profiled_executable,
+    });
+    indices.insert(module_path.to_owned(), index);
+    index
 }
 
 fn parse_frame(line: &str) -> Option<(String, u64, Option<String>, Option<u64>)> {
@@ -632,7 +715,7 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         relocated_executable.as_path()
     };
     if let Err(reason) = artifact.provenance.validate_executable(executable) {
-        report.fidelity = "reduced-native".to_owned();
+        "reduced-native".clone_into(&mut report.fidelity);
         report.fidelity_reasons.push(reason);
     }
     validate_captured_modules(&artifact, executable, &mut report);
@@ -710,11 +793,9 @@ fn validate_captured_modules(
         } else {
             Path::new(&module.path)
         };
-        let matches = fs::read(path)
-            .map(|bytes| hash_bytes(&bytes) == module.content_hash)
-            .unwrap_or(false);
+        let matches = fs::read(path).is_ok_and(|bytes| hash_bytes(&bytes) == module.content_hash);
         if !matches {
-            report.fidelity = "reduced-native".to_owned();
+            "reduced-native".clone_into(&mut report.fidelity);
             report.fidelity_reasons.push(format!(
                 "captured module `{}` is missing or changed",
                 module.path
@@ -747,12 +828,12 @@ fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
             "--native" => options.native = true,
             "--format" => {
                 index += 1;
-                options.format = arguments
+                arguments
                     .get(index)
                     .and_then(|value| value.to_str())
                     .filter(|value| matches!(*value, "text" | "json"))
                     .ok_or_else(CliFailure::usage)?
-                    .to_owned();
+                    .clone_into(&mut options.format);
             }
             "--limit" => {
                 index += 1;
@@ -805,13 +886,16 @@ fn render_text_report(
     report: &terrane_compiler::profiling::AttributionReport,
     options: &ShowOptions,
 ) {
+    let elapsed_seconds = artifact.conditions.elapsed_nanoseconds / 1_000_000_000;
+    let elapsed_milliseconds = artifact.conditions.elapsed_nanoseconds % 1_000_000_000 / 1_000_000;
     println!(
-        "CPU samples: {} captured, {} lost, {} truncated; {} Hz; {:.3}s elapsed",
+        "CPU samples: {} captured, {} lost, {} truncated; {} Hz; {}.{:03}s elapsed",
         report.captured_samples,
         report.lost_samples,
         report.truncated_samples,
         artifact.conditions.sample_frequency_hz,
-        artifact.conditions.elapsed_nanoseconds as f64 / 1_000_000_000.0
+        elapsed_seconds,
+        elapsed_milliseconds
     );
     println!(
         "collector: {} {}; build: {}; fidelity: {}",
@@ -834,8 +918,8 @@ fn render_text_report(
     ] {
         let samples = report.buckets.get(&quality).copied().unwrap_or(0);
         println!(
-            "{samples:>9} {:>7.2}%  {}",
-            samples as f64 * 100.0 / report.captured_samples.max(1) as f64,
+            "{samples:>9} {:>8}  {}",
+            percentage(samples, report.captured_samples),
             quality.label()
         );
     }
@@ -876,6 +960,14 @@ fn render_text_report(
     for stack in &report.flame_graph {
         println!("{} {}", stack.frames.join(";"), stack.samples);
     }
+}
+
+fn percentage(part: u64, total: u64) -> String {
+    let basis_points = part
+        .saturating_mul(10_000)
+        .checked_div(total.max(1))
+        .unwrap_or(0);
+    format!("{}.{:02}%", basis_points / 100, basis_points % 100)
 }
 
 fn read_artifact(path: &Path) -> Result<ProfileArtifact, CliFailure> {
@@ -969,10 +1061,12 @@ mod tests {
         let script = "123/123 10.250000000: cpu-clock:u: \n\
 \t    400123 hot+0x3 (/tmp/program+0x123)\n\
   /tmp/build/src/main.rs:42\n\
+\t    400123 inline_parent+0x1 (/tmp/program+0x123)\n\
+  /tmp/build/src/main.rs:12\n\
 \t    7f00 [unknown] (/usr/lib/libc.so.6+0x100)\n\n";
         let evidence = parse_perf_script(
             script,
-            BTreeMap::from([
+            &BTreeMap::from([
                 ("/tmp/program".to_owned(), "program-id".to_owned()),
                 ("/usr/lib/libc.so.6".to_owned(), "libc-id".to_owned()),
             ]),
@@ -981,7 +1075,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(evidence.samples.len(), 1);
-        assert_eq!(evidence.samples[0].stack.len(), 2);
+        assert_eq!(evidence.samples[0].stack.len(), 3);
         assert_eq!(evidence.samples[0].stack[0].module_offset, 0x123);
         assert_eq!(
             evidence.samples[0].stack[0]
@@ -991,6 +1085,7 @@ mod tests {
                 .line,
             42
         );
+        assert!(evidence.samples[0].stack[1].inline);
         assert_eq!(evidence.modules[0].build_id, "program-id");
         assert!(evidence.modules[0].is_profiled_executable);
     }

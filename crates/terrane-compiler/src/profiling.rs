@@ -44,13 +44,20 @@ pub enum ArgumentPolicy {
     Retained,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Disclosure {
+    Included,
+    Omitted,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PrivacyDeclaration {
-    pub source_paths: bool,
-    pub symbol_names: bool,
+    pub source_paths: Disclosure,
+    pub symbol_names: Disclosure,
     pub arguments: ArgumentPolicy,
-    pub timing: bool,
-    pub embedded_sources: bool,
+    pub timing: Disclosure,
+    pub embedded_sources: Disclosure,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -388,6 +395,16 @@ pub fn attribute(
             artifact.evidence.loss.captured_events
         ));
     }
+    finish_report(artifact, buckets, rows, stacks, fidelity_reasons)
+}
+
+fn finish_report(
+    artifact: &ProfileArtifact,
+    buckets: BTreeMap<AttributionQuality, u64>,
+    rows: BTreeMap<RowKey, RowAccumulator>,
+    stacks: BTreeMap<Vec<String>, u64>,
+    fidelity_reasons: Vec<String>,
+) -> AttributionReport {
     let mut rows = rows
         .into_iter()
         .map(|(key, accumulator)| AttributionRow {
@@ -837,11 +854,11 @@ mod tests {
                 interrupted: false,
             },
             privacy: PrivacyDeclaration {
-                source_paths: true,
-                symbol_names: true,
+                source_paths: Disclosure::Included,
+                symbol_names: Disclosure::Included,
                 arguments: ArgumentPolicy::Omitted,
-                timing: true,
-                embedded_sources: false,
+                timing: Disclosure::Included,
+                embedded_sources: Disclosure::Omitted,
             },
             evidence: CpuEvidence {
                 modules: vec![CapturedModule {
