@@ -1,0 +1,8 @@
+namespace example
+
+from /example/snapshot import make-frame
+
+function main;
+    frame = make-frame;
+    body = frame.bodies[0]
+    value float64 = body.x

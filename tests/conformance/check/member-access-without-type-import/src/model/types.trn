@@ -1,0 +1,7 @@
+namespace example/model
+
+public class frame-body
+    x float64 = 0
+
+    function construct; x float64
+        this.x = x

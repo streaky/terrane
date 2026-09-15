@@ -999,6 +999,61 @@ pub(super) fn resolved_function_contract<'a>(
         .or_else(|| unit.function_aliases.get(name))
 }
 
+fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Vec<ObjectIdentity>) {
+    match value_type {
+        ValueType::Object(identity) => queue.push(identity.clone()),
+        ValueType::Optional(inner) => enqueue_value_type_object_dependencies(inner, queue),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::AsyncIterationStep(item)
+        | ValueType::ChannelPair(item)
+        | ValueType::ChannelSender(item)
+        | ValueType::ChannelReceiver(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::DocumentDecodeOutcome(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            enqueue_value_type_object_dependencies(item.value_type_ref(), queue);
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            enqueue_value_type_object_dependencies(key.value_type_ref(), queue);
+            enqueue_value_type_object_dependencies(value.value_type_ref(), queue);
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            for parameter in parameters {
+                enqueue_value_type_object_dependencies(parameter.value_type_ref(), queue);
+            }
+            enqueue_value_type_object_dependencies(result.value_type_ref(), queue);
+        }
+        _ => {}
+    }
+}
+
+fn enqueue_function_contract_object_dependencies(
+    contract: &FunctionContract,
+    queue: &mut Vec<ObjectIdentity>,
+) {
+    if let Some(return_type) = &contract.return_type {
+        enqueue_value_type_object_dependencies(return_type, queue);
+    }
+    for parameter in &contract.parameters {
+        if let Some(value_type) = &parameter.value_type {
+            enqueue_value_type_object_dependencies(value_type, queue);
+        }
+    }
+}
+
 pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage) {
     let objects = package
         .units
@@ -1024,24 +1079,23 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
             },
         );
     for unit in &mut package.units {
-        let mut queue = unit
+        let mut queue = Vec::new();
+        for contract in unit
             .function_aliases
             .values()
             .chain(unit.function_contracts_by_span.values())
-            .filter_map(|contract| match &contract.return_type {
-                Some(ValueType::Object(identity)) => Some(identity.clone()),
-                _ => None,
-            })
-            .chain(
-                unit.descriptors
-                    .iter()
-                    .filter(|object| {
-                        object.name != object.identity.name
-                            || object.identity.namespace != unit.namespace
-                    })
-                    .map(|object| object.identity.clone()),
-            )
-            .collect::<Vec<_>>();
+        {
+            enqueue_function_contract_object_dependencies(contract, &mut queue);
+        }
+        queue.extend(
+            unit.descriptors
+                .iter()
+                .filter(|object| {
+                    object.name != object.identity.name
+                        || object.identity.namespace != unit.namespace
+                })
+                .map(|object| object.identity.clone()),
+        );
         let mut visited = BTreeSet::new();
         while let Some(key) = queue.pop() {
             if !visited.insert(key.clone()) {
@@ -1051,23 +1105,14 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
                 continue;
             };
             for field in &object.fields {
-                if let ValueType::Object(name) = &field.value_type {
-                    queue.push(name.clone());
-                }
+                enqueue_value_type_object_dependencies(&field.value_type, &mut queue);
             }
             let object_methods = methods
                 .get(&(object.span.file, object.name.clone()))
                 .cloned()
                 .unwrap_or_default();
             for method in &object_methods {
-                if let Some(ValueType::Object(name)) = &method.return_type {
-                    queue.push(name.clone());
-                }
-                for parameter in &method.parameters {
-                    if let Some(ValueType::Object(name)) = &parameter.value_type {
-                        queue.push(name.clone());
-                    }
-                }
+                enqueue_function_contract_object_dependencies(method, &mut queue);
             }
             if !unit
                 .descriptors
