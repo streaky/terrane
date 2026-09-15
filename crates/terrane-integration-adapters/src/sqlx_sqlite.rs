@@ -1,3 +1,5 @@
+//! Narrow bridges for SQLx SQLite shapes that Terrane cannot yet project directly.
+
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -100,6 +102,21 @@ mod tests {
 
     use super::{close, execute, execute_with_bytes, open, query_bytes};
 
+    struct TempDatabase(std::path::PathBuf);
+
+    impl Drop for TempDatabase {
+        fn drop(&mut self) {
+            match fs::remove_file(&self.0) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => eprintln!(
+                    "failed to remove temporary adapter database `{}`: {error}",
+                    self.0.display()
+                ),
+            }
+        }
+    }
+
     #[tokio::test]
     async fn operates_on_the_projected_upstream_connection() {
         let nonce = SystemTime::now()
@@ -110,7 +127,8 @@ mod tests {
             "terrane-sqlx-adapter-{}-{nonce}.db",
             std::process::id()
         ));
-        let path_text = path.to_string_lossy().into_owned();
+        let database = TempDatabase(path);
+        let path_text = database.0.to_string_lossy().into_owned();
         let mut connection = open(path_text)
             .await
             .expect("database connection must open");
@@ -148,6 +166,6 @@ mod tests {
         close(connection)
             .await
             .expect("database connection must close");
-        fs::remove_file(path).expect("temporary database must be removable");
+        fs::remove_file(&database.0).expect("temporary database must be removable");
     }
 }
