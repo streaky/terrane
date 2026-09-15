@@ -1,0 +1,6 @@
+namespace app
+from /core/collections import list
+from /deps/terrane-render-witness import render_many, widget
+function main;
+    values = list; (widget;), (widget;)
+    print; (render_many; values)

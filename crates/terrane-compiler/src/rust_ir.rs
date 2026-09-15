@@ -5,6 +5,32 @@ use syn::parse::Parser as _;
 
 use crate::Span;
 
+/// Collects every identifier token from a Rust fragment without performing Rust name resolution.
+///
+/// This is deliberately a conservative syntactic inventory: path segments, field names, macro
+/// names and arguments, type names, and declarations are indistinguishable from free value
+/// references here. Callers may use a match to preserve or reject access conservatively, but must
+/// not treat it as proof that the fragment resolves to a particular Terrane binding.
+pub(crate) fn rust_syntactic_identifiers(rust: &str) -> std::collections::BTreeSet<String> {
+    fn collect(tokens: TokenStream, identifiers: &mut std::collections::BTreeSet<String>) {
+        for token in tokens {
+            match token {
+                TokenTree::Ident(identifier) => {
+                    identifiers.insert(identifier.to_string());
+                }
+                TokenTree::Group(group) => collect(group.stream(), identifiers),
+                _ => {}
+            }
+        }
+    }
+
+    let mut identifiers = std::collections::BTreeSet::new();
+    if let Ok(tokens) = rust.parse::<TokenStream>() {
+        collect(tokens, &mut identifiers);
+    }
+    identifiers
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
     pub version: &'static str,
@@ -26,10 +52,47 @@ pub struct RenderedFile {
 pub(crate) struct RenderedProgram {
     version: &'static str,
     runtime_source_files: Vec<&'static str>,
+
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
     review: RenderedFragment,
+}
+pub(crate) fn instantiate_rust_generics(
+    rust: &str,
+    replacements: &std::collections::BTreeMap<String, String>,
+) -> String {
+    fn replace(
+        tokens: TokenStream,
+        replacements: &std::collections::BTreeMap<String, String>,
+    ) -> TokenStream {
+        tokens
+            .into_iter()
+            .flat_map(|token| match token {
+                TokenTree::Ident(identifier) => replacements
+                    .get(&identifier.to_string())
+                    .and_then(|replacement| replacement.parse::<TokenStream>().ok())
+                    .map_or_else(
+                        || vec![TokenTree::Ident(identifier)],
+                        |replacement| replacement.into_iter().collect(),
+                    ),
+                TokenTree::Group(group) => {
+                    let mut replaced = proc_macro2::Group::new(
+                        group.delimiter(),
+                        replace(group.stream(), replacements),
+                    );
+                    replaced.set_span(group.span());
+                    vec![TokenTree::Group(replaced)]
+                }
+                token => vec![token],
+            })
+            .collect()
+    }
+
+    rust.parse::<TokenStream>().map_or_else(
+        |_| rust.to_owned(),
+        |tokens| replace(tokens, replacements).to_string(),
+    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

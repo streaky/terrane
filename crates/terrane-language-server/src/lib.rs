@@ -1521,6 +1521,7 @@ mod tests {
             kind: ProjectedKind::Function(ProjectedFunction {
                 name: "wait".to_owned(),
                 parameters: Vec::new(),
+                generic_parameters: Vec::new(),
                 result: ProjectedType::None,
                 destination_result: None,
                 error: None,
@@ -1555,6 +1556,7 @@ mod tests {
             kind: ProjectedKind::Function(ProjectedFunction {
                 name: "builder".to_owned(),
                 parameters: Vec::new(),
+                generic_parameters: Vec::new(),
                 result: ProjectedType::None,
                 destination_result: None,
                 error: None,

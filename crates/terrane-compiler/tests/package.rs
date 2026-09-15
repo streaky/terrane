@@ -3,9 +3,11 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
-    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze,
-    compile_discovered_test_tier, compile_package, compile_test_package, discover_test_package,
+    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, RustDependency,
+    analyze, compile_discovered_test_tier, compile_package, compile_test_package,
+    discover_test_package,
     testing::{TestPackage, TestTier},
+    with_tokio_runtime,
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -54,6 +56,25 @@ fn bare_implicit_source_uses_current_directory_as_root() {
 
     assert_eq!(package.root, Path::new("."));
     assert_eq!(package.units[0].relative_path, Path::new("hello.trn"));
+}
+
+#[test]
+fn tokio_runtime_features_merge_by_package_identity() {
+    let declared = RustDependency {
+        name: "runtime".to_owned(),
+        package: "tokio".to_owned(),
+        version: "=1.53.0".to_owned(),
+        features: vec!["net".to_owned()],
+        default_features: false,
+        target: None,
+        effects: vec!["networking".to_owned()],
+    };
+
+    let merged = with_tokio_runtime(&[declared], &["rt", "time"]);
+
+    assert_eq!(merged.len(), 1);
+    assert_eq!(merged[0].name, "runtime");
+    assert_eq!(merged[0].features, ["net", "rt", "time"]);
 }
 
 #[test]
@@ -938,4 +959,30 @@ fn production_compilation_rejects_test_only_namespaces() {
 
     let failure = compile_package(&Package::load(&package.0).unwrap()).unwrap_err();
     assert_eq!(failure.diagnostics[0].code, "S2053");
+}
+
+#[test]
+fn authored_and_generated_sources_have_distinct_ids() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"source-identities\"\n[namespaces]\napp = \"src\"\n[rust-modules]\nadapters = \"rust/adapters.rs\"\n",
+    );
+    package.write(
+        "src/main.trn",
+        "namespace app\nfunction main;\n  answer int = rust\n    crate::adapters::answer()\n  print; answer\n",
+    );
+    package.write(
+        "rust/adapters.rs",
+        "pub fn answer() -> terrane_int_support::Int {\n    terrane_int_support::Int::from(42)\n}\n",
+    );
+
+    let compilation = compile_package(&Package::load(&package.0).unwrap()).unwrap();
+    let source_ids = compilation
+        .sources
+        .iter()
+        .map(terrane_compiler::SourceFile::id)
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert_eq!(source_ids.len(), compilation.sources.len());
 }

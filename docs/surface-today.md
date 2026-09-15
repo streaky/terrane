@@ -219,10 +219,13 @@ Terrane package
     │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
     │   ├── secure-bytes / secure-bounded-int
     │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
-    │   ├── sha256 / sha512                    distinct digest algorithms
+    │   ├── sha256 / sha512                    default modern digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
-    ├── /core/codecs                           strict codec policy
+    ├── /core/random/legacy-digests            explicit compatibility digest import
+    │   └── sha1 / md5 / digest-bytes          legacy algorithms behind an explicit import; same digest-result contract
+    ├── /core/codecs                           strict codec and byte-construction policy
     │   ├── decode-result                       failed / message plus decoded bytes
+    │   ├── bytes-from-octets                  direct `list of uint8` → immutable `bytes`
     │   ├── hex / hex-codec                     reusable hexadecimal codec with encode / decode
     │   ├── base64 / base64-url / base64-codec reusable alphabet policy with encode / decode
     │   ├── encode-hex / decode-hex
@@ -704,7 +707,9 @@ function results associate right and each postfix clause binds to its nearest fu
 Anonymous functions use ordinary function syntax without a declaration name. The compiler checks
 duplicate, unknown, missing, and excess arguments, rejects positional arguments after named
 arguments, and checks callable invocation and throwable compatibility at every typed destination.
-Variadic functions, overloads, and generic functions are not implemented.
+One final `name T ...` parameter captures remaining positional arguments as a `list of T`; variadic
+arity is preserved by function values, methods, closures, and callable compatibility. Overloads and
+generic source functions are not implemented.
 
 ## Source object and name model
 
@@ -958,6 +963,21 @@ change the generated manifest.
 Stream classes become resource-owning transitively from their compiler-owned process handle field.
 There is no source `linear class` qualifier; assignment transfers these values automatically.
 
+
+Ordinary strings, bytes, paths, filesystem capability values, collections, and non-resource
+objects have value semantics. Pass them normally; do not add `ref` merely to work around an
+anticipated Rust move. Lowering preserves later source uses with copy-on-write separation or
+compiler-owned clones. `ref` means the callee intentionally observes or mutates the same source
+value, not “please make generated Rust compile.”
+
+An explicit stream `.close` consumes the resource and returns an observable failure result. Use it
+when close failure matters. Deterministic destruction remains a fallback release path and cannot
+report failure to source code; it is not a substitute for checked close at a protocol boundary.
+
+TCP `read` is always a partial byte transfer. A successful read is never evidence of a complete
+HTTP request, response, or WebSocket frame. Accumulate until a protocol delimiter or declared
+length is complete, retain any excess bytes for the next message, enforce a total size bound, and
+distinguish incomplete EOF, transport failure, malformed framing, and limit exhaustion.
 The compiler represents callable families as bound methods with a distinguished default,
 typed children, signatures, and availability constraints. Semantic analysis resolves the
 family before lowering; generated Rust erases it to a direct function or support operation.
@@ -983,6 +1003,33 @@ catches and `finally` replacement. A postfix `throws T` clause is an optional up
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
 the inferred escaping set. Throwing a caught throwable value preserves its runtime kind and existing
 cause chain while adding the explicit rethrow site.
+
+## Inline and maintained Rust
+
+`rust` is an indented safe-Rust statement or expression block; `unsafe rust` is the explicit unsafe
+form. An expression block returns its final Rust expression. Safe blocks containing an `unsafe`
+token at any nesting depth are rejected. Both forms retain source spans, and semantic metadata
+records each unsafe boundary.
+
+Inline Rust uses generated Rust names. Non-copy ordinary in-scope inputs are shadow-cloned for the
+block so raw Rust cannot consume a value Terrane still owns. Resources, tasks, consuming callable
+values, and iterators cannot be accessed directly from an inline block; put that operation behind a
+typed adapter whose Terrane contract states its ownership and effects.
+
+Maintained module files are declared explicitly:
+
+```toml
+[rust-modules]
+adapters = "rust/adapters.rs"
+```
+
+Each value is a normalized package-relative `.rs` path and each key is a distinct Rust module
+identifier. The compiler copies these sources beside generated output, declares them in the crate
+root, keeps source associations for diagnostics/debugging, and checks them when canonical Rust is
+required. Inline code reaches one as `crate::adapters::operation(...)`. Ordinary Terrane callers
+should see a narrow typed Terrane wrapper function whose `rust` body calls that module; projected
+companion types may describe any external dependency values intentionally carried across the
+wrapper, but the authored module itself is not an untyped import surface.
 
 ## Projected Rust dependencies
 
@@ -1041,27 +1088,105 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 43 retains these contracts alongside explicit root, continuation, and terminal
-lifetime-bearing builders represented as chain-only values. Their intermediates may retain
-a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
+Projection schema 45 retains these contracts, call-site generic templates, and dependency namespace
+overlays alongside explicit
+root, continuation, and terminal lifetime-bearing builders represented as chain-only values.
+Their intermediates may retain a borrow from a named input but may appear only as receiver
+subtrees inside one nested expression;
 binding, return, capture, argument
 escape, and suspension are rejected before lowering. The terminal must return an owned projectable
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
 declined rather than being described as directly projected.
+
+For SQLx specifically, keep the representable upstream surface direct and layer only the missing
+operations through the shared adapter. Declare both the concrete upstream owner and the adapter:
+
+```toml
+[rust-dependencies.sqlx-sqlite]
+package = "sqlx-sqlite"
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem"]
+
+[rust-dependencies.terrane-integration-adapters]
+package = "terrane-integration-adapters"
+version = "=0.1.0"
+features = ["sqlx-sqlite"]
+effects = ["build", "filesystem"]
+```
+
+`SqliteConnection` is projected directly from `sqlx-sqlite`. The adapter package declares a
+feature-gated namespace overlay in Cargo metadata, so its `open`, `execute`, `execute_with_bytes`,
+`query_bytes`, and `close` operations appear beside that upstream type:
+
+```terrane
+from /deps/sqlx-sqlite import SqliteConnection, open, execute, close
+
+database SqliteConnection = await open; 'application.db'
+await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
+await (close; move database)
+```
+
+The projection artifact retains each item's exact Rust owner: `SqliteConnection` lowers through
+`sqlx_sqlite`, while the temporary operations lower through
+`terrane_integration_adapters::sqlx_sqlite`. Only their Terrane presentation namespace is unified.
+The adapter bridges trait-provided connection operations, the lifetime-bearing `Query<'q, DB, A>`
+chain, and generic row extraction; it does not define another SQLx object model.
+
+Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
+`axum-08` feature, then imports the upstream router and handlers normally:
+
+```terrane
+from /deps/axum import Router, UpgradeResponse, bind_listener, receive_text, serve_router, text_message, upgrade
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/axum/extract/ws import WebSocket
+```
+
+`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks, and
+`WebSocket.send` are directly projected Axum operations. The feature overlays only the currently
+unprojectable boundaries: a concrete upgrade response around Axum's closed `Response` alias,
+flattened text receive and payload-bearing message constructors, Tokio listener binding, and
+awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an application router,
+handlers, route policy, or server facade. The BookVault WebSocket experiment is the executable
+end-to-end example.
+
+Namespace overlays are a generic Cargo-metadata facility available only to directly declared
+providers targeting another directly declared package. A declaration is active only with its named
+feature. Undeclared, self, ambiguous, empty, overlapping, and colliding overlays are rejected, and
+an adapter never shadows an upstream item. Overlay declarations participate in projection cache
+identity while exact Rust paths preserve provenance for tooling and diagnostics.
+
+All bridges live behind independent features in the one `terrane-integration-adapters` crate.
+`terrane_integration_adapters::registry` accounts separately for each limitation beside its
+implementation, with a stable ID, tracking key, dependency/version range, feature, and removal
+criterion. The accounting module is not part of the projected application surface, and the registry
+never dispatches projection or lowering. When generic projection admits an
+operation, its collision makes the stale
+adapter member explicit; remove that member and its ledger entry. Existing
+`from /deps/sqlx-sqlite` imports remain unchanged while their implementation becomes fully upstream.
+
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
 projected crate accessors; every declined public item carries a reason.
 
-Semantic import resolution and the language server consume that same projection. Lowering emits only
-crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
-generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
+Semantic import resolution and the language server consume that same projection. Lowering emits
+ordinary crossed-member Rust shims for closed contracts; a call-site-closed generic invokes the
+dependency directly inside the same conversion, error, ownership, and panic boundary. Calls remain
+inside one generated crate. A projected Rust `async fn` constructs a Terrane task whose
 awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
 projected call. Concrete Rust callback parameters accept matching Terrane function values; lowering
 constructs the required Rust closure, converts its inputs and result, and preserves per-invocation
 captured state. Retained or transferable bounds are checked against the callback's receiver,
-captures, throwable contract, and async transferability before lowering. Foreign receivers borrow,
+captures, throwable contract, and async transferability before lowering.
+Input-selected Rust generics may occur directly, inside owned sequences, or across callback
+parameters and results. Every occurrence must infer the same concrete projected type at one call;
+fully concrete Rust bounds are checked through the projection oracle. The source never writes a
+turbofish, and no dependency receives package-specific handling. Async callback/future pairs are
+closed together. Conflicting or uninferable types, borrowed escapes, higher-ranked lifetimes, and
+failed or unknown bound proofs remain explicit diagnostics. Foreign receivers borrow,
 use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate

@@ -441,7 +441,7 @@ fn describe(failure: TerraneError) -> String {
     return failure.message().to_owned().clone();
 }
 fn relay(failure: TerraneError) -> TerraneError {
-    return failure.clone();
+    return failure;
 }
 fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
@@ -520,11 +520,7 @@ fn main() {
                         .cloned();
                     if origin.is_some() {
                         let returned: TerraneError = relay(
-                            origin
-                                .as_ref()
-                                .expect("semantic optional narrowing")
-                                .clone()
-                                .clone(),
+                            origin.as_ref().expect("semantic optional narrowing").clone(),
                         );
                         println!(
                             "{}",

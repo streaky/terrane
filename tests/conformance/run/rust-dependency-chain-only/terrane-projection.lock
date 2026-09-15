@@ -68,7 +68,31 @@
         ],
         [
           "/deps/sqlx-core/fs",
+          "create_dir_all"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read"
+        ],
+        [
+          "/deps/sqlx-core/fs",
           "read_dir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read_to_string"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_dir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_dir_all"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_file"
         ],
         [
           "/deps/sqlx-core/logger",
@@ -97,6 +121,14 @@
         [
           "/deps/sqlx-core/migrate",
           "Migrator.iter"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.run"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.undo"
         ],
         [
           "/deps/sqlx-core/migrate",
@@ -165,6 +197,26 @@
         [
           "/deps/sqlx-core/pool",
           "PoolConnectionMetadata"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "query_with"
         ],
         [
           "/deps/sqlx-core/raw-sql",
@@ -314,7 +366,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "43",
+  "projection_schema": "45",
   "removed": [],
   "resolution": {
     "events": [

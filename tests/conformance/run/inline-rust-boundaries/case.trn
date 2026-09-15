@@ -1,0 +1,27 @@
+namespace inline-rust-boundaries
+
+function add int; left int, right int
+  result int = rust
+    left + right
+  return result
+
+function inspect-pointer uint8;
+  value uint8 = unsafe rust
+    *(&7u8 as *const u8)
+  return value
+
+function rust-statement;
+  rust
+    println!("inline statement");
+
+function inspect-cloned-input int; input string
+  size int = rust
+    terrane_int_support::Int::from(input.len() as i64)
+  print; input
+  return size
+
+function main;
+  print; (add; 20, 22)
+  print; (inspect-pointer;)
+  rust-statement;
+  print; (inspect-cloned-input; 'copy me')

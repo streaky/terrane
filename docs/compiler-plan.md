@@ -243,6 +243,42 @@ Do not special-case them. Preserve the existing chain-only projection route for 
 whose terminal operation owns a projectable result, and use the authored Rust boundary when an
 application needs to package a database-specific adapter locally.
 
+##### Temporary integration-adapter ledger
+
+Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
+from the single feature-gated `terrane-integration-adapters` crate and is accounted for beside its
+implementation in `terrane_integration_adapters::registry`. A registry entry has a stable adapter ID
+and tracking key, the affected dependency/version range, the exact unsupported generic shape, its
+feature/package surface when bridged, and an objective removal criterion. Unbridged gaps belong in
+the same ledger so a bug-tracker issue can attach to the stable key before an implementation exists.
+
+The registry is data and accounting only. Keep it out of Terrane's projected application namespace,
+and never dispatch crate-specific projection, semantics, or lowering from it. Adapter modules are
+ordinary projected Rust dependency surfaces and remain
+independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
+application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
+enabled adapter module to another directly declared dependency namespace while retaining each
+item's actual Rust path and owning dependency. Reject undeclared, self, ambiguous, empty,
+overlapping, and colliding overlays rather than shadowing an upstream item. Overlay declarations
+participate in projection cache identity.
+
+Tests require unique adapter IDs and tracking keys and account for every shipped adapter feature.
+Retire an operation when its upstream projection creates a collision and generic non-framework
+regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
+consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
+
+The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
+unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
+and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
+namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
+while projection provenance continues to name
+`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
+
+`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
+It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
+Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
+entries make every adapter operation removable without changing application imports.
+
 #### General variadic call contract
 
 Implement the already specified source variadic parameter form instead of retaining isolated
@@ -1006,7 +1042,7 @@ provided methods, and produce deterministic warning-free canonical Rust. Focused
 non-`Clone` foreign fields propagating resource ownership without an invalid generated `Clone`.
 Focused rejects cover missing methods, receiver-mode mismatches, parameter/result mismatches,
 throwable mismatches, unsupported provided overrides, interface-typed generic arguments,
-non-immediate or ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
+ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
 A focused oracle-failure regression proves that one failed witness declines only that candidate
 interface, and every public trait or member omitted from projection has a tooling-visible reason.
 Projected interface `Send`/`Sync` obligations against Terrane class fields are delivered by
@@ -1019,8 +1055,9 @@ crosses an immediate generic bound, including a mutable member-expression argume
 `projected-interface-missing-member`, `projected-interface-receiver-mismatch`,
 `projected-interface-signature-mismatch`, `projected-interface-throwable-mismatch`,
 `projected-interface-provided-override-borrowed`, `projected-interface-provided-override-result`,
-`projected-generic-interface-argument`, and `projected-generic-non-immediate-bound` provide the
-matching conformance rejects.
+and `projected-generic-interface-argument` provide the matching conformance rejects. The former
+`projected-generic-non-immediate-bound` decline becomes a call-site-closure acceptance witness in
+milestone 30.3.
 
 The projection artifact retains canonical trait identity, receiver authority, provided-member
 metadata, and stable declines; the impl-shaped projection oracle gates interface admission with
@@ -1109,8 +1146,9 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-associated-mismatch`, `projected-associated-bound`,
 `projected-associated-unprojectable`, `projected-associated-two-slots`,
 `projected-associated-gat`, `projected-associated-erased-binding`, and
-`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 43 records
-structural call bindings, complete supertrait identities, and final-admission bound filtering.
+`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 45 records
+structural call bindings, complete supertrait identities, final-admission bound filtering,
+call-site generic templates, and validated dependency namespace overlays.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -2474,10 +2512,10 @@ boundaries. `FnMut` is callable multiplicity only: version-one anonymous functio
 ordinary values by value, do not gain mutable capture cells, and continue to reject aliased mutable
 state. Semantic validation rejects mismatched sync/async signatures, wrong parameters or results,
 retained borrowed references and object receivers, local-only captures at transferable boundaries,
-escaping throwables, aliased mutable callback state, one-shot reuse, and open generic callback
-signatures. `rust-dependency-callbacks` exercises all three call traits, a projected method callback,
-and a retained future callback whose active invocation is cancelled and observed to release its
-fixture state; the focused rejection corpus fixes the ownership and effect boundaries.
+escaping throwables, aliased mutable callback state, one-shot reuse, and conflicting or
+uninferable generic callback signatures. `rust-dependency-callbacks` exercises all three call
+traits, a projected method callback, and a retained future callback whose active invocation is
+cancelled and observed to release fixture state; milestone 30.3 adds concrete call-site closure.
 
 Phase C async-sequence projection recognizes concrete owned producers with an asynchronous
 borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
@@ -2952,8 +2990,9 @@ The deferred projection surface originally staged here has shipped: arbitrary fo
 `Option<T>`, receiver-first trait namespaces, data-free enum variants and comparison, wider
 primitives and aliases, profile-aware panic containment, portable containment reporting, residual
 foreign aliases, and durable member-level projection history all have implemented evidence below.
-Open generics and other deliberately unrepresentable shapes remain explicit declines governed by
-the projection rules rather than pending deliverables of this milestone.
+Generics that cannot be closed consistently from a destination or call-site inputs, and other
+unrepresentable shapes, remain explicit declines governed by the projection rules rather than
+pending deliverables of this milestone.
 
 This milestone now owns one remaining contract:
 

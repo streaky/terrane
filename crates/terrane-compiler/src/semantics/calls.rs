@@ -158,21 +158,32 @@ pub(super) fn validate_call_nodes<'a>(
             binding.name == node_text(&unit.source, callee)
                 && binding.is_visible_at(unit.source.id(), callee.span.start)
         })
-        && let ValueType::Function(parameters, _, _) = &binding.value_type
+        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
+            &binding.value_type
     {
-        if arguments.children.len() != parameters.len() {
+        let variadic = parameters
+            .last()
+            .is_some_and(CallableParameterType::is_variadic);
+        let fixed = parameters.len() - usize::from(variadic);
+        if arguments.children.len() < fixed
+            || (!variadic && arguments.children.len() != parameters.len())
+        {
+            let expected = if variadic {
+                format!("at least {fixed}")
+            } else {
+                parameters.len().to_string()
+            };
             return Err(failure(
                 &unit.source,
                 "T0012",
                 format!(
-                    "callable expects {} arguments, found {}",
-                    parameters.len(),
+                    "callable expects {expected} arguments, found {}",
                     arguments.children.len()
                 ),
                 arguments.span,
             ));
         }
-        for (argument, expected) in arguments.children.iter().zip(parameters) {
+        for (index, argument) in arguments.children.iter().enumerate() {
             if argument.children.len() > 1 {
                 return Err(failure(
                     &unit.source,
@@ -181,6 +192,10 @@ pub(super) fn validate_call_nodes<'a>(
                     argument.span,
                 ));
             }
+            let expected = parameters
+                .get(index)
+                .or_else(|| parameters.last())
+                .expect("validated callable argument has a parameter");
             let value = argument.children.last().unwrap_or(argument);
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
                 validate_value_destination(
@@ -616,6 +631,196 @@ pub(super) fn validate_resolved_assignment(
     )
 }
 
+pub(super) fn bind_projected_generics(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<(), String> {
+    if let ValueType::ProjectedGeneric(name) = expected {
+        if let Some(previous) = bindings.get(name) {
+            return (previous == actual)
+                .then_some(())
+                .ok_or_else(|| name.clone());
+        }
+        bindings.insert(name.clone(), actual.clone());
+        return Ok(());
+    }
+    match (expected, actual) {
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            bind_projected_generics(expected, actual, bindings)
+        }
+        (ValueType::List(expected), ValueType::List(actual))
+        | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
+        | (ValueType::Iterator(expected), ValueType::Iterator(actual)) => {
+            bind_projected_generics(expected.value_type_ref(), actual.value_type_ref(), bindings)
+        }
+        (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        ) => {
+            bind_projected_generics(
+                expected_key.value_type_ref(),
+                actual_key.value_type_ref(),
+                bindings,
+            )?;
+            bind_projected_generics(
+                expected_value.value_type_ref(),
+                actual_value.value_type_ref(),
+                bindings,
+            )
+        }
+        (
+            ValueType::Tuple(expected_item, expected_length),
+            ValueType::Tuple(actual_item, actual_length),
+        ) if expected_length == actual_length => bind_projected_generics(
+            expected_item.value_type_ref(),
+            actual_item.value_type_ref(),
+            bindings,
+        ),
+        (
+            ValueType::Function(expected_parameters, expected_result, _),
+            ValueType::Function(actual_parameters, actual_result, _),
+        )
+        | (
+            ValueType::AsyncFunction(expected_parameters, expected_result, _, _),
+            ValueType::AsyncFunction(actual_parameters, actual_result, _, _),
+        ) if expected_parameters.len() == actual_parameters.len() => {
+            for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
+                bind_projected_generics(
+                    expected.value_type_ref(),
+                    actual.value_type_ref(),
+                    bindings,
+                )?;
+            }
+            bind_projected_generics(
+                expected_result.value_type_ref(),
+                actual_result.value_type_ref(),
+                bindings,
+            )
+        }
+        _ => projected_generic_name(expected).map_or(Ok(()), Err),
+    }
+}
+
+fn projected_generic_name(value_type: &ValueType) -> Option<String> {
+    match value_type {
+        ValueType::ProjectedGeneric(name) => Some(name.clone()),
+        ValueType::Optional(inner) => projected_generic_name(inner),
+        ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::Iterator(item) => projected_generic_name(item.value_type_ref()),
+        ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+            projected_generic_name(key.value_type_ref())
+                .or_else(|| projected_generic_name(value.value_type_ref()))
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => parameters
+            .iter()
+            .find_map(|parameter| projected_generic_name(parameter.value_type_ref()))
+            .or_else(|| projected_generic_name(result.value_type_ref())),
+        _ => None,
+    }
+}
+
+fn substitute_callable_parameter_generics(
+    parameter: &CallableParameterType,
+    bindings: &BTreeMap<String, ValueType>,
+) -> CallableParameterType {
+    let value_type = substitute_projected_value_generics(parameter.value_type_ref(), bindings);
+    if parameter.is_variadic() {
+        CallableParameterType::variadic(ElementType::new(value_type))
+    } else {
+        CallableParameterType::fixed(ElementType::new(value_type))
+    }
+}
+
+pub(super) fn substitute_projected_value_generics(
+    value_type: &ValueType,
+    bindings: &BTreeMap<String, ValueType>,
+) -> ValueType {
+    match value_type {
+        ValueType::ProjectedGeneric(name) => bindings
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| value_type.clone()),
+        ValueType::Optional(inner) => ValueType::Optional(Box::new(
+            substitute_projected_value_generics(inner, bindings),
+        )),
+        ValueType::List(item) => ValueType::List(ElementType::new(
+            substitute_projected_value_generics(item.value_type_ref(), bindings),
+        )),
+        ValueType::Set(item) => ValueType::Set(ElementType::new(
+            substitute_projected_value_generics(item.value_type_ref(), bindings),
+        )),
+        ValueType::UnorderedSet(item) => ValueType::UnorderedSet(ElementType::new(
+            substitute_projected_value_generics(item.value_type_ref(), bindings),
+        )),
+        ValueType::Iterator(item) => ValueType::Iterator(ElementType::new(
+            substitute_projected_value_generics(item.value_type_ref(), bindings),
+        )),
+        ValueType::Map(key, value) => ValueType::Map(
+            ElementType::new(substitute_projected_value_generics(
+                key.value_type_ref(),
+                bindings,
+            )),
+            ElementType::new(substitute_projected_value_generics(
+                value.value_type_ref(),
+                bindings,
+            )),
+        ),
+        ValueType::UnorderedMap(key, value) => ValueType::UnorderedMap(
+            ElementType::new(substitute_projected_value_generics(
+                key.value_type_ref(),
+                bindings,
+            )),
+            ElementType::new(substitute_projected_value_generics(
+                value.value_type_ref(),
+                bindings,
+            )),
+        ),
+        ValueType::Tuple(item, length) => ValueType::Tuple(
+            ElementType::new(substitute_projected_value_generics(
+                item.value_type_ref(),
+                bindings,
+            )),
+            *length,
+        ),
+        ValueType::Function(parameters, result, effects) => ValueType::Function(
+            parameters
+                .iter()
+                .map(|parameter| substitute_callable_parameter_generics(parameter, bindings))
+                .collect(),
+            ElementType::new(substitute_projected_value_generics(
+                result.value_type_ref(),
+                bindings,
+            )),
+            effects.clone(),
+        ),
+        ValueType::AsyncFunction(parameters, result, transferability, effects) => {
+            ValueType::AsyncFunction(
+                parameters
+                    .iter()
+                    .map(|parameter| substitute_callable_parameter_generics(parameter, bindings))
+                    .collect(),
+                ElementType::new(substitute_projected_value_generics(
+                    result.value_type_ref(),
+                    bindings,
+                )),
+                *transferability,
+                effects.clone(),
+            )
+        }
+        _ => value_type.clone(),
+    }
+}
+
 pub(super) fn resolved_call_type(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -634,7 +839,7 @@ pub(super) fn resolved_call_type(
     {
         return Some(specialization.value_type.clone());
     }
-    let [callee, _arguments] = node.children.as_slice() else {
+    let [callee, arguments] = node.children.as_slice() else {
         return None;
     };
     if node.kind != SyntaxKind::CallExpression || callee.kind != SyntaxKind::Name {
@@ -644,17 +849,99 @@ pub(super) fn resolved_call_type(
         package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
     let declaration = symbol.declaration_span?;
     let contract = contracts.get(&(declaration.file, declaration.start, declaration.end))?;
-    let result = ElementType::new(
+    let mut generic_bindings = BTreeMap::new();
+    for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
+        let value = argument.children.last().unwrap_or(argument);
+        let Some(expected) = parameter.element_value_type() else {
+            continue;
+        };
+        let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)
+            .ok()
+            .flatten()
+        else {
+            continue;
+        };
+        if bind_projected_generics(&expected, &actual, &mut generic_bindings).is_err() {
+            return None;
+        }
+    }
+    let result = ElementType::new(substitute_projected_value_generics(
         contract
             .return_type
-            .clone()
-            .unwrap_or(ValueType::Scalar(ScalarType::None)),
-    );
+            .as_ref()
+            .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+        &generic_bindings,
+    ));
     Some(if contract.is_async {
         ValueType::Task(result, contract.task_transferability)
     } else {
         result.value_type()
     })
+}
+
+fn resolve_call_parameter<'a>(
+    unit: &SemanticUnit,
+    argument: &SyntaxNode,
+    name: Option<&SyntaxNode>,
+    contract: &'a FunctionContract,
+    positional: &mut usize,
+    named_seen: &mut bool,
+) -> Result<&'a ParameterContract, SemanticFailure> {
+    if let Some(name) = name {
+        *named_seen = true;
+        let name_text = node_text(&unit.source, name);
+        let parameter = contract
+            .parameters
+            .iter()
+            .find(|parameter| parameter.name == name_text)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "function `{}` has no parameter named `{name_text}`",
+                        contract.name
+                    ),
+                    name.span,
+                )
+            })?;
+        if parameter.variadic {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "variadic parameter `{}` accepts positional arguments only",
+                    parameter.name
+                ),
+                name.span,
+            ));
+        }
+        return Ok(parameter);
+    }
+    if *named_seen {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "positional arguments must precede named arguments",
+            argument.span,
+        ));
+    }
+    let parameter = contract.parameters.get(*positional).or_else(|| {
+        contract
+            .parameters
+            .last()
+            .filter(|parameter| parameter.variadic)
+    });
+    let parameter = parameter.ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0012",
+            format!("too many arguments for function `{}`", contract.name),
+            argument.span,
+        )
+    })?;
+    *positional += 1;
+    Ok(parameter)
 }
 
 pub(super) fn validate_call_arguments(
@@ -664,6 +951,7 @@ pub(super) fn validate_call_arguments(
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
     let mut bound = BTreeSet::new();
+    let mut generic_bindings = BTreeMap::new();
     let mut positional = 0;
     let mut named_seen = false;
     for argument in &arguments.children {
@@ -671,45 +959,15 @@ pub(super) fn validate_call_arguments(
             .children
             .first()
             .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
-        let parameter = if let Some(name) = name {
-            named_seen = true;
-            let name_text = node_text(&unit.source, name);
-            contract
-                .parameters
-                .iter()
-                .find(|parameter| parameter.name == name_text)
-                .ok_or_else(|| {
-                    failure(
-                        &unit.source,
-                        "T0012",
-                        format!(
-                            "function `{}` has no parameter named `{name_text}`",
-                            contract.name
-                        ),
-                        name.span,
-                    )
-                })?
-        } else {
-            if named_seen {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    "positional arguments must precede named arguments",
-                    argument.span,
-                ));
-            }
-            let parameter = contract.parameters.get(positional).ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0012",
-                    format!("too many arguments for function `{}`", contract.name),
-                    argument.span,
-                )
-            })?;
-            positional += 1;
-            parameter
-        };
-        if !bound.insert(parameter.name.as_str()) {
+        let parameter = resolve_call_parameter(
+            unit,
+            argument,
+            name,
+            contract,
+            &mut positional,
+            &mut named_seen,
+        )?;
+        if !parameter.variadic && !bound.insert(parameter.name.as_str()) {
             return Err(failure(
                 &unit.source,
                 "T0012",
@@ -718,7 +976,7 @@ pub(super) fn validate_call_arguments(
             ));
         }
         let value = argument.children.last().unwrap_or(argument);
-        if let Some(expected) = parameter.value_type.clone() {
+        if let Some(expected) = parameter.element_value_type() {
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
                     unit,
@@ -728,6 +986,18 @@ pub(super) fn validate_call_arguments(
                     bindings,
                 )?;
             } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                if let Err(generic) =
+                    bind_projected_generics(&expected, &actual, &mut generic_bindings)
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "projected generic `{generic}` is inferred as incompatible argument types"
+                        ),
+                        value.span,
+                    ));
+                }
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,
@@ -740,11 +1010,9 @@ pub(super) fn validate_call_arguments(
             }
         }
     }
-    if let Some(missing) = contract
-        .parameters
-        .iter()
-        .find(|parameter| !parameter.optional && !bound.contains(parameter.name.as_str()))
-    {
+    if let Some(missing) = contract.parameters.iter().find(|parameter| {
+        !parameter.optional && !parameter.variadic && !bound.contains(parameter.name.as_str())
+    }) {
         return Err(failure(
             &unit.source,
             "T0012",
@@ -779,16 +1047,18 @@ pub(super) fn call_site_bindings(
         .collect::<Vec<_>>();
     if let Some(function) = active_function {
         bindings.extend(function.parameters.iter().filter_map(|parameter| {
-            parameter.value_type.clone().map(|value_type| TypedBinding {
-                name: parameter.name.clone(),
-                span: parameter.span,
-                visible_from: parameter.span.start,
-                scope: Some(function.span),
-                value_type,
-                destination_arms: Vec::new(),
-                storage_type: None,
-                mutable: false,
-            })
+            parameter
+                .binding_value_type()
+                .map(|value_type| TypedBinding {
+                    name: parameter.name.clone(),
+                    span: parameter.span,
+                    visible_from: parameter.span.start,
+                    scope: Some(function.span),
+                    value_type,
+                    destination_arms: Vec::new(),
+                    storage_type: None,
+                    mutable: false,
+                })
         }));
     }
     bindings
@@ -821,4 +1091,47 @@ pub(super) fn descriptor_construct_alias_history(
             )
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{bind_projected_generics, substitute_projected_value_generics};
+    use crate::ScalarType;
+    use crate::semantics::{ElementType, ValueType};
+
+    #[test]
+    fn projected_generics_bind_through_maps_and_tuples() {
+        let generic = || ElementType::new(ValueType::ProjectedGeneric("T".to_owned()));
+        let integer = || ElementType::new(ValueType::Scalar(ScalarType::Int));
+        let string = || ElementType::new(ValueType::Scalar(ScalarType::String));
+        let mut bindings = BTreeMap::new();
+
+        bind_projected_generics(
+            &ValueType::Map(string(), generic()),
+            &ValueType::Map(string(), integer()),
+            &mut bindings,
+        )
+        .unwrap();
+        bind_projected_generics(
+            &ValueType::Tuple(generic(), Some(2)),
+            &ValueType::Tuple(integer(), Some(2)),
+            &mut bindings,
+        )
+        .unwrap();
+
+        assert_eq!(
+            substitute_projected_value_generics(&ValueType::Map(string(), generic()), &bindings),
+            ValueType::Map(string(), integer())
+        );
+        assert!(
+            bind_projected_generics(
+                &ValueType::Tuple(generic(), Some(2)),
+                &ValueType::List(integer()),
+                &mut BTreeMap::new(),
+            )
+            .is_err()
+        );
+    }
 }

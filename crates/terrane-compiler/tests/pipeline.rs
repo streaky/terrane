@@ -263,16 +263,33 @@ fn annotated_replacement_lowers_as_source_ordered_shadowing() {
     );
     let compilation = terrane_compiler::compile("replacement.trn", source.to_owned()).unwrap();
 
-    let replacement_consumptions = compilation
-        .rust
-        .lines()
-        .collect::<Vec<_>>()
-        .windows(2)
-        .filter(|lines| {
-            lines[0].trim() == "let _ = &value;" && lines[1].trim_start().starts_with("let value:")
-        })
-        .count();
-    assert_eq!(replacement_consumptions, 2);
+    assert!(compilation.rust.contains(
+        "let value: i8 = 12;\n    let value: terrane_int_support::Int = \
+         terrane_int_support::Int::from(value as i128);"
+    ));
+    assert!(compilation.rust.contains(
+        "let value: i8 = 1;\n        let value: terrane_int_support::Int = \
+         terrane_int_support::Int::from("
+    ));
+}
+
+#[test]
+fn unread_replacement_emits_one_keepalive_per_binding() {
+    let source = concat!(
+        "namespace replacement\n",
+        "from /core/types import int8\n",
+        "function main;\n",
+        "  value int8 = 1\n",
+        "  value int8 = 2\n",
+    );
+    let compilation = terrane_compiler::compile("replacement.trn", source.to_owned()).unwrap();
+
+    assert_eq!(compilation.rust.matches("let _ = &value;").count(), 2);
+    assert!(
+        !compilation
+            .rust
+            .contains("let _ = &value;\n    let _ = &value;")
+    );
 }
 
 #[test]
@@ -443,9 +460,8 @@ fn lowers_collection_and_three_clause_for_loops_without_losing_continue_updates(
             .to_owned(),
     )
     .unwrap();
-    assert!(collection.rust.contains(
-        "let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&text);"
-    ));
+    assert!(collection.rust.contains("let __terrane_iterable_0 = text;"));
+    assert!(collection.rust.contains("&__terrane_iterable_0,"));
     assert!(
         collection
             .rust

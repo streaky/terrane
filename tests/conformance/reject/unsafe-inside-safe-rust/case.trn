@@ -1,0 +1,5 @@
+namespace unsafe-inside-safe-rust
+
+function main;
+  value uint8 = rust
+    unsafe { *(&7u8 as *const u8) }

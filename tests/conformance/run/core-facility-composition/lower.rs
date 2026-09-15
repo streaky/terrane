@@ -550,7 +550,7 @@ impl PathResult {
         value
     }
     pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
-        self.resolved = target.clone();
+        self.resolved = target;
         self.failed = failure;
         self.message = detail;
     }
@@ -895,7 +895,7 @@ pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult 
     );
 }
 pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
-    return filesystem_canonical(capability.clone(), target.clone());
+    return filesystem_canonical(capability, target);
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
@@ -1188,7 +1188,18 @@ impl ByteReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -1229,7 +1240,18 @@ impl ByteReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -1457,7 +1479,18 @@ impl TextReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -1507,7 +1540,18 @@ impl TextReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -1766,7 +1810,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return result.clone();
+    return result;
 }
 pub fn path_is_absolute(subject: Path) -> bool {
     return subject.text.starts_with(&String::from("/"));
@@ -1776,7 +1820,7 @@ pub fn normalise_path(subject: Path) -> Path {
         &subject.text,
         &String::from("/"),
     );
-    let absolute: bool = path_is_absolute(subject.clone());
+    let absolute: bool = path_is_absolute(subject);
     let mut kept: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![]);
@@ -1898,7 +1942,7 @@ pub fn normalise_path(subject: Path) -> Path {
     return Path::terrane_construct(result);
 }
 pub fn path_name(subject: Path) -> String {
-    let normal: Path = normalise_path(subject.clone());
+    let normal: Path = normalise_path(subject);
     let parts: terrane_collection_support::List<String> = path_components(normal);
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
@@ -1921,7 +1965,7 @@ pub fn path_name(subject: Path) -> String {
     );
 }
 pub fn path_parent(subject: Path) -> Path {
-    let normal: Path = normalise_path(subject.clone());
+    let normal: Path = normalise_path(subject);
     let parts: terrane_collection_support::List<String> = path_components(
         normal.clone(),
     );
@@ -1956,7 +2000,7 @@ pub fn path_parent(subject: Path) -> Path {
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let absolute: bool = path_is_absolute(normal.clone());
+    let absolute: bool = path_is_absolute(normal);
     if absolute {
         result = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
@@ -1966,7 +2010,7 @@ pub fn path_parent(subject: Path) -> Path {
     return Path::terrane_construct(result);
 }
 pub fn path_stem(subject: Path) -> String {
-    let current: String = path_name(subject.clone());
+    let current: String = path_name(subject);
     let pieces: Vec<String> = terrane_string_support::split(
         &current,
         &String::from("."),
@@ -2029,7 +2073,7 @@ pub fn path_stem(subject: Path) -> String {
     return result;
 }
 pub fn path_extension(subject: Path) -> String {
-    let current: String = path_name(subject.clone());
+    let current: String = path_name(subject);
     let pieces: Vec<String> = terrane_string_support::split(
         &current,
         &String::from("."),

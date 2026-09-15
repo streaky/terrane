@@ -93,6 +93,36 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         declaration_name: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> Result<(), SemanticFailure> {
+        if matches!(
+            node.kind,
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+        ) {
+            let identifiers =
+                crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
+            if let Some((_, binding)) =
+                unit.typed_bindings
+                    .iter()
+                    .enumerate()
+                    .find(|(binding_index, binding)| {
+                        binding.scope.is_some()
+                            && binding.is_visible_at(unit.source.id(), node.span.start)
+                            && identifiers
+                                .contains(&crate::lowering::debug_rust_name(&binding.name))
+                            && noncopyable_binding(package, unit, *binding_index, resource_objects)
+                    })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0134",
+                    format!(
+                        "inline Rust cannot directly access non-copyable binding `{}`; use a typed Terrane adapter",
+                        binding.name
+                    ),
+                    node.span,
+                ));
+            }
+            return Ok(());
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
             && unary_operator_text(unit, node).as_deref() == Some("move")
@@ -280,14 +310,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let [callee, arguments] = node.children.as_slice()
             && let Some(parameters) = function_parameters(package, unit, callee)
         {
-            for (argument, parameter) in arguments.children.iter().zip(parameters) {
-                let Some(expected) = parameter.value_type.as_ref() else {
+            for (index, argument) in arguments.children.iter().enumerate() {
+                let Some(parameter) = parameters
+                    .get(index)
+                    .or_else(|| parameters.last().filter(|parameter| parameter.variadic))
+                else {
+                    continue;
+                };
+                let Some(expected) = parameter.element_value_type() else {
                     continue;
                 };
                 let Some(value) = argument.children.last() else {
                     continue;
                 };
-                let expects_named_resource = match expected {
+                let expects_named_resource = match &expected {
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
                     ValueType::Object(name) => resolved_object_span(package, name)
                         .is_some_and(|span| resource_objects.contains(&span_key(span))),
@@ -315,11 +351,30 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     ));
                 }
             }
+            let projected = super::bindings::projected_function_for_call(package, unit, callee);
             let transferred = arguments
                 .children
                 .iter()
                 .zip(parameters)
-                .filter_map(|(argument, parameter)| {
+                .enumerate()
+                .filter_map(|(index, (argument, parameter))| {
+                    let projected_parameter = projected.and_then(|function| {
+                        argument
+                            .children
+                            .first()
+                            .filter(|name| {
+                                argument.children.len() > 1 && name.kind == SyntaxKind::Name
+                            })
+                            .and_then(|name| {
+                                function.parameters.iter().find(|candidate| {
+                                    candidate.name == node_text(&unit.source, name)
+                                })
+                            })
+                            .or_else(|| function.parameters.get(index))
+                    });
+                    if projected_parameter.is_some_and(|parameter| parameter.borrowed) {
+                        return None;
+                    }
                     parameter
                         .value_type
                         .as_ref()
@@ -439,7 +494,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
                     visit(package, unit, child, &mut branch, false, resource_objects)?;
-                    branches.push(branch);
+                    if super::scopes::block_may_fall_through(child) {
+                        branches.push(branch);
+                    }
                 }
             }
             if !has_else {

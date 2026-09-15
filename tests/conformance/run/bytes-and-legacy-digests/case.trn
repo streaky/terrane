@@ -1,0 +1,19 @@
+namespace bytes-and-legacy-digests
+
+from /core/collections import list
+from /core/encodings import utf8
+from /core/codecs import bytes-from-octets, encode-hex
+from /core/random import digest-bytes
+from /core/random/legacy-digests import sha1, md5
+
+function main;
+  octets list of uint8 = list; 65, 66, 67
+  data bytes = bytes-from-octets; octets
+  print; (data.decode; utf8), data.length
+  empty-octets list of uint8 = list;
+  empty bytes = bytes-from-octets; empty-octets
+  print; empty.length
+  first = digest-bytes; (sha1;), b'abc'
+  print; (encode-hex; first.value.value)
+  second = digest-bytes; (md5;), b'abc'
+  print; (encode-hex; second.value.value)

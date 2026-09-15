@@ -391,11 +391,24 @@ pub(super) fn declared_value_type_with_visible_objects(
                 type_node.span,
             ));
         };
+        let variadic = function
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::VariadicMarker);
+        let parameter_count = signature.len();
         let parameters = signature
             .into_iter()
-            .map(|parameter| {
+            .enumerate()
+            .map(|(index, parameter)| {
                 declared_value_type_with_visible_objects(unit, parameter, aliases, visible_objects)
                     .map(ElementType::new)
+                    .map(|element| {
+                        if variadic && index + 1 == parameter_count {
+                            CallableParameterType::variadic(element)
+                        } else {
+                            CallableParameterType::fixed(element)
+                        }
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(declared_value_type_with_visible_objects(
@@ -625,6 +638,9 @@ pub(super) fn declared_value_type_with_visible_objects(
         });
     if let Some(identity) = object_identity {
         return Ok(ValueType::Object(identity));
+    }
+    if let Some(name) = type_name.strip_prefix("host-projected-generic-") {
+        return Ok(ValueType::ProjectedGeneric(name.to_owned()));
     }
     match type_name {
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
@@ -970,7 +986,11 @@ pub(super) fn diagnostic_value_type(
                 "{}{asynchronous}function",
                 effects.modes.written.source_prefix()
             );
-            let parameters = parameters.iter().map(nested).collect::<Vec<_>>().join(", ");
+            let parameters = parameters
+                .iter()
+                .map(|parameter| nested(&parameter.element_type()))
+                .collect::<Vec<_>>()
+                .join(", ");
             let from = if parameters.is_empty() {
                 String::new()
             } else {
@@ -1053,6 +1073,12 @@ pub(super) fn validate_value_destination(
     value: &SyntaxNode,
     mismatch_code: &'static str,
 ) -> Result<(), SemanticFailure> {
+    if actual == ValueType::InlineRust
+        || matches!(&expected, ValueType::ProjectedGeneric(_))
+        || matches!(&actual, ValueType::ProjectedGeneric(_))
+    {
+        return Ok(());
+    }
     if let ValueType::Scalar(expected) = expected {
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }
@@ -1098,10 +1124,10 @@ pub(super) fn validate_value_destination(
 
 fn callable_types_compatible(
     objects: &[DescriptorContract],
-    expected_parameters: &[ElementType],
+    expected_parameters: &[CallableParameterType],
     expected_result: &ElementType,
     expected_effects: &CallableEffects,
-    actual_parameters: &[ElementType],
+    actual_parameters: &[CallableParameterType],
     actual_result: &ElementType,
     actual_effects: &CallableEffects,
 ) -> bool {
@@ -1109,8 +1135,23 @@ fn callable_types_compatible(
         .modes
         .written
         .accepts(actual_effects.modes.written)
-        && expected_parameters == actual_parameters
-        && expected_result == actual_result
+        && expected_parameters.len() == actual_parameters.len()
+        && expected_parameters
+            .iter()
+            .zip(actual_parameters)
+            .all(|(expected, actual)| {
+                expected.is_variadic() == actual.is_variadic()
+                    && value_types_compatible(
+                        objects,
+                        expected.value_type_ref(),
+                        actual.value_type_ref(),
+                    )
+            })
+        && value_types_compatible(
+            objects,
+            expected_result.value_type_ref(),
+            actual_result.value_type_ref(),
+        )
         && callable_effects_compatible(objects, expected_effects, actual_effects)
 }
 
@@ -1184,7 +1225,9 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
-        (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
+        (ValueType::ProjectedGeneric(_), _)
+        | (_, ValueType::ProjectedGeneric(_))
+        | (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

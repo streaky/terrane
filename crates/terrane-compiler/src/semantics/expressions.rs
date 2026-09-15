@@ -121,6 +121,12 @@ pub(super) fn infer_value_type(
     if node.kind == SyntaxKind::Literal {
         return Ok(infer_literal_type(unit, node).map(ValueType::Scalar));
     }
+    if matches!(
+        node.kind,
+        SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+    ) {
+        return Ok(Some(ValueType::InlineRust));
+    }
     if node.kind == SyntaxKind::AnonymousFunction {
         let contract = unit
             .functions
@@ -131,18 +137,14 @@ pub(super) fn infer_value_type(
             .parameters
             .iter()
             .map(|parameter| {
-                parameter
-                    .value_type
-                    .clone()
-                    .map(ElementType::new)
-                    .ok_or_else(|| {
-                        failure(
-                            &unit.source,
-                            "T0052",
-                            "stored function parameters require explicit types",
-                            parameter.span,
-                        )
-                    })
+                parameter.callable_type().ok_or_else(|| {
+                    failure(
+                        &unit.source,
+                        "T0052",
+                        "stored function parameters require explicit types",
+                        parameter.span,
+                    )
+                })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(
@@ -218,7 +220,7 @@ pub(super) fn infer_value_type(
             let parameters = contract
                 .parameters
                 .iter()
-                .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+                .map(ParameterContract::callable_type)
                 .collect::<Option<Vec<_>>>();
             if let Some(parameters) = parameters {
                 let result = ElementType::new(
@@ -244,7 +246,7 @@ pub(super) fn infer_value_type(
             let parameters = contract
                 .parameters
                 .iter()
-                .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+                .map(ParameterContract::callable_type)
                 .collect::<Option<Vec<_>>>();
             if let Some(parameters) = parameters {
                 let result = ElementType::new(
@@ -873,7 +875,7 @@ pub(super) fn infer_value_type(
                     }
                     "intrinsic:system::result-bytes"
                     | "intrinsic:system::platform-value-bytes"
-                    | "intrinsic:capabilities::result-bytes"
+                    | "intrinsic:capabilities::bytes-from-octets"
                     | "intrinsic:testing::test-result-stdout"
                     | "intrinsic:testing::test-result-stderr" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
@@ -1097,6 +1099,26 @@ pub(super) fn infer_value_type(
             if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes))
                 && node_text(&unit.source, member) == "concat"
             {
+                if let Some(arguments) = node.children.get(1) {
+                    for argument in &arguments.children {
+                        let value = argument.children.last().unwrap_or(argument);
+                        let actual = infer_value_type(unit, value, bindings)?;
+                        if actual != Some(ValueType::Scalar(ScalarType::Bytes)) {
+                            return Err(failure(
+                                &unit.source,
+                                "T0013",
+                                format!(
+                                    "`.concat` on `bytes` requires `bytes` arguments, found `{}`",
+                                    actual.map_or_else(
+                                        || "unknown".to_owned(),
+                                        |value_type| value_type.to_string()
+                                    )
+                                ),
+                                value.span,
+                            ));
+                        }
+                    }
+                }
                 return Ok(Some(ValueType::Scalar(ScalarType::Bytes)));
             }
             return Err(failure(

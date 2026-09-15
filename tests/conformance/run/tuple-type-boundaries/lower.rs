@@ -448,7 +448,7 @@ mod __terrane_trace {
 fn echo(
     values: terrane_collection_support::Tuple<terrane_int_support::Int>,
 ) -> terrane_collection_support::Tuple<terrane_int_support::Int> {
-    return values.clone();
+    return values;
 }
 fn nested(
     values: terrane_collection_support::List<
@@ -457,7 +457,7 @@ fn nested(
 ) -> terrane_collection_support::List<
     terrane_collection_support::Tuple<terrane_int_support::Int>,
 > {
-    return values.clone();
+    return values;
 }
 fn main() {
     let pair: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<

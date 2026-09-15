@@ -1,0 +1,4 @@
+namespace bytes-concat-element-type
+
+function main;
+  value = b'a'.concat; b'b', 'not-bytes'

@@ -1,0 +1,7 @@
+namespace inline-rust-resource-access
+
+from /core/filesystem import file-handle
+
+function inspect; handle file-handle
+  rust
+    drop(handle);

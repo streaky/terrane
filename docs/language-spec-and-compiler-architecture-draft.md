@@ -2709,15 +2709,30 @@ connect; host, port, timeout=10, retries=3
 
 ### 13.3 Variadic parameters
 
-A parameter followed by `...` collects remaining values:
+A final parameter followed by `...` collects the remaining positional arguments:
 
 ```terrane
-function collect; values ...
+function collect; prefix string, values int ...
 ```
 
-Variadic values are exposed as a list-like object.
+Exactly one variadic parameter is permitted. It must be final and cannot have a default. Fixed
+required and optional parameters may precede it; positional arguments bind those fixed parameters
+first. Named arguments can bind a preceding fixed parameter, but cannot bind the variadic
+parameter, and the existing prohibition on positional arguments after a named argument still
+applies.
 
-Only one variadic parameter is permitted.
+The captured binding has ordinary `list of T` value semantics, where `T` is the parameter's written
+element type. An omitted element type follows the same finite inference/defaulting rules as an
+ordinary untyped parameter rather than introducing an unbounded universal value. No remaining
+arguments produce an empty list. Argument expressions are evaluated exactly once from left to
+right and converted to `T` before the function body begins.
+
+Variadic behaviour is part of a callable's type and canonical identity. The function type spelling
+places `...` after its final input type, for example `function from string, int ... to string`;
+fixed and variadic callable types are not interchangeable. Functions, methods, constructors,
+anonymous functions, closures, interface requirements, trait methods, overrides, and bound
+callables use the same binding and compatibility rules. Rust `Fn` projection remains fixed arity;
+foreign C variadics require an explicit future ABI adapter.
 
 ### 13.4 Default values
 
@@ -4685,8 +4700,14 @@ Retention never weakens Terrane ownership. A retained callback may not capture a
 reference or borrowed object receiver, and a transferable callback may capture only transferable
 values. Mutable callback state may not be aliased, and a one-shot callable may not be reused after
 ownership transfer. An escaping throwable is incompatible unless the projected Rust callback
-result explicitly represents that failure. Open generic, higher-ranked, or lifetime-dependent
-callback shapes remain declined rather than being erased or boxed speculatively.
+result explicitly represents that failure. A generic callback shape whose value parameters can be
+closed consistently from the surrounding projected call's ordinary inputs, callback
+parameters/results, and nested owned aggregates is specialized at that call site. The compiler
+preserves and instantiates its Rust bounds, validates concrete bound questions through the
+projection oracle when they are fully nameable, and emits the exact direct Rust call with ordinary
+argument/result and panic/error conversion. Conflicting, uninferable, higher-ranked,
+lifetime-dependent, borrowed-escaping, and unnameable shapes remain targeted declines rather than
+being erased or boxed speculatively.
 
 Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
 repository. The response is accepted only when its envelope matches the complete cache identity:
@@ -4840,6 +4861,31 @@ intermediate or terminate in an owned representable result remain declined. This
 claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
 adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
+A maintained integration adapter is an additive layer over an upstream projected dependency, not a
+replacement API. An application must declare both dependencies and use every upstream type and
+operation that projection already represents. When an adapter accepts or returns a representable
+upstream type, its signature must preserve that projected identity rather than hide it behind an
+adapter-owned wrapper.
+
+A directly declared adapter package may attach one of its feature-gated module namespaces beneath a
+different directly declared dependency through
+`package.metadata.terrane.namespace-overlays`. The generic projector presents those items in the
+target dependency's `/deps/<crate>` namespace while retaining their adapter-owned Rust paths and
+dependency provenance. Thus `SqliteConnection` and a temporary adapter-supplied `execute` operation
+may be imported together from `/deps/sqlx-sqlite`, even though their recorded Rust paths have
+different owners. A disabled feature contributes no overlay. An undeclared, self, ambiguous, empty,
+overlapping, or colliding overlay is a projection error; an adapter can never silently shadow an
+upstream item.
+
+Adapters must retain upstream terminology and semantics, contain no application routing, schema,
+policy, or workflow, and remain ordinary projected Rust dependencies. Overlay discovery is generic
+Cargo-metadata processing: the compiler must never dispatch on an adapter registry, crate name, or
+application. The overlay declaration participates in projection identity, and projection artifacts,
+diagnostics, and tooling retain exact Rust paths so the supplying package remains inspectable. As an
+upstream operation becomes projectable, its name collision identifies the obsolete adapter item;
+remove that item and its accounting entry. Consumer imports remain stable, and the adapter
+disappears when no gap remains.
+
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
 The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. A lock-resolved bound owner may add a featureless, default-disabled direct edge solely to make its Rust path nameable. Because that deliberate manifest rewrite cannot run under Cargo's `--locked` mode, its fetch resolves offline; graph integrity at that step comes from the pre-injection manifest and lock in the projection identity plus the exact, content-hashed bound-dependency list rather than from a mutable network resolution. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history format 3 records projected top-level names, static members as `Type::member`, instance members as `Type.member`, and injected exact bound-owner dependencies by resolved dependency version. After declared-member resolution fails, matching removal history produces `S2031` at the Terrane import or member selection with the member and version change; a name absent from both the current declaration and history retains the ordinary never-present diagnostic.
@@ -4928,9 +4974,11 @@ function checksum uint64; data bytes
     checksum_impl(data)
 ```
 
-The indented block is preserved as Rust after stripping its common source indentation.
-
-The compiler inserts it into the generated Rust function and maps its spans back to the source block.
+The indented block is preserved as Rust after stripping its common source indentation. The
+compiler inserts it into the generated Rust function and maps its span back to the source block.
+Direct access to a non-copyable resource or task binding is rejected: such a value must cross a
+typed adapter contract. Other non-copy ordinary inputs are shadow-cloned at the block boundary so
+raw Rust cannot silently consume a value that Terrane still owns.
 
 ### 24.3 Inline Rust expression
 
@@ -4966,9 +5014,10 @@ unsafe rust
   ...
 ```
 
-permits unsafe Rust and records the unsafe boundary.
-
-Writing `unsafe` inside a nominally safe raw block does not bypass source-level accounting; the compiler scans/parses the Rust block sufficiently to classify it or delegates classification to `rustc` metadata.
+permits unsafe Rust and records the unsafe boundary in semantic metadata. Writing `unsafe` inside
+a nominally safe raw block is rejected; nested token groups are inspected as well as the outer
+token stream. Unsafe Rust does not bypass Terrane resource ownership: non-copyable resources and
+tasks still require a typed adapter boundary.
 
 ### 24.6 Name mapping
 
@@ -4990,13 +5039,29 @@ A later interpolation syntax may permit direct source-name references, but it is
 
 ### 24.7 Full Rust files
 
-A project may include maintained `.rs` files as native modules.
+A project may include maintained `.rs` files as native modules. The package manifest maps a Rust
+module identifier to each normalized package-relative source path:
 
-The package manifest associates them with generated crate modules and exported language objects.
+```toml
+[rust-modules]
+adapters = "rust/adapters.rs"
+```
 
-A companion declaration or Rust attribute exposes public objects through the language ABI.
+The compiler copies each file to a deterministic sibling authored-source directory, inserts an
+ordinary `#[path = "..."] mod adapters;` item in the generated crate root, and retains a
+whole-file source association for diagnostics and debugger provenance. Paths must remain inside
+the package, end in `.rs`, and use distinct valid Rust module names. Authored modules require the
+package's `build` capability and participate in canonical-Rust checking when that check is enabled.
 
-The exact annotation syntax may evolve, but the contract must cover:
+Inline blocks may call a module as `crate::adapters::operation(...)`. Public operations intended for
+ordinary Terrane code are exposed through narrow typed Terrane wrapper functions whose bodies use
+that Rust call. External dependency values deliberately crossing the wrapper may use projected
+companion types; concrete lifetime-bearing builders should remain owned inside the module. The
+wrapper's semantic contract remains authoritative for types, ownership, errors, thread safety,
+reflection metadata, and target capabilities. The module file itself is not an untyped import
+surface.
+
+The contract covers:
 
 - exported object/type identity;
 - default invocation;

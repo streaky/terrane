@@ -442,8 +442,9 @@ fn main() {
     let items: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("ab"), String::from("c")]);
+    let __terrane_iterable_0 = items.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &items,
+        &__terrane_iterable_0,
     );
     loop {
         let items = match __terrane_iterator_0.next() {
@@ -470,16 +471,18 @@ fn main() {
             terrane_int_support::Int::from(2_i128)]))
         ],
     );
+    let __terrane_iterable_1 = groups.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &groups,
+        &__terrane_iterable_1,
     );
     loop {
         let entry = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let __terrane_iterable_2 = entry.value.clone().clone();
         let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-            &entry.value.clone(),
+            &__terrane_iterable_2,
         );
         loop {
             let entry = match __terrane_iterator_2.next() {
@@ -514,7 +517,6 @@ fn main() {
     let value: i64 = 5;
     let copy: terrane_int_support::Int = terrane_int_support::Int::from(value as i128);
     println!("{}", terrane_scalar_support::scalar_text(&copy));
-    let _ = &value;
     let value: terrane_int_support::Int = terrane_int_support::Int::from(value as i128)
         + terrane_int_support::Int::from(1_i128);
     println!("{}", terrane_scalar_support::scalar_text(&value));

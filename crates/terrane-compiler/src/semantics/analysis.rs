@@ -1,5 +1,14 @@
 use super::prelude::*;
 
+fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
+    if node.kind == SyntaxKind::UnsafeRustBlock {
+        spans.push(node.span);
+    }
+    for child in &node.children {
+        collect_unsafe_rust_spans(child, spans);
+    }
+}
+
 pub(super) fn parse_unit(
     source: &SourceFile,
     source_path: String,
@@ -54,6 +63,8 @@ pub(super) fn parse_unit(
         });
     }
     let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
+    let mut unsafe_rust_spans = Vec::new();
+    collect_unsafe_rust_spans(&parsed.tree.root, &mut unsafe_rust_spans);
     Ok(SemanticUnit {
         source: source.clone(),
         source_path,
@@ -78,6 +89,7 @@ pub(super) fn parse_unit(
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
         enclosing_function_spans,
+        unsafe_rust_spans,
         unreachable_spans: Vec::new(),
         evaluation_steps: Vec::new(),
         selections: Vec::new(),
@@ -110,25 +122,42 @@ pub(super) fn parse_units(
         .iter()
         .map(|unit| unit.namespace.clone())
         .collect::<BTreeSet<_>>();
-    let mut next_source_id = units
-        .iter()
-        .map(|unit| unit.source.id())
-        .max()
-        .unwrap_or(0)
-        .saturating_add(1);
+    let mut next_source_id = package.next_source_id();
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     for unit in &units {
         for import in imports_in_tree(unit)?
             .into_iter()
             .filter(|import| import.target.starts_with("/deps/"))
         {
+            if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
+                return Err(failure(
+                    &import.source,
+                    "S2056",
+                    format!(
+                        "Rust dependency member `{}` in `{}` is ambiguous: {details}",
+                        import.object, import.target
+                    ),
+                    import.span,
+                ));
+            }
             dependency_imports
                 .entry(import.target)
                 .or_default()
                 .insert(import.object);
         }
     }
-    for (namespace, text) in projection.source_for_imports(&dependency_imports) {
+    let projected_sources =
+        projection
+            .source_for_imports(&dependency_imports)
+            .map_err(|message| SemanticFailure {
+                source: package.units[0].source.clone(),
+                diagnostics: vec![Diagnostic::error(
+                    "S2028",
+                    message,
+                    Span::new(package.units[0].source.id(), 0, 0),
+                )],
+            })?;
+    for (namespace, text) in projected_sources {
         if !loaded.insert(namespace.clone()) {
             continue;
         }
@@ -322,12 +351,19 @@ pub(super) fn dependency_projection(
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
+pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
+    let projection = dependency_projection(package)?;
+    analyze_with_projection(package, projection)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "semantic phase orchestration remains linear and order-sensitive"
 )]
-pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
-    let projection = dependency_projection(package)?;
+pub(super) fn analyze_with_projection(
+    package: &Package,
+    projection: crate::projection::Projection,
+) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = parse_units(package, &projection)?;
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
@@ -526,6 +562,17 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             ));
         }
         if projection.item(&import.target, &import.object).is_none() {
+            if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
+                return Err(failure(
+                    &import.source,
+                    "S2056",
+                    format!(
+                        "Rust dependency member `{}` in `{}` is ambiguous: {details}",
+                        import.object, import.target
+                    ),
+                    import.span,
+                ));
+            }
             if let Some(removed) = projection
                 .removed
                 .iter()
@@ -1107,27 +1154,33 @@ impl SemanticPackage {
     }
 
     #[must_use]
-    pub fn is_lexical_replacement(&self, unit: &SemanticUnit, span: Span, name: &str) -> bool {
-        let Some(current) = unit
+    pub fn lexical_replaced_binding_span(
+        &self,
+        unit: &SemanticUnit,
+        span: Span,
+        name: &str,
+    ) -> Option<Span> {
+        let current = unit
             .typed_bindings
             .iter()
-            .find(|binding| binding.name == name && binding.span == span)
-        else {
-            return false;
-        };
+            .find(|binding| binding.name == name && binding.span == span)?;
         let current_scope = lexical_scope_index_at(unit, current.span.start);
-        lexical_scope_chain(unit, span.start).any(|scope| {
-            scope.symbols.get(name).is_some_and(|symbols| {
-                symbols
-                    .iter()
-                    .any(|symbol| symbol.declaration_span == Some(span))
-                    && symbols.iter().any(|symbol| {
-                        symbol.declaration_span.is_some_and(|prior| {
-                            prior.start < span.start
-                                && lexical_scope_index_at(unit, prior.start) == current_scope
-                        })
-                    })
-            })
+        lexical_scope_chain(unit, span.start).find_map(|scope| {
+            let symbols = scope.symbols.get(name)?;
+            symbols
+                .iter()
+                .filter_map(|symbol| symbol.declaration_span)
+                .filter(|prior| {
+                    prior.start < span.start
+                        && lexical_scope_index_at(unit, prior.start) == current_scope
+                })
+                .max_by_key(|prior| prior.start)
         })
+    }
+
+    #[must_use]
+    pub fn is_lexical_replacement(&self, unit: &SemanticUnit, span: Span, name: &str) -> bool {
+        self.lexical_replaced_binding_span(unit, span, name)
+            .is_some()
     }
 }

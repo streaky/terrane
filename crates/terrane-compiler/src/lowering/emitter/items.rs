@@ -462,7 +462,7 @@ impl<'a> Emitter<'a> {
                     };
                     write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
-                        let ty = parameter.value_type.clone().map_or_else(
+                        let ty = parameter.binding_value_type().map_or_else(
                             || "i128".to_owned(),
                             |value_type| rust_value_type(self.package, value_type),
                         );
@@ -525,7 +525,7 @@ impl<'a> Emitter<'a> {
                     )
                     .unwrap();
                     for parameter in &method.parameters {
-                        let ty = parameter.value_type.clone().map_or_else(
+                        let ty = parameter.binding_value_type().map_or_else(
                             || "i128".to_owned(),
                             |value_type| rust_value_type(self.package, value_type),
                         );
@@ -678,7 +678,7 @@ impl<'a> Emitter<'a> {
                         if index != 0 {
                             self.output.push_str(", ");
                         }
-                        let ty = parameter.value_type.clone().map_or_else(
+                        let ty = parameter.binding_value_type().map_or_else(
                             || "i128".to_owned(),
                             |value_type| rust_value_type(self.package, value_type),
                         );
@@ -819,7 +819,7 @@ impl<'a> Emitter<'a> {
                             if index != 0 {
                                 self.output.push_str(", ");
                             }
-                            let ty = parameter.value_type.clone().map_or_else(
+                            let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
                                 |value_type| rust_value_type(self.package, value_type),
                             );
@@ -915,7 +915,7 @@ impl<'a> Emitter<'a> {
                         write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
                             .unwrap();
                         for parameter in &method.parameters {
-                            let ty = parameter.value_type.clone().map_or_else(
+                            let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
                                 |value_type| rust_value_type(self.package, value_type),
                             );
@@ -1107,7 +1107,7 @@ impl<'a> Emitter<'a> {
                         };
                         write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                         for parameter in &method.parameters {
-                            let ty = parameter.value_type.clone().map_or_else(
+                            let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
                                 |value_type| rust_value_type(self.package, value_type),
                             );
@@ -1657,11 +1657,12 @@ impl<'a> Emitter<'a> {
             if receiver.is_some() || index != 0 {
                 self.output.push_str(", ");
             }
-            let ty = match (&parameter.value_type, reference_lender == Some(index)) {
+            let binding_type = parameter.binding_value_type();
+            let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), true) => {
                     format!("&'a {}", rust_element_type(self.package, item.clone()))
                 }
-                _ => parameter.value_type.clone().map_or_else(
+                _ => binding_type.map_or_else(
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
                 ),
@@ -1736,8 +1737,7 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .filter_map(|parameter| {
                     parameter
-                        .value_type
-                        .clone()
+                        .binding_value_type()
                         .map(|value_type| (parameter.name.clone(), value_type))
                 })
                 .collect(),
@@ -1797,7 +1797,7 @@ impl<'a> Emitter<'a> {
             .parameters
             .iter()
             .map(|parameter| {
-                let ty = parameter.value_type.clone().map_or_else(
+                let ty = parameter.binding_value_type().map_or_else(
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
                 );
@@ -1814,7 +1814,7 @@ impl<'a> Emitter<'a> {
             .parameters
             .iter()
             .map(|parameter| {
-                parameter.value_type.clone().map_or_else(
+                parameter.binding_value_type().map_or_else(
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
                 )
@@ -1855,8 +1855,7 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .filter_map(|parameter| {
                     parameter
-                        .value_type
-                        .clone()
+                        .binding_value_type()
                         .map(|ty| (parameter.name.clone(), ty))
                 })
                 .collect(),

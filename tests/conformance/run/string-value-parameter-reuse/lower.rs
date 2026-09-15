@@ -37,8 +37,9 @@ fn main() {
             terrane_int_support::Int::from(1_i128))
         ],
     );
+    let __terrane_iterable_0 = entries;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &entries,
+        &__terrane_iterable_0,
     );
     loop {
         let __terrane_item_0 = match __terrane_iterator_0.next() {

@@ -454,8 +454,9 @@ fn main() {
             terrane_int_support::Int::from(1_i128)]))
         ],
     );
+    let __terrane_iterable_0 = values.entries();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &values.entries(),
+        &__terrane_iterable_0,
     );
     loop {
         let pair = match __terrane_iterator_0.next() {

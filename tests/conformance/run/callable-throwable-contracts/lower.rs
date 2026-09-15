@@ -1028,8 +1028,6 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&invoke_field(holder.clone()))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&invoke_field(holder)));
     });
 }

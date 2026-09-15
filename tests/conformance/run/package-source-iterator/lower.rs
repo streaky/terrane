@@ -5,7 +5,8 @@
 // Namespace: app
 fn main() {
     let values: Counter = Counter::terrane_construct();
-    let mut __terrane_iterator_0 = values.iterator();
+    let __terrane_iterable_0 = values;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
         let value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,

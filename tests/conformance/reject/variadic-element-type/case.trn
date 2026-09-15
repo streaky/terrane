@@ -1,0 +1,7 @@
+namespace variadic-element-type
+
+function total int; values int ...
+  return values.length
+
+function main;
+  print; (total; 1, 'two')

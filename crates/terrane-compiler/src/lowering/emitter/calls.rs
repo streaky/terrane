@@ -947,6 +947,18 @@ impl Emitter<'_> {
                 self.expression(elapsed)
             );
         }
+        if self.is_builtin(callee, "intrinsic:capabilities::bytes-from-octets") {
+            let octets = argument_values
+                .first()
+                .expect("bytes-from-octets arity is checked semantically");
+            return format!(
+                "({}).into_vec()",
+                self.expression_as(
+                    octets,
+                    ValueType::List(ElementType::new(ValueType::Scalar(ScalarType::Uint8))),
+                )
+            );
+        }
         let time_call = [
             ("time-wall", "platform_time_wall"),
             ("time-wall-seconds", "platform_time_wall_seconds"),
@@ -1402,11 +1414,27 @@ impl Emitter<'_> {
         {
             let receiver = self.receiver_expression(&callee.children[0]);
             if self.value_type(&callee.children[0]) == Some(ValueType::Scalar(ScalarType::Bytes)) {
-                let value = values
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "Vec::new()".to_owned());
-                return format!("{{ let mut bytes = {receiver}; bytes.extend({value}); bytes }}");
+                let bindings = values
+                    .iter()
+                    .enumerate()
+                    .map(|(index, value)| format!("let part_{index}: Vec<u8> = {value};"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let part_lengths = (0..values.len())
+                    .map(|index| format!("part_{index}.len()"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let extensions = (0..values.len())
+                    .map(|index| format!("bytes.extend(part_{index});"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                // `bytes.concat` is infallible at the Terrane surface. A combined length outside
+                // `usize` or a failed reservation therefore cannot become a normal language
+                // result. Abort before extension so neither Rust unwinding nor partial mutation
+                // crosses the generated-code boundary.
+                return format!(
+                    "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
+                );
             }
             values.insert(0, receiver);
             let values = values
@@ -1416,19 +1444,50 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("format!(\"{format}\", {})", values.join(", "));
         }
+        let specialization = self.unit.projected_call_specializations.get(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        ));
         let (projected_parameters, projected_chain_role, projected_error) = self
             .projected_function_for_call(callee)
             .map_or((None, None, false), |function| {
                 (
-                    Some(function.parameters.clone()),
+                    Some(specialization.map_or_else(
+                        || function.parameters.clone(),
+                        |specialization| specialization.projected_parameters.clone(),
+                    )),
                     function.chain_role,
                     function.error.is_some(),
                 )
             });
         let projected_chain_root = projected_chain_role == Some(crate::projection::ChainRole::Root);
+        let projected_interface_dispatch = callee
+            .children
+            .first()
+            .and_then(|receiver| self.value_type(receiver))
+            .and_then(|value_type| match value_type {
+                ValueType::Object(identity) => Some(identity),
+                _ => None,
+            })
+            .is_some_and(|identity| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .any(|descriptor| {
+                        descriptor.identity == identity
+                            && descriptor.kind == crate::semantics::ObjectKind::Interface
+                    })
+            });
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
+            let mut variadic_values = Vec::new();
+            let variadic_index = contract
+                .parameters
+                .iter()
+                .position(|parameter| parameter.variadic);
             let mut positional = 0;
             for argument in &arguments.children {
                 let named = argument
@@ -1437,7 +1496,9 @@ impl Emitter<'_> {
                     .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
                 let index = named.map_or_else(
                     || {
-                        let index = positional;
+                        let index = variadic_index
+                            .filter(|variadic| positional >= *variadic)
+                            .unwrap_or(positional);
                         positional += 1;
                         index
                     },
@@ -1454,6 +1515,11 @@ impl Emitter<'_> {
                 let projected_parameter = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index));
+                let semantic_parameter = specialization
+                    .and_then(|specialization| specialization.value_parameters.get(index))
+                    .cloned()
+                    .flatten()
+                    .or_else(|| parameter.element_value_type());
                 let expression = if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         || matches!(
@@ -1462,8 +1528,8 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
-                } else if let Some(ty) = parameter.value_type.clone() {
-                    self.expression_as(value, ty)
+                } else if let Some(ty) = semantic_parameter.as_ref() {
+                    self.expression_as(value, ty.clone())
                 } else {
                     self.expression(value)
                 };
@@ -1472,33 +1538,48 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.generic_parameter.is_none()
-                            && (projected_chain_role.is_some()
+                            && (specialization
+                                .is_some_and(|specialization| specialization.direct_projected_call)
+                                || projected_chain_role.is_some()
                                 || callee.kind == SyntaxKind::MemberExpression)
                     }) {
                     projected_chain_argument_expression(&expression, &projected.ty)
                 } else {
                     expression
                 };
-                ordered[index] = Some(
-                    projected_parameters
-                        .as_ref()
-                        .and_then(|parameters| parameters.get(index))
-                        .filter(|parameter| {
-                            parameter.borrowed
-                                && (projected_chain_root
-                                    || matches!(
-                                        parameter.ty,
-                                        crate::projection::ProjectedType::Foreign { .. }
-                                    ))
-                        })
-                        .map_or(expression.clone(), |parameter| {
-                            if parameter.mutable_borrow {
-                                format!("&mut {expression}")
-                            } else {
-                                format!("&{expression}")
-                            }
-                        }),
-                );
+                let expression = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index))
+                    .filter(|parameter| {
+                        parameter.borrowed
+                            && !projected_interface_dispatch
+                            && (specialization
+                                .is_some_and(|specialization| specialization.direct_projected_call)
+                                || projected_chain_root
+                                || callee.kind == SyntaxKind::MemberExpression
+                                || matches!(
+                                    parameter.ty,
+                                    crate::projection::ProjectedType::Foreign { .. }
+                                ))
+                    })
+                    .map_or(expression.clone(), |parameter| {
+                        if parameter.mutable_borrow {
+                            format!("&mut {expression}")
+                        } else {
+                            format!("&{expression}")
+                        }
+                    });
+                if parameter.variadic {
+                    variadic_values.push(expression);
+                } else {
+                    ordered[index] = Some(expression);
+                }
+            }
+            if let Some(index) = variadic_index {
+                ordered[index] = Some(format!(
+                    "terrane_collection_support::List::new(vec![{}])",
+                    variadic_values.join(", ")
+                ));
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
@@ -1506,10 +1587,15 @@ impl Emitter<'_> {
             ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
         ) = self.value_type(callee)
         {
+            let variadic = parameters
+                .last()
+                .filter(|parameter| parameter.is_variadic());
+            let fixed = parameters.len() - usize::from(variadic.is_some());
             values = arguments
                 .children
                 .iter()
-                .zip(parameters)
+                .take(fixed)
+                .zip(&parameters)
                 .map(|(argument, parameter)| {
                     self.expression_as(
                         argument.children.last().unwrap_or(argument),
@@ -1517,12 +1603,24 @@ impl Emitter<'_> {
                     )
                 })
                 .collect();
+            if let Some(parameter) = variadic {
+                let tail = arguments
+                    .children
+                    .iter()
+                    .skip(fixed)
+                    .map(|argument| {
+                        self.expression_as(
+                            argument.children.last().unwrap_or(argument),
+                            parameter.value_type(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                values.push(format!(
+                    "terrane_collection_support::List::new(vec![{}])",
+                    tail.join(", ")
+                ));
+            }
         }
-        let specialization = self.unit.projected_call_specializations.get(&(
-            node.span.file,
-            node.span.start,
-            node.span.end,
-        ));
         let projected_static_owner = contract.as_ref().and_then(|contract| {
             let owner = contract.owner.as_deref()?;
             let unit = self.package.units.iter().find(|unit| {
@@ -1570,11 +1668,9 @@ impl Emitter<'_> {
                         .item(&symbol.namespace, &symbol.name)
                 })
                 .filter(|item| {
-                    matches!(
-                        &item.kind,
-                        crate::projection::ProjectedKind::Function(function)
-                            if function.chain_role == Some(crate::projection::ChainRole::Root)
-                    )
+                    matches!(&item.kind, crate::projection::ProjectedKind::Function(function)
+                        if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+                            || function.chain_role == Some(crate::projection::ChainRole::Root))
                 })
                 .map_or_else(
                     || function_name(self.package, contract),
@@ -1632,7 +1728,9 @@ impl Emitter<'_> {
         // member access. Each branch above ends in a callable Rust path/member segment, so an
         // explicit turbofish is syntactically valid here; arbitrary callee expressions never
         // receive a specialization record.
-        let name = if let Some(specialization) = specialization {
+        let name = if let Some(specialization) =
+            specialization.filter(|specialization| !specialization.direct_projected_call)
+        {
             format!("{name}::<{}>", specialization.rust_type)
         } else {
             name
@@ -1658,41 +1756,35 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
-        let projected_interface_dispatch = callee
-            .children
-            .first()
-            .and_then(|receiver| self.value_type(receiver))
-            .and_then(|value_type| match value_type {
-                ValueType::Object(identity) => Some(identity),
-                _ => None,
+        let direct_projected_function = specialization
+            .is_some_and(|specialization| specialization.direct_projected_call)
+            || (callee.kind == SyntaxKind::Name
+                && self
+                    .projected_function_for_call(callee)
+                    .is_some_and(|function| {
+                        function.chain_role == Some(crate::projection::ChainRole::Root)
+                    }));
+        let foreign_method = if direct_projected_function {
+            self.projected_function_for_call(callee)
+        } else {
+            contract.as_ref().and_then(|contract| {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    return None;
+                };
+                let ValueType::Object(identity) = self.value_type(receiver)? else {
+                    return None;
+                };
+                if projected_interface_dispatch {
+                    return None;
+                }
+                self.package.projection.method(
+                    &identity.namespace,
+                    &identity.name,
+                    &contract.name,
+                    false,
+                )
             })
-            .is_some_and(|identity| {
-                self.package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.descriptors)
-                    .any(|descriptor| {
-                        descriptor.identity == identity
-                            && descriptor.kind == crate::semantics::ObjectKind::Interface
-                    })
-            });
-        let foreign_method = contract.as_ref().and_then(|contract| {
-            let [receiver, _member] = callee.children.as_slice() else {
-                return None;
-            };
-            let ValueType::Object(identity) = self.value_type(receiver)? else {
-                return None;
-            };
-            if projected_interface_dispatch {
-                return None;
-            }
-            self.package.projection.method(
-                &identity.namespace,
-                &identity.name,
-                &contract.name,
-                false,
-            )
-        });
+        };
         let chain_role = foreign_method
             .and_then(|method| method.chain_role)
             .or_else(|| {
@@ -1728,19 +1820,34 @@ impl Emitter<'_> {
                         matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
                     }));
         let call = if let Some(method) = foreign_method {
-            let [receiver, _member] = callee.children.as_slice() else {
-                unreachable!("projected methods have a receiver")
+            let (dependency, member) = if specialization
+                .is_some_and(|specialization| specialization.direct_projected_call)
+            {
+                (
+                    name.split("::").next().unwrap_or("dependency").to_owned(),
+                    name.clone(),
+                )
+            } else {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    unreachable!("projected methods have a receiver")
+                };
+                let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
+                    unreachable!("projected method receiver has an object type")
+                };
+                let type_path = self
+                    .package
+                    .projection
+                    .foreign_rust_path(&identity.namespace, &identity.name)
+                    .expect("foreign method owner has a projected Rust path");
+                (
+                    type_path
+                        .split("::")
+                        .next()
+                        .unwrap_or("dependency")
+                        .to_owned(),
+                    format!("{type_path}::{}", method.name),
+                )
             };
-            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
-                unreachable!("projected method receiver has an object type")
-            };
-            let type_path = self
-                .package
-                .projection
-                .foreign_rust_path(&identity.namespace, &identity.name)
-                .expect("foreign method owner has a projected Rust path");
-            let dependency = type_path.split("::").next().unwrap_or("dependency");
-            let member = format!("{type_path}::{}", method.name);
             let invocation = if method.is_async {
                 "__terrane_call.await".to_owned()
             } else {
@@ -1750,7 +1857,7 @@ impl Emitter<'_> {
                 && method.error.is_none()
                 && self.discarded_call == Some(node.span)
             {
-                format!("{{ {call}; }}")
+                format!("{{ let _ = {call}; }}")
             } else {
                 call.clone()
             };
@@ -1771,7 +1878,7 @@ impl Emitter<'_> {
                         "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
-                    format!("{{ {invocation}; Ok(()) }}")
+                    format!("{{ let _ = {invocation}; Ok(()) }}")
                 } else {
                     format!(
                         "Ok({})",

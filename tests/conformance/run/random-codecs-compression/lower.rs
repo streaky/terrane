@@ -466,14 +466,14 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(left.value == right.value)));
     let first_child: PseudoRandom = split_pseudo(first.clone());
-    let second_child: PseudoRandom = split_pseudo(second.clone());
+    let second_child: PseudoRandom = split_pseudo(second);
     println!(
         "{}", terrane_scalar_support::scalar_text(&(pseudo_bytes(first_child,
         terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child,
         terrane_int_support::Int::from(16_i128)).value))
     );
     let bounded: RandomIntResult = pseudo_bounded_int(
-        first.clone(),
+        first,
         terrane_int_support::Int::from(17_i128),
     );
     println!(
@@ -538,7 +538,7 @@ fn main() {
         Vec::from([100, 97, 116, 97]),
     );
     let same_wide_mac: SignatureResult = sign_hmac(
-        wide_hash.clone(),
+        wide_hash,
         same_key.clone(),
         Vec::from([100, 97, 116, 97]),
     );
@@ -548,8 +548,8 @@ fn main() {
     );
     destroy_secret(same_key.clone());
     let destroyed: SignatureResult = sign_hmac(
-        hash.clone(),
-        same_key.clone(),
+        hash,
+        same_key,
         Vec::from([100, 97, 116, 97]),
     );
     println!("{}", terrane_scalar_support::scalar_text(&destroyed.failed));
@@ -562,8 +562,8 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&failed_digest.failed));
     let failed_mac: SignatureResult = sign_hmac(
-        unsupported.clone(),
-        key.clone(),
+        unsupported,
+        key,
         Vec::from([100, 97, 116, 97]),
     );
     println!("{}", terrane_scalar_support::scalar_text(&failed_mac.failed));
@@ -642,7 +642,7 @@ fn main() {
             options.clone(),
         );
     let raw_unpacked: CompressionResult = raw_codec
-        .decompress(raw_packed.value.clone(), limits.clone());
+        .decompress(raw_packed.value.clone(), limits);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&raw_unpacked
@@ -652,7 +652,7 @@ fn main() {
     let zstd_packed: CompressionResult = zstd_codec
         .compress(
             Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
-            options.clone(),
+            options,
         );
     let zstd_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(1073741824_i128),
@@ -700,7 +700,7 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&noncanonical.failed));
     let invalid_time: UuidResult = time_uuid(
-        secure.clone(),
+        secure,
         terrane_int_support::Int::from(-1_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_time.failed));
@@ -784,6 +784,9 @@ pub fn base64() -> Base64Codec {
 }
 pub fn base64_url() -> Base64Codec {
     return Base64Codec::terrane_construct(true);
+}
+pub fn bytes_from_octets(octets: terrane_collection_support::List<u8>) -> Vec<u8> {
+    return octets.into_vec();
 }
 pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
@@ -1113,7 +1116,7 @@ impl DigestResult {
     pub fn construct(&mut self, failed: bool, message: String, digest: DigestValue) {
         self.failed = failed;
         self.message = message;
-        self.value = digest.clone();
+        self.value = digest;
     }
 }
 #[derive(Clone)]
@@ -1170,7 +1173,7 @@ impl SignatureResult {
     ) {
         self.failed = failed;
         self.message = message;
-        self.value = signature.clone();
+        self.value = signature;
     }
 }
 #[derive(Clone)]
@@ -1281,7 +1284,7 @@ impl PseudoRandom {
             Vec::from([]),
         );
         child.handle = terrane_platform_result_capability(&raw);
-        return child.clone();
+        return child;
     }
 }
 pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
@@ -1291,7 +1294,7 @@ pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
         Vec::from([]),
     );
     child.handle = terrane_platform_result_capability(&raw);
-    return child.clone();
+    return child;
 }
 pub fn secure_bytes(
     source: SecureRandom,
@@ -1402,10 +1405,10 @@ pub fn sign_hmac(
     );
 }
 pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {
-    return left.constant_time_equals(right.clone());
+    return left.constant_time_equals(right);
 }
 pub fn signature_equals(left: SignatureValue, right: SignatureValue) -> bool {
-    return left.constant_time_equals(right.clone());
+    return left.constant_time_equals(right);
 }
 // Source: core/uuid.trn
 // Namespace: core/random/uuid
@@ -1447,7 +1450,7 @@ impl UuidResult {
     pub fn construct(&mut self, failed: bool, message: String, identifier: Uuid) {
         self.failed = failed;
         self.message = message;
-        self.value = identifier.clone();
+        self.value = identifier;
     }
 }
 pub fn parse_uuid(text: String) -> UuidResult {

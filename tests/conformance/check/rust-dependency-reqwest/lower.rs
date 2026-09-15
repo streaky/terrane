@@ -490,13 +490,39 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     let mut response: Response = __terrane_raised(
-        get(String::from("http://127.0.0.1:38125/")),
+        match std::panic::catch_unwind(|| reqwest::blocking::get(
+            String::from("http://127.0.0.1:38125/"),
+        )) {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(error)) => {
+                Err(
+                    crate::TerraneForeignError(
+                        crate::TerraneError::custom_raised(
+                            crate::TERRANE_DEPENDENCY_ERROR,
+                            format!(
+                                "Rust dependency `reqwest` member `reqwest::blocking::get` failed: {error}"
+                            ),
+                            crate::TERRANE_NO_SITE,
+                        ),
+                    ),
+                )
+            }
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "reqwest",
+                        "reqwest::blocking::get",
+                    ),
+                )
+            }
+        },
         0 /* terrane-site: src/main.trn:5:16-5:45 */,
     );
     __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
-                response.headers_mut();
+                let _ = response.headers_mut();
             }),
         ) {
             Ok(value) => Ok(value),
@@ -573,78 +599,6 @@ fn main() {
 pub use http::Extensions;
 pub use http::StatusCode;
 pub use http::Version;
-pub fn terrane_static_trn_457874656e73696f6e73_new() -> Result<
-    Extensions,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::Extensions::new()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "http", "http::Extensions"))
-        }
-    }
-}
-pub fn terrane_static_trn_537461747573436f6465_from_u16(
-    src: terrane_int_support::Int,
-) -> Result<StatusCode, crate::TerraneForeignError> {
-    let src = terrane_int_support::coerce::<u16>(&src)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::StatusCode::from_u16(src)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `http` member `http::StatusCode` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "http", "http::StatusCode"))
-        }
-    }
-}
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
 pub use reqwest::blocking::Response;
-pub fn get(url: String) -> Result<Response, crate::TerraneForeignError> {
-    let url = url;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `reqwest` member `reqwest::blocking::get` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::blocking::get",
-                ),
-            )
-        }
-    }
-}

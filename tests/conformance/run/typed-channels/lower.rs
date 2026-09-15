@@ -513,7 +513,7 @@ impl StringBatch {
         value
     }
     pub fn construct(&mut self, values: terrane_collection_support::List<String>) {
-        self.values = values.clone();
+        self.values = values;
     }
 }
 fn main() {

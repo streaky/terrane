@@ -20,7 +20,7 @@
 </head>
 <body>
 <main class="shell">
-<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-09-13</div></header>
+<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-09-15</div></header>
 <section class="metrics" id="metrics" aria-label="Scoreboard summary"></section>
 <div class="layout"><aside class="filters"><h2>Explore</h2><div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Feature, note, source…"></div><div class="field"><label for="category">Category</label><select id="category"></select></div><div class="field"><label for="status">Status</label><select id="status"></select></div><div class="field"><label for="milestone">Milestone</label><select id="milestone"></select></div><div class="field"><label for="reference">Reference</label><select id="reference"></select></div><button class="reset" id="reset" type="button">Reset filters</button><div class="legend" id="legend"></div></aside>
 <section class="content"><div class="overview"><h2>Category completion</h2><div class="category-grid" id="category-grid"></div></div><div class="toolbar"><span id="result-count"></span><label>Sort <select id="sort"><option value="roadmap">Roadmap priority</option><option value="category">Category</option><option value="name">Name</option><option value="completion">Completion</option></select></label></div><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Status</th><th>Progress</th><th>Milestone</th><th>Reference</th><th>Notes</th><th>Sources</th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty" hidden>No features match these filters.</div></div></section></div>
@@ -29,7 +29,7 @@
   "format": 1,
   "title": "Terrane language scoreboard",
   "metadata": {
-    "as_of": "2026-09-13",
+    "as_of": "2026-09-15",
     "description": "Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.",
     "completion_rule": "Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded are 0; partial entries use a conservative editorial estimate backed by their notes.",
     "authority": [
@@ -870,6 +870,26 @@
       "sources": [
         "docs/language-spec-concise.md#CALL",
         "docs/compiler-plan.md#Milestone 4"
+      ]
+    },
+    {
+      "id": "variadic-parameters",
+      "name": "Variadic source parameters and calls",
+      "category": "callables",
+      "status": "done",
+      "completion": 100,
+      "milestone": "30.3",
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/language/functions/declarations.yaml"
+        ]
+      },
+      "notes": "One final `...` parameter captures surplus positional arguments as a list-like value; declarations, callable values, methods, closures, projected contracts, tooling, and lowering share the same arity model.",
+      "sources": [
+        "docs/language-spec-concise.md#CALL",
+        "docs/compiler-plan.md#Milestone 30.3",
+        "tests/conformance/run/source-variadic-parameters/case.trn"
       ]
     },
     {
@@ -1951,6 +1971,26 @@
       ]
     },
     {
+      "id": "legacy-digests",
+      "name": "Explicit legacy digest package",
+      "category": "stdlib",
+      "status": "done",
+      "completion": 100,
+      "milestone": "30.3",
+      "reference": {
+        "state": "planned",
+        "paths": [
+          "manual/reference/records/standard-library/cryptography.yaml"
+        ]
+      },
+      "notes": "An explicitly imported legacy namespace exposes SHA-1 and MD5 for compatibility and content identity without presenting either algorithm as suitable for new cryptographic security designs.",
+      "sources": [
+        "docs/language-spec-concise.md#CRYPTOGRAPHIC_ALGORITHM_IDENTITY",
+        "docs/compiler-plan.md#Milestone 30.3",
+        "tests/conformance/run/bytes-and-legacy-digests/case.trn"
+      ]
+    },
+    {
       "id": "codecs",
       "name": "Hex and Base64 codecs",
       "category": "stdlib",
@@ -2196,6 +2236,48 @@
       ]
     },
     {
+      "id": "projection-namespace-overlays",
+      "name": "Direct dependency namespace overlays",
+      "category": "interop",
+      "status": "done",
+      "completion": 100,
+      "milestone": "30.3",
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/internals/projection-namespace-overlays.yaml",
+          "manual/reference/records/packages/rust-dependencies.yaml"
+        ]
+      },
+      "notes": "Explicit feature-gated Cargo metadata may layer temporary adapter operations into a directly declared dependency namespace while preserving the real Rust owner and rejecting undeclared, transitive, ambiguous, or colliding overlays.",
+      "sources": [
+        "docs/language-spec-concise.md#DEPENDENCY PRINCIPLE",
+        "docs/compiler-plan.md#Milestone 30.3",
+        "tests/conformance/check/integration-adapter-sqlx-sqlite/case.toml"
+      ]
+    },
+    {
+      "id": "temporary-integration-adapters",
+      "name": "Temporary direct-first integration adapters",
+      "category": "interop",
+      "status": "done",
+      "completion": 100,
+      "milestone": "30.3",
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/internals/integration-adapters.yaml",
+          "manual/reference/records/packages/rust-dependencies.yaml"
+        ]
+      },
+      "notes": "One independently feature-gated adapter crate supplies only presently unprojectable dependency operations, records each gap and removal criterion in its Rust-side registry, and shrinks through ordinary namespace collisions as projection improves.",
+      "sources": [
+        "docs/compiler-plan.md#Milestone 30.3",
+        "crates/terrane-integration-adapters/src/registry.rs",
+        "tests/conformance/run/projected-axum-boundaries/case.toml"
+      ]
+    },
+    {
       "id": "projected-interface-conformance",
       "name": "Projected Rust trait conformance",
       "category": "interop",
@@ -2337,17 +2419,18 @@
       "category": "interop",
       "status": "done",
       "completion": 100,
-      "milestone": "25",
+      "milestone": "30.3",
       "reference": {
         "state": "planned",
         "paths": [
           "manual/reference/records/packages/rust-interop.yaml"
         ]
       },
-      "notes": "Rust blocks, expressions, and maintained source files retain explicit safety and source mapping.",
+      "notes": "Capability-gated Rust blocks, Rust expressions, and manifest-declared maintained Rust source files retain explicit safety, deterministic integration, and source mapping.",
       "sources": [
         "docs/language-spec-concise.md#RUST",
-        "docs/compiler-plan.md#Milestone 25"
+        "docs/compiler-plan.md#Milestone 30.3",
+        "tests/conformance/run/authored-rust-module/case.toml"
       ]
     },
     {

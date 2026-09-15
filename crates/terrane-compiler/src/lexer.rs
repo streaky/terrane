@@ -36,6 +36,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut logical_lines = Vec::new();
     let mut offset = 0;
     let mut block_string: Option<(usize, usize, Option<Vec<u8>>)> = None;
+    let mut rust_block: Option<(usize, Option<usize>)> = None;
     let mut block_terminator: Option<(usize, usize)> = None;
     let mut block_comment_start = None;
     let mut indent_style = None;
@@ -45,6 +46,50 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
         let line = raw.trim_end_matches(['\n', '\r']);
         logical_lines.push((offset, line.to_owned()));
         let indent = indentation_len(line);
+        let in_rust_block = match &mut rust_block {
+            Some((marker_indent, token_index))
+                if line.trim().is_empty() || indent > *marker_indent =>
+            {
+                if let Some(index) = *token_index {
+                    extend_token(source, &mut tokens[index], offset + raw.len());
+                } else if !line.trim().is_empty() {
+                    check_indent(
+                        source,
+                        offset,
+                        &line.as_bytes()[..indent],
+                        &mut indent_style,
+                        &mut diagnostics,
+                    );
+                    emit_indentation(
+                        source,
+                        offset,
+                        indent,
+                        &mut indent_stack,
+                        &mut tokens,
+                        &mut diagnostics,
+                    );
+                    push_token(
+                        source,
+                        &mut tokens,
+                        TokenKind::RawRust,
+                        offset + indent,
+                        offset + raw.len(),
+                        Attachment::Detached,
+                    );
+                    *token_index = Some(tokens.len() - 1);
+                }
+                true
+            }
+            Some(_) => {
+                rust_block = None;
+                false
+            }
+            None => false,
+        };
+        if in_rust_block {
+            offset += raw.len();
+            continue;
+        }
         let in_block_string = match &mut block_string {
             Some((_, token_index, _)) if line.trim().is_empty() => {
                 extend_token(source, &mut tokens[*token_index], offset + line.len());
@@ -134,6 +179,9 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             {
                 block_string = Some((indent, token_count + relative_index, None));
             }
+            if is_rust_block_marker(&tokens[token_count..]) {
+                rust_block = Some((indent, None));
+            }
         }
         if raw.ends_with('\n') && parenthesis_depth == 0 {
             if block_string.is_some() {
@@ -207,6 +255,17 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             logical_lines,
         },
         diagnostics,
+    }
+}
+fn is_rust_block_marker(tokens: &[Token]) -> bool {
+    match tokens {
+        [rust] => rust.text == "rust",
+        [unsafe_keyword, rust] => unsafe_keyword.text == "unsafe" && rust.text == "rust",
+        [.., assign, rust] if assign.kind == TokenKind::Assign => rust.text == "rust",
+        [.., assign, unsafe_keyword, rust] if assign.kind == TokenKind::Assign => {
+            unsafe_keyword.text == "unsafe" && rust.text == "rust"
+        }
+        _ => false,
     }
 }
 

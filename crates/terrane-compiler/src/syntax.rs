@@ -106,6 +106,7 @@ pub enum SyntaxKind {
     UsesClause,
     ParameterList,
     Parameter,
+    VariadicMarker,
     Block,
     IfStatement,
     ElseClause,
@@ -144,6 +145,8 @@ pub enum SyntaxKind {
     AppliedType,
     FunctionType,
     Error,
+    RustBlock,
+    UnsafeRustBlock,
     Unsupported,
 }
 

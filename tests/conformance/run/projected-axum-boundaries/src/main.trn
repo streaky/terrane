@@ -1,0 +1,27 @@
+namespace app
+
+from /deps/axum import Router, UpgradeResponse, bind_listener, close_message, receive_text, serve_router, text_message, upgrade
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/axum/extract/ws import WebSocket
+from /core/output import print
+
+async function health string;
+    return 'ok'
+async function socket-task; socket WebSocket
+    received string|none = await receive_text; socket
+    if received != none
+        await (socket.send; (text_message; received))
+    await (socket.send; (close_message;))
+
+async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
+    return upgrade; move request, socket-task
+
+async function main;
+    router = Router::new;
+    router = router.route; '/', (get; health)
+    router = router.route; '/ws', (get; upgrade-handler)
+    listener = await bind_listener; '127.0.0.1:0'
+    if false
+        await (serve_router; move listener, move router)
+    print; 'axum route and serve built'

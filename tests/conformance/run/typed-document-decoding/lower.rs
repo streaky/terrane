@@ -1194,8 +1194,9 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(malformed
         .diagnostics.clone().length()))
     );
+    let __terrane_iterable_0 = malformed.diagnostics.clone().clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &malformed.diagnostics.clone(),
+        &__terrane_iterable_0,
     );
     loop {
         let diagnostic = match __terrane_iterator_0.next() {
@@ -1671,7 +1672,7 @@ impl DocumentMapping {
         self.allow_unknown = allow_unknown;
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        return decode_document(value.clone(), self.clone());
+        return decode_document(value, self.clone());
     }
 }
 impl DeserializableProtocol for DocumentMapping {
@@ -1697,7 +1698,7 @@ pub fn deserialize_document(
     value: DocumentValue,
     destination: Deserializable,
 ) -> DocumentResult {
-    return destination.from_document(value.clone());
+    return destination.from_document(value);
 }
 pub fn make_document_result(
     raw: terrane_document_support::DataResult,
@@ -1749,8 +1750,8 @@ pub fn append_document_map_entry(
     key: String,
     value: DocumentValue,
 ) -> DocumentMapEntries {
-    entries.append(key, value.clone());
-    return entries.clone();
+    entries.append(key, value);
+    return entries;
 }
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
@@ -1784,11 +1785,13 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names;
+    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
     let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields;
+        .optional_fields
+        .clone();
     let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields;
+        .default_fields
+        .clone();
     let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![]);
@@ -1870,7 +1873,7 @@ pub fn mapping_required_fields(
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return required.clone();
+    return required;
 }
 pub fn decode_document(
     value: DocumentValue,
@@ -2006,7 +2009,7 @@ pub fn decode_document(
     if result.failed {
         result.expected = mapping.descriptor_name.clone();
     }
-    return result.clone();
+    return result;
 }
 // Source: core/json.trn
 // Namespace: core/documents/json
@@ -2064,14 +2067,14 @@ pub fn decode_json(
     mapping: Deserializable,
     options: JsonOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_json(input, options.clone());
+    let parsed: DocumentResult = parse_json(input, options);
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping.clone());
+    return deserialize_document(parsed.value, mapping);
 }
 pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
-    return stringify_json(serialize_document(value.clone()), options.clone());
+    return stringify_json(serialize_document(value), options);
 }
 // Source: core/yaml.trn
 // Namespace: core/documents/yaml
@@ -2142,12 +2145,12 @@ pub fn decode_yaml(
     mapping: Deserializable,
     options: YamlOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_yaml(input, options.clone());
+    let parsed: DocumentResult = parse_yaml(input, options);
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping.clone());
+    return deserialize_document(parsed.value, mapping);
 }
 pub fn encode_yaml(value: Serializable) -> DocumentResult {
-    return stringify_yaml(serialize_document(value.clone()));
+    return stringify_yaml(serialize_document(value));
 }

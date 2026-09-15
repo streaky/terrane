@@ -68,7 +68,8 @@ fn main() {
     let values: Counter = Counter::terrane_construct(
         terrane_int_support::Int::from(3_i128),
     );
-    let mut __terrane_iterator_0 = values.iterator();
+    let __terrane_iterable_0 = values;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
         let value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
@@ -93,7 +94,8 @@ fn main() {
         terrane_collection_support::IterationStep::End)),
         terrane_scalar_support::scalar_text(&probe.advances)
     );
-    let mut __terrane_iterator_1 = NoneOnce::terrane_construct().iterator();
+    let __terrane_iterable_1 = NoneOnce::terrane_construct();
+    let mut __terrane_iterator_1 = __terrane_iterable_1.iterator();
     loop {
         let missing = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,

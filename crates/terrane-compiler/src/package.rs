@@ -31,6 +31,13 @@ impl SourceUnit {
         self.relative_path.to_string_lossy().replace('\\', "/")
     }
 }
+#[derive(Clone, Debug)]
+pub struct AuthoredRustModule {
+    pub name: String,
+    /// Normalized path relative to [`Package::root`].
+    pub relative_path: PathBuf,
+    pub source: SourceFile,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReflectionProfile {
@@ -114,6 +121,44 @@ pub struct RustDependency {
     pub effects: Vec<String>,
 }
 
+/// Returns dependency declarations with the required Tokio runtime features merged into any
+/// directly declared Tokio package, including dependencies declared under a Cargo alias.
+#[must_use]
+pub fn with_tokio_runtime(
+    dependencies: &[RustDependency],
+    required_features: &[&str],
+) -> Vec<RustDependency> {
+    let mut merged = dependencies.to_vec();
+    if let Some(tokio) = merged.iter_mut().find(|dependency| {
+        dependency.package == "tokio" && dependency.cargo_manifest_table() == "dependencies"
+    }) {
+        tokio.features.extend(
+            required_features
+                .iter()
+                .map(|feature| (*feature).to_owned()),
+        );
+        tokio.features.sort();
+        tokio.features.dedup();
+    } else {
+        let mut features = required_features
+            .iter()
+            .map(|feature| (*feature).to_owned())
+            .collect::<Vec<_>>();
+        features.sort();
+        features.dedup();
+        merged.push(RustDependency {
+            name: "tokio".to_owned(),
+            package: "tokio".to_owned(),
+            version: "=1.53.0".to_owned(),
+            features,
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        });
+    }
+    merged
+}
+
 impl RustDependency {
     #[must_use]
     pub fn cargo_manifest_table(&self) -> String {
@@ -153,6 +198,7 @@ pub struct Package {
     pub build_toolchain: BuildToolchain,
     pub units: Vec<SourceUnit>,
     pub rust_dependencies: Vec<RustDependency>,
+    pub authored_rust_modules: Vec<AuthoredRustModule>,
 }
 
 #[derive(Clone, Debug)]
@@ -205,7 +251,22 @@ impl Package {
                 role: SourceRole::Production,
             }],
             rust_dependencies: Vec::new(),
+            authored_rust_modules: Vec::new(),
         }
+    }
+
+    pub(crate) fn next_source_id(&self) -> u32 {
+        self.units
+            .iter()
+            .map(|unit| unit.source.id())
+            .chain(
+                self.authored_rust_modules
+                    .iter()
+                    .map(|module| module.source.id()),
+            )
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1)
     }
 
     /// The manifest is TOML with required `package` and `namespaces` fields and
@@ -234,6 +295,8 @@ impl Package {
         })?;
         let manifest = parse_manifest(&manifest_path, &text)?;
         let units = discover_source_units(&root, &manifest.namespace_roots)?;
+        let authored_rust_modules =
+            load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
         Ok(Self {
             identity: manifest.identity,
             root,
@@ -246,6 +309,7 @@ impl Package {
             purpose: PackagePurpose::Production,
             units,
             rust_dependencies: manifest.rust_dependencies,
+            authored_rust_modules,
         })
     }
 
@@ -297,6 +361,8 @@ impl Package {
         if !errors.is_empty() {
             return Err(errors);
         }
+        let authored_rust_modules =
+            load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
         Ok(Self {
             identity: manifest.identity,
             root,
@@ -309,6 +375,7 @@ impl Package {
             build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,
+            authored_rust_modules,
         })
     }
 }
@@ -323,6 +390,7 @@ struct ParsedManifest {
     testing: crate::testing::TestConfiguration,
     namespace_roots: Vec<NamespaceRoot>,
     rust_dependencies: Vec<RustDependency>,
+    authored_rust_modules: Vec<(String, PathBuf)>,
 }
 
 #[derive(Clone, Debug)]
@@ -363,6 +431,7 @@ fn parse_manifest(
                 | "testing"
                 | "namespaces"
                 | "rust-dependencies"
+                | "rust-modules"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -451,6 +520,19 @@ fn parse_manifest(
     let profile = parse_capability_profile(manifest_path, text, &table, &mut errors);
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     let rust_dependencies = parse_rust_dependencies(manifest_path, text, &table, &mut errors);
+    let authored_rust_modules =
+        parse_authored_rust_modules(manifest_path, text, &table, &mut errors);
+    if !authored_rust_modules.is_empty() && !profile.allows("build") {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            format!(
+                "profile `{}` forbids effect `build` required by authored Rust modules",
+                profile.name
+            ),
+            Some("rust-modules"),
+        ));
+    }
     for dependency in &rust_dependencies {
         for effect in std::iter::once("build").chain(dependency.effects.iter().map(String::as_str))
         {
@@ -484,8 +566,97 @@ fn parse_manifest(
             profile,
             namespace_roots,
             rust_dependencies,
+            authored_rust_modules,
             testing: testing.expect("validated testing configuration"),
         })
+    } else {
+        Err(errors)
+    }
+}
+
+fn parse_authored_rust_modules(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<(String, PathBuf)> {
+    let Some(value) = table.get("rust-modules") else {
+        return Vec::new();
+    };
+    let Some(modules) = value.as_table() else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`rust-modules` must be a table mapping module names to relative `.rs` paths",
+            Some("rust-modules"),
+        ));
+        return Vec::new();
+    };
+    modules
+        .iter()
+        .filter_map(|(name, value)| {
+            if syn::parse_str::<syn::Ident>(name).is_err() {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("authored Rust module name `{name}` is not a Rust identifier"),
+                    Some(name),
+                ));
+                return None;
+            }
+            let Some(path) = value.as_str().and_then(normalized_relative_directory) else {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("authored Rust module `{name}` must name a relative `.rs` path"),
+                    Some(name),
+                ));
+                return None;
+            };
+            if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("authored Rust module `{name}` path must end in `.rs`"),
+                    Some(name),
+                ));
+                return None;
+            }
+            Some((name.clone(), path))
+        })
+        .collect()
+}
+
+fn load_authored_rust_modules(
+    root: &Path,
+    modules: &[(String, PathBuf)],
+    source_id_start: usize,
+) -> Result<Vec<AuthoredRustModule>, Vec<PackageLoadError>> {
+    let mut loaded = Vec::with_capacity(modules.len());
+    let mut errors = Vec::new();
+    for (offset, (name, relative_path)) in modules.iter().enumerate() {
+        let path = root.join(relative_path);
+        let Ok(source_id) = u32::try_from(source_id_start + offset) else {
+            errors.push(PackageLoadError::unreadable(
+                path,
+                "package has too many source units",
+            ));
+            continue;
+        };
+        match fs::read_to_string(&path) {
+            Ok(text) => loaded.push(AuthoredRustModule {
+                name: name.clone(),
+                relative_path: relative_path.clone(),
+                source: SourceFile::new(source_id, path, text),
+            }),
+            Err(error) => errors.push(PackageLoadError::unreadable(
+                path,
+                format!("cannot read authored Rust module: {error}"),
+            )),
+        }
+    }
+    if errors.is_empty() {
+        Ok(loaded)
     } else {
         Err(errors)
     }
@@ -1097,6 +1268,26 @@ mod tests {
         assert_eq!(
             dependency.cargo_dependency_spec(),
             "date-codec = { package = \"httpdate\", version = \"=1.0.3\", default-features = false, features = [\"clock\", \"serde\"] }\n"
+        );
+    }
+    #[test]
+    fn authored_rust_module_paths_cannot_escape_the_package() {
+        let manifest = r#"
+package = "example"
+
+[namespaces]
+app = "src"
+
+[rust-modules]
+adapters = "../escape.rs"
+"#;
+        let Err(errors) = parse_manifest(Path::new("package.toml"), manifest) else {
+            panic!("parent traversal must be rejected");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].diagnostic.message,
+            "authored Rust module `adapters` must name a relative `.rs` path"
         );
     }
 }

@@ -4,7 +4,7 @@
 // Source: app/main.trn
 // Namespace: app
 fn identity(value: Item) -> Item {
-    return value.clone();
+    return value;
 }
 fn main() {
     let original: Item = Item::terrane_construct();

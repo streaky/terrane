@@ -672,6 +672,7 @@ fn lower_with_tests(
         runtime.push(descriptor_runtime_module());
     }
     emit_global_storage(package, &registry, &mut globals);
+    let static_method_references = index_projected_static_method_references(package);
     let mut modules = package
         .units
         .iter()
@@ -684,7 +685,11 @@ fn lower_with_tests(
                     }
                 }
                 let mut rust = emitter.output;
-                rust.push_str(&emit_dependency_unit(package, unit));
+                rust.push_str(&emit_dependency_unit(
+                    package,
+                    unit,
+                    &static_method_references,
+                ));
                 return Ok(Module {
                     source_path: unit.source_path.clone(),
                     namespace: unit.namespace.clone(),

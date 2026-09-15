@@ -1633,7 +1633,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message,
             String::from("default")), 24 /* terrane-site: src/main.trn:125:13-125:49 */))
         );
-        let interface_message: Renderable = <Renderable>::from(message.clone());
+        let interface_message: Renderable = <Renderable>::from(message);
         println!(
             "{}", terrane_scalar_support::scalar_text(&interface_message
             .decorated(String::from("provided")))

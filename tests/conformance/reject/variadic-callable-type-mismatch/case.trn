@@ -1,0 +1,7 @@
+namespace variadic-callable-type-mismatch
+
+function total int; values int ...
+  return values.length
+
+function main;
+  fixed function from int to int = total

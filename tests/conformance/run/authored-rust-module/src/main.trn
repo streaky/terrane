@@ -1,0 +1,6 @@
+namespace app
+
+function main;
+  answer int = rust
+    crate::adapters::answer()
+  print; answer

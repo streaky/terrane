@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 43; final oracle admission prunes orphaned bound functions while preserving structural associated bindings and complete supertrait identities"
+reviewed-against = "projection schema 45; variadic contracts, structural call bindings, complete supertrait identities, final-admission bound filtering, and call-site generic specialization are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"
@@ -6,26 +6,26 @@ rustdoc-toolchain = "nightly-2026-07-06"
 rustdoc-format = 57
 
 [cost]
-observed-on = "2026-09-08"
+observed-on = "2026-09-15"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
 method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust"
-cold-wall-seconds = 35.181
-warm-wall-seconds = 0.360
-generated-rust-lines = 553
-generated-rust-bytes = 18105
+cold-wall-seconds = 58.940
+warm-wall-seconds = 0.720
+generated-rust-lines = 579
+generated-rust-bytes = 19497
 
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-projected-count = 59
-declined-count = 1054
-instance-count = 74
+projected-count = 78
+declined-count = 997
+instance-count = 112
 static-count = 2
 canonical-members = ["/deps/axum::Router"]
 instance-members = ["/deps/axum::Router.has_routes"]
 static-members = ["/deps/axum::Router::new"]
-required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
-classification = "default generic identity is reusable; destination-directed state and service results are admitted while callable-handler shapes still need closed specialization"
+required-gaps = ["axum::serve: projected associated IntoFuture result is not yet directly lowerable"]
+classification = "call-site specialization admits closed callback, handler, middleware, routing, and service shapes; the remaining application boundary is associated future lowering for direct serve"
 declined-members = [
   { rust-path = "axum::Router<()>::default", reason = "trait method is not declared by this dependency crate" },
 ]
@@ -34,9 +34,9 @@ declined-members = [
 name = "http"
 version = "1.3.1"
 projected-count = 27
-declined-count = 838
-instance-count = 65
-static-count = 14
+declined-count = 814
+instance-count = 88
+static-count = 15
 canonical-members = ["/deps/http::HeaderMap"]
 instance-members = []
 static-members = []
@@ -46,10 +46,10 @@ classification = "direct canonical owner for status, header, request, and respon
 [[dependency]]
 name = "reqwest"
 version = "0.12.28"
-projected-count = 36
-declined-count = 533
-instance-count = 161
-static-count = 7
+projected-count = 37
+declined-count = 492
+instance-count = 194
+static-count = 14
 canonical-members = ["/deps/reqwest::Response"]
 instance-members = ["/deps/reqwest::Response.status"]
 static-members = []
@@ -59,15 +59,15 @@ classification = "async lowering and destination-directed JSON results are imple
 [[dependency]]
 name = "sentry"
 version = "0.46.2"
-projected-count = 3
-declined-count = 57
+projected-count = 4
+declined-count = 56
 instance-count = 1
 static-count = 0
 canonical-members = ["/deps/sentry::ClientInitGuard"]
 instance-members = []
 static-members = []
-required-gaps = ["sentry::init: open generic C"]
-classification = "concrete upstream configuration or a narrow optional facade is still required"
+required-gaps = []
+classification = "generic init is admitted through call-site specialization while the concrete client guard remains canonically owned by sentry"
 
 [[dependency]]
 name = "sqlx"
@@ -85,10 +85,10 @@ classification = "macro-exported construction and call-directed closed specializ
 [[dependency]]
 name = "tokio"
 version = "1.53.1"
-projected-count = 99
-declined-count = 1243
-instance-count = 250
-static-count = 42
+projected-count = 102
+declined-count = 1235
+instance-count = 252
+static-count = 45
 canonical-members = ["/deps/tokio/io::duplex"]
 instance-members = []
 static-members = []
@@ -98,21 +98,21 @@ classification = "async lowering is implemented; open generic handle identities 
 [[dependency]]
 name = "tokio-tungstenite"
 version = "0.30.0"
-projected-count = 1
-declined-count = 14
+projected-count = 3
+declined-count = 12
 instance-count = 0
 static-count = 0
 canonical-members = ["/deps/tokio-tungstenite::Connector"]
 instance-members = []
 static-members = []
 required-gaps = ["tokio_tungstenite::connect_async: open generic R"]
-classification = "destination-directed closed specialization is still required for the generic connector entrypoint"
+classification = "generic inbound accept entrypoints are admitted through call-site specialization; the outbound connector still requires destination-directed closure"
 
 [[dependency]]
 name = "tower"
 version = "0.5.3"
-projected-count = 18
-declined-count = 274
+projected-count = 20
+declined-count = 272
 instance-count = 0
 static-count = 3
 canonical-members = ["/deps/tower/limit::RateLimitLayer"]
@@ -124,8 +124,8 @@ classification = "default generic identity is reusable and one closed associated
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-projected-count = 53
-declined-count = 553
+projected-count = 56
+declined-count = 550
 instance-count = 2
 static-count = 2
 canonical-members = ["/deps/tower-http::LatencyUnit"]
@@ -137,8 +137,8 @@ classification = "reusable generic identity and non-escaping builder-chain compo
 [[dependency]]
 name = "tracing"
 version = "0.1.44"
-projected-count = 2
-declined-count = 85
+projected-count = 3
+declined-count = 84
 instance-count = 6
 static-count = 2
 canonical-members = ["/deps/tracing::Span"]
@@ -151,8 +151,8 @@ classification = "macro-only logging entrypoints remain better served by Terrane
 name = "utoipa"
 version = "5.5.0"
 projected-count = 151
-declined-count = 1515
-instance-count = 43
+declined-count = 1510
+instance-count = 48
 static-count = 60
 canonical-members = ["/deps/utoipa::Number"]
 instance-members = []

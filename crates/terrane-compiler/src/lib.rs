@@ -29,18 +29,18 @@ pub use compiler::{
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
 pub use package::{
-    BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
-    Package, PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile, RustDependency,
-    SourceRole, SourceUnit,
+    AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID,
+    MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile,
+    RustDependency, SourceRole, SourceUnit, with_tokio_runtime,
 };
 pub use projection_oracle::{
     BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,
     ProbeReport, ProjectionOracle,
 };
 pub use semantics::{
-    BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,
-    Namespace, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
-    TypedBinding, ValueType, Visibility, analyze,
+    BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, EvaluationKind, EvaluationStep,
+    FunctionContract, MemberFamily, Namespace, ParameterContract, SemanticFailure, SemanticPackage,
+    SemanticUnit, Symbol, TypedBinding, ValueType, Visibility, analyze,
 };
 pub use source::{SourceFile, Span};
 pub use types::{ScalarType, TypeCategory};

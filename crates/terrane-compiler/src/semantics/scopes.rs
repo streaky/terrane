@@ -654,6 +654,34 @@ pub(super) fn validate_control_flow(
     Ok(unreachable_units)
 }
 
+pub(super) fn block_may_fall_through(block: &SyntaxNode) -> bool {
+    let Some(statement) = block.children.last() else {
+        return true;
+    };
+    match statement.kind {
+        SyntaxKind::ReturnStatement
+        | SyntaxKind::ThrowStatement
+        | SyntaxKind::BreakStatement
+        | SyntaxKind::ContinueStatement => false,
+        SyntaxKind::IfStatement => {
+            let branches = statement
+                .children
+                .iter()
+                .filter(|child| matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause))
+                .collect::<Vec<_>>();
+            let has_else = branches
+                .iter()
+                .any(|branch| branch.kind == SyntaxKind::ElseClause);
+            !has_else || branches.iter().any(|branch| block_may_fall_through(branch))
+        }
+        SyntaxKind::Block | SyntaxKind::ElseClause | SyntaxKind::SelectCase => {
+            block_may_fall_through(statement)
+        }
+        SyntaxKind::SelectStatement => statement.children.iter().any(block_may_fall_through),
+        _ => true,
+    }
+}
+
 pub(super) fn validate_flow_block(
     unit: &SemanticUnit,
     block: &SyntaxNode,

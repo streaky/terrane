@@ -1,0 +1,7 @@
+namespace variadic-named-argument
+
+function total int; values int ...
+  return values.length
+
+function main;
+  print; (total; values = 1)

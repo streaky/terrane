@@ -456,8 +456,9 @@ fn main() {
     let mut byte_count: terrane_int_support::Int = terrane_int_support::Int::from(
         0_i128,
     );
+    let __terrane_iterable_0 = text.as_bytes().to_vec();
     let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
-        &text.as_bytes().to_vec(),
+        &__terrane_iterable_0,
     );
     loop {
         let byte = match __terrane_iterator_0.next() {
@@ -471,8 +472,12 @@ fn main() {
     let mut scalar_count: terrane_int_support::Int = terrane_int_support::Int::from(
         0_i128,
     );
+    let __terrane_iterable_1 = text
+        .chars()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterator::new(
-        text.chars().map(|value| value.to_string()).collect::<Vec<_>>(),
+        __terrane_iterable_1,
     );
     loop {
         let scalar = match __terrane_iterator_1.next() {
@@ -486,8 +491,10 @@ fn main() {
     let mut grapheme_count: terrane_int_support::Int = terrane_int_support::Int::from(
         0_i128,
     );
+    let __terrane_iterable_2 = terrane_string_support::graphemes(&text)
+        .collect::<Vec<_>>();
     let mut __terrane_iterator_2 = terrane_collection_support::Iterator::new(
-        terrane_string_support::graphemes(&text).collect::<Vec<_>>(),
+        __terrane_iterable_2,
     );
     loop {
         let grapheme = match __terrane_iterator_2.next() {

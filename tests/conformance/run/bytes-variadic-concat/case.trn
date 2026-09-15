@@ -1,0 +1,9 @@
+namespace bytes-variadic-concat
+
+from /core/encodings import utf8
+
+function main;
+  combined = b'a'.concat; b'', b'bc', b'd'
+  print; (combined.decode; utf8), combined.length
+  unchanged = b'z'.concat;
+  print; (unchanged.decode; utf8)

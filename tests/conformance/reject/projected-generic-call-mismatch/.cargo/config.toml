@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-generic-mismatch-witness = { path = "fixture-registry/terrane-generic-mismatch-witness-0.1.0" }

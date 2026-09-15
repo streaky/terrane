@@ -603,7 +603,10 @@ impl Emitter<'_> {
                 continue;
             }
             if let Some(default) = parameter.children.last().filter(|child| {
-                !matches!(child.kind, SyntaxKind::Name | SyntaxKind::TypeExpression)
+                !matches!(
+                    child.kind,
+                    SyntaxKind::Name | SyntaxKind::TypeExpression | SyntaxKind::VariadicMarker
+                )
             }) {
                 let destination = contract.parameters[index].value_type.clone();
                 let value = destination
@@ -930,6 +933,72 @@ impl Emitter<'_> {
 
     pub(super) fn text(&self, node: &SyntaxNode) -> &str {
         &self.source.text()[node.span.start..node.span.end]
+    }
+    pub(super) fn rust_block_body(&self, node: &SyntaxNode) -> String {
+        let body = self
+            .text(node)
+            .split_once('\n')
+            .map_or("", |(_, body)| body);
+        let lines = body.lines().collect::<Vec<_>>();
+        let indentation = lines
+            .iter()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.len() - line.trim_start_matches([' ', '\t']).len())
+            .min()
+            .unwrap_or(0);
+        lines
+            .into_iter()
+            .map(|line| line.get(indentation..).unwrap_or(line))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+    pub(super) fn rust_block_clone_prelude(&self, node: &SyntaxNode) -> String {
+        let identifiers = crate::rust_ir::rust_syntactic_identifiers(&self.rust_block_body(node));
+        self.unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| {
+                binding.scope.is_some()
+                    && binding.is_visible_at(self.unit.source.id(), node.span.start)
+                    && !rust_value_is_copy(&binding.value_type)
+                    && identifiers.contains(&rust_name(&binding.name))
+            })
+            .map(|binding| {
+                let name = rust_name(&binding.name);
+                format!("let {name} = {name}.clone();")
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+    pub(super) fn inline_rust_expression(&self, node: &SyntaxNode) -> String {
+        let boundary = if node.kind == SyntaxKind::UnsafeRustBlock {
+            "unsafe "
+        } else {
+            ""
+        };
+        format!(
+            "{boundary}{{ {} {} }}",
+            self.rust_block_clone_prelude(node),
+            self.rust_block_body(node)
+        )
+    }
+
+    pub(super) fn inline_rust_statement(&mut self, node: &SyntaxNode) {
+        if node.kind == SyntaxKind::UnsafeRustBlock {
+            self.line("unsafe {");
+        } else {
+            self.line("{");
+        }
+        self.indent += 1;
+        let prelude = self.rust_block_clone_prelude(node);
+        if !prelude.is_empty() {
+            self.line(&prelude);
+        }
+        for line in self.rust_block_body(node).lines() {
+            self.line(line);
+        }
+        self.indent -= 1;
+        self.line("}");
     }
 
     pub(super) fn control_condition(&mut self, mut node: &SyntaxNode) -> String {

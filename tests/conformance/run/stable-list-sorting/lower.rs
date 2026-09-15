@@ -779,8 +779,9 @@ fn main() {
         collection.sort_by(|left, right| left.cmp(right));
         collection.clone()
     };
+    let __terrane_iterable_0 = ascending;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &ascending,
+        &__terrane_iterable_0,
     );
     loop {
         let key = match __terrane_iterator_0.next() {
@@ -798,8 +799,9 @@ fn main() {
         collection.sort_by(|left, right| right.cmp(left));
         collection.clone()
     };
+    let __terrane_iterable_1 = descending.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &descending,
+        &__terrane_iterable_1,
     );
     loop {
         let key = match __terrane_iterator_1.next() {

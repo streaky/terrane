@@ -445,7 +445,6 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:8:12-8:23 */)), 0 /* terrane-site: case.trn:8:12-8:23 */))
     );
-    let _ = &value;
     let value: String = String::from("replacement");
     println!("{}", terrane_scalar_support::scalar_text(&value));
 }

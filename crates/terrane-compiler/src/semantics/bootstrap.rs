@@ -31,6 +31,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/codecs",
         "capabilities",
         [
+            "bytes-from-octets",
             "hex-encode",
             "hex-decode",
             "base64-encode",

@@ -772,13 +772,21 @@ pub(super) fn bind_projected_associated_type(
         ValueType::UnorderedMap(key, item) => ValueType::UnorderedMap(element(key), element(item)),
         ValueType::UnorderedSet(item) => ValueType::UnorderedSet(element(item)),
         ValueType::Function(parameters, result, effects) => ValueType::Function(
-            parameters.iter().map(element).collect(),
+            parameters
+                .iter()
+                .map(|parameter| parameter.with_element_type(element(&parameter.element_type())))
+                .collect(),
             element(result),
             effects.clone(),
         ),
         ValueType::AsyncFunction(parameters, result, transferability, effects) => {
             ValueType::AsyncFunction(
-                parameters.iter().map(element).collect(),
+                parameters
+                    .iter()
+                    .map(|parameter| {
+                        parameter.with_element_type(element(&parameter.element_type()))
+                    })
+                    .collect(),
                 element(result),
                 *transferability,
                 effects.clone(),
@@ -833,7 +841,9 @@ pub(super) fn validate_object_conformance(
                 .parameters
                 .iter()
                 .zip(&implementation.parameters)
-                .all(|(left, right)| left.value_type == right.value_type)
+                .all(|(left, right)| {
+                    left.value_type == right.value_type && left.variadic == right.variadic
+                })
             && requirement.return_type == implementation.return_type
             && (!implementation.throws || requirement.throws)
             && requirement.is_async == implementation.is_async
@@ -899,10 +909,12 @@ pub(super) fn validate_object_conformance(
                         object.span,
                     ));
                 };
-                if let Some(crate::projection::ProjectedKind::Interface(projected)) = package
-                    .projection
-                    .item(&resolved_interface.namespace, &resolved_interface.name)
-                    .map(|item| &item.kind)
+                if let Some(crate::projection::ProjectedKind::Interface(projected)) =
+                    resolved_interface
+                        .identity
+                        .rsplit_once("::")
+                        .and_then(|(namespace, name)| package.projection.item(namespace, name))
+                        .map(|item| &item.kind)
                 {
                     match (
                         projected.associated_type.as_ref(),
@@ -2162,8 +2174,11 @@ struct PendingProjectedSpecialization {
     parameter: String,
     rust_type: String,
     projected_result: crate::projection::ProjectedType,
+    projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    direct_projected_call: bool,
+    value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
-    bounds: Vec<String>,
+    bounds: Vec<(String, String, Vec<String>)>,
 }
 
 #[expect(
@@ -2189,10 +2204,13 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             specialization
                 .bounds
                 .iter()
-                .map(|rust_bound| crate::BoundQuestion {
-                    rust_type: specialization.rust_type.clone(),
-                    rust_bound: rust_bound.clone(),
-                })
+                .map(
+                    |(rust_type, rust_bound, inferred_parameters)| crate::BoundQuestion {
+                        rust_type: rust_type.clone(),
+                        rust_bound: rust_bound.clone(),
+                        inferred_parameters: inferred_parameters.clone(),
+                    },
+                )
         })
         .collect::<Vec<_>>();
     let workspace = package.root.join(".trn/dependencies");
@@ -2227,10 +2245,11 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
     for specialization in pending {
-        for rust_bound in &specialization.bounds {
+        for (rust_type, rust_bound, inferred_parameters) in &specialization.bounds {
             let question = crate::BoundQuestion {
-                rust_type: specialization.rust_type.clone(),
+                rust_type: rust_type.clone(),
                 rust_bound: rust_bound.clone(),
+                inferred_parameters: inferred_parameters.clone(),
             };
             match answers.get(&question) {
                 Some(crate::ProbeAnswer::Yes) => {}
@@ -2284,6 +2303,9 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                     rust_type: specialization.rust_type,
                     projected_result: specialization.projected_result,
                     value_type: specialization.value_type,
+                    projected_parameters: specialization.projected_parameters,
+                    direct_projected_call: specialization.direct_projected_call,
+                    value_parameters: specialization.value_parameters,
                 },
             );
     }
@@ -2320,9 +2342,197 @@ fn collect_projected_destinations(
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::Name
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+        && function.chain_role.is_none()
+        && function
+            .generic_parameters
+            .iter()
+            .any(|generic| generic.input_selected)
+        && let Some(contract) = super::analysis::resolved_function_contract(
+            unit,
+            node_text(&unit.source, callee),
+            callee.span.start,
+        )
+    {
+        let mut value_bindings = BTreeMap::new();
+        for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
+            let value = argument.children.last().unwrap_or(argument);
+            let Some(expected) = parameter.element_value_type() else {
+                continue;
+            };
+            let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+                continue;
+            };
+            super::calls::bind_projected_generics(
+                &expected,
+                &actual,
+                &mut value_bindings,
+            )
+            .map_err(|generic| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{generic}` is inferred as incompatible argument types"
+                    ),
+                    value.span,
+                )
+            })?;
+        }
+        let mut projected_bindings = BTreeMap::new();
+        for generic in function
+            .generic_parameters
+            .iter()
+            .filter(|generic| generic.input_selected)
+        {
+            let actual = value_bindings.get(&generic.name).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{}` cannot be inferred from this call",
+                        generic.name
+                    ),
+                    node.span,
+                )
+            })?;
+            let projected = destination_projected_type(package, actual).map_err(|reason| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{}` cannot use `{actual}`: {reason}",
+                        generic.name
+                    ),
+                    node.span,
+                )
+            })?;
+            projected_bindings.insert(generic.name.clone(), projected);
+        }
+        let specialize = |template: &crate::projection::ProjectedType| {
+            projected_bindings
+                .iter()
+                .fold(template.clone(), |specialized, (generic, projected)| {
+                    substitute_projected_generic(&specialized, generic, projected)
+                })
+        };
+        let projected_parameters = function
+            .parameters
+            .iter()
+            .cloned()
+            .map(|mut parameter| {
+                parameter.ty = specialize(&parameter.ty);
+                parameter.generic_parameter = None;
+                parameter.generic_bounds.clear();
+                parameter
+            })
+            .collect();
+        let value_parameters = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter.element_value_type().map(|value_type| {
+                    super::calls::substitute_projected_value_generics(&value_type, &value_bindings)
+                })
+            })
+            .collect();
+        let mut projected_result = specialize(&function.result);
+        let result = super::calls::substitute_projected_value_generics(
+            contract
+                .return_type
+                .as_ref()
+                .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+            &value_bindings,
+        );
+        let mut value_type = if contract.is_async {
+            ValueType::Task(ElementType::new(result), contract.task_transferability)
+        } else {
+            result
+        };
+        let mut rust_replacements = projected_bindings
+            .iter()
+            .map(|(name, projected)| (name.clone(), projected.rust_type()))
+            .collect::<BTreeMap<_, _>>();
+        let mut specialization_parameter = String::new();
+        let mut specialization_rust_type = String::new();
+        if let (Some(destination_result), Some(destination)) =
+            (&function.destination_result, expected)
+            && let Ok(expected_projected) = destination_projected_type(package, destination)
+            && let Ok(Some(projected_destination)) = select_projected_generic_destination(
+                &function.result,
+                &destination_result.parameter,
+                &expected_projected,
+            )
+        {
+            specialization_parameter.clone_from(&destination_result.parameter);
+            specialization_rust_type = projected_destination.rust_type();
+            rust_replacements.insert(
+                destination_result.parameter.clone(),
+                specialization_rust_type.clone(),
+            );
+            projected_result = align_projected_result_representation(
+                &substitute_projected_generic(
+                    &projected_result,
+                    &destination_result.parameter,
+                    &projected_destination,
+                ),
+                &expected_projected,
+            );
+            value_type = destination.clone();
+        }
+        let bounds = function
+            .generic_parameters
+            .iter()
+            .filter(|generic| generic.input_selected)
+            .flat_map(|generic| {
+                let rust_type = projected_bindings[&generic.name].rust_type();
+                generic
+                    .rust_bounds
+                    .iter()
+                    .map(|bound| {
+                        let rust_bound =
+                            crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements);
+                        let inferred_parameters = function
+                            .generic_parameters
+                            .iter()
+                            .filter(|candidate| !rust_replacements.contains_key(&candidate.name))
+                            .filter(|candidate| {
+                                rust_bound
+                                    .split(|character: char| {
+                                        !character.is_ascii_alphanumeric() && character != '_'
+                                    })
+                                    .any(|token| token == candidate.name)
+                            })
+                            .map(|candidate| candidate.name.clone())
+                            .collect();
+                        (rust_type.clone(), rust_bound, inferred_parameters)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        pending.push(PendingProjectedSpecialization {
+            unit: unit_index,
+            span: node.span,
+            parameter: specialization_parameter,
+            rust_type: specialization_rust_type,
+            projected_result,
+            projected_parameters,
+            direct_projected_call: true,
+            value_parameters,
+            value_type,
+            bounds,
+        });
+    }
+    if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
         && let Some(function) = projected_function_for_call(package, unit, callee)
         && let Some(destination_result) = &function.destination_result
+        && !function
+            .generic_parameters
+            .iter()
+            .any(|generic| generic.input_selected)
     {
         let destination = expected.cloned().ok_or_else(|| {
             failure(
@@ -2382,7 +2592,14 @@ fn collect_projected_destinations(
             rust_type: projected_destination.rust_type(),
             projected_result,
             value_type: destination,
-            bounds: destination_result.rust_bounds.clone(),
+            value_parameters: function.parameters.iter().map(|_| None).collect(),
+            bounds: destination_result
+                .rust_bounds
+                .iter()
+                .map(|bound| (projected_destination.rust_type(), bound.clone(), Vec::new()))
+                .collect(),
+            projected_parameters: function.parameters.clone(),
+            direct_projected_call: false,
         });
     }
 
@@ -2497,7 +2714,14 @@ fn collect_projected_destinations(
                 package,
                 unit,
                 value,
-                parameter_types.get(index).map(ElementType::value_type_ref),
+                parameter_types
+                    .get(index)
+                    .or_else(|| {
+                        parameter_types
+                            .last()
+                            .filter(|parameter| parameter.is_variadic())
+                    })
+                    .map(CallableParameterType::value_type_ref),
                 function_return,
                 unit_index,
                 pending,
@@ -2524,10 +2748,12 @@ fn collect_projected_destinations(
     Ok(())
 }
 
+type DestinationProjectionError = std::borrow::Cow<'static, str>;
+
 pub(crate) fn destination_projected_type(
     package: &SemanticPackage,
     value_type: &ValueType,
-) -> Result<crate::projection::ProjectedType, &'static str> {
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
     use crate::projection::ProjectedType;
     Ok(match value_type {
         ValueType::Scalar(ScalarType::None) => ProjectedType::None,
@@ -2564,21 +2790,9 @@ pub(crate) fn destination_projected_type(
                 item: Box::new(item),
             }
         }
-        ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
-            let ordered = matches!(value_type, ValueType::Map(_, _));
-            let key = destination_projected_type(package, key.value_type_ref())?;
-            let value = destination_projected_type(package, value.value_type_ref())?;
-            ProjectedType::Mapping {
-                rust_path: format!(
-                    "std::collections::{}<{}, {}>",
-                    if ordered { "BTreeMap" } else { "HashMap" },
-                    key.rust_type(),
-                    value.rust_type()
-                ),
-                key: Box::new(key),
-                value: Box::new(value),
-                ordered,
-            }
+        ValueType::Map(key, value) => destination_projected_mapping(package, key, value, true)?,
+        ValueType::UnorderedMap(key, value) => {
+            destination_projected_mapping(package, key, value, false)?
         }
         ValueType::Set(item) | ValueType::UnorderedSet(item) => {
             let ordered = matches!(value_type, ValueType::Set(_));
@@ -2597,31 +2811,127 @@ pub(crate) fn destination_projected_type(
             let item = destination_projected_type(package, item.value_type_ref())?;
             ProjectedType::Tuple(vec![item; *length])
         }
-        ValueType::Object(identity) => {
-            let item = package
-                .projection
-                .item(&identity.namespace, &identity.name)
-                .filter(|item| {
-                    matches!(
-                        item.kind,
-                        crate::projection::ProjectedKind::ForeignType { .. }
-                            | crate::projection::ProjectedKind::Enum { .. }
-                    )
-                })
-                .ok_or(
-                    "source-declared object destinations have no dependency conversion contract",
-                )?;
-            ProjectedType::Foreign {
-                rust_path: item.rust_path.clone(),
-                name: item.name.clone(),
-                base_rust_path: item.rust_path.clone(),
-                arguments: Vec::new(),
-            }
+        ValueType::Function(parameters, result, _) => {
+            destination_projected_callback(package, parameters, result, false, true)?
         }
+        ValueType::AsyncFunction(parameters, result, transferability, _) => {
+            destination_projected_callback(
+                package,
+                parameters,
+                result,
+                true,
+                *transferability == TaskTransferability::Transferable,
+            )?
+        }
+        ValueType::Object(identity) => destination_projected_object(package, identity)?,
         ValueType::Reference(_) | ValueType::SharedReference(_) => {
-            return Err("borrowed results cannot escape a projected call");
+            return Err("borrowed results cannot escape a projected call".into());
         }
-        _ => return Err("the destination is outside the closed projected result set"),
+        _ => return Err("the destination is outside the closed projected result set".into()),
+    })
+}
+
+fn destination_projected_object(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+    if let Some(projected) = package
+        .projection
+        .projected_type(&identity.namespace, &identity.name)
+    {
+        return Ok(projected);
+    }
+    if let Some(details) = package
+        .projection
+        .item_ambiguity(&identity.namespace, &identity.name)
+    {
+        return Err(format!(
+            "projected object `{}::{}` is ambiguous: {details}",
+            identity.namespace, identity.name
+        )
+        .into());
+    }
+    let item = package
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .filter(|item| {
+            matches!(
+                item.kind,
+                crate::projection::ProjectedKind::ForeignType { .. }
+                    | crate::projection::ProjectedKind::Interface(_)
+                    | crate::projection::ProjectedKind::Enum { .. }
+            )
+        })
+        .ok_or("source-declared object destinations have no dependency conversion contract")?;
+    Ok(crate::projection::ProjectedType::Foreign {
+        rust_path: item.rust_path.clone(),
+        name: item.name.clone(),
+        base_rust_path: item.rust_path.clone(),
+        arguments: Vec::new(),
+    })
+}
+
+fn destination_projected_mapping(
+    package: &SemanticPackage,
+    key: &ElementType,
+    value: &ElementType,
+    ordered: bool,
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+    let key = destination_projected_type(package, key.value_type_ref())?;
+    let value = destination_projected_type(package, value.value_type_ref())?;
+    Ok(crate::projection::ProjectedType::Mapping {
+        rust_path: format!(
+            "std::collections::{}<{}, {}>",
+            if ordered { "BTreeMap" } else { "HashMap" },
+            key.rust_type(),
+            value.rust_type()
+        ),
+        key: Box::new(key),
+        value: Box::new(value),
+        ordered,
+    })
+}
+
+fn destination_projected_callback(
+    package: &SemanticPackage,
+    parameters: &[CallableParameterType],
+    result: &ElementType,
+    is_async: bool,
+    send: bool,
+) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+    if parameters.iter().any(CallableParameterType::is_variadic) {
+        return Err("variadic source callables have no fixed Rust callback representation".into());
+    }
+    let parameters = parameters
+        .iter()
+        .map(|parameter| {
+            destination_projected_type(package, parameter.element_type().value_type_ref())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let result = destination_projected_type(package, result.value_type_ref())?;
+    let parameters_rust = parameters
+        .iter()
+        .map(crate::projection::ProjectedType::rust_type)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let rust_name = if is_async {
+        format!(
+            "fn({parameters_rust}) -> std::pin::Pin<std::boxed::Box<dyn Future<Output = {}>{}>>",
+            result.rust_type(),
+            if send { " + Send" } else { "" }
+        )
+    } else {
+        format!("fn({parameters_rust}) -> {}", result.rust_type())
+    };
+    Ok(crate::projection::ProjectedType::Callback {
+        rust_name,
+        parameters,
+        result: Box::new(result),
+        invocation_mode: InvocationMode::Shared,
+        is_async,
+        retained: false,
+        send,
+        sync: true,
     })
 }
 
@@ -2692,6 +3002,32 @@ fn select_projected_generic_destination(
                 template.iter().zip(expected).all(|(template, expected)| {
                     collect(template, parameter, expected, destinations)
                 })
+            }
+            (
+                ProjectedType::Foreign {
+                    base_rust_path: template_base,
+                    arguments: template_arguments,
+                    ..
+                },
+                ProjectedType::Foreign {
+                    base_rust_path: expected_base,
+                    arguments: expected_arguments,
+                    ..
+                },
+            ) if template_base == expected_base
+                && template_arguments.len() >= expected_arguments.len() =>
+            {
+                template_arguments
+                    .iter()
+                    .zip(expected_arguments)
+                    .all(|(template, expected)| {
+                        collect(template, parameter, expected, destinations)
+                    })
+                    && template_arguments[expected_arguments.len()..]
+                        .iter()
+                        .all(|template| {
+                            !matches!(template, ProjectedType::Generic(name) if name == parameter)
+                        })
             }
             (template, expected)
                 if projected_types_share_concrete_rust_representation(template, expected) =>
@@ -2804,6 +3140,10 @@ fn align_projected_result_representation(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "recursive projected type substitution is clearest as one exhaustive match"
+)]
 fn substitute_projected_generic(
     template: &crate::projection::ProjectedType,
     parameter: &str,
@@ -2858,6 +3198,31 @@ fn substitute_projected_generic(
         ProjectedType::Optional(inner) => ProjectedType::Optional(Box::new(
             substitute_projected_generic(inner, parameter, destination),
         )),
+        ProjectedType::AsyncIterationStep(item) => ProjectedType::AsyncIterationStep(Box::new(
+            substitute_projected_generic(item, parameter, destination),
+        )),
+        ProjectedType::Callback {
+            rust_name,
+            parameters,
+            result,
+            invocation_mode,
+            is_async,
+            retained,
+            send,
+            sync,
+        } => ProjectedType::Callback {
+            rust_name: rust_name.clone(),
+            parameters: parameters
+                .iter()
+                .map(|item| substitute_projected_generic(item, parameter, destination))
+                .collect(),
+            result: Box::new(substitute_projected_generic(result, parameter, destination)),
+            invocation_mode: *invocation_mode,
+            is_async: *is_async,
+            retained: *retained,
+            send: *send,
+            sync: *sync,
+        },
         ProjectedType::Foreign {
             name,
             base_rust_path,

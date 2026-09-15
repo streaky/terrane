@@ -1,0 +1,5 @@
+42
+7
+inline statement
+copy me
+7

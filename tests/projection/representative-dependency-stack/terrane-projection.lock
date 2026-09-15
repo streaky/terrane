@@ -15,6 +15,14 @@
         ],
         [
           "/deps/axum",
+          "Router.fallback"
+        ],
+        [
+          "/deps/axum",
+          "Router.fallback_service"
+        ],
+        [
+          "/deps/axum",
           "Router.has_routes"
         ],
         [
@@ -31,7 +39,23 @@
         ],
         [
           "/deps/axum",
+          "Router.layer"
+        ],
+        [
+          "/deps/axum",
+          "Router.merge"
+        ],
+        [
+          "/deps/axum",
+          "Router.method_not_allowed_fallback"
+        ],
+        [
+          "/deps/axum",
           "Router.nest"
+        ],
+        [
+          "/deps/axum",
+          "Router.nest_service"
         ],
         [
           "/deps/axum",
@@ -40,6 +64,14 @@
         [
           "/deps/axum",
           "Router.route"
+        ],
+        [
+          "/deps/axum",
+          "Router.route_layer"
+        ],
+        [
+          "/deps/axum",
+          "Router.route_service"
         ],
         [
           "/deps/axum",
@@ -52,6 +84,10 @@
         [
           "/deps/axum",
           "Router::new"
+        ],
+        [
+          "/deps/axum",
+          "serve"
         ],
         [
           "/deps/axum/error-handling/future",
@@ -100,6 +136,14 @@
         [
           "/deps/axum/extract",
           "WebSocketUpgrade.max_write_buffer_size"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.on_failed_upgrade"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.protocols"
         ],
         [
           "/deps/axum/extract",
@@ -450,6 +494,34 @@
           "from_extractor"
         ],
         [
+          "/deps/axum/middleware",
+          "from_extractor_with_state"
+        ],
+        [
+          "/deps/axum/middleware",
+          "from_fn"
+        ],
+        [
+          "/deps/axum/middleware",
+          "from_fn_with_state"
+        ],
+        [
+          "/deps/axum/middleware",
+          "map_request"
+        ],
+        [
+          "/deps/axum/middleware",
+          "map_request_with_state"
+        ],
+        [
+          "/deps/axum/middleware",
+          "map_response"
+        ],
+        [
+          "/deps/axum/middleware",
+          "map_response_with_state"
+        ],
+        [
           "/deps/axum/middleware/future",
           "FromFnResponseFuture"
         ],
@@ -483,6 +555,18 @@
         ],
         [
           "/deps/axum/response/sse",
+          "Event.comment"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.event"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.id"
+        ],
+        [
+          "/deps/axum/response/sse",
           "Event.into_data_writer"
         ],
         [
@@ -511,6 +595,50 @@
         ],
         [
           "/deps/axum/routing",
+          "MethodRouter.connect"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.connect_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.delete"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.delete_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.fallback"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.fallback_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.get"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.get_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.handle_error"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.head"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.head_service"
+        ],
+        [
+          "/deps/axum/routing",
           "MethodRouter.into_make_service"
         ],
         [
@@ -519,7 +647,63 @@
         ],
         [
           "/deps/axum/routing",
+          "MethodRouter.layer"
+        ],
+        [
+          "/deps/axum/routing",
           "MethodRouter.merge"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.on"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.on_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.options"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.options_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.patch"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.patch_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.post"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.post_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.put"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.put_service"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.route_layer"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.trace"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.trace_service"
         ],
         [
           "/deps/axum/routing",
@@ -532,6 +716,50 @@
         [
           "/deps/axum/routing",
           "Route"
+        ],
+        [
+          "/deps/axum/routing",
+          "any"
+        ],
+        [
+          "/deps/axum/routing",
+          "connect"
+        ],
+        [
+          "/deps/axum/routing",
+          "delete"
+        ],
+        [
+          "/deps/axum/routing",
+          "get"
+        ],
+        [
+          "/deps/axum/routing",
+          "head"
+        ],
+        [
+          "/deps/axum/routing",
+          "on"
+        ],
+        [
+          "/deps/axum/routing",
+          "options"
+        ],
+        [
+          "/deps/axum/routing",
+          "patch"
+        ],
+        [
+          "/deps/axum/routing",
+          "post"
+        ],
+        [
+          "/deps/axum/routing",
+          "put"
+        ],
+        [
+          "/deps/axum/routing",
+          "trace"
         ],
         [
           "/deps/axum/routing/future",
@@ -557,11 +785,23 @@
         ],
         [
           "/deps/http",
+          "Error.is"
+        ],
+        [
+          "/deps/http",
           "Extensions"
         ],
         [
           "/deps/http",
           "Extensions.clear"
+        ],
+        [
+          "/deps/http",
+          "Extensions.get_or_insert"
+        ],
+        [
+          "/deps/http",
+          "Extensions.insert"
         ],
         [
           "/deps/http",
@@ -585,6 +825,10 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.append"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.capacity"
         ],
         [
@@ -593,7 +837,31 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.contains_key"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.drain"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.entry"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get_all"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.insert"
         ],
         [
           "/deps/http",
@@ -621,7 +889,23 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.remove"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_append"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_entry"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_insert"
         ],
         [
           "/deps/http",
@@ -678,6 +962,10 @@
         [
           "/deps/http",
           "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_maybe_shared"
         ],
         [
           "/deps/http",
@@ -833,11 +1121,23 @@
         ],
         [
           "/deps/http/request",
+          "Builder.body"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.extension"
+        ],
+        [
+          "/deps/http/request",
           "Builder.extensions_mut"
         ],
         [
           "/deps/http/request",
           "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.header"
         ],
         [
           "/deps/http/request",
@@ -849,7 +1149,15 @@
         ],
         [
           "/deps/http/request",
+          "Builder.method"
+        ],
+        [
+          "/deps/http/request",
           "Builder.method_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.uri"
         ],
         [
           "/deps/http/request",
@@ -877,6 +1185,14 @@
         ],
         [
           "/deps/http/response",
+          "Builder.body"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.extension"
+        ],
+        [
+          "/deps/http/response",
           "Builder.extensions_mut"
         ],
         [
@@ -885,11 +1201,19 @@
         ],
         [
           "/deps/http/response",
+          "Builder.header"
+        ],
+        [
+          "/deps/http/response",
           "Builder.headers_mut"
         ],
         [
           "/deps/http/response",
           "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.status"
         ],
         [
           "/deps/http/response",
@@ -987,6 +1311,10 @@
         ],
         [
           "/deps/reqwest",
+          "Body::wrap"
+        ],
+        [
+          "/deps/reqwest",
           "Certificate"
         ],
         [
@@ -1067,6 +1395,14 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.dns_resolver"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.dns_resolver2"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.http09_responses"
         ],
         [
@@ -1103,6 +1439,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.local_address"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.max_tls_version"
         ],
         [
@@ -1135,6 +1475,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.pool_idle_timeout"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.pool_max_idle_per_host"
         ],
         [
@@ -1163,7 +1507,23 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive_interval"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive_retries"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_user_timeout"
         ],
         [
           "/deps/reqwest",
@@ -1188,6 +1548,10 @@
         [
           "/deps/reqwest",
           "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.user_agent"
         ],
         [
           "/deps/reqwest",
@@ -1267,6 +1631,22 @@
         ],
         [
           "/deps/reqwest",
+          "Proxy::all"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::custom"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::http"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::https"
+        ],
+        [
+          "/deps/reqwest",
           "Request"
         ],
         [
@@ -1319,11 +1699,39 @@
         ],
         [
           "/deps/reqwest",
+          "RequestBuilder.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.bearer_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.body"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder.build"
         ],
         [
           "/deps/reqwest",
+          "RequestBuilder.form"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.header"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.json"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.query"
         ],
         [
           "/deps/reqwest",
@@ -1407,6 +1815,14 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Body::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Body::sized"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Client"
         ],
         [
@@ -1467,6 +1883,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.connect_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.connection_verbose"
         ],
         [
@@ -1480,6 +1900,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.default_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.dns_resolver"
         ],
         [
           "/deps/reqwest/blocking",
@@ -1519,6 +1943,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.local_address"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.max_tls_version"
         ],
         [
@@ -1555,6 +1983,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.pool_idle_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.pool_max_idle_per_host"
         ],
         [
@@ -1579,7 +2011,27 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive_interval"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive_retries"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_user_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.timeout"
         ],
         [
           "/deps/reqwest/blocking",
@@ -1600,6 +2052,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.user_agent"
         ],
         [
           "/deps/reqwest/blocking",
@@ -1655,11 +2111,39 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "RequestBuilder.basic_auth"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.bearer_auth"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.body"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder.build"
         ],
         [
           "/deps/reqwest/blocking",
+          "RequestBuilder.form"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.header"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.json"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.query"
         ],
         [
           "/deps/reqwest/blocking",
@@ -1771,6 +2255,10 @@
         ],
         [
           "/deps/reqwest/retry",
+          "for_host"
+        ],
+        [
+          "/deps/reqwest/retry",
           "never"
         ],
         [
@@ -1810,6 +2298,10 @@
         [
           "/deps/sentry",
           "ClientInitGuard.is_enabled"
+        ],
+        [
+          "/deps/sentry",
+          "init"
         ],
         [
           "/deps/sentry/transports",
@@ -1901,6 +2393,10 @@
         [
           "/deps/tokio/fs",
           "File.try_into_std"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File::create_new"
         ],
         [
           "/deps/tokio/fs",
@@ -2053,6 +2549,10 @@
         [
           "/deps/tokio/io",
           "empty"
+        ],
+        [
+          "/deps/tokio/io",
+          "join"
         ],
         [
           "/deps/tokio/io",
@@ -2472,6 +2972,10 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixListener::bind"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixListener::bind_addr"
         ],
         [
@@ -2537,6 +3041,10 @@
         [
           "/deps/tokio/net",
           "UnixStream.writable"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream::connect"
         ],
         [
           "/deps/tokio/net",
@@ -2701,6 +3209,14 @@
         [
           "/deps/tokio/net/unix/pipe",
           "OpenOptions"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "OpenOptions.open_receiver"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "OpenOptions.open_sender"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -3228,11 +3744,19 @@
         ],
         [
           "/deps/tokio/task/coop",
+          "cooperative"
+        ],
+        [
+          "/deps/tokio/task/coop",
           "has_budget_remaining"
         ],
         [
           "/deps/tokio/task/coop",
           "poll_proceed"
+        ],
+        [
+          "/deps/tokio/task/coop",
+          "unconstrained"
         ],
         [
           "/deps/tokio/task/task-local",
@@ -3403,6 +3927,14 @@
         [
           "/deps/tokio-tungstenite",
           "Connector"
+        ],
+        [
+          "/deps/tokio-tungstenite",
+          "accept_async"
+        ],
+        [
+          "/deps/tokio-tungstenite",
+          "accept_hdr_async"
         ]
       ]
     },
@@ -3410,6 +3942,10 @@
       "name": "tower",
       "version": "0.5.3",
       "members": [
+        [
+          "/deps/tower",
+          "service_fn"
+        ],
         [
           "/deps/tower/limit",
           "ConcurrencyLimitLayer"
@@ -3469,6 +4005,10 @@
         [
           "/deps/tower/timeout/error",
           "Elapsed"
+        ],
+        [
+          "/deps/tower/util",
+          "future_service"
         ],
         [
           "/deps/tower/util/optional/error",
@@ -3641,6 +4181,14 @@
           "SameOrigin"
         ],
         [
+          "/deps/tower-http/follow-redirect/policy",
+          "clone_body_fn"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "redirect_fn"
+        ],
+        [
           "/deps/tower-http/follow-redirect/policy/action",
           "Follow"
         ],
@@ -3687,6 +4235,10 @@
         [
           "/deps/tower-http/request-id",
           "RequestId.into_header_value"
+        ],
+        [
+          "/deps/tower-http/request-id/makerequestid",
+          "make_request_id"
         ],
         [
           "/deps/tower-http/timeout",
@@ -3773,6 +4325,10 @@
         [
           "/deps/tracing/span",
           "EnteredSpan.exit"
+        ],
+        [
+          "/deps/tracing/subscriber",
+          "set_global_default"
         ]
       ]
     },
@@ -3835,6 +4391,14 @@
         [
           "/deps/utoipa/openapi",
           "Components"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Components.add_security_scheme"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Components.add_security_schemes_from_iter"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4079,6 +4643,18 @@
         [
           "/deps/utoipa/openapi",
           "Paths"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Paths.add_path_operation"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Paths.get_path_item"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Paths.get_path_operation"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4827,17 +5403,27 @@
   ],
   "bound_dependencies": [
     {
+      "name": "axum_core",
+      "package": "axum-core",
+      "version": "=0.5.6"
+    },
+    {
       "name": "serde_core",
       "package": "serde_core",
       "version": "=1.0.229"
+    },
+    {
+      "name": "tower_service",
+      "package": "tower-service",
+      "version": "=0.3.3"
     }
   ],
   "removed": [],
-  "cache_identity": "b473591bc487b3e2941812f289aa1b7b5645473cd6ccd7f479835a773328837b",
+  "cache_identity": "a26dc22f4033acf6c9ba4b76a7eb82c41e4909672e0cd57e57208c8826461c7a",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "43",
-  "content_hash": "f13389392bdf4b44f16c02b9e270f7ac46fdff9e8412b553dc5d93ad587c139a",
+  "projection_schema": "45",
+  "content_hash": "0abf3eaf051deec47dd975682f889b3c9923023e1d0606f24b2c4f1f6fd1bfcb",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "43";
+const PROJECTION_SCHEMA: &str = "45";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -137,6 +137,22 @@ impl From<&RustDependency> for ArtifactDependency {
             effects: dependency.effects.clone(),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct NamespaceOverlayMetadata {
+    module: String,
+    target_package: String,
+    feature: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NamespaceOverlay {
+    provider_name: String,
+    provider_package: String,
+    source_namespace: String,
+    target_namespace: String,
 }
 
 enum PublishedProjection {
@@ -287,6 +303,8 @@ pub enum ChainRole {
 pub struct ProjectedFunction {
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_parameters: Vec<ProjectedGenericParameter>,
     pub result: ProjectedType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination_result: Option<ProjectedDestinationResult>,
@@ -297,6 +315,15 @@ pub struct ProjectedFunction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedGenericParameter {
+    #[serde(default)]
+    pub input_selected: bool,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rust_bounds: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -499,6 +526,7 @@ impl ProjectedType {
     pub fn terrane_name(&self) -> String {
         match self {
             Self::Associated(_) => "host-projected-associated".to_owned(),
+            Self::Generic(name) => format!("host-projected-generic-{name}"),
             Self::None => "none".to_owned(),
             Self::Bool => "bool".to_owned(),
             Self::Int | Self::RustInt(_) => "int".to_owned(),
@@ -520,9 +548,7 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
-            Self::BoxedInterface { name, .. }
-            | Self::Generic(name)
-            | Self::Foreign { name, .. } => name.clone(),
+            Self::BoxedInterface { name, .. } | Self::Foreign { name, .. } => name.clone(),
             Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
             Self::Mapping {
                 key,
@@ -586,12 +612,92 @@ pub struct DeclinedItem {
     pub reason: String,
 }
 
+fn collect_nested_projected_types(
+    ty: &ProjectedType,
+    name: &str,
+    candidates: &mut Vec<ProjectedType>,
+) {
+    if matches!(
+        ty,
+        ProjectedType::Foreign {
+            name: candidate,
+            ..
+        } | ProjectedType::BoxedInterface {
+            name: candidate,
+            ..
+        } if candidate == name
+    ) {
+        candidates.push(ty.clone());
+    }
+    match ty {
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::AsyncIterationStep(item)
+        | ProjectedType::Optional(item) => collect_nested_projected_types(item, name, candidates),
+        ProjectedType::Mapping { key, value, .. } => {
+            collect_nested_projected_types(key, name, candidates);
+            collect_nested_projected_types(value, name, candidates);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                collect_nested_projected_types(item, name, candidates);
+            }
+        }
+        ProjectedType::Foreign { arguments, .. } => {
+            for item in arguments {
+                collect_nested_projected_types(item, name, candidates);
+            }
+        }
+        ProjectedType::BoxedInterface {
+            associated_type: Some(associated),
+            ..
+        } => collect_nested_projected_types(&associated.ty, name, candidates),
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                collect_nested_projected_types(parameter, name, candidates);
+            }
+            collect_nested_projected_types(result, name, candidates);
+        }
+        _ => {}
+    }
+}
+
+fn collect_function_projected_types(
+    function: &ProjectedFunction,
+    name: &str,
+    candidates: &mut Vec<ProjectedType>,
+) {
+    for parameter in &function.parameters {
+        collect_nested_projected_types(&parameter.ty, name, candidates);
+    }
+    collect_nested_projected_types(&function.result, name, candidates);
+}
+
+fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
+    let path = match ty {
+        ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
+        ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+        _ => return None,
+    };
+    Some(
+        path.split_once('<')
+            .map_or(path, |(constructor, _)| constructor),
+    )
+}
+
 impl Projection {
-    #[must_use]
+    /// Renders the projected dependency sources required by `imports`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an imported projected name is ambiguous or projected sources form a
+    /// cycle.
     pub fn source_for_imports(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
-    ) -> Vec<(String, String)> {
+    ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
             .iter()
@@ -600,6 +706,13 @@ impl Projection {
         let imports = expanded_source_imports(&all_items, imports);
         let mut sources = Vec::new();
         for (namespace, names) in &imports {
+            for name in names {
+                if let Some(details) = self.item_ambiguity(namespace, name) {
+                    return Err(format!(
+                        "projected import `{namespace}::{name}` is ambiguous: {details}"
+                    ));
+                }
+            }
             let selected = all_items
                 .iter()
                 .copied()
@@ -625,6 +738,9 @@ impl Projection {
             }
             let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
             ordered_foreign.sort_by_key(|(rust_path, name)| {
+                let projected_item = projected_item_for_foreign(&all_items, rust_path, name);
+                let cross_namespace =
+                    projected_item.is_some_and(|item| item.namespace != *namespace);
                 let dependency_count = all_items
                     .iter()
                     .copied()
@@ -644,8 +760,16 @@ impl Projection {
                         _ => None,
                     })
                     .unwrap_or_default();
-                (dependency_count, aliases.get(*rust_path))
+                (!cross_namespace, dependency_count, aliases.get(*rust_path))
             });
+            let source_dependencies = ordered_foreign
+                .iter()
+                .filter_map(|(rust_path, name)| {
+                    projected_item_for_foreign(&all_items, rust_path, name)
+                        .filter(|item| item.namespace != *namespace)
+                        .map(|item| item.namespace.clone())
+                })
+                .collect::<BTreeSet<_>>();
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
             let mut rendered_foreign = BTreeSet::new();
             for (rust_path, _) in ordered_foreign {
@@ -664,9 +788,46 @@ impl Projection {
                     render_function(&mut text, function, true, 0, &aliases, None);
                 }
             }
-            sources.push((namespace.clone(), text));
+            sources.push((namespace.clone(), text, source_dependencies));
         }
-        sources
+        Self::order_projected_sources(sources)
+    }
+
+    fn order_projected_sources(
+        mut sources: Vec<(String, String, BTreeSet<String>)>,
+    ) -> Result<Vec<(String, String)>, String> {
+        let mut ordered = Vec::with_capacity(sources.len());
+        while !sources.is_empty() {
+            let remaining_names = sources
+                .iter()
+                .map(|(namespace, _, _)| namespace)
+                .collect::<BTreeSet<_>>();
+            let Some(index) = sources.iter().position(|(_, _, dependencies)| {
+                dependencies
+                    .iter()
+                    .all(|dependency| !remaining_names.contains(dependency))
+            }) else {
+                let cycle = sources
+                    .iter()
+                    .map(|(namespace, _, dependencies)| {
+                        let unresolved = dependencies
+                            .iter()
+                            .filter(|dependency| remaining_names.contains(dependency))
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{namespace} -> [{unresolved}]")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                return Err(format!(
+                    "projected dependency source namespaces contain an import cycle: {cycle}"
+                ));
+            };
+            let (namespace, text, _) = sources.remove(index);
+            ordered.push((namespace, text));
+        }
+        Ok(ordered)
     }
 
     #[must_use]
@@ -695,12 +856,106 @@ impl Projection {
             .collect()
     }
 
+    /// Returns the uniquely named projected item in `namespace`.
+    ///
+    /// A duplicate name is ambiguous even when dependency iteration would otherwise provide a
+    /// stable first match, so both missing and ambiguous lookups return `None`.
     #[must_use]
     pub fn item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
-        self.dependencies
+        let mut matching = self
+            .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|item| item.namespace == namespace && item.name == name)
+            .filter(|item| item.namespace == namespace && item.name == name);
+        let item = matching.next()?;
+        matching.next().is_none().then_some(item)
+    }
+
+    pub(crate) fn item_ambiguity(&self, namespace: &str, name: &str) -> Option<String> {
+        let mut paths = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.namespace == namespace && item.name == name)
+            .map(|item| item.rust_path.as_str())
+            .collect::<Vec<_>>();
+        if paths.len() < 2 {
+            return None;
+        }
+        paths.sort_unstable();
+        paths.dedup();
+        Some(if paths.len() == 1 {
+            format!("multiple projected items for Rust type `{}`", paths[0])
+        } else {
+            format!("projected Rust types `{}`", paths.join("`, `"))
+        })
+    }
+
+    #[must_use]
+    pub(crate) fn projected_type(&self, namespace: &str, name: &str) -> Option<ProjectedType> {
+        let mut candidates = Vec::new();
+        for item in self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.namespace == namespace)
+        {
+            match &item.kind {
+                ProjectedKind::Function(projected) => {
+                    collect_function_projected_types(projected, name, &mut candidates);
+                }
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                } => {
+                    if item.name == name {
+                        candidates.push(ProjectedType::Foreign {
+                            rust_path: item.rust_path.clone(),
+                            name: item.name.clone(),
+                            base_rust_path: item.rust_path.clone(),
+                            arguments: Vec::new(),
+                        });
+                    }
+                    for method in methods.iter().chain(static_methods) {
+                        collect_function_projected_types(method, name, &mut candidates);
+                    }
+                }
+                ProjectedKind::Interface(interface) => {
+                    for method in &interface.methods {
+                        collect_function_projected_types(&method.function, name, &mut candidates);
+                    }
+                }
+                ProjectedKind::Enum { .. } => {}
+            }
+        }
+        let first = candidates.first()?;
+        let first_owner = projected_type_owner(first)?;
+        candidates
+            .iter()
+            .all(|candidate| projected_type_owner(candidate) == Some(first_owner))
+            .then(|| candidates.remove(0))
+    }
+
+    #[must_use]
+    pub(crate) fn projected_type_is_send(&self, namespace: &str, name: &str) -> bool {
+        let direct = self.item(namespace, name);
+        let instantiated = self.projected_type(namespace, name).and_then(|projected| {
+            let base = match projected {
+                ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
+                ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+                _ => return None,
+            };
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .find(|item| item.rust_path == base)
+        });
+        match direct.or(instantiated).map(|item| &item.kind) {
+            Some(ProjectedKind::ForeignType { send, .. }) => *send,
+            Some(ProjectedKind::Interface(interface)) => interface.send,
+            _ => false,
+        }
     }
     #[must_use]
     pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
@@ -1033,14 +1288,26 @@ fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap
 fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
     match ty {
         ProjectedType::Foreign {
-            rust_path, name, ..
+            rust_path,
+            name,
+            arguments,
+            ..
         } => {
             foreign.insert(rust_path.clone(), name.clone());
+            for argument in arguments {
+                collect_foreign_type(argument, foreign);
+            }
         }
         ProjectedType::BoxedInterface {
-            trait_path, name, ..
+            trait_path,
+            name,
+            associated_type,
+            ..
         } => {
             foreign.insert(trait_path.clone(), name.clone());
+            if let Some(associated) = associated_type {
+                collect_foreign_type(&associated.ty, foreign);
+            }
         }
 
         ProjectedType::Optional(inner)
@@ -1055,6 +1322,14 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
             for item in items {
                 collect_foreign_type(item, foreign);
             }
+        }
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                collect_foreign_type(parameter, foreign);
+            }
+            collect_foreign_type(result, foreign);
         }
         _ => {}
     }
@@ -1432,6 +1707,10 @@ pub fn resolve(
     // review-visible bound-owner edges are injected. Once such edges exist, Cargo cannot accept
     // that deliberate manifest rewrite under `--locked`; offline resolution plus exact pins and
     // the projection content hash preserve the already-resolved graph without network drift.
+    // Path-dependency source and package-metadata contents are deliberately outside this identity:
+    // changing either without changing the consumer manifest or lock requires clearing the
+    // projection cache. Namespace-overlay metadata follows that existing invalidation boundary so
+    // warm cache hits remain metadata-free.
     let workspace = root.join(".trn/dependencies");
     write_workspace(&workspace, dependencies)?;
     if workspace.join("Cargo.lock").exists() {
@@ -1527,6 +1806,8 @@ pub fn resolve(
         PublishedProjection::Event(event) => resolution_events.push(event),
     }
 
+    let overlays = resolved_namespace_overlays(&workspace, dependencies)?;
+
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
         let package_spec = dependency.version.strip_prefix('=').map_or_else(
@@ -1588,9 +1869,9 @@ pub fn resolve(
             project_rustdoc(dependency, document, public_paths, &canonical_public_paths)
         })
         .collect::<Vec<_>>();
+    apply_namespace_overlays(&mut projected, &overlays)?;
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
-    validate_unique_projected_type_identities(&projected)?;
     let auto_trait_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -1601,6 +1882,7 @@ pub fn resolve(
                 .map(|rust_bound| crate::projection_oracle::BoundQuestion {
                     rust_type: item.rust_path.clone(),
                     rust_bound: rust_bound.to_owned(),
+                    inferred_parameters: Vec::new(),
                 })
         })
         .collect::<Vec<_>>();
@@ -2150,6 +2432,328 @@ fn run_cargo(
     })
 }
 
+fn resolved_namespace_overlays(
+    workspace: &Path,
+    dependencies: &[RustDependency],
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let mut command = Command::new("cargo");
+    crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
+    let output = command
+        .args(["metadata", "--format-version", "1", "--offline", "--frozen"])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot read Cargo dependency metadata: {error}"),
+        })?;
+    if !output.status.success() {
+        return Err(ProjectionError {
+            message: format!(
+                "Cargo dependency metadata failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
+    }
+    let metadata =
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| {
+            ProjectionError {
+                message: format!("cannot decode Cargo dependency metadata: {error}"),
+            }
+        })?;
+    namespace_overlays_from_metadata(&metadata, dependencies)
+}
+
+fn namespace_overlays_from_metadata(
+    metadata: &serde_json::Value,
+    dependencies: &[RustDependency],
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let packages = metadata
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no package list".to_owned(),
+        })?;
+    let root = metadata
+        .pointer("/resolve/root")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no resolved root package".to_owned(),
+        })?;
+    let nodes = metadata
+        .pointer("/resolve/nodes")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no resolved dependency graph".to_owned(),
+        })?;
+    let direct = nodes
+        .iter()
+        .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(root))
+        .and_then(|node| node.get("deps"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no direct dependency graph".to_owned(),
+        })?;
+    let mut overlays = Vec::new();
+    for provider in dependencies {
+        let (package, node) = direct_metadata_package(packages, nodes, direct, provider)?;
+        let enabled_features = node
+            .get("features")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .collect::<BTreeSet<_>>();
+        overlays.extend(package_namespace_overlays(
+            package,
+            provider,
+            dependencies,
+            &enabled_features,
+        )?);
+    }
+    overlays.sort_by(|left, right| {
+        (&left.provider_name, &left.source_namespace)
+            .cmp(&(&right.provider_name, &right.source_namespace))
+    });
+    for pair in overlays.windows(2) {
+        if pair[0].provider_name == pair[1].provider_name
+            && (pair[0].source_namespace == pair[1].source_namespace
+                || pair[1]
+                    .source_namespace
+                    .starts_with(&format!("{}/", pair[0].source_namespace)))
+        {
+            return Err(ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has overlapping namespace overlays `{}` and `{}`",
+                    pair[0].provider_name, pair[0].source_namespace, pair[1].source_namespace
+                ),
+            });
+        }
+    }
+    Ok(overlays)
+}
+
+fn direct_metadata_package<'a>(
+    packages: &'a [serde_json::Value],
+    nodes: &'a [serde_json::Value],
+    direct: &[serde_json::Value],
+    dependency: &RustDependency,
+) -> Result<(&'a serde_json::Value, &'a serde_json::Value), ProjectionError> {
+    let cargo_name = dependency.name.replace('-', "_");
+    let by_alias = direct.iter().find(|candidate| {
+        candidate
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|name| name.replace('-', "_") == cargo_name)
+    });
+    let by_package = direct
+        .iter()
+        .filter(|candidate| {
+            let package_id = candidate.get("pkg").and_then(serde_json::Value::as_str);
+            packages.iter().any(|package| {
+                package.get("id").and_then(serde_json::Value::as_str) == package_id
+                    && package.get("name").and_then(serde_json::Value::as_str)
+                        == Some(dependency.package.as_str())
+            })
+        })
+        .collect::<Vec<_>>();
+    let resolved = by_alias.or_else(|| {
+        let [candidate] = by_package.as_slice() else {
+            return None;
+        };
+        Some(*candidate)
+    });
+    let package_id = resolved
+        .and_then(|candidate| candidate.get("pkg"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata has no unambiguous resolved package for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    let package = packages
+        .iter()
+        .find(|package| package.get("id").and_then(serde_json::Value::as_str) == Some(package_id))
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata is missing package `{package_id}` for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    if package.get("name").and_then(serde_json::Value::as_str) != Some(dependency.package.as_str())
+    {
+        return Err(ProjectionError {
+            message: format!(
+                "Cargo dependency metadata resolved `{}` to unexpected package `{}`",
+                dependency.name,
+                package
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("<unknown>")
+            ),
+        });
+    }
+    let node = nodes
+        .iter()
+        .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(package_id))
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata has no resolved feature set for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    Ok((package, node))
+}
+
+fn package_namespace_overlays(
+    package: &serde_json::Value,
+    provider: &RustDependency,
+    dependencies: &[RustDependency],
+    enabled_features: &BTreeSet<&str>,
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let Some(declarations) = package
+        .pointer("/metadata/terrane/namespace-overlays")
+        .filter(|value| !value.is_null())
+    else {
+        return Ok(Vec::new());
+    };
+    let declarations =
+        serde_json::from_value::<Vec<NamespaceOverlayMetadata>>(declarations.clone()).map_err(
+            |error| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has invalid `package.metadata.terrane.namespace-overlays`: {error}",
+                    provider.name
+                ),
+            },
+        )?;
+    let mut overlays = Vec::new();
+    for declaration in declarations {
+        if !enabled_features.contains(declaration.feature.as_str()) {
+            continue;
+        }
+        let source_module =
+            overlay_module_namespace(&declaration.module).ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` namespace overlay module `{}` is not a Rust module path",
+                    provider.name, declaration.module
+                ),
+            })?;
+        let targets = dependencies
+            .iter()
+            .filter(|dependency| dependency.package == declaration.target_package)
+            .collect::<Vec<_>>();
+        let [target] = targets.as_slice() else {
+            return Err(ProjectionError {
+                message: if targets.is_empty() {
+                    format!(
+                        "Rust dependency `{}` namespace overlay targets undeclared package `{}`",
+                        provider.name, declaration.target_package
+                    )
+                } else {
+                    format!(
+                        "Rust dependency `{}` namespace overlay target package `{}` has multiple direct aliases",
+                        provider.name, declaration.target_package
+                    )
+                },
+            });
+        };
+        if provider.name == target.name {
+            return Err(ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` namespace overlay cannot target itself",
+                    provider.name
+                ),
+            });
+        }
+        overlays.push(NamespaceOverlay {
+            provider_name: provider.name.clone(),
+            provider_package: provider.package.clone(),
+            source_namespace: format!(
+                "/deps/{}/{}",
+                provider.name.replace('_', "-"),
+                source_module
+            ),
+            target_namespace: format!("/deps/{}", target.name.replace('_', "-")),
+        });
+    }
+    Ok(overlays)
+}
+
+fn overlay_module_namespace(module: &str) -> Option<String> {
+    let segments = module.split("::").collect::<Vec<_>>();
+    if segments.is_empty()
+        || segments.iter().any(|segment| {
+            segment.is_empty()
+                || !segment.bytes().enumerate().all(|(index, byte)| {
+                    byte == b'_'
+                        || byte.is_ascii_alphanumeric() && (index > 0 || !byte.is_ascii_digit())
+                })
+        })
+    {
+        return None;
+    }
+    Some(
+        segments
+            .into_iter()
+            .map(|segment| segment.replace('_', "-"))
+            .collect::<Vec<_>>()
+            .join("/"),
+    )
+}
+
+fn apply_namespace_overlays(
+    projected: &mut [ProjectedDependency],
+    overlays: &[NamespaceOverlay],
+) -> Result<(), ProjectionError> {
+    let mut matched = vec![0_usize; overlays.len()];
+    let mut moved = BTreeSet::new();
+    for (dependency_index, dependency) in projected.iter_mut().enumerate() {
+        for (item_index, item) in dependency.items.iter_mut().enumerate() {
+            for (index, overlay) in overlays.iter().enumerate().filter(|(_, overlay)| {
+                dependency.name == overlay.provider_name
+                    && dependency.package == overlay.provider_package
+            }) {
+                let suffix = item
+                    .namespace
+                    .strip_prefix(&overlay.source_namespace)
+                    .filter(|suffix| suffix.is_empty() || suffix.starts_with('/'));
+                if let Some(suffix) = suffix {
+                    item.namespace = format!("{}{suffix}", overlay.target_namespace);
+                    matched[index] += 1;
+                    moved.insert((dependency_index, item_index));
+                    break;
+                }
+            }
+        }
+    }
+    if let Some((_, overlay)) = matched.iter().zip(overlays).find(|(count, _)| **count == 0) {
+        return Err(ProjectionError {
+            message: format!(
+                "Rust dependency `{}` namespace overlay source `{}` contains no projectable items",
+                overlay.provider_name, overlay.source_namespace
+            ),
+        });
+    }
+    let mut names = BTreeMap::<(&str, &str), (&str, bool)>::new();
+    for (dependency_index, dependency) in projected.iter().enumerate() {
+        for (item_index, item) in dependency.items.iter().enumerate() {
+            let current_moved = moved.contains(&(dependency_index, item_index));
+            if let Some((previous, previous_moved)) = names.insert(
+                (item.namespace.as_str(), item.name.as_str()),
+                (item.rust_path.as_str(), current_moved),
+            ) && (previous_moved || current_moved)
+            {
+                return Err(ProjectionError {
+                    message: format!(
+                        "dependency namespace overlay collides on `{}::{}` between `{previous}` and `{}`",
+                        item.namespace, item.name, item.rust_path
+                    ),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate: String) {
     public_paths
         .entry(id)
@@ -2374,30 +2978,6 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
         }
         _ => {}
     }
-}
-
-fn validate_unique_projected_type_identities(
-    projected: &[ProjectedDependency],
-) -> Result<(), ProjectionError> {
-    let mut identities = BTreeMap::new();
-    for item in projected
-        .iter()
-        .flat_map(|dependency| &dependency.items)
-        .filter(|item| matches!(item.kind, ProjectedKind::ForeignType { .. }))
-    {
-        let key = (item.namespace.as_str(), item.name.as_str());
-        if let Some(previous) = identities.insert(key, item.rust_path.as_str())
-            && previous != item.rust_path
-        {
-            return Err(ProjectionError {
-                message: format!(
-                    "projected foreign types `{previous}` and `{}` collide at `{}::{}`; distinct concrete instantiations require distinct projected names",
-                    item.rust_path, item.namespace, item.name
-                ),
-            });
-        }
-    }
-    Ok(())
 }
 
 fn resolved_package_versions(
@@ -3204,6 +3784,12 @@ fn project_interface_inner(
                 )])
             })
             .unwrap_or_default();
+        if let Some(parameter) = function.generics.params.first() {
+            return Err(format!(
+                "trait member `{name}`: open generic `{}`",
+                parameter.name
+            ));
+        }
         let projected =
             match project_function_with_generics(function, index, paths, Some(name), &supplied) {
                 Ok(projected) => projected,
@@ -3554,6 +4140,7 @@ fn project_rustdoc(
                                 kind: ProjectedKind::Function(ProjectedFunction {
                                     name: variant_name.to_owned(),
                                     parameters: Vec::new(),
+                                    generic_parameters: Vec::new(),
                                     result: ProjectedType::Foreign {
                                         rust_path: rust_path.clone(),
                                         name: name.clone(),
@@ -4384,10 +4971,39 @@ fn project_function_inner(
     if matches!(result, ProjectedType::BoxedInterface { .. }) {
         return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
     }
+    let generic_parameters = function
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| {
+            matches!(
+                generic_types.get(&parameter.name),
+                Some(ProjectedType::Generic(_))
+            )
+        })
+        .map(|parameter| {
+            Ok(ProjectedGenericParameter {
+                name: parameter.name.clone(),
+                input_selected: function
+                    .sig
+                    .inputs
+                    .iter()
+                    .any(|(_, ty)| type_mentions_generic(ty, &parameter.name)),
+                rust_bounds: render_generic_bounds(
+                    parameter,
+                    function,
+                    index,
+                    paths,
+                    &generic_types,
+                )?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
         result,
+        generic_parameters,
         destination_result,
         error,
         is_async: function.header.is_async,
@@ -4627,8 +5243,32 @@ fn project_callback_generic(
         sync: has_trait("Sync"),
     }))
 }
+fn is_callback_parameter(parameter: &GenericParamDef, function: &Function) -> bool {
+    generic_bounds(parameter, function).iter().any(|bound| {
+        trait_bound_name(bound).is_some_and(|(trait_, _)| {
+            matches!(
+                trait_.path.rsplit("::").next(),
+                Some("Fn" | "FnMut" | "FnOnce")
+            )
+        })
+    })
+}
 
 fn is_callback_future_parameter(name: &str, function: &Function) -> bool {
+    let future_bound = function
+        .generics
+        .params
+        .iter()
+        .find(|parameter| parameter.name == name)
+        .is_some_and(|parameter| {
+            generic_bounds(parameter, function).iter().any(|bound| {
+                trait_bound_name(bound)
+                    .is_some_and(|(trait_, _)| trait_.path.rsplit("::").next() == Some("Future"))
+            })
+        });
+    if !future_bound {
+        return false;
+    }
     function.generics.params.iter().any(|parameter| {
         let bounds = generic_bounds(parameter, function);
         bounds.iter().any(|bound| {
@@ -4824,6 +5464,47 @@ fn generic_monomorphisations(
 > {
     let mut result = supplied.clone();
     let mut destination_result = None;
+    // Keep input-selected value generics open until a Terrane call site supplies concrete
+    // argument and callback types. Immediate projectable interface inputs retain their
+    // established source-class adapter contract.
+    for parameter in &function.generics.params {
+        if result.contains_key(&parameter.name)
+            || is_callback_future_parameter(&parameter.name, function)
+            || is_callback_parameter(parameter, function)
+        {
+            continue;
+        }
+        let mentioned_inputs = function
+            .sig
+            .inputs
+            .iter()
+            .filter(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            .collect::<Vec<_>>();
+        if mentioned_inputs.is_empty() {
+            let output_selected = function
+                .sig
+                .output
+                .as_ref()
+                .is_some_and(|output| type_mentions_generic(output, &parameter.name));
+            if !output_selected {
+                result.insert(
+                    parameter.name.clone(),
+                    ProjectedType::Generic(parameter.name.clone()),
+                );
+            }
+            continue;
+        }
+        let immediate_projectable = mentioned_inputs.len() == 1
+            && immediate_generic_input(&mentioned_inputs[0].1, &parameter.name)
+            && projectable_interface_bound(&generic_bounds(parameter, function), index, paths)
+                .is_ok();
+        if !immediate_projectable {
+            result.insert(
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            );
+        }
+    }
     // Resolve callable parameters before unrelated generic parameters. A callback whose
     // signature mentions an open `T` must decline; it must not inherit a guessed closed
     // implementation selected while monomorphising `T`.
@@ -5909,18 +6590,246 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, Containment, DeclinedItem, InvocationMode, ProjectedBoundDependency,
-        ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
-        ProjectedParameter, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
-        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
-        apply_projection_history, decline_functions_with_missing_generic_interfaces,
-        decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
-        projectable_interface_bound, projection_content_hash, prune_projection_cache,
-        receiver_kind, resolve, rewrite_rust_bound_root, selected_target,
-        validate_projection_artifact, validate_unique_projected_type_identities,
+        ArtifactDependency, Containment, DeclinedItem, InvocationMode, NamespaceOverlay,
+        ProjectedBoundDependency, ProjectedDependency, ProjectedFunction, ProjectedInterface,
+        ProjectedItem, ProjectedKind, ProjectedParameter, ProjectedType, Projection,
+        ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
+        ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
+        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
+        enforce_transitive_reachability, has_type_parameters, namespace_overlays_from_metadata,
+        parse_rustdoc, prefer_public_path, project_type, projectable_interface_bound,
+        projection_content_hash, prune_projection_cache, receiver_kind, resolve,
+        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
     };
     use crate::RustDependency;
+    fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
+        RustDependency {
+            name: name.to_owned(),
+            package: package.to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: features
+                .iter()
+                .map(|feature| (*feature).to_owned())
+                .collect(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        }
+    }
+
+    fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> ProjectedItem {
+        ProjectedItem {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            rust_path: rust_path.to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                name: name.to_owned(),
+                generic_parameters: Vec::new(),
+                parameters: Vec::new(),
+                result: ProjectedType::None,
+                destination_result: None,
+                error: None,
+                is_async: false,
+                execution_requirements: None,
+                chain_role: None,
+                receiver: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn projected_type_lookup_is_scoped_to_canonical_namespace() {
+        let item = |namespace: &str, rust_path: &str| {
+            let mut item = projected_function_item(namespace, "make", rust_path);
+            let ProjectedKind::Function(function) = &mut item.kind else {
+                unreachable!();
+            };
+            function.result = ProjectedType::Foreign {
+                rust_path: rust_path.to_owned(),
+                name: "Message".to_owned(),
+                base_rust_path: rust_path.to_owned(),
+                arguments: Vec::new(),
+            };
+            item
+        };
+        let projection = Projection {
+            cache_identity: "canonical-identities".to_owned(),
+            content_hash: String::new(),
+            dependencies: vec![
+                ProjectedDependency {
+                    name: "one".to_owned(),
+                    package: "one".to_owned(),
+                    version: "1.0.0".to_owned(),
+                    items: vec![item("/deps/one", "one::Message")],
+                    declined: Vec::new(),
+                },
+                ProjectedDependency {
+                    name: "two".to_owned(),
+                    package: "two".to_owned(),
+                    version: "1.0.0".to_owned(),
+                    items: vec![item("/deps/two", "two::Message")],
+                    declined: Vec::new(),
+                },
+            ],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        assert_eq!(
+            projection
+                .projected_type("/deps/two", "Message")
+                .map(|ty| ty.rust_type()),
+            Some("two::Message".to_owned())
+        );
+        assert!(projection.projected_type("/app", "Message").is_none());
+    }
+
+    #[test]
+    fn dependency_metadata_uses_resolved_default_features_and_renamed_packages_for_overlays() {
+        let dependencies = [
+            dependency("db", "sqlx-sqlite", &[]),
+            dependency("bridges", "terrane-integration-adapters", &[]),
+        ];
+        let metadata = serde_json::json!({
+            "packages": [
+                {
+                    "id": "registry+sqlx-sqlite@1.0.0",
+                    "name": "sqlx-sqlite",
+                    "version": "1.0.0",
+                    "metadata": {}
+                },
+                {
+                    "id": "path+terrane-integration-adapters@1.0.0",
+                    "name": "terrane-integration-adapters",
+                    "version": "1.0.0",
+                    "metadata": {
+                        "terrane": {
+                            "namespace-overlays": [{
+                                "module": "sqlx_sqlite",
+                                "target-package": "sqlx-sqlite",
+                                "feature": "sqlx-sqlite"
+                            }]
+                        }
+                    }
+                }
+            ],
+            "resolve": {
+                "root": "path+root@0.1.0",
+                "nodes": [
+                    {
+                        "id": "path+root@0.1.0",
+                        "deps": [
+                            {"name": "db", "pkg": "registry+sqlx-sqlite@1.0.0"},
+                            {"name": "bridges", "pkg": "path+terrane-integration-adapters@1.0.0"}
+                        ]
+                    },
+                    {
+                        "id": "registry+sqlx-sqlite@1.0.0",
+                        "features": []
+                    },
+                    {
+                        "id": "path+terrane-integration-adapters@1.0.0",
+                        "features": ["default", "sqlx-sqlite"]
+                    }
+                ]
+            }
+        });
+        assert_eq!(
+            namespace_overlays_from_metadata(&metadata, &dependencies).unwrap(),
+            [NamespaceOverlay {
+                provider_name: "bridges".to_owned(),
+                provider_package: "terrane-integration-adapters".to_owned(),
+                source_namespace: "/deps/bridges/sqlx-sqlite".to_owned(),
+                target_namespace: "/deps/db".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn namespace_overlays_require_a_direct_target_and_reject_collisions() {
+        let metadata = serde_json::json!({
+            "packages": [{
+                "id": "path+adapter@1.0.0",
+                "name": "adapter",
+                "version": "1.0.0",
+                "metadata": {
+                    "terrane": {
+                        "namespace-overlays": [{
+                            "module": "upstream",
+                            "target-package": "upstream",
+                            "feature": "bridge"
+                        }]
+                    }
+                }
+            }],
+            "resolve": {
+                "root": "path+root@0.1.0",
+                "nodes": [
+                    {
+                        "id": "path+root@0.1.0",
+                        "deps": [{"name": "adapter", "pkg": "path+adapter@1.0.0"}]
+                    },
+                    {
+                        "id": "path+adapter@1.0.0",
+                        "features": ["bridge"]
+                    }
+                ]
+            }
+        });
+        let undeclared = namespace_overlays_from_metadata(
+            &metadata,
+            &[dependency("adapter", "adapter", &["bridge"])],
+        )
+        .unwrap_err();
+        assert!(
+            undeclared
+                .message
+                .contains("targets undeclared package `upstream`")
+        );
+
+        let overlay = NamespaceOverlay {
+            provider_name: "adapter".to_owned(),
+            provider_package: "adapter".to_owned(),
+            source_namespace: "/deps/adapter/upstream".to_owned(),
+            target_namespace: "/deps/upstream".to_owned(),
+        };
+        let mut projected = [
+            ProjectedDependency {
+                name: "upstream".to_owned(),
+                package: "upstream".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_function_item(
+                    "/deps/upstream",
+                    "open",
+                    "upstream::open",
+                )],
+                declined: Vec::new(),
+            },
+            ProjectedDependency {
+                name: "adapter".to_owned(),
+                package: "adapter".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_function_item(
+                    "/deps/adapter/upstream",
+                    "open",
+                    "adapter::upstream::open",
+                )],
+                declined: Vec::new(),
+            },
+        ];
+        let collision = apply_namespace_overlays(&mut projected, &[overlay]).unwrap_err();
+        assert!(
+            collision
+                .message
+                .contains("collides on `/deps/upstream::open`")
+        );
+    }
 
     #[test]
     fn target_identity_reads_effective_cargo_configuration() {
@@ -6043,7 +6952,7 @@ mod tests {
     }
 
     #[test]
-    fn colliding_projected_type_identities_fail_explicitly() {
+    fn ambiguous_projected_type_identities_do_not_resolve() {
         let dependency = |name: &str, rust_path: &str| ProjectedDependency {
             name: name.to_owned(),
             package: name.to_owned(),
@@ -6063,12 +6972,65 @@ mod tests {
             }],
             declined: Vec::new(),
         };
-        let error = validate_unique_projected_type_identities(&[
-            dependency("one", "one::Generic<A>"),
-            dependency("two", "two::Generic<B>"),
-        ])
-        .expect_err("distinct concrete identities cannot share one projected name");
-        assert!(error.message.contains("distinct concrete instantiations"));
+        let nested_dependency = |dependency_name: &str, rust_path: &str| {
+            let mut dependency = dependency(dependency_name, rust_path);
+            let mut item = projected_function_item("/deps/shared", dependency_name, "shared::make");
+            let ProjectedKind::Function(function) = &mut item.kind else {
+                unreachable!();
+            };
+            function.result = ProjectedType::Foreign {
+                rust_path: rust_path.to_owned(),
+                name: "Message".to_owned(),
+                base_rust_path: rust_path.to_owned(),
+                arguments: Vec::new(),
+            };
+            dependency.items = vec![item];
+            dependency
+        };
+        let projection = |dependencies| Projection {
+            cache_identity: "ambiguous-identities".to_owned(),
+            content_hash: String::new(),
+            dependencies,
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        let mut first = dependency("one", "one::Generic<A>");
+        let ProjectedKind::ForeignType { send, .. } = &mut first.items[0].kind else {
+            unreachable!();
+        };
+        *send = true;
+        let direct = projection(vec![first, dependency("two", "two::Generic<B>")]);
+        assert!(direct.item("/deps/shared", "Generic").is_none());
+        assert_eq!(
+            direct.item_ambiguity("/deps/shared", "Generic").as_deref(),
+            Some("projected Rust types `one::Generic<A>`, `two::Generic<B>`")
+        );
+        assert!(direct.projected_type("/deps/shared", "Generic").is_none());
+        assert!(!direct.projected_type_is_send("/deps/shared", "Generic"));
+        let source_error = direct
+            .source_for_imports(&BTreeMap::from([(
+                "/deps/shared".to_owned(),
+                BTreeSet::from(["Generic".to_owned()]),
+            )]))
+            .unwrap_err();
+        assert_eq!(
+            source_error,
+            "projected import `/deps/shared::Generic` is ambiguous: projected Rust types `one::Generic<A>`, `two::Generic<B>`"
+        );
+        assert!(
+            projection(vec![
+                nested_dependency("one", "one::Message"),
+                nested_dependency("two", "two::Message"),
+            ])
+            .projected_type("/deps/shared", "Message")
+            .is_none()
+        );
     }
 
     #[test]
@@ -6148,6 +7110,7 @@ mod tests {
                     docs: None,
                     kind: ProjectedKind::Function(ProjectedFunction {
                         name: "rejected_total".to_owned(),
+                        generic_parameters: Vec::new(),
                         parameters: vec![ProjectedParameter {
                             name: "value".to_owned(),
                             ty: ProjectedType::Generic("T".to_owned()),
@@ -6429,6 +7392,7 @@ mod tests {
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
                     name: "status".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::Foreign {
                         rust_path: "http::StatusCode".to_owned(),
@@ -6543,15 +7507,39 @@ mod tests {
                 )
             ])
         );
-        let sources = projection.source_for_imports(&BTreeMap::from([(
-            "/deps/witness".to_owned(),
-            BTreeSet::from(["cross".to_owned()]),
-        )]));
+        let sources = projection
+            .source_for_imports(&BTreeMap::from([(
+                "/deps/witness".to_owned(),
+                BTreeSet::from(["cross".to_owned()]),
+            )]))
+            .unwrap();
         assert!(sources[0].1.contains(
             "function cross throws dependency-panic; left witness-left-Response, right witness-right-Response"
         ));
     }
 
+    #[test]
+    fn projected_source_cycles_are_diagnostic() {
+        let cycle = Projection::order_projected_sources(vec![
+            (
+                "/deps/one".to_owned(),
+                String::new(),
+                BTreeSet::from(["/deps/two".to_owned()]),
+            ),
+            (
+                "/deps/two".to_owned(),
+                String::new(),
+                BTreeSet::from(["/deps/one".to_owned()]),
+            ),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            cycle,
+            "projected dependency source namespaces contain an import cycle: \
+             /deps/one -> [/deps/two]; /deps/two -> [/deps/one]"
+        );
+    }
     #[test]
     fn wider_primitives_project_without_narrowing() {
         let paths = HashMap::new();
@@ -6771,6 +7759,7 @@ mod tests {
             kind: ProjectedKind::ForeignType {
                 methods: vec![ProjectedFunction {
                     name: "read".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,
@@ -6782,6 +7771,7 @@ mod tests {
                 }],
                 static_methods: vec![ProjectedFunction {
                     name: "create".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,

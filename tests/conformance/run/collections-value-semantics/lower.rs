@@ -509,8 +509,9 @@ fn main() {
     );
     ordered.set(String::from("third"), terrane_int_support::Int::from(3_i128));
     let _ = ordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
+    let __terrane_iterable_0 = ordered.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &ordered,
+        &__terrane_iterable_0,
     );
     loop {
         let pair = match __terrane_iterator_0.next() {
@@ -530,8 +531,9 @@ fn main() {
         String,
     >::new(vec![String::from("b"), String::from("a"), String::from("b")]);
     unique.add(String::from("c"));
+    let __terrane_iterable_1 = unique;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &unique,
+        &__terrane_iterable_1,
     );
     loop {
         let value = match __terrane_iterator_1.next() {
@@ -565,8 +567,9 @@ fn main() {
         ),
         5 /* terrane-site: case.trn:24:13-24:24 */,
     );
+    let __terrane_iterable_2 = numbers;
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-        &numbers,
+        &__terrane_iterable_2,
     );
     loop {
         let number = match __terrane_iterator_2.next() {
@@ -583,8 +586,9 @@ fn main() {
         ),
         6 /* terrane-site: case.trn:27:15-27:38 */,
     );
+    let __terrane_iterable_3 = inclusive;
     let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-        &inclusive,
+        &__terrane_iterable_3,
     );
     loop {
         let number = match __terrane_iterator_3.next() {
@@ -604,8 +608,9 @@ fn main() {
         ),
         7 /* terrane-site: case.trn:31:11-31:26 */,
     );
+    let __terrane_iterable_4 = empty;
     let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-        &empty,
+        &__terrane_iterable_4,
     );
     loop {
         let ignored = match __terrane_iterator_4.next() {
@@ -676,8 +681,9 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(deterministic_map
         .get_or_error(&String::from("second")), 9 /* terrane-site: case.trn:41:36-41:63 */))
     );
+    let __terrane_iterable_5 = deterministic_map;
     let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
-        &deterministic_map,
+        &__terrane_iterable_5,
     );
     loop {
         let pair = match __terrane_iterator_5.next() {
@@ -700,8 +706,9 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(deterministic_set
         .length()))
     );
+    let __terrane_iterable_6 = deterministic_set;
     let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
-        &deterministic_set,
+        &__terrane_iterable_6,
     );
     loop {
         let value = match __terrane_iterator_6.next() {

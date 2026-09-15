@@ -104,6 +104,7 @@ impl Parser<'_> {
             "try" => self.parse_try(),
             "break" => self.parse_bare_statement(SyntaxKind::BreakStatement),
             "continue" => self.parse_bare_statement(SyntaxKind::ContinueStatement),
+            "await" => self.parse_expression_statement(),
             "from" => self.parse_import_declaration(),
             "import"
                 if self.peek_kind(1) == Some(TokenKind::Assign)
@@ -122,7 +123,9 @@ impl Parser<'_> {
             {
                 self.parse_unsupported()
             }
-            "yield" | "match" | "unsafe" | "rust" | "label" | "goto" | "when" | "use" | "catch"
+            "rust" => self.parse_rust_block(false),
+            "unsafe" if self.peek_text(1) == Some("rust") => self.parse_rust_block(true),
+            "yield" | "match" | "unsafe" | "label" | "goto" | "when" | "use" | "catch"
             | "finally" | "case" => self.parse_unsupported(),
             _ if self.looks_like_binding() => self.parse_binding(),
             _ => self.parse_expression_statement(),
@@ -647,27 +650,29 @@ impl Parser<'_> {
             if self.at(TokenKind::Identifier) {
                 self.reject_keyword_declaration_name();
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
+
                 if !(self.at(TokenKind::Assign)
                     || self.at(TokenKind::Comma)
                     || self.at_line_end()
+                    || self.at_ellipsis()
                     || grouped && self.at(TokenKind::CloseParen))
                 {
                     parts.push(self.parse_type_expression());
                 }
+                if self.at_ellipsis() {
+                    let variadic_start = self.position;
+                    self.bump();
+                    self.bump();
+                    self.bump();
+                    parts.push(self.node(
+                        SyntaxKind::VariadicMarker,
+                        variadic_start,
+                        self.position,
+                        Vec::new(),
+                    ));
+                }
                 if self.eat(TokenKind::Assign) {
                     parts.push(self.parse_expression(0, false));
-                }
-                if self.at(TokenKind::Dot)
-                    && self.peek_kind(1) == Some(TokenKind::Dot)
-                    && self.peek_kind(2) == Some(TokenKind::Dot)
-                {
-                    self.error_here(
-                        "S1090",
-                        "variadic parameters are not supported by this compiler milestone",
-                    );
-                    self.bump();
-                    self.bump();
-                    self.bump();
                 }
                 children.push(self.node(
                     SyntaxKind::Parameter,
@@ -1010,6 +1015,61 @@ impl Parser<'_> {
         self.node(SyntaxKind::Unsupported, start, self.position, Vec::new())
     }
 
+    fn parse_rust_block(&mut self, unsafe_boundary: bool) -> SyntaxNode {
+        let start = self.position;
+        if unsafe_boundary {
+            self.bump();
+            self.expect_text("rust", "S1090", "`unsafe` must be followed by `rust`");
+        } else {
+            self.bump();
+        }
+        if !self.at(TokenKind::Newline) {
+            self.error_here("S1090", "a Rust block requires an indented body");
+            self.recover_line();
+            return self.node(
+                if unsafe_boundary {
+                    SyntaxKind::UnsafeRustBlock
+                } else {
+                    SyntaxKind::RustBlock
+                },
+                start,
+                self.position,
+                Vec::new(),
+            );
+        }
+        self.bump();
+        if self.eat(TokenKind::Indent) {
+            let body_start = self.position;
+            self.recover_nested_block();
+            if !unsafe_boundary
+                && self.tokens[body_start..self.position].iter().any(|token| {
+                    token.kind == TokenKind::RawRust
+                        && crate::rust_ir::rust_syntactic_identifiers(&token.text)
+                            .contains("unsafe")
+                })
+            {
+                self.diagnostics.push(Diagnostic::error(
+                    "S1091",
+                    "unsafe Rust requires an explicit `unsafe rust` block",
+                    self.node(SyntaxKind::RustBlock, start, self.position, Vec::new())
+                        .span,
+                ));
+            }
+        } else {
+            self.error_here("S1090", "a Rust block requires an indented body");
+        }
+        self.node(
+            if unsafe_boundary {
+                SyntaxKind::UnsafeRustBlock
+            } else {
+                SyntaxKind::RustBlock
+            },
+            start,
+            self.position,
+            Vec::new(),
+        )
+    }
+
     fn parse_expression_statement(&mut self) -> SyntaxNode {
         let start = self.position;
         let left = self.parse_expression(0, true);
@@ -1315,6 +1375,12 @@ impl Parser<'_> {
                 self.bump();
                 self.node(SyntaxKind::Error, start, self.position, Vec::new())
             }
+            TokenKind::Identifier if self.at_text("rust") => self.parse_rust_block(false),
+            TokenKind::Identifier
+                if self.at_text("unsafe") && self.peek_text(1) == Some("rust") =>
+            {
+                self.parse_rust_block(true)
+            }
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
             TokenKind::Number
             | TokenKind::String
@@ -1376,6 +1442,48 @@ impl Parser<'_> {
         self.node(SyntaxKind::TypeExpression, start, self.position, vec![left])
     }
 
+    fn parse_function_type(&mut self, start: usize, mut children: Vec<SyntaxNode>) -> SyntaxNode {
+        if self.eat_text("from") {
+            loop {
+                children.push(self.parse_type_expression());
+                if self.at_ellipsis() {
+                    let variadic_start = self.position;
+                    self.bump();
+                    self.bump();
+                    self.bump();
+                    children.push(self.node(
+                        SyntaxKind::VariadicMarker,
+                        variadic_start,
+                        self.position,
+                        Vec::new(),
+                    ));
+                    break;
+                }
+                if !self.eat(TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        self.expect_text("to", "S1020", "function type requires `to`");
+        children.push(self.parse_type_expression());
+        if self.eat_text("throws") {
+            let effect_start = self.position - 1;
+            let parts = if self.at(TokenKind::Semicolon)
+                || self.at(TokenKind::Assign)
+                || self.at(TokenKind::Comma)
+                || self.at(TokenKind::CloseParen)
+                || self.at_line_end()
+            {
+                self.error_here("S1039", "`throws` requires a throwable upper bound");
+                Vec::new()
+            } else {
+                vec![self.parse_type_expression()]
+            };
+            children.push(self.node(SyntaxKind::EffectClause, effect_start, self.position, parts));
+        }
+        self.node(SyntaxKind::FunctionType, start, self.position, children)
+    }
+
     fn parse_prefix_type(&mut self) -> SyntaxNode {
         let start = self.position;
         if self.at_text("shared") && self.peek_text(1) == Some("ref") {
@@ -1388,7 +1496,7 @@ impl Parser<'_> {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
         }
-        let mut children = self.parse_function_qualifiers(false);
+        let children = self.parse_function_qualifiers(false);
         if !children.is_empty() && !self.at_text("function") {
             self.error_here(
                 "S1005",
@@ -1397,37 +1505,7 @@ impl Parser<'_> {
             return self.node(SyntaxKind::Error, start, self.position, children);
         }
         if self.eat_text("function") {
-            if self.eat_text("from") {
-                loop {
-                    children.push(self.parse_type_expression());
-                    if !self.eat(TokenKind::Comma) {
-                        break;
-                    }
-                }
-            }
-            self.expect_text("to", "S1020", "function type requires `to`");
-            children.push(self.parse_type_expression());
-            if self.eat_text("throws") {
-                let effect_start = self.position - 1;
-                let parts = if self.at(TokenKind::Semicolon)
-                    || self.at(TokenKind::Assign)
-                    || self.at(TokenKind::Comma)
-                    || self.at(TokenKind::CloseParen)
-                    || self.at_line_end()
-                {
-                    self.error_here("S1039", "`throws` requires a throwable upper bound");
-                    Vec::new()
-                } else {
-                    vec![self.parse_type_expression()]
-                };
-                children.push(self.node(
-                    SyntaxKind::EffectClause,
-                    effect_start,
-                    self.position,
-                    parts,
-                ));
-            }
-            return self.node(SyntaxKind::FunctionType, start, self.position, children);
+            return self.parse_function_type(start, children);
         }
         let mut base = if self.at(TokenKind::Identifier) {
             let angle_generic = self.text().contains('<');
@@ -1763,6 +1841,11 @@ impl Parser<'_> {
     }
     fn at(&self, kind: TokenKind) -> bool {
         self.current().kind == kind
+    }
+    fn at_ellipsis(&self) -> bool {
+        self.at(TokenKind::Dot)
+            && self.peek_kind(1) == Some(TokenKind::Dot)
+            && self.peek_kind(2) == Some(TokenKind::Dot)
     }
     fn at_text(&self, text: &str) -> bool {
         self.text() == text

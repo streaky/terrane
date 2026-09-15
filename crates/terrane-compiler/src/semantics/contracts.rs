@@ -161,16 +161,18 @@ pub(super) fn collect_typed_bindings(
             .parameters
             .iter()
             .filter_map(|parameter| {
-                parameter.value_type.clone().map(|value_type| TypedBinding {
-                    name: parameter.name.clone(),
-                    span: parameter.span,
-                    visible_from: parameter.span.start,
-                    scope: Some(node.span),
-                    value_type,
-                    destination_arms: Vec::new(),
-                    storage_type: None,
-                    mutable: false,
-                })
+                parameter
+                    .binding_value_type()
+                    .map(|value_type| TypedBinding {
+                        name: parameter.name.clone(),
+                        span: parameter.span,
+                        visible_from: parameter.span.start,
+                        scope: Some(node.span),
+                        value_type,
+                        destination_arms: Vec::new(),
+                        storage_type: None,
+                        mutable: false,
+                    })
             })
             .collect::<Vec<_>>();
         if let Some(owner) = &contract.owner {
@@ -330,7 +332,12 @@ pub(super) fn collect_typed_bindings(
         let child_scope = (child.kind == SyntaxKind::Block)
             .then_some(child.span)
             .or(scope);
-        collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
+        if child.kind == SyntaxKind::Block {
+            let mut child_bindings = visible_bindings.clone();
+            collect_typed_bindings(unit, child, &mut child_bindings, bindings, child_scope)?;
+        } else {
+            collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
+        }
     }
     Ok(())
 }
@@ -369,7 +376,7 @@ pub(super) fn analyze_function_contract(
         .iter()
         .find(|child| child.kind == SyntaxKind::ParameterList)
     {
-        for parameter in &parameter_list.children {
+        for (parameter_index, parameter) in parameter_list.children.iter().enumerate() {
             let Some(parameter_name) = parameter
                 .children
                 .iter()
@@ -384,13 +391,37 @@ pub(super) fn analyze_function_contract(
             let value_type = type_node
                 .map(|type_node| declared_value_type(unit, type_node, aliases))
                 .transpose()?;
+            let variadic = parameter
+                .children
+                .iter()
+                .any(|child| child.kind == SyntaxKind::VariadicMarker);
             let default = parameter.children.iter().find(|child| {
-                child.span != parameter_name.span && child.kind != SyntaxKind::TypeExpression
+                child.span != parameter_name.span
+                    && !matches!(
+                        child.kind,
+                        SyntaxKind::TypeExpression | SyntaxKind::VariadicMarker
+                    )
             });
             let optional = default.is_some();
+            if variadic && optional {
+                return Err(failure(
+                    &unit.source,
+                    "T0005",
+                    "a variadic parameter cannot declare a default",
+                    parameter.span,
+                ));
+            }
+            if variadic && parameter_index + 1 != parameter_list.children.len() {
+                return Err(failure(
+                    &unit.source,
+                    "T0005",
+                    "the variadic parameter must be final",
+                    parameter.span,
+                ));
+            }
             if optional {
                 optional_seen = true;
-            } else if optional_seen {
+            } else if optional_seen && !variadic {
                 return Err(failure(
                     &unit.source,
                     "T0005",
@@ -424,6 +455,7 @@ pub(super) fn analyze_function_contract(
                 value_type,
                 optional,
                 mutable: false,
+                variadic,
             });
         }
     }
@@ -849,14 +881,16 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             let parameter = if let Some(name) = name {
                 parameters.iter().find(|parameter| parameter.name == name)
             } else {
-                let parameter = parameters.get(positional);
+                let parameter = parameters
+                    .get(positional)
+                    .or_else(|| parameters.last().filter(|parameter| parameter.variadic));
                 positional += 1;
                 parameter
             };
             let value = argument.children.last().unwrap_or(argument);
             if parameter
-                .and_then(|parameter| parameter.value_type.as_ref())
-                .is_some_and(|expected| destination_conversion_can_fail(unit, expected, value))
+                .and_then(ParameterContract::element_value_type)
+                .is_some_and(|expected| destination_conversion_can_fail(unit, &expected, value))
             {
                 errors.insert("/core/errors::integer-conversion-overflow".to_owned());
             }

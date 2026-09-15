@@ -978,11 +978,19 @@ pub(super) fn value_type_satisfies_auto_trait(
     satisfies(package, value_type, obligation, &mut BTreeSet::new())
 }
 
-pub(super) fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
+pub(super) fn value_type_is_task_transferable(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> bool {
     match value_type {
         ValueType::Reference(_) => false,
-        ValueType::Object(identity) => !identity.namespace.starts_with("/deps/"),
-        ValueType::Optional(inner) => value_type_is_task_transferable(inner),
+        ValueType::Object(identity) => {
+            !identity.namespace.starts_with("/deps/")
+                || package
+                    .projection
+                    .projected_type_is_send(&identity.namespace, &identity.name)
+        }
+        ValueType::Optional(inner) => value_type_is_task_transferable(package, inner),
         ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::List(inner)
@@ -991,13 +999,13 @@ pub(super) fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
         | ValueType::UnorderedSet(inner)
         | ValueType::TaskOutcome(inner)
         | ValueType::SharedReference(inner) => {
-            value_type_is_task_transferable(inner.value_type_ref())
+            value_type_is_task_transferable(package, inner.value_type_ref())
         }
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
         | ValueType::UnorderedMap(key, value) => {
-            value_type_is_task_transferable(key.value_type_ref())
-                && value_type_is_task_transferable(value.value_type_ref())
+            value_type_is_task_transferable(package, key.value_type_ref())
+                && value_type_is_task_transferable(package, value.value_type_ref())
         }
         ValueType::AsyncFunction(_, _, transferability, _)
         | ValueType::Task(_, transferability)
@@ -1065,15 +1073,14 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
                     let transferable = !unit.namespace.starts_with("/deps/")
                         && !uses_local_async_boundary(unit, &unit.tree.root, contract.span)
                         && contract.parameters.iter().all(|parameter| {
-                            parameter
-                                .value_type
-                                .as_ref()
-                                .is_none_or(value_type_is_task_transferable)
+                            parameter.value_type.as_ref().is_none_or(|value_type| {
+                                value_type_is_task_transferable(package, value_type)
+                            })
                         })
                         && unit.typed_bindings.iter().all(|binding| {
                             if binding.span.start < contract.span.start
                                 || binding.span.end > contract.span.end
-                                || value_type_is_task_transferable(&binding.value_type)
+                                || value_type_is_task_transferable(package, &binding.value_type)
                             {
                                 return true;
                             }
@@ -1652,8 +1659,9 @@ fn validate_projected_callback_contract(
     }
     if *send
         && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture)
-                .is_some_and(|binding| !value_type_is_task_transferable(&binding.value_type))
+            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                !value_type_is_task_transferable(package, &binding.value_type)
+            })
         })
     {
         return reject(
