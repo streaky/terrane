@@ -528,7 +528,9 @@ fn prepare_artifact(
             CliFailure::backend(format!("cannot cache built artifact: {error}"))
         })?;
         #[cfg(all(target_os = "windows", target_env = "msvc"))]
-        cache_import_library(&built, &artifact, artifact_kind)?;
+        if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+            cache_import_library(&built, &artifact)?;
+        }
     }
     artifact
         .canonicalize()
@@ -553,21 +555,15 @@ fn artifact_path(directory: &Path, artifact_kind: terrane_compiler::ArtifactKind
     }
 }
 
-#[cfg(all(target_os = "windows", target_env = "msvc"))]
-fn cache_import_library(
-    built: &Path,
-    cached: &Path,
-    artifact_kind: terrane_compiler::ArtifactKind,
-) -> Result<(), CliFailure> {
-    if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
-        let built = built.with_extension("dll.lib");
-        let cached = cached.with_extension("dll.lib");
-        fs::copy(&built, &cached).map_err(|error| {
-            CliFailure::backend(format!(
-                "cannot cache dynamic-library import library: {error}"
-            ))
-        })?;
-    }
+#[cfg(any(test, all(target_os = "windows", target_env = "msvc")))]
+fn cache_import_library(built: &Path, cached: &Path) -> Result<(), CliFailure> {
+    let built = built.with_extension("dll.lib");
+    let cached = cached.with_extension("dll.lib");
+    fs::copy(&built, &cached).map_err(|error| {
+        CliFailure::backend(format!(
+            "cannot cache dynamic-library import library: {error}"
+        ))
+    })?;
     Ok(())
 }
 
@@ -1811,6 +1807,29 @@ mod tests {
         assert!(directory.join("09").is_dir());
         fs::remove_dir_all(directory).unwrap();
     }
+
+    #[test]
+    fn windows_import_library_cache_copies_the_dll_companion() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-import-library-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+        let built = directory.join("target/debug/terrane_program.dll");
+        let cached = directory.join("artifacts/debug/terrane_program.dll");
+        fs::create_dir_all(built.parent().unwrap()).unwrap();
+        fs::create_dir_all(cached.parent().unwrap()).unwrap();
+        fs::write(built.with_extension("dll.lib"), b"import-library").unwrap();
+
+        assert!(cache_import_library(&built, &cached).is_ok());
+
+        assert_eq!(
+            fs::read(cached.with_extension("dll.lib")).unwrap(),
+            b"import-library"
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
         let directory =
