@@ -2845,7 +2845,11 @@ fn destination_projected_object(
         .projection
         .item_ambiguity(&identity.namespace, &identity.name)
     {
-        return Err(format!("projected object `{identity}` is ambiguous: {details}").into());
+        return Err(format!(
+            "projected object `{}::{}` is ambiguous: {details}",
+            identity.namespace, identity.name
+        )
+        .into());
     }
     let item = package
         .projection

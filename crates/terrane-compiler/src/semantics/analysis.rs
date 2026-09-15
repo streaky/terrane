@@ -129,6 +129,17 @@ pub(super) fn parse_units(
             .into_iter()
             .filter(|import| import.target.starts_with("/deps/"))
         {
+            if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
+                return Err(failure(
+                    &import.source,
+                    "S2056",
+                    format!(
+                        "Rust dependency member `{}` in `{}` is ambiguous: {details}",
+                        import.object, import.target
+                    ),
+                    import.span,
+                ));
+            }
             dependency_imports
                 .entry(import.target)
                 .or_default()
@@ -340,12 +351,19 @@ pub(super) fn dependency_projection(
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
+pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
+    let projection = dependency_projection(package)?;
+    analyze_with_projection(package, projection)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "semantic phase orchestration remains linear and order-sensitive"
 )]
-pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
-    let projection = dependency_projection(package)?;
+pub(super) fn analyze_with_projection(
+    package: &Package,
+    projection: crate::projection::Projection,
+) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = parse_units(package, &projection)?;
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
