@@ -121,6 +121,24 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         },
         removal_criterion: "generic projected static-call specialization infers the bind argument and emits direct TcpListener::bind",
     },
+    IntegrationAdapter {
+        id: "godot-generated-api-projection",
+        tracking_key: "projection/godot-generated-reexport-surface",
+        dependency: "godot",
+        supported_versions: "0.5.x",
+        limitation: "godot's macro-generated and reexported engine API currently produces no directly projectable Terrane members",
+        status: AdapterStatus::Unbridged,
+        removal_criterion: "generic dependency projection exposes representative godot builtin and class types without a package-specific projector",
+    },
+    IntegrationAdapter {
+        id: "godot-gdextension-registration",
+        tracking_key: "native-interop/rust-proc-macro-extension-entry",
+        dependency: "godot",
+        supported_versions: "0.5.x",
+        limitation: "GDExtension entrypoint and GodotClass registration require Rust attribute and derive macros that Terrane source cannot declare",
+        status: AdapterStatus::Unbridged,
+        removal_criterion: "a generic native-extension contract can generate a cdylib entrypoint and registered host class without a maintained Rust module",
+    },
 ];
 
 #[cfg(test)]
