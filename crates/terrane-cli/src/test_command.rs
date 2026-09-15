@@ -478,7 +478,7 @@ fn build_native_compilation(
                 crate::UnsafeCodePolicy::MaintainedModules
             },
             artifact: terrane_compiler::ArtifactKind::Executable,
-            debug_profile: crate::DebugProfile::None,
+            artifact_profile: None,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -492,7 +492,7 @@ fn build_native_compilation(
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
         terrane_compiler::ArtifactKind::Executable,
-        false,
+        crate::CargoProfile::Debug,
     )?
     .ok_or_else(|| CliFailure::backend("native build produced no executable".to_owned()))
 }

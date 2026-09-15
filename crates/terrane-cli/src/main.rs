@@ -1,4 +1,5 @@
 mod debug_command;
+mod profile_command;
 mod test_command;
 
 use sha2::{Digest, Sha256};
@@ -10,6 +11,7 @@ use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
+#[derive(Debug)]
 struct CliFailure {
     code: u8,
     message: String,
@@ -75,6 +77,7 @@ enum CliCommand {
     Build,
     Run,
     Debug,
+    Profile,
     DebugAdapter,
     Test,
     Tooling,
@@ -94,6 +97,7 @@ impl CliCommand {
             "test" => Some(Self::Test),
             "run" => Some(Self::Run),
             "debug" => Some(Self::Debug),
+            "profile" => Some(Self::Profile),
             "debug-adapter" => Some(Self::DebugAdapter),
             "tooling" => Some(Self::Tooling),
             "query" => Some(Self::Query),
@@ -173,12 +177,21 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Format => return run_format(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
+        CliCommand::Profile
+            if arguments.get(1).and_then(|argument| argument.to_str()) == Some("show") =>
+        {
+            return profile_command::show(arguments);
+        }
         CliCommand::Check
         | CliCommand::Rust
         | CliCommand::Build
         | CliCommand::Run
-        | CliCommand::Debug => {}
+        | CliCommand::Debug
+        | CliCommand::Profile => {}
     }
+    let profile_options = (command == CliCommand::Profile)
+        .then(|| profile_command::parse_record(arguments))
+        .transpose()?;
     let (
         input_path,
         output_path,
@@ -187,7 +200,19 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         release,
         embed_debug_sources,
         embed_generated_sources,
-    ) = parse_input(arguments, command)?;
+    ) = if let Some(options) = &profile_options {
+        (
+            options.input.clone(),
+            None,
+            false,
+            false,
+            false,
+            options.embed_sources,
+            false,
+        )
+    } else {
+        parse_input(arguments, command)?
+    };
     let source_input = !input_path.is_dir()
         && input_path
             .extension()
@@ -207,10 +232,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         })?
     };
     if package.artifact == terrane_compiler::ArtifactKind::DynamicLibrary
-        && matches!(command, CliCommand::Run | CliCommand::Debug)
+        && matches!(
+            command,
+            CliCommand::Run | CliCommand::Debug | CliCommand::Profile
+        )
     {
         return Err(CliFailure::usage_with(
-            "`run` and `debug` require an executable package; use `build` for a dynamic library",
+            "`run`, `debug`, and `profile record` require an executable package; use `build` for a dynamic library",
         ));
     }
     let compilation = match terrane_compiler::compile_package_with_options(
@@ -218,7 +246,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
-            debug_build: if command == CliCommand::Debug {
+            debug_build: if matches!(command, CliCommand::Debug | CliCommand::Profile) {
                 match (embed_debug_sources, embed_generated_sources) {
                     (false, false) => terrane_compiler::DebugBuild::ExternalSources,
                     (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
@@ -267,8 +295,11 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
-    let debug_profile = (command == CliCommand::Debug)
-        .then_some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE);
+    let artifact_profile = match command {
+        CliCommand::Debug => Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE),
+        CliCommand::Profile => Some(terrane_compiler::profiling::CPU_ARTIFACT_PROFILE),
+        _ => None,
+    };
     write_generated_crate(
         &crate_dir,
         &rust_files,
@@ -285,7 +316,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             } else {
                 UnsafeCodePolicy::MaintainedModules
             },
-            debug_profile,
+            artifact_profile,
             artifact: package.artifact,
         },
     )?;
@@ -300,23 +331,53 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
         package.artifact,
-        release,
+        match command {
+            CliCommand::Profile => CargoProfile::Profiling,
+            _ if release => CargoProfile::Release,
+            _ => CargoProfile::Debug,
+        },
     )?;
     if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
     }
-    let artifact = artifact.expect("build, run, and debug prepare a native artifact");
+    let artifact = artifact.expect("build, run, debug, and profile prepare a native artifact");
     if command == CliCommand::Build {
         println!("{}", artifact.display());
         return Ok(ExitCode::SUCCESS);
     }
     let executable = artifact;
+    if command == CliCommand::Profile {
+        let options = profile_options
+            .as_ref()
+            .expect("profile record options were parsed before compilation");
+        let debug = compilation
+            .debug_information(rust_entrypoint)
+            .map_err(CliFailure::rust_artifact)?
+            .expect("profile compilation produces source-attribution metadata");
+        let build_identity = rust_build_identity(
+            &crate_dir,
+            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
+            "profiling",
+        )?;
+        return profile_command::record(
+            options,
+            &package,
+            debug,
+            &executable,
+            &crate_dir,
+            build_identity,
+        );
+    }
     if command == CliCommand::Debug {
         let debug = compilation
             .debug_information(rust_entrypoint)
             .map_err(CliFailure::rust_artifact)?
             .expect("debug compilation produces debugger metadata");
-        let build_identity = rust_debug_build_identity(&crate_dir)?;
+        let build_identity = rust_build_identity(
+            &crate_dir,
+            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+            "debug",
+        )?;
         let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
             &package,
             debug,
@@ -342,29 +403,37 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
-fn rust_debug_build_identity(
+fn rust_build_identity(
     crate_dir: &Path,
-) -> Result<terrane_compiler::debugging::DebugBuildIdentity, CliFailure> {
+    artifact_profile: terrane_compiler::provenance::ArtifactProfile,
+    purpose: &str,
+) -> Result<terrane_compiler::provenance::BuildIdentity, CliFailure> {
     let verbose = Command::new("rustc")
         .arg("-vV")
         .current_dir(crate_dir)
         .output()
         .map_err(|error| {
-            CliFailure::backend(format!("failed to inspect debug Rust compiler: {error}"))
+            CliFailure::backend(format!(
+                "failed to inspect {purpose} Rust compiler: {error}"
+            ))
         })?;
     if !verbose.status.success() {
-        return Err(CliFailure::backend(
-            "debug Rust compiler did not report its target triple".to_owned(),
-        ));
+        return Err(CliFailure::backend(format!(
+            "{purpose} Rust compiler did not report its target triple"
+        )));
     }
     let rustc_release = String::from_utf8(verbose.stdout).map_err(|_| {
-        CliFailure::backend("debug Rust compiler output was not valid UTF-8".to_owned())
+        CliFailure::backend(format!(
+            "{purpose} Rust compiler output was not valid UTF-8"
+        ))
     })?;
     let target = rustc_release
         .lines()
         .find_map(|line| line.strip_prefix("host: "))
         .ok_or_else(|| {
-            CliFailure::backend("debug Rust compiler output omitted its target triple".to_owned())
+            CliFailure::backend(format!(
+                "{purpose} Rust compiler output omitted its target triple"
+            ))
         })?
         .to_owned();
     let sysroot = Command::new("rustc")
@@ -372,22 +441,22 @@ fn rust_debug_build_identity(
         .current_dir(crate_dir)
         .output()
         .map_err(|error| {
-            CliFailure::backend(format!("failed to inspect debug Rust sysroot: {error}"))
+            CliFailure::backend(format!("failed to inspect {purpose} Rust sysroot: {error}"))
         })?;
     if !sysroot.status.success() {
-        return Err(CliFailure::backend(
-            "debug Rust compiler did not report its sysroot".to_owned(),
-        ));
+        return Err(CliFailure::backend(format!(
+            "{purpose} Rust compiler did not report its sysroot"
+        )));
     }
     let sysroot = String::from_utf8(sysroot.stdout)
-        .map_err(|_| CliFailure::backend("debug Rust sysroot was not valid UTF-8".to_owned()))?
+        .map_err(|_| CliFailure::backend(format!("{purpose} Rust sysroot was not valid UTF-8")))?
         .trim()
         .to_owned();
-    Ok(terrane_compiler::debugging::DebugBuildIdentity {
+    Ok(terrane_compiler::provenance::BuildIdentity {
         target,
         rust_sysroot: sysroot,
         rustc_release,
-        artifact_profile: terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+        artifact_profile,
     })
 }
 
@@ -470,6 +539,35 @@ fn emit_warnings(compilation: &terrane_compiler::Compilation) {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CargoProfile {
+    Debug,
+    Release,
+    Profiling,
+}
+
+impl CargoProfile {
+    const fn directory(self) -> &'static str {
+        match self {
+            Self::Debug => "debug",
+            Self::Release => "release",
+            Self::Profiling => "terrane-profile",
+        }
+    }
+
+    fn configure(self, command: &mut Command) {
+        match self {
+            Self::Debug => {}
+            Self::Release => {
+                command.arg("--release");
+            }
+            Self::Profiling => {
+                command.args(["--profile", "terrane-profile"]);
+            }
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "artifact preparation forwards one complete Cargo build context without hidden state"
@@ -483,7 +581,7 @@ fn prepare_artifact(
     has_rust_dependencies: bool,
     containment: terrane_compiler::projection::Containment,
     artifact_kind: terrane_compiler::ArtifactKind,
-    release: bool,
+    profile: CargoProfile,
 ) -> Result<Option<PathBuf>, CliFailure> {
     if command == CliCommand::Check {
         let stamp = crate_dir.join("artifacts/check-success");
@@ -496,7 +594,7 @@ fn prepare_artifact(
                 units,
                 has_rust_dependencies,
                 containment,
-                false,
+                CargoProfile::Debug,
             )?;
             fs::create_dir_all(stamp.parent().expect("artifact stamp has a parent")).map_err(
                 |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
@@ -507,8 +605,11 @@ fn prepare_artifact(
         }
         return Ok(None);
     }
-    let profile = if release { "release" } else { "debug" };
-    let artifact = artifact_path(&crate_dir.join("artifacts").join(profile), artifact_kind);
+    let profile_directory = profile.directory();
+    let artifact = artifact_path(
+        &crate_dir.join("artifacts").join(profile_directory),
+        artifact_kind,
+    );
     if !artifact.is_file() {
         run_cargo(
             "build",
@@ -518,9 +619,9 @@ fn prepare_artifact(
             units,
             has_rust_dependencies,
             containment,
-            release,
+            profile,
         )?;
-        let built = artifact_path(&target_dir.join(profile), artifact_kind);
+        let built = artifact_path(&target_dir.join(profile_directory), artifact_kind);
         fs::create_dir_all(artifact.parent().expect("cached artifact has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
         )?;
@@ -612,7 +713,7 @@ fn run_cargo(
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
     containment: terrane_compiler::projection::Containment,
-    release: bool,
+    profile: CargoProfile,
 ) -> Result<(), CliFailure> {
     let rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
     let contained =
@@ -688,9 +789,7 @@ fn run_cargo(
         "--manifest-path",
     ]);
     cargo.arg(crate_dir.join("Cargo.toml"));
-    if release {
-        cargo.arg("--release");
-    }
+    profile.configure(&mut cargo);
     if has_rust_dependencies {
         cargo.args(["--offline", "--frozen"]);
     }
@@ -900,7 +999,7 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
-type DebugProfile = Option<terrane_compiler::debugging::DebugArtifactProfile>;
+type ArtifactProfile = Option<terrane_compiler::provenance::ArtifactProfile>;
 #[derive(Clone, Copy)]
 enum UnsafeCodePolicy {
     Forbid,
@@ -925,7 +1024,7 @@ struct GeneratedCrateOptions {
     build_toolchain: terrane_compiler::BuildToolchain,
     unsafe_code: UnsafeCodePolicy,
     artifact: terrane_compiler::ArtifactKind,
-    debug_profile: DebugProfile,
+    artifact_profile: ArtifactProfile,
 }
 
 fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
@@ -948,14 +1047,20 @@ fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
 fn append_build_profiles(
     manifest: &mut String,
     panic: terrane_compiler::PanicProfile,
-    debug_profile: DebugProfile,
+    artifact_profile: ArtifactProfile,
 ) {
-    if panic == terrane_compiler::PanicProfile::Abort || debug_profile.is_some() {
+    if panic == terrane_compiler::PanicProfile::Abort
+        || artifact_profile.is_some_and(|profile| {
+            profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id
+        })
+    {
         manifest.push_str("\n[profile.dev]\n");
         if panic == terrane_compiler::PanicProfile::Abort {
             manifest.push_str("panic = \"abort\"\n");
         }
-        if let Some(profile) = debug_profile {
+        if let Some(profile) = artifact_profile
+            .filter(|profile| profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id)
+        {
             writeln!(manifest, "opt-level = {}", profile.optimization)
                 .expect("writing to a string cannot fail");
             writeln!(manifest, "debug = {}", profile.cargo_debug)
@@ -963,6 +1068,20 @@ fn append_build_profiles(
             writeln!(manifest, "strip = {:?}", profile.stripping)
                 .expect("writing to a string cannot fail");
         }
+    }
+    if let Some(profile) = artifact_profile
+        .filter(|profile| profile.id == terrane_compiler::profiling::CPU_ARTIFACT_PROFILE.id)
+    {
+        manifest.push_str("\n[profile.terrane-profile]\ninherits = \"release\"\n");
+        writeln!(manifest, "opt-level = {}", profile.optimization)
+            .expect("writing to a string cannot fail");
+        writeln!(manifest, "debug = {}", profile.cargo_debug)
+            .expect("writing to a string cannot fail");
+        writeln!(manifest, "strip = {:?}", profile.stripping)
+            .expect("writing to a string cannot fail");
+        writeln!(manifest, "lto = {:?}", profile.lto).expect("writing to a string cannot fail");
+        writeln!(manifest, "codegen-units = {}", profile.codegen_units)
+            .expect("writing to a string cannot fail");
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
@@ -1000,7 +1119,7 @@ fn write_generated_crate(
     if options.artifact == terrane_compiler::ArtifactKind::DynamicLibrary {
         manifest.push_str("\n[lib]\ncrate-type = [\"cdylib\"]\n");
     }
-    append_build_profiles(&mut manifest, options.panic, options.debug_profile);
+    append_build_profiles(&mut manifest, options.panic, options.artifact_profile);
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -1779,7 +1898,7 @@ mod tests {
             &units,
             false,
             terrane_compiler::projection::Containment::Unavailable,
-            false,
+            CargoProfile::Debug,
         )
         .unwrap_err();
         assert_eq!(failure.code, 5);
@@ -1852,7 +1971,7 @@ mod tests {
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                     artifact: terrane_compiler::ArtifactKind::Executable,
                     unsafe_code: UnsafeCodePolicy::Forbid,
-                    debug_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE),
+                    artifact_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
                 },
             )
             .is_ok()
@@ -1902,7 +2021,7 @@ mod tests {
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                     artifact: terrane_compiler::ArtifactKind::DynamicLibrary,
                     unsafe_code: UnsafeCodePolicy::MaintainedModules,
-                    debug_profile: None,
+                    artifact_profile: None,
                 },
             )
             .is_ok()
