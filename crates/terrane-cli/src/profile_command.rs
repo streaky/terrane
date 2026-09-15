@@ -585,91 +585,285 @@ fn first_decimal(line: &str) -> Option<u64> {
         .parse()
         .ok()
 }
+#[derive(Debug)]
+struct ShowOptions {
+    path: PathBuf,
+    format: String,
+    limit: usize,
+    focus: Option<(PathBuf, usize)>,
+    generated: bool,
+    native: bool,
+    source_root: Option<PathBuf>,
+    build_root: Option<PathBuf>,
+}
+
 pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
-    let path = arguments
-        .get(2)
-        .map(PathBuf::from)
-        .ok_or_else(CliFailure::usage)?;
-    let mut format = "text";
-    let mut limit = 50_usize;
-    let mut index = 3;
-    while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
-        match argument {
-            "--format" => {
-                index += 1;
-                format = arguments
-                    .get(index)
-                    .and_then(|value| value.to_str())
-                    .filter(|value| matches!(*value, "text" | "json"))
-                    .ok_or_else(CliFailure::usage)?;
-            }
-            "--limit" => {
-                index += 1;
-                limit = arguments
-                    .get(index)
-                    .and_then(|value| value.to_str())
-                    .and_then(|value| value.parse().ok())
-                    .filter(|limit| *limit > 0)
-                    .ok_or_else(CliFailure::usage)?;
-            }
-            _ => return Err(CliFailure::usage()),
-        }
-        index += 1;
+    let options = parse_show(arguments)?;
+    let artifact = read_artifact(&options.path)?;
+    let source_root = options
+        .source_root
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(&artifact.provenance.relocation.source_root));
+    let build_root = options
+        .build_root
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(&artifact.provenance.relocation.build_root));
+    let mut report = terrane_compiler::profiling::attribute(&artifact, &source_root, &build_root);
+    let executable = Path::new(&artifact.conditions.workload);
+    let relocated_executable = build_root
+        .join("artifacts")
+        .join("terrane-profile")
+        .join(&artifact.provenance.native_module.file_name);
+    let executable = if executable.is_file() {
+        executable
+    } else {
+        relocated_executable.as_path()
+    };
+    if let Err(reason) = artifact.provenance.validate_executable(executable) {
+        report.fidelity = "reduced-native".to_owned();
+        report.fidelity_reasons.push(reason);
     }
-    let artifact = read_artifact(&path)?;
-    let mut costs = BTreeMap::<String, u64>::new();
-    for sample in &artifact.evidence.samples {
-        let label = sample
-            .stack
-            .first()
-            .and_then(|frame| frame.symbol.as_deref())
-            .unwrap_or("<native unavailable>");
-        *costs.entry(label.to_owned()).or_default() += 1;
-    }
-    let mut rows = costs.into_iter().collect::<Vec<_>>();
-    rows.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
-    rows.truncate(limit);
-    if format == "json" {
-        let rows = rows
-            .iter()
-            .map(|(name, samples)| {
-                serde_json::json!({
-                    "frame": name,
-                    "exclusive_samples": samples,
-                    "percent_of_captured": (*samples as f64 * 100.0)
-                        / artifact.evidence.loss.captured_events.max(1) as f64
-                })
+    validate_captured_modules(&artifact, executable, &mut report);
+    if let Some((path, line)) = &options.focus {
+        report.rows.retain(|row| {
+            row.source.as_ref().is_some_and(|source| {
+                Path::new(&source.source_uri).ends_with(path)
+                    && source.line <= *line
+                    && *line <= source.end_line
             })
-            .collect::<Vec<_>>();
+        });
+        let labels = report
+            .rows
+            .iter()
+            .map(|row| row.label.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        report.call_tree.retain(|stack| {
+            stack
+                .frames
+                .iter()
+                .any(|frame| labels.contains(frame.as_str()))
+        });
+        report.flame_graph.retain(|stack| {
+            stack
+                .frames
+                .iter()
+                .any(|frame| labels.contains(frame.as_str()))
+        });
+    }
+    report.rows.truncate(options.limit);
+    report.call_tree.truncate(options.limit);
+    report.flame_graph.truncate(options.limit);
+    if options.format == "json" {
+        let mut output_report = report.clone();
+        if !options.generated {
+            for row in &mut output_report.rows {
+                row.generated.clear();
+            }
+        }
+        if !options.native {
+            for row in &mut output_report.rows {
+                row.native.clear();
+            }
+        }
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
                 "schema_version": artifact.schema_version,
                 "evidence_kind": artifact.evidence_kind,
                 "unit": artifact.evidence_unit,
-                "captured_events": artifact.evidence.loss.captured_events,
-                "lost_events": artifact.evidence.loss.lost_events,
-                "truncated_events": artifact.evidence.loss.truncated_events,
-                "rows": rows
+                "conditions": artifact.conditions,
+                "privacy": artifact.privacy,
+                "report": output_report,
+                "generated_expansion": options.generated,
+                "native_expansion": options.native
             }))
             .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
         );
     } else {
-        println!(
-            "CPU samples: {} captured, {} lost, {} truncated",
-            artifact.evidence.loss.captured_events,
-            artifact.evidence.loss.lost_events,
-            artifact.evidence.loss.truncated_events
-        );
-        println!("exclusive  captured  native frame");
-        for (name, samples) in rows {
-            println!(
-                "{samples:>9}  {:>7.2}%  {name}",
-                samples as f64 * 100.0 / artifact.evidence.loss.captured_events.max(1) as f64
-            );
-        }
+        render_text_report(&artifact, &report, &options);
     }
     Ok(ExitCode::SUCCESS)
+}
+fn validate_captured_modules(
+    artifact: &ProfileArtifact,
+    relocated_executable: &Path,
+    report: &mut terrane_compiler::profiling::AttributionReport,
+) {
+    for module in &artifact.evidence.modules {
+        if module.content_hash == "unavailable" {
+            continue;
+        }
+        let path = if module.is_profiled_executable {
+            relocated_executable
+        } else {
+            Path::new(&module.path)
+        };
+        let matches = fs::read(path)
+            .map(|bytes| hash_bytes(&bytes) == module.content_hash)
+            .unwrap_or(false);
+        if !matches {
+            report.fidelity = "reduced-native".to_owned();
+            report.fidelity_reasons.push(format!(
+                "captured module `{}` is missing or changed",
+                module.path
+            ));
+        }
+    }
+    report.fidelity_reasons.sort();
+    report.fidelity_reasons.dedup();
+}
+
+fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
+    let path = arguments
+        .get(2)
+        .map(PathBuf::from)
+        .ok_or_else(CliFailure::usage)?;
+    let mut options = ShowOptions {
+        path,
+        format: "text".to_owned(),
+        limit: 50,
+        focus: None,
+        generated: false,
+        native: false,
+        source_root: None,
+        build_root: None,
+    };
+    let mut index = 3;
+    while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
+        match argument {
+            "--generated" => options.generated = true,
+            "--native" => options.native = true,
+            "--format" => {
+                index += 1;
+                options.format = arguments
+                    .get(index)
+                    .and_then(|value| value.to_str())
+                    .filter(|value| matches!(*value, "text" | "json"))
+                    .ok_or_else(CliFailure::usage)?
+                    .to_owned();
+            }
+            "--limit" => {
+                index += 1;
+                options.limit = arguments
+                    .get(index)
+                    .and_then(|value| value.to_str())
+                    .and_then(|value| value.parse().ok())
+                    .filter(|limit| *limit > 0)
+                    .ok_or_else(CliFailure::usage)?;
+            }
+            "--focus" => {
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .and_then(|value| value.to_str())
+                    .ok_or_else(CliFailure::usage)?;
+                let (path, line) = value.rsplit_once(':').ok_or_else(CliFailure::usage)?;
+                options.focus = Some((
+                    PathBuf::from(path),
+                    line.parse().map_err(|_| CliFailure::usage())?,
+                ));
+            }
+            "--source-root" => {
+                index += 1;
+                options.source_root = Some(
+                    arguments
+                        .get(index)
+                        .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--build-root" => {
+                index += 1;
+                options.build_root = Some(
+                    arguments
+                        .get(index)
+                        .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            _ => return Err(CliFailure::usage()),
+        }
+        index += 1;
+    }
+    Ok(options)
+}
+
+fn render_text_report(
+    artifact: &ProfileArtifact,
+    report: &terrane_compiler::profiling::AttributionReport,
+    options: &ShowOptions,
+) {
+    println!(
+        "CPU samples: {} captured, {} lost, {} truncated; {} Hz; {:.3}s elapsed",
+        report.captured_samples,
+        report.lost_samples,
+        report.truncated_samples,
+        artifact.conditions.sample_frequency_hz,
+        artifact.conditions.elapsed_nanoseconds as f64 / 1_000_000_000.0
+    );
+    println!(
+        "collector: {} {}; build: {}; fidelity: {}",
+        artifact.collector.name,
+        artifact.collector.version,
+        artifact.provenance.artifact_profile,
+        report.fidelity
+    );
+    for reason in &report.fidelity_reasons {
+        println!("  fidelity: {reason}");
+    }
+    println!("\nexclusive accounting (CPU sample count)");
+    for quality in [
+        terrane_compiler::profiling::AttributionQuality::ExactAuthored,
+        terrane_compiler::profiling::AttributionQuality::SharedOrAmbiguous,
+        terrane_compiler::profiling::AttributionQuality::RuntimeAssociated,
+        terrane_compiler::profiling::AttributionQuality::GeneratedOnly,
+        terrane_compiler::profiling::AttributionQuality::NativeOnly,
+        terrane_compiler::profiling::AttributionQuality::Unavailable,
+    ] {
+        let samples = report.buckets.get(&quality).copied().unwrap_or(0);
+        println!(
+            "{samples:>9} {:>7.2}%  {}",
+            samples as f64 * 100.0 / report.captured_samples.max(1) as f64,
+            quality.label()
+        );
+    }
+    println!("\nhottest source groups (CPU sample count)");
+    println!("exclusive inclusive  quality               source group");
+    for row in &report.rows {
+        println!(
+            "{:>9} {:>9}  {:<20}  {}",
+            row.exclusive_samples,
+            row.inclusive_samples,
+            row.quality.label(),
+            row.label
+        );
+        if options.generated {
+            for generated in &row.generated {
+                println!(
+                    "    generated {}:{} bytes {}..{}",
+                    generated.path, generated.line, generated.start, generated.end
+                );
+            }
+        }
+        if options.native {
+            for native in &row.native {
+                println!(
+                    "    native {}+0x{:x} {}",
+                    native.module,
+                    native.module_offset,
+                    native.symbol.as_deref().unwrap_or("<unknown>")
+                );
+            }
+        }
+    }
+    println!("\ncall tree (inclusive CPU sample count; root to leaf)");
+    for stack in &report.call_tree {
+        println!("{:>9}  {}", stack.samples, stack.frames.join(" -> "));
+    }
+    println!("\nflame graph (folded stacks; weight = CPU sample count)");
+    for stack in &report.flame_graph {
+        println!("{} {}", stack.frames.join(";"), stack.samples);
+    }
 }
 
 fn read_artifact(path: &Path) -> Result<ProfileArtifact, CliFailure> {
