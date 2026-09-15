@@ -764,7 +764,7 @@ impl Projection {
     }
 
     #[must_use]
-    pub(crate) fn projected_type_named(&self, name: &str) -> Option<ProjectedType> {
+    pub(crate) fn projected_type(&self, namespace: &str, name: &str) -> Option<ProjectedType> {
         fn nested(ty: &ProjectedType, name: &str) -> Option<ProjectedType> {
             if matches!(
                 ty,
@@ -815,6 +815,7 @@ impl Projection {
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.namespace == namespace)
             .find_map(|item| match &item.kind {
                 ProjectedKind::Function(projected) => function(projected, name),
                 ProjectedKind::ForeignType {
@@ -847,7 +848,7 @@ impl Projection {
     #[must_use]
     pub(crate) fn projected_type_is_send(&self, namespace: &str, name: &str) -> bool {
         let direct = self.item(namespace, name);
-        let instantiated = self.projected_type_named(name).and_then(|projected| {
+        let instantiated = self.projected_type(namespace, name).and_then(|projected| {
             let base = match projected {
                 ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
                 ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
@@ -6530,6 +6531,58 @@ mod tests {
                 receiver: None,
             }),
         }
+    }
+
+    #[test]
+    fn projected_type_lookup_is_scoped_to_canonical_namespace() {
+        let item = |namespace: &str, rust_path: &str| {
+            let mut item = projected_function_item(namespace, "make", rust_path);
+            let ProjectedKind::Function(function) = &mut item.kind else {
+                unreachable!();
+            };
+            function.result = ProjectedType::Foreign {
+                rust_path: rust_path.to_owned(),
+                name: "Message".to_owned(),
+                base_rust_path: rust_path.to_owned(),
+                arguments: Vec::new(),
+            };
+            item
+        };
+        let projection = Projection {
+            cache_identity: "canonical-identities".to_owned(),
+            content_hash: String::new(),
+            dependencies: vec![
+                ProjectedDependency {
+                    name: "one".to_owned(),
+                    package: "one".to_owned(),
+                    version: "1.0.0".to_owned(),
+                    items: vec![item("/deps/one", "one::Message")],
+                    declined: Vec::new(),
+                },
+                ProjectedDependency {
+                    name: "two".to_owned(),
+                    package: "two".to_owned(),
+                    version: "1.0.0".to_owned(),
+                    items: vec![item("/deps/two", "two::Message")],
+                    declined: Vec::new(),
+                },
+            ],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        assert_eq!(
+            projection
+                .projected_type("/deps/two", "Message")
+                .map(|ty| ty.rust_type()),
+            Some("two::Message".to_owned())
+        );
+        assert!(projection.projected_type("/app", "Message").is_none());
     }
 
     #[test]

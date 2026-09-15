@@ -67,7 +67,7 @@ pub(super) fn emit_dependency_imports(
         let path = direct_path.map(str::to_owned).or_else(|| {
             package
                 .projection
-                .projected_type_named(&object.identity.name)
+                .projected_type(&object.identity.namespace, &object.identity.name)
                 .map(|projected| projected.rust_type())
         });
         if let Some(path) = path {
@@ -77,7 +77,7 @@ pub(super) fn emit_dependency_imports(
             }
             let generic_parameters = package
                 .projection
-                .projected_type_named(&object.identity.name)
+                .projected_type(&object.identity.namespace, &object.identity.name)
                 .map(|projected| projected_generic_names(&projected))
                 .unwrap_or_default();
             write_foreign_import(output, &path, &rust_name, &generic_parameters);
@@ -88,7 +88,7 @@ pub(super) fn emit_dependency_imports(
         if imported.insert(rust_name.clone()) {
             let generic_parameters = package
                 .projection
-                .projected_type_named(&name)
+                .projected_type(&unit.namespace, &name)
                 .map(|projected| projected_generic_names(&projected))
                 .unwrap_or_default();
             write_foreign_import(output, &path, &rust_name, &generic_parameters);

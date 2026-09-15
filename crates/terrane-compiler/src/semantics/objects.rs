@@ -2822,7 +2822,10 @@ pub(crate) fn destination_projected_type(
             )?
         }
         ValueType::Object(identity) => {
-            if let Some(projected) = package.projection.projected_type_named(&identity.name) {
+            if let Some(projected) = package
+                .projection
+                .projected_type(&identity.namespace, &identity.name)
+            {
                 projected
             } else {
                 let item = package
