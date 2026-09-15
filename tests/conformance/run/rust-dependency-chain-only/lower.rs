@@ -600,8 +600,8 @@ fn main() {
             },
             2 /* terrane-site: src/main.trn:9:21-9:60 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&answer));
-        println!("{}", terrane_scalar_support::scalar_text(&rendered));
+        let _ = println!("{}", terrane_scalar_support::scalar_text(&answer));
+        let _ = println!("{}", terrane_scalar_support::scalar_text(&rendered));
     });
 }
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn

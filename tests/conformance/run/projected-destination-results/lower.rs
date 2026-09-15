@@ -575,7 +575,7 @@ fn make_number() -> i64 {
     );
 }
 fn accept_by_argument(value: String) {
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    let _ = println!("{}", terrane_scalar_support::scalar_text(&value));
 }
 fn main() {
     let number: i64 = make_number();
@@ -637,7 +637,7 @@ fn main() {
         row(),
         13 /* terrane-site: src/main.trn:32:12-32:16 */,
     );
-    accept_by_argument(
+    let _ = accept_by_argument(
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| source.decoded::<String>()),
@@ -657,11 +657,11 @@ fn main() {
         ),
     );
     let returned: String = decoded_value();
-    println!("{}", terrane_scalar_support::scalar_text(&returned));
+    let _ = println!("{}", terrane_scalar_support::scalar_text(&returned));
     let mut item: Record = Record::terrane_construct();
-    item.load();
-    println!("{}", terrane_scalar_support::scalar_text(&item.value));
-    println!(
+    let _ = item.load();
+    let _ = println!("{}", terrane_scalar_support::scalar_text(&item.value));
+    let _ = println!(
         "{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&number),
         terrane_scalar_support::scalar_text(&optional.is_some()),
         terrane_scalar_support::scalar_text(&(data.len() as i128)),

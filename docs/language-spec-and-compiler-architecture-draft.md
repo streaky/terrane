@@ -5028,11 +5028,13 @@ whole-file source association for diagnostics and debugger provenance. Paths mus
 the package, end in `.rs`, and use distinct valid Rust module names. Authored modules require the
 package's `build` capability and participate in canonical-Rust checking when that check is enabled.
 
-Inline blocks may call a module as `crate::adapters::operation(...)`. Public objects intended for
-ordinary Terrane code are exposed through the same typed projected companion declarations used for
-external Rust dependencies; the projection contract remains the authority for types, ownership,
-errors, thread safety, reflection metadata, and target capabilities. The module file itself is not
-an untyped import surface.
+Inline blocks may call a module as `crate::adapters::operation(...)`. Public operations intended for
+ordinary Terrane code are exposed through narrow typed Terrane wrapper functions whose bodies use
+that Rust call. External dependency values deliberately crossing the wrapper may use projected
+companion types; concrete lifetime-bearing builders should remain owned inside the module. The
+wrapper's semantic contract remains authoritative for types, ownership, errors, thread safety,
+reflection metadata, and target capabilities. The module file itself is not an untyped import
+surface.
 
 The contract covers:
 

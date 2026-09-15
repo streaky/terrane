@@ -493,7 +493,7 @@ fn main() {
             __terrane_raised(widget(), 1 /* terrane-site: src/main.trn:5:32-5:39 */)
         ],
     );
-    println!(
+    let _ = println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(| | terrane_render_witness::render_many(match | | ->
         Result < _, crate ::TerraneForeignError > { Ok(values.into_vec()) } () {

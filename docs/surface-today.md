@@ -222,7 +222,7 @@ Terrane package
     │   ├── sha256 / sha512                    default modern digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
     ├── /core/random/legacy-digests            explicit compatibility digest import
-    │   └── sha1 / md5                         legacy algorithms; same digest/HMAC value contracts
+    │   └── sha1 / md5 / digest-bytes          legacy algorithms behind an explicit import; same digest-result contract
     ├── /core/codecs                           strict codec and byte-construction policy
     │   ├── decode-result                       failed / message plus decoded bytes
     │   ├── bytes-from-octets                  direct `list of uint8` → immutable `bytes`
@@ -963,6 +963,21 @@ change the generated manifest.
 Stream classes become resource-owning transitively from their compiler-owned process handle field.
 There is no source `linear class` qualifier; assignment transfers these values automatically.
 
+
+Ordinary strings, bytes, paths, filesystem capability values, collections, and non-resource
+objects have value semantics. Pass them normally; do not add `ref` merely to work around an
+anticipated Rust move. Lowering preserves later source uses with copy-on-write separation or
+compiler-owned clones. `ref` means the callee intentionally observes or mutates the same source
+value, not “please make generated Rust compile.”
+
+An explicit stream `.close` consumes the resource and returns an observable failure result. Use it
+when close failure matters. Deterministic destruction remains a fallback release path and cannot
+report failure to source code; it is not a substitute for checked close at a protocol boundary.
+
+TCP `read` is always a partial byte transfer. A successful read is never evidence of a complete
+HTTP request, response, or WebSocket frame. Accumulate until a protocol delimiter or declared
+length is complete, retain any excess bytes for the next message, enforce a total size bound, and
+distinguish incomplete EOF, transport failure, malformed framing, and limit exhaustion.
 The compiler represents callable families as bound methods with a distinguished default,
 typed children, signatures, and availability constraints. Semantic analysis resolves the
 family before lowering; generated Rust erases it to a direct function or support operation.
@@ -1011,9 +1026,10 @@ adapters = "rust/adapters.rs"
 Each value is a normalized package-relative `.rs` path and each key is a distinct Rust module
 identifier. The compiler copies these sources beside generated output, declares them in the crate
 root, keeps source associations for diagnostics/debugging, and checks them when canonical Rust is
-required. Authored modules require the `build` capability. Inline code reaches one as
-`crate::adapters::operation(...)`; ordinary Terrane callers use typed projected companion
-declarations rather than importing an untyped Rust module.
+required. Inline code reaches one as `crate::adapters::operation(...)`. Ordinary Terrane callers
+should see a narrow typed Terrane wrapper function whose `rust` body calls that module; projected
+companion types may describe any external dependency values intentionally carried across the
+wrapper, but the authored module itself is not an untyped import surface.
 
 ## Projected Rust dependencies
 
@@ -1081,6 +1097,25 @@ escape, and suspension are rejected before lowering. The terminal must return an
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
 declined rather than being described as directly projected.
+
+For SQLx specifically, do not attempt to project the open
+`Query<'q, DB, A>` builder. Add the pinned `sqlx` Rust dependency and a maintained module:
+
+```toml
+[rust-dependencies.sqlx]
+version = "=0.8.6"
+features = ["runtime-tokio", "sqlite"]
+effects = ["build", "filesystem"]
+
+[rust-modules]
+database = "rust/database.rs"
+```
+
+`rust/database.rs` owns the concrete `SqlitePool`, fixed query text, binds, execution, and row
+decoding. Small typed Terrane wrapper functions call `crate::database` from `rust` blocks and
+translate only application values and explicit success/failure results. This is the intended
+concrete-adapter route: SQLx's lifetime-bearing fluent value never enters ordinary Terrane code,
+while the query boundary remains compiler-visible and reviewable.
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
