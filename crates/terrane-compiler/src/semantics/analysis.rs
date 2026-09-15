@@ -135,7 +135,18 @@ pub(super) fn parse_units(
                 .insert(import.object);
         }
     }
-    for (namespace, text) in projection.source_for_imports(&dependency_imports) {
+    let projected_sources =
+        projection
+            .source_for_imports(&dependency_imports)
+            .map_err(|message| SemanticFailure {
+                source: package.units[0].source.clone(),
+                diagnostics: vec![Diagnostic::error(
+                    "S2028",
+                    message,
+                    Span::new(package.units[0].source.id(), 0, 0),
+                )],
+            })?;
+    for (namespace, text) in projected_sources {
         if !loaded.insert(namespace.clone()) {
             continue;
         }

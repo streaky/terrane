@@ -617,7 +617,7 @@ impl Projection {
     pub fn source_for_imports(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
-    ) -> Vec<(String, String)> {
+    ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
             .iter()
@@ -708,25 +708,39 @@ impl Projection {
 
     fn order_projected_sources(
         mut sources: Vec<(String, String, BTreeSet<String>)>,
-    ) -> Vec<(String, String)> {
+    ) -> Result<Vec<(String, String)>, String> {
         let mut ordered = Vec::with_capacity(sources.len());
         while !sources.is_empty() {
             let remaining_names = sources
                 .iter()
                 .map(|(namespace, _, _)| namespace)
                 .collect::<BTreeSet<_>>();
-            let index = sources
-                .iter()
-                .position(|(_, _, dependencies)| {
-                    dependencies
-                        .iter()
-                        .all(|dependency| !remaining_names.contains(dependency))
-                })
-                .unwrap_or(0);
+            let Some(index) = sources.iter().position(|(_, _, dependencies)| {
+                dependencies
+                    .iter()
+                    .all(|dependency| !remaining_names.contains(dependency))
+            }) else {
+                let cycle = sources
+                    .iter()
+                    .map(|(namespace, _, dependencies)| {
+                        let unresolved = dependencies
+                            .iter()
+                            .filter(|dependency| remaining_names.contains(dependency))
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{namespace} -> [{unresolved}]")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                return Err(format!(
+                    "projected dependency source namespaces contain an import cycle: {cycle}"
+                ));
+            };
             let (namespace, text, _) = sources.remove(index);
             ordered.push((namespace, text));
         }
-        ordered
+        Ok(ordered)
     }
 
     #[must_use]
@@ -7384,15 +7398,39 @@ mod tests {
                 )
             ])
         );
-        let sources = projection.source_for_imports(&BTreeMap::from([(
-            "/deps/witness".to_owned(),
-            BTreeSet::from(["cross".to_owned()]),
-        )]));
+        let sources = projection
+            .source_for_imports(&BTreeMap::from([(
+                "/deps/witness".to_owned(),
+                BTreeSet::from(["cross".to_owned()]),
+            )]))
+            .unwrap();
         assert!(sources[0].1.contains(
             "function cross throws dependency-panic; left witness-left-Response, right witness-right-Response"
         ));
     }
 
+    #[test]
+    fn projected_source_cycles_are_diagnostic() {
+        let cycle = Projection::order_projected_sources(vec![
+            (
+                "/deps/one".to_owned(),
+                String::new(),
+                BTreeSet::from(["/deps/two".to_owned()]),
+            ),
+            (
+                "/deps/two".to_owned(),
+                String::new(),
+                BTreeSet::from(["/deps/one".to_owned()]),
+            ),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            cycle,
+            "projected dependency source namespaces contain an import cycle: \
+             /deps/one -> [/deps/two]; /deps/two -> [/deps/one]"
+        );
+    }
     #[test]
     fn wider_primitives_project_without_narrowing() {
         let paths = HashMap::new();
