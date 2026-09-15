@@ -5328,25 +5328,58 @@ Tracing is feature/profile controlled and may be sampled.
 
 ### 26.6 Profiling
 
-The profiler should report source-level metrics such as:
+The implemented native CPU profiler measures an optimized exact build rather than a debug build.
+`terrane profile record --cpu` selects one supported Linux x86-64 `perf` sampling recipe and a
+compiler-owned `terrane-profile-cpu-v1` artifact profile: optimization level 3, line-table debug
+information, no stripping, optimized inlining, ThinLTO, and one code-generation unit. The workload
+inherits all threads and launched descendant processes. Standard output and standard error remain
+attached to the caller. Interrupt and termination signals are forwarded to the collector process
+group; any usable partial capture is finalized, and the workload's exit or signal result remains the
+command result.
+
+The versioned `.trnprof` artifact is typed compiler data rather than parsed report text. It binds the
+compiler, exact Rust release and sysroot, target, toolchain-bound ABI recipe, named artifact profile,
+inputs, exact executable hash, captured module build identities and hashes, source/generated
+associations, and relocation roots. It stores normalized load-relative native frames, collector
+identity and raw configuration, process/thread scope, sampling frequency and period, elapsed and
+active intervals, process exit or signal state, lost/truncated/captured counts, and explicit privacy
+declarations. Authored source and workload arguments are omitted by default and require independent
+opt-ins.
+
+Attribution is a versioned pass over normalized evidence. Every captured CPU sample contributes
+exactly once to one exclusive bucket:
+
+- exact authored;
+- shared or ambiguous;
+- runtime-associated;
+- generated-only;
+- native-only;
+- unavailable.
+
+Inclusive costs count each semantic group at most once per sample stack. Presentation starts with
+capture conditions and bucket accounting, then reports hottest source groups, a source-first call
+tree, and folded flame-graph stacks. Generated Rust and native modules/offsets are explicit
+expansions. `profile show` validates exact source, generated-file, executable, and loaded-module
+identities on every read; explicit source/build relocation may select copied-but-identical trees.
+Changed or unavailable identities retain native evidence with reduced fidelity rather than
+fabricating source attribution. CPU sample counts are the sole unit of this backend and are never
+presented as deterministic wall time or call counts.
+
+The artifact envelope and attribution vocabulary are intended to admit later evidence kinds, but
+allocation/event profiling, live-set and retained-graph analysis, process memory timelines,
+thresholds, before/after comparison commands, continuous-service capture, non-Linux collectors, and
+the broader source metrics below are not currently supported:
 
 ```text
 request-handler
 
-calls                  12,481
-wall time              842 ms
-cpu time               611 ms
-self cpu               311 ms
-allocations            42,190
-bytes allocated        18.4 mb
-semantic assignments  128,402
-physical copies         1,931
-cow splits                417
-refs created             8,441
-lock wait                29 ms
-foreign transitions          418
-foreign boundary time       21 ms
-foreign data copied       8.2 mb
+cpu samples                611
+allocations             42,190       (future)
+bytes allocated        18.4 mb       (future)
+semantic assignments  128,402       (future)
+physical copies         1,931       (future)
+cow splits                417       (future)
+lock wait                29 ms       (future)
 ```
 
 ### 26.7 Causal performance explanation
