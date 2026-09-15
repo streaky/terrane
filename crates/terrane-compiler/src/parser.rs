@@ -1044,7 +1044,8 @@ impl Parser<'_> {
             if !unsafe_boundary
                 && self.tokens[body_start..self.position].iter().any(|token| {
                     token.kind == TokenKind::RawRust
-                        && crate::rust_ir::rust_identifiers(&token.text).contains("unsafe")
+                        && crate::rust_ir::rust_syntactic_identifiers(&token.text)
+                            .contains("unsafe")
                 })
             {
                 self.diagnostics.push(Diagnostic::error(

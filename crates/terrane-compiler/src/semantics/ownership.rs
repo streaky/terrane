@@ -97,7 +97,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             node.kind,
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
         ) {
-            let identifiers = crate::rust_ir::rust_identifiers(node_text(&unit.source, node));
+            let identifiers =
+                crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
             if let Some((_, binding)) =
                 unit.typed_bindings
                     .iter()

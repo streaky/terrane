@@ -5,7 +5,13 @@ use syn::parse::Parser as _;
 
 use crate::Span;
 
-pub(crate) fn rust_identifiers(rust: &str) -> std::collections::BTreeSet<String> {
+/// Collects every identifier token from a Rust fragment without performing Rust name resolution.
+///
+/// This is deliberately a conservative syntactic inventory: path segments, field names, macro
+/// names and arguments, type names, and declarations are indistinguishable from free value
+/// references here. Callers may use a match to preserve or reject access conservatively, but must
+/// not treat it as proof that the fragment resolves to a particular Terrane binding.
+pub(crate) fn rust_syntactic_identifiers(rust: &str) -> std::collections::BTreeSet<String> {
     fn collect(tokens: TokenStream, identifiers: &mut std::collections::BTreeSet<String>) {
         for token in tokens {
             match token {
