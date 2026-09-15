@@ -386,6 +386,23 @@ fn comments_and_shift_operators_do_not_open_block_strings() {
 }
 
 #[test]
+fn comments_after_rust_markers_do_not_hide_raw_blocks() {
+    for source in [
+        "value = rust # maintained helper\n  crate::helper()\n",
+        "value = unsafe rust /* audited boundary */\n  core::ptr::read(pointer)\n",
+    ] {
+        let lexed = lex_source(source);
+        assert!(
+            lexed
+                .tokens
+                .iter()
+                .any(|token| token.kind == TokenKind::RawRust),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn indentation_ignores_blank_and_comment_only_lines() {
     let lexed = lex_source("function main;\n  value\n\n    # ignored\n  next\nafter\n");
     assert_eq!(

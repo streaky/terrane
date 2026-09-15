@@ -179,12 +179,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             {
                 block_string = Some((indent, token_count + relative_index, None));
             }
-            let code = line[indent..].trim_end();
-            if code == "rust"
-                || code == "unsafe rust"
-                || code.ends_with("= rust")
-                || code.ends_with("= unsafe rust")
-            {
+            if is_rust_block_marker(&tokens[token_count..]) {
                 rust_block = Some((indent, None));
             }
         }
@@ -260,6 +255,17 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             logical_lines,
         },
         diagnostics,
+    }
+}
+fn is_rust_block_marker(tokens: &[Token]) -> bool {
+    match tokens {
+        [rust] => rust.text == "rust",
+        [unsafe_keyword, rust] => unsafe_keyword.text == "unsafe" && rust.text == "rust",
+        [.., assign, rust] if assign.kind == TokenKind::Assign => rust.text == "rust",
+        [.., assign, unsafe_keyword, rust] if assign.kind == TokenKind::Assign => {
+            unsafe_keyword.text == "unsafe" && rust.text == "rust"
+        }
+        _ => false,
     }
 }
 
