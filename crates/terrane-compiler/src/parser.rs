@@ -647,27 +647,29 @@ impl Parser<'_> {
             if self.at(TokenKind::Identifier) {
                 self.reject_keyword_declaration_name();
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
+
                 if !(self.at(TokenKind::Assign)
                     || self.at(TokenKind::Comma)
                     || self.at_line_end()
+                    || self.at_ellipsis()
                     || grouped && self.at(TokenKind::CloseParen))
                 {
                     parts.push(self.parse_type_expression());
                 }
+                if self.at_ellipsis() {
+                    let variadic_start = self.position;
+                    self.bump();
+                    self.bump();
+                    self.bump();
+                    parts.push(self.node(
+                        SyntaxKind::VariadicMarker,
+                        variadic_start,
+                        self.position,
+                        Vec::new(),
+                    ));
+                }
                 if self.eat(TokenKind::Assign) {
                     parts.push(self.parse_expression(0, false));
-                }
-                if self.at(TokenKind::Dot)
-                    && self.peek_kind(1) == Some(TokenKind::Dot)
-                    && self.peek_kind(2) == Some(TokenKind::Dot)
-                {
-                    self.error_here(
-                        "S1090",
-                        "variadic parameters are not supported by this compiler milestone",
-                    );
-                    self.bump();
-                    self.bump();
-                    self.bump();
                 }
                 children.push(self.node(
                     SyntaxKind::Parameter,
@@ -1376,6 +1378,48 @@ impl Parser<'_> {
         self.node(SyntaxKind::TypeExpression, start, self.position, vec![left])
     }
 
+    fn parse_function_type(&mut self, start: usize, mut children: Vec<SyntaxNode>) -> SyntaxNode {
+        if self.eat_text("from") {
+            loop {
+                children.push(self.parse_type_expression());
+                if self.at_ellipsis() {
+                    let variadic_start = self.position;
+                    self.bump();
+                    self.bump();
+                    self.bump();
+                    children.push(self.node(
+                        SyntaxKind::VariadicMarker,
+                        variadic_start,
+                        self.position,
+                        Vec::new(),
+                    ));
+                    break;
+                }
+                if !self.eat(TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        self.expect_text("to", "S1020", "function type requires `to`");
+        children.push(self.parse_type_expression());
+        if self.eat_text("throws") {
+            let effect_start = self.position - 1;
+            let parts = if self.at(TokenKind::Semicolon)
+                || self.at(TokenKind::Assign)
+                || self.at(TokenKind::Comma)
+                || self.at(TokenKind::CloseParen)
+                || self.at_line_end()
+            {
+                self.error_here("S1039", "`throws` requires a throwable upper bound");
+                Vec::new()
+            } else {
+                vec![self.parse_type_expression()]
+            };
+            children.push(self.node(SyntaxKind::EffectClause, effect_start, self.position, parts));
+        }
+        self.node(SyntaxKind::FunctionType, start, self.position, children)
+    }
+
     fn parse_prefix_type(&mut self) -> SyntaxNode {
         let start = self.position;
         if self.at_text("shared") && self.peek_text(1) == Some("ref") {
@@ -1388,7 +1432,7 @@ impl Parser<'_> {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
         }
-        let mut children = self.parse_function_qualifiers(false);
+        let children = self.parse_function_qualifiers(false);
         if !children.is_empty() && !self.at_text("function") {
             self.error_here(
                 "S1005",
@@ -1397,37 +1441,7 @@ impl Parser<'_> {
             return self.node(SyntaxKind::Error, start, self.position, children);
         }
         if self.eat_text("function") {
-            if self.eat_text("from") {
-                loop {
-                    children.push(self.parse_type_expression());
-                    if !self.eat(TokenKind::Comma) {
-                        break;
-                    }
-                }
-            }
-            self.expect_text("to", "S1020", "function type requires `to`");
-            children.push(self.parse_type_expression());
-            if self.eat_text("throws") {
-                let effect_start = self.position - 1;
-                let parts = if self.at(TokenKind::Semicolon)
-                    || self.at(TokenKind::Assign)
-                    || self.at(TokenKind::Comma)
-                    || self.at(TokenKind::CloseParen)
-                    || self.at_line_end()
-                {
-                    self.error_here("S1039", "`throws` requires a throwable upper bound");
-                    Vec::new()
-                } else {
-                    vec![self.parse_type_expression()]
-                };
-                children.push(self.node(
-                    SyntaxKind::EffectClause,
-                    effect_start,
-                    self.position,
-                    parts,
-                ));
-            }
-            return self.node(SyntaxKind::FunctionType, start, self.position, children);
+            return self.parse_function_type(start, children);
         }
         let mut base = if self.at(TokenKind::Identifier) {
             let angle_generic = self.text().contains('<');
@@ -1763,6 +1777,11 @@ impl Parser<'_> {
     }
     fn at(&self, kind: TokenKind) -> bool {
         self.current().kind == kind
+    }
+    fn at_ellipsis(&self) -> bool {
+        self.at(TokenKind::Dot)
+            && self.peek_kind(1) == Some(TokenKind::Dot)
+            && self.peek_kind(2) == Some(TokenKind::Dot)
     }
     fn at_text(&self, text: &str) -> bool {
         self.text() == text

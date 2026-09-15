@@ -603,7 +603,10 @@ impl Emitter<'_> {
                 continue;
             }
             if let Some(default) = parameter.children.last().filter(|child| {
-                !matches!(child.kind, SyntaxKind::Name | SyntaxKind::TypeExpression)
+                !matches!(
+                    child.kind,
+                    SyntaxKind::Name | SyntaxKind::TypeExpression | SyntaxKind::VariadicMarker
+                )
             }) {
                 let destination = contract.parameters[index].value_type.clone();
                 let value = destination

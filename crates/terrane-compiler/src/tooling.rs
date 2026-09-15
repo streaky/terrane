@@ -2195,12 +2195,7 @@ fn function_value_type(function: &crate::FunctionContract) -> Option<crate::Valu
     let parameters = function
         .parameters
         .iter()
-        .map(|parameter| {
-            parameter
-                .value_type
-                .clone()
-                .map(crate::semantics::ElementType::new)
-        })
+        .map(crate::ParameterContract::callable_type)
         .collect::<Option<Vec<_>>>()?;
     let result = crate::semantics::ElementType::new(
         function

@@ -82,6 +82,13 @@ fn parses_callable_invocation_modes_in_every_function_form() {
     assert_eq!(count(&tree.root, SyntaxKind::FunctionType), 1);
     assert_eq!(count(&tree.root, SyntaxKind::AnonymousFunction), 1);
 }
+#[test]
+fn parses_variadic_parameter_markers() {
+    let tree = parse_source(
+        "function collect; prefix string, values int ...\nhandler = function int; values int ...\n  return 0\n",
+    );
+    assert_eq!(count(&tree.root, SyntaxKind::VariadicMarker), 2);
+}
 
 #[test]
 fn parses_callable_invocation_modes_in_class_fields() {
@@ -595,7 +602,7 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("value mutable int\n", "S1005");
     rejected("value consuming string\n", "S1005");
     rejected("function map of T; value T\n", "S1090");
-    rejected("function main; values int ...\n", "S1090");
+
     rejected("catch problem\n", "S1090");
     rejected("finally\n", "S1090");
     rejected("case value\n", "S1090");

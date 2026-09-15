@@ -772,13 +772,21 @@ pub(super) fn bind_projected_associated_type(
         ValueType::UnorderedMap(key, item) => ValueType::UnorderedMap(element(key), element(item)),
         ValueType::UnorderedSet(item) => ValueType::UnorderedSet(element(item)),
         ValueType::Function(parameters, result, effects) => ValueType::Function(
-            parameters.iter().map(element).collect(),
+            parameters
+                .iter()
+                .map(|parameter| parameter.with_element_type(element(&parameter.element_type())))
+                .collect(),
             element(result),
             effects.clone(),
         ),
         ValueType::AsyncFunction(parameters, result, transferability, effects) => {
             ValueType::AsyncFunction(
-                parameters.iter().map(element).collect(),
+                parameters
+                    .iter()
+                    .map(|parameter| {
+                        parameter.with_element_type(element(&parameter.element_type()))
+                    })
+                    .collect(),
                 element(result),
                 *transferability,
                 effects.clone(),
@@ -833,7 +841,9 @@ pub(super) fn validate_object_conformance(
                 .parameters
                 .iter()
                 .zip(&implementation.parameters)
-                .all(|(left, right)| left.value_type == right.value_type)
+                .all(|(left, right)| {
+                    left.value_type == right.value_type && left.variadic == right.variadic
+                })
             && requirement.return_type == implementation.return_type
             && (!implementation.throws || requirement.throws)
             && requirement.is_async == implementation.is_async
@@ -2497,7 +2507,14 @@ fn collect_projected_destinations(
                 package,
                 unit,
                 value,
-                parameter_types.get(index).map(ElementType::value_type_ref),
+                parameter_types
+                    .get(index)
+                    .or_else(|| {
+                        parameter_types
+                            .last()
+                            .filter(|parameter| parameter.is_variadic())
+                    })
+                    .map(CallableParameterType::value_type_ref),
                 function_return,
                 unit_index,
                 pending,

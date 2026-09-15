@@ -704,7 +704,9 @@ function results associate right and each postfix clause binds to its nearest fu
 Anonymous functions use ordinary function syntax without a declaration name. The compiler checks
 duplicate, unknown, missing, and excess arguments, rejects positional arguments after named
 arguments, and checks callable invocation and throwable compatibility at every typed destination.
-Variadic functions, overloads, and generic functions are not implemented.
+One final `name T ...` parameter captures remaining positional arguments as a `list of T`; variadic
+arity is preserved by function values, methods, closures, and callable compatibility. Overloads and
+generic source functions are not implemented.
 
 ## Source object and name model
 

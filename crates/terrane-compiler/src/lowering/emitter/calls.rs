@@ -1402,11 +1402,23 @@ impl Emitter<'_> {
         {
             let receiver = self.receiver_expression(&callee.children[0]);
             if self.value_type(&callee.children[0]) == Some(ValueType::Scalar(ScalarType::Bytes)) {
-                let value = values
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "Vec::new()".to_owned());
-                return format!("{{ let mut bytes = {receiver}; bytes.extend({value}); bytes }}");
+                let bindings = values
+                    .iter()
+                    .enumerate()
+                    .map(|(index, value)| format!("let part_{index}: Vec<u8> = {value};"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let part_lengths = (0..values.len())
+                    .map(|index| format!("part_{index}.len()"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let extensions = (0..values.len())
+                    .map(|index| format!("bytes.extend(part_{index});"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                return format!(
+                    "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
+                );
             }
             values.insert(0, receiver);
             let values = values
@@ -1429,6 +1441,11 @@ impl Emitter<'_> {
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
+            let mut variadic_values = Vec::new();
+            let variadic_index = contract
+                .parameters
+                .iter()
+                .position(|parameter| parameter.variadic);
             let mut positional = 0;
             for argument in &arguments.children {
                 let named = argument
@@ -1437,7 +1454,9 @@ impl Emitter<'_> {
                     .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
                 let index = named.map_or_else(
                     || {
-                        let index = positional;
+                        let index = variadic_index
+                            .filter(|variadic| positional >= *variadic)
+                            .unwrap_or(positional);
                         positional += 1;
                         index
                     },
@@ -1462,7 +1481,7 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
-                } else if let Some(ty) = parameter.value_type.clone() {
+                } else if let Some(ty) = parameter.element_value_type() {
                     self.expression_as(value, ty)
                 } else {
                     self.expression(value)
@@ -1479,26 +1498,35 @@ impl Emitter<'_> {
                 } else {
                     expression
                 };
-                ordered[index] = Some(
-                    projected_parameters
-                        .as_ref()
-                        .and_then(|parameters| parameters.get(index))
-                        .filter(|parameter| {
-                            parameter.borrowed
-                                && (projected_chain_root
-                                    || matches!(
-                                        parameter.ty,
-                                        crate::projection::ProjectedType::Foreign { .. }
-                                    ))
-                        })
-                        .map_or(expression.clone(), |parameter| {
-                            if parameter.mutable_borrow {
-                                format!("&mut {expression}")
-                            } else {
-                                format!("&{expression}")
-                            }
-                        }),
-                );
+                let expression = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index))
+                    .filter(|parameter| {
+                        parameter.borrowed
+                            && (projected_chain_root
+                                || matches!(
+                                    parameter.ty,
+                                    crate::projection::ProjectedType::Foreign { .. }
+                                ))
+                    })
+                    .map_or(expression.clone(), |parameter| {
+                        if parameter.mutable_borrow {
+                            format!("&mut {expression}")
+                        } else {
+                            format!("&{expression}")
+                        }
+                    });
+                if parameter.variadic {
+                    variadic_values.push(expression);
+                } else {
+                    ordered[index] = Some(expression);
+                }
+            }
+            if let Some(index) = variadic_index {
+                ordered[index] = Some(format!(
+                    "terrane_collection_support::List::new(vec![{}])",
+                    variadic_values.join(", ")
+                ));
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
@@ -1506,10 +1534,15 @@ impl Emitter<'_> {
             ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
         ) = self.value_type(callee)
         {
+            let variadic = parameters
+                .last()
+                .filter(|parameter| parameter.is_variadic());
+            let fixed = parameters.len() - usize::from(variadic.is_some());
             values = arguments
                 .children
                 .iter()
-                .zip(parameters)
+                .take(fixed)
+                .zip(&parameters)
                 .map(|(argument, parameter)| {
                     self.expression_as(
                         argument.children.last().unwrap_or(argument),
@@ -1517,6 +1550,23 @@ impl Emitter<'_> {
                     )
                 })
                 .collect();
+            if let Some(parameter) = variadic {
+                let tail = arguments
+                    .children
+                    .iter()
+                    .skip(fixed)
+                    .map(|argument| {
+                        self.expression_as(
+                            argument.children.last().unwrap_or(argument),
+                            parameter.value_type(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                values.push(format!(
+                    "terrane_collection_support::List::new(vec![{}])",
+                    tail.join(", ")
+                ));
+            }
         }
         let specialization = self.unit.projected_call_specializations.get(&(
             node.span.file,

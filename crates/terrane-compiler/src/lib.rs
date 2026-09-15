@@ -38,9 +38,9 @@ pub use projection_oracle::{
     ProbeReport, ProjectionOracle,
 };
 pub use semantics::{
-    BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,
-    Namespace, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
-    TypedBinding, ValueType, Visibility, analyze,
+    BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, EvaluationKind, EvaluationStep,
+    FunctionContract, MemberFamily, Namespace, ParameterContract, SemanticFailure, SemanticPackage,
+    SemanticUnit, Symbol, TypedBinding, ValueType, Visibility, analyze,
 };
 pub use source::{SourceFile, Span};
 pub use types::{ScalarType, TypeCategory};

@@ -346,10 +346,24 @@ pub(super) fn rust_empty_collection(
     }
 }
 
-fn rust_callable_arguments(package: &SemanticPackage, parameters: Vec<ElementType>) -> String {
+fn rust_callable_parameter_type(
+    package: &SemanticPackage,
+    parameter: &CallableParameterType,
+) -> String {
+    if parameter.is_variadic() {
+        rust_value_type(package, ValueType::List(parameter.element_type()))
+    } else {
+        rust_element_type(package, parameter.element_type())
+    }
+}
+
+fn rust_callable_arguments(
+    package: &SemanticPackage,
+    parameters: &[CallableParameterType],
+) -> String {
     let parameters = parameters
-        .into_iter()
-        .map(|parameter| rust_element_type(package, parameter))
+        .iter()
+        .map(|parameter| rust_callable_parameter_type(package, parameter))
         .collect::<Vec<_>>();
     match parameters.as_slice() {
         [] => "()".to_owned(),
@@ -489,19 +503,19 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 InvocationMode::Shared => format!(
                     "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
                     parameters
-                        .into_iter()
-                        .map(|parameter| rust_element_type(package, parameter))
+                        .iter()
+                        .map(|parameter| rust_callable_parameter_type(package, parameter))
                         .collect::<Vec<_>>()
                         .join(", "),
                     output
                 ),
                 InvocationMode::Mutable => format!(
                     "TerraneMutableCallable<{}, {output}>",
-                    rust_callable_arguments(package, parameters)
+                    rust_callable_arguments(package, &parameters)
                 ),
                 InvocationMode::Consuming => format!(
                     "TerraneConsumingCallable<{}, {output}>",
-                    rust_callable_arguments(package, parameters)
+                    rust_callable_arguments(package, &parameters)
                 ),
             }
         }
@@ -524,18 +538,18 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 InvocationMode::Shared => format!(
                     "std::sync::Arc<dyn Fn({}) -> {future} + Send + Sync>",
                     parameters
-                        .into_iter()
-                        .map(|parameter| rust_element_type(package, parameter))
+                        .iter()
+                        .map(|parameter| rust_callable_parameter_type(package, parameter))
                         .collect::<Vec<_>>()
                         .join(", ")
                 ),
                 InvocationMode::Mutable => format!(
                     "TerraneMutableCallable<{}, {future}>",
-                    rust_callable_arguments(package, parameters)
+                    rust_callable_arguments(package, &parameters)
                 ),
                 InvocationMode::Consuming => format!(
                     "TerraneConsumingCallable<{}, {future}>",
-                    rust_callable_arguments(package, parameters)
+                    rust_callable_arguments(package, &parameters)
                 ),
             }
         }

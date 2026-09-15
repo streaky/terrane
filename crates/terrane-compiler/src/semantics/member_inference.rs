@@ -136,7 +136,7 @@ pub(crate) fn object_member_type(
         let parameters = method
             .parameters
             .iter()
-            .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+            .map(ParameterContract::callable_type)
             .collect::<Option<Vec<_>>>()?;
         let result = ElementType::new(
             method
@@ -301,7 +301,7 @@ pub(super) fn infer_member_value_type(
     if let Some(ValueType::ChannelSender(item)) = &receiver_type {
         return match member_name {
             "send" => Ok(Some(ValueType::AsyncFunction(
-                vec![item.clone()],
+                vec![CallableParameterType::fixed(item.clone())],
                 ElementType::new(ValueType::ChannelSendOutcome(item.clone())),
                 TaskTransferability::Local,
                 CallableEffects::infallible(),
@@ -496,6 +496,15 @@ pub(super) fn infer_member_value_type(
             ),
             member.span,
         ));
+    }
+    if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes)) && member_name == "concat" {
+        return Ok(Some(ValueType::Function(
+            vec![CallableParameterType::variadic(ElementType::new(
+                ValueType::Scalar(ScalarType::Bytes),
+            ))],
+            ElementType::new(ValueType::Scalar(ScalarType::Bytes)),
+            CallableEffects::infallible(),
+        )));
     }
     if receiver_type.as_ref().is_some_and(|value_type| {
         descriptor_method_requires_invocation(unit, value_type, member_name)

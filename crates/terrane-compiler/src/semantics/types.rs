@@ -391,11 +391,24 @@ pub(super) fn declared_value_type_with_visible_objects(
                 type_node.span,
             ));
         };
+        let variadic = function
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::VariadicMarker);
+        let parameter_count = signature.len();
         let parameters = signature
             .into_iter()
-            .map(|parameter| {
+            .enumerate()
+            .map(|(index, parameter)| {
                 declared_value_type_with_visible_objects(unit, parameter, aliases, visible_objects)
                     .map(ElementType::new)
+                    .map(|element| {
+                        if variadic && index + 1 == parameter_count {
+                            CallableParameterType::variadic(element)
+                        } else {
+                            CallableParameterType::fixed(element)
+                        }
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(declared_value_type_with_visible_objects(
@@ -970,7 +983,11 @@ pub(super) fn diagnostic_value_type(
                 "{}{asynchronous}function",
                 effects.modes.written.source_prefix()
             );
-            let parameters = parameters.iter().map(nested).collect::<Vec<_>>().join(", ");
+            let parameters = parameters
+                .iter()
+                .map(|parameter| nested(&parameter.element_type()))
+                .collect::<Vec<_>>()
+                .join(", ");
             let from = if parameters.is_empty() {
                 String::new()
             } else {
@@ -1098,10 +1115,10 @@ pub(super) fn validate_value_destination(
 
 fn callable_types_compatible(
     objects: &[DescriptorContract],
-    expected_parameters: &[ElementType],
+    expected_parameters: &[CallableParameterType],
     expected_result: &ElementType,
     expected_effects: &CallableEffects,
-    actual_parameters: &[ElementType],
+    actual_parameters: &[CallableParameterType],
     actual_result: &ElementType,
     actual_effects: &CallableEffects,
 ) -> bool {

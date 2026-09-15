@@ -387,6 +387,51 @@ pub enum TaskTransferability {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CallableParameterType {
+    value_type: ElementType,
+    variadic: bool,
+}
+
+impl CallableParameterType {
+    pub(crate) fn fixed(value_type: ElementType) -> Self {
+        Self {
+            value_type,
+            variadic: false,
+        }
+    }
+
+    pub(crate) fn variadic(value_type: ElementType) -> Self {
+        Self {
+            value_type,
+            variadic: true,
+        }
+    }
+
+    pub(crate) fn value_type(&self) -> ValueType {
+        self.value_type.value_type()
+    }
+
+    pub(crate) fn value_type_ref(&self) -> &ValueType {
+        self.value_type.value_type_ref()
+    }
+
+    pub(crate) fn element_type(&self) -> ElementType {
+        self.value_type.clone()
+    }
+
+    pub(crate) fn with_element_type(&self, value_type: ElementType) -> Self {
+        Self {
+            value_type,
+            variadic: self.variadic,
+        }
+    }
+
+    pub(crate) fn is_variadic(&self) -> bool {
+        self.variadic
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
     Optional(Box<ValueType>),
@@ -420,9 +465,9 @@ pub enum ValueType {
     UnorderedMap(ElementType, ElementType),
     UnorderedSet(ElementType),
     Encoding,
-    Function(Vec<ElementType>, ElementType, CallableEffects),
+    Function(Vec<CallableParameterType>, ElementType, CallableEffects),
     AsyncFunction(
-        Vec<ElementType>,
+        Vec<CallableParameterType>,
         ElementType,
         TaskTransferability,
         CallableEffects,
@@ -685,7 +730,10 @@ impl std::fmt::Display for ValueType {
                         if index != 0 {
                             formatter.write_str(", ")?;
                         }
-                        parameter.fmt(formatter)?;
+                        parameter.value_type.fmt(formatter)?;
+                        if parameter.variadic {
+                            formatter.write_str(" ...")?;
+                        }
                     }
                 }
                 write!(formatter, " to {result}")?;
@@ -702,7 +750,10 @@ impl std::fmt::Display for ValueType {
                         if index != 0 {
                             formatter.write_str(", ")?;
                         }
-                        parameter.fmt(formatter)?;
+                        parameter.value_type.fmt(formatter)?;
+                        if parameter.variadic {
+                            formatter.write_str(" ...")?;
+                        }
                     }
                 }
                 write!(formatter, " to {result}")?;
@@ -982,10 +1033,12 @@ impl FloatMemberContract {
                 parameters
                     .iter()
                     .map(|parameter| {
-                        ElementType::new(ValueType::Scalar(match parameter {
-                            FloatMemberArgument::Receiver => receiver,
-                            FloatMemberArgument::Int32 => ScalarType::Int32,
-                        }))
+                        CallableParameterType::fixed(ElementType::new(ValueType::Scalar(
+                            match parameter {
+                                FloatMemberArgument::Receiver => receiver,
+                                FloatMemberArgument::Int32 => ScalarType::Int32,
+                            },
+                        )))
                     })
                     .collect(),
                 ElementType::new(result),
@@ -1181,6 +1234,36 @@ pub struct ParameterContract {
     pub value_type: Option<ValueType>,
     pub optional: bool,
     pub mutable: bool,
+    pub variadic: bool,
+}
+
+impl ParameterContract {
+    pub(crate) fn element_value_type(&self) -> Option<ValueType> {
+        self.value_type
+            .clone()
+            .or_else(|| self.variadic.then_some(ValueType::Scalar(ScalarType::Int)))
+    }
+
+    pub(crate) fn binding_value_type(&self) -> Option<ValueType> {
+        self.element_value_type().map(|value_type| {
+            if self.variadic {
+                ValueType::List(ElementType::new(value_type))
+            } else {
+                value_type
+            }
+        })
+    }
+
+    pub(crate) fn callable_type(&self) -> Option<CallableParameterType> {
+        self.value_type.clone().map(|value_type| {
+            let element = ElementType::new(value_type);
+            if self.variadic {
+                CallableParameterType::variadic(element)
+            } else {
+                CallableParameterType::fixed(element)
+            }
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

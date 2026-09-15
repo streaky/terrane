@@ -649,7 +649,18 @@ impl ByteReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -690,7 +701,18 @@ impl ByteReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -918,7 +940,18 @@ impl TextReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();
@@ -968,7 +1001,18 @@ impl TextReader {
             );
             data = {
                 let mut bytes = data;
-                bytes.extend(part.data.clone());
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
                 bytes
             };
             completed = completed.clone() + part.completed.clone();

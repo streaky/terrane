@@ -280,14 +280,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let [callee, arguments] = node.children.as_slice()
             && let Some(parameters) = function_parameters(package, unit, callee)
         {
-            for (argument, parameter) in arguments.children.iter().zip(parameters) {
-                let Some(expected) = parameter.value_type.as_ref() else {
+            for (index, argument) in arguments.children.iter().enumerate() {
+                let Some(parameter) = parameters
+                    .get(index)
+                    .or_else(|| parameters.last().filter(|parameter| parameter.variadic))
+                else {
+                    continue;
+                };
+                let Some(expected) = parameter.element_value_type() else {
                     continue;
                 };
                 let Some(value) = argument.children.last() else {
                     continue;
                 };
-                let expects_named_resource = match expected {
+                let expects_named_resource = match &expected {
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
                     ValueType::Object(name) => resolved_object_span(package, name)
                         .is_some_and(|span| resource_objects.contains(&span_key(span))),

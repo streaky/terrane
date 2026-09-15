@@ -158,21 +158,32 @@ pub(super) fn validate_call_nodes<'a>(
             binding.name == node_text(&unit.source, callee)
                 && binding.is_visible_at(unit.source.id(), callee.span.start)
         })
-        && let ValueType::Function(parameters, _, _) = &binding.value_type
+        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
+            &binding.value_type
     {
-        if arguments.children.len() != parameters.len() {
+        let variadic = parameters
+            .last()
+            .is_some_and(CallableParameterType::is_variadic);
+        let fixed = parameters.len() - usize::from(variadic);
+        if arguments.children.len() < fixed
+            || (!variadic && arguments.children.len() != parameters.len())
+        {
+            let expected = if variadic {
+                format!("at least {fixed}")
+            } else {
+                parameters.len().to_string()
+            };
             return Err(failure(
                 &unit.source,
                 "T0012",
                 format!(
-                    "callable expects {} arguments, found {}",
-                    parameters.len(),
+                    "callable expects {expected} arguments, found {}",
                     arguments.children.len()
                 ),
                 arguments.span,
             ));
         }
-        for (argument, expected) in arguments.children.iter().zip(parameters) {
+        for (index, argument) in arguments.children.iter().enumerate() {
             if argument.children.len() > 1 {
                 return Err(failure(
                     &unit.source,
@@ -181,6 +192,10 @@ pub(super) fn validate_call_nodes<'a>(
                     argument.span,
                 ));
             }
+            let expected = parameters
+                .get(index)
+                .or_else(|| parameters.last())
+                .expect("validated callable argument has a parameter");
             let value = argument.children.last().unwrap_or(argument);
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
                 validate_value_destination(
@@ -657,6 +672,71 @@ pub(super) fn resolved_call_type(
     })
 }
 
+fn resolve_call_parameter<'a>(
+    unit: &SemanticUnit,
+    argument: &SyntaxNode,
+    name: Option<&SyntaxNode>,
+    contract: &'a FunctionContract,
+    positional: &mut usize,
+    named_seen: &mut bool,
+) -> Result<&'a ParameterContract, SemanticFailure> {
+    if let Some(name) = name {
+        *named_seen = true;
+        let name_text = node_text(&unit.source, name);
+        let parameter = contract
+            .parameters
+            .iter()
+            .find(|parameter| parameter.name == name_text)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "function `{}` has no parameter named `{name_text}`",
+                        contract.name
+                    ),
+                    name.span,
+                )
+            })?;
+        if parameter.variadic {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "variadic parameter `{}` accepts positional arguments only",
+                    parameter.name
+                ),
+                name.span,
+            ));
+        }
+        return Ok(parameter);
+    }
+    if *named_seen {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "positional arguments must precede named arguments",
+            argument.span,
+        ));
+    }
+    let parameter = contract.parameters.get(*positional).or_else(|| {
+        contract
+            .parameters
+            .last()
+            .filter(|parameter| parameter.variadic)
+    });
+    let parameter = parameter.ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0012",
+            format!("too many arguments for function `{}`", contract.name),
+            argument.span,
+        )
+    })?;
+    *positional += 1;
+    Ok(parameter)
+}
+
 pub(super) fn validate_call_arguments(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
@@ -671,45 +751,15 @@ pub(super) fn validate_call_arguments(
             .children
             .first()
             .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
-        let parameter = if let Some(name) = name {
-            named_seen = true;
-            let name_text = node_text(&unit.source, name);
-            contract
-                .parameters
-                .iter()
-                .find(|parameter| parameter.name == name_text)
-                .ok_or_else(|| {
-                    failure(
-                        &unit.source,
-                        "T0012",
-                        format!(
-                            "function `{}` has no parameter named `{name_text}`",
-                            contract.name
-                        ),
-                        name.span,
-                    )
-                })?
-        } else {
-            if named_seen {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    "positional arguments must precede named arguments",
-                    argument.span,
-                ));
-            }
-            let parameter = contract.parameters.get(positional).ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0012",
-                    format!("too many arguments for function `{}`", contract.name),
-                    argument.span,
-                )
-            })?;
-            positional += 1;
-            parameter
-        };
-        if !bound.insert(parameter.name.as_str()) {
+        let parameter = resolve_call_parameter(
+            unit,
+            argument,
+            name,
+            contract,
+            &mut positional,
+            &mut named_seen,
+        )?;
+        if !parameter.variadic && !bound.insert(parameter.name.as_str()) {
             return Err(failure(
                 &unit.source,
                 "T0012",
@@ -718,7 +768,7 @@ pub(super) fn validate_call_arguments(
             ));
         }
         let value = argument.children.last().unwrap_or(argument);
-        if let Some(expected) = parameter.value_type.clone() {
+        if let Some(expected) = parameter.element_value_type() {
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
                     unit,
@@ -740,11 +790,9 @@ pub(super) fn validate_call_arguments(
             }
         }
     }
-    if let Some(missing) = contract
-        .parameters
-        .iter()
-        .find(|parameter| !parameter.optional && !bound.contains(parameter.name.as_str()))
-    {
+    if let Some(missing) = contract.parameters.iter().find(|parameter| {
+        !parameter.optional && !parameter.variadic && !bound.contains(parameter.name.as_str())
+    }) {
         return Err(failure(
             &unit.source,
             "T0012",
@@ -779,16 +827,18 @@ pub(super) fn call_site_bindings(
         .collect::<Vec<_>>();
     if let Some(function) = active_function {
         bindings.extend(function.parameters.iter().filter_map(|parameter| {
-            parameter.value_type.clone().map(|value_type| TypedBinding {
-                name: parameter.name.clone(),
-                span: parameter.span,
-                visible_from: parameter.span.start,
-                scope: Some(function.span),
-                value_type,
-                destination_arms: Vec::new(),
-                storage_type: None,
-                mutable: false,
-            })
+            parameter
+                .binding_value_type()
+                .map(|value_type| TypedBinding {
+                    name: parameter.name.clone(),
+                    span: parameter.span,
+                    visible_from: parameter.span.start,
+                    scope: Some(function.span),
+                    value_type,
+                    destination_arms: Vec::new(),
+                    storage_type: None,
+                    mutable: false,
+                })
         }));
     }
     bindings

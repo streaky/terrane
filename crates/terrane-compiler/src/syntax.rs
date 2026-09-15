@@ -106,6 +106,7 @@ pub enum SyntaxKind {
     UsesClause,
     ParameterList,
     Parameter,
+    VariadicMarker,
     Block,
     IfStatement,
     ElseClause,

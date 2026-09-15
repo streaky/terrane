@@ -2709,15 +2709,30 @@ connect; host, port, timeout=10, retries=3
 
 ### 13.3 Variadic parameters
 
-A parameter followed by `...` collects remaining values:
+A final parameter followed by `...` collects the remaining positional arguments:
 
 ```terrane
-function collect; values ...
+function collect; prefix string, values int ...
 ```
 
-Variadic values are exposed as a list-like object.
+Exactly one variadic parameter is permitted. It must be final and cannot have a default. Fixed
+required and optional parameters may precede it; positional arguments bind those fixed parameters
+first. Named arguments can bind a preceding fixed parameter, but cannot bind the variadic
+parameter, and the existing prohibition on positional arguments after a named argument still
+applies.
 
-Only one variadic parameter is permitted.
+The captured binding has ordinary `list of T` value semantics, where `T` is the parameter's written
+element type. An omitted element type follows the same finite inference/defaulting rules as an
+ordinary untyped parameter rather than introducing an unbounded universal value. No remaining
+arguments produce an empty list. Argument expressions are evaluated exactly once from left to
+right and converted to `T` before the function body begins.
+
+Variadic behaviour is part of a callable's type and canonical identity. The function type spelling
+places `...` after its final input type, for example `function from string, int ... to string`;
+fixed and variadic callable types are not interchangeable. Functions, methods, constructors,
+anonymous functions, closures, interface requirements, trait methods, overrides, and bound
+callables use the same binding and compatibility rules. Rust `Fn` projection remains fixed arity;
+foreign C variadics require an explicit future ABI adapter.
 
 ### 13.4 Default values
 

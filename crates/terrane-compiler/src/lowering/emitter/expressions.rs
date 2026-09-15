@@ -2,7 +2,7 @@ use super::super::prelude::*;
 
 fn callable_adapter_parameters(
     package: &SemanticPackage,
-    parameters: &[ElementType],
+    parameters: &[CallableParameterType],
     mode: InvocationMode,
 ) -> (String, String, String) {
     let names = (0..parameters.len())
@@ -10,8 +10,13 @@ fn callable_adapter_parameters(
         .collect::<Vec<_>>();
     let types = parameters
         .iter()
-        .cloned()
-        .map(|parameter| rust_element_type(package, parameter))
+        .map(|parameter| {
+            if parameter.is_variadic() {
+                rust_value_type(package, ValueType::List(parameter.element_type()))
+            } else {
+                rust_element_type(package, parameter.element_type())
+            }
+        })
         .collect::<Vec<_>>();
     let declarations = names
         .iter()

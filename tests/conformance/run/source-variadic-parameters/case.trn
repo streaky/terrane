@@ -1,0 +1,38 @@
+namespace source-variadic-parameters
+
+interface summer
+  function sum int; values int ...
+
+class calculator implements summer
+  function sum int; values int ...
+    result int = 0
+    for value in values
+      result = result + value
+    return result
+
+function total int; values int ...
+  result int = 0
+  for value in values
+    result = result + value
+  return result
+
+function offset-total int; offset int, values int ...
+  result int = offset
+  for value in values
+    result = result + value
+  return result
+
+function main;
+  print; (total;)
+  print; (total; 1, 2, 3)
+  print; (offset-total; 10, 2, 3)
+  closure = function int; values int ...
+    return values.length
+  print; (closure; 2, 3, 4)
+  typed function from int ... to int = total
+  print; (typed; 4, 5)
+  concrete = instance calculator;
+  abstract summer = concrete
+  print; (abstract.sum; 6, 7)
+  bound = concrete.sum
+  print; (bound; 8, 9)
