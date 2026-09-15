@@ -783,7 +783,7 @@ impl Projection {
 
     #[must_use]
     pub(crate) fn projected_type(&self, namespace: &str, name: &str) -> Option<ProjectedType> {
-        fn nested(ty: &ProjectedType, name: &str) -> Option<ProjectedType> {
+        fn nested(ty: &ProjectedType, name: &str, candidates: &mut Vec<ProjectedType>) {
             if matches!(
                 ty,
                 ProjectedType::Foreign {
@@ -794,73 +794,105 @@ impl Projection {
                     ..
                 } if candidate == name
             ) {
-                return Some(ty.clone());
+                candidates.push(ty.clone());
             }
             match ty {
                 ProjectedType::Sequence { item, .. }
                 | ProjectedType::Set { item, .. }
                 | ProjectedType::AsyncIterationStep(item)
-                | ProjectedType::Optional(item) => nested(item, name),
+                | ProjectedType::Optional(item) => nested(item, name, candidates),
                 ProjectedType::Mapping { key, value, .. } => {
-                    nested(key, name).or_else(|| nested(value, name))
+                    nested(key, name, candidates);
+                    nested(value, name, candidates);
                 }
-                ProjectedType::Tuple(items) => items.iter().find_map(|item| nested(item, name)),
+                ProjectedType::Tuple(items) => {
+                    for item in items {
+                        nested(item, name, candidates);
+                    }
+                }
                 ProjectedType::Foreign { arguments, .. } => {
-                    arguments.iter().find_map(|item| nested(item, name))
+                    for item in arguments {
+                        nested(item, name, candidates);
+                    }
                 }
                 ProjectedType::BoxedInterface {
                     associated_type, ..
-                } => associated_type
-                    .as_ref()
-                    .and_then(|associated| nested(&associated.ty, name)),
+                } => {
+                    if let Some(associated) = associated_type {
+                        nested(&associated.ty, name, candidates);
+                    }
+                }
                 ProjectedType::Callback {
                     parameters, result, ..
-                } => parameters
-                    .iter()
-                    .find_map(|parameter| nested(parameter, name))
-                    .or_else(|| nested(result, name)),
-                _ => None,
+                } => {
+                    for parameter in parameters {
+                        nested(parameter, name, candidates);
+                    }
+                    nested(result, name, candidates);
+                }
+                _ => {}
             }
         }
-        fn function(function: &ProjectedFunction, name: &str) -> Option<ProjectedType> {
-            function
-                .parameters
-                .iter()
-                .find_map(|parameter| nested(&parameter.ty, name))
-                .or_else(|| nested(&function.result, name))
+        fn function(function: &ProjectedFunction, name: &str, candidates: &mut Vec<ProjectedType>) {
+            for parameter in &function.parameters {
+                nested(&parameter.ty, name, candidates);
+            }
+            nested(&function.result, name, candidates);
+        }
+        fn owner(ty: &ProjectedType) -> Option<&str> {
+            let path = match ty {
+                ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
+                ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+                _ => return None,
+            };
+            Some(
+                path.split_once('<')
+                    .map_or(path, |(constructor, _)| constructor),
+            )
         }
 
-        self.dependencies
+        let mut candidates = Vec::new();
+        for item in self
+            .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
             .filter(|item| item.namespace == namespace)
-            .find_map(|item| match &item.kind {
-                ProjectedKind::Function(projected) => function(projected, name),
+        {
+            match &item.kind {
+                ProjectedKind::Function(projected) => {
+                    function(projected, name, &mut candidates);
+                }
                 ProjectedKind::ForeignType {
                     methods,
                     static_methods,
                     ..
                 } => {
                     if item.name == name {
-                        Some(ProjectedType::Foreign {
+                        candidates.push(ProjectedType::Foreign {
                             rust_path: item.rust_path.clone(),
                             name: item.name.clone(),
                             base_rust_path: item.rust_path.clone(),
                             arguments: Vec::new(),
-                        })
-                    } else {
-                        methods
-                            .iter()
-                            .chain(static_methods)
-                            .find_map(|method| function(method, name))
+                        });
+                    }
+                    for method in methods.iter().chain(static_methods) {
+                        function(method, name, &mut candidates);
                     }
                 }
-                ProjectedKind::Interface(interface) => interface
-                    .methods
-                    .iter()
-                    .find_map(|method| function(&method.function, name)),
-                ProjectedKind::Enum { .. } => None,
-            })
+                ProjectedKind::Interface(interface) => {
+                    for method in &interface.methods {
+                        function(&method.function, name, &mut candidates);
+                    }
+                }
+                ProjectedKind::Enum { .. } => {}
+            }
+        }
+        let first = candidates.first()?;
+        let first_owner = owner(first)?;
+        candidates
+            .iter()
+            .all(|candidate| owner(candidate) == Some(first_owner))
+            .then(|| candidates.remove(0))
     }
 
     #[must_use]
@@ -1798,7 +1830,6 @@ pub fn resolve(
     apply_namespace_overlays(&mut projected, &overlays)?;
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
-    validate_unique_projected_type_identities(&projected)?;
     let auto_trait_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -2905,147 +2936,6 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
         }
         _ => {}
     }
-}
-
-fn projected_type_identity(ty: &ProjectedType) -> Option<(&str, &str)> {
-    match ty {
-        ProjectedType::Foreign {
-            rust_path, name, ..
-        }
-        | ProjectedType::BoxedInterface {
-            rust_path, name, ..
-        } => Some((name, rust_path)),
-        _ => None,
-    }
-}
-
-fn validate_nested_projected_type_identities<'a>(
-    namespace: &'a str,
-    ty: &'a ProjectedType,
-    identities: &mut BTreeMap<(&'a str, &'a str), &'a str>,
-) -> Result<(), ProjectionError> {
-    if let Some((name, rust_path)) = projected_type_identity(ty) {
-        validate_projected_type_identity(namespace, name, rust_path, identities)?;
-    }
-    match ty {
-        ProjectedType::Foreign { arguments, .. } => {
-            for argument in arguments {
-                validate_nested_projected_type_identities(namespace, argument, identities)?;
-            }
-        }
-        ProjectedType::BoxedInterface {
-            associated_type: Some(associated),
-            ..
-        } => {
-            validate_nested_projected_type_identities(namespace, &associated.ty, identities)?;
-        }
-        ProjectedType::Optional(inner)
-        | ProjectedType::AsyncIterationStep(inner)
-        | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => {
-            validate_nested_projected_type_identities(namespace, inner, identities)?;
-        }
-        ProjectedType::Mapping { key, value, .. } => {
-            validate_nested_projected_type_identities(namespace, key, identities)?;
-            validate_nested_projected_type_identities(namespace, value, identities)?;
-        }
-        ProjectedType::Tuple(items) => {
-            for item in items {
-                validate_nested_projected_type_identities(namespace, item, identities)?;
-            }
-        }
-        ProjectedType::Callback {
-            parameters, result, ..
-        } => {
-            for parameter in parameters {
-                validate_nested_projected_type_identities(namespace, parameter, identities)?;
-            }
-            validate_nested_projected_type_identities(namespace, result, identities)?;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn validate_projected_type_identity<'a>(
-    namespace: &'a str,
-    name: &'a str,
-    rust_path: &'a str,
-    identities: &mut BTreeMap<(&'a str, &'a str), &'a str>,
-) -> Result<(), ProjectionError> {
-    if let Some(previous) = identities.insert((namespace, name), rust_path)
-        && previous != rust_path
-    {
-        return Err(ProjectionError {
-            message: format!(
-                "projected foreign types `{previous}` and `{rust_path}` collide at `{namespace}::{name}`; distinct Rust identities require distinct projected names"
-            ),
-        });
-    }
-    Ok(())
-}
-
-fn validate_projected_function_type_identities<'a>(
-    namespace: &'a str,
-    function: &'a ProjectedFunction,
-    identities: &mut BTreeMap<(&'a str, &'a str), &'a str>,
-) -> Result<(), ProjectionError> {
-    for ty in function
-        .parameters
-        .iter()
-        .map(|parameter| &parameter.ty)
-        .chain(std::iter::once(&function.result))
-    {
-        validate_nested_projected_type_identities(namespace, ty, identities)?;
-    }
-    Ok(())
-}
-
-fn validate_unique_projected_type_identities(
-    projected: &[ProjectedDependency],
-) -> Result<(), ProjectionError> {
-    let mut identities = BTreeMap::new();
-    for item in projected.iter().flat_map(|dependency| &dependency.items) {
-        if matches!(item.kind, ProjectedKind::ForeignType { .. }) {
-            validate_projected_type_identity(
-                &item.namespace,
-                &item.name,
-                &item.rust_path,
-                &mut identities,
-            )?;
-        }
-        match &item.kind {
-            ProjectedKind::Function(function) => validate_projected_function_type_identities(
-                &item.namespace,
-                function,
-                &mut identities,
-            )?,
-            ProjectedKind::ForeignType {
-                methods,
-                static_methods,
-                ..
-            } => {
-                for method in methods.iter().chain(static_methods) {
-                    validate_projected_function_type_identities(
-                        &item.namespace,
-                        method,
-                        &mut identities,
-                    )?;
-                }
-            }
-            ProjectedKind::Interface(interface) => {
-                for method in &interface.methods {
-                    validate_projected_function_type_identities(
-                        &item.namespace,
-                        &method.function,
-                        &mut identities,
-                    )?;
-                }
-            }
-            ProjectedKind::Enum { .. } => {}
-        }
-    }
-    Ok(())
 }
 
 fn resolved_package_versions(
@@ -6668,7 +6558,6 @@ mod tests {
         parse_rustdoc, prefer_public_path, project_type, projectable_interface_bound,
         projection_content_hash, prune_projection_cache, receiver_kind, resolve,
         rewrite_rust_bound_root, selected_target, validate_projection_artifact,
-        validate_unique_projected_type_identities,
     };
     use crate::RustDependency;
     fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
@@ -7021,7 +6910,7 @@ mod tests {
     }
 
     #[test]
-    fn colliding_projected_type_identities_fail_explicitly() {
+    fn ambiguous_projected_type_identities_do_not_resolve() {
         let dependency = |name: &str, rust_path: &str| ProjectedDependency {
             name: name.to_owned(),
             package: name.to_owned(),
@@ -7041,12 +6930,6 @@ mod tests {
             }],
             declined: Vec::new(),
         };
-        let error = validate_unique_projected_type_identities(&[
-            dependency("one", "one::Generic<A>"),
-            dependency("two", "two::Generic<B>"),
-        ])
-        .expect_err("distinct concrete identities cannot share one projected name");
-        assert!(error.message.contains("distinct Rust identities"));
         let nested_dependency = |dependency_name: &str, rust_path: &str| {
             let mut dependency = dependency(dependency_name, rust_path);
             let mut item = projected_function_item("/deps/shared", dependency_name, "shared::make");
@@ -7062,12 +6945,35 @@ mod tests {
             dependency.items = vec![item];
             dependency
         };
-        let error = validate_unique_projected_type_identities(&[
-            nested_dependency("one", "one::Message"),
-            nested_dependency("two", "two::Message"),
-        ])
-        .expect_err("nested foreign identities cannot share one projected name");
-        assert!(error.message.contains("/deps/shared::Message"));
+        let projection = |dependencies| Projection {
+            cache_identity: "ambiguous-identities".to_owned(),
+            content_hash: String::new(),
+            dependencies,
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        assert!(
+            projection(vec![
+                dependency("one", "one::Generic<A>"),
+                dependency("two", "two::Generic<B>"),
+            ])
+            .projected_type("/deps/shared", "Generic")
+            .is_none()
+        );
+        assert!(
+            projection(vec![
+                nested_dependency("one", "one::Message"),
+                nested_dependency("two", "two::Message"),
+            ])
+            .projected_type("/deps/shared", "Message")
+            .is_none()
+        );
     }
 
     #[test]
