@@ -1428,6 +1428,10 @@ impl Emitter<'_> {
                     .map(|index| format!("bytes.extend(part_{index});"))
                     .collect::<Vec<_>>()
                     .join(" ");
+                // `bytes.concat` is infallible at the Terrane surface. A combined length outside
+                // `usize` or a failed reservation therefore cannot become a normal language
+                // result. Abort before extension so neither Rust unwinding nor partial mutation
+                // crosses the generated-code boundary.
                 return format!(
                     "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
                 );
