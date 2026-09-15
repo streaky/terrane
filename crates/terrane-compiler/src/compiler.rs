@@ -64,10 +64,18 @@ fn embedded_authored_rust(modules: &[AuthoredRustModule]) -> String {
     let mut embedded = String::new();
     for module in modules {
         use std::fmt::Write as _;
-        writeln!(embedded, "\nmod {} {{", module.name).expect("writing to a string cannot fail");
-        embedded.push_str(module.source.text());
-        if !embedded.ends_with('\n') {
-            embedded.push('\n');
+        if module.source.text().is_empty() {
+            writeln!(embedded, "mod {} {{}}", module.name)
+                .expect("writing to a string cannot fail");
+            continue;
+        }
+        writeln!(embedded, "mod {} {{", module.name).expect("writing to a string cannot fail");
+        for line in module.source.text().lines() {
+            if line.is_empty() {
+                embedded.push('\n');
+            } else {
+                writeln!(embedded, "    {line}").expect("writing to a string cannot fail");
+            }
         }
         embedded.push_str("}\n");
     }
@@ -390,17 +398,16 @@ pub fn compile_package_with_options(
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
+    let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
+    standalone_file.contents.push_str(&embedded_authored_rust);
     if options.require_canonical_rust {
         let canonical_files =
             canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
         validate_canonical_rust(&canonical_files, &sources, source, entry_span)?;
     }
-    standalone_file
-        .contents
-        .push_str(&embedded_authored_rust(&package.authored_rust_modules));
     let rust = standalone_file.contents.clone();
     let mut review_rust = rendered_rust.review_file();
-    review_rust.push_str(&embedded_authored_rust(&package.authored_rust_modules));
+    review_rust.push_str(&embedded_authored_rust);
     let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     Ok(Compilation {
         source: (*source).clone(),
@@ -676,21 +683,20 @@ pub fn compile_discovered_test_tier(
             .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
+    let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
+    standalone_file.contents.push_str(&embedded_authored_rust);
     if options.require_canonical_rust {
         let canonical_files =
             canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
         validate_canonical_rust(&canonical_files, &sources, &source, entry_span)?;
     }
-    standalone_file
-        .contents
-        .push_str(&embedded_authored_rust(&package.authored_rust_modules));
     let compilation = Compilation {
         source,
         sources,
         rust: standalone_file.contents,
         review_rust: {
             let mut review = rendered_rust.review_file();
-            review.push_str(&embedded_authored_rust(&package.authored_rust_modules));
+            review.push_str(&embedded_authored_rust);
             review
         },
         rendered_rust,
