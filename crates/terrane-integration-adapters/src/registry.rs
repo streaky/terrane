@@ -1,19 +1,22 @@
-//! Accounting for temporary ecosystem integration adapters.
+//! Central accounting for temporary ecosystem integration gaps.
 //!
-//! Entries in this registry are deliberately data, not hooks in generic projection or lowering.
-//! A bridged gap points at an ordinary publishable Rust crate that Terrane projects through the
-//! normal dependency path. An unbridged gap records where that path still declines a useful shape.
-//! Removing an entry requires satisfying its removal criterion with generic regression coverage.
+//! Entries are deliberately data, not hooks in generic projection or lowering. A bridged gap
+//! points at an ordinary feature-gated module in this crate. An unbridged gap records where the
+//! normal dependency projection path still declines a useful shape. Removing an entry requires
+//! satisfying its removal criterion with generic regression coverage.
 
+/// Whether a recorded gap is still unbridged or supplied by an adapter package feature.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AdapterStatus {
     Unbridged,
     Package {
         name: &'static str,
         version: &'static str,
+        feature: &'static str,
     },
 }
 
+/// One independently removable ecosystem integration gap.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct IntegrationAdapter {
     pub id: &'static str,
@@ -25,6 +28,7 @@ pub struct IntegrationAdapter {
     pub removal_criterion: &'static str,
 }
 
+/// Every bridged and known unbridged ecosystem integration gap.
 pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
     IntegrationAdapter {
         id: "sqlx-sqlite-connection-traits",
@@ -34,7 +38,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "SqliteConnection projects as its upstream identity, but trait-provided connect and close operations do not yet project as callable members",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `sqlx-sqlite`",
+            version: "0.1.x",
+            feature: "sqlx-sqlite",
         },
         removal_criterion: "generic trait-member projection lets Terrane construct and explicitly close the directly projected SqliteConnection",
     },
@@ -46,7 +51,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "Query<'q, DB, A> and its borrowed argument state cannot cross a free-standing Terrane value boundary",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `sqlx-sqlite`",
+            version: "0.1.x",
+            feature: "sqlx-sqlite",
         },
         removal_criterion: "generic chain-only lowering keeps SQLx query, bind, and execute intermediates inside one generated Rust expression",
     },
@@ -58,7 +64,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "Row::try_get<T, I> requires generic result and column-index selection that the projected call cannot yet close from an application destination",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `sqlx-sqlite`",
+            version: "0.1.x",
+            feature: "sqlx-sqlite",
         },
         removal_criterion: "generic projected trait calls infer bytes row results and string column indices for direct Row::try_get use",
     },
@@ -70,7 +77,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "Axum's closed Response alias cannot yet be used as a projected Terrane handler result",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `axum-08`",
+            version: "0.1.x",
+            feature: "axum-08",
         },
         removal_criterion: "generic closed-alias projection lets a Terrane WebSocket upgrade handler return Axum's Response alias directly",
     },
@@ -82,7 +90,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "serve closes its service bounds but returns a value whose projected IntoFuture implementation is not awaitable",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `axum-08`",
+            version: "0.1.x",
+            feature: "axum-08",
         },
         removal_criterion: "generic projected IntoFuture lowering compiles and awaits direct axum::serve with a Router",
     },
@@ -94,7 +103,8 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "WebSocket::recv nests optional and fallible results, while payload-bearing Message variants have no projected Terrane constructors",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `axum-08`",
+            version: "0.1.x",
+            feature: "axum-08",
         },
         removal_criterion: "generic enum constructors and optional/result async member projection support the same bounded Terrane-authored echo session directly",
     },
@@ -106,24 +116,18 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         limitation: "TcpListener::bind is input-selected, but projected static member calls do not yet select its concrete string instantiation",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
-            version: "0.1.x with feature `axum-08`",
+            version: "0.1.x",
+            feature: "axum-08",
         },
         removal_criterion: "generic projected static-call specialization infers the bind argument and emits direct TcpListener::bind",
     },
 ];
 
-#[must_use]
-pub fn adapter_for_package(package: &str) -> Option<&'static IntegrationAdapter> {
-    INTEGRATION_ADAPTERS.iter().find(
-        |entry| matches!(entry.status, AdapterStatus::Package { name, .. } if name == package),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::{AdapterStatus, INTEGRATION_ADAPTERS, adapter_for_package};
+    use super::{AdapterStatus, INTEGRATION_ADAPTERS};
 
     #[test]
     fn adapter_ids_and_tracking_keys_are_unique() {
@@ -141,20 +145,27 @@ mod tests {
     }
 
     #[test]
-    fn shipped_adapter_packages_are_accounted_for() {
-        let entry = adapter_for_package("terrane-integration-adapters")
-            .expect("shipped integration adapter crate must be registered");
-        assert!(matches!(entry.status, AdapterStatus::Package { .. }));
-        assert_eq!(entry.dependency, "sqlx-sqlite");
-        assert!(INTEGRATION_ADAPTERS.iter().any(|entry| {
-            entry.dependency == "axum"
-                && matches!(
-                    entry.status,
-                    AdapterStatus::Package {
-                        name: "terrane-integration-adapters",
-                        ..
-                    }
-                )
-        }));
+    fn shipped_records_name_the_owning_package_and_feature() {
+        for entry in INTEGRATION_ADAPTERS {
+            let AdapterStatus::Package {
+                name,
+                version,
+                feature,
+            } = entry.status
+            else {
+                continue;
+            };
+            assert_eq!(name, env!("CARGO_PKG_NAME"));
+            assert!(
+                !version.is_empty(),
+                "adapter {} has no package version",
+                entry.id
+            );
+            assert!(
+                !feature.is_empty(),
+                "adapter {} has no package feature",
+                entry.id
+            );
+        }
     }
 }
