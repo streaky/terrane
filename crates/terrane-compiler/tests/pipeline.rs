@@ -274,6 +274,25 @@ fn annotated_replacement_lowers_as_source_ordered_shadowing() {
 }
 
 #[test]
+fn unread_replacement_emits_one_keepalive_per_binding() {
+    let source = concat!(
+        "namespace replacement\n",
+        "from /core/types import int8\n",
+        "function main;\n",
+        "  value int8 = 1\n",
+        "  value int8 = 2\n",
+    );
+    let compilation = terrane_compiler::compile("replacement.trn", source.to_owned()).unwrap();
+
+    assert_eq!(compilation.rust.matches("let _ = &value;").count(), 2);
+    assert!(
+        !compilation
+            .rust
+            .contains("let _ = &value;\n    let _ = &value;")
+    );
+}
+
+#[test]
 fn rejects_duplicate_declarations() {
     let cases = [
         (

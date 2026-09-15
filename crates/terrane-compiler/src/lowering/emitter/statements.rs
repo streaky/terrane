@@ -1052,13 +1052,6 @@ impl Emitter<'_> {
                         ValueType::Reference(_) | ValueType::SharedReference(_)
                     )
             });
-        if let Some(prior) =
-            self.package
-                .lexical_replaced_binding_span(self.unit, node.span, self.text(name_node))
-            && !binding_store_value_is_read(self.package, prior, prior)
-        {
-            self.line(&format!("let _ = &{name};"));
-        }
         self.line_start();
         self.output.push_str("let ");
         if mutable {
