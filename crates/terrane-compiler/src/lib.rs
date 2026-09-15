@@ -11,6 +11,7 @@ mod lowering;
 pub mod package;
 pub mod parser;
 pub mod projection;
+pub mod provenance;
 pub mod rust_ir;
 pub mod semantics;
 pub mod source;
