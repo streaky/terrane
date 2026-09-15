@@ -61,6 +61,11 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/random.trn"),
     },
     BundledSource {
+        namespace: "/core/random/legacy-digests",
+        path: "core/legacy_digests.trn",
+        text: include_str!("core/legacy_digests.trn"),
+    },
+    BundledSource {
         namespace: "/core/codecs",
         path: "core/codecs.trn",
         text: include_str!("core/codecs.trn"),

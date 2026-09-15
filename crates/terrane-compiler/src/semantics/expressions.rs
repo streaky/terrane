@@ -869,7 +869,7 @@ pub(super) fn infer_value_type(
                     }
                     "intrinsic:system::result-bytes"
                     | "intrinsic:system::platform-value-bytes"
-                    | "intrinsic:capabilities::result-bytes"
+                    | "intrinsic:capabilities::bytes-from-octets"
                     | "intrinsic:testing::test-result-stdout"
                     | "intrinsic:testing::test-result-stderr" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))

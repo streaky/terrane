@@ -824,6 +824,8 @@ pub fn random_split(source: &Capability) -> ResultValue {
 
 pub fn digest(algorithm: &str, data: &[u8]) -> ResultValue {
     let output = match algorithm {
+        "md5" => md5::Md5::digest(data).to_vec(),
+        "sha-1" => sha1::Sha1::digest(data).to_vec(),
         "sha-256" => sha2::Sha256::digest(data).to_vec(),
         "sha-512" => sha2::Sha512::digest(data).to_vec(),
         _ => return ResultValue::error("unsupported digest algorithm"),
@@ -844,6 +846,18 @@ pub fn hmac(algorithm: &str, key: &Capability, data: &[u8]) -> ResultValue {
         return ResultValue::error("secret buffer was destroyed");
     }
     let output = match algorithm {
+        "md5" => {
+            let mut mac = hmac::Hmac::<md5::Md5>::new_from_slice(secret.bytes.as_slice())
+                .expect("HMAC accepts every key length");
+            mac.update(data);
+            mac.finalize().into_bytes().to_vec()
+        }
+        "sha-1" => {
+            let mut mac = hmac::Hmac::<sha1::Sha1>::new_from_slice(secret.bytes.as_slice())
+                .expect("HMAC accepts every key length");
+            mac.update(data);
+            mac.finalize().into_bytes().to_vec()
+        }
         "sha-256" => {
             let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(secret.bytes.as_slice())
                 .expect("HMAC accepts every key length");
@@ -2768,6 +2782,21 @@ mod tests {
         assert!(result.number >= 0);
         assert!(!result.entries.is_empty());
         assert!(result.entries.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn legacy_digest_vectors_remain_available_by_explicit_algorithm_name() {
+        assert_eq!(
+            hex_encode(&digest("sha-1", b"abc").data),
+            "a9993e364706816aba3e25717850c26c9cd0d89d"
+        );
+        assert_eq!(
+            hex_encode(&digest("md5", b"abc").data),
+            "900150983cd24fb0d6963f7d28e17f72"
+        );
+        let key = secret_buffer(b"key".to_vec());
+        assert_eq!(hmac("sha-1", &key, b"data").data.len(), 20);
+        assert_eq!(hmac("md5", &key, b"data").data.len(), 16);
     }
 
     #[test]

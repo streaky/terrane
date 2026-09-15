@@ -41,6 +41,9 @@ function base64 base64-codec;
 function base64-url base64-codec;
     return instance base64-codec; true
 
+function bytes-from-octets bytes; octets (list of uint8)
+    return host-bytes-from-octets; octets
+
 function encode-hex string; data bytes
     return host-hex-encode; data
 

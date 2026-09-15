@@ -947,6 +947,18 @@ impl Emitter<'_> {
                 self.expression(elapsed)
             );
         }
+        if self.is_builtin(callee, "intrinsic:capabilities::bytes-from-octets") {
+            let octets = argument_values
+                .first()
+                .expect("bytes-from-octets arity is checked semantically");
+            return format!(
+                "({}).into_vec()",
+                self.expression_as(
+                    octets,
+                    ValueType::List(ElementType::new(ValueType::Scalar(ScalarType::Uint8))),
+                )
+            );
+        }
         let time_call = [
             ("time-wall", "platform_time_wall"),
             ("time-wall-seconds", "platform_time_wall_seconds"),

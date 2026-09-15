@@ -1245,6 +1245,9 @@ pseudo-random
 +-- int; range -> int
 +-- split; -> pseudo-random                       deterministic child stream
 
+bytes construction
++-- /core/codecs::bytes-from-octets; list of uint8 -> bytes
+
 hex
 +-- encode; bytes -> string
 +-- decode; string -> bytes
@@ -1260,6 +1263,9 @@ hash algorithm
 +-- digest
 |   +-- keyed; key -> mac algorithm
 
+legacy hash algorithms (explicit import)
++-- sha1 / md5                                    compatibility and protocol use; not default modern choices
+
 digest
 +-- algorithm / bytes
 +-- constant-time-equals; digest -> bool
@@ -1268,6 +1274,12 @@ digest
 mac algorithm
 +-- sign; key, bytes|byte-reader -> mac
 +-- verify; key, bytes|byte-reader, mac -> bool
+
+Legacy algorithms use the same algorithm-identified digest and MAC value contracts. Their explicit
+package name makes collision and authentication limitations visible without compiler warnings or a
+blanket prohibition: compatibility, fixture, protocol-mandated, and non-adversarial content
+identity uses remain legitimate. A security-sensitive API may accept a narrower modern-algorithm
+protocol when its own contract requires contemporary collision or preimage resistance.
 
 uuid
 +-- invocation; string -> uuid

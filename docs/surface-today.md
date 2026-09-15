@@ -219,10 +219,13 @@ Terrane package
     │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
     │   ├── secure-bytes / secure-bounded-int
     │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
-    │   ├── sha256 / sha512                    distinct digest algorithms
+    │   ├── sha256 / sha512                    default modern digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
-    ├── /core/codecs                           strict codec policy
+    ├── /core/random/legacy-digests            explicit compatibility digest import
+    │   └── sha1 / md5                         legacy algorithms; same digest/HMAC value contracts
+    ├── /core/codecs                           strict codec and byte-construction policy
     │   ├── decode-result                       failed / message plus decoded bytes
+    │   ├── bytes-from-octets                  direct `list of uint8` → immutable `bytes`
     │   ├── hex / hex-codec                     reusable hexadecimal codec with encode / decode
     │   ├── base64 / base64-url / base64-codec reusable alphabet policy with encode / decode
     │   ├── encode-hex / decode-hex

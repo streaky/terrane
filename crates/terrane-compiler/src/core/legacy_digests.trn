@@ -1,0 +1,9 @@
+namespace core/random/legacy-digests
+
+from /core/random import hash-algorithm
+
+function sha1 hash-algorithm;
+  return instance hash-algorithm; 'sha-1'
+
+function md5 hash-algorithm;
+  return instance hash-algorithm; 'md5'

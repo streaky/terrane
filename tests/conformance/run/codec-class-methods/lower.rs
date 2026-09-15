@@ -535,6 +535,9 @@ pub fn base64() -> Base64Codec {
 pub fn base64_url() -> Base64Codec {
     return Base64Codec::terrane_construct(true);
 }
+pub fn bytes_from_octets(octets: terrane_collection_support::List<u8>) -> Vec<u8> {
+    return octets.into_vec();
+}
 pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }

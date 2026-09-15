@@ -1,6 +1,6 @@
 // Generated deterministically by Terrane <version>.
 // Runtime support: platform_capability_types.rs, platform_result_type.rs, platform_capability_base.rs, platform_codecs.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-platform-support
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-platform-support
 // Source: app/main.trn
 // Namespace: app
 fn local_choice() -> terrane_int_support::Int {
@@ -126,6 +126,9 @@ pub fn base64() -> Base64Codec {
 }
 pub fn base64_url() -> Base64Codec {
     return Base64Codec::terrane_construct(true);
+}
+pub fn bytes_from_octets(octets: terrane_collection_support::List<u8>) -> Vec<u8> {
+    return octets.into_vec();
 }
 pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
