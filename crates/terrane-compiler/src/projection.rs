@@ -2382,14 +2382,15 @@ fn namespace_overlays_from_metadata(
         .ok_or_else(|| ProjectionError {
             message: "Cargo dependency metadata has no resolved root package".to_owned(),
         })?;
-    let direct = metadata
+    let nodes = metadata
         .pointer("/resolve/nodes")
         .and_then(serde_json::Value::as_array)
-        .and_then(|nodes| {
-            nodes
-                .iter()
-                .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(root))
-        })
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no resolved dependency graph".to_owned(),
+        })?;
+    let direct = nodes
+        .iter()
+        .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(root))
         .and_then(|node| node.get("deps"))
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| ProjectionError {
@@ -2397,8 +2398,20 @@ fn namespace_overlays_from_metadata(
         })?;
     let mut overlays = Vec::new();
     for provider in dependencies {
-        let package = direct_metadata_package(packages, direct, provider)?;
-        overlays.extend(package_namespace_overlays(package, provider, dependencies)?);
+        let (package, node) = direct_metadata_package(packages, nodes, direct, provider)?;
+        let enabled_features = node
+            .get("features")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .collect::<BTreeSet<_>>();
+        overlays.extend(package_namespace_overlays(
+            package,
+            provider,
+            dependencies,
+            &enabled_features,
+        )?);
     }
     overlays.sort_by(|left, right| {
         (&left.provider_name, &left.source_namespace)
@@ -2424,23 +2437,40 @@ fn namespace_overlays_from_metadata(
 
 fn direct_metadata_package<'a>(
     packages: &'a [serde_json::Value],
+    nodes: &'a [serde_json::Value],
     direct: &[serde_json::Value],
     dependency: &RustDependency,
-) -> Result<&'a serde_json::Value, ProjectionError> {
+) -> Result<(&'a serde_json::Value, &'a serde_json::Value), ProjectionError> {
     let cargo_name = dependency.name.replace('-', "_");
-    let package_id = direct
+    let by_alias = direct.iter().find(|candidate| {
+        candidate
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|name| name.replace('-', "_") == cargo_name)
+    });
+    let by_package = direct
         .iter()
-        .find(|candidate| {
-            candidate
-                .get("name")
-                .and_then(serde_json::Value::as_str)
-                .is_some_and(|name| name.replace('-', "_") == cargo_name)
+        .filter(|candidate| {
+            let package_id = candidate.get("pkg").and_then(serde_json::Value::as_str);
+            packages.iter().any(|package| {
+                package.get("id").and_then(serde_json::Value::as_str) == package_id
+                    && package.get("name").and_then(serde_json::Value::as_str)
+                        == Some(dependency.package.as_str())
+            })
         })
+        .collect::<Vec<_>>();
+    let resolved = by_alias.or_else(|| {
+        let [candidate] = by_package.as_slice() else {
+            return None;
+        };
+        Some(*candidate)
+    });
+    let package_id = resolved
         .and_then(|candidate| candidate.get("pkg"))
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| ProjectionError {
             message: format!(
-                "Cargo dependency metadata has no resolved package for direct dependency `{}`",
+                "Cargo dependency metadata has no unambiguous resolved package for direct dependency `{}`",
                 dependency.name
             ),
         })?;
@@ -2466,13 +2496,23 @@ fn direct_metadata_package<'a>(
             ),
         });
     }
-    Ok(package)
+    let node = nodes
+        .iter()
+        .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(package_id))
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata has no resolved feature set for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    Ok((package, node))
 }
 
 fn package_namespace_overlays(
     package: &serde_json::Value,
     provider: &RustDependency,
     dependencies: &[RustDependency],
+    enabled_features: &BTreeSet<&str>,
 ) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
     let Some(declarations) = package
         .pointer("/metadata/terrane/namespace-overlays")
@@ -2491,11 +2531,7 @@ fn package_namespace_overlays(
         )?;
     let mut overlays = Vec::new();
     for declaration in declarations {
-        if !provider
-            .features
-            .iter()
-            .any(|feature| feature == &declaration.feature)
-        {
+        if !enabled_features.contains(declaration.feature.as_str()) {
             continue;
         }
         let source_module =
@@ -6586,14 +6622,10 @@ mod tests {
     }
 
     #[test]
-    fn dependency_metadata_declares_feature_gated_namespace_overlays() {
+    fn dependency_metadata_uses_resolved_default_features_and_renamed_packages_for_overlays() {
         let dependencies = [
-            dependency("sqlx-sqlite", "sqlx-sqlite", &[]),
-            dependency(
-                "terrane-integration-adapters",
-                "terrane-integration-adapters",
-                &["sqlx-sqlite"],
-            ),
+            dependency("db", "sqlx-sqlite", &[]),
+            dependency("bridges", "terrane-integration-adapters", &[]),
         ];
         let metadata = serde_json::json!({
             "packages": [
@@ -6620,22 +6652,32 @@ mod tests {
             ],
             "resolve": {
                 "root": "path+root@0.1.0",
-                "nodes": [{
-                    "id": "path+root@0.1.0",
-                    "deps": [
-                        {"name": "sqlx_sqlite", "pkg": "registry+sqlx-sqlite@1.0.0"},
-                        {"name": "terrane_integration_adapters", "pkg": "path+terrane-integration-adapters@1.0.0"}
-                    ]
-                }]
+                "nodes": [
+                    {
+                        "id": "path+root@0.1.0",
+                        "deps": [
+                            {"name": "db", "pkg": "registry+sqlx-sqlite@1.0.0"},
+                            {"name": "bridges", "pkg": "path+terrane-integration-adapters@1.0.0"}
+                        ]
+                    },
+                    {
+                        "id": "registry+sqlx-sqlite@1.0.0",
+                        "features": []
+                    },
+                    {
+                        "id": "path+terrane-integration-adapters@1.0.0",
+                        "features": ["default", "sqlx-sqlite"]
+                    }
+                ]
             }
         });
         assert_eq!(
             namespace_overlays_from_metadata(&metadata, &dependencies).unwrap(),
             [NamespaceOverlay {
-                provider_name: "terrane-integration-adapters".to_owned(),
+                provider_name: "bridges".to_owned(),
                 provider_package: "terrane-integration-adapters".to_owned(),
-                source_namespace: "/deps/terrane-integration-adapters/sqlx-sqlite".to_owned(),
-                target_namespace: "/deps/sqlx-sqlite".to_owned(),
+                source_namespace: "/deps/bridges/sqlx-sqlite".to_owned(),
+                target_namespace: "/deps/db".to_owned(),
             }]
         );
     }
@@ -6659,10 +6701,16 @@ mod tests {
             }],
             "resolve": {
                 "root": "path+root@0.1.0",
-                "nodes": [{
-                    "id": "path+root@0.1.0",
-                    "deps": [{"name": "adapter", "pkg": "path+adapter@1.0.0"}]
-                }]
+                "nodes": [
+                    {
+                        "id": "path+root@0.1.0",
+                        "deps": [{"name": "adapter", "pkg": "path+adapter@1.0.0"}]
+                    },
+                    {
+                        "id": "path+adapter@1.0.0",
+                        "features": ["bridge"]
+                    }
+                ]
             }
         });
         let undeclared = namespace_overlays_from_metadata(
