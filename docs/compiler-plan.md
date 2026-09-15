@@ -207,230 +207,6 @@ This section contains only work that remains required by the settled version-one
 
 
 
-### Milestone 30.3 — Real-application boundaries and lowering correctness
-
-The WebSocket server experiment exercised enough of the implemented language to expose a narrow
-set of remaining application-building gaps. Close those gaps at their general compiler, projection,
-and standard-package boundaries rather than adding Axum-, SQLx-, or experiment-specific lowering.
-The outcome is not a privileged web framework: ordinary Terrane code must be able to cross a
-representative callback-heavy dependency, construct binary protocol data directly, and rely on
-Terrane ownership and control-flow semantics without repairing generated Rust by hand.
-
-#### Dependency projection and authored Rust boundaries
-
-Extend destination-driven projection so a call site can close nested generic parameters from the
-receiver, ordinary arguments, callback signature, declared result destination, and already selected
-associated bindings. This includes concrete callback specialisation nested inside another generic
-type and the closed service/router compositions needed by representative Axum handlers,
-`WebSocketUpgrade::on_upgrade`, and server entry. Every admitted instantiation receives its full
-canonical Rust identity and exact callback ownership, lifetime, `Send`/`Sync`, async, error, and
-panic contracts. An unresolved, ambiguous, borrowed-escape, or genuinely open generic remains a
-targeted decline; the compiler must not erase it, guess an instantiation, or carry an opaque
-unnameable value outside the existing chain-only boundary.
-
-Implement the specified concrete `unsafe rust` block/expression and maintained authored-`.rs`
-escape hatches. They participate in the manifest and locked crate graph, build-capability and
-profile checks, deterministic generated-artifact identity, source associations, diagnostics,
-ownership/effect declarations, panic and error translation, and editor dependency intelligence.
-`unsafe rust` relaxes Rust-operation safety only inside the concrete boundary; it does not bypass
-Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. Generated and
-authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
-qualifier remains invalid.
-
-Raw SQLx `Query<'q, DB, A>` values are not a promised projection shape: their open database,
-argument, and borrow parameters are intentionally unnameable as free-standing Terrane values.
-Do not special-case them. Preserve the existing chain-only projection route for a concrete adapter
-whose terminal operation owns a projectable result, and use the authored Rust boundary when an
-application needs to package a database-specific adapter locally.
-
-##### Temporary integration-adapter ledger
-
-Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
-from the single feature-gated `terrane-integration-adapters` crate and is accounted for beside its
-implementation in `terrane_integration_adapters::registry`. A registry entry has a stable adapter ID
-and tracking key, the affected dependency/version range, the exact unsupported generic shape, its
-feature/package surface when bridged, and an objective removal criterion. Unbridged gaps belong in
-the same ledger so a bug-tracker issue can attach to the stable key before an implementation exists.
-
-The registry is data and accounting only. Keep it out of Terrane's projected application namespace,
-and never dispatch crate-specific projection, semantics, or lowering from it. Adapter modules are
-ordinary projected Rust dependency surfaces and remain
-independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
-application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
-enabled adapter module to another directly declared dependency namespace while retaining each
-item's actual Rust path and owning dependency. Reject undeclared, self, ambiguous, empty,
-overlapping, and colliding overlays rather than shadowing an upstream item. Overlay declarations
-participate in projection cache identity.
-
-Tests require unique adapter IDs and tracking keys and account for every shipped adapter feature.
-Retire an operation when its upstream projection creates a collision and generic non-framework
-regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
-consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
-
-The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
-unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
-and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
-namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
-while projection provenance continues to name
-`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
-
-`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
-It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
-Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
-entries make every adapter operation removable without changing application imports.
-
-#### General variadic call contract
-
-Implement the already specified source variadic parameter form instead of retaining isolated
-built-in arity exceptions:
-
-```terrane
-function collect; values Item ...
-```
-
-Exactly one variadic parameter is permitted, it is final, has no default, and captures the
-remaining positional arguments as an ordinary list-like value; zero remaining arguments produce
-an empty capture. Named arguments may bind preceding fixed parameters but may not bind or follow
-into the variadic capture. Argument expressions evaluate once from left to right, and each element
-must satisfy the written element destination before the function begins. An untyped variadic
-parameter follows the same finite type analysis as an ordinary untyped parameter and must not
-introduce an unbounded universal runtime value merely to accept heterogeneous calls.
-
-Represent the variadic tail in the canonical callable contract, function-value type, reflection,
-descriptor metadata, tooling signature, and deterministic identity. Namespace functions, methods,
-constructors, anonymous functions, closures, interface requirements, trait methods, overrides, and
-bound callables use the same parameter binder and compatibility rules. Variadic versus fixed arity
-is an observable callable-type distinction; an override or callback cannot silently add, remove,
-or narrow a variadic tail. Rust `Fn` callbacks remain fixed-signature crossings, and C ABI
-variadics remain part of the separately deferred foreign-runtime adapter work.
-
-Lower one variadic capture with checked capacity and left-to-right element conversion, preserving
-ordinary list value/COW and destruction semantics without repeatedly rebuilding prefixes. Move
-compiler-owned variadic operations—including `print`, string `concat`/`join`, collection
-constructors, forwarded timeout arguments, and bytes `concat`—onto this shared arity, destination,
-effect, and ownership model wherever their declared contract has a variadic tail. Delete
-operation-specific “accept any arguments” checks and first-argument-only lowering rather than
-creating a second variadic convention.
-
-Accepted cases cover zero, one, and several values; fixed required and optional parameters before
-the tail; methods and closures; captured values used after the call; and a variadic callable passed
-through its exact function type. Rejected cases cover multiple or non-final variadics, a defaulted
-tail, named binding of the tail, incompatible elements, fixed/variadic callable mismatch, invalid
-override/interface conformance, and unsupported foreign variadics. The formatter and
-source-intelligence schema preserve the canonical `...` spelling.
-
-#### Binary data and application-level protocol construction
-
-Deliver:
-
-- a direct, typed conversion from `list of uint8` to immutable `bytes`, with deterministic
-  left-to-right contents, checked target-size/allocation limits, ordinary value semantics, and no
-  text, hexadecimal, or Unicode round trip;
-- `bytes.concat; parts...`, declared through that general variadic contract and restricted to bytes
-  arguments, with checked total length and one result allocation rather than silently ignoring any
-  argument or repeatedly copying prefixes;
-- an explicitly imported legacy-digest package exposing at least SHA-1 and MD5 through the same
-  algorithm-identified digest value and byte/reader input contracts as the ordinary digest surface;
-  the package and algorithm descriptors are visibly named `legacy`, but use does not emit ambient
-  warnings or pretend that compatibility, content identification, and protocol-mandated hashing are
-  invalid applications.
-
-The application witness uses the shared legacy SHA-1 implementation for the mandated
-`Sec-WebSocket-Accept` transformation rather than carrying its own digest implementation. SHA-1 and
-MD5 remain outside the default modern digest import so security-sensitive code cannot select them
-by an unremarkable algorithm-name change, but Terrane does not prohibit their use or label every
-use unsafe. The legacy package documentation distinguishes collision and
-cryptographic-authentication limitations from valid compatibility, protocol, fixture, and
-non-adversarial content-identity uses. Security-sensitive packages may accept a narrower
-modern-digest protocol where their own contract requires collision or preimage resistance.
-Application code must not convert computed octets through hexadecimal text merely to create bytes.
-
-HTTP/1 framing and WebSocket protocol handling are ordinary library or application concerns, not
-compiler-owned `/core` facilities. Do not add a privileged HTTP parser, WebSocket implementation,
-or protocol-specific lowering. The end-to-end witness must instead prove that an application can
-use a lock-pinned projected Rust package through the general dependency boundary or implement
-bounded framing in ordinary Terrane. An application-local implementation must be able to loop over
-partial byte-stream reads, retain excess bytes for the next message, distinguish incomplete input
-from EOF and malformed framing, impose explicit header/body/frame limits, and implement the
-advertised RFC 6455 handshake and frame subset without compiler support.
-
-#### Control flow, ownership, and Rust lowering
-
-Add reduced accepted and rejected cases from the experiment, then fix the semantic or lowering
-source of each failure:
-
-- an invocation whose result is an ordinary discardable value may occupy statement position even
-  when the invocation has arguments and is awaited; task consumption, escaping throwables,
-  resource-owning results, and `must-use`-style result contracts remain enforced rather than being
-  silently discarded;
-- same-spelled bindings created in disjoint lexical branches each lower to a declaration in their
-  own Rust scope, while outer definite assignment still requires every reachable path to initialize
-  the outer binding;
-- a temporary iterable remains alive for the complete `for` traversal. Lowering may materialize one
-  named intermediate when required, but must preserve single evaluation and destruction order; a
-  form whose lifetime cannot be represented is rejected before generated-Rust validation;
-- ordinary values passed to calls obey semantic value assignment across later uses and loop
-  iterations. Liveness-guided lowering may borrow, move a final use, or clone/COW-separate only
-  where representation requires it, but Rust moves must not leak through `bytes`, `path`,
-  filesystem-capability, or other copyable Terrane contracts;
-- consuming an owned resource in a branch that definitely returns does not poison later reachable
-  sibling guards. A path that can fall through after consumption still receives the ordinary
-  source-level use-after-consume diagnostic; and
-- assignment-use analysis follows loop conditions, back edges, and subsequent iterations so a
-  loop-carried update read by its next condition is not reported as an unread assignment.
-
-No accepted source program may depend on rustc discovering these ownership, scope, or lifetime
-errors after lowering. Conversely, do not hide generated-Rust failures by globally cloning values,
-extending every temporary, suppressing warnings, or weakening linear-resource checks.
-
-#### Documentation corrections for existing contracts
-
-Update the dependency guide, reference manual, and application tutorial in the same milestone to:
-
-- show the existing chain-only concrete-adapter pattern with a practical SQLx/SQLite recipe,
-  distinguish it from unsupported free-standing open generic query values, and explain when a
-  projected dependency adapter versus an authored Rust adapter is appropriate;
-- state that ordinary `bytes`, `path`, and filesystem-capability values have Terrane value
-  semantics, so `ref` is for observing an existing identity/lifetime rather than a workaround for
-  generated Rust moves;
-- explain that explicit stream `close` consumes the stream and exposes release failure, whereas
-  deterministic destruction is a fallback that deliberately discards that failure;
-- make partial TCP reads prominent in the networking guide, show bounded framing that loops and
-  preserves unread bytes, and explicitly reject the assumption that one successful `read` is one
-  HTTP or application message; and
-- document the explicitly imported legacy-digest package, including SHA-1 and MD5, with concrete
-  compatibility and non-security use cases, cryptographic limitations, and guidance for APIs that
-  deliberately accept only modern digest descriptors.
-
-Keep the documentation honest about the boundary: it must not imply that declaring Axum makes every
-Rust generic expressible, that raw SQLx query builders can be stored in Terrane, that destruction
-confirms a graceful close, or that TCP preserves writes as messages.
-
-Deliver in reviewable vertical slices: the canonical variadic callable contract and migration of
-existing variadic built-ins; reduced lowering regressions and semantic fixes; efficient bytes
-construction and concatenation; the shared legacy-digest package and application witness;
-call-site generic closure with non-Axum oracle fixtures; the Axum callback/service witness;
-concrete authored Rust integration; application-level bounded HTTP/WebSocket framing; the SQLx
-adapter recipe; and the complete application witness. Dependency fixtures must
-use lock-pinned versions and prove both accepted concrete instantiations and stable declines. The
-application witness must fragment network input deliberately, exercise more than one request and
-WebSocket frame per connection, persist and retrieve SQLite data through the documented adapter
-boundary, close both normally and on protocol failure, and compile with generated-Rust warnings
-denied.
-
-Exit criterion: source functions, methods, closures, callable values, and declared compiler-owned
-operations share one typed variadic parameter and call-binding model with no first-argument-only or
-operation-specific arity path; a package can build and run a bounded HTTP/WebSocket server without
-a handwritten SHA-1 implementation, hexadecimal byte construction, unique-name branch workarounds,
-pre-bound split temporaries, defensive `ref` arguments, or discarded-result bindings; a separate
-lock-pinned Axum witness crosses generic handler, upgrade-callback, router/service, and serve
-boundaries without crate-specific compiler code; a local concrete authored Rust adapter and the
-documented chain-only route each demonstrate the supported SQLx boundary without claiming raw open
-query projection; and focused variadic, scope, lifetime, value-ownership, branch-consumption,
-concatenation, awaited-statement, and diagnostic regressions fail before the fixes and pass
-afterward. The reference/manual/tutorial updates, strict Clippy, complete conformance matrix, and
-measured workspace suite pass.
-
 ### Milestone 30.4 — Native profiling with compiler-owned source attribution
 
 The source debugger proves the identity path from authored Terrane through final generated Rust to
@@ -4502,3 +4278,228 @@ Completion evidence:
 - focused debugger/compiler tests and strict workspace Clippy are part of final verification; and
 - the final workspace scorecard recorded 1,128 passed timings, zero failures, and zero ignored
   tests, including the complete conformance matrix.
+
+
+### Milestone 30.3 — Real-application boundaries and lowering correctness
+
+The WebSocket server experiment exercised enough of the implemented language to expose a narrow
+set of remaining application-building gaps. Close those gaps at their general compiler, projection,
+and standard-package boundaries rather than adding Axum-, SQLx-, or experiment-specific lowering.
+The outcome is not a privileged web framework: ordinary Terrane code must be able to cross a
+representative callback-heavy dependency, construct binary protocol data directly, and rely on
+Terrane ownership and control-flow semantics without repairing generated Rust by hand.
+
+#### Dependency projection and authored Rust boundaries
+
+Extend destination-driven projection so a call site can close nested generic parameters from the
+receiver, ordinary arguments, callback signature, declared result destination, and already selected
+associated bindings. This includes concrete callback specialisation nested inside another generic
+type and the closed service/router compositions needed by representative Axum handlers,
+`WebSocketUpgrade::on_upgrade`, and server entry. Every admitted instantiation receives its full
+canonical Rust identity and exact callback ownership, lifetime, `Send`/`Sync`, async, error, and
+panic contracts. An unresolved, ambiguous, borrowed-escape, or genuinely open generic remains a
+targeted decline; the compiler must not erase it, guess an instantiation, or carry an opaque
+unnameable value outside the existing chain-only boundary.
+
+Implement the specified concrete `unsafe rust` block/expression and maintained authored-`.rs`
+escape hatches. They participate in the manifest and locked crate graph, build-capability and
+profile checks, deterministic generated-artifact identity, source associations, diagnostics,
+ownership/effect declarations, panic and error translation, and editor dependency intelligence.
+`unsafe rust` relaxes Rust-operation safety only inside the concrete boundary; it does not bypass
+Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. Generated and
+authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
+qualifier remains invalid.
+
+Raw SQLx `Query<'q, DB, A>` values are not a promised projection shape: their open database,
+argument, and borrow parameters are intentionally unnameable as free-standing Terrane values.
+Do not special-case them. Preserve the existing chain-only projection route for a concrete adapter
+whose terminal operation owns a projectable result, and use the authored Rust boundary when an
+application needs to package a database-specific adapter locally.
+
+##### Temporary integration-adapter ledger
+
+Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
+from the single feature-gated `terrane-integration-adapters` crate and is accounted for beside its
+implementation in `terrane_integration_adapters::registry`. A registry entry has a stable adapter ID
+and tracking key, the affected dependency/version range, the exact unsupported generic shape, its
+feature/package surface when bridged, and an objective removal criterion. Unbridged gaps belong in
+the same ledger so a bug-tracker issue can attach to the stable key before an implementation exists.
+
+The registry is data and accounting only. Keep it out of Terrane's projected application namespace,
+and never dispatch crate-specific projection, semantics, or lowering from it. Adapter modules are
+ordinary projected Rust dependency surfaces and remain
+independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
+application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
+enabled adapter module to another directly declared dependency namespace while retaining each
+item's actual Rust path and owning dependency. Reject undeclared, self, ambiguous, empty,
+overlapping, and colliding overlays rather than shadowing an upstream item. Overlay declarations
+participate in projection cache identity.
+
+Tests require unique adapter IDs and tracking keys and account for every shipped adapter feature.
+Retire an operation when its upstream projection creates a collision and generic non-framework
+regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
+consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
+
+The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
+unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
+and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
+namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
+while projection provenance continues to name
+`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
+
+`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
+It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
+Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
+entries make every adapter operation removable without changing application imports.
+
+#### General variadic call contract
+
+Implement the already specified source variadic parameter form instead of retaining isolated
+built-in arity exceptions:
+
+```terrane
+function collect; values Item ...
+```
+
+Exactly one variadic parameter is permitted, it is final, has no default, and captures the
+remaining positional arguments as an ordinary list-like value; zero remaining arguments produce
+an empty capture. Named arguments may bind preceding fixed parameters but may not bind or follow
+into the variadic capture. Argument expressions evaluate once from left to right, and each element
+must satisfy the written element destination before the function begins. An untyped variadic
+parameter follows the same finite type analysis as an ordinary untyped parameter and must not
+introduce an unbounded universal runtime value merely to accept heterogeneous calls.
+
+Represent the variadic tail in the canonical callable contract, function-value type, reflection,
+descriptor metadata, tooling signature, and deterministic identity. Namespace functions, methods,
+constructors, anonymous functions, closures, interface requirements, trait methods, overrides, and
+bound callables use the same parameter binder and compatibility rules. Variadic versus fixed arity
+is an observable callable-type distinction; an override or callback cannot silently add, remove,
+or narrow a variadic tail. Rust `Fn` callbacks remain fixed-signature crossings, and C ABI
+variadics remain part of the separately deferred foreign-runtime adapter work.
+
+Lower one variadic capture with checked capacity and left-to-right element conversion, preserving
+ordinary list value/COW and destruction semantics without repeatedly rebuilding prefixes. Move
+compiler-owned variadic operations—including `print`, string `concat`/`join`, collection
+constructors, forwarded timeout arguments, and bytes `concat`—onto this shared arity, destination,
+effect, and ownership model wherever their declared contract has a variadic tail. Delete
+operation-specific “accept any arguments” checks and first-argument-only lowering rather than
+creating a second variadic convention.
+
+Accepted cases cover zero, one, and several values; fixed required and optional parameters before
+the tail; methods and closures; captured values used after the call; and a variadic callable passed
+through its exact function type. Rejected cases cover multiple or non-final variadics, a defaulted
+tail, named binding of the tail, incompatible elements, fixed/variadic callable mismatch, invalid
+override/interface conformance, and unsupported foreign variadics. The formatter and
+source-intelligence schema preserve the canonical `...` spelling.
+
+#### Binary data and application-level protocol construction
+
+Deliver:
+
+- a direct, typed conversion from `list of uint8` to immutable `bytes`, with deterministic
+  left-to-right contents, checked target-size/allocation limits, ordinary value semantics, and no
+  text, hexadecimal, or Unicode round trip;
+- `bytes.concat; parts...`, declared through that general variadic contract and restricted to bytes
+  arguments, with checked total length and one result allocation rather than silently ignoring any
+  argument or repeatedly copying prefixes;
+- an explicitly imported legacy-digest package exposing at least SHA-1 and MD5 through the same
+  algorithm-identified digest value and byte/reader input contracts as the ordinary digest surface;
+  the package and algorithm descriptors are visibly named `legacy`, but use does not emit ambient
+  warnings or pretend that compatibility, content identification, and protocol-mandated hashing are
+  invalid applications.
+
+The application witness uses the shared legacy SHA-1 implementation for the mandated
+`Sec-WebSocket-Accept` transformation rather than carrying its own digest implementation. SHA-1 and
+MD5 remain outside the default modern digest import so security-sensitive code cannot select them
+by an unremarkable algorithm-name change, but Terrane does not prohibit their use or label every
+use unsafe. The legacy package documentation distinguishes collision and
+cryptographic-authentication limitations from valid compatibility, protocol, fixture, and
+non-adversarial content-identity uses. Security-sensitive packages may accept a narrower
+modern-digest protocol where their own contract requires collision or preimage resistance.
+Application code must not convert computed octets through hexadecimal text merely to create bytes.
+
+HTTP/1 framing and WebSocket protocol handling are ordinary library or application concerns, not
+compiler-owned `/core` facilities. Do not add a privileged HTTP parser, WebSocket implementation,
+or protocol-specific lowering. The end-to-end witness must instead prove that an application can
+use a lock-pinned projected Rust package through the general dependency boundary or implement
+bounded framing in ordinary Terrane. An application-local implementation must be able to loop over
+partial byte-stream reads, retain excess bytes for the next message, distinguish incomplete input
+from EOF and malformed framing, impose explicit header/body/frame limits, and implement the
+advertised RFC 6455 handshake and frame subset without compiler support.
+
+#### Control flow, ownership, and Rust lowering
+
+Add reduced accepted and rejected cases from the experiment, then fix the semantic or lowering
+source of each failure:
+
+- an invocation whose result is an ordinary discardable value may occupy statement position even
+  when the invocation has arguments and is awaited; task consumption, escaping throwables,
+  resource-owning results, and `must-use`-style result contracts remain enforced rather than being
+  silently discarded;
+- same-spelled bindings created in disjoint lexical branches each lower to a declaration in their
+  own Rust scope, while outer definite assignment still requires every reachable path to initialize
+  the outer binding;
+- a temporary iterable remains alive for the complete `for` traversal. Lowering may materialize one
+  named intermediate when required, but must preserve single evaluation and destruction order; a
+  form whose lifetime cannot be represented is rejected before generated-Rust validation;
+- ordinary values passed to calls obey semantic value assignment across later uses and loop
+  iterations. Liveness-guided lowering may borrow, move a final use, or clone/COW-separate only
+  where representation requires it, but Rust moves must not leak through `bytes`, `path`,
+  filesystem-capability, or other copyable Terrane contracts;
+- consuming an owned resource in a branch that definitely returns does not poison later reachable
+  sibling guards. A path that can fall through after consumption still receives the ordinary
+  source-level use-after-consume diagnostic; and
+- assignment-use analysis follows loop conditions, back edges, and subsequent iterations so a
+  loop-carried update read by its next condition is not reported as an unread assignment.
+
+No accepted source program may depend on rustc discovering these ownership, scope, or lifetime
+errors after lowering. Conversely, do not hide generated-Rust failures by globally cloning values,
+extending every temporary, suppressing warnings, or weakening linear-resource checks.
+
+#### Documentation corrections for existing contracts
+
+Update the dependency guide, reference manual, and application tutorial in the same milestone to:
+
+- show the existing chain-only concrete-adapter pattern with a practical SQLx/SQLite recipe,
+  distinguish it from unsupported free-standing open generic query values, and explain when a
+  projected dependency adapter versus an authored Rust adapter is appropriate;
+- state that ordinary `bytes`, `path`, and filesystem-capability values have Terrane value
+  semantics, so `ref` is for observing an existing identity/lifetime rather than a workaround for
+  generated Rust moves;
+- explain that explicit stream `close` consumes the stream and exposes release failure, whereas
+  deterministic destruction is a fallback that deliberately discards that failure;
+- make partial TCP reads prominent in the networking guide, show bounded framing that loops and
+  preserves unread bytes, and explicitly reject the assumption that one successful `read` is one
+  HTTP or application message; and
+- document the explicitly imported legacy-digest package, including SHA-1 and MD5, with concrete
+  compatibility and non-security use cases, cryptographic limitations, and guidance for APIs that
+  deliberately accept only modern digest descriptors.
+
+Keep the documentation honest about the boundary: it must not imply that declaring Axum makes every
+Rust generic expressible, that raw SQLx query builders can be stored in Terrane, that destruction
+confirms a graceful close, or that TCP preserves writes as messages.
+
+Deliver in reviewable vertical slices: the canonical variadic callable contract and migration of
+existing variadic built-ins; reduced lowering regressions and semantic fixes; efficient bytes
+construction and concatenation; the shared legacy-digest package and application witness;
+call-site generic closure with non-Axum oracle fixtures; the Axum callback/service witness;
+concrete authored Rust integration; application-level bounded HTTP/WebSocket framing; the SQLx
+adapter recipe; and the complete application witness. Dependency fixtures must
+use lock-pinned versions and prove both accepted concrete instantiations and stable declines. The
+application witness must fragment network input deliberately, exercise more than one request and
+WebSocket frame per connection, persist and retrieve SQLite data through the documented adapter
+boundary, close both normally and on protocol failure, and compile with generated-Rust warnings
+denied.
+
+Exit criterion: source functions, methods, closures, callable values, and declared compiler-owned
+operations share one typed variadic parameter and call-binding model with no first-argument-only or
+operation-specific arity path; a package can build and run a bounded HTTP/WebSocket server without
+a handwritten SHA-1 implementation, hexadecimal byte construction, unique-name branch workarounds,
+pre-bound split temporaries, defensive `ref` arguments, or discarded-result bindings; a separate
+lock-pinned Axum witness crosses generic handler, upgrade-callback, router/service, and serve
+boundaries without crate-specific compiler code; a local concrete authored Rust adapter and the
+documented chain-only route each demonstrate the supported SQLx boundary without claiming raw open
+query projection; and focused variadic, scope, lifetime, value-ownership, branch-consumption,
+concatenation, awaited-statement, and diagnostic regressions fail before the fixes and pass
+afterward. The reference/manual/tutorial updates, strict Clippy, complete conformance matrix, and
+measured workspace suite pass.
