@@ -1,7 +1,6 @@
 namespace app
 
-from /deps/sqlx-sqlite import SqliteConnection
-from /deps/terrane-integration-adapters/sqlx-sqlite import open, execute, execute_with_bytes, query_bytes, close
+from /deps/sqlx-sqlite import SqliteConnection, open, execute, execute_with_bytes, query_bytes, close
 
 async function main;
     database SqliteConnection = await open; 'adapter.db'

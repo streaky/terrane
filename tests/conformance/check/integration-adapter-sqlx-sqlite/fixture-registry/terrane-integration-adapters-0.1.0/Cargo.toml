@@ -6,6 +6,11 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.97"
 publish = false
 
+[[package.metadata.terrane.namespace-overlays]]
+module = "sqlx_sqlite"
+target-package = "sqlx-sqlite"
+feature = "sqlx-sqlite"
+
 [features]
 default = []
 sqlx-sqlite = ["dep:sqlx"]

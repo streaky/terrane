@@ -1,0 +1,207 @@
+{
+  "format": 3,
+  "dependencies": [
+    {
+      "name": "sqlx-sqlite",
+      "version": "0.8.6",
+      "members": [
+        [
+          "/deps/sqlx-sqlite",
+          "Sqlite"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteAutoVacuum"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteColumn"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.get_filename"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnection"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnection.lock_handle"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteError"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteJournalMode"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteLockingMode"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteOperation"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteOwnedBuf"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteQueryResult"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteQueryResult.last_insert_rowid"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteQueryResult.rows_affected"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteRow"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteSynchronous"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteTransactionManager"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteTypeInfo"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteValue"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteautovacuum",
+          "Full"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteautovacuum",
+          "Incremental"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteautovacuum",
+          "None"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Delete"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Memory"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Off"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Persist"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Truncate"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitejournalmode",
+          "Wal"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitelockingmode",
+          "Exclusive"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitelockingmode",
+          "Normal"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitesynchronous",
+          "Extra"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitesynchronous",
+          "Full"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitesynchronous",
+          "Normal"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitesynchronous",
+          "Off"
+        ]
+      ]
+    },
+    {
+      "name": "terrane-integration-adapters",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteAdapterError"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "close"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "execute"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "execute_with_bytes"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "open"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "query_bytes"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "453fdba395a604d3226f87a1db8dcce70100c5cb432a225960e05ec7e8370a8f",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "45",
+  "content_hash": "18b4b24d6924ea9a8fd3e8d387aaed0220e4f4c632f983ff9d6ecc6683afa942",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

@@ -5,6 +5,11 @@ edition.workspace = true
 license.workspace = true
 rust-version = "1.97"
 
+[[package.metadata.terrane.namespace-overlays]]
+module = "sqlx_sqlite"
+target-package = "sqlx-sqlite"
+feature = "sqlx-sqlite"
+
 [lints]
 workspace = true
 [features]

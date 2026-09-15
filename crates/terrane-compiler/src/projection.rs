@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "44";
+const PROJECTION_SCHEMA: &str = "45";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -137,6 +137,22 @@ impl From<&RustDependency> for ArtifactDependency {
             effects: dependency.effects.clone(),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct NamespaceOverlayMetadata {
+    module: String,
+    target_package: String,
+    feature: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NamespaceOverlay {
+    provider_name: String,
+    provider_package: String,
+    source_namespace: String,
+    target_namespace: String,
 }
 
 enum PublishedProjection {
@@ -1615,7 +1631,8 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
-    let (identity, target) = cache_identity(root, &workspace, dependencies, sandbox)?;
+    let overlays = resolved_namespace_overlays(&workspace, dependencies)?;
+    let (identity, target) = cache_identity(root, &workspace, dependencies, &overlays, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
         let mut cached =
@@ -1754,6 +1771,7 @@ pub fn resolve(
             project_rustdoc(dependency, document, public_paths, &canonical_public_paths)
         })
         .collect::<Vec<_>>();
+    apply_namespace_overlays(&mut projected, &overlays)?;
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
     validate_unique_projected_type_identities(&projected)?;
@@ -2315,6 +2333,292 @@ fn run_cargo(
             String::from_utf8_lossy(&output.stderr).trim()
         ),
     })
+}
+
+fn resolved_namespace_overlays(
+    workspace: &Path,
+    dependencies: &[RustDependency],
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let mut command = Command::new("cargo");
+    crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
+    let output = command
+        .args(["metadata", "--format-version", "1", "--offline", "--frozen"])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot read Cargo dependency metadata: {error}"),
+        })?;
+    if !output.status.success() {
+        return Err(ProjectionError {
+            message: format!(
+                "Cargo dependency metadata failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
+    }
+    let metadata =
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| {
+            ProjectionError {
+                message: format!("cannot decode Cargo dependency metadata: {error}"),
+            }
+        })?;
+    namespace_overlays_from_metadata(&metadata, dependencies)
+}
+
+fn namespace_overlays_from_metadata(
+    metadata: &serde_json::Value,
+    dependencies: &[RustDependency],
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let packages = metadata
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no package list".to_owned(),
+        })?;
+    let root = metadata
+        .pointer("/resolve/root")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no resolved root package".to_owned(),
+        })?;
+    let direct = metadata
+        .pointer("/resolve/nodes")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|nodes| {
+            nodes
+                .iter()
+                .find(|node| node.get("id").and_then(serde_json::Value::as_str) == Some(root))
+        })
+        .and_then(|node| node.get("deps"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo dependency metadata has no direct dependency graph".to_owned(),
+        })?;
+    let mut overlays = Vec::new();
+    for provider in dependencies {
+        let package = direct_metadata_package(packages, direct, provider)?;
+        overlays.extend(package_namespace_overlays(package, provider, dependencies)?);
+    }
+    overlays.sort_by(|left, right| {
+        (&left.provider_name, &left.source_namespace)
+            .cmp(&(&right.provider_name, &right.source_namespace))
+    });
+    for pair in overlays.windows(2) {
+        if pair[0].provider_name == pair[1].provider_name
+            && (pair[0].source_namespace == pair[1].source_namespace
+                || pair[1]
+                    .source_namespace
+                    .starts_with(&format!("{}/", pair[0].source_namespace)))
+        {
+            return Err(ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has overlapping namespace overlays `{}` and `{}`",
+                    pair[0].provider_name, pair[0].source_namespace, pair[1].source_namespace
+                ),
+            });
+        }
+    }
+    Ok(overlays)
+}
+
+fn direct_metadata_package<'a>(
+    packages: &'a [serde_json::Value],
+    direct: &[serde_json::Value],
+    dependency: &RustDependency,
+) -> Result<&'a serde_json::Value, ProjectionError> {
+    let cargo_name = dependency.name.replace('-', "_");
+    let package_id = direct
+        .iter()
+        .find(|candidate| {
+            candidate
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|name| name.replace('-', "_") == cargo_name)
+        })
+        .and_then(|candidate| candidate.get("pkg"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata has no resolved package for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    let package = packages
+        .iter()
+        .find(|package| package.get("id").and_then(serde_json::Value::as_str) == Some(package_id))
+        .ok_or_else(|| ProjectionError {
+            message: format!(
+                "Cargo dependency metadata is missing package `{package_id}` for direct dependency `{}`",
+                dependency.name
+            ),
+        })?;
+    if package.get("name").and_then(serde_json::Value::as_str) != Some(dependency.package.as_str())
+    {
+        return Err(ProjectionError {
+            message: format!(
+                "Cargo dependency metadata resolved `{}` to unexpected package `{}`",
+                dependency.name,
+                package
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("<unknown>")
+            ),
+        });
+    }
+    Ok(package)
+}
+
+fn package_namespace_overlays(
+    package: &serde_json::Value,
+    provider: &RustDependency,
+    dependencies: &[RustDependency],
+) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+    let Some(declarations) = package
+        .pointer("/metadata/terrane/namespace-overlays")
+        .filter(|value| !value.is_null())
+    else {
+        return Ok(Vec::new());
+    };
+    let declarations =
+        serde_json::from_value::<Vec<NamespaceOverlayMetadata>>(declarations.clone()).map_err(
+            |error| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has invalid `package.metadata.terrane.namespace-overlays`: {error}",
+                    provider.name
+                ),
+            },
+        )?;
+    let mut overlays = Vec::new();
+    for declaration in declarations {
+        if !provider
+            .features
+            .iter()
+            .any(|feature| feature == &declaration.feature)
+        {
+            continue;
+        }
+        let source_module =
+            overlay_module_namespace(&declaration.module).ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` namespace overlay module `{}` is not a Rust module path",
+                    provider.name, declaration.module
+                ),
+            })?;
+        let targets = dependencies
+            .iter()
+            .filter(|dependency| dependency.package == declaration.target_package)
+            .collect::<Vec<_>>();
+        let [target] = targets.as_slice() else {
+            return Err(ProjectionError {
+                message: if targets.is_empty() {
+                    format!(
+                        "Rust dependency `{}` namespace overlay targets undeclared package `{}`",
+                        provider.name, declaration.target_package
+                    )
+                } else {
+                    format!(
+                        "Rust dependency `{}` namespace overlay target package `{}` has multiple direct aliases",
+                        provider.name, declaration.target_package
+                    )
+                },
+            });
+        };
+        if provider.name == target.name {
+            return Err(ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` namespace overlay cannot target itself",
+                    provider.name
+                ),
+            });
+        }
+        overlays.push(NamespaceOverlay {
+            provider_name: provider.name.clone(),
+            provider_package: provider.package.clone(),
+            source_namespace: format!(
+                "/deps/{}/{}",
+                provider.name.replace('_', "-"),
+                source_module
+            ),
+            target_namespace: format!("/deps/{}", target.name.replace('_', "-")),
+        });
+    }
+    Ok(overlays)
+}
+
+fn overlay_module_namespace(module: &str) -> Option<String> {
+    let segments = module.split("::").collect::<Vec<_>>();
+    if segments.is_empty()
+        || segments.iter().any(|segment| {
+            segment.is_empty()
+                || !segment.bytes().enumerate().all(|(index, byte)| {
+                    byte == b'_'
+                        || byte.is_ascii_alphanumeric() && (index > 0 || !byte.is_ascii_digit())
+                })
+        })
+    {
+        return None;
+    }
+    Some(
+        segments
+            .into_iter()
+            .map(|segment| segment.replace('_', "-"))
+            .collect::<Vec<_>>()
+            .join("/"),
+    )
+}
+
+fn apply_namespace_overlays(
+    projected: &mut [ProjectedDependency],
+    overlays: &[NamespaceOverlay],
+) -> Result<(), ProjectionError> {
+    let mut matched = vec![0_usize; overlays.len()];
+    let mut moved = BTreeSet::new();
+    for (dependency_index, dependency) in projected.iter_mut().enumerate() {
+        for (item_index, item) in dependency.items.iter_mut().enumerate() {
+            for (index, overlay) in overlays.iter().enumerate().filter(|(_, overlay)| {
+                dependency.name == overlay.provider_name
+                    && dependency.package == overlay.provider_package
+            }) {
+                let suffix = item
+                    .namespace
+                    .strip_prefix(&overlay.source_namespace)
+                    .filter(|suffix| suffix.is_empty() || suffix.starts_with('/'));
+                if let Some(suffix) = suffix {
+                    item.namespace = format!("{}{suffix}", overlay.target_namespace);
+                    matched[index] += 1;
+                    moved.insert((dependency_index, item_index));
+                    break;
+                }
+            }
+        }
+    }
+    if let Some((_, overlay)) = matched.iter().zip(overlays).find(|(count, _)| **count == 0) {
+        return Err(ProjectionError {
+            message: format!(
+                "Rust dependency `{}` namespace overlay source `{}` contains no projectable items",
+                overlay.provider_name, overlay.source_namespace
+            ),
+        });
+    }
+    let mut names = BTreeMap::<(&str, &str), (&str, bool)>::new();
+    for (dependency_index, dependency) in projected.iter().enumerate() {
+        for (item_index, item) in dependency.items.iter().enumerate() {
+            let current_moved = moved.contains(&(dependency_index, item_index));
+            if let Some((previous, previous_moved)) = names.insert(
+                (item.namespace.as_str(), item.name.as_str()),
+                (item.rust_path.as_str(), current_moved),
+            ) && (previous_moved || current_moved)
+            {
+                return Err(ProjectionError {
+                    message: format!(
+                        "dependency namespace overlay collides on `{}::{}` between `{previous}` and `{}`",
+                        item.namespace, item.name, item.rust_path
+                    ),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate: String) {
@@ -6009,6 +6313,7 @@ fn cache_identity(
     root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
+    overlays: &[NamespaceOverlay],
     containment: Containment,
 ) -> Result<(String, String), ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
@@ -6026,6 +6331,7 @@ fn cache_identity(
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
+        ("namespace-overlays", format!("{overlays:?}").as_bytes()),
         ("build-toolchain", crate::BUILD_TOOLCHAIN.as_bytes()),
         ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN.as_bytes()),
         ("rustdoc-format", rustdoc_format.as_bytes()),
@@ -6177,18 +6483,183 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, Containment, DeclinedItem, InvocationMode, ProjectedBoundDependency,
-        ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
-        ProjectedParameter, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
-        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
-        apply_projection_history, decline_functions_with_missing_generic_interfaces,
-        decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
-        projectable_interface_bound, projection_content_hash, prune_projection_cache,
-        receiver_kind, resolve, rewrite_rust_bound_root, selected_target,
-        validate_projection_artifact, validate_unique_projected_type_identities,
+        ArtifactDependency, Containment, DeclinedItem, InvocationMode, NamespaceOverlay,
+        ProjectedBoundDependency, ProjectedDependency, ProjectedFunction, ProjectedInterface,
+        ProjectedItem, ProjectedKind, ProjectedParameter, ProjectedType, Projection,
+        ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
+        ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
+        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
+        enforce_transitive_reachability, has_type_parameters, namespace_overlays_from_metadata,
+        parse_rustdoc, prefer_public_path, project_type, projectable_interface_bound,
+        projection_content_hash, prune_projection_cache, receiver_kind, resolve,
+        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
+        validate_unique_projected_type_identities,
     };
     use crate::RustDependency;
+    fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
+        RustDependency {
+            name: name.to_owned(),
+            package: package.to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: features
+                .iter()
+                .map(|feature| (*feature).to_owned())
+                .collect(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        }
+    }
+
+    fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> ProjectedItem {
+        ProjectedItem {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            rust_path: rust_path.to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                name: name.to_owned(),
+                generic_parameters: Vec::new(),
+                parameters: Vec::new(),
+                result: ProjectedType::None,
+                destination_result: None,
+                error: None,
+                is_async: false,
+                execution_requirements: None,
+                chain_role: None,
+                receiver: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn dependency_metadata_declares_feature_gated_namespace_overlays() {
+        let dependencies = [
+            dependency("sqlx-sqlite", "sqlx-sqlite", &[]),
+            dependency(
+                "terrane-integration-adapters",
+                "terrane-integration-adapters",
+                &["sqlx-sqlite"],
+            ),
+        ];
+        let metadata = serde_json::json!({
+            "packages": [
+                {
+                    "id": "registry+sqlx-sqlite@1.0.0",
+                    "name": "sqlx-sqlite",
+                    "version": "1.0.0",
+                    "metadata": {}
+                },
+                {
+                    "id": "path+terrane-integration-adapters@1.0.0",
+                    "name": "terrane-integration-adapters",
+                    "version": "1.0.0",
+                    "metadata": {
+                        "terrane": {
+                            "namespace-overlays": [{
+                                "module": "sqlx_sqlite",
+                                "target-package": "sqlx-sqlite",
+                                "feature": "sqlx-sqlite"
+                            }]
+                        }
+                    }
+                }
+            ],
+            "resolve": {
+                "root": "path+root@0.1.0",
+                "nodes": [{
+                    "id": "path+root@0.1.0",
+                    "deps": [
+                        {"name": "sqlx_sqlite", "pkg": "registry+sqlx-sqlite@1.0.0"},
+                        {"name": "terrane_integration_adapters", "pkg": "path+terrane-integration-adapters@1.0.0"}
+                    ]
+                }]
+            }
+        });
+        assert_eq!(
+            namespace_overlays_from_metadata(&metadata, &dependencies).unwrap(),
+            [NamespaceOverlay {
+                provider_name: "terrane-integration-adapters".to_owned(),
+                provider_package: "terrane-integration-adapters".to_owned(),
+                source_namespace: "/deps/terrane-integration-adapters/sqlx-sqlite".to_owned(),
+                target_namespace: "/deps/sqlx-sqlite".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn namespace_overlays_require_a_direct_target_and_reject_collisions() {
+        let metadata = serde_json::json!({
+            "packages": [{
+                "id": "path+adapter@1.0.0",
+                "name": "adapter",
+                "version": "1.0.0",
+                "metadata": {
+                    "terrane": {
+                        "namespace-overlays": [{
+                            "module": "upstream",
+                            "target-package": "upstream",
+                            "feature": "bridge"
+                        }]
+                    }
+                }
+            }],
+            "resolve": {
+                "root": "path+root@0.1.0",
+                "nodes": [{
+                    "id": "path+root@0.1.0",
+                    "deps": [{"name": "adapter", "pkg": "path+adapter@1.0.0"}]
+                }]
+            }
+        });
+        let undeclared = namespace_overlays_from_metadata(
+            &metadata,
+            &[dependency("adapter", "adapter", &["bridge"])],
+        )
+        .unwrap_err();
+        assert!(
+            undeclared
+                .message
+                .contains("targets undeclared package `upstream`")
+        );
+
+        let overlay = NamespaceOverlay {
+            provider_name: "adapter".to_owned(),
+            provider_package: "adapter".to_owned(),
+            source_namespace: "/deps/adapter/upstream".to_owned(),
+            target_namespace: "/deps/upstream".to_owned(),
+        };
+        let mut projected = [
+            ProjectedDependency {
+                name: "upstream".to_owned(),
+                package: "upstream".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_function_item(
+                    "/deps/upstream",
+                    "open",
+                    "upstream::open",
+                )],
+                declined: Vec::new(),
+            },
+            ProjectedDependency {
+                name: "adapter".to_owned(),
+                package: "adapter".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_function_item(
+                    "/deps/adapter/upstream",
+                    "open",
+                    "adapter::upstream::open",
+                )],
+                declined: Vec::new(),
+            },
+        ];
+        let collision = apply_namespace_overlays(&mut projected, &[overlay]).unwrap_err();
+        assert!(
+            collision
+                .message
+                .contains("collides on `/deps/upstream::open`")
+        );
+    }
 
     #[test]
     fn target_identity_reads_effective_cargo_configuration() {
