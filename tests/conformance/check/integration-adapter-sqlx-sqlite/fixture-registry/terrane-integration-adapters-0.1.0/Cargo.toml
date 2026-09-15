@@ -1,0 +1,14 @@
+[package]
+name = "terrane-integration-adapters"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.97"
+publish = false
+
+[features]
+default = []
+sqlx-sqlite = ["dep:sqlx"]
+
+[dependencies]
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"], optional = true }

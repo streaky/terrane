@@ -1,0 +1,15 @@
+package = "integration-adapter-sqlx-sqlite"
+executor = "threaded"
+
+[profile]
+name = "adapter-check"
+capabilities = ["build", "filesystem"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-integration-adapters]
+package = "terrane-integration-adapters"
+version = "=0.1.0"
+features = ["sqlx-sqlite"]
+effects = ["build", "filesystem"]

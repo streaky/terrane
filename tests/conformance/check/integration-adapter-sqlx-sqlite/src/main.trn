@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-integration-adapters/sqlx-sqlite import execute, execute_with_bytes, query_bytes
+
+async function main;
+    await (execute; 'adapter.db', 'CREATE TABLE values (body BLOB NOT NULL)')
+    await (execute_with_bytes; 'adapter.db', 'INSERT INTO values (body) VALUES (?)', b'value')
+    rows list of bytes = await query_bytes; 'adapter.db', 'SELECT body FROM values', 'body'

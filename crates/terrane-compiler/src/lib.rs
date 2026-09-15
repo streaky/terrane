@@ -5,6 +5,7 @@ pub mod debugging;
 pub mod diagnostic;
 mod execution;
 pub mod highlight;
+pub mod integration_adapters;
 mod invocation;
 pub mod lexer;
 mod lowering;
