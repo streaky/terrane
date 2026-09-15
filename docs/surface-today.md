@@ -1098,24 +1098,29 @@ value, and tooling marks the root as chain-only and non-escaping. The accepted S
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
 declined rather than being described as directly projected.
 
-For SQLx specifically, do not attempt to project the open
-`Query<'q, DB, A>` builder. Add the pinned `sqlx` Rust dependency and a maintained module:
+For SQLx specifically, do not attempt to project the open `Query<'q, DB, A>` builder. Use the
+feature-gated shared integration-adapter crate:
 
 ```toml
-[rust-dependencies.sqlx]
-version = "=0.8.6"
-features = ["runtime-tokio", "sqlite"]
+[rust-dependencies.terrane-integration-adapters]
+package = "terrane-integration-adapters"
+version = "=0.1.0"
+features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
-
-[rust-modules]
-database = "rust/database.rs"
 ```
 
-`rust/database.rs` owns the concrete `SqlitePool`, fixed query text, binds, execution, and row
-decoding. Small typed Terrane wrapper functions call `crate::database` from `rust` blocks and
-translate only application values and explicit success/failure results. This is the intended
-concrete-adapter route: SQLx's lifetime-bearing fluent value never enters ordinary Terrane code,
-while the query boundary remains compiler-visible and reviewable.
+Import the narrow module from
+`/deps/terrane-integration-adapters/sqlx-sqlite`. It exposes asynchronous execution, execution with
+one bytes binding, and ordered bytes-column extraction. Database paths, SQL text, bound bytes, and
+owned result bytes cross the projection boundary; SQLx connections, rows, errors, and
+lifetime-bearing fluent values remain inside the adapter. This is a reusable temporary bridge, not
+an application-owned interface.
+
+All such bridges live behind independent features in the one `terrane-integration-adapters` crate.
+`terrane_compiler::integration_adapters` accounts for each bridged or unbridged limitation with a
+stable ID, tracking key, dependency/version range, and removal criterion. The registry never
+dispatches dependency-specific projection or lowering; when generic compiler support satisfies the
+criterion, migrate consumers and remove the adapter module and ledger entry.
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use

@@ -243,6 +243,29 @@ Do not special-case them. Preserve the existing chain-only projection route for 
 whose terminal operation owns a projectable result, and use the authored Rust boundary when an
 application needs to package a database-specific adapter locally.
 
+##### Temporary integration-adapter ledger
+
+Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
+from the single feature-gated `terrane-integration-adapters` crate and is accounted for in
+`terrane_compiler::integration_adapters`. A registry entry has a stable adapter ID and tracking key,
+the affected dependency/version range, the exact unsupported generic shape, its feature/package
+surface when bridged, and an objective removal criterion. Unbridged gaps belong in the same ledger
+so a bug-tracker issue can attach to the stable key before an implementation exists.
+
+The registry is data and diagnostics only: it must not dispatch crate-specific projection,
+semantics, or lowering. Adapter modules are ordinary projected Rust dependency surfaces and remain
+independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
+application graph. Tests require unique IDs and tracking keys and account for every shipped adapter
+feature. Retire an adapter only after generic non-framework regression fixtures satisfy its removal
+criterion and every consumer has migrated.
+
+The initial `sqlx-sqlite` feature provides a narrow reusable SQLite bridge for statement execution,
+one bytes binding, and ordered bytes-row extraction. SQL text, database path, bound bytes, and owned
+result bytes cross the boundary; `Query<'q, DB, A>`, connection borrows, rows, and SQLx errors do
+not. Axum handler-callable representation, closed aliases, `serve` associated inference, and
+WebSocket message operations remain separate unbridged ledger entries rather than being hidden
+behind an application-specific Rust router.
+
 #### General variadic call contract
 
 Implement the already specified source variadic parameter form instead of retaining isolated
