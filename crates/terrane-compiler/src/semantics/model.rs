@@ -62,6 +62,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub artifact: crate::package::ArtifactKind,
     pub(crate) execution_strategy: crate::execution::ExecutionStrategy,
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
     pub profile: crate::package::CapabilityProfile,

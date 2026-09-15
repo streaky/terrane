@@ -130,6 +130,27 @@ fn manifest_can_select_a_dynamic_library_artifact() {
 
     assert_eq!(loaded.artifact, ArtifactKind::DynamicLibrary);
 }
+
+#[test]
+fn manifest_rejects_an_unknown_artifact_kind() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"example.extension\"\nartifact = \"shared\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    package.write("src/main.trn", "namespace example\nfunction main;\n");
+
+    let errors = Package::load(&package.0).unwrap_err();
+
+    assert_eq!(errors.len(), 1);
+    assert!(
+        errors[0]
+            .diagnostic
+            .message
+            .contains("`executable` or `dynamic-library`")
+    );
+}
+
 #[test]
 fn package_compilation_parses_every_discovered_unit() {
     let package = TempPackage::new();

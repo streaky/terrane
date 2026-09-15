@@ -4493,7 +4493,10 @@ and defaults to `true`. `artifact` is optional and selects `executable` (the
 default) or `dynamic-library`. A dynamic-library package still has one ordinary
 Terrane `main` declaration so the same package entry contract remains valid, but Cargo
 emits its generated crate as a `cdylib`; `run` and `debug` reject that artifact
-kind because it requires an external host.
+kind because it requires an external host. Terrane declarations do not yet acquire
+host-visible symbols automatically: the host entrypoint must currently come from
+a maintained authored Rust module, which may call the ordinary lowered Terrane
+functions inside the generated crate.
 
 ### 23.5 Capability profiles
 

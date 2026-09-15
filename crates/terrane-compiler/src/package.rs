@@ -244,14 +244,14 @@ impl Package {
             root,
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
-            artifact: ArtifactKind::Executable,
             executor: ExecutorProfile::Threaded,
-            build_toolchain: BuildToolchain::Pinned,
+            artifact: ArtifactKind::Executable,
             profile: CapabilityProfile::unrestricted(),
             purpose: PackagePurpose::Production,
             testing: crate::testing::TestConfiguration::conventional(
                 CapabilityProfile::unrestricted(),
             ),
+            build_toolchain: BuildToolchain::Pinned,
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -277,8 +277,8 @@ impl Package {
             .saturating_add(1)
     }
 
-    /// The manifest is TOML with required `package` and `namespaces` fields and
-    /// an optional `prelude` boolean. Source units are discovered in sorted path order.
+    /// The manifest is TOML with required `package` and `namespaces` fields plus
+    /// optional `prelude` and `artifact` fields. Sources are discovered in sorted path order.
     ///
     /// # Errors
     ///
@@ -310,12 +310,12 @@ impl Package {
             root,
             prelude: manifest.prelude,
             reflection: manifest.reflection,
-            artifact: manifest.artifact,
-            build_toolchain: manifest.build_toolchain,
             executor: manifest.executor,
+            artifact: manifest.artifact,
             profile: manifest.profile,
-            testing: manifest.testing,
             purpose: PackagePurpose::Production,
+            testing: manifest.testing,
+            build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,
             authored_rust_modules,
@@ -376,12 +376,12 @@ impl Package {
             identity: manifest.identity,
             root,
             prelude: manifest.prelude,
-            artifact: manifest.artifact,
             reflection: manifest.reflection,
             executor: manifest.executor,
+            artifact: manifest.artifact,
             profile: manifest.profile,
-            testing: manifest.testing,
             purpose: PackagePurpose::Production,
+            testing: manifest.testing,
             build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,

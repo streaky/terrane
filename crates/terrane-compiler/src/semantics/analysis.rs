@@ -639,6 +639,7 @@ pub(super) fn analyze_with_projection(
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        artifact: package.artifact,
         execution_strategy: crate::execution::ExecutionStrategy::from_profile(package.executor),
         execution_requirements: crate::execution::ExecutionRequirements::default(),
         profile: package.profile.clone(),

@@ -472,7 +472,11 @@ fn build_native_compilation(
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
-            has_authored_rust: !package.authored_rust_modules.is_empty(),
+            unsafe_code: if package.authored_rust_modules.is_empty() {
+                crate::UnsafeCodePolicy::Forbid
+            } else {
+                crate::UnsafeCodePolicy::MaintainedModules
+            },
             artifact: terrane_compiler::ArtifactKind::Executable,
             debug_profile: crate::DebugProfile::None,
         },
