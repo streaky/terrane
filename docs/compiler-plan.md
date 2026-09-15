@@ -1006,7 +1006,7 @@ provided methods, and produce deterministic warning-free canonical Rust. Focused
 non-`Clone` foreign fields propagating resource ownership without an invalid generated `Clone`.
 Focused rejects cover missing methods, receiver-mode mismatches, parameter/result mismatches,
 throwable mismatches, unsupported provided overrides, interface-typed generic arguments,
-non-immediate or ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
+ambiguous generic bounds, foreign implementors, and every unsupported trait shape.
 A focused oracle-failure regression proves that one failed witness declines only that candidate
 interface, and every public trait or member omitted from projection has a tooling-visible reason.
 Projected interface `Send`/`Sync` obligations against Terrane class fields are delivered by
@@ -1019,8 +1019,9 @@ crosses an immediate generic bound, including a mutable member-expression argume
 `projected-interface-missing-member`, `projected-interface-receiver-mismatch`,
 `projected-interface-signature-mismatch`, `projected-interface-throwable-mismatch`,
 `projected-interface-provided-override-borrowed`, `projected-interface-provided-override-result`,
-`projected-generic-interface-argument`, and `projected-generic-non-immediate-bound` provide the
-matching conformance rejects.
+and `projected-generic-interface-argument` provide the matching conformance rejects. The former
+`projected-generic-non-immediate-bound` decline becomes a call-site-closure acceptance witness in
+milestone 30.3.
 
 The projection artifact retains canonical trait identity, receiver authority, provided-member
 metadata, and stable declines; the impl-shaped projection oracle gates interface admission with
@@ -1109,8 +1110,9 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-associated-mismatch`, `projected-associated-bound`,
 `projected-associated-unprojectable`, `projected-associated-two-slots`,
 `projected-associated-gat`, `projected-associated-erased-binding`, and
-`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 43 records
-structural call bindings, complete supertrait identities, and final-admission bound filtering.
+`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 44 records
+structural call bindings, complete supertrait identities, final-admission bound filtering, and
+call-site generic templates.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -2474,10 +2476,10 @@ boundaries. `FnMut` is callable multiplicity only: version-one anonymous functio
 ordinary values by value, do not gain mutable capture cells, and continue to reject aliased mutable
 state. Semantic validation rejects mismatched sync/async signatures, wrong parameters or results,
 retained borrowed references and object receivers, local-only captures at transferable boundaries,
-escaping throwables, aliased mutable callback state, one-shot reuse, and open generic callback
-signatures. `rust-dependency-callbacks` exercises all three call traits, a projected method callback,
-and a retained future callback whose active invocation is cancelled and observed to release its
-fixture state; the focused rejection corpus fixes the ownership and effect boundaries.
+escaping throwables, aliased mutable callback state, one-shot reuse, and conflicting or
+uninferable generic callback signatures. `rust-dependency-callbacks` exercises all three call
+traits, a projected method callback, and a retained future callback whose active invocation is
+cancelled and observed to release fixture state; milestone 30.3 adds concrete call-site closure.
 
 Phase C async-sequence projection recognizes concrete owned producers with an asynchronous
 borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
@@ -2952,8 +2954,9 @@ The deferred projection surface originally staged here has shipped: arbitrary fo
 `Option<T>`, receiver-first trait namespaces, data-free enum variants and comparison, wider
 primitives and aliases, profile-aware panic containment, portable containment reporting, residual
 foreign aliases, and durable member-level projection history all have implemented evidence below.
-Open generics and other deliberately unrepresentable shapes remain explicit declines governed by
-the projection rules rather than pending deliverables of this milestone.
+Generics that cannot be closed consistently from a destination or call-site inputs, and other
+unrepresentable shapes, remain explicit declines governed by the projection rules rather than
+pending deliverables of this milestone.
 
 This milestone now owns one remaining contract:
 

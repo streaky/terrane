@@ -8,6 +8,10 @@
         ],
         [
           "/deps/reqwest",
+          "Body::wrap"
+        ],
+        [
+          "/deps/reqwest",
           "Certificate"
         ],
         [
@@ -80,6 +84,14 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.dns_resolver"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.dns_resolver2"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.http09_responses"
         ],
         [
@@ -116,6 +128,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.local_address"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.max_tls_version"
         ],
         [
@@ -148,6 +164,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.pool_idle_timeout"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.pool_max_idle_per_host"
         ],
         [
@@ -176,7 +196,23 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive_interval"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_keepalive_retries"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_user_timeout"
         ],
         [
           "/deps/reqwest",
@@ -201,6 +237,10 @@
         [
           "/deps/reqwest",
           "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.user_agent"
         ],
         [
           "/deps/reqwest",
@@ -264,6 +304,22 @@
         ],
         [
           "/deps/reqwest",
+          "Proxy::all"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::custom"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::http"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::https"
+        ],
+        [
+          "/deps/reqwest",
           "Request"
         ],
         [
@@ -292,7 +348,31 @@
         ],
         [
           "/deps/reqwest",
+          "RequestBuilder.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.bearer_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.body"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.form"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.header"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.query"
         ],
         [
           "/deps/reqwest",
@@ -341,6 +421,14 @@
         [
           "/deps/reqwest/blocking",
           "Body"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Body::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Body::sized"
         ],
         [
           "/deps/reqwest/blocking",
@@ -400,6 +488,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.connect_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.connection_verbose"
         ],
         [
@@ -409,6 +501,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.dns_resolver"
         ],
         [
           "/deps/reqwest/blocking",
@@ -448,6 +544,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.local_address"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.max_tls_version"
         ],
         [
@@ -484,6 +584,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.pool_idle_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.pool_max_idle_per_host"
         ],
         [
@@ -508,7 +612,27 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive_interval"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_keepalive_retries"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_user_timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.timeout"
         ],
         [
           "/deps/reqwest/blocking",
@@ -529,6 +653,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.user_agent"
         ],
         [
           "/deps/reqwest/blocking",
@@ -560,7 +688,31 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "RequestBuilder.basic_auth"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.bearer_auth"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.body"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.form"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.header"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.query"
         ],
         [
           "/deps/reqwest/blocking",
@@ -640,6 +792,10 @@
         ],
         [
           "/deps/reqwest/retry",
+          "for_host"
+        ],
+        [
+          "/deps/reqwest/retry",
           "never"
         ],
         [
@@ -672,7 +828,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "43",
+  "projection_schema": "44",
   "removed": [],
   "resolution": {
     "events": [

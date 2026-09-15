@@ -639,6 +639,9 @@ pub(super) fn declared_value_type_with_visible_objects(
     if let Some(identity) = object_identity {
         return Ok(ValueType::Object(identity));
     }
+    if let Some(name) = type_name.strip_prefix("host-projected-generic-") {
+        return Ok(ValueType::ProjectedGeneric(name.to_owned()));
+    }
     match type_name {
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
@@ -1070,7 +1073,10 @@ pub(super) fn validate_value_destination(
     value: &SyntaxNode,
     mismatch_code: &'static str,
 ) -> Result<(), SemanticFailure> {
-    if actual == ValueType::InlineRust {
+    if actual == ValueType::InlineRust
+        || matches!(&expected, ValueType::ProjectedGeneric(_))
+        || matches!(&actual, ValueType::ProjectedGeneric(_))
+    {
         return Ok(());
     }
     if let ValueType::Scalar(expected) = expected {
@@ -1129,8 +1135,23 @@ fn callable_types_compatible(
         .modes
         .written
         .accepts(actual_effects.modes.written)
-        && expected_parameters == actual_parameters
-        && expected_result == actual_result
+        && expected_parameters.len() == actual_parameters.len()
+        && expected_parameters
+            .iter()
+            .zip(actual_parameters)
+            .all(|(expected, actual)| {
+                expected.is_variadic() == actual.is_variadic()
+                    && value_types_compatible(
+                        objects,
+                        expected.value_type_ref(),
+                        actual.value_type_ref(),
+                    )
+            })
+        && value_types_compatible(
+            objects,
+            expected_result.value_type_ref(),
+            actual_result.value_type_ref(),
+        )
         && callable_effects_compatible(objects, expected_effects, actual_effects)
 }
 
@@ -1204,7 +1225,9 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
-        (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
+        (ValueType::ProjectedGeneric(_), _)
+        | (_, ValueType::ProjectedGeneric(_))
+        | (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

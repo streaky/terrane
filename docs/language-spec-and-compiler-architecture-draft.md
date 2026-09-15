@@ -4700,8 +4700,14 @@ Retention never weakens Terrane ownership. A retained callback may not capture a
 reference or borrowed object receiver, and a transferable callback may capture only transferable
 values. Mutable callback state may not be aliased, and a one-shot callable may not be reused after
 ownership transfer. An escaping throwable is incompatible unless the projected Rust callback
-result explicitly represents that failure. Open generic, higher-ranked, or lifetime-dependent
-callback shapes remain declined rather than being erased or boxed speculatively.
+result explicitly represents that failure. A generic callback shape whose value parameters can be
+closed consistently from the surrounding projected call's ordinary inputs, callback
+parameters/results, and nested owned aggregates is specialized at that call site. The compiler
+preserves and instantiates its Rust bounds, validates concrete bound questions through the
+projection oracle when they are fully nameable, and emits the exact direct Rust call with ordinary
+argument/result and panic/error conversion. Conflicting, uninferable, higher-ranked,
+lifetime-dependent, borrowed-escaping, and unnameable shapes remain targeted declines rather than
+being erased or boxed speculatively.
 
 Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
 repository. The response is accepted only when its envelope matches the complete cache identity:

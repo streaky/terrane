@@ -1440,11 +1440,19 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("format!(\"{format}\", {})", values.join(", "));
         }
+        let specialization = self.unit.projected_call_specializations.get(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        ));
         let (projected_parameters, projected_chain_role, projected_error) = self
             .projected_function_for_call(callee)
             .map_or((None, None, false), |function| {
                 (
-                    Some(function.parameters.clone()),
+                    Some(specialization.map_or_else(
+                        || function.parameters.clone(),
+                        |specialization| specialization.projected_parameters.clone(),
+                    )),
                     function.chain_role,
                     function.error.is_some(),
                 )
@@ -1485,6 +1493,11 @@ impl Emitter<'_> {
                 let projected_parameter = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index));
+                let semantic_parameter = specialization
+                    .and_then(|specialization| specialization.value_parameters.get(index))
+                    .cloned()
+                    .flatten()
+                    .or_else(|| parameter.element_value_type());
                 let expression = if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         || matches!(
@@ -1493,8 +1506,8 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
-                } else if let Some(ty) = parameter.element_value_type() {
-                    self.expression_as(value, ty)
+                } else if let Some(ty) = semantic_parameter.as_ref() {
+                    self.expression_as(value, ty.clone())
                 } else {
                     self.expression(value)
                 };
@@ -1503,7 +1516,9 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.generic_parameter.is_none()
-                            && (projected_chain_role.is_some()
+                            && (specialization
+                                .is_some_and(|specialization| specialization.direct_projected_call)
+                                || projected_chain_role.is_some()
                                 || callee.kind == SyntaxKind::MemberExpression)
                     }) {
                     projected_chain_argument_expression(&expression, &projected.ty)
@@ -1580,11 +1595,6 @@ impl Emitter<'_> {
                 ));
             }
         }
-        let specialization = self.unit.projected_call_specializations.get(&(
-            node.span.file,
-            node.span.start,
-            node.span.end,
-        ));
         let projected_static_owner = contract.as_ref().and_then(|contract| {
             let owner = contract.owner.as_deref()?;
             let unit = self.package.units.iter().find(|unit| {
@@ -1632,11 +1642,9 @@ impl Emitter<'_> {
                         .item(&symbol.namespace, &symbol.name)
                 })
                 .filter(|item| {
-                    matches!(
-                        &item.kind,
-                        crate::projection::ProjectedKind::Function(function)
-                            if function.chain_role == Some(crate::projection::ChainRole::Root)
-                    )
+                    matches!(&item.kind, crate::projection::ProjectedKind::Function(function)
+                        if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+                            || function.chain_role == Some(crate::projection::ChainRole::Root))
                 })
                 .map_or_else(
                     || function_name(self.package, contract),
@@ -1694,7 +1702,9 @@ impl Emitter<'_> {
         // member access. Each branch above ends in a callable Rust path/member segment, so an
         // explicit turbofish is syntactically valid here; arbitrary callee expressions never
         // receive a specialization record.
-        let name = if let Some(specialization) = specialization {
+        let name = if let Some(specialization) =
+            specialization.filter(|specialization| !specialization.direct_projected_call)
+        {
             format!("{name}::<{}>", specialization.rust_type)
         } else {
             name
@@ -1738,23 +1748,35 @@ impl Emitter<'_> {
                             && descriptor.kind == crate::semantics::ObjectKind::Interface
                     })
             });
-        let foreign_method = contract.as_ref().and_then(|contract| {
-            let [receiver, _member] = callee.children.as_slice() else {
-                return None;
-            };
-            let ValueType::Object(identity) = self.value_type(receiver)? else {
-                return None;
-            };
-            if projected_interface_dispatch {
-                return None;
-            }
-            self.package.projection.method(
-                &identity.namespace,
-                &identity.name,
-                &contract.name,
-                false,
-            )
-        });
+        let direct_projected_function = specialization
+            .is_some_and(|specialization| specialization.direct_projected_call)
+            || (callee.kind == SyntaxKind::Name
+                && self
+                    .projected_function_for_call(callee)
+                    .is_some_and(|function| {
+                        function.chain_role == Some(crate::projection::ChainRole::Root)
+                    }));
+        let foreign_method = if direct_projected_function {
+            self.projected_function_for_call(callee)
+        } else {
+            contract.as_ref().and_then(|contract| {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    return None;
+                };
+                let ValueType::Object(identity) = self.value_type(receiver)? else {
+                    return None;
+                };
+                if projected_interface_dispatch {
+                    return None;
+                }
+                self.package.projection.method(
+                    &identity.namespace,
+                    &identity.name,
+                    &contract.name,
+                    false,
+                )
+            })
+        };
         let chain_role = foreign_method
             .and_then(|method| method.chain_role)
             .or_else(|| {
@@ -1790,19 +1812,34 @@ impl Emitter<'_> {
                         matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
                     }));
         let call = if let Some(method) = foreign_method {
-            let [receiver, _member] = callee.children.as_slice() else {
-                unreachable!("projected methods have a receiver")
+            let (dependency, member) = if specialization
+                .is_some_and(|specialization| specialization.direct_projected_call)
+            {
+                (
+                    name.split("::").next().unwrap_or("dependency").to_owned(),
+                    name.clone(),
+                )
+            } else {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    unreachable!("projected methods have a receiver")
+                };
+                let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
+                    unreachable!("projected method receiver has an object type")
+                };
+                let type_path = self
+                    .package
+                    .projection
+                    .foreign_rust_path(&identity.namespace, &identity.name)
+                    .expect("foreign method owner has a projected Rust path");
+                (
+                    type_path
+                        .split("::")
+                        .next()
+                        .unwrap_or("dependency")
+                        .to_owned(),
+                    format!("{type_path}::{}", method.name),
+                )
             };
-            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
-                unreachable!("projected method receiver has an object type")
-            };
-            let type_path = self
-                .package
-                .projection
-                .foreign_rust_path(&identity.namespace, &identity.name)
-                .expect("foreign method owner has a projected Rust path");
-            let dependency = type_path.split("::").next().unwrap_or("dependency");
-            let member = format!("{type_path}::{}", method.name);
             let invocation = if method.is_async {
                 "__terrane_call.await".to_owned()
             } else {

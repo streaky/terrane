@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-generic-mismatch-witness import open_callback
+
+function identity_string string; value string
+    return value
+
+function main;
+    print; (open_callback; 1, identity_string)

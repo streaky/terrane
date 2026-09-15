@@ -1,2 +1,0 @@
-namespace app
-from /deps/terrane-render-witness import render_many

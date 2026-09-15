@@ -8,7 +8,23 @@
         ],
         [
           "/deps/terrane-render-witness",
+          "Widget"
+        ],
+        [
+          "/deps/terrane-render-witness",
+          "render_many"
+        ],
+        [
+          "/deps/terrane-render-witness",
           "render_value"
+        ],
+        [
+          "/deps/terrane-render-witness",
+          "widget"
+        ],
+        [
+          "/deps/terrane-render-witness/renderable",
+          "render"
         ]
       ],
       "name": "terrane-render-witness",
@@ -16,7 +32,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "43",
+  "projection_schema": "44",
   "removed": [],
   "resolution": {
     "events": [

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "43";
+const PROJECTION_SCHEMA: &str = "44";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -287,6 +287,8 @@ pub enum ChainRole {
 pub struct ProjectedFunction {
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_parameters: Vec<ProjectedGenericParameter>,
     pub result: ProjectedType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination_result: Option<ProjectedDestinationResult>,
@@ -297,6 +299,15 @@ pub struct ProjectedFunction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedGenericParameter {
+    #[serde(default)]
+    pub input_selected: bool,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rust_bounds: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -499,6 +510,7 @@ impl ProjectedType {
     pub fn terrane_name(&self) -> String {
         match self {
             Self::Associated(_) => "host-projected-associated".to_owned(),
+            Self::Generic(name) => format!("host-projected-generic-{name}"),
             Self::None => "none".to_owned(),
             Self::Bool => "bool".to_owned(),
             Self::Int | Self::RustInt(_) => "int".to_owned(),
@@ -520,9 +532,7 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
-            Self::BoxedInterface { name, .. }
-            | Self::Generic(name)
-            | Self::Foreign { name, .. } => name.clone(),
+            Self::BoxedInterface { name, .. } | Self::Foreign { name, .. } => name.clone(),
             Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
             Self::Mapping {
                 key,
@@ -3204,6 +3214,12 @@ fn project_interface_inner(
                 )])
             })
             .unwrap_or_default();
+        if let Some(parameter) = function.generics.params.first() {
+            return Err(format!(
+                "trait member `{name}`: open generic `{}`",
+                parameter.name
+            ));
+        }
         let projected =
             match project_function_with_generics(function, index, paths, Some(name), &supplied) {
                 Ok(projected) => projected,
@@ -3554,6 +3570,7 @@ fn project_rustdoc(
                                 kind: ProjectedKind::Function(ProjectedFunction {
                                     name: variant_name.to_owned(),
                                     parameters: Vec::new(),
+                                    generic_parameters: Vec::new(),
                                     result: ProjectedType::Foreign {
                                         rust_path: rust_path.clone(),
                                         name: name.clone(),
@@ -4384,10 +4401,39 @@ fn project_function_inner(
     if matches!(result, ProjectedType::BoxedInterface { .. }) {
         return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
     }
+    let generic_parameters = function
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| {
+            matches!(
+                generic_types.get(&parameter.name),
+                Some(ProjectedType::Generic(_))
+            )
+        })
+        .map(|parameter| {
+            Ok(ProjectedGenericParameter {
+                name: parameter.name.clone(),
+                input_selected: function
+                    .sig
+                    .inputs
+                    .iter()
+                    .any(|(_, ty)| type_mentions_generic(ty, &parameter.name)),
+                rust_bounds: render_generic_bounds(
+                    parameter,
+                    function,
+                    index,
+                    paths,
+                    &generic_types,
+                )?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
         result,
+        generic_parameters,
         destination_result,
         error,
         is_async: function.header.is_async,
@@ -4627,8 +4673,32 @@ fn project_callback_generic(
         sync: has_trait("Sync"),
     }))
 }
+fn is_callback_parameter(parameter: &GenericParamDef, function: &Function) -> bool {
+    generic_bounds(parameter, function).iter().any(|bound| {
+        trait_bound_name(bound).is_some_and(|(trait_, _)| {
+            matches!(
+                trait_.path.rsplit("::").next(),
+                Some("Fn" | "FnMut" | "FnOnce")
+            )
+        })
+    })
+}
 
 fn is_callback_future_parameter(name: &str, function: &Function) -> bool {
+    let future_bound = function
+        .generics
+        .params
+        .iter()
+        .find(|parameter| parameter.name == name)
+        .is_some_and(|parameter| {
+            generic_bounds(parameter, function).iter().any(|bound| {
+                trait_bound_name(bound)
+                    .is_some_and(|(trait_, _)| trait_.path.rsplit("::").next() == Some("Future"))
+            })
+        });
+    if !future_bound {
+        return false;
+    }
     function.generics.params.iter().any(|parameter| {
         let bounds = generic_bounds(parameter, function);
         bounds.iter().any(|bound| {
@@ -4824,6 +4894,47 @@ fn generic_monomorphisations(
 > {
     let mut result = supplied.clone();
     let mut destination_result = None;
+    // Keep input-selected value generics open until a Terrane call site supplies concrete
+    // argument and callback types. Immediate projectable interface inputs retain their
+    // established source-class adapter contract.
+    for parameter in &function.generics.params {
+        if result.contains_key(&parameter.name)
+            || is_callback_future_parameter(&parameter.name, function)
+            || is_callback_parameter(parameter, function)
+        {
+            continue;
+        }
+        let mentioned_inputs = function
+            .sig
+            .inputs
+            .iter()
+            .filter(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            .collect::<Vec<_>>();
+        if mentioned_inputs.is_empty() {
+            let output_selected = function
+                .sig
+                .output
+                .as_ref()
+                .is_some_and(|output| type_mentions_generic(output, &parameter.name));
+            if !output_selected {
+                result.insert(
+                    parameter.name.clone(),
+                    ProjectedType::Generic(parameter.name.clone()),
+                );
+            }
+            continue;
+        }
+        let immediate_projectable = mentioned_inputs.len() == 1
+            && immediate_generic_input(&mentioned_inputs[0].1, &parameter.name)
+            && projectable_interface_bound(&generic_bounds(parameter, function), index, paths)
+                .is_ok();
+        if !immediate_projectable {
+            result.insert(
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            );
+        }
+    }
     // Resolve callable parameters before unrelated generic parameters. A callback whose
     // signature mentions an open `T` must decline; it must not inherit a guessed closed
     // implementation selected while monomorphising `T`.
@@ -6148,6 +6259,7 @@ mod tests {
                     docs: None,
                     kind: ProjectedKind::Function(ProjectedFunction {
                         name: "rejected_total".to_owned(),
+                        generic_parameters: Vec::new(),
                         parameters: vec![ProjectedParameter {
                             name: "value".to_owned(),
                             ty: ProjectedType::Generic("T".to_owned()),
@@ -6429,6 +6541,7 @@ mod tests {
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
                     name: "status".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::Foreign {
                         rust_path: "http::StatusCode".to_owned(),
@@ -6771,6 +6884,7 @@ mod tests {
             kind: ProjectedKind::ForeignType {
                 methods: vec![ProjectedFunction {
                     name: "read".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,
@@ -6782,6 +6896,7 @@ mod tests {
                 }],
                 static_methods: vec![ProjectedFunction {
                     name: "create".to_owned(),
+                    generic_parameters: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,

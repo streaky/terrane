@@ -124,6 +124,10 @@
         ],
         [
           "/deps/bytes/bufmut",
+          "put"
+        ],
+        [
+          "/deps/bytes/bufmut",
           "put_bytes"
         ],
         [
@@ -136,7 +140,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "43",
+  "projection_schema": "44",
   "removed": [],
   "resolution": {
     "events": [

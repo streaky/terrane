@@ -17,6 +17,22 @@ pub fn apply_once<F: FnOnce(String) -> String + Send + 'static>(
     callback(value)
 }
 
+pub fn render_many<T: std::fmt::Display>(values: Vec<T>) -> String {
+    values
+        .into_iter()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+pub async fn open_async<T, F, Fut>(value: T, callback: F) -> T
+where
+    F: FnOnce(T) -> Fut,
+    Fut: Future<Output = T>,
+{
+    callback(value).await
+}
+
 pub async fn apply_async<
     F: Fn(String) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = String> + Send + 'static,

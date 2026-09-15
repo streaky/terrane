@@ -1,0 +1,13 @@
+namespace app
+from /core/collections import list
+from /deps/terrane-callback-witness import open_async, open_callback, render_many
+function identity int; value int
+    return value
+async function identity_async int; value int
+    return value
+async function main;
+    print; (open_callback; 1, identity)
+    values = list; 2, 3
+    print; (render_many; values)
+
+    print; await (open_async; 4, identity_async)

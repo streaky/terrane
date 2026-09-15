@@ -448,6 +448,7 @@ pub enum ValueType {
     IterationEnd,
     AsyncIterationStep(ElementType),
     AsyncSinkOutcome,
+    ProjectedGeneric(String),
     InlineRust,
     ChannelPair(ElementType),
     ChannelSender(ElementType),
@@ -582,6 +583,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformDataResult
         | ValueType::PlatformUrlResult
         | ValueType::ProjectedAssociated
+        | ValueType::ProjectedGeneric(_)
         | ValueType::InlineRust
         | ValueType::PlatformCapability
         | ValueType::PlatformResourceHandle
@@ -713,6 +715,7 @@ impl std::fmt::Display for ValueType {
             }
             Self::ProjectedAssociated => formatter.write_str("host-projected-associated"),
             Self::InlineRust => formatter.write_str("inline Rust value"),
+            Self::ProjectedGeneric(name) => write!(formatter, "projected generic `{name}`"),
             Self::ChannelOverflowPolicy => formatter.write_str("channel-overflow-policy"),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),
@@ -1325,6 +1328,9 @@ pub(crate) enum ContextualConstant {
 pub(crate) struct ProjectedCallSpecialization {
     pub parameter: String,
     pub rust_type: String,
+    pub projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    pub direct_projected_call: bool,
+    pub value_parameters: Vec<Option<ValueType>>,
     pub projected_result: crate::projection::ProjectedType,
     pub value_type: ValueType,
 }

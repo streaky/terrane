@@ -1072,9 +1072,10 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 43 retains these contracts alongside explicit root, continuation, and terminal
-lifetime-bearing builders represented as chain-only values. Their intermediates may retain
-a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
+Projection schema 44 retains these contracts and call-site generic templates alongside explicit
+root, continuation, and terminal lifetime-bearing builders represented as chain-only values.
+Their intermediates may retain a borrow from a named input but may appear only as receiver
+subtrees inside one nested expression;
 binding, return, capture, argument
 escape, and suspension are rejected before lowering. The terminal must return an owned projectable
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
@@ -1085,14 +1086,21 @@ are admitted only when their canonical owner is declared directly at one lock-re
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
 projected crate accessors; every declined public item carries a reason.
 
-Semantic import resolution and the language server consume that same projection. Lowering emits only
-crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
-generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
+Semantic import resolution and the language server consume that same projection. Lowering emits
+ordinary crossed-member Rust shims for closed contracts; a call-site-closed generic invokes the
+dependency directly inside the same conversion, error, ownership, and panic boundary. Calls remain
+inside one generated crate. A projected Rust `async fn` constructs a Terrane task whose
 awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
 projected call. Concrete Rust callback parameters accept matching Terrane function values; lowering
 constructs the required Rust closure, converts its inputs and result, and preserves per-invocation
 captured state. Retained or transferable bounds are checked against the callback's receiver,
-captures, throwable contract, and async transferability before lowering. Foreign receivers borrow,
+captures, throwable contract, and async transferability before lowering.
+Input-selected Rust generics may occur directly, inside owned sequences, or across callback
+parameters and results. Every occurrence must infer the same concrete projected type at one call;
+fully concrete Rust bounds are checked through the projection oracle. The source never writes a
+turbofish, and no dependency receives package-specific handling. Async callback/future pairs are
+closed together. Conflicting or uninferable types, borrowed escapes, higher-ranked lifetimes, and
+failed or unknown bound proofs remain explicit diagnostics. Foreign receivers borrow,
 use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate

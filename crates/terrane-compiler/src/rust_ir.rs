@@ -46,10 +46,47 @@ pub struct RenderedFile {
 pub(crate) struct RenderedProgram {
     version: &'static str,
     runtime_source_files: Vec<&'static str>,
+
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
     review: RenderedFragment,
+}
+pub(crate) fn instantiate_rust_generics(
+    rust: &str,
+    replacements: &std::collections::BTreeMap<String, String>,
+) -> String {
+    fn replace(
+        tokens: TokenStream,
+        replacements: &std::collections::BTreeMap<String, String>,
+    ) -> TokenStream {
+        tokens
+            .into_iter()
+            .flat_map(|token| match token {
+                TokenTree::Ident(identifier) => replacements
+                    .get(&identifier.to_string())
+                    .and_then(|replacement| replacement.parse::<TokenStream>().ok())
+                    .map_or_else(
+                        || vec![TokenTree::Ident(identifier)],
+                        |replacement| replacement.into_iter().collect(),
+                    ),
+                TokenTree::Group(group) => {
+                    let mut replaced = proc_macro2::Group::new(
+                        group.delimiter(),
+                        replace(group.stream(), replacements),
+                    );
+                    replaced.set_span(group.span());
+                    vec![TokenTree::Group(replaced)]
+                }
+                token => vec![token],
+            })
+            .collect()
+    }
+
+    rust.parse::<TokenStream>().map_or_else(
+        |_| rust.to_owned(),
+        |tokens| replace(tokens, replacements).to_string(),
+    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

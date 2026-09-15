@@ -131,6 +131,10 @@
         ],
         [
           "/deps/bytes/bufmut",
+          "put"
+        ],
+        [
+          "/deps/bytes/bufmut",
           "put_bytes"
         ],
         [
@@ -233,11 +237,43 @@
         ],
         [
           "/deps/serde-json",
+          "from_reader"
+        ],
+        [
+          "/deps/serde-json",
           "from_str"
         ],
         [
           "/deps/serde-json",
           "from_value"
+        ],
+        [
+          "/deps/serde-json",
+          "to_string"
+        ],
+        [
+          "/deps/serde-json",
+          "to_string_pretty"
+        ],
+        [
+          "/deps/serde-json",
+          "to_value"
+        ],
+        [
+          "/deps/serde-json",
+          "to_vec"
+        ],
+        [
+          "/deps/serde-json",
+          "to_vec_pretty"
+        ],
+        [
+          "/deps/serde-json",
+          "to_writer"
+        ],
+        [
+          "/deps/serde-json",
+          "to_writer_pretty"
         ],
         [
           "/deps/serde-json/error",
@@ -305,7 +341,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "43",
+  "projection_schema": "44",
   "removed": [],
   "resolution": {
     "events": [

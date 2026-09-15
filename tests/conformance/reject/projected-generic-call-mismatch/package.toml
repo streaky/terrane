@@ -1,0 +1,9 @@
+package = "projected-generic-call-mismatch"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-generic-mismatch-witness]
+package = "terrane-generic-mismatch-witness"
+version = "=0.1.0"
+effects = ["build"]

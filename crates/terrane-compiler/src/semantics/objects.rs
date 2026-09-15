@@ -2172,8 +2172,11 @@ struct PendingProjectedSpecialization {
     parameter: String,
     rust_type: String,
     projected_result: crate::projection::ProjectedType,
+    projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    direct_projected_call: bool,
+    value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
-    bounds: Vec<String>,
+    bounds: Vec<(String, String)>,
 }
 
 #[expect(
@@ -2199,8 +2202,8 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             specialization
                 .bounds
                 .iter()
-                .map(|rust_bound| crate::BoundQuestion {
-                    rust_type: specialization.rust_type.clone(),
+                .map(|(rust_type, rust_bound)| crate::BoundQuestion {
+                    rust_type: rust_type.clone(),
                     rust_bound: rust_bound.clone(),
                 })
         })
@@ -2237,9 +2240,9 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
     for specialization in pending {
-        for rust_bound in &specialization.bounds {
+        for (rust_type, rust_bound) in &specialization.bounds {
             let question = crate::BoundQuestion {
-                rust_type: specialization.rust_type.clone(),
+                rust_type: rust_type.clone(),
                 rust_bound: rust_bound.clone(),
             };
             match answers.get(&question) {
@@ -2294,6 +2297,9 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                     rust_type: specialization.rust_type,
                     projected_result: specialization.projected_result,
                     value_type: specialization.value_type,
+                    projected_parameters: specialization.projected_parameters,
+                    direct_projected_call: specialization.direct_projected_call,
+                    value_parameters: specialization.value_parameters,
                 },
             );
     }
@@ -2329,6 +2335,151 @@ fn collect_projected_destinations(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::Name
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+        && function.chain_role.is_none()
+        && function
+            .generic_parameters
+            .iter()
+            .any(|generic| generic.input_selected)
+        && let Some(contract) = super::analysis::resolved_function_contract(
+            unit,
+            node_text(&unit.source, callee),
+            callee.span.start,
+        )
+    {
+        let mut value_bindings = BTreeMap::new();
+        for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
+            let value = argument.children.last().unwrap_or(argument);
+            let Some(expected) = parameter.element_value_type() else {
+                continue;
+            };
+            let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+                continue;
+            };
+            super::calls::bind_projected_generics(
+                &expected,
+                &actual,
+                &mut value_bindings,
+            )
+            .map_err(|generic| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{generic}` is inferred as incompatible argument types"
+                    ),
+                    value.span,
+                )
+            })?;
+        }
+        let mut projected_bindings = BTreeMap::new();
+        for generic in function
+            .generic_parameters
+            .iter()
+            .filter(|generic| generic.input_selected)
+        {
+            let actual = value_bindings.get(&generic.name).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{}` cannot be inferred from this call",
+                        generic.name
+                    ),
+                    node.span,
+                )
+            })?;
+            let projected = destination_projected_type(package, actual).map_err(|reason| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "projected generic `{}` cannot use `{actual}`: {reason}",
+                        generic.name
+                    ),
+                    node.span,
+                )
+            })?;
+            projected_bindings.insert(generic.name.clone(), projected);
+        }
+        let specialize = |template: &crate::projection::ProjectedType| {
+            projected_bindings
+                .iter()
+                .fold(template.clone(), |specialized, (generic, projected)| {
+                    substitute_projected_generic(&specialized, generic, projected)
+                })
+        };
+        let projected_parameters = function
+            .parameters
+            .iter()
+            .cloned()
+            .map(|mut parameter| {
+                parameter.ty = specialize(&parameter.ty);
+                parameter.generic_parameter = None;
+                parameter.generic_bounds.clear();
+                parameter
+            })
+            .collect();
+        let value_parameters = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter.element_value_type().map(|value_type| {
+                    super::calls::substitute_projected_value_generics(&value_type, &value_bindings)
+                })
+            })
+            .collect();
+        let projected_result = specialize(&function.result);
+        let result = super::calls::substitute_projected_value_generics(
+            contract
+                .return_type
+                .as_ref()
+                .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+            &value_bindings,
+        );
+        let value_type = if contract.is_async {
+            ValueType::Task(ElementType::new(result), contract.task_transferability)
+        } else {
+            result
+        };
+        let rust_replacements = projected_bindings
+            .iter()
+            .map(|(name, projected)| (name.clone(), projected.rust_type()))
+            .collect::<BTreeMap<_, _>>();
+        let bounds = function
+            .generic_parameters
+            .iter()
+            .filter(|generic| generic.input_selected)
+            .flat_map(|generic| {
+                let rust_type = projected_bindings[&generic.name].rust_type();
+                generic
+                    .rust_bounds
+                    .iter()
+                    .map(|bound| {
+                        (
+                            rust_type.clone(),
+                            crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        pending.push(PendingProjectedSpecialization {
+            unit: unit_index,
+            span: node.span,
+            parameter: String::new(),
+            rust_type: String::new(),
+            projected_result,
+            projected_parameters,
+            direct_projected_call: true,
+            value_parameters,
+            value_type,
+            bounds,
+        });
+    }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
         && let Some(function) = projected_function_for_call(package, unit, callee)
@@ -2392,7 +2543,14 @@ fn collect_projected_destinations(
             rust_type: projected_destination.rust_type(),
             projected_result,
             value_type: destination,
-            bounds: destination_result.rust_bounds.clone(),
+            value_parameters: function.parameters.iter().map(|_| None).collect(),
+            bounds: destination_result
+                .rust_bounds
+                .iter()
+                .map(|bound| (projected_destination.rust_type(), bound.clone()))
+                .collect(),
+            projected_parameters: function.parameters.clone(),
+            direct_projected_call: false,
         });
     }
 
@@ -2821,6 +2979,10 @@ fn align_projected_result_representation(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "recursive projected type substitution is clearest as one exhaustive match"
+)]
 fn substitute_projected_generic(
     template: &crate::projection::ProjectedType,
     parameter: &str,
@@ -2875,6 +3037,31 @@ fn substitute_projected_generic(
         ProjectedType::Optional(inner) => ProjectedType::Optional(Box::new(
             substitute_projected_generic(inner, parameter, destination),
         )),
+        ProjectedType::AsyncIterationStep(item) => ProjectedType::AsyncIterationStep(Box::new(
+            substitute_projected_generic(item, parameter, destination),
+        )),
+        ProjectedType::Callback {
+            rust_name,
+            parameters,
+            result,
+            invocation_mode,
+            is_async,
+            retained,
+            send,
+            sync,
+        } => ProjectedType::Callback {
+            rust_name: rust_name.clone(),
+            parameters: parameters
+                .iter()
+                .map(|item| substitute_projected_generic(item, parameter, destination))
+                .collect(),
+            result: Box::new(substitute_projected_generic(result, parameter, destination)),
+            invocation_mode: *invocation_mode,
+            is_async: *is_async,
+            retained: *retained,
+            send: *send,
+            sync: *sync,
+        },
         ProjectedType::Foreign {
             name,
             base_rust_path,

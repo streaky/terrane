@@ -599,6 +599,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             format!("&{}", rust_element_type(package, item))
         }
         ValueType::InlineRust => unreachable!("inline Rust values require a source destination"),
+        ValueType::ProjectedGeneric(name) => name.clone(),
         ValueType::ProjectedAssociated => "TerraneAssociated".to_owned(),
     }
 }

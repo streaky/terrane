@@ -370,6 +370,15 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             };
             (item, projected, None)
         };
+        if projected.destination_result.is_none()
+            && projected.chain_role.is_none()
+            && projected
+                .generic_parameters
+                .iter()
+                .any(|generic| generic.input_selected)
+        {
+            continue;
+        }
         if projected.chain_role == Some(crate::projection::ChainRole::Root) {
             continue;
         }
