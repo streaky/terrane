@@ -848,12 +848,19 @@ impl Projection {
             .collect()
     }
 
+    /// Returns the uniquely named projected item in `namespace`.
+    ///
+    /// A duplicate name is ambiguous even when dependency iteration would otherwise provide a
+    /// stable first match, so both missing and ambiguous lookups return `None`.
     #[must_use]
     pub fn item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
-        self.dependencies
+        let mut matching = self
+            .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|item| item.namespace == namespace && item.name == name)
+            .filter(|item| item.namespace == namespace && item.name == name);
+        let item = matching.next()?;
+        matching.next().is_none().then_some(item)
     }
 
     #[must_use]
@@ -6965,14 +6972,15 @@ mod tests {
             removed: Vec::new(),
         };
 
-        assert!(
-            projection(vec![
-                dependency("one", "one::Generic<A>"),
-                dependency("two", "two::Generic<B>"),
-            ])
-            .projected_type("/deps/shared", "Generic")
-            .is_none()
-        );
+        let mut first = dependency("one", "one::Generic<A>");
+        let ProjectedKind::ForeignType { send, .. } = &mut first.items[0].kind else {
+            unreachable!();
+        };
+        *send = true;
+        let direct = projection(vec![first, dependency("two", "two::Generic<B>")]);
+        assert!(direct.item("/deps/shared", "Generic").is_none());
+        assert!(direct.projected_type("/deps/shared", "Generic").is_none());
+        assert!(!direct.projected_type_is_send("/deps/shared", "Generic"));
         assert!(
             projection(vec![
                 nested_dependency("one", "one::Message"),
