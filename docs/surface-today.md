@@ -1098,10 +1098,16 @@ value, and tooling marks the root as chain-only and non-escaping. The accepted S
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
 declined rather than being described as directly projected.
 
-For SQLx specifically, do not attempt to project the open `Query<'q, DB, A>` builder. Use the
-feature-gated shared integration-adapter crate:
+For SQLx specifically, keep the representable upstream surface direct and layer only the missing
+operations through the shared adapter. Declare both the concrete upstream owner and the adapter:
 
 ```toml
+[rust-dependencies.sqlx-sqlite]
+package = "sqlx-sqlite"
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem"]
+
 [rust-dependencies.terrane-integration-adapters]
 package = "terrane-integration-adapters"
 version = "=0.1.0"
@@ -1109,18 +1115,32 @@ features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
 ```
 
-Import the narrow module from
-`/deps/terrane-integration-adapters/sqlx-sqlite`. It exposes asynchronous execution, execution with
-one bytes binding, and ordered bytes-column extraction. Database paths, SQL text, bound bytes, and
-owned result bytes cross the projection boundary; SQLx connections, rows, errors, and
-lifetime-bearing fluent values remain inside the adapter. This is a reusable temporary bridge, not
-an application-owned interface.
+`SqliteConnection` is projected directly from `/deps/sqlx-sqlite`; the adapter's `open`, `execute`,
+`execute_with_bytes`, `query_bytes`, and `close` operations accept or return that same upstream
+identity:
+
+```terrane
+from /deps/sqlx-sqlite import SqliteConnection
+from /deps/terrane-integration-adapters/sqlx-sqlite import open, execute, close
+
+database SqliteConnection = await open; 'application.db'
+await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
+await (close; move database)
+```
+
+The adapter bridges only trait-provided connection operations, the lifetime-bearing
+`Query<'q, DB, A>` chain, and generic row extraction. It does not define another SQLx object model.
+As generic projection admits those operations, consumers move each call to `/deps/sqlx-sqlite` or
+`/deps/sqlx-core` and the adapter shrinks.
 
 All such bridges live behind independent features in the one `terrane-integration-adapters` crate.
-`terrane_compiler::integration_adapters` accounts for each bridged or unbridged limitation with a
-stable ID, tracking key, dependency/version range, and removal criterion. The registry never
-dispatches dependency-specific projection or lowering; when generic compiler support satisfies the
-criterion, migrate consumers and remove the adapter module and ledger entry.
+`terrane_compiler::integration_adapters` accounts separately for each bridged or unbridged
+limitation with a stable ID, tracking key, dependency/version range, and removal criterion. The
+registry never dispatches dependency-specific projection or lowering. Adapters preserve every
+representable upstream identity and never absorb application routing, schema, policy, or workflow.
+When generic compiler support satisfies a criterion, migrate consumers and remove that operation;
+remove the adapter module and ledger entries when the final gap closes.
+
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use

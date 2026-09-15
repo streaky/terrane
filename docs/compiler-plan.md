@@ -259,12 +259,15 @@ application graph. Tests require unique IDs and tracking keys and account for ev
 feature. Retire an adapter only after generic non-framework regression fixtures satisfy its removal
 criterion and every consumer has migrated.
 
-The initial `sqlx-sqlite` feature provides a narrow reusable SQLite bridge for statement execution,
-one bytes binding, and ordered bytes-row extraction. SQL text, database path, bound bytes, and owned
-result bytes cross the boundary; `Query<'q, DB, A>`, connection borrows, rows, and SQLx errors do
-not. Axum handler-callable representation, closed aliases, `serve` associated inference, and
-WebSocket message operations remain separate unbridged ledger entries rather than being hidden
-behind an application-specific Rust router.
+The initial `sqlx-sqlite` feature provides a narrow reusable SQLite bridge around a directly
+projected upstream `SqliteConnection`. The adapter supplies only currently unavailable
+trait-provided connection operations, lifetime-bearing statement execution and binding, and generic
+bytes-row extraction; its signatures preserve the upstream connection identity. Applications
+declare and import `sqlx-sqlite` directly alongside the adapter. Separate ledger entries account for
+each missing capability so the adapter shrinks operation by operation as `/deps/sqlx-sqlite` and
+`/deps/sqlx-core` become sufficient. Axum handler-callable representation, closed aliases, `serve`
+associated inference, and WebSocket message operations remain unbridged entries rather than being
+hidden behind an application-specific Rust router.
 
 #### General variadic call contract
 

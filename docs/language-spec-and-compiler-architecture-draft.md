@@ -4861,6 +4861,21 @@ intermediate or terminate in an owned representable result remain declined. This
 claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
 adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
+A maintained integration adapter is an additive layer over an upstream projected dependency, not a
+replacement namespace for it. An application must import and use every upstream type and operation
+that projection already represents; an adapter may expose only the remaining unprojectable
+operation shape. When an adapter accepts or returns an upstream type that is itself representable,
+its signature must preserve that projected identity rather than hide it behind an adapter-owned
+wrapper. The application declares both dependencies and may therefore combine, for example, a
+`SqliteConnection` from `/deps/sqlx-sqlite` with query operations from a temporary adapter.
+
+Adapters must retain upstream terminology and semantics, contain no application routing, schema,
+policy, or workflow, and remain ordinary projected Rust dependencies. Their limitations and
+objective removal criteria must be accounted for outside generic projection and lowering; generic
+compiler paths must never dispatch on an adapter registry, crate name, or application. As each
+missing upstream operation becomes projectable, consumers migrate to `/deps/<crate>` and the
+adapter surface shrinks. The adapter and its accounting entry are removed when no gap remains.
+
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
 The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. A lock-resolved bound owner may add a featureless, default-disabled direct edge solely to make its Rust path nameable. Because that deliberate manifest rewrite cannot run under Cargo's `--locked` mode, its fetch resolves offline; graph integrity at that step comes from the pre-injection manifest and lock in the projection identity plus the exact, content-hashed bound-dependency list rather than from a mutable network resolution. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history format 3 records projected top-level names, static members as `Type::member`, instance members as `Type.member`, and injected exact bound-owner dependencies by resolved dependency version. After declared-member resolution fails, matching removal history produces `S2031` at the Terrane import or member selection with the member and version change; a name absent from both the current declaration and history retains the ordinary never-present diagnostic.
