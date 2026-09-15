@@ -1,9 +1,6 @@
 {
-  "format": 3,
   "dependencies": [
     {
-      "name": "sqlx-sqlite",
-      "version": "0.8.6",
       "members": [
         [
           "/deps/sqlx-sqlite",
@@ -145,11 +142,11 @@
           "/deps/sqlx-sqlite/sqlitesynchronous",
           "Off"
         ]
-      ]
+      ],
+      "name": "sqlx-sqlite",
+      "version": "0.8.6"
     },
     {
-      "name": "terrane-integration-adapters",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/sqlx-sqlite",
@@ -175,33 +172,34 @@
           "/deps/sqlx-sqlite",
           "query_bytes"
         ]
-      ]
+      ],
+      "name": "terrane-integration-adapters",
+      "version": "0.1.0"
     }
   ],
-  "removed": [],
-  "cache_identity": "453fdba395a604d3226f87a1db8dcce70100c5cb432a225960e05ec7e8370a8f",
-  "source": "Local",
-  "rustdoc_format": 57,
+  "format": 3,
   "projection_schema": "45",
-  "content_hash": "18b4b24d6924ea9a8fd3e8d387aaed0220e4f4c632f983ff9d6ecc6683afa942",
+  "removed": [],
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }
