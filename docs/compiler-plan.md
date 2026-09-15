@@ -246,14 +246,15 @@ application needs to package a database-specific adapter locally.
 ##### Temporary integration-adapter ledger
 
 Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
-from the single feature-gated `terrane-integration-adapters` crate and is accounted for in
-`terrane_compiler::integration_adapters`. A registry entry has a stable adapter ID and tracking key,
-the affected dependency/version range, the exact unsupported generic shape, its feature/package
-surface when bridged, and an objective removal criterion. Unbridged gaps belong in the same ledger
-so a bug-tracker issue can attach to the stable key before an implementation exists.
+from the single feature-gated `terrane-integration-adapters` crate and is accounted for beside its
+implementation in `terrane_integration_adapters::registry`. A registry entry has a stable adapter ID
+and tracking key, the affected dependency/version range, the exact unsupported generic shape, its
+feature/package surface when bridged, and an objective removal criterion. Unbridged gaps belong in
+the same ledger so a bug-tracker issue can attach to the stable key before an implementation exists.
 
-The registry is data and diagnostics only: it must not dispatch crate-specific projection,
-semantics, or lowering. Adapter modules are ordinary projected Rust dependency surfaces and remain
+The registry is data and accounting only. Keep it out of Terrane's projected application namespace,
+and never dispatch crate-specific projection, semantics, or lowering from it. Adapter modules are
+ordinary projected Rust dependency surfaces and remain
 independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
 application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
 enabled adapter module to another directly declared dependency namespace while retaining each

@@ -1159,9 +1159,11 @@ an adapter never shadows an upstream item. Overlay declarations participate in p
 identity while exact Rust paths preserve provenance for tooling and diagnostics.
 
 All bridges live behind independent features in the one `terrane-integration-adapters` crate.
-`terrane_compiler::integration_adapters` accounts separately for each limitation with a stable ID,
-tracking key, dependency/version range, and removal criterion, but the registry never dispatches
-projection or lowering. When generic projection admits an operation, its collision makes the stale
+`terrane_integration_adapters::registry` accounts separately for each limitation beside its
+implementation, with a stable ID, tracking key, dependency/version range, feature, and removal
+criterion. The accounting module is not part of the projected application surface, and the registry
+never dispatches projection or lowering. When generic projection admits an
+operation, its collision makes the stale
 adapter member explicit; remove that member and its ledger entry. Existing
 `from /deps/sqlx-sqlite` imports remain unchanged while their implementation becomes fully upstream.
 
