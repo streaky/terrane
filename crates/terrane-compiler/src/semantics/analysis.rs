@@ -122,12 +122,7 @@ pub(super) fn parse_units(
         .iter()
         .map(|unit| unit.namespace.clone())
         .collect::<BTreeSet<_>>();
-    let mut next_source_id = units
-        .iter()
-        .map(|unit| unit.source.id())
-        .max()
-        .unwrap_or(0)
-        .saturating_add(1);
+    let mut next_source_id = package.next_source_id();
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     for unit in &units {
         for import in imports_in_tree(unit)?

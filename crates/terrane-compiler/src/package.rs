@@ -217,6 +217,20 @@ impl Package {
         }
     }
 
+    pub(crate) fn next_source_id(&self) -> u32 {
+        self.units
+            .iter()
+            .map(|unit| unit.source.id())
+            .chain(
+                self.authored_rust_modules
+                    .iter()
+                    .map(|module| module.source.id()),
+            )
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1)
+    }
+
     /// The manifest is TOML with required `package` and `namespaces` fields and
     /// an optional `prelude` boolean. Source units are discovered in sorted path order.
     ///
