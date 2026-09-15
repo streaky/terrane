@@ -1,4 +1,4 @@
-//! Narrow bridges for SQLx SQLite shapes that Terrane cannot yet project directly.
+//! Narrow bridges for `SQLx` SQLite shapes that Terrane cannot yet project directly.
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};

@@ -613,7 +613,11 @@ pub struct DeclinedItem {
 }
 
 impl Projection {
-    #[must_use]
+    /// Renders the projected dependency sources required by `imports`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when imported projected sources form a cycle.
     pub fn source_for_imports(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,

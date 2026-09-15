@@ -2821,39 +2821,41 @@ pub(crate) fn destination_projected_type(
                 *transferability == TaskTransferability::Transferable,
             )?
         }
-        ValueType::Object(identity) => {
-            if let Some(projected) = package
-                .projection
-                .projected_type(&identity.namespace, &identity.name)
-            {
-                projected
-            } else {
-                let item = package
-                    .projection
-                    .item(&identity.namespace, &identity.name)
-                    .filter(|item| {
-                        matches!(
-                            item.kind,
-                            crate::projection::ProjectedKind::ForeignType { .. }
-                                | crate::projection::ProjectedKind::Interface(_)
-                                | crate::projection::ProjectedKind::Enum { .. }
-                        )
-                    })
-                    .ok_or(
-                        "source-declared object destinations have no dependency conversion contract",
-                    )?;
-                ProjectedType::Foreign {
-                    rust_path: item.rust_path.clone(),
-                    name: item.name.clone(),
-                    base_rust_path: item.rust_path.clone(),
-                    arguments: Vec::new(),
-                }
-            }
-        }
+        ValueType::Object(identity) => destination_projected_object(package, identity)?,
         ValueType::Reference(_) | ValueType::SharedReference(_) => {
             return Err("borrowed results cannot escape a projected call");
         }
         _ => return Err("the destination is outside the closed projected result set"),
+    })
+}
+
+fn destination_projected_object(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+) -> Result<crate::projection::ProjectedType, &'static str> {
+    if let Some(projected) = package
+        .projection
+        .projected_type(&identity.namespace, &identity.name)
+    {
+        return Ok(projected);
+    }
+    let item = package
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .filter(|item| {
+            matches!(
+                item.kind,
+                crate::projection::ProjectedKind::ForeignType { .. }
+                    | crate::projection::ProjectedKind::Interface(_)
+                    | crate::projection::ProjectedKind::Enum { .. }
+            )
+        })
+        .ok_or("source-declared object destinations have no dependency conversion contract")?;
+    Ok(crate::projection::ProjectedType::Foreign {
+        rust_path: item.rust_path.clone(),
+        name: item.name.clone(),
+        base_rust_path: item.rust_path.clone(),
+        arguments: Vec::new(),
     })
 }
 
