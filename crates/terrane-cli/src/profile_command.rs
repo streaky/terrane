@@ -150,7 +150,11 @@ pub(super) fn record(
         collector: CollectorIdentity {
             name: "linux-perf".to_owned(),
             version: perf_version,
-            raw_configuration: perf_record_configuration(executable, &options.program_arguments),
+            raw_configuration: perf_record_configuration(
+                executable,
+                &options.program_arguments,
+                options.retain_arguments,
+            ),
         },
         conditions: CollectionConditions {
             host: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
@@ -248,7 +252,11 @@ fn perf_version() -> Result<String, CliFailure> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
-fn perf_record_configuration(executable: &Path, arguments: &[OsString]) -> Vec<String> {
+fn perf_record_configuration(
+    executable: &Path,
+    arguments: &[OsString],
+    retain_arguments: bool,
+) -> Vec<String> {
     let mut configuration = vec![
         "record".to_owned(),
         "-e".to_owned(),
@@ -261,11 +269,15 @@ fn perf_record_configuration(executable: &Path, arguments: &[OsString]) -> Vec<S
         "--".to_owned(),
         executable.to_string_lossy().into_owned(),
     ];
-    configuration.extend(
-        arguments
-            .iter()
-            .map(|argument| argument.to_string_lossy().into_owned()),
-    );
+    if retain_arguments {
+        configuration.extend(
+            arguments
+                .iter()
+                .map(|argument| argument.to_string_lossy().into_owned()),
+        );
+    } else if !arguments.is_empty() {
+        configuration.push("<arguments omitted>".to_owned());
+    }
     configuration
 }
 
@@ -981,5 +993,36 @@ mod tests {
         );
         assert_eq!(evidence.modules[0].build_id, "program-id");
         assert!(evidence.modules[0].is_profiled_executable);
+    }
+
+    #[test]
+    fn omitted_arguments_do_not_leak_into_collector_configuration() {
+        let arguments = [OsString::from("secret-token")];
+        let omitted = perf_record_configuration(Path::new("/program"), &arguments, false);
+        assert!(!omitted.iter().any(|value| value == "secret-token"));
+        assert!(omitted.iter().any(|value| value == "<arguments omitted>"));
+
+        let retained = perf_record_configuration(Path::new("/program"), &arguments, true);
+        assert!(retained.iter().any(|value| value == "secret-token"));
+    }
+
+    #[test]
+    fn show_parser_accepts_source_focus_and_lower_level_expansion() {
+        let options = parse_show(&[
+            "profile".into(),
+            "show".into(),
+            "capture.trnprof".into(),
+            "--focus".into(),
+            "src/α.trn:42".into(),
+            "--generated".into(),
+            "--native".into(),
+            "--limit".into(),
+            "7".into(),
+        ])
+        .unwrap();
+        assert_eq!(options.focus, Some((PathBuf::from("src/α.trn"), 42)));
+        assert!(options.generated);
+        assert!(options.native);
+        assert_eq!(options.limit, 7);
     }
 }

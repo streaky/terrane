@@ -959,5 +959,26 @@ mod tests {
         assert_eq!(report.rows[0].exclusive_samples, 1);
         assert_eq!(report.rows[0].related_causes.len(), 2);
         assert_eq!(report.fidelity, "exact-build-source");
+
+        artifact.source_attribution.generated_files[0]
+            .associations
+            .truncate(1);
+        let inline_frame = artifact.evidence.samples[0].stack[0].clone();
+        artifact.evidence.samples[0].stack.push(inline_frame);
+        let exact = attribute(&artifact, Path::new("/relocated"), Path::new("/relocated"));
+        assert_eq!(exact.buckets[&AttributionQuality::ExactAuthored], 1);
+        let authored = exact
+            .rows
+            .iter()
+            .find(|row| row.quality == AttributionQuality::ExactAuthored)
+            .unwrap();
+        assert_eq!(authored.exclusive_samples, 1);
+        assert_eq!(authored.inclusive_samples, 1);
+
+        artifact.source_attribution.sources[0].embedded_source = None;
+        artifact.source_attribution.generated_files[0].embedded_source = None;
+        let stale = attribute(&artifact, Path::new("/missing"), Path::new("/missing"));
+        assert_eq!(stale.buckets[&AttributionQuality::Unavailable], 1);
+        assert_eq!(stale.fidelity, "reduced-native");
     }
 }
