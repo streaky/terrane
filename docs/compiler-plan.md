@@ -266,14 +266,17 @@ Retire an operation when its upstream projection creates a collision and generic
 regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
 consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
 
-The initial `sqlx-sqlite` feature supplies only unavailable trait-provided connection operations,
-lifetime-bearing statement execution and binding, and generic bytes-row extraction around the
-directly projected upstream `SqliteConnection`. Its namespace overlay presents those operations
-beside `SqliteConnection` under `/deps/sqlx-sqlite`, while projection provenance continues to name
-`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation. Separate ledger entries
-make each operation removable. Axum handler-callable representation, closed aliases, `serve`
-associated inference, and WebSocket message operations remain unbridged entries rather than being
-hidden behind an application-specific Rust router.
+The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
+unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
+and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
+namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
+while projection provenance continues to name
+`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
+
+`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
+It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
+Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
+entries make every adapter operation removable without changing application imports.
 
 #### General variadic call contract
 

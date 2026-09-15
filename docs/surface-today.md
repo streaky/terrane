@@ -1134,6 +1134,24 @@ The projection artifact retains each item's exact Rust owner: `SqliteConnection`
 The adapter bridges trait-provided connection operations, the lifetime-bearing `Query<'q, DB, A>`
 chain, and generic row extraction; it does not define another SQLx object model.
 
+Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
+`axum-08` feature, then imports the upstream router and handlers normally:
+
+```terrane
+from /deps/axum import Router, UpgradeResponse, bind_listener, receive_text, serve_router, text_message, upgrade
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/axum/extract/ws import WebSocket
+```
+
+`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks, and
+`WebSocket.send` are directly projected Axum operations. The feature overlays only the currently
+unprojectable boundaries: a concrete upgrade response around Axum's closed `Response` alias,
+flattened text receive and payload-bearing message constructors, Tokio listener binding, and
+awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an application router,
+handlers, route policy, or server facade. The BookVault WebSocket experiment is the executable
+end-to-end example.
+
 Namespace overlays are a generic Cargo-metadata facility available only to directly declared
 providers targeting another directly declared package. A declaration is active only with its named
 feature. Undeclared, self, ambiguous, empty, overlapping, and colliding overlays are rejected, and
