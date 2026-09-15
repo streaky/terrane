@@ -145,6 +145,8 @@ pub enum SyntaxKind {
     AppliedType,
     FunctionType,
     Error,
+    RustBlock,
+    UnsafeRustBlock,
     Unsupported,
 }
 

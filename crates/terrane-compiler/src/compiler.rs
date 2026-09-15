@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::{
-    Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
-    rust_ir::RenderedFile,
+    AuthoredRustModule, Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
+    rust_ir::{RenderedFile, SourceAssociation},
     semantics::{self, SymbolKind, ValueType},
     testing::{TestCase, TestPackage, TestTier, TestTierDiscovery},
 };
@@ -57,9 +57,117 @@ pub struct Compilation {
     pub rust_dependencies: Vec<RustDependency>,
     pub dependency_containment: crate::projection::Containment,
     debug_symbols: Option<crate::debugging::DebugSymbols>,
+    authored_rust_modules: Vec<AuthoredRustModule>,
+}
+
+fn embedded_authored_rust(modules: &[AuthoredRustModule]) -> String {
+    let mut embedded = String::new();
+    for module in modules {
+        use std::fmt::Write as _;
+        writeln!(embedded, "\nmod {} {{", module.name).expect("writing to a string cannot fail");
+        embedded.push_str(module.source.text());
+        if !embedded.ends_with('\n') {
+            embedded.push('\n');
+        }
+        embedded.push_str("}\n");
+    }
+    embedded
+}
+
+fn canonical_authored_rust_files(
+    standalone: RenderedFile,
+    modules: &[AuthoredRustModule],
+) -> Vec<RenderedFile> {
+    std::iter::once(standalone)
+        .chain(modules.iter().map(|module| RenderedFile {
+            path: module.relative_path.to_string_lossy().into_owned(),
+            contents: module.source.text().to_owned(),
+            associations: vec![SourceAssociation {
+                generated_start: 0,
+                generated_end: module.source.text().len(),
+                source: Span::new(module.source.id(), 0, module.source.text().len()),
+            }],
+        }))
+        .collect()
+}
+fn compilation_sources(
+    semantic: &semantics::SemanticPackage,
+    package: &Package,
+) -> Vec<SourceFile> {
+    semantic
+        .units
+        .iter()
+        .map(|unit| unit.source.clone())
+        .chain(
+            package
+                .authored_rust_modules
+                .iter()
+                .map(|module| module.source.clone()),
+        )
+        .collect()
 }
 
 impl Compilation {
+    fn rendered_files_for(
+        &self,
+        entrypoint: &Path,
+    ) -> Result<Vec<RenderedFile>, RustArtifactError> {
+        let mut files = self
+            .rendered_rust
+            .files(entrypoint)
+            .map_err(RustArtifactError::InvalidOutputPath)?;
+        if self.authored_rust_modules.is_empty() {
+            return Ok(files);
+        }
+        let stem = entrypoint
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .ok_or_else(|| {
+                RustArtifactError::InvalidOutputPath(
+                    "generated Rust entrypoint must have a UTF-8 file stem".to_owned(),
+                )
+            })?;
+        let directory = entrypoint.parent().unwrap_or_else(|| Path::new(""));
+        let authored_directory_name = format!("{stem}.authored");
+        let mut declarations = String::new();
+        for module in &self.authored_rust_modules {
+            use std::fmt::Write as _;
+            let relative_path = Path::new(&authored_directory_name).join(&module.relative_path);
+            writeln!(
+                declarations,
+                "#[path = {:?}]\nmod {};",
+                relative_path.to_string_lossy(),
+                module.name
+            )
+            .expect("writing to a string cannot fail");
+            let output_path = directory.join(&relative_path);
+            let path = output_path.to_str().ok_or_else(|| {
+                RustArtifactError::InvalidOutputPath(
+                    "authored Rust output path must be UTF-8".to_owned(),
+                )
+            })?;
+            files.push(RenderedFile {
+                path: path.to_owned(),
+                contents: module.source.text().to_owned(),
+                associations: vec![SourceAssociation {
+                    generated_start: 0,
+                    generated_end: module.source.text().len(),
+                    source: Span::new(module.source.id(), 0, module.source.text().len()),
+                }],
+            });
+        }
+        declarations.push('\n');
+        let entrypoint_file = files
+            .first_mut()
+            .expect("rendered program always has an entrypoint");
+        for association in &mut entrypoint_file.associations {
+            association.generated_start += declarations.len();
+            association.generated_end += declarations.len();
+        }
+        entrypoint_file.contents.insert_str(0, &declarations);
+        Ok(files)
+    }
+
     /// Render the generated program as an entrypoint and sibling support file.
     ///
     /// The entrypoint contains the authored lowering and one relative `include!`;
@@ -75,10 +183,7 @@ impl Compilation {
         &self,
         entrypoint: &Path,
     ) -> Result<Vec<RenderedFile>, RustArtifactError> {
-        let files = self
-            .rendered_rust
-            .files(entrypoint)
-            .map_err(RustArtifactError::InvalidOutputPath)?;
+        let files = self.rendered_files_for(entrypoint)?;
         if self.require_canonical_rust {
             validate_canonical_rust(&files, &self.sources, &self.source, self.entry_span)
                 .map_err(RustArtifactError::Compilation)?;
@@ -101,10 +206,7 @@ impl Compilation {
         let Some(symbols) = &self.debug_symbols else {
             return Ok(None);
         };
-        let files = self
-            .rendered_rust
-            .files(entrypoint)
-            .map_err(RustArtifactError::InvalidOutputPath)?;
+        let files = self.rendered_files_for(entrypoint)?;
         Ok(Some(symbols.render(&files)))
     }
 }
@@ -282,22 +384,24 @@ pub fn compile_package_with_options(
         .find(|unit| unit.source.id() == entry_span.file)
         .unwrap_or(&semantic.units[0]);
     let source = &unit.source;
-    let sources: Vec<SourceFile> = semantic
-        .units
-        .iter()
-        .map(|unit| unit.source.clone())
-        .collect();
+    let sources = compilation_sources(&semantic, package);
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
-    let standalone_file = rendered_rust.standalone_file("<stdout>");
-    let rust = standalone_file.contents.clone();
-    let review_rust = rendered_rust.review_file();
-    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
+    let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     if options.require_canonical_rust {
-        validate_canonical_rust(&[standalone_file], &sources, source, entry_span)?;
+        let canonical_files =
+            canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
+        validate_canonical_rust(&canonical_files, &sources, source, entry_span)?;
     }
+    standalone_file
+        .contents
+        .push_str(&embedded_authored_rust(&package.authored_rust_modules));
+    let rust = standalone_file.contents.clone();
+    let mut review_rust = rendered_rust.review_file();
+    review_rust.push_str(&embedded_authored_rust(&package.authored_rust_modules));
+    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     Ok(Compilation {
         source: (*source).clone(),
         sources,
@@ -318,6 +422,7 @@ pub fn compile_package_with_options(
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
+        authored_rust_modules: package.authored_rust_modules.clone(),
     })
 }
 
@@ -535,10 +640,16 @@ pub fn compile_discovered_test_tier(
         tier,
         cases,
         warnings: _,
-        sources,
+        mut sources,
         package,
         semantic,
     } = discovery;
+    sources.extend(
+        package
+            .authored_rust_modules
+            .iter()
+            .map(|module| module.source.clone()),
+    );
     let runner_cases = cases
         .iter()
         .map(|case| crate::lowering::TestRunnerCase {
@@ -564,21 +675,26 @@ pub fn compile_discovered_test_tier(
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
-    let standalone_file = rendered_rust.standalone_file("<stdout>");
+    let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     if options.require_canonical_rust {
-        validate_canonical_rust(
-            std::slice::from_ref(&standalone_file),
-            &sources,
-            &source,
-            entry_span,
-        )?;
+        let canonical_files =
+            canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
+        validate_canonical_rust(&canonical_files, &sources, &source, entry_span)?;
     }
+    standalone_file
+        .contents
+        .push_str(&embedded_authored_rust(&package.authored_rust_modules));
     let compilation = Compilation {
         source,
         sources,
         rust: standalone_file.contents,
-        review_rust: rendered_rust.review_file(),
+        review_rust: {
+            let mut review = rendered_rust.review_file();
+            review.push_str(&embedded_authored_rust(&package.authored_rust_modules));
+            review
+        },
         rendered_rust,
+        authored_rust_modules: package.authored_rust_modules.clone(),
         debug_symbols: options.debug_build.enabled().then(|| {
             crate::debugging::DebugSymbols::from_semantic(
                 &semantic,

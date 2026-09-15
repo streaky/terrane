@@ -1070,6 +1070,9 @@ pub(super) fn validate_value_destination(
     value: &SyntaxNode,
     mismatch_code: &'static str,
 ) -> Result<(), SemanticFailure> {
+    if actual == ValueType::InlineRust {
+        return Ok(());
+    }
     if let ValueType::Scalar(expected) = expected {
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }

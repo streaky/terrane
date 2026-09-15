@@ -15,6 +15,7 @@ pub enum TokenKind {
     String,
     TailString,
     BlockString,
+    RawRust,
     Newline,
     Indent,
     Dedent,

@@ -4943,9 +4943,11 @@ function checksum uint64; data bytes
     checksum_impl(data)
 ```
 
-The indented block is preserved as Rust after stripping its common source indentation.
-
-The compiler inserts it into the generated Rust function and maps its spans back to the source block.
+The indented block is preserved as Rust after stripping its common source indentation. The
+compiler inserts it into the generated Rust function and maps its span back to the source block.
+Direct access to a non-copyable resource or task binding is rejected: such a value must cross a
+typed adapter contract. Other non-copy ordinary inputs are shadow-cloned at the block boundary so
+raw Rust cannot silently consume a value that Terrane still owns.
 
 ### 24.3 Inline Rust expression
 
@@ -4981,9 +4983,10 @@ unsafe rust
   ...
 ```
 
-permits unsafe Rust and records the unsafe boundary.
-
-Writing `unsafe` inside a nominally safe raw block does not bypass source-level accounting; the compiler scans/parses the Rust block sufficiently to classify it or delegates classification to `rustc` metadata.
+permits unsafe Rust and records the unsafe boundary in semantic metadata. Writing `unsafe` inside
+a nominally safe raw block is rejected; nested token groups are inspected as well as the outer
+token stream. Unsafe Rust does not bypass Terrane resource ownership: non-copyable resources and
+tasks still require a typed adapter boundary.
 
 ### 24.6 Name mapping
 
@@ -5005,13 +5008,27 @@ A later interpolation syntax may permit direct source-name references, but it is
 
 ### 24.7 Full Rust files
 
-A project may include maintained `.rs` files as native modules.
+A project may include maintained `.rs` files as native modules. The package manifest maps a Rust
+module identifier to each normalized package-relative source path:
 
-The package manifest associates them with generated crate modules and exported language objects.
+```toml
+[rust-modules]
+adapters = "rust/adapters.rs"
+```
 
-A companion declaration or Rust attribute exposes public objects through the language ABI.
+The compiler copies each file to a deterministic sibling authored-source directory, inserts an
+ordinary `#[path = "..."] mod adapters;` item in the generated crate root, and retains a
+whole-file source association for diagnostics and debugger provenance. Paths must remain inside
+the package, end in `.rs`, and use distinct valid Rust module names. Authored modules require the
+package's `build` capability and participate in canonical-Rust checking when that check is enabled.
 
-The exact annotation syntax may evolve, but the contract must cover:
+Inline blocks may call a module as `crate::adapters::operation(...)`. Public objects intended for
+ordinary Terrane code are exposed through the same typed projected companion declarations used for
+external Rust dependencies; the projection contract remains the authority for types, ownership,
+errors, thread safety, reflection metadata, and target capabilities. The module file itself is not
+an untyped import surface.
+
+The contract covers:
 
 - exported object/type identity;
 - default invocation;

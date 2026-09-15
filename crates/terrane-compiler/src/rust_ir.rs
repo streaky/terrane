@@ -5,6 +5,26 @@ use syn::parse::Parser as _;
 
 use crate::Span;
 
+pub(crate) fn rust_identifiers(rust: &str) -> std::collections::BTreeSet<String> {
+    fn collect(tokens: TokenStream, identifiers: &mut std::collections::BTreeSet<String>) {
+        for token in tokens {
+            match token {
+                TokenTree::Ident(identifier) => {
+                    identifiers.insert(identifier.to_string());
+                }
+                TokenTree::Group(group) => collect(group.stream(), identifiers),
+                _ => {}
+            }
+        }
+    }
+
+    let mut identifiers = std::collections::BTreeSet::new();
+    if let Ok(tokens) = rust.parse::<TokenStream>() {
+        collect(tokens, &mut identifiers);
+    }
+    identifiers
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
     pub version: &'static str,

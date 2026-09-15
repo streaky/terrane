@@ -448,6 +448,7 @@ pub enum ValueType {
     IterationEnd,
     AsyncIterationStep(ElementType),
     AsyncSinkOutcome,
+    InlineRust,
     ChannelPair(ElementType),
     ChannelSender(ElementType),
     ChannelReceiver(ElementType),
@@ -581,6 +582,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformDataResult
         | ValueType::PlatformUrlResult
         | ValueType::ProjectedAssociated
+        | ValueType::InlineRust
         | ValueType::PlatformCapability
         | ValueType::PlatformResourceHandle
         | ValueType::PlatformResult
@@ -710,6 +712,7 @@ impl std::fmt::Display for ValueType {
                 )
             }
             Self::ProjectedAssociated => formatter.write_str("host-projected-associated"),
+            Self::InlineRust => formatter.write_str("inline Rust value"),
             Self::ChannelOverflowPolicy => formatter.write_str("channel-overflow-policy"),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),
@@ -1357,6 +1360,8 @@ pub struct SemanticUnit {
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
+    /// Explicit source spans that cross into unsafe Rust.
+    pub unsafe_rust_spans: Vec<Span>,
     pub selections: Vec<SemanticSelection>,
 }
 

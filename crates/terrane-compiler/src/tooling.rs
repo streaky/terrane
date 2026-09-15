@@ -1641,6 +1641,7 @@ fn snapshot_package(
         build_toolchain: BuildToolchain::Pinned,
         units,
         rust_dependencies: Vec::new(),
+        authored_rust_modules: Vec::new(),
     })
 }
 

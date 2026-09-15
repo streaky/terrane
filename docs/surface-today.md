@@ -989,6 +989,32 @@ every escaping throwable must implement `T`. Reflection exposes the declared bou
 the inferred escaping set. Throwing a caught throwable value preserves its runtime kind and existing
 cause chain while adding the explicit rethrow site.
 
+## Inline and maintained Rust
+
+`rust` is an indented safe-Rust statement or expression block; `unsafe rust` is the explicit unsafe
+form. An expression block returns its final Rust expression. Safe blocks containing an `unsafe`
+token at any nesting depth are rejected. Both forms retain source spans, and semantic metadata
+records each unsafe boundary.
+
+Inline Rust uses generated Rust names. Non-copy ordinary in-scope inputs are shadow-cloned for the
+block so raw Rust cannot consume a value Terrane still owns. Resources, tasks, consuming callable
+values, and iterators cannot be accessed directly from an inline block; put that operation behind a
+typed adapter whose Terrane contract states its ownership and effects.
+
+Maintained module files are declared explicitly:
+
+```toml
+[rust-modules]
+adapters = "rust/adapters.rs"
+```
+
+Each value is a normalized package-relative `.rs` path and each key is a distinct Rust module
+identifier. The compiler copies these sources beside generated output, declares them in the crate
+root, keeps source associations for diagnostics/debugging, and checks them when canonical Rust is
+required. Authored modules require the `build` capability. Inline code reaches one as
+`crate::adapters::operation(...)`; ordinary Terrane callers use typed projected companion
+declarations rather than importing an untyped Rust module.
+
 ## Projected Rust dependencies
 
 `package.toml` accepts a top-level `rust-toolchain = "pinned" | "system"` selection and

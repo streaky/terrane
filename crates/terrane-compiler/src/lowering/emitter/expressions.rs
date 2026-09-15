@@ -204,6 +204,9 @@ impl Emitter<'_> {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => {
+                self.inline_rust_expression(node)
+            }
             SyntaxKind::Name if self.text(node) == "self" => {
                 let identity = self
                     .current_object

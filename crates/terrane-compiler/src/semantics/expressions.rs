@@ -121,6 +121,12 @@ pub(super) fn infer_value_type(
     if node.kind == SyntaxKind::Literal {
         return Ok(infer_literal_type(unit, node).map(ValueType::Scalar));
     }
+    if matches!(
+        node.kind,
+        SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+    ) {
+        return Ok(Some(ValueType::InlineRust));
+    }
     if node.kind == SyntaxKind::AnonymousFunction {
         let contract = unit
             .functions

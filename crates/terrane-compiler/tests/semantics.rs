@@ -35,6 +35,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
             })
             .collect(),
         rust_dependencies: Vec::new(),
+        authored_rust_modules: Vec::new(),
     }
 }
 

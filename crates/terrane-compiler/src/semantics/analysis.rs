@@ -1,5 +1,14 @@
 use super::prelude::*;
 
+fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
+    if node.kind == SyntaxKind::UnsafeRustBlock {
+        spans.push(node.span);
+    }
+    for child in &node.children {
+        collect_unsafe_rust_spans(child, spans);
+    }
+}
+
 pub(super) fn parse_unit(
     source: &SourceFile,
     source_path: String,
@@ -54,6 +63,8 @@ pub(super) fn parse_unit(
         });
     }
     let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
+    let mut unsafe_rust_spans = Vec::new();
+    collect_unsafe_rust_spans(&parsed.tree.root, &mut unsafe_rust_spans);
     Ok(SemanticUnit {
         source: source.clone(),
         source_path,
@@ -78,6 +89,7 @@ pub(super) fn parse_unit(
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
         enclosing_function_spans,
+        unsafe_rust_spans,
         unreachable_spans: Vec::new(),
         evaluation_steps: Vec::new(),
         selections: Vec::new(),

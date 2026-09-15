@@ -1,0 +1,7 @@
+package = "authored-rust-module"
+
+[namespaces]
+app = "src"
+
+[rust-modules]
+adapters = "rust/adapters.rs"

@@ -93,6 +93,35 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         declaration_name: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> Result<(), SemanticFailure> {
+        if matches!(
+            node.kind,
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+        ) {
+            let identifiers = crate::rust_ir::rust_identifiers(node_text(&unit.source, node));
+            if let Some((_, binding)) =
+                unit.typed_bindings
+                    .iter()
+                    .enumerate()
+                    .find(|(binding_index, binding)| {
+                        binding.scope.is_some()
+                            && binding.is_visible_at(unit.source.id(), node.span.start)
+                            && identifiers
+                                .contains(&crate::lowering::debug_rust_name(&binding.name))
+                            && noncopyable_binding(package, unit, *binding_index, resource_objects)
+                    })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0134",
+                    format!(
+                        "inline Rust cannot directly access non-copyable binding `{}`; use a typed Terrane adapter",
+                        binding.name
+                    ),
+                    node.span,
+                ));
+            }
+            return Ok(());
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
             && unary_operator_text(unit, node).as_deref() == Some("move")

@@ -59,6 +59,9 @@ impl Emitter<'_> {
             }
             SyntaxKind::PostfixExpression => self.postfix(node),
             SyntaxKind::IfStatement => self.if_statement(node),
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => {
+                self.inline_rust_statement(node);
+            }
             SyntaxKind::WhileStatement => self.while_statement(node),
             SyntaxKind::ForStatement => self.for_statement(node),
             SyntaxKind::SelectStatement => self.select_statement(node),
