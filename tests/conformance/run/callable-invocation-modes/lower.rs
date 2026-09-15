@@ -652,7 +652,7 @@ fn main() {
             (terrane_int_support::Int,),
             terrane_int_support::Int,
         > = {
-            let mut receiver = value.clone();
+            let mut receiver = value;
             TerraneMutableCallable::new(move |
                 (argument_0,): (terrane_int_support::Int,)|
             receiver.add(argument_0))
@@ -665,7 +665,6 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&bound
             .call((terrane_int_support::Int::from(7_i128),)))
         );
-        let _ = &value;
         let value: Ticket = Ticket::terrane_construct();
         let redemption: TerraneConsumingCallable<(), String> = {
             let receiver = value.clone();

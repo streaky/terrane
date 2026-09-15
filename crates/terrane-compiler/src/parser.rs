@@ -104,6 +104,7 @@ impl Parser<'_> {
             "try" => self.parse_try(),
             "break" => self.parse_bare_statement(SyntaxKind::BreakStatement),
             "continue" => self.parse_bare_statement(SyntaxKind::ContinueStatement),
+            "await" => self.parse_expression_statement(),
             "from" => self.parse_import_declaration(),
             "import"
                 if self.peek_kind(1) == Some(TokenKind::Assign)

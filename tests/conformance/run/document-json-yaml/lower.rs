@@ -592,9 +592,9 @@ fn main() {
         false,
     );
     mapping.field_names = fields;
-    mapping.optional_fields = optional_fields.clone();
-    mapping.default_fields = default_fields.clone();
-    mapping.default_values = default_values.clone();
+    mapping.optional_fields = optional_fields;
+    mapping.default_fields = default_fields;
+    mapping.default_values = default_values;
     let mut missing: DocumentResult = parse_json(String::from("{}"), options.clone());
     missing = decode_document(missing.value, mapping.clone());
     println!(
@@ -664,7 +664,7 @@ fn main() {
     );
     let mut entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
     entries = append_document_map_entry(
-        entries.clone(),
+        entries,
         String::from("message"),
         make_document_string(String::from("hello")),
     );
@@ -672,27 +672,27 @@ fn main() {
         String::from("123456789012345678901234567890"),
     );
     entries = append_document_map_entry(
-        entries.clone(),
+        entries,
         String::from("count"),
         count_value.value,
     );
-    let built_map: DocumentResult = make_document_map(entries.clone());
+    let built_map: DocumentResult = make_document_map(entries);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_map.failed),
         terrane_scalar_support::scalar_text(&built_map.value.encoded)
     );
     let mut duplicate_entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
     duplicate_entries = append_document_map_entry(
-        duplicate_entries.clone(),
+        duplicate_entries,
         String::from("same"),
         make_document_string(String::from("first")),
     );
     duplicate_entries = append_document_map_entry(
-        duplicate_entries.clone(),
+        duplicate_entries,
         String::from("same"),
         make_document_string(String::from("second")),
     );
-    let duplicate_map: DocumentResult = make_document_map(duplicate_entries.clone());
+    let duplicate_map: DocumentResult = make_document_map(duplicate_entries);
     let canonical_integer: DocumentResult = make_document_integer(
         String::from("1.2345678901234567890123456789e+29"),
     );
@@ -733,7 +733,7 @@ fn main() {
     );
     let trailing_json: DocumentResult = parse_json(
         String::from("{\"a\":1} garbage"),
-        options.clone(),
+        options,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&trailing_json.failed),
@@ -764,7 +764,7 @@ fn main() {
     );
     let yaml_decoded: DocumentResult = decode_yaml(
         String::from("name: Ada"),
-        <Deserializable>::from(mapping.clone()),
+        <Deserializable>::from(mapping),
         make_yaml_options(
             terrane_int_support::Int::from(32_i128),
             terrane_int_support::Int::from(1024_i128),
@@ -785,7 +785,7 @@ fn main() {
         String::from(
             "leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]",
         ),
-        yaml_limits.clone(),
+        yaml_limits,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&bomb.failed),
@@ -1119,7 +1119,7 @@ impl DocumentMapping {
         self.allow_unknown = allow_unknown;
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        return decode_document(value.clone(), self.clone());
+        return decode_document(value, self.clone());
     }
 }
 impl DeserializableProtocol for DocumentMapping {
@@ -1145,7 +1145,7 @@ pub fn deserialize_document(
     value: DocumentValue,
     destination: Deserializable,
 ) -> DocumentResult {
-    return destination.from_document(value.clone());
+    return destination.from_document(value);
 }
 pub fn make_document_result(
     raw: terrane_document_support::DataResult,
@@ -1197,8 +1197,8 @@ pub fn append_document_map_entry(
     key: String,
     value: DocumentValue,
 ) -> DocumentMapEntries {
-    entries.append(key, value.clone());
-    return entries.clone();
+    entries.append(key, value);
+    return entries;
 }
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
@@ -1232,11 +1232,13 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names;
+    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
     let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields;
+        .optional_fields
+        .clone();
     let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields;
+        .default_fields
+        .clone();
     let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![]);
@@ -1318,7 +1320,7 @@ pub fn mapping_required_fields(
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return required.clone();
+    return required;
 }
 pub fn decode_document(
     value: DocumentValue,
@@ -1454,7 +1456,7 @@ pub fn decode_document(
     if result.failed {
         result.expected = mapping.descriptor_name.clone();
     }
-    return result.clone();
+    return result;
 }
 // Source: core/json.trn
 // Namespace: core/documents/json
@@ -1512,14 +1514,14 @@ pub fn decode_json(
     mapping: Deserializable,
     options: JsonOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_json(input, options.clone());
+    let parsed: DocumentResult = parse_json(input, options);
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping.clone());
+    return deserialize_document(parsed.value, mapping);
 }
 pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
-    return stringify_json(serialize_document(value.clone()), options.clone());
+    return stringify_json(serialize_document(value), options);
 }
 // Source: core/yaml.trn
 // Namespace: core/documents/yaml
@@ -1590,12 +1592,12 @@ pub fn decode_yaml(
     mapping: Deserializable,
     options: YamlOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_yaml(input, options.clone());
+    let parsed: DocumentResult = parse_yaml(input, options);
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping.clone());
+    return deserialize_document(parsed.value, mapping);
 }
 pub fn encode_yaml(value: Serializable) -> DocumentResult {
-    return stringify_yaml(serialize_document(value.clone()));
+    return stringify_yaml(serialize_document(value));
 }

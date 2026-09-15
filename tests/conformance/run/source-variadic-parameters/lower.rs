@@ -472,8 +472,9 @@ impl Calculator {
         let mut result: terrane_int_support::Int = terrane_int_support::Int::from(
             0_i128,
         );
+        let __terrane_iterable_0 = values;
         let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-            &values,
+            &__terrane_iterable_0,
         );
         loop {
             let value = match __terrane_iterator_0.next() {
@@ -508,8 +509,9 @@ fn total(
     values: terrane_collection_support::List<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
     let mut result: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let __terrane_iterable_1 = values;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &values,
+        &__terrane_iterable_1,
     );
     loop {
         let value = match __terrane_iterator_1.next() {
@@ -525,8 +527,9 @@ fn offset_total(
     values: terrane_collection_support::List<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
     let mut result: terrane_int_support::Int = offset.clone();
+    let __terrane_iterable_2 = values;
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-        &values,
+        &__terrane_iterable_2,
     );
     loop {
         let value = match __terrane_iterator_2.next() {
@@ -595,7 +598,7 @@ fn main() {
             terrane_collection_support::List<terrane_int_support::Int>,
         ) -> terrane_int_support::Int + Send + Sync,
     > = {
-        let receiver = concrete.clone();
+        let receiver = concrete;
         std::sync::Arc::new(move |
             argument_0: terrane_collection_support::List<terrane_int_support::Int>|
         receiver.sum(argument_0))

@@ -489,9 +489,7 @@ fn main() {
     > = terrane_collection_support::UnorderedMap::<
         String,
         terrane_collection_support::Entry<String, i8>,
-    >::new(
-        vec![terrane_collection_support::Entry::new(String::from("a"), inner.clone())],
-    );
+    >::new(vec![terrane_collection_support::Entry::new(String::from("a"), inner)]);
     let unordered_inline: terrane_collection_support::UnorderedMap<
         String,
         terrane_collection_support::Entry<String, i8>,

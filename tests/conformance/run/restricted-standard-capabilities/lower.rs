@@ -821,8 +821,8 @@ impl EnvironmentEntry {
         value
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
-        self.name = name.clone();
-        self.value = entry_value.clone();
+        self.name = name;
+        self.value = entry_value;
     }
 }
 #[derive(Clone)]
@@ -858,7 +858,7 @@ impl ProcessHostNameResult {
         self.failed = did_fail;
         self.available = is_available;
         self.message = detail;
-        self.value = result_value.clone();
+        self.value = result_value;
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
@@ -904,7 +904,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return values.clone();
+    return values;
 }
 pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
     let encoded: Vec<String> = terrane_environment_entries();
@@ -964,7 +964,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
             index = index.clone() + terrane_int_support::Int::from(2_i128);
         }
     }
-    return values.clone();
+    return values;
 }
 #[derive(Clone)]
 pub struct CliSchema {
@@ -981,7 +981,7 @@ impl CliSchema {
         value
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
-        self.entries = declared.clone();
+        self.entries = declared;
     }
 }
 #[derive(Clone)]
@@ -1014,8 +1014,9 @@ impl CommandLine {
     }
 }
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
+    let __terrane_iterable_0 = schema.entries.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &schema.entries,
+        &__terrane_iterable_0,
     );
     loop {
         let entry = match __terrane_iterator_0.next() {
@@ -1120,20 +1121,20 @@ pub fn parse_command_line(
                     __terrane_list_append_2.push(index.clone());
                     __terrane_list_append_3.push(String::from("unknown option"));
                 } else {
-                    __terrane_list_append_7.push(argument.clone());
+                    __terrane_list_append_7.push(argument);
                 }
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
     let mut result: CommandLine = CommandLine::terrane_construct();
-    result.flags = flags.clone();
-    result.option_names = option_names.clone();
-    result.option_values = option_values.clone();
-    result.positionals = positionals.clone();
-    result.diagnostic_arguments = diagnostic_arguments.clone();
-    result.diagnostic_messages = diagnostic_messages.clone();
-    return result.clone();
+    result.flags = flags;
+    result.option_names = option_names;
+    result.option_values = option_values;
+    result.positionals = positionals;
+    result.diagnostic_arguments = diagnostic_arguments;
+    result.diagnostic_messages = diagnostic_messages;
+    return result;
 }
 #[derive(Clone)]
 pub struct ExitStatus {
@@ -1158,7 +1159,7 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
     } else {
         result.code = requested.clone();
     }
-    return result.clone();
+    return result;
 }
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
@@ -1181,7 +1182,7 @@ pub fn native_raw_value(value: NativeString) -> Vec<u8> {
     return value.raw.clone();
 }
 pub fn environment_pair(key: NativeString, item: NativeString) -> EnvironmentEntry {
-    return EnvironmentEntry::terrane_construct(key.clone(), item.clone());
+    return EnvironmentEntry::terrane_construct(key, item);
 }
 pub fn encode_native_string(value: NativeString) -> String {
     if value.is_text {

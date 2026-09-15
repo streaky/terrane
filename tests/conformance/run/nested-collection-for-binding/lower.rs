@@ -450,8 +450,9 @@ fn main() {
             terrane_int_support::Int >::new(vec![terrane_int_support::Int::from(3_i128)])
         ],
     );
+    let __terrane_iterable_0 = nested;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &nested,
+        &__terrane_iterable_0,
     );
     loop {
         let row = match __terrane_iterator_0.next() {
@@ -481,8 +482,9 @@ fn main() {
             terrane_int_support::Int::from(5_i128)]))
         ],
     );
+    let __terrane_iterable_1 = groups;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &groups,
+        &__terrane_iterable_1,
     );
     loop {
         let group = match __terrane_iterator_1.next() {

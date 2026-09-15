@@ -508,7 +508,7 @@ async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
         .await;
     if request.data == Vec::from([116, 101, 114, 114, 97, 110, 101]) {
         let written: IoResult = __terrane_await(
-                (&stream).write(Vec::from([114, 101, 112, 108, 121]), options.clone()),
+                (&stream).write(Vec::from([114, 101, 112, 108, 121]), options),
             )
             .await;
         if !written.failed {
@@ -595,8 +595,7 @@ fn main() {
             )
             .await;
         let response: IoResult = __terrane_await(
-                (&client)
-                    .read(terrane_int_support::Int::from(5_i128), client_options.clone()),
+                (&client).read(terrane_int_support::Int::from(5_i128), client_options),
             )
             .await;
         let outcome: TerraneTaskOutcome<()> = __terrane_await(scope.join(child)).await;
@@ -692,7 +691,7 @@ impl NetworkOperationOptions {
         cancellation: NetworkCancellationToken,
     ) {
         self.deadline = requested;
-        self.cancellation = cancellation.clone();
+        self.cancellation = cancellation;
     }
 }
 pub fn operation_cancellation(
@@ -802,7 +801,7 @@ impl IpResult {
     pub fn construct(&mut self, failed: bool, message: String, address: IpAddress) {
         self.failed = failed;
         self.message = message;
-        self.value = address.clone();
+        self.value = address;
     }
 }
 pub fn ip_address_from_string(text: String) -> IpResult {
@@ -842,7 +841,7 @@ impl SocketAddress {
         address_port: terrane_int_support::Int,
     ) {
         self.value = terrane_platform_result_text(&raw);
-        self.ip = address_ip.clone();
+        self.ip = address_ip;
         self.port = address_port.clone();
     }
     pub fn string(&self) -> String {
@@ -876,7 +875,7 @@ impl SocketResult {
     pub fn construct(&mut self, failed: bool, message: String, address: SocketAddress) {
         self.failed = failed;
         self.message = message;
-        self.value = address.clone();
+        self.value = address;
     }
 }
 pub fn socket_address_from_ip(
@@ -886,11 +885,7 @@ pub fn socket_address_from_ip(
     let raw: TerranePlatformResult = terrane_platform_parse_socket(&ip.value, &port);
     let failed: bool = terrane_platform_result_failed(&raw);
     let message: String = terrane_platform_result_message(&raw);
-    let address: SocketAddress = SocketAddress::terrane_construct(
-        raw,
-        ip.clone(),
-        port.clone(),
-    );
+    let address: SocketAddress = SocketAddress::terrane_construct(raw, ip, port.clone());
     return SocketResult::terrane_construct(failed, message, address);
 }
 pub fn socket_address_from_string(text: String) -> SocketResult {
@@ -1459,7 +1454,7 @@ impl DnsResult {
         self.message = message;
         self.ttl = ttl.clone();
         self.ttl_known = ttl_known;
-        self.candidates = candidates.clone();
+        self.candidates = candidates;
     }
 }
 #[derive(Clone)]
@@ -1499,7 +1494,7 @@ impl NetworkHostNameResult {
     pub fn construct(&mut self, failed: bool, message: String, host: NetworkHostName) {
         self.failed = failed;
         self.message = message;
-        self.value = host.clone();
+        self.value = host;
     }
 }
 pub fn parse_host_name(text: String) -> NetworkHostNameResult {
@@ -1562,7 +1557,7 @@ pub async fn lookup_dns(
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
         terrane_platform_result_bool(&raw),
-        candidates.clone(),
+        candidates,
     );
 }
 // Source: core/streams.trn
@@ -2609,7 +2604,7 @@ impl Deadline {
         value
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
-        self.expires_at = target.clone();
+        self.expires_at = target;
     }
     pub fn remaining(&self) -> Option<Duration> {
         let now: MonotonicInstant = Clock::terrane_static_monotonic();
@@ -2644,7 +2639,7 @@ impl Deadline {
                 )
             });
         }
-        return Ok(Deadline::terrane_construct(target.clone()));
+        return Ok(Deadline::terrane_construct(target));
     }
 }
 pub fn discard_none(value: ()) {
@@ -2683,8 +2678,8 @@ impl Tick {
         observed_at: MonotonicInstant,
         expirations: terrane_int_support::Int,
     ) {
-        self.scheduled = scheduled_at.clone();
-        self.observed = observed_at.clone();
+        self.scheduled = scheduled_at;
+        self.observed = observed_at;
         self.count = expirations.clone();
     }
 }
@@ -2719,7 +2714,7 @@ impl Ticker {
     }
     pub fn construct(&mut self, interval: Duration) {
         self.anchor = Clock::terrane_static_monotonic();
-        self.period = interval.clone();
+        self.period = interval;
     }
     pub async fn next(&mut self) -> Tick {
         let period_total: terrane_int_support::Int = self
@@ -2753,7 +2748,7 @@ impl Ticker {
         );
         self.next_index = observed_index.clone()
             + terrane_int_support::Int::from(1_i128);
-        return Tick::terrane_construct(delivered, observed.clone(), count.clone());
+        return Tick::terrane_construct(delivered, observed, count.clone());
     }
     pub fn destruct(&mut self) {
         discard_none(());
@@ -2829,6 +2824,6 @@ impl Clock {
                 )
             });
         }
-        return Ok(Ticker::terrane_construct(period.clone()));
+        return Ok(Ticker::terrane_construct(period));
     }
 }

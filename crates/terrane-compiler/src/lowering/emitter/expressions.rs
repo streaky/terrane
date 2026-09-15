@@ -579,6 +579,16 @@ impl Emitter<'_> {
             && matches!(
                 &value_type,
                 ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
+                    | ValueType::List(_)
+                    | ValueType::Map(_, _)
+                    | ValueType::StringList
+                    | ValueType::TextRangeList
+                    | ValueType::Set(_)
+                    | ValueType::Tuple(_, _)
+                    | ValueType::Range
+                    | ValueType::Entry(_, _)
+                    | ValueType::UnorderedMap(_, _)
+                    | ValueType::UnorderedSet(_)
             )
             && node.children.first().is_none_or(|receiver| {
                 !matches!(self.value_type(receiver), Some(ValueType::Descriptor(_)))
@@ -598,11 +608,6 @@ impl Emitter<'_> {
                     && self.lazy_namespace_binding_type(node).is_some() =>
             {
                 format!("(*{}).clone()", self.namespace_name(node))
-            }
-            ValueType::Scalar(ScalarType::String)
-                if node.kind == SyntaxKind::Name && self.binding_value_is_reused(node) =>
-            {
-                format!("({}).clone()", self.expression(node))
             }
             value_type @ ValueType::List(_)
                 if node.kind == SyntaxKind::Name
@@ -659,8 +664,11 @@ impl Emitter<'_> {
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
-            ValueType::List(_)
+            ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
+            | ValueType::List(_)
             | ValueType::Map(_, _)
+            | ValueType::StringList
+            | ValueType::TextRangeList
             | ValueType::Set(_)
             | ValueType::Tuple(_, _)
             | ValueType::Range
@@ -668,7 +676,8 @@ impl Emitter<'_> {
             | ValueType::UnorderedMap(_, _)
             | ValueType::UnorderedSet(_)
             | ValueType::Object(_)
-                if node.kind == SyntaxKind::Name && !self.is_only_binding_use(node) =>
+                if self.text(node) == "this"
+                    || node.kind == SyntaxKind::Name && self.binding_value_is_reused(node) =>
             {
                 format!("({}).clone()", self.expression(node))
             }
@@ -1541,46 +1550,6 @@ impl Emitter<'_> {
         format!("let _ = {};", Self::unwrapped_expression(expression))
     }
 
-    pub(super) fn is_only_binding_use(&self, node: &SyntaxNode) -> bool {
-        fn count_references(
-            emitter: &Emitter<'_>,
-            node: &SyntaxNode,
-            binding_span: crate::Span,
-            name: &str,
-        ) -> usize {
-            let here = usize::from(
-                node.kind == SyntaxKind::Name
-                    && emitter.text(node).trim() == name
-                    && emitter
-                        .unit
-                        .typed_bindings
-                        .iter()
-                        .rev()
-                        .find(|candidate| {
-                            candidate.name == name
-                                && candidate.is_visible_at(emitter.source.id(), node.span.start)
-                        })
-                        .is_some_and(|candidate| candidate.span == binding_span),
-            );
-            here + node
-                .children
-                .iter()
-                .map(|child| count_references(emitter, child, binding_span, name))
-                .sum::<usize>()
-        }
-
-        let name = self.text(node).trim();
-        if name == "this" {
-            return false;
-        }
-        let Some(binding) = self.unit.typed_bindings.iter().rev().find(|binding| {
-            binding.name == name && binding.is_visible_at(self.source.id(), node.span.start)
-        }) else {
-            return false;
-        };
-
-        count_references(self, &self.unit.tree.root, binding.span, name) == 1
-    }
     fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
         let name = self.text(node);
         self.unit

@@ -1107,27 +1107,33 @@ impl SemanticPackage {
     }
 
     #[must_use]
-    pub fn is_lexical_replacement(&self, unit: &SemanticUnit, span: Span, name: &str) -> bool {
-        let Some(current) = unit
+    pub fn lexical_replaced_binding_span(
+        &self,
+        unit: &SemanticUnit,
+        span: Span,
+        name: &str,
+    ) -> Option<Span> {
+        let current = unit
             .typed_bindings
             .iter()
-            .find(|binding| binding.name == name && binding.span == span)
-        else {
-            return false;
-        };
+            .find(|binding| binding.name == name && binding.span == span)?;
         let current_scope = lexical_scope_index_at(unit, current.span.start);
-        lexical_scope_chain(unit, span.start).any(|scope| {
-            scope.symbols.get(name).is_some_and(|symbols| {
-                symbols
-                    .iter()
-                    .any(|symbol| symbol.declaration_span == Some(span))
-                    && symbols.iter().any(|symbol| {
-                        symbol.declaration_span.is_some_and(|prior| {
-                            prior.start < span.start
-                                && lexical_scope_index_at(unit, prior.start) == current_scope
-                        })
-                    })
-            })
+        lexical_scope_chain(unit, span.start).find_map(|scope| {
+            let symbols = scope.symbols.get(name)?;
+            symbols
+                .iter()
+                .filter_map(|symbol| symbol.declaration_span)
+                .filter(|prior| {
+                    prior.start < span.start
+                        && lexical_scope_index_at(unit, prior.start) == current_scope
+                })
+                .max_by_key(|prior| prior.start)
         })
+    }
+
+    #[must_use]
+    pub fn is_lexical_replacement(&self, unit: &SemanticUnit, span: Span, name: &str) -> bool {
+        self.lexical_replaced_binding_span(unit, span, name)
+            .is_some()
     }
 }

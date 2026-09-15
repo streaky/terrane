@@ -518,8 +518,9 @@ fn main() {
         .length()))
     );
     ordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
+    let __terrane_iterable_0 = ordered.keys();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &ordered.keys(),
+        &__terrane_iterable_0,
     );
     loop {
         let key = match __terrane_iterator_0.next() {
@@ -528,8 +529,9 @@ fn main() {
         };
         println!("{}", terrane_scalar_support::scalar_text(&key));
     }
+    let __terrane_iterable_1 = ordered.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &ordered,
+        &__terrane_iterable_1,
     );
     loop {
         let __terrane_item_1 = match __terrane_iterator_1.next() {
@@ -616,8 +618,9 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(unordered_preserved
         .length()))
     );
+    let __terrane_iterable_2 = unordered.entries();
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-        &unordered.entries(),
+        &__terrane_iterable_2,
     );
     loop {
         let pair = match __terrane_iterator_2.next() {
@@ -630,8 +633,9 @@ fn main() {
         );
     }
     unordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
+    let __terrane_iterable_3 = unordered.entries();
     let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-        &unordered.entries(),
+        &__terrane_iterable_3,
     );
     loop {
         let pair = match __terrane_iterator_3.next() {

@@ -1,0 +1,17 @@
+namespace application-value-semantics
+
+from /core/collections import range
+from /core/filesystem/paths import path
+from /core/filesystem import filesystem, filesystem-capability, filesystem-exists, file-handle, file-close, file-read
+
+function close-or-read; authority filesystem, handle file-handle, should-close bool
+  if should-close
+    outcome = file-close; authority, handle
+    return
+  read = file-read; authority, ref handle, 1
+
+function main;
+  authority = filesystem-capability;
+  target = instance path; 'missing-application-value-semantics'
+  for index in (range; 0, 2)
+    outcome = filesystem-exists; authority, target

@@ -510,8 +510,8 @@ impl UrlQuery {
         let values: terrane_collection_support::List<String> = terrane_collection_support::List::<
             String,
         >::new(vec![]);
-        self.keys = keys.clone();
-        self.values = values.clone();
+        self.keys = keys;
+        self.values = values;
         self.count = terrane_int_support::Int::from(0_i128);
     }
     pub fn length(&self) -> terrane_int_support::Int {
@@ -594,14 +594,14 @@ impl UrlQuery {
                 index = index.clone() + terrane_int_support::Int::from(1_i128);
             }
         }
-        return result.clone();
+        return result;
     }
 }
 pub fn append_query_entry(mut query: UrlQuery, name: String, value: String) -> UrlQuery {
     query.count = query.count.clone() + terrane_int_support::Int::from(1_i128);
     query.keys.append(name);
     query.values.append(value);
-    return query.clone();
+    return query;
 }
 #[derive(Clone)]
 pub struct Url {
@@ -682,7 +682,7 @@ impl Url {
         self.host = host;
         self.port = port;
         self.path = path;
-        self.query = query.clone();
+        self.query = query;
         self.fragment = fragment;
         self.origin = origin;
     }
@@ -724,7 +724,7 @@ impl UrlResult {
     pub fn construct(&mut self, failed: bool, message: String, parsed_url: Url) {
         self.failed = failed;
         self.message = message;
-        self.value = parsed_url.clone();
+        self.value = parsed_url;
     }
 }
 pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult {
@@ -751,7 +751,7 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while index.clone() < count.clone() {
         query = append_query_entry(
-            query.clone(),
+            query,
             terrane_url_query_key(&raw, index.clone()),
             terrane_url_query_value(&raw, index.clone()),
         );
@@ -766,7 +766,7 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
         terrane_url_host(&raw),
         terrane_url_port(&raw),
         terrane_url_path(&raw),
-        query.clone(),
+        query,
         terrane_url_fragment(&raw),
         terrane_url_origin(&raw),
     );

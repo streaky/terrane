@@ -445,7 +445,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
                     visit(package, unit, child, &mut branch, false, resource_objects)?;
-                    branches.push(branch);
+                    if super::scopes::block_may_fall_through(child) {
+                        branches.push(branch);
+                    }
                 }
             }
             if !has_else {

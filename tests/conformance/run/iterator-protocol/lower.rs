@@ -29,7 +29,10 @@ fn main() {
     };
     println!("{}", terrane_scalar_support::scalar_text(&String::from("end")));
     let text: String = String::from("A👍🏽");
-    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(&text);
+    let __terrane_iterable_1 = text;
+    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
+        &__terrane_iterable_1,
+    );
     loop {
         let grapheme = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,

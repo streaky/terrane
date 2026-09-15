@@ -493,8 +493,7 @@ fn main() {
         "{}{}{}{}", terrane_scalar_support::scalar_text(&first.failed),
         terrane_scalar_support::scalar_text(&second.failed),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(dropped_records
-        .length())), terrane_scalar_support::scalar_text(&discarded_count(dropping
-        .clone()))
+        .length())), terrane_scalar_support::scalar_text(&discarded_count(dropping))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
@@ -718,7 +717,7 @@ impl DocumentLogValue {
         value
     }
     pub fn construct(&mut self, input: DocumentValue) {
-        self.value = input.clone();
+        self.value = input;
     }
     pub fn render(&self) -> DocumentValue {
         return self.value.to_document();
@@ -807,7 +806,7 @@ impl From<ErrorLogValue> for LogValue {
     }
 }
 pub fn log_document(value: DocumentValue) -> LogValue {
-    return <LogValue>::from(DocumentLogValue::terrane_construct(value.clone()));
+    return <LogValue>::from(DocumentLogValue::terrane_construct(value));
 }
 pub fn log_text(value: String) -> LogValue {
     return <LogValue>::from(TextLogValue::terrane_construct(value));
@@ -846,7 +845,7 @@ impl LogField {
         source: String,
     ) {
         self.name = name;
-        self.value = input.clone();
+        self.value = input;
         self.secret = secret;
         self.source = source;
     }
@@ -857,23 +856,13 @@ pub fn field_at(
     secret: bool,
     source: String,
 ) -> LogField {
-    return LogField::terrane_construct(name, value.clone(), secret, source);
+    return LogField::terrane_construct(name, value, secret, source);
 }
 pub fn field(name: String, value: LogValue) -> LogField {
-    return field_at(
-        name,
-        value.clone(),
-        false,
-        String::from("builtin://core/logging.trn"),
-    );
+    return field_at(name, value, false, String::from("builtin://core/logging.trn"));
 }
 pub fn secret_field(name: String, value: LogValue) -> LogField {
-    return field_at(
-        name,
-        value.clone(),
-        true,
-        String::from("builtin://core/logging.trn"),
-    );
+    return field_at(name, value, true, String::from("builtin://core/logging.trn"));
 }
 pub fn empty_log_fields() -> terrane_collection_support::List<LogField> {
     return terrane_collection_support::List::new(Vec::new());
@@ -915,7 +904,7 @@ impl LogSinkResult {
     pub fn construct(&mut self, failed: bool, message: String, sink: LogSink) {
         self.failed = failed;
         self.message = message;
-        self.value = sink.clone();
+        self.value = sink;
     }
 }
 pub fn memory_sink(
@@ -999,7 +988,7 @@ impl LoggerOptions {
         max_fields: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) {
-        self.minimum = minimum.clone();
+        self.minimum = minimum;
         self.target_prefix = target_prefix;
         self.target = target;
         self.max_fields = max_fields.clone();
@@ -1014,7 +1003,7 @@ pub fn make_logger_options(
     max_bytes: terrane_int_support::Int,
 ) -> LoggerOptions {
     return LoggerOptions::terrane_construct(
-        minimum.clone(),
+        minimum,
         target_prefix,
         target,
         max_fields.clone(),
@@ -1037,8 +1026,9 @@ impl LogContext {
         let mut updated: terrane_collection_support::List<LogField> = terrane_collection_support::List::new(
             Vec::new(),
         );
+        let __terrane_iterable_0 = self.fields.clone();
         let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.fields,
+            &__terrane_iterable_0,
         );
         {
             let __terrane_list_append_0 = updated.make_unique();
@@ -1050,15 +1040,16 @@ impl LogContext {
                 __terrane_list_append_0.push(existing);
             }
         }
-        updated.append(item.clone());
-        self.fields = updated.clone();
+        updated.append(item);
+        self.fields = updated;
     }
     pub fn append_span(&mut self, item: String) {
         let mut updated: terrane_collection_support::List<String> = terrane_collection_support::List::<
             String,
         >::new(Vec::new());
+        let __terrane_iterable_1 = self.spans.clone();
         let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.spans,
+            &__terrane_iterable_1,
         );
         {
             let __terrane_list_append_1 = updated.make_unique();
@@ -1071,12 +1062,13 @@ impl LogContext {
             }
         }
         updated.append(item);
-        self.spans = updated.clone();
+        self.spans = updated;
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
         let mut value: LogContext = LogContext::terrane_construct();
+        let __terrane_iterable_2 = self.fields.clone();
         let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.fields,
+            &__terrane_iterable_2,
         );
         loop {
             let existing = match __terrane_iterator_2.next() {
@@ -1085,9 +1077,10 @@ impl LogContext {
             };
             value.append_field(existing);
         }
-        value.append_field(addition.clone());
+        value.append_field(addition);
+        let __terrane_iterable_3 = self.spans.clone();
         let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.spans,
+            &__terrane_iterable_3,
         );
         loop {
             let existing = match __terrane_iterator_3.next() {
@@ -1096,12 +1089,13 @@ impl LogContext {
             };
             value.append_span(existing);
         }
-        return value.clone();
+        return value;
     }
     pub fn adding_span(&self, span: String) -> LogContext {
         let mut value: LogContext = LogContext::terrane_construct();
+        let __terrane_iterable_4 = self.fields.clone();
         let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.fields,
+            &__terrane_iterable_4,
         );
         loop {
             let existing = match __terrane_iterator_4.next() {
@@ -1110,8 +1104,9 @@ impl LogContext {
             };
             value.append_field(existing);
         }
+        let __terrane_iterable_5 = self.spans.clone();
         let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
-            &self.spans,
+            &__terrane_iterable_5,
         );
         loop {
             let existing = match __terrane_iterator_5.next() {
@@ -1121,7 +1116,7 @@ impl LogContext {
             value.append_span(existing);
         }
         value.append_span(span);
-        return value.clone();
+        return value;
     }
 }
 #[derive(Clone)]
@@ -1158,21 +1153,17 @@ impl Logger {
         options: LoggerOptions,
         context: LogContext,
     ) {
-        self.sink = sink.clone();
-        self.options = options.clone();
-        self.context = context.clone();
+        self.sink = sink;
+        self.options = options;
+        self.context = context;
     }
 }
 pub fn make_logger(sink: LogSink, options: LoggerOptions) -> Logger {
-    return Logger::terrane_construct(
-        sink.clone(),
-        options.clone(),
-        LogContext::terrane_construct(),
-    );
+    return Logger::terrane_construct(sink, options, LogContext::terrane_construct());
 }
 pub fn default_logger(sink: LogSink) -> Logger {
     return make_logger(
-        sink.clone(),
+        sink,
         make_logger_options(
             info_level(),
             String::from(""),
@@ -1184,7 +1175,7 @@ pub fn default_logger(sink: LogSink) -> Logger {
 }
 pub fn named_logger(sink: LogSink, target: String) -> Logger {
     return make_logger(
-        sink.clone(),
+        sink,
         make_logger_options(
             info_level(),
             target.clone(),
@@ -1198,7 +1189,7 @@ pub fn with_field(value: Logger, addition: LogField) -> Logger {
     return Logger::terrane_construct(
         value.sink,
         value.options,
-        value.context.adding_field(addition.clone()),
+        value.context.adding_field(addition),
     );
 }
 pub fn with_span(value: Logger, span: String) -> Logger {
@@ -1260,9 +1251,9 @@ impl LogEvent {
         source: String,
         fields: terrane_collection_support::List<LogField>,
     ) {
-        self.level = level.clone();
+        self.level = level;
         self.message = message;
-        self.fields = fields.clone();
+        self.fields = fields;
         self.source = source;
     }
 }
@@ -1272,7 +1263,7 @@ pub fn make_event_at(
     source: String,
     fields: terrane_collection_support::List<LogField>,
 ) -> LogEvent {
-    return LogEvent::terrane_construct(level.clone(), message, source, fields.clone());
+    return LogEvent::terrane_construct(level, message, source, fields);
 }
 pub fn make_event(
     level: LogLevel,
@@ -1280,10 +1271,10 @@ pub fn make_event(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogEvent {
     return make_event_at(
-        level.clone(),
+        level,
         message,
         String::from("builtin://core/logging.trn"),
-        fields.clone(),
+        fields,
     );
 }
 pub fn emit_at(
@@ -1304,8 +1295,9 @@ pub fn emit_at(
     let mut combined: terrane_collection_support::List<LogField> = terrane_collection_support::List::new(
         Vec::new(),
     );
+    let __terrane_iterable_6 = v.context.fields.clone();
     let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
-        &v.context.fields,
+        &__terrane_iterable_6,
     );
     {
         let __terrane_list_append_2 = combined.make_unique();
@@ -1317,8 +1309,9 @@ pub fn emit_at(
             __terrane_list_append_2.push(item);
         }
     }
+    let __terrane_iterable_7 = f;
     let mut __terrane_iterator_7 = terrane_collection_support::Iterable::terrane_iterator(
-        &f,
+        &__terrane_iterable_7,
     );
     {
         let __terrane_list_append_3 = combined.make_unique();
@@ -1406,11 +1399,11 @@ pub fn emit(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
     return emit_at(
-        value.clone(),
-        level.clone(),
+        value,
+        level,
         message,
         String::from("builtin://core/logging.trn"),
-        fields.clone(),
+        fields,
     );
 }
 pub fn debug(
@@ -1428,11 +1421,11 @@ pub fn debug(
 }
 pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
     return emit_at(
-        value.clone(),
+        value,
         event.level,
         event.message.clone(),
         event.source.clone(),
-        event.fields,
+        event.fields.clone(),
     );
 }
 pub fn install_dependency_bridge(value: Logger) -> LogOutcome {
@@ -1803,7 +1796,7 @@ impl DocumentMapping {
         self.allow_unknown = allow_unknown;
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
-        return decode_document(value.clone(), self.clone());
+        return decode_document(value, self.clone());
     }
 }
 impl DeserializableProtocol for DocumentMapping {
@@ -1829,7 +1822,7 @@ pub fn deserialize_document(
     value: DocumentValue,
     destination: Deserializable,
 ) -> DocumentResult {
-    return destination.from_document(value.clone());
+    return destination.from_document(value);
 }
 pub fn make_document_result(
     raw: terrane_document_support::DataResult,
@@ -1881,8 +1874,8 @@ pub fn append_document_map_entry(
     key: String,
     value: DocumentValue,
 ) -> DocumentMapEntries {
-    entries.append(key, value.clone());
-    return entries.clone();
+    entries.append(key, value);
+    return entries;
 }
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
@@ -1916,11 +1909,13 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names;
+    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
     let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields;
+        .optional_fields
+        .clone();
     let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields;
+        .default_fields
+        .clone();
     let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![]);
@@ -2002,7 +1997,7 @@ pub fn mapping_required_fields(
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return required.clone();
+    return required;
 }
 pub fn decode_document(
     value: DocumentValue,
@@ -2138,5 +2133,5 @@ pub fn decode_document(
     if result.failed {
         result.expected = mapping.descriptor_name.clone();
     }
-    return result.clone();
+    return result;
 }

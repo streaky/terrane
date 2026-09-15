@@ -444,8 +444,9 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&across_if));
     }
     let mut across_loop: i8 = 0;
+    let __terrane_iterable_0 = String::from("ab");
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &String::from("ab"),
+        &__terrane_iterable_0,
     );
     loop {
         let first = match __terrane_iterator_0.next() {
@@ -455,8 +456,9 @@ fn main() {
         let _ = &first;
         across_loop = 1;
     }
+    let __terrane_iterable_1 = String::from("cd");
     let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &String::from("cd"),
+        &__terrane_iterable_1,
     );
     loop {
         let second = match __terrane_iterator_1.next() {

@@ -630,10 +630,10 @@ impl ProcessSignalEvent {
         observed: MonotonicInstant,
         did_overflow: bool,
     ) {
-        self.signal = observed_signal.clone();
+        self.signal = observed_signal;
         self.count = occurrences.clone();
         self.sequence = event_sequence.clone();
-        self.observed_at = observed.clone();
+        self.observed_at = observed;
         self.overflowed = did_overflow;
     }
 }
@@ -1026,7 +1026,7 @@ impl Deadline {
         value
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
-        self.expires_at = target.clone();
+        self.expires_at = target;
     }
     pub fn remaining(&self) -> Option<Duration> {
         let now: MonotonicInstant = Clock::terrane_static_monotonic();
@@ -1061,7 +1061,7 @@ impl Deadline {
                 )
             });
         }
-        return Ok(Deadline::terrane_construct(target.clone()));
+        return Ok(Deadline::terrane_construct(target));
     }
 }
 pub fn discard_none(value: ()) {
@@ -1100,8 +1100,8 @@ impl Tick {
         observed_at: MonotonicInstant,
         expirations: terrane_int_support::Int,
     ) {
-        self.scheduled = scheduled_at.clone();
-        self.observed = observed_at.clone();
+        self.scheduled = scheduled_at;
+        self.observed = observed_at;
         self.count = expirations.clone();
     }
 }
@@ -1136,7 +1136,7 @@ impl Ticker {
     }
     pub fn construct(&mut self, interval: Duration) {
         self.anchor = Clock::terrane_static_monotonic();
-        self.period = interval.clone();
+        self.period = interval;
     }
     pub async fn next(&mut self) -> Tick {
         let period_total: terrane_int_support::Int = self
@@ -1170,7 +1170,7 @@ impl Ticker {
         );
         self.next_index = observed_index.clone()
             + terrane_int_support::Int::from(1_i128);
-        return Tick::terrane_construct(delivered, observed.clone(), count.clone());
+        return Tick::terrane_construct(delivered, observed, count.clone());
     }
     pub fn destruct(&mut self) {
         discard_none(());
@@ -1246,6 +1246,6 @@ impl Clock {
                 )
             });
         }
-        return Ok(Ticker::terrane_construct(period.clone()));
+        return Ok(Ticker::terrane_construct(period));
     }
 }

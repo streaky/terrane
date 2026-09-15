@@ -504,7 +504,8 @@ fn main() {
         terrane_scalar_support::scalar_text(&returned.clone())
     );
     let borrowed: &terrane_collection_support::List<terrane_int_support::Int> = &values;
-    let mut __terrane_iterator_0 = borrowed.terrane_borrowing_iterator();
+    let __terrane_iterable_0 = borrowed;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
     loop {
         let item = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
