@@ -472,6 +472,8 @@ fn build_native_compilation(
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
+            has_authored_rust: !package.authored_rust_modules.is_empty(),
+            artifact: terrane_compiler::ArtifactKind::Executable,
             debug_profile: crate::DebugProfile::None,
         },
     )?;
@@ -485,6 +487,7 @@ fn build_native_compilation(
         &package.units,
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
+        terrane_compiler::ArtifactKind::Executable,
         false,
     )?
     .ok_or_else(|| CliFailure::backend("native build produced no executable".to_owned()))

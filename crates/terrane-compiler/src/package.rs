@@ -63,6 +63,12 @@ pub enum BuildToolchain {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArtifactKind {
+    Executable,
+    DynamicLibrary,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackagePurpose {
     Production,
     Testing,
@@ -192,6 +198,7 @@ pub struct Package {
     pub prelude: bool,
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
+    pub artifact: ArtifactKind,
     pub profile: CapabilityProfile,
     pub purpose: PackagePurpose,
     pub testing: crate::testing::TestConfiguration,
@@ -237,6 +244,7 @@ impl Package {
             root,
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
+            artifact: ArtifactKind::Executable,
             executor: ExecutorProfile::Threaded,
             build_toolchain: BuildToolchain::Pinned,
             profile: CapabilityProfile::unrestricted(),
@@ -302,6 +310,7 @@ impl Package {
             root,
             prelude: manifest.prelude,
             reflection: manifest.reflection,
+            artifact: manifest.artifact,
             build_toolchain: manifest.build_toolchain,
             executor: manifest.executor,
             profile: manifest.profile,
@@ -367,6 +376,7 @@ impl Package {
             identity: manifest.identity,
             root,
             prelude: manifest.prelude,
+            artifact: manifest.artifact,
             reflection: manifest.reflection,
             executor: manifest.executor,
             profile: manifest.profile,
@@ -383,6 +393,7 @@ impl Package {
 struct ParsedManifest {
     identity: String,
     prelude: bool,
+    artifact: ArtifactKind,
     reflection: ReflectionProfile,
     build_toolchain: BuildToolchain,
     executor: ExecutorProfile,
@@ -424,6 +435,7 @@ fn parse_manifest(
             key.as_str(),
             "package"
                 | "prelude"
+                | "artifact"
                 | "reflection"
                 | "executor"
                 | "rust-toolchain"
@@ -460,6 +472,22 @@ fn parse_manifest(
                 None,
             ));
             None
+        }
+    };
+    let artifact = match table.get("artifact") {
+        None => ArtifactKind::Executable,
+        Some(toml::Value::String(value)) if value == "executable" => ArtifactKind::Executable,
+        Some(toml::Value::String(value)) if value == "dynamic-library" => {
+            ArtifactKind::DynamicLibrary
+        }
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`artifact` must be either `executable` or `dynamic-library`",
+                Some("artifact"),
+            ));
+            ArtifactKind::Executable
         }
     };
     let prelude = match table.get("prelude") {
@@ -561,6 +589,7 @@ fn parse_manifest(
             identity: identity.expect("validated package identity"),
             prelude,
             reflection,
+            artifact,
             build_toolchain,
             executor,
             profile,

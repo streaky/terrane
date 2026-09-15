@@ -13,6 +13,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         root: PathBuf::from("."),
         prelude,
         reflection: ReflectionProfile::Ordinary,
+        artifact: terrane_compiler::ArtifactKind::Executable,
         build_toolchain: BuildToolchain::Pinned,
         executor: ExecutorProfile::Threaded,
         profile: CapabilityProfile::unrestricted(),

@@ -1634,6 +1634,7 @@ fn snapshot_package(
         root: PathBuf::from("."),
         prelude: true,
         reflection: ReflectionProfile::Ordinary,
+        artifact: crate::ArtifactKind::Executable,
         executor: ExecutorProfile::Threaded,
         testing: crate::testing::TestConfiguration::conventional(profile.clone()),
         profile,
