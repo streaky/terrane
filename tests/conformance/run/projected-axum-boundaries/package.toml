@@ -1,0 +1,28 @@
+package = "projected-axum-boundaries"
+executor = "threaded"
+
+[profile]
+name = "axum-witness"
+capabilities = ["build", "networking", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.axum]
+version = "=0.8.9"
+features = ["ws"]
+effects = ["build", "networking"]
+
+
+[rust-dependencies.axum-core]
+version = "=0.5.6"
+effects = ["build"]
+
+[rust-dependencies.tower-service]
+version = "=0.3.3"
+effects = ["build"]
+
+[rust-dependencies.terrane-axum-serve-witness]
+package = "terrane-axum-serve-witness"
+version = "=0.1.0"
+effects = ["build", "networking", "threads"]

@@ -10,7 +10,7 @@ impl Emitter<'_> {
         self.discarded_call = call;
         let expression = self.expression(node);
         self.discarded_call = None;
-        self.line(&format!("{expression};"));
+        self.line(&format!("let _ = {expression};"));
     }
 
     pub(super) fn statement(&mut self, node: &SyntaxNode) {
@@ -50,7 +50,7 @@ impl Emitter<'_> {
                     self.discarded_call = None;
                     expression
                 };
-                self.line(&format!("{expression};"));
+                self.line(&format!("let _ = {expression};"));
             }
             SyntaxKind::UnaryExpression
                 if self.unary_operator(node).as_deref() == Some("await") =>

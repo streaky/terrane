@@ -1530,7 +1530,10 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.borrowed
-                            && (projected_chain_root
+                            && (specialization
+                                .is_some_and(|specialization| specialization.direct_projected_call)
+                                || projected_chain_root
+                                || callee.kind == SyntaxKind::MemberExpression
                                 || matches!(
                                     parameter.ty,
                                     crate::projection::ProjectedType::Foreign { .. }
@@ -1849,7 +1852,7 @@ impl Emitter<'_> {
                 && method.error.is_none()
                 && self.discarded_call == Some(node.span)
             {
-                format!("{{ {call}; }}")
+                format!("{{ let _ = {call}; }}")
             } else {
                 call.clone()
             };
@@ -1870,7 +1873,7 @@ impl Emitter<'_> {
                         "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
-                    format!("{{ {invocation}; Ok(()) }}")
+                    format!("{{ let _ = {invocation}; Ok(()) }}")
                 } else {
                     format!(
                         "Ok({})",

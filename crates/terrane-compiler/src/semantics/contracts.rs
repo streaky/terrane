@@ -332,7 +332,12 @@ pub(super) fn collect_typed_bindings(
         let child_scope = (child.kind == SyntaxKind::Block)
             .then_some(child.span)
             .or(scope);
-        collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
+        if child.kind == SyntaxKind::Block {
+            let mut child_bindings = visible_bindings.clone();
+            collect_typed_bindings(unit, child, &mut child_bindings, bindings, child_scope)?;
+        } else {
+            collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
+        }
     }
     Ok(())
 }

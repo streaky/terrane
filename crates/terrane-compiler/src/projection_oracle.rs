@@ -13,6 +13,8 @@ use crate::projection::{Containment, ProjectionError};
 pub struct BoundQuestion {
     pub rust_type: String,
     pub rust_bound: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inferred_parameters: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -125,8 +127,14 @@ impl<'a> ProjectionOracle<'a> {
         for (index, question) in questions.iter().enumerate() {
             let name = format!("terrane_probe_{index}");
             names.insert(name.clone(), index);
+            let generic_parameters = if question.inferred_parameters.is_empty() {
+                "Value".to_owned()
+            } else {
+                format!("Value, {}", question.inferred_parameters.join(", "))
+            };
+            let inferred_arguments = ", _".repeat(question.inferred_parameters.len());
             let source = format!(
-                "fn assert_bound<T: {}>() {{}}\nfn main() {{ assert_bound::<{}>(); }}\n",
+                "fn assert_bound<{generic_parameters}>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}{inferred_arguments}>(); }}\n",
                 question.rust_bound, question.rust_type
             );
             write_if_changed(&bin_directory.join(format!("{name}.rs")), source.as_bytes())?;
@@ -521,14 +529,17 @@ mod tests {
             BoundQuestion {
                 rust_type: "Vec<u8>".to_owned(),
                 rust_bound: "IntoIterator<Item = u8>".to_owned(),
+                inferred_parameters: Vec::new(),
             },
             BoundQuestion {
                 rust_type: "String".to_owned(),
                 rust_bound: "Copy".to_owned(),
+                inferred_parameters: Vec::new(),
             },
             BoundQuestion {
                 rust_type: "missing::Type".to_owned(),
                 rust_bound: "Send".to_owned(),
+                inferred_parameters: Vec::new(),
             },
         ];
 
@@ -567,10 +578,12 @@ mod tests {
                 BoundQuestion {
                     rust_type: "Vec<u8>".to_owned(),
                     rust_bound: "IntoIterator<Item = u8>".to_owned(),
+                    inferred_parameters: Vec::new(),
                 },
                 BoundQuestion {
                     rust_type: "String".to_owned(),
                     rust_bound: "Copy".to_owned(),
+                    inferred_parameters: Vec::new(),
                 },
             ])
             .unwrap();
@@ -585,6 +598,7 @@ mod tests {
             .prove_bounds(&[BoundQuestion {
                 rust_type: "Vec<u16>".to_owned(),
                 rust_bound: "IntoIterator<Item = u16>".to_owned(),
+                inferred_parameters: Vec::new(),
             }])
             .unwrap();
         assert_eq!(second.evidence[0].answer, ProbeAnswer::Yes);

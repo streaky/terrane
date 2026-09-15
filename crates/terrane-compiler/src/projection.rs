@@ -635,6 +635,9 @@ impl Projection {
             }
             let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
             ordered_foreign.sort_by_key(|(rust_path, name)| {
+                let projected_item = projected_item_for_foreign(&all_items, rust_path, name);
+                let cross_namespace =
+                    projected_item.is_some_and(|item| item.namespace != *namespace);
                 let dependency_count = all_items
                     .iter()
                     .copied()
@@ -654,8 +657,16 @@ impl Projection {
                         _ => None,
                     })
                     .unwrap_or_default();
-                (dependency_count, aliases.get(*rust_path))
+                (!cross_namespace, dependency_count, aliases.get(*rust_path))
             });
+            let source_dependencies = ordered_foreign
+                .iter()
+                .filter_map(|(rust_path, name)| {
+                    projected_item_for_foreign(&all_items, rust_path, name)
+                        .filter(|item| item.namespace != *namespace)
+                        .map(|item| item.namespace.clone())
+                })
+                .collect::<BTreeSet<_>>();
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
             let mut rendered_foreign = BTreeSet::new();
             for (rust_path, _) in ordered_foreign {
@@ -674,9 +685,26 @@ impl Projection {
                     render_function(&mut text, function, true, 0, &aliases, None);
                 }
             }
-            sources.push((namespace.clone(), text));
+            sources.push((namespace.clone(), text, source_dependencies));
         }
-        sources
+        let mut ordered = Vec::with_capacity(sources.len());
+        while !sources.is_empty() {
+            let remaining_names = sources
+                .iter()
+                .map(|(namespace, _, _)| namespace)
+                .collect::<BTreeSet<_>>();
+            let index = sources
+                .iter()
+                .position(|(_, _, dependencies)| {
+                    dependencies
+                        .iter()
+                        .all(|dependency| !remaining_names.contains(dependency))
+                })
+                .unwrap_or(0);
+            let (namespace, text, _) = sources.remove(index);
+            ordered.push((namespace, text));
+        }
+        ordered
     }
 
     #[must_use]
@@ -711,6 +739,108 @@ impl Projection {
             .iter()
             .flat_map(|dependency| &dependency.items)
             .find(|item| item.namespace == namespace && item.name == name)
+    }
+
+    #[must_use]
+    pub(crate) fn projected_type_named(&self, name: &str) -> Option<ProjectedType> {
+        fn nested(ty: &ProjectedType, name: &str) -> Option<ProjectedType> {
+            if matches!(
+                ty,
+                ProjectedType::Foreign {
+                    name: candidate,
+                    ..
+                } | ProjectedType::BoxedInterface {
+                    name: candidate,
+                    ..
+                } if candidate == name
+            ) {
+                return Some(ty.clone());
+            }
+            match ty {
+                ProjectedType::Sequence { item, .. }
+                | ProjectedType::Set { item, .. }
+                | ProjectedType::AsyncIterationStep(item)
+                | ProjectedType::Optional(item) => nested(item, name),
+                ProjectedType::Mapping { key, value, .. } => {
+                    nested(key, name).or_else(|| nested(value, name))
+                }
+                ProjectedType::Tuple(items) => items.iter().find_map(|item| nested(item, name)),
+                ProjectedType::Foreign { arguments, .. } => {
+                    arguments.iter().find_map(|item| nested(item, name))
+                }
+                ProjectedType::BoxedInterface {
+                    associated_type, ..
+                } => associated_type
+                    .as_ref()
+                    .and_then(|associated| nested(&associated.ty, name)),
+                ProjectedType::Callback {
+                    parameters, result, ..
+                } => parameters
+                    .iter()
+                    .find_map(|parameter| nested(parameter, name))
+                    .or_else(|| nested(result, name)),
+                _ => None,
+            }
+        }
+        fn function(function: &ProjectedFunction, name: &str) -> Option<ProjectedType> {
+            function
+                .parameters
+                .iter()
+                .find_map(|parameter| nested(&parameter.ty, name))
+                .or_else(|| nested(&function.result, name))
+        }
+
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find_map(|item| match &item.kind {
+                ProjectedKind::Function(projected) => function(projected, name),
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                } => {
+                    if item.name == name {
+                        Some(ProjectedType::Foreign {
+                            rust_path: item.rust_path.clone(),
+                            name: item.name.clone(),
+                            base_rust_path: item.rust_path.clone(),
+                            arguments: Vec::new(),
+                        })
+                    } else {
+                        methods
+                            .iter()
+                            .chain(static_methods)
+                            .find_map(|method| function(method, name))
+                    }
+                }
+                ProjectedKind::Interface(interface) => interface
+                    .methods
+                    .iter()
+                    .find_map(|method| function(&method.function, name)),
+                ProjectedKind::Enum { .. } => None,
+            })
+    }
+
+    #[must_use]
+    pub(crate) fn projected_type_is_send(&self, namespace: &str, name: &str) -> bool {
+        let direct = self.item(namespace, name);
+        let instantiated = self.projected_type_named(name).and_then(|projected| {
+            let base = match projected {
+                ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
+                ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+                _ => return None,
+            };
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .find(|item| item.rust_path == base)
+        });
+        match direct.or(instantiated).map(|item| &item.kind) {
+            Some(ProjectedKind::ForeignType { send, .. }) => *send,
+            Some(ProjectedKind::Interface(interface)) => interface.send,
+            _ => false,
+        }
     }
     #[must_use]
     pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
@@ -1043,14 +1173,26 @@ fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap
 fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
     match ty {
         ProjectedType::Foreign {
-            rust_path, name, ..
+            rust_path,
+            name,
+            arguments,
+            ..
         } => {
             foreign.insert(rust_path.clone(), name.clone());
+            for argument in arguments {
+                collect_foreign_type(argument, foreign);
+            }
         }
         ProjectedType::BoxedInterface {
-            trait_path, name, ..
+            trait_path,
+            name,
+            associated_type,
+            ..
         } => {
             foreign.insert(trait_path.clone(), name.clone());
+            if let Some(associated) = associated_type {
+                collect_foreign_type(&associated.ty, foreign);
+            }
         }
 
         ProjectedType::Optional(inner)
@@ -1065,6 +1207,14 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
             for item in items {
                 collect_foreign_type(item, foreign);
             }
+        }
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                collect_foreign_type(parameter, foreign);
+            }
+            collect_foreign_type(result, foreign);
         }
         _ => {}
     }
@@ -1611,6 +1761,7 @@ pub fn resolve(
                 .map(|rust_bound| crate::projection_oracle::BoundQuestion {
                     rust_type: item.rust_path.clone(),
                     rust_bound: rust_bound.to_owned(),
+                    inferred_parameters: Vec::new(),
                 })
         })
         .collect::<Vec<_>>();

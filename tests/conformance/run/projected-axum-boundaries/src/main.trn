@@ -1,0 +1,24 @@
+namespace app
+
+from /deps/axum import Router
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/axum/extract/ws import WebSocket
+from /deps/terrane-axum-serve-witness import verify_serve
+from /core/output import print
+
+async function health string;
+    return 'ok'
+
+async function socket-task; socket WebSocket
+    print; 'websocket upgraded'
+
+async function upgrade; request WebSocketUpgrade
+    request.on_upgrade; socket-task
+
+async function main;
+    router = Router::new;
+    router = router.route; '/', (get; health)
+    router = router.route; '/ws', (get; upgrade)
+    await (verify_serve; move router)
+    print; 'axum route and serve built'

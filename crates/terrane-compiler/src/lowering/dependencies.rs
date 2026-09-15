@@ -1,4 +1,40 @@
 use super::prelude::*;
+fn value_type_mentions_object(value_type: &ValueType, identity: &ObjectIdentity) -> bool {
+    let element =
+        |element: &ElementType| value_type_mentions_object(element.value_type_ref(), identity);
+    match value_type {
+        ValueType::Object(candidate) => candidate == identity,
+        ValueType::Optional(inner) => value_type_mentions_object(inner, identity),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::AsyncIterationStep(item)
+        | ValueType::ChannelPair(item)
+        | ValueType::ChannelSender(item)
+        | ValueType::ChannelReceiver(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::DocumentDecodeOutcome(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => element(item),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => element(key) || element(value),
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            parameters
+                .iter()
+                .any(|parameter| element(&parameter.element_type()))
+                || element(result)
+        }
+        _ => false,
+    }
+}
 
 pub(super) fn emit_dependency_imports(
     package: &SemanticPackage,
@@ -17,31 +53,113 @@ pub(super) fn emit_dependency_imports(
         {
             continue;
         }
-        if let Some(path) = package
+        let direct_path = package
             .projection
-            .foreign_rust_path(&object.identity.namespace, &object.identity.name)
+            .foreign_rust_path(&object.identity.namespace, &object.identity.name);
+        if direct_path.is_none()
+            && !unit
+                .typed_bindings
+                .iter()
+                .any(|binding| value_type_mentions_object(&binding.value_type, &object.identity))
         {
+            continue;
+        }
+        let path = direct_path.map(str::to_owned).or_else(|| {
+            package
+                .projection
+                .projected_type_named(&object.identity.name)
+                .map(|projected| projected.rust_type())
+        });
+        if let Some(path) = path {
             let rust_name = rust_object_type_name(package, &object.identity);
             if !imported.insert(rust_name.clone()) {
                 continue;
             }
-            write_foreign_import(output, path, &rust_name);
+            let generic_parameters = package
+                .projection
+                .projected_type_named(&object.identity.name)
+                .map(|projected| projected_generic_names(&projected))
+                .unwrap_or_default();
+            write_foreign_import(output, &path, &rust_name, &generic_parameters);
         }
     }
     for (name, path) in package.projection.foreign_imports(&unit.namespace) {
         let rust_name = rust_object_name(&name);
         if imported.insert(rust_name.clone()) {
-            write_foreign_import(output, &path, &rust_name);
+            let generic_parameters = package
+                .projection
+                .projected_type_named(&name)
+                .map(|projected| projected_generic_names(&projected))
+                .unwrap_or_default();
+            write_foreign_import(output, &path, &rust_name, &generic_parameters);
         }
     }
 }
 
-pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
+fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String> {
+    fn collect(ty: &crate::projection::ProjectedType, names: &mut BTreeSet<String>) {
+        use crate::projection::ProjectedType;
+        match ty {
+            ProjectedType::Generic(name) => {
+                names.insert(name.clone());
+            }
+            ProjectedType::Sequence { item, .. }
+            | ProjectedType::Set { item, .. }
+            | ProjectedType::AsyncIterationStep(item)
+            | ProjectedType::Optional(item) => collect(item, names),
+            ProjectedType::Mapping { key, value, .. } => {
+                collect(key, names);
+                collect(value, names);
+            }
+            ProjectedType::Tuple(items) => {
+                for item in items {
+                    collect(item, names);
+                }
+            }
+            ProjectedType::Foreign { arguments, .. } => {
+                for argument in arguments {
+                    collect(argument, names);
+                }
+            }
+            ProjectedType::BoxedInterface {
+                associated_type, ..
+            } => {
+                if let Some(associated) = associated_type {
+                    collect(&associated.ty, names);
+                }
+            }
+            ProjectedType::Callback {
+                parameters, result, ..
+            } => {
+                for parameter in parameters {
+                    collect(parameter, names);
+                }
+                collect(result, names);
+            }
+            _ => {}
+        }
+    }
+    let mut names = BTreeSet::new();
+    collect(ty, &mut names);
+    names.into_iter().collect()
+}
+
+pub(super) fn write_foreign_import(
+    output: &mut String,
+    path: &str,
+    rust_name: &str,
+    generic_parameters: &[String],
+) {
     if path.contains("<'_>") {
         return;
     }
     if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
-        writeln!(output, "pub type {rust_name} = {path};")
+        let parameters = if generic_parameters.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", generic_parameters.join(", "))
+        };
+        writeln!(output, "pub type {rust_name}{parameters} = {path};")
             .expect("writing to a string cannot fail");
     } else if path.rsplit("::").next() == Some(rust_name) {
         writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
@@ -370,12 +488,10 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             };
             (item, projected, None)
         };
-        if projected.destination_result.is_none()
-            && projected.chain_role.is_none()
-            && projected
-                .generic_parameters
-                .iter()
-                .any(|generic| generic.input_selected)
+        if projected
+            .generic_parameters
+            .iter()
+            .any(|generic| generic.input_selected)
         {
             continue;
         }
@@ -611,7 +727,19 @@ mod tests {
     #[test]
     fn instantiated_foreign_import_is_a_type_alias() {
         let mut output = String::new();
-        write_foreign_import(&mut output, "witness::Wrapper<u8>", "Wrapper_abcd");
+        write_foreign_import(&mut output, "witness::Wrapper<u8>", "Wrapper_abcd", &[]);
         assert_eq!(output, "pub type Wrapper_abcd = witness::Wrapper<u8>;\n");
+    }
+
+    #[test]
+    fn open_foreign_import_declares_its_type_parameters() {
+        let mut output = String::new();
+        write_foreign_import(
+            &mut output,
+            "witness::Wrapper<T>",
+            "Wrapper_open",
+            &["T".to_owned()],
+        );
+        assert_eq!(output, "pub type Wrapper_open<T> = witness::Wrapper<T>;\n");
     }
 }
