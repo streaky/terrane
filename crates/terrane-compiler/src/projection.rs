@@ -612,6 +612,81 @@ pub struct DeclinedItem {
     pub reason: String,
 }
 
+fn collect_nested_projected_types(
+    ty: &ProjectedType,
+    name: &str,
+    candidates: &mut Vec<ProjectedType>,
+) {
+    if matches!(
+        ty,
+        ProjectedType::Foreign {
+            name: candidate,
+            ..
+        } | ProjectedType::BoxedInterface {
+            name: candidate,
+            ..
+        } if candidate == name
+    ) {
+        candidates.push(ty.clone());
+    }
+    match ty {
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::AsyncIterationStep(item)
+        | ProjectedType::Optional(item) => collect_nested_projected_types(item, name, candidates),
+        ProjectedType::Mapping { key, value, .. } => {
+            collect_nested_projected_types(key, name, candidates);
+            collect_nested_projected_types(value, name, candidates);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                collect_nested_projected_types(item, name, candidates);
+            }
+        }
+        ProjectedType::Foreign { arguments, .. } => {
+            for item in arguments {
+                collect_nested_projected_types(item, name, candidates);
+            }
+        }
+        ProjectedType::BoxedInterface {
+            associated_type: Some(associated),
+            ..
+        } => collect_nested_projected_types(&associated.ty, name, candidates),
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                collect_nested_projected_types(parameter, name, candidates);
+            }
+            collect_nested_projected_types(result, name, candidates);
+        }
+        _ => {}
+    }
+}
+
+fn collect_function_projected_types(
+    function: &ProjectedFunction,
+    name: &str,
+    candidates: &mut Vec<ProjectedType>,
+) {
+    for parameter in &function.parameters {
+        collect_nested_projected_types(&parameter.ty, name, candidates);
+    }
+    collect_nested_projected_types(&function.result, name, candidates);
+}
+
+fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
+    let path = match ty {
+        ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
+        ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+        _ => return None,
+    };
+    Some(
+        path.split_once('<')
+            .map_or(path, |(constructor, _)| constructor),
+    )
+}
+
 impl Projection {
     /// Renders the projected dependency sources required by `imports`.
     ///
@@ -783,74 +858,6 @@ impl Projection {
 
     #[must_use]
     pub(crate) fn projected_type(&self, namespace: &str, name: &str) -> Option<ProjectedType> {
-        fn nested(ty: &ProjectedType, name: &str, candidates: &mut Vec<ProjectedType>) {
-            if matches!(
-                ty,
-                ProjectedType::Foreign {
-                    name: candidate,
-                    ..
-                } | ProjectedType::BoxedInterface {
-                    name: candidate,
-                    ..
-                } if candidate == name
-            ) {
-                candidates.push(ty.clone());
-            }
-            match ty {
-                ProjectedType::Sequence { item, .. }
-                | ProjectedType::Set { item, .. }
-                | ProjectedType::AsyncIterationStep(item)
-                | ProjectedType::Optional(item) => nested(item, name, candidates),
-                ProjectedType::Mapping { key, value, .. } => {
-                    nested(key, name, candidates);
-                    nested(value, name, candidates);
-                }
-                ProjectedType::Tuple(items) => {
-                    for item in items {
-                        nested(item, name, candidates);
-                    }
-                }
-                ProjectedType::Foreign { arguments, .. } => {
-                    for item in arguments {
-                        nested(item, name, candidates);
-                    }
-                }
-                ProjectedType::BoxedInterface {
-                    associated_type, ..
-                } => {
-                    if let Some(associated) = associated_type {
-                        nested(&associated.ty, name, candidates);
-                    }
-                }
-                ProjectedType::Callback {
-                    parameters, result, ..
-                } => {
-                    for parameter in parameters {
-                        nested(parameter, name, candidates);
-                    }
-                    nested(result, name, candidates);
-                }
-                _ => {}
-            }
-        }
-        fn function(function: &ProjectedFunction, name: &str, candidates: &mut Vec<ProjectedType>) {
-            for parameter in &function.parameters {
-                nested(&parameter.ty, name, candidates);
-            }
-            nested(&function.result, name, candidates);
-        }
-        fn owner(ty: &ProjectedType) -> Option<&str> {
-            let path = match ty {
-                ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
-                ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
-                _ => return None,
-            };
-            Some(
-                path.split_once('<')
-                    .map_or(path, |(constructor, _)| constructor),
-            )
-        }
-
         let mut candidates = Vec::new();
         for item in self
             .dependencies
@@ -860,7 +867,7 @@ impl Projection {
         {
             match &item.kind {
                 ProjectedKind::Function(projected) => {
-                    function(projected, name, &mut candidates);
+                    collect_function_projected_types(projected, name, &mut candidates);
                 }
                 ProjectedKind::ForeignType {
                     methods,
@@ -876,22 +883,22 @@ impl Projection {
                         });
                     }
                     for method in methods.iter().chain(static_methods) {
-                        function(method, name, &mut candidates);
+                        collect_function_projected_types(method, name, &mut candidates);
                     }
                 }
                 ProjectedKind::Interface(interface) => {
                     for method in &interface.methods {
-                        function(&method.function, name, &mut candidates);
+                        collect_function_projected_types(&method.function, name, &mut candidates);
                     }
                 }
                 ProjectedKind::Enum { .. } => {}
             }
         }
         let first = candidates.first()?;
-        let first_owner = owner(first)?;
+        let first_owner = projected_type_owner(first)?;
         candidates
             .iter()
-            .all(|candidate| owner(candidate) == Some(first_owner))
+            .all(|candidate| projected_type_owner(candidate) == Some(first_owner))
             .then(|| candidates.remove(0))
     }
 
