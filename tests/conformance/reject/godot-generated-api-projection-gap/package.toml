@@ -1,0 +1,12 @@
+package = "godot-generated-api-projection-gap"
+
+[profile]
+name = "godot-projection"
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.godot]
+version = "=0.5.5"
+effects = ["build"]
