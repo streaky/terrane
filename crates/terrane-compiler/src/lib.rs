@@ -31,7 +31,7 @@ pub use invocation::InvocationMode;
 pub use package::{
     AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID,
     MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile,
-    RustDependency, SourceRole, SourceUnit,
+    RustDependency, SourceRole, SourceUnit, with_tokio_runtime,
 };
 pub use projection_oracle::{
     BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,

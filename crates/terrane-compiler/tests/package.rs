@@ -3,9 +3,11 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
-    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze,
-    compile_discovered_test_tier, compile_package, compile_test_package, discover_test_package,
+    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, RustDependency,
+    analyze, compile_discovered_test_tier, compile_package, compile_test_package,
+    discover_test_package,
     testing::{TestPackage, TestTier},
+    with_tokio_runtime,
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -54,6 +56,25 @@ fn bare_implicit_source_uses_current_directory_as_root() {
 
     assert_eq!(package.root, Path::new("."));
     assert_eq!(package.units[0].relative_path, Path::new("hello.trn"));
+}
+
+#[test]
+fn tokio_runtime_features_merge_by_package_identity() {
+    let declared = RustDependency {
+        name: "runtime".to_owned(),
+        package: "tokio".to_owned(),
+        version: "=1.53.0".to_owned(),
+        features: vec!["net".to_owned()],
+        default_features: false,
+        target: None,
+        effects: vec!["networking".to_owned()],
+    };
+
+    let merged = with_tokio_runtime(&[declared], &["rt", "time"]);
+
+    assert_eq!(merged.len(), 1);
+    assert_eq!(merged[0].name, "runtime");
+    assert_eq!(merged[0].features, ["net", "rt", "time"]);
 }
 
 #[test]

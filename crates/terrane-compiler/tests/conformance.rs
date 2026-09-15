@@ -57,27 +57,12 @@ terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
 "#
         .to_owned();
-        if let Some(dependency) = dependencies.iter().find(|dependency| {
-            dependency.name == "tokio" && dependency.cargo_manifest_table() == "dependencies"
-        }) {
-            let mut dependency = dependency.clone();
-            dependency.features.extend(
-                ["rt", "rt-multi-thread", "sync", "time"]
-                    .into_iter()
-                    .map(str::to_owned),
-            );
-            dependency.features.sort();
-            dependency.features.dedup();
-            manifest.push_str(&dependency.cargo_dependency_spec());
-        } else {
-            manifest.push_str(
-                "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }\n",
-            );
-        }
-        for dependency in dependencies
-            .iter()
-            .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
-            .filter(|dependency| dependency.name != "tokio")
+        for dependency in terrane_compiler::with_tokio_runtime(
+            dependencies,
+            &["rt", "rt-multi-thread", "sync", "time"],
+        )
+        .iter()
+        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
         {
             manifest.push_str(&dependency.cargo_dependency_spec());
         }

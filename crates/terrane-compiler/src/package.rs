@@ -121,6 +121,44 @@ pub struct RustDependency {
     pub effects: Vec<String>,
 }
 
+/// Returns dependency declarations with the required Tokio runtime features merged into any
+/// directly declared Tokio package, including dependencies declared under a Cargo alias.
+#[must_use]
+pub fn with_tokio_runtime(
+    dependencies: &[RustDependency],
+    required_features: &[&str],
+) -> Vec<RustDependency> {
+    let mut merged = dependencies.to_vec();
+    if let Some(tokio) = merged.iter_mut().find(|dependency| {
+        dependency.package == "tokio" && dependency.cargo_manifest_table() == "dependencies"
+    }) {
+        tokio.features.extend(
+            required_features
+                .iter()
+                .map(|feature| (*feature).to_owned()),
+        );
+        tokio.features.sort();
+        tokio.features.dedup();
+    } else {
+        let mut features = required_features
+            .iter()
+            .map(|feature| (*feature).to_owned())
+            .collect::<Vec<_>>();
+        features.sort();
+        features.dedup();
+        merged.push(RustDependency {
+            name: "tokio".to_owned(),
+            package: "tokio".to_owned(),
+            version: "=1.53.0".to_owned(),
+            features,
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        });
+    }
+    merged
+}
+
 impl RustDependency {
     #[must_use]
     pub fn cargo_manifest_table(&self) -> String {

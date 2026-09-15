@@ -994,40 +994,18 @@ fn write_runtime_dependencies(
     rust_dependencies: &[terrane_compiler::RustDependency],
     options: &GeneratedCrateOptions,
 ) {
-    let declared_tokio = rust_dependencies.iter().find(|dependency| {
-        dependency.name == "tokio" && dependency.cargo_manifest_table() == "dependencies"
-    });
-    if options.uses_async_runtime {
-        if let Some(dependency) = declared_tokio {
-            let mut dependency = dependency.clone();
-            dependency.features.extend(
-                ["macros", "rt", "rt-multi-thread", "time"]
-                    .into_iter()
-                    .map(str::to_owned),
-            );
-            if options.uses_tokio_sync {
-                dependency.features.push("sync".to_owned());
-            }
-            dependency.features.sort();
-            dependency.features.dedup();
-            write_rust_dependency(manifest, &dependency);
-        } else {
-            let sync = if options.uses_tokio_sync {
-                ", \"sync\""
-            } else {
-                ""
-            };
-            writeln!(
-                manifest,
-                "tokio = {{ version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\"{sync}, \"time\"] }}"
-            )
-            .expect("writing to a string cannot fail");
+    let dependencies = if options.uses_async_runtime {
+        let mut required_features = vec!["macros", "rt", "rt-multi-thread", "time"];
+        if options.uses_tokio_sync {
+            required_features.push("sync");
         }
-    }
-    for dependency in rust_dependencies
+        terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
+    } else {
+        rust_dependencies.to_vec()
+    };
+    for dependency in dependencies
         .iter()
         .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
-        .filter(|dependency| !options.uses_async_runtime || dependency.name != "tokio")
     {
         write_rust_dependency(manifest, dependency);
     }
@@ -1801,7 +1779,8 @@ mod tests {
         )));
         assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
         assert!(manifest.contains(
-            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }"
+            "tokio = { package = \"tokio\", version = \"=1.53.0\", default-features = true, \
+             features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }"
         ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         let string_support =
