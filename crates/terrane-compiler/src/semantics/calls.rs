@@ -656,6 +656,33 @@ pub(super) fn bind_projected_generics(
             bind_projected_generics(expected.value_type_ref(), actual.value_type_ref(), bindings)
         }
         (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        ) => {
+            bind_projected_generics(
+                expected_key.value_type_ref(),
+                actual_key.value_type_ref(),
+                bindings,
+            )?;
+            bind_projected_generics(
+                expected_value.value_type_ref(),
+                actual_value.value_type_ref(),
+                bindings,
+            )
+        }
+        (
+            ValueType::Tuple(expected_item, expected_length),
+            ValueType::Tuple(actual_item, actual_length),
+        ) if expected_length == actual_length => bind_projected_generics(
+            expected_item.value_type_ref(),
+            actual_item.value_type_ref(),
+            bindings,
+        ),
+        (
             ValueType::Function(expected_parameters, expected_result, _),
             ValueType::Function(actual_parameters, actual_result, _),
         )
@@ -676,7 +703,29 @@ pub(super) fn bind_projected_generics(
                 bindings,
             )
         }
-        _ => Ok(()),
+        _ => projected_generic_name(expected).map_or(Ok(()), Err),
+    }
+}
+
+fn projected_generic_name(value_type: &ValueType) -> Option<String> {
+    match value_type {
+        ValueType::ProjectedGeneric(name) => Some(name.clone()),
+        ValueType::Optional(inner) => projected_generic_name(inner),
+        ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::Iterator(item) => projected_generic_name(item.value_type_ref()),
+        ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+            projected_generic_name(key.value_type_ref())
+                .or_else(|| projected_generic_name(value.value_type_ref()))
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => parameters
+            .iter()
+            .find_map(|parameter| projected_generic_name(parameter.value_type_ref()))
+            .or_else(|| projected_generic_name(result.value_type_ref())),
+        _ => None,
     }
 }
 
@@ -716,6 +765,33 @@ pub(super) fn substitute_projected_value_generics(
         ValueType::Iterator(item) => ValueType::Iterator(ElementType::new(
             substitute_projected_value_generics(item.value_type_ref(), bindings),
         )),
+        ValueType::Map(key, value) => ValueType::Map(
+            ElementType::new(substitute_projected_value_generics(
+                key.value_type_ref(),
+                bindings,
+            )),
+            ElementType::new(substitute_projected_value_generics(
+                value.value_type_ref(),
+                bindings,
+            )),
+        ),
+        ValueType::UnorderedMap(key, value) => ValueType::UnorderedMap(
+            ElementType::new(substitute_projected_value_generics(
+                key.value_type_ref(),
+                bindings,
+            )),
+            ElementType::new(substitute_projected_value_generics(
+                value.value_type_ref(),
+                bindings,
+            )),
+        ),
+        ValueType::Tuple(item, length) => ValueType::Tuple(
+            ElementType::new(substitute_projected_value_generics(
+                item.value_type_ref(),
+                bindings,
+            )),
+            *length,
+        ),
         ValueType::Function(parameters, result, effects) => ValueType::Function(
             parameters
                 .iter()
@@ -1015,4 +1091,47 @@ pub(super) fn descriptor_construct_alias_history(
             )
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{bind_projected_generics, substitute_projected_value_generics};
+    use crate::ScalarType;
+    use crate::semantics::{ElementType, ValueType};
+
+    #[test]
+    fn projected_generics_bind_through_maps_and_tuples() {
+        let generic = || ElementType::new(ValueType::ProjectedGeneric("T".to_owned()));
+        let integer = || ElementType::new(ValueType::Scalar(ScalarType::Int));
+        let string = || ElementType::new(ValueType::Scalar(ScalarType::String));
+        let mut bindings = BTreeMap::new();
+
+        bind_projected_generics(
+            &ValueType::Map(string(), generic()),
+            &ValueType::Map(string(), integer()),
+            &mut bindings,
+        )
+        .unwrap();
+        bind_projected_generics(
+            &ValueType::Tuple(generic(), Some(2)),
+            &ValueType::Tuple(integer(), Some(2)),
+            &mut bindings,
+        )
+        .unwrap();
+
+        assert_eq!(
+            substitute_projected_value_generics(&ValueType::Map(string(), generic()), &bindings),
+            ValueType::Map(string(), integer())
+        );
+        assert!(
+            bind_projected_generics(
+                &ValueType::Tuple(generic(), Some(2)),
+                &ValueType::List(integer()),
+                &mut BTreeMap::new(),
+            )
+            .is_err()
+        );
+    }
 }
