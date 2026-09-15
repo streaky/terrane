@@ -10,6 +10,7 @@ pub mod lexer;
 mod lowering;
 pub mod package;
 pub mod parser;
+pub mod profiling;
 pub mod projection;
 pub mod provenance;
 pub mod rust_ir;
