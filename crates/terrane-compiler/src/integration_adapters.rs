@@ -63,40 +63,52 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         removal_criterion: "generic projected trait calls infer bytes row results and string column indices for direct Row::try_get use",
     },
     IntegrationAdapter {
-        id: "axum-native-handler-callables",
-        tracking_key: "projection/native-callback-wrapper-shape",
-        dependency: "axum",
-        supported_versions: "0.8.x",
-        limitation: "a Terrane-callable projected wrapper is not yet lowered to the ecosystem-native async callable shape required by Handler<T, S>",
-        status: AdapterStatus::Unbridged,
-        removal_criterion: "generic projected-callback lowering proves and emits the native callable shape while preserving Terrane panic and throwable contracts",
-    },
-    IntegrationAdapter {
-        id: "axum-closed-type-aliases",
+        id: "axum-closed-response-alias",
         tracking_key: "projection/closed-alias-canonical-identity",
         dependency: "axum and axum-core",
         supported_versions: "0.8.x and 0.5.x",
-        limitation: "closed aliases such as Response and equivalent MethodRouter<()> paths do not consistently receive one canonical projected identity",
-        status: AdapterStatus::Unbridged,
-        removal_criterion: "generic closed-alias projection canonicalizes direct, defaulted, and specialized paths to the same semantic identity",
+        limitation: "Axum's closed Response alias cannot yet be used as a projected Terrane handler result",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `axum-08`",
+        },
+        removal_criterion: "generic closed-alias projection lets a Terrane WebSocket upgrade handler return Axum's Response alias directly",
     },
     IntegrationAdapter {
-        id: "axum-serve-associated-inference",
+        id: "axum-serve-into-future",
         tracking_key: "projection/associated-bound-result-inference",
         dependency: "axum",
         supported_versions: "0.8.x",
-        limitation: "serve result parameters selected through service associated bounds cannot be closed from the router argument and awaited through IntoFuture",
-        status: AdapterStatus::Unbridged,
-        removal_criterion: "generic associated-bound inference and projected IntoFuture lowering compile a direct serve call without naming its internal service body type",
+        limitation: "serve closes its service bounds but returns a value whose projected IntoFuture implementation is not awaitable",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `axum-08`",
+        },
+        removal_criterion: "generic projected IntoFuture lowering compiles and awaits direct axum::serve with a Router",
     },
     IntegrationAdapter {
         id: "axum-websocket-message-shapes",
         tracking_key: "projection/websocket-enum-stream-sink",
         dependency: "axum",
         supported_versions: "0.8.x with ws",
-        limitation: "WebSocket receive/send and Message enum payload shapes lack an end-to-end projected source contract",
-        status: AdapterStatus::Unbridged,
-        removal_criterion: "generic enum, optional/result, and async member projection supports a bounded Terrane-authored echo session",
+        limitation: "WebSocket::recv nests optional and fallible results, while payload-bearing Message variants have no projected Terrane constructors",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `axum-08`",
+        },
+        removal_criterion: "generic enum constructors and optional/result async member projection support the same bounded Terrane-authored echo session directly",
+    },
+    IntegrationAdapter {
+        id: "tokio-listener-static-methods",
+        tracking_key: "projection/projected-static-wrapper-dependencies",
+        dependency: "tokio",
+        supported_versions: "1.53.x with net",
+        limitation: "TcpListener::bind is input-selected, but projected static member calls do not yet select its concrete string instantiation",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `axum-08`",
+        },
+        removal_criterion: "generic projected static-call specialization infers the bind argument and emits direct TcpListener::bind",
     },
 ];
 
@@ -134,5 +146,15 @@ mod tests {
             .expect("shipped integration adapter crate must be registered");
         assert!(matches!(entry.status, AdapterStatus::Package { .. }));
         assert_eq!(entry.dependency, "sqlx-sqlite");
+        assert!(INTEGRATION_ADAPTERS.iter().any(|entry| {
+            entry.dependency == "axum"
+                && matches!(
+                    entry.status,
+                    AdapterStatus::Package {
+                        name: "terrane-integration-adapters",
+                        ..
+                    }
+                )
+        }));
     }
 }

@@ -7,3 +7,6 @@
 
 #[cfg(feature = "sqlx-sqlite")]
 pub mod sqlx_sqlite;
+
+#[cfg(feature = "axum-08")]
+pub mod axum_08;

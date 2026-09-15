@@ -55,12 +55,29 @@ terrane-string-support = { path = "support/terrane-string-support" }
 terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
-tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "sync", "time"] }
 "#
         .to_owned();
+        if let Some(dependency) = dependencies.iter().find(|dependency| {
+            dependency.name == "tokio" && dependency.cargo_manifest_table() == "dependencies"
+        }) {
+            let mut dependency = dependency.clone();
+            dependency.features.extend(
+                ["rt", "rt-multi-thread", "sync", "time"]
+                    .into_iter()
+                    .map(str::to_owned),
+            );
+            dependency.features.sort();
+            dependency.features.dedup();
+            manifest.push_str(&dependency.cargo_dependency_spec());
+        } else {
+            manifest.push_str(
+                "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }\n",
+            );
+        }
         for dependency in dependencies
             .iter()
             .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
+            .filter(|dependency| dependency.name != "tokio")
         {
             manifest.push_str(&dependency.cargo_dependency_spec());
         }
