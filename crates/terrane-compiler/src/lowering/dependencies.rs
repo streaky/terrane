@@ -446,6 +446,47 @@ pub(super) fn projected_result_expression(
     }
 }
 
+fn projected_static_method_is_referenced(
+    package: &SemanticPackage,
+    dependency_unit: &SemanticUnit,
+    contract: &FunctionContract,
+) -> bool {
+    fn contains_reference(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        owner: &ObjectIdentity,
+        method: &str,
+    ) -> bool {
+        if node.kind == SyntaxKind::StaticMemberExpression
+            && let [receiver, member] = node.children.as_slice()
+            && &unit.source.text()[member.span.start..member.span.end] == method
+            && package
+                .resolve_name_at(
+                    unit,
+                    receiver.span.start,
+                    &unit.source.text()[receiver.span.start..receiver.span.end],
+                )
+                .is_some_and(|symbol| {
+                    symbol.namespace == owner.namespace && symbol.name == owner.name
+                })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| contains_reference(package, unit, child, owner, method))
+    }
+
+    let Some(owner) = contract.owner_identity.as_ref() else {
+        return true;
+    };
+    package.units.iter().any(|unit| {
+        unit.source.id() != dependency_unit.source.id()
+            && contains_reference(package, unit, &unit.tree.root, owner, &contract.name)
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "dependency shim emission keeps each generated branch beside the shared call contract"
@@ -457,6 +498,9 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
         {
+            if !projected_static_method_is_referenced(package, unit, contract) {
+                continue;
+            }
             let type_name = unit
                 .descriptors
                 .iter()
