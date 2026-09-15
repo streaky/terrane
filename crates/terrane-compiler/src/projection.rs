@@ -1632,8 +1632,7 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
-    let overlays = resolved_namespace_overlays(&workspace, dependencies)?;
-    let (identity, target) = cache_identity(root, &workspace, dependencies, &overlays, sandbox)?;
+    let (identity, target) = cache_identity(root, &workspace, dependencies, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
         let mut cached =
@@ -1710,6 +1709,8 @@ pub fn resolve(
         }
         PublishedProjection::Event(event) => resolution_events.push(event),
     }
+
+    let overlays = resolved_namespace_overlays(&workspace, dependencies)?;
 
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
@@ -6350,7 +6351,6 @@ fn cache_identity(
     root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
-    overlays: &[NamespaceOverlay],
     containment: Containment,
 ) -> Result<(String, String), ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
@@ -6368,7 +6368,6 @@ fn cache_identity(
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
-        ("namespace-overlays", format!("{overlays:?}").as_bytes()),
         ("build-toolchain", crate::BUILD_TOOLCHAIN.as_bytes()),
         ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN.as_bytes()),
         ("rustdoc-format", rustdoc_format.as_bytes()),
