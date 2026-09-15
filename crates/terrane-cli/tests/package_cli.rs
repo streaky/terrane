@@ -170,6 +170,52 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
 }
 
 #[test]
+fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"cli-library\"\nartifact = \"dynamic-library\"\nprelude = false\n[namespaces]\n\"cli/app\" = \"app\"\n\"cli/support\" = \"support\"\n",
+    )
+    .unwrap();
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let build = Command::new(binary)
+        .arg("build")
+        .arg(&package.0)
+        .env("RUSTFLAGS", "-D warnings")
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let artifact = PathBuf::from(String::from_utf8(build.stdout).unwrap().trim());
+    assert!(artifact.is_file(), "{}", artifact.display());
+    assert_eq!(
+        artifact
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some(std::env::consts::DLL_EXTENSION)
+    );
+
+    for command in [Some("run"), Some("debug"), None] {
+        let mut invocation = Command::new(binary);
+        if let Some(command) = command {
+            invocation.arg(command);
+        }
+        let input = command.map_or_else(|| package.0.join("package.toml"), |_| package.0.clone());
+        let output = invocation.arg(input).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{command:?}: {output:?}");
+        assert!(output.stdout.is_empty());
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("`run` and `debug` require an executable package"),
+            "{command:?}: {output:?}"
+        );
+    }
+}
+
+#[test]
 fn projected_reqwest_runs_against_a_loopback_server() {
     let package = TempPackage::new();
     fs::write(

@@ -4478,6 +4478,7 @@ the following minimal contract:
 ```toml
 package = "example.tools"
 prelude = true
+artifact = "executable"
 
 [namespaces]
 "example/tools" = "src"
@@ -4488,7 +4489,14 @@ prelude = true
 non-empty table from canonical namespace roots to distinct relative directory
 roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
-and defaults to `true`.
+and defaults to `true`. `artifact` is optional and selects `executable` (the
+default) or `dynamic-library`. A dynamic-library package still has one ordinary
+Terrane `main` declaration so the same package entry contract remains valid, but Cargo
+emits its generated crate as a `cdylib`; `run` and `debug` reject that artifact
+kind because it requires an external host. Terrane declarations do not yet acquire
+host-visible symbols automatically: the host entrypoint must currently come from
+a maintained authored Rust module, which may call the ordinary lowered Terrane
+functions inside the generated crate.
 
 ### 23.5 Capability profiles
 
@@ -4560,8 +4568,11 @@ version.
 
 User builds preserve inherited warning policy rather than appending a blanket `-Dwarnings`.
 Generated manifests declare the stable lint contracts lowering guarantees, while the compiler's
-conformance corpus continues to deny every warning. Compiler-owned Cargo commands use `sccache`
-only after the explicit `TERRANE_SCCACHE=1` opt-in; that choice participates in build cache identity.
+conformance corpus continues to deny every warning. Compiler-only generated crates forbid unsafe
+code. A package with maintained authored Rust modules lowers that lint to deny so a reviewed module
+may opt into the narrow unsafe boundary it owns without weakening other generated modules.
+Compiler-owned Cargo commands use `sccache` only after the explicit `TERRANE_SCCACHE=1` opt-in; that
+choice participates in build cache identity.
 Terrane records only stable toolchain pins it has itself requested. Its `toolchains` report may
 identify an older pin as not used by the current Terrane version, but never removes it or claims it
 is safe to remove.

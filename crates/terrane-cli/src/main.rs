@@ -206,6 +206,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 .collect(),
         })?
     };
+    if package.artifact == terrane_compiler::ArtifactKind::DynamicLibrary
+        && matches!(command, CliCommand::Run | CliCommand::Debug)
+    {
+        return Err(CliFailure::usage_with(
+            "`run` and `debug` require an executable package; use `build` for a dynamic library",
+        ));
+    }
     let compilation = match terrane_compiler::compile_package_with_options(
         &package,
         terrane_compiler::CompilerOptions {
@@ -231,9 +238,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         print_rust(&compilation);
         return Ok(ExitCode::SUCCESS);
     }
-    let rust_entrypoint = output_path
-        .as_deref()
-        .unwrap_or_else(|| Path::new("src/main.rs"));
+    let rust_entrypoint = output_path.as_deref().unwrap_or_else(|| {
+        Path::new(match package.artifact {
+            terrane_compiler::ArtifactKind::Executable => "src/main.rs",
+            terrane_compiler::ArtifactKind::DynamicLibrary => "src/lib.rs",
+        })
+    });
     let rust_files = compilation
         .rust_files_for(rust_entrypoint)
         .map_err(CliFailure::rust_artifact)?;
@@ -270,12 +280,18 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
+            unsafe_code: if package.authored_rust_modules.is_empty() {
+                UnsafeCodePolicy::Forbid
+            } else {
+                UnsafeCodePolicy::MaintainedModules
+            },
             debug_profile,
+            artifact: package.artifact,
         },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
-    let executable = prepare_artifact(
+    let artifact = prepare_artifact(
         command,
         &crate_dir,
         &target_dir,
@@ -283,16 +299,18 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.units,
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
+        package.artifact,
         release,
     )?;
     if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
     }
-    let executable = executable.expect("build, run, and debug prepare an executable");
+    let artifact = artifact.expect("build, run, and debug prepare a native artifact");
     if command == CliCommand::Build {
-        println!("{}", executable.display());
+        println!("{}", artifact.display());
         return Ok(ExitCode::SUCCESS);
     }
+    let executable = artifact;
     if command == CliCommand::Debug {
         let debug = compilation
             .debug_information(rust_entrypoint)
@@ -464,6 +482,7 @@ fn prepare_artifact(
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
     containment: terrane_compiler::projection::Containment,
+    artifact_kind: terrane_compiler::ArtifactKind,
     release: bool,
 ) -> Result<Option<PathBuf>, CliFailure> {
     if command == CliCommand::Check {
@@ -489,8 +508,8 @@ fn prepare_artifact(
         return Ok(None);
     }
     let profile = if release { "release" } else { "debug" };
-    let executable = executable_path(&crate_dir.join("artifacts").join(profile));
-    if !executable.is_file() {
+    let artifact = artifact_path(&crate_dir.join("artifacts").join(profile), artifact_kind);
+    if !artifact.is_file() {
         run_cargo(
             "build",
             crate_dir,
@@ -501,23 +520,51 @@ fn prepare_artifact(
             containment,
             release,
         )?;
-        let built = executable_path(&target_dir.join(profile));
-        fs::create_dir_all(executable.parent().expect("cached executable has a parent")).map_err(
+        let built = artifact_path(&target_dir.join(profile), artifact_kind);
+        fs::create_dir_all(artifact.parent().expect("cached artifact has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
         )?;
-        fs::copy(&built, &executable)
-            .map_err(|error| CliFailure::backend(format!("cannot cache built program: {error}")))?;
+        fs::copy(&built, &artifact).map_err(|error| {
+            CliFailure::backend(format!("cannot cache built artifact: {error}"))
+        })?;
+        #[cfg(all(target_os = "windows", target_env = "msvc"))]
+        if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+            cache_import_library(&built, &artifact)?;
+        }
     }
-    executable
+    artifact
         .canonicalize()
         .map(Some)
-        .map_err(|error| CliFailure::backend(format!("cannot locate built program: {error}")))
+        .map_err(|error| CliFailure::backend(format!("cannot locate built artifact: {error}")))
 }
 
 fn executable_path(directory: &Path) -> PathBuf {
     let mut path = directory.join("terrane_program");
     path.set_extension(std::env::consts::EXE_EXTENSION);
     path
+}
+
+fn artifact_path(directory: &Path, artifact_kind: terrane_compiler::ArtifactKind) -> PathBuf {
+    match artifact_kind {
+        terrane_compiler::ArtifactKind::Executable => executable_path(directory),
+        terrane_compiler::ArtifactKind::DynamicLibrary => directory.join(format!(
+            "{}terrane_program{}",
+            std::env::consts::DLL_PREFIX,
+            std::env::consts::DLL_SUFFIX
+        )),
+    }
+}
+
+#[cfg(any(test, all(target_os = "windows", target_env = "msvc")))]
+fn cache_import_library(built: &Path, cached: &Path) -> Result<(), CliFailure> {
+    let built = built.with_extension("dll.lib");
+    let cached = cached.with_extension("dll.lib");
+    fs::copy(&built, &cached).map_err(|error| {
+        CliFailure::backend(format!(
+            "cannot cache dynamic-library import library: {error}"
+        ))
+    })?;
+    Ok(())
 }
 
 fn print_rust(compilation: &terrane_compiler::Compilation) {
@@ -854,6 +901,20 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
 }
 
 type DebugProfile = Option<terrane_compiler::debugging::DebugArtifactProfile>;
+#[derive(Clone, Copy)]
+enum UnsafeCodePolicy {
+    Forbid,
+    MaintainedModules,
+}
+
+impl UnsafeCodePolicy {
+    const fn lint_level(self) -> &'static str {
+        match self {
+            Self::Forbid => "forbid",
+            Self::MaintainedModules => "deny",
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct GeneratedCrateOptions {
@@ -862,14 +923,16 @@ struct GeneratedCrateOptions {
     uses_async_runtime: bool,
     uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
+    unsafe_code: UnsafeCodePolicy,
+    artifact: terrane_compiler::ArtifactKind,
     debug_profile: DebugProfile,
 }
 
-fn base_generated_manifest() -> String {
+fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
     format!(
         "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
          [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
-         [lints.rust]\nunsafe_code = \"forbid\"\n\n\
+         [lints.rust]\nunsafe_code = {:?}\n\n\
          [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
          terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
          terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
@@ -877,7 +940,8 @@ fn base_generated_manifest() -> String {
          terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
         terrane_compiler::BUILD_TOOLCHAIN,
-        terrane_compiler::UNICODE_DATA_VERSION
+        terrane_compiler::UNICODE_DATA_VERSION,
+        unsafe_code.lint_level()
     )
 }
 
@@ -912,7 +976,7 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let mut manifest = base_generated_manifest();
+    let mut manifest = base_generated_manifest(options.unsafe_code);
     if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
@@ -932,6 +996,9 @@ fn write_generated_crate(
         {
             write_rust_dependency(&mut manifest, dependency);
         }
+    }
+    if options.artifact == terrane_compiler::ArtifactKind::DynamicLibrary {
+        manifest.push_str("\n[lib]\ncrate-type = [\"cdylib\"]\n");
     }
     append_build_profiles(&mut manifest, options.panic, options.debug_profile);
     manifest.push_str("\n[workspace]\n");
@@ -1567,7 +1634,7 @@ fn usage() -> String {
      --embed-sources  include authored source snapshots in debug provenance (debug only)\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
-     build  compile a native executable\n  run    compile and execute the program\n  \
+     build  compile the package's native artifact\n  run    compile and execute the program\n  \
      debug  build and launch the LLDB-backed Terrane source debugger\n  \
      debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
@@ -1740,6 +1807,29 @@ mod tests {
         assert!(directory.join("09").is_dir());
         fs::remove_dir_all(directory).unwrap();
     }
+
+    #[test]
+    fn windows_import_library_cache_copies_the_dll_companion() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-import-library-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+        let built = directory.join("target/debug/terrane_program.dll");
+        let cached = directory.join("artifacts/debug/terrane_program.dll");
+        fs::create_dir_all(built.parent().unwrap()).unwrap();
+        fs::create_dir_all(cached.parent().unwrap()).unwrap();
+        fs::write(built.with_extension("dll.lib"), b"import-library").unwrap();
+
+        assert!(cache_import_library(&built, &cached).is_ok());
+
+        assert_eq!(
+            fs::read(cached.with_extension("dll.lib")).unwrap(),
+            b"import-library"
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
         let directory =
@@ -1760,7 +1850,9 @@ mod tests {
                     uses_async_runtime: true,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    debug_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
+                    artifact: terrane_compiler::ArtifactKind::Executable,
+                    unsafe_code: UnsafeCodePolicy::Forbid,
+                    debug_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE),
                 },
             )
             .is_ok()
@@ -1808,6 +1900,8 @@ mod tests {
                     uses_async_runtime: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                    artifact: terrane_compiler::ArtifactKind::DynamicLibrary,
+                    unsafe_code: UnsafeCodePolicy::MaintainedModules,
                     debug_profile: None,
                 },
             )
@@ -1815,6 +1909,8 @@ mod tests {
         );
         let synchronous_manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
         assert!(!synchronous_manifest.contains("\ntokio = "));
+        assert!(synchronous_manifest.contains("[lib]\ncrate-type = [\"cdylib\"]"));
+        assert!(synchronous_manifest.contains("[lints.rust]\nunsafe_code = \"deny\""));
         fs::remove_dir_all(directory).unwrap();
     }
 }

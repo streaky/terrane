@@ -63,6 +63,12 @@ pub enum BuildToolchain {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArtifactKind {
+    Executable,
+    DynamicLibrary,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackagePurpose {
     Production,
     Testing,
@@ -192,6 +198,7 @@ pub struct Package {
     pub prelude: bool,
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
+    pub artifact: ArtifactKind,
     pub profile: CapabilityProfile,
     pub purpose: PackagePurpose,
     pub testing: crate::testing::TestConfiguration,
@@ -238,12 +245,13 @@ impl Package {
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
             executor: ExecutorProfile::Threaded,
-            build_toolchain: BuildToolchain::Pinned,
+            artifact: ArtifactKind::Executable,
             profile: CapabilityProfile::unrestricted(),
             purpose: PackagePurpose::Production,
             testing: crate::testing::TestConfiguration::conventional(
                 CapabilityProfile::unrestricted(),
             ),
+            build_toolchain: BuildToolchain::Pinned,
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -269,8 +277,8 @@ impl Package {
             .saturating_add(1)
     }
 
-    /// The manifest is TOML with required `package` and `namespaces` fields and
-    /// an optional `prelude` boolean. Source units are discovered in sorted path order.
+    /// The manifest is TOML with required `package` and `namespaces` fields plus
+    /// optional `prelude` and `artifact` fields. Sources are discovered in sorted path order.
     ///
     /// # Errors
     ///
@@ -302,11 +310,12 @@ impl Package {
             root,
             prelude: manifest.prelude,
             reflection: manifest.reflection,
-            build_toolchain: manifest.build_toolchain,
             executor: manifest.executor,
+            artifact: manifest.artifact,
             profile: manifest.profile,
-            testing: manifest.testing,
             purpose: PackagePurpose::Production,
+            testing: manifest.testing,
+            build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,
             authored_rust_modules,
@@ -369,9 +378,10 @@ impl Package {
             prelude: manifest.prelude,
             reflection: manifest.reflection,
             executor: manifest.executor,
+            artifact: manifest.artifact,
             profile: manifest.profile,
-            testing: manifest.testing,
             purpose: PackagePurpose::Production,
+            testing: manifest.testing,
             build_toolchain: manifest.build_toolchain,
             units,
             rust_dependencies: manifest.rust_dependencies,
@@ -383,6 +393,7 @@ impl Package {
 struct ParsedManifest {
     identity: String,
     prelude: bool,
+    artifact: ArtifactKind,
     reflection: ReflectionProfile,
     build_toolchain: BuildToolchain,
     executor: ExecutorProfile,
@@ -424,6 +435,7 @@ fn parse_manifest(
             key.as_str(),
             "package"
                 | "prelude"
+                | "artifact"
                 | "reflection"
                 | "executor"
                 | "rust-toolchain"
@@ -460,6 +472,22 @@ fn parse_manifest(
                 None,
             ));
             None
+        }
+    };
+    let artifact = match table.get("artifact") {
+        None => ArtifactKind::Executable,
+        Some(toml::Value::String(value)) if value == "executable" => ArtifactKind::Executable,
+        Some(toml::Value::String(value)) if value == "dynamic-library" => {
+            ArtifactKind::DynamicLibrary
+        }
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`artifact` must be either `executable` or `dynamic-library`",
+                Some("artifact"),
+            ));
+            ArtifactKind::Executable
         }
     };
     let prelude = match table.get("prelude") {
@@ -561,6 +589,7 @@ fn parse_manifest(
             identity: identity.expect("validated package identity"),
             prelude,
             reflection,
+            artifact,
             build_toolchain,
             executor,
             profile,

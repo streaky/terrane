@@ -3,8 +3,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
-    BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile, RustDependency,
-    analyze, compile_discovered_test_tier, compile_package, compile_test_package,
+    ArtifactKind, BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile,
+    RustDependency, analyze, compile_discovered_test_tier, compile_package, compile_test_package,
     discover_test_package,
     testing::{TestPackage, TestTier},
     with_tokio_runtime,
@@ -115,6 +115,40 @@ fn manifest_can_explicitly_use_the_system_rust_toolchain() {
     let loaded = Package::load(&package.0).unwrap();
 
     assert_eq!(loaded.build_toolchain, BuildToolchain::System);
+}
+
+#[test]
+fn manifest_can_select_a_dynamic_library_artifact() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"example.extension\"\nartifact = \"dynamic-library\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    package.write("src/main.trn", "namespace example\nfunction main;\n");
+
+    let loaded = Package::load(&package.0).unwrap();
+
+    assert_eq!(loaded.artifact, ArtifactKind::DynamicLibrary);
+}
+
+#[test]
+fn manifest_rejects_an_unknown_artifact_kind() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"example.extension\"\nartifact = \"shared\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    package.write("src/main.trn", "namespace example\nfunction main;\n");
+
+    let errors = Package::load(&package.0).unwrap_err();
+
+    assert_eq!(errors.len(), 1);
+    assert!(
+        errors[0]
+            .diagnostic
+            .message
+            .contains("`executable` or `dynamic-library`")
+    );
 }
 
 #[test]

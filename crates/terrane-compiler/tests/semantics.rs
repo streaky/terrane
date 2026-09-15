@@ -13,13 +13,14 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         root: PathBuf::from("."),
         prelude,
         reflection: ReflectionProfile::Ordinary,
-        build_toolchain: BuildToolchain::Pinned,
         executor: ExecutorProfile::Threaded,
+        artifact: terrane_compiler::ArtifactKind::Executable,
         profile: CapabilityProfile::unrestricted(),
         purpose: terrane_compiler::PackagePurpose::Production,
         testing: terrane_compiler::testing::TestConfiguration::conventional(
             CapabilityProfile::unrestricted(),
         ),
+        build_toolchain: BuildToolchain::Pinned,
         units: sources
             .iter()
             .enumerate()

@@ -1620,7 +1620,8 @@ impl<'a> Emitter<'a> {
             .copied();
         if receiver.is_none()
             && contract.owner.is_none()
-            && contract.name != "main"
+            && (contract.name != "main"
+                || self.package.artifact == crate::package::ArtifactKind::DynamicLibrary)
             && !self.unit.bundled
             && !self.package.function_is_referenced(contract.span)
         {

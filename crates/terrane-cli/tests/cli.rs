@@ -116,6 +116,9 @@ fn executable_shebang_script_runs_through_implicit_command() {
     let binary = PathBuf::from(env!("CARGO_BIN_EXE_terrane"));
     let directory = TemporaryDirectory::new("executable-script");
     fs::create_dir_all(directory.path()).unwrap();
+    let binary_directory = directory.path().join("bin");
+    fs::create_dir(&binary_directory).unwrap();
+    fs::copy(&binary, binary_directory.join("terrane")).unwrap();
     let script = directory.path().join("thing.trn");
     fs::write(
         &script,
@@ -125,8 +128,7 @@ fn executable_shebang_script_runs_through_implicit_command() {
     let mut permissions = fs::metadata(&script).unwrap().permissions();
     permissions.set_mode(0o755);
     fs::set_permissions(&script, permissions).unwrap();
-
-    let mut path_entries = vec![binary.parent().unwrap().to_path_buf()];
+    let mut path_entries = vec![binary_directory];
     if let Some(path) = std::env::var_os("PATH") {
         path_entries.extend(std::env::split_paths(&path));
     }
