@@ -8,6 +8,12 @@ capabilities = ["build", "filesystem"]
 [namespaces]
 app = "src"
 
+[rust-dependencies.sqlx-sqlite]
+package = "sqlx-sqlite"
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem"]
+
 [rust-dependencies.terrane-integration-adapters]
 package = "terrane-integration-adapters"
 version = "=0.1.0"

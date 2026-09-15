@@ -462,17 +462,23 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 5] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:6:12-6:77) */
-        { Site { function: 0, file: 0, line: 6, column: 12, end_line: 6, end_column: 77 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:6:11-6:78) */
-        { Site { function: 0, file: 0, line: 6, column: 11, end_line: 6, end_column: 78 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:7:12-7:94) */
-        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 94 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:7:11-7:95) */
-        { Site { function: 0, file: 0, line: 7, column: 11, end_line: 7, end_column: 95 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:8:32-8:92) */
-        { Site { function: 0, file: 0, line: 8, column: 32, end_line: 8, end_column: 92 } },
+    pub static SITES: [Site; 8] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:7:39-7:57) */
+        { Site { function: 0, file: 0, line: 7, column: 39, end_line: 7, end_column: 57 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:12-8:73) */
+        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 73 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:11-8:74) */
+        { Site { function: 0, file: 0, line: 8, column: 11, end_line: 8, end_column: 74 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:9:12-9:90) */
+        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 90 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:9:11-9:91) */
+        { Site { function: 0, file: 0, line: 9, column: 11, end_line: 9, end_column: 91 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:10:32-10:88) */
+        { Site { function: 0, file: 0, line: 10, column: 32, end_line: 10, end_column: 88 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:11:12-11:32) */
+        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 32 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:11:11-11:33) */
+        { Site { function: 0, file: 0, line: 11, column: 11, end_line: 11, end_column: 33 } },
     ];
     #[cold]
     #[inline(never)]
@@ -490,69 +496,131 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     __terrane_run(async move {
+        let mut database: SqliteConnection = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = open(String::from("adapter.db"));
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            0 /* terrane-site: src/main.trn:7:39-7:57 */,
+                        )
+                    }
+                })
+                .await,
+            0 /* terrane-site: src/main.trn:7:39-7:57 */,
+        );
         __terrane_traced(
             __terrane_await({
                     let __terrane_future = execute(
-                        String::from("adapter.db"),
+                        &mut database,
                         String::from("CREATE TABLE values (body BLOB NOT NULL)"),
                     );
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            0 /* terrane-site: src/main.trn:6:12-6:77 */,
+                            1 /* terrane-site: src/main.trn:8:12-8:73 */,
                         )
                     }
                 })
                 .await,
-            1 /* terrane-site: src/main.trn:6:11-6:78 */,
+            2 /* terrane-site: src/main.trn:8:11-8:74 */,
         );
         __terrane_traced(
             __terrane_await({
                     let __terrane_future = execute_with_bytes(
-                        String::from("adapter.db"),
+                        &mut database,
                         String::from("INSERT INTO values (body) VALUES (?)"),
                         Vec::from([118, 97, 108, 117, 101]),
                     );
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:7:12-7:94 */,
+                            3 /* terrane-site: src/main.trn:9:12-9:90 */,
                         )
                     }
                 })
                 .await,
-            3 /* terrane-site: src/main.trn:7:11-7:95 */,
+            4 /* terrane-site: src/main.trn:9:11-9:91 */,
         );
         let rows: terrane_collection_support::List<Vec<u8>> = __terrane_traced(
             __terrane_await({
                     let __terrane_future = query_bytes(
-                        String::from("adapter.db"),
+                        &mut database,
                         String::from("SELECT body FROM values"),
                         String::from("body"),
                     );
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:8:32-8:92 */,
+                            5 /* terrane-site: src/main.trn:10:32-10:88 */,
                         )
                     }
                 })
                 .await,
-            4 /* terrane-site: src/main.trn:8:32-8:92 */,
+            5 /* terrane-site: src/main.trn:10:32-10:88 */,
         );
         let _ = &rows;
+        __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = close(database);
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            6 /* terrane-site: src/main.trn:11:12-11:32 */,
+                        )
+                    }
+                })
+                .await,
+            7 /* terrane-site: src/main.trn:11:11-11:33 */,
+        );
     });
 }
+// Source: <terrane>/projected/deps/sqlx-sqlite.trn
+// Namespace: deps/sqlx-sqlite
+pub use sqlx_sqlite::SqliteConnection;
 // Source: <terrane>/projected/deps/terrane-integration-adapters/sqlx-sqlite.trn
 // Namespace: deps/terrane-integration-adapters/sqlx-sqlite
+pub async fn close(
+    connection: SqliteConnection,
+) -> Result<(), crate::TerraneForeignError> {
+    let connection = connection;
+    match crate::__terrane_dependency_await_unwind(
+            terrane_integration_adapters::sqlx_sqlite::close(connection),
+        )
+        .await
+    {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        format!(
+                            "Rust dependency `terrane-integration-adapters` member `terrane_integration_adapters::sqlx_sqlite::close` failed: {error}"
+                        ),
+                        crate::TERRANE_NO_SITE,
+                    ),
+                ),
+            )
+        }
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-integration-adapters",
+                    "terrane_integration_adapters::sqlx_sqlite::close",
+                ),
+            )
+        }
+    }
+}
 pub async fn execute(
-    path: String,
+    connection: &mut SqliteConnection,
     statement: String,
 ) -> Result<(), crate::TerraneForeignError> {
-    let path = path;
     let statement = statement;
     match crate::__terrane_dependency_await_unwind(
-            terrane_integration_adapters::sqlx_sqlite::execute(path, statement),
+            terrane_integration_adapters::sqlx_sqlite::execute(connection, statement),
         )
         .await
     {
@@ -582,16 +650,15 @@ pub async fn execute(
     }
 }
 pub async fn execute_with_bytes(
-    path: String,
+    connection: &mut SqliteConnection,
     statement: String,
     value: Vec<u8>,
 ) -> Result<(), crate::TerraneForeignError> {
-    let path = path;
     let statement = statement;
     let value = value;
     match crate::__terrane_dependency_await_unwind(
             terrane_integration_adapters::sqlx_sqlite::execute_with_bytes(
-                path,
+                connection,
                 statement,
                 value,
             ),
@@ -623,17 +690,48 @@ pub async fn execute_with_bytes(
         }
     }
 }
+pub async fn open(path: String) -> Result<SqliteConnection, crate::TerraneForeignError> {
+    let path = path;
+    match crate::__terrane_dependency_await_unwind(
+            terrane_integration_adapters::sqlx_sqlite::open(path),
+        )
+        .await
+    {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        format!(
+                            "Rust dependency `terrane-integration-adapters` member `terrane_integration_adapters::sqlx_sqlite::open` failed: {error}"
+                        ),
+                        crate::TERRANE_NO_SITE,
+                    ),
+                ),
+            )
+        }
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-integration-adapters",
+                    "terrane_integration_adapters::sqlx_sqlite::open",
+                ),
+            )
+        }
+    }
+}
 pub async fn query_bytes(
-    path: String,
+    connection: &mut SqliteConnection,
     statement: String,
     column: String,
 ) -> Result<terrane_collection_support::List<Vec<u8>>, crate::TerraneForeignError> {
-    let path = path;
     let statement = statement;
     let column = column;
     match crate::__terrane_dependency_await_unwind(
             terrane_integration_adapters::sqlx_sqlite::query_bytes(
-                path,
+                connection,
                 statement,
                 column,
             ),

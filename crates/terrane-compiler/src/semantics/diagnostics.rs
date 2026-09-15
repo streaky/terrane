@@ -507,19 +507,36 @@ fn projected_call_mutates_binding(
     let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
         return false;
     };
-    arguments
-        .children
-        .iter()
-        .zip(&projected.parameters)
-        .any(|(argument, parameter)| {
-            parameter.generic_parameter.is_some()
-                && parameter.mutable_borrow
-                && root_name(argument).is_some_and(|root| {
-                    package
-                        .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                        .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
-                })
-        })
+    let mut positional = 0;
+    arguments.children.iter().any(|argument| {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let index = named.map_or_else(
+            || {
+                let index = positional;
+                positional += 1;
+                index
+            },
+            |name| {
+                projected
+                    .parameters
+                    .iter()
+                    .position(|parameter| parameter.name == node_text(&unit.source, name))
+                    .unwrap_or(usize::MAX)
+            },
+        );
+        projected
+            .parameters
+            .get(index)
+            .is_some_and(|parameter| parameter.mutable_borrow)
+            && root_name(argument).is_some_and(|root| {
+                package
+                    .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+            })
+    })
 }
 
 pub(crate) fn binding_span_is_mutated(

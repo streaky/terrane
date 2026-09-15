@@ -350,11 +350,30 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     ));
                 }
             }
+            let projected = super::bindings::projected_function_for_call(package, unit, callee);
             let transferred = arguments
                 .children
                 .iter()
                 .zip(parameters)
-                .filter_map(|(argument, parameter)| {
+                .enumerate()
+                .filter_map(|(index, (argument, parameter))| {
+                    let projected_parameter = projected.and_then(|function| {
+                        argument
+                            .children
+                            .first()
+                            .filter(|name| {
+                                argument.children.len() > 1 && name.kind == SyntaxKind::Name
+                            })
+                            .and_then(|name| {
+                                function.parameters.iter().find(|candidate| {
+                                    candidate.name == node_text(&unit.source, name)
+                                })
+                            })
+                            .or_else(|| function.parameters.get(index))
+                    });
+                    if projected_parameter.is_some_and(|parameter| parameter.borrowed) {
+                        return None;
+                    }
                     parameter
                         .value_type
                         .as_ref()

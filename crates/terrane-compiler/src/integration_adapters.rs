@@ -27,6 +27,18 @@ pub struct IntegrationAdapter {
 
 pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
     IntegrationAdapter {
+        id: "sqlx-sqlite-connection-traits",
+        tracking_key: "projection/sqlx-connection-trait-members",
+        dependency: "sqlx-sqlite",
+        supported_versions: "0.8.x with bundled SQLite",
+        limitation: "SqliteConnection projects as its upstream identity, but trait-provided connect and close operations do not yet project as callable members",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `sqlx-sqlite`",
+        },
+        removal_criterion: "generic trait-member projection lets Terrane construct and explicitly close the directly projected SqliteConnection",
+    },
+    IntegrationAdapter {
         id: "sqlx-sqlite-query-lifetimes",
         tracking_key: "projection/sqlx-query-lifetime-chain",
         dependency: "sqlx",
@@ -36,7 +48,19 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
             name: "terrane-integration-adapters",
             version: "0.1.x with feature `sqlx-sqlite`",
         },
-        removal_criterion: "generic chain-only lowering keeps SQLx query, bind, execute, and row extraction intermediates inside one generated Rust expression",
+        removal_criterion: "generic chain-only lowering keeps SQLx query, bind, and execute intermediates inside one generated Rust expression",
+    },
+    IntegrationAdapter {
+        id: "sqlx-sqlite-row-extraction",
+        tracking_key: "projection/sqlx-row-generic-extraction",
+        dependency: "sqlx-core",
+        supported_versions: "0.8.x",
+        limitation: "Row::try_get<T, I> requires generic result and column-index selection that the projected call cannot yet close from an application destination",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x with feature `sqlx-sqlite`",
+        },
+        removal_criterion: "generic projected trait calls infer bytes row results and string column indices for direct Row::try_get use",
     },
     IntegrationAdapter {
         id: "axum-native-handler-callables",
@@ -109,6 +133,6 @@ mod tests {
         let entry = adapter_for_package("terrane-integration-adapters")
             .expect("shipped integration adapter crate must be registered");
         assert!(matches!(entry.status, AdapterStatus::Package { .. }));
-        assert_eq!(entry.dependency, "sqlx");
+        assert_eq!(entry.dependency, "sqlx-sqlite");
     }
 }
