@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, mpsc};
 
-const MAX_CONFORMANCE_JOBS: usize = 8;
+const MAX_CONFORMANCE_JOBS: usize = 4;
 static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
 static NEXT_BUILD_ID: AtomicUsize = AtomicUsize::new(0);
 
