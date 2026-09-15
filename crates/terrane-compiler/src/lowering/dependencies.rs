@@ -446,59 +446,69 @@ pub(super) fn projected_result_expression(
     }
 }
 
-fn projected_static_method_is_referenced(
+pub(super) type StaticMethodReferences = BTreeSet<(String, String, String)>;
+
+pub(super) fn index_projected_static_method_references(
     package: &SemanticPackage,
-    dependency_unit: &SemanticUnit,
-    contract: &FunctionContract,
-) -> bool {
-    fn contains_reference(
+) -> StaticMethodReferences {
+    fn collect(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
-        owner: &ObjectIdentity,
-        method: &str,
-    ) -> bool {
+        references: &mut StaticMethodReferences,
+    ) {
         if node.kind == SyntaxKind::StaticMemberExpression
             && let [receiver, member] = node.children.as_slice()
-            && &unit.source.text()[member.span.start..member.span.end] == method
-            && package
-                .resolve_name_at(
-                    unit,
-                    receiver.span.start,
-                    &unit.source.text()[receiver.span.start..receiver.span.end],
-                )
-                .is_some_and(|symbol| {
-                    symbol.namespace == owner.namespace && symbol.name == owner.name
-                })
+            && let Some(symbol) = package.resolve_name_at(
+                unit,
+                receiver.span.start,
+                &unit.source.text()[receiver.span.start..receiver.span.end],
+            )
         {
-            return true;
+            references.insert((
+                symbol.namespace.clone(),
+                symbol.name.clone(),
+                unit.source.text()[member.span.start..member.span.end].to_owned(),
+            ));
         }
-        node.children
-            .iter()
-            .any(|child| contains_reference(package, unit, child, owner, method))
+        for child in &node.children {
+            collect(package, unit, child, references);
+        }
     }
 
-    let Some(owner) = contract.owner_identity.as_ref() else {
-        return true;
-    };
-    package.units.iter().any(|unit| {
-        unit.source.id() != dependency_unit.source.id()
-            && contains_reference(package, unit, &unit.tree.root, owner, &contract.name)
-    })
+    let mut references = BTreeSet::new();
+    for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        collect(package, unit, &unit.tree.root, &mut references);
+    }
+    references
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "dependency shim emission keeps each generated branch beside the shared call contract"
 )]
-pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
+pub(super) fn emit_dependency_unit(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    static_method_references: &StaticMethodReferences,
+) -> String {
     let mut output = String::new();
     emit_dependency_imports(package, unit, &mut output);
     for contract in &unit.functions {
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
         {
-            if !projected_static_method_is_referenced(package, unit, contract) {
+            let Some(identity) = contract.owner_identity.as_ref() else {
+                continue;
+            };
+            if !static_method_references.contains(&(
+                identity.namespace.clone(),
+                identity.name.clone(),
+                contract.name.clone(),
+            )) {
                 continue;
             }
             let type_name = unit
