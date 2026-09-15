@@ -1738,6 +1738,10 @@ fn usage() -> String {
      [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
+     terrane profile record --cpu [--embed-sources] [--retain-arguments] \
+     [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
+     terrane profile show <file.trnprof> [--focus <source>:<line>] [--generated] [--native] \
+     [--format <text|json>] [--limit <count>] [--source-root <path>] [--build-root <path>]\n\
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
@@ -1750,11 +1754,13 @@ fn usage() -> String {
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
-     --embed-sources  include authored source snapshots in debug provenance (debug only)\n  \
+     --embed-sources  include authored source snapshots in debug provenance or profile artifacts\n  \
+     --retain-arguments  include profile workload arguments in the artifact (profile record only)\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile the package's native artifact\n  run    compile and execute the program\n  \
      debug  build and launch the LLDB-backed Terrane source debugger\n  \
+     profile  record optimized CPU samples or show source-attributed profile evidence\n  \
      debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
