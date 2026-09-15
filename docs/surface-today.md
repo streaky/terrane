@@ -1088,7 +1088,8 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 44 retains these contracts and call-site generic templates alongside explicit
+Projection schema 45 retains these contracts, call-site generic templates, and dependency namespace
+overlays alongside explicit
 root, continuation, and terminal lifetime-bearing builders represented as chain-only values.
 Their intermediates may retain a borrow from a named input but may appear only as receiver
 subtrees inside one nested expression;
@@ -1115,31 +1116,36 @@ features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
 ```
 
-`SqliteConnection` is projected directly from `/deps/sqlx-sqlite`; the adapter's `open`, `execute`,
-`execute_with_bytes`, `query_bytes`, and `close` operations accept or return that same upstream
-identity:
+`SqliteConnection` is projected directly from `sqlx-sqlite`. The adapter package declares a
+feature-gated namespace overlay in Cargo metadata, so its `open`, `execute`, `execute_with_bytes`,
+`query_bytes`, and `close` operations appear beside that upstream type:
 
 ```terrane
-from /deps/sqlx-sqlite import SqliteConnection
-from /deps/terrane-integration-adapters/sqlx-sqlite import open, execute, close
+from /deps/sqlx-sqlite import SqliteConnection, open, execute, close
 
 database SqliteConnection = await open; 'application.db'
 await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
 await (close; move database)
 ```
 
-The adapter bridges only trait-provided connection operations, the lifetime-bearing
-`Query<'q, DB, A>` chain, and generic row extraction. It does not define another SQLx object model.
-As generic projection admits those operations, consumers move each call to `/deps/sqlx-sqlite` or
-`/deps/sqlx-core` and the adapter shrinks.
+The projection artifact retains each item's exact Rust owner: `SqliteConnection` lowers through
+`sqlx_sqlite`, while the temporary operations lower through
+`terrane_integration_adapters::sqlx_sqlite`. Only their Terrane presentation namespace is unified.
+The adapter bridges trait-provided connection operations, the lifetime-bearing `Query<'q, DB, A>`
+chain, and generic row extraction; it does not define another SQLx object model.
 
-All such bridges live behind independent features in the one `terrane-integration-adapters` crate.
-`terrane_compiler::integration_adapters` accounts separately for each bridged or unbridged
-limitation with a stable ID, tracking key, dependency/version range, and removal criterion. The
-registry never dispatches dependency-specific projection or lowering. Adapters preserve every
-representable upstream identity and never absorb application routing, schema, policy, or workflow.
-When generic compiler support satisfies a criterion, migrate consumers and remove that operation;
-remove the adapter module and ledger entries when the final gap closes.
+Namespace overlays are a generic Cargo-metadata facility available only to directly declared
+providers targeting another directly declared package. A declaration is active only with its named
+feature. Undeclared, self, ambiguous, empty, overlapping, and colliding overlays are rejected, and
+an adapter never shadows an upstream item. Overlay declarations participate in projection cache
+identity while exact Rust paths preserve provenance for tooling and diagnostics.
+
+All bridges live behind independent features in the one `terrane-integration-adapters` crate.
+`terrane_compiler::integration_adapters` accounts separately for each limitation with a stable ID,
+tracking key, dependency/version range, and removal criterion, but the registry never dispatches
+projection or lowering. When generic projection admits an operation, its collision makes the stale
+adapter member explicit; remove that member and its ledger entry. Existing
+`from /deps/sqlx-sqlite` imports remain unchanged while their implementation becomes fully upstream.
 
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;

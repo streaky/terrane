@@ -4862,19 +4862,29 @@ claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: 
 adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
 A maintained integration adapter is an additive layer over an upstream projected dependency, not a
-replacement namespace for it. An application must import and use every upstream type and operation
-that projection already represents; an adapter may expose only the remaining unprojectable
-operation shape. When an adapter accepts or returns an upstream type that is itself representable,
-its signature must preserve that projected identity rather than hide it behind an adapter-owned
-wrapper. The application declares both dependencies and may therefore combine, for example, a
-`SqliteConnection` from `/deps/sqlx-sqlite` with query operations from a temporary adapter.
+replacement API. An application must declare both dependencies and use every upstream type and
+operation that projection already represents. When an adapter accepts or returns a representable
+upstream type, its signature must preserve that projected identity rather than hide it behind an
+adapter-owned wrapper.
+
+A directly declared adapter package may attach one of its feature-gated module namespaces beneath a
+different directly declared dependency through
+`package.metadata.terrane.namespace-overlays`. The generic projector presents those items in the
+target dependency's `/deps/<crate>` namespace while retaining their adapter-owned Rust paths and
+dependency provenance. Thus `SqliteConnection` and a temporary adapter-supplied `execute` operation
+may be imported together from `/deps/sqlx-sqlite`, even though their recorded Rust paths have
+different owners. A disabled feature contributes no overlay. An undeclared, self, ambiguous, empty,
+overlapping, or colliding overlay is a projection error; an adapter can never silently shadow an
+upstream item.
 
 Adapters must retain upstream terminology and semantics, contain no application routing, schema,
-policy, or workflow, and remain ordinary projected Rust dependencies. Their limitations and
-objective removal criteria must be accounted for outside generic projection and lowering; generic
-compiler paths must never dispatch on an adapter registry, crate name, or application. As each
-missing upstream operation becomes projectable, consumers migrate to `/deps/<crate>` and the
-adapter surface shrinks. The adapter and its accounting entry are removed when no gap remains.
+policy, or workflow, and remain ordinary projected Rust dependencies. Overlay discovery is generic
+Cargo-metadata processing: the compiler must never dispatch on an adapter registry, crate name, or
+application. The overlay declaration participates in projection identity, and projection artifacts,
+diagnostics, and tooling retain exact Rust paths so the supplying package remains inspectable. As an
+upstream operation becomes projectable, its name collision identifies the obsolete adapter item;
+remove that item and its accounting entry. Consumer imports remain stable, and the adapter
+disappears when no gap remains.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

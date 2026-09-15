@@ -255,17 +255,23 @@ so a bug-tracker issue can attach to the stable key before an implementation exi
 The registry is data and diagnostics only: it must not dispatch crate-specific projection,
 semantics, or lowering. Adapter modules are ordinary projected Rust dependency surfaces and remain
 independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
-application graph. Tests require unique IDs and tracking keys and account for every shipped adapter
-feature. Retire an adapter only after generic non-framework regression fixtures satisfy its removal
-criterion and every consumer has migrated.
+application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
+enabled adapter module to another directly declared dependency namespace while retaining each
+item's actual Rust path and owning dependency. Reject undeclared, self, ambiguous, empty,
+overlapping, and colliding overlays rather than shadowing an upstream item. Overlay declarations
+participate in projection cache identity.
 
-The initial `sqlx-sqlite` feature provides a narrow reusable SQLite bridge around a directly
-projected upstream `SqliteConnection`. The adapter supplies only currently unavailable
-trait-provided connection operations, lifetime-bearing statement execution and binding, and generic
-bytes-row extraction; its signatures preserve the upstream connection identity. Applications
-declare and import `sqlx-sqlite` directly alongside the adapter. Separate ledger entries account for
-each missing capability so the adapter shrinks operation by operation as `/deps/sqlx-sqlite` and
-`/deps/sqlx-core` become sufficient. Axum handler-callable representation, closed aliases, `serve`
+Tests require unique adapter IDs and tracking keys and account for every shipped adapter feature.
+Retire an operation when its upstream projection creates a collision and generic non-framework
+regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
+consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
+
+The initial `sqlx-sqlite` feature supplies only unavailable trait-provided connection operations,
+lifetime-bearing statement execution and binding, and generic bytes-row extraction around the
+directly projected upstream `SqliteConnection`. Its namespace overlay presents those operations
+beside `SqliteConnection` under `/deps/sqlx-sqlite`, while projection provenance continues to name
+`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation. Separate ledger entries
+make each operation removable. Axum handler-callable representation, closed aliases, `serve`
 associated inference, and WebSocket message operations remain unbridged entries rather than being
 hidden behind an application-specific Rust router.
 
@@ -1136,9 +1142,9 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-associated-mismatch`, `projected-associated-bound`,
 `projected-associated-unprojectable`, `projected-associated-two-slots`,
 `projected-associated-gat`, `projected-associated-erased-binding`, and
-`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 44 records
-structural call bindings, complete supertrait identities, final-admission bound filtering, and
-call-site generic templates.
+`projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 45 records
+structural call bindings, complete supertrait identities, final-admission bound filtering,
+call-site generic templates, and validated dependency namespace overlays.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
