@@ -1240,6 +1240,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn if_statement(&mut self, node: &SyntaxNode) {
+        if self.emit_guarded_integer_assignment(node) {
+            return;
+        }
         let Some(condition) = node.children.first() else {
             return;
         };

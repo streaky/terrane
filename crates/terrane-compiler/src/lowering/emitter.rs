@@ -2,6 +2,7 @@ mod call_support;
 mod calls;
 mod context;
 mod expressions;
+mod guarded_arithmetic;
 mod items;
 mod members;
 pub(super) mod pipeline;

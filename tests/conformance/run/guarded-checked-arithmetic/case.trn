@@ -1,0 +1,33 @@
+namespace guarded-checked-arithmetic
+
+from /core/errors import arithmetic-overflow
+
+function transition int8; input int8
+  value int8 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function main;
+  print; (transition; 42)
+  print; (transition; 41)
+  upper int8 = 43
+  try
+    if upper % 2 == 0
+      upper = upper / 2
+    else
+      upper = 3 * upper + 1
+    print; upper
+  catch arithmetic-overflow
+    print; >upper-caught
+  intermediate int8 = -43
+  try
+    if intermediate % 2 == 0
+      intermediate = intermediate / 2
+    else
+      intermediate = 3 * intermediate + 1
+    print; intermediate
+  catch arithmetic-overflow
+    print; >intermediate-caught

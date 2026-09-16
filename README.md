@@ -183,6 +183,12 @@ bounded list builder with canonical unit-step induction, one append per iteratio
 early exit. Runtime ranges whose exact allocation would exceed the existing 256 MiB preallocation
 ceiling retain the ordinary bounded-growth loop.
 
+For release builds, Terrane can also recognize a pure fixed-width integer branch that assigns both
+outcomes back to the same local. When an exact affine analysis proves a non-empty domain where every
+intermediate operation is safe, lowering emits a guarded branchless fast path and retains the
+ordinary checked branch as the fallback. Debug builds and expressions with effects, aliases,
+projected targets, uncertain types, or incomplete range proofs keep ordinary statement lowering.
+
 Create `hello.trn`:
 
 ```terrane
