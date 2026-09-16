@@ -1820,6 +1820,7 @@ pub fn resolve(
                 "rustdoc",
                 "-p",
                 &package_spec,
+                "--lib",
                 "--target-dir",
                 "target/rustdoc-57",
                 "--offline",
