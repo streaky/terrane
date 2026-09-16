@@ -33,6 +33,18 @@ impl Emitter<'_> {
         ) {
             self.debug_point(node, "user");
         }
+        let referenced_fresh_lists = self
+            .fresh_empty_lists
+            .iter()
+            .copied()
+            .filter(|span| {
+                self.unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == *span)
+                    .is_some_and(|binding| self.node_references_binding(node, binding))
+            })
+            .collect::<Vec<_>>();
         match node.kind {
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {
@@ -111,6 +123,8 @@ impl Emitter<'_> {
             }
             _ => {}
         }
+        self.fresh_empty_lists
+            .retain(|binding| !referenced_fresh_lists.contains(binding));
     }
 
     pub(super) fn collection_mutation_statement(&mut self, node: &SyntaxNode) -> Option<String> {
@@ -1087,6 +1101,11 @@ impl Emitter<'_> {
             let borrow = if mutable { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));
         }
+        if binding.is_some_and(|binding| matches!(binding.value_type, ValueType::List(_)))
+            && initializer.is_some_and(|initializer| self.text(initializer).trim() == "list")
+        {
+            self.fresh_empty_lists.push(node.span);
+        }
     }
 
     fn binding_rust_type(
@@ -1239,7 +1258,7 @@ impl Emitter<'_> {
         }
         self.line("}");
     }
-    fn inactive_list_append_bindings(
+    pub(super) fn inactive_list_append_bindings(
         &self,
         boundary: &SyntaxNode,
         block: &SyntaxNode,
@@ -1315,10 +1334,83 @@ impl Emitter<'_> {
         self.line("}");
     }
 
+    fn emit_iterator_list_builder(&mut self, condition: &SyntaxNode, block: &SyntaxNode) -> bool {
+        let Some(builder) = self.iterator_list_builder(condition, block) else {
+            return false;
+        };
+        debug_assert!(builder.fresh);
+        let prior_borrow_count = self.begin_list_append_region(vec![builder.binding], None);
+        let vector = self
+            .list_append_borrows
+            .iter()
+            .rev()
+            .find(|borrow| borrow.binding == builder.binding)
+            .expect("iterator list builder must own its append borrow")
+            .vector
+            .clone();
+        let item = self
+            .unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == builder.binding)
+            .and_then(|binding| match &binding.value_type {
+                ValueType::List(item) => Some(item.clone()),
+                _ => None,
+            })
+            .expect("iterator list builder must retain its list item type");
+        let item_type = item.value_type();
+        let item_rust_type = rust_element_type(self.package, item);
+        let loop_index = self.loop_counter;
+        self.loop_counter += 1;
+        let start = format!("__terrane_list_start_{loop_index}");
+        let end = format!("__terrane_list_end_{loop_index}");
+        let length = format!("__terrane_list_length_{loop_index}");
+        let capacity_limit = format!("__terrane_list_capacity_limit_{loop_index}");
+        let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
+        self.line(&format!("let {start} = {};", builder.index));
+        self.line(&format!("let {end} = {};", builder.end));
+        self.line(&format!("let {length} = ({start}..{end}).size_hint().0;"));
+        self.line(&format!(
+            "let {capacity_limit} = {preallocation_limit}usize / std::mem::size_of::<{item_rust_type}>().max(1);"
+        ));
+        self.line(&format!("if {length} <= {capacity_limit} {{"));
+        self.indent += 1;
+        self.line(&format!(
+            "*{vector} = ({start}..{end}).map(|{}| {{",
+            builder.index
+        ));
+        self.indent += 1;
+        for statement in &builder.prefix {
+            self.statement(statement);
+        }
+        self.debug_point(&builder.append, "user");
+        let value = self.expression_as(&builder.value, item_type);
+        self.line(&value);
+        self.indent -= 1;
+        self.line("}).collect();");
+        self.line(&format!(
+            "{} = std::cmp::max({start}, {end});",
+            builder.index
+        ));
+        self.indent -= 1;
+        self.line("} else {");
+        self.indent += 1;
+        self.line(&format!("{vector}.reserve({capacity_limit});"));
+        self.block(block);
+        self.indent -= 1;
+        self.line("}");
+        self.line(&format!("let _ = &{};", builder.index));
+        self.end_list_append_region(prior_borrow_count);
+        true
+    }
+
     pub(super) fn while_statement(&mut self, node: &SyntaxNode) {
         let [condition, block] = node.children.as_slice() else {
             return;
         };
+        if self.emit_iterator_list_builder(condition, block) {
+            return;
+        }
         let bounded_range = self.bounded_integer_range(condition, block);
         let has_bounded_range = bounded_range.is_some();
         let append_bindings = self.inactive_list_append_bindings(condition, block);

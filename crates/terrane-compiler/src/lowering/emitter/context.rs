@@ -396,6 +396,71 @@ impl Emitter<'_> {
         Some((rust_name(&binding.name), end))
     }
 
+    pub(super) fn iterator_list_builder(
+        &self,
+        condition: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Option<IteratorListBuilder> {
+        fn contains_await(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
+            (node.kind == SyntaxKind::UnaryExpression
+                && emitter.unary_operator(node).as_deref() == Some("await"))
+                || node
+                    .children
+                    .iter()
+                    .any(|child| contains_await(emitter, child))
+        }
+
+        self.optimize_list_builders.then_some(())?;
+        let (index, end) = self.while_capacity_hint(condition, block)?;
+        let [left, right] = condition.children.as_slice() else {
+            return None;
+        };
+        let index_binding = self.local_typed_binding(left)?;
+        if right.kind == SyntaxKind::Name {
+            let end_binding = self.local_typed_binding(right)?;
+            (end_binding.value_type == index_binding.value_type).then_some(())?;
+        }
+        let [prefix @ .., append, increment] = block.children.as_slice() else {
+            return None;
+        };
+        prefix
+            .iter()
+            .all(|statement| statement.kind == SyntaxKind::Binding)
+            .then_some(())?;
+        (increment.kind == SyntaxKind::PostfixExpression
+            && increment.children.first().is_some_and(|target| {
+                self.local_typed_binding(target)
+                    .is_some_and(|binding| binding.span == index_binding.span)
+            })
+            && self.source.text()[increment.span.start..increment.span.end]
+                .trim_end()
+                .ends_with("++"))
+        .then_some(())?;
+        let binding = self.list_append_binding(append)?;
+        self.fresh_empty_lists.contains(&binding).then_some(())?;
+        let append_bindings = self.inactive_list_append_bindings(condition, block);
+        (append_bindings.as_slice() == [binding]).then_some(())?;
+        let [_, arguments] = append.children.as_slice() else {
+            return None;
+        };
+        let [value] = arguments.children.as_slice() else {
+            return None;
+        };
+        (!contains_await(self, block)).then_some(())?;
+        (!(self.propagate_errors || self.function_errors || self.try_completion)
+            || !self.expression_throws_synchronously(block))
+        .then_some(())?;
+        Some(IteratorListBuilder {
+            fresh: self.fresh_empty_lists.contains(&binding),
+            binding,
+            index,
+            end,
+            prefix: prefix.to_vec(),
+            append: append.clone(),
+            value: value.children.last().unwrap_or(value).clone(),
+        })
+    }
+
     pub(super) fn binding_has_bounded_integer_range(&self, node: &SyntaxNode) -> bool {
         self.local_typed_binding(node).is_some_and(|binding| {
             self.bounded_integer_ranges

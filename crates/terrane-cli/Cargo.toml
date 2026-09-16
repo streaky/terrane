@@ -9,6 +9,9 @@ rust-version.workspace = true
 name = "terrane"
 path = "src/main.rs"
 
+[features]
+iterator-list-builders = []
+
 [dependencies]
 terrane-compiler = { path = "../terrane-compiler" }
 serde_json = "1"
