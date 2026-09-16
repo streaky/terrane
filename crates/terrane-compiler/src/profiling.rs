@@ -447,14 +447,14 @@ pub fn attribute(
             artifact.evidence.loss.captured_events
         ));
     }
-    finish_report(artifact, buckets, rows, stacks, fidelity_reasons)
+    finish_report(artifact, buckets, rows, &stacks, fidelity_reasons)
 }
 
 fn finish_report(
     artifact: &ProfileArtifact,
     buckets: BTreeMap<AttributionQuality, u64>,
     rows: BTreeMap<RowKey, RowAccumulator>,
-    stacks: BTreeMap<Vec<String>, u64>,
+    stacks: &BTreeMap<Vec<String>, u64>,
     fidelity_reasons: Vec<String>,
 ) -> AttributionReport {
     let mut rows = rows
@@ -494,8 +494,8 @@ fn finish_report(
             .then_with(|| right.inclusive_samples.cmp(&left.inclusive_samples))
             .then_with(|| left.label.cmp(&right.label))
     });
-    let weighted_stacks = build_weighted_stacks(&stacks);
-    let call_tree = build_call_tree(&stacks);
+    let weighted_stacks = build_weighted_stacks(stacks);
+    let call_tree = build_call_tree(stacks);
     AttributionReport {
         captured_samples: artifact.evidence.loss.captured_events,
         lost_samples: artifact.evidence.loss.lost_events,
@@ -920,37 +920,41 @@ mod tests {
     };
     use crate::provenance::{NativeModuleIdentity, RelocationMapping};
 
+    fn build_provenance() -> BuildProvenance {
+        BuildProvenance {
+            compiler_version: "compiler".to_owned(),
+            rust_toolchain: "toolchain".to_owned(),
+            target: "x86_64-unknown-linux-gnu".to_owned(),
+            rust_sysroot: "/rust".to_owned(),
+            rustc_release: "rustc".to_owned(),
+            abi_recipe: "abi".to_owned(),
+            artifact_profile: CPU_ARTIFACT_PROFILE.id.to_owned(),
+            optimization: CPU_ARTIFACT_PROFILE.optimization.to_owned(),
+            debug_information: CPU_ARTIFACT_PROFILE.debug_information.to_owned(),
+            inlining: CPU_ARTIFACT_PROFILE.inlining.to_owned(),
+            stripping: CPU_ARTIFACT_PROFILE.stripping.to_owned(),
+            lto: CPU_ARTIFACT_PROFILE.lto.to_owned(),
+            codegen_units: CPU_ARTIFACT_PROFILE.codegen_units,
+            panic: CPU_ARTIFACT_PROFILE.panic.to_owned(),
+            inputs: Vec::new(),
+            native_module: NativeModuleIdentity {
+                file_name: "program".to_owned(),
+                content_hash: "sha256:program".to_owned(),
+            },
+            relocation: RelocationMapping {
+                build_root: "/build".to_owned(),
+                source_root: "/source".to_owned(),
+            },
+        }
+    }
+
     fn artifact() -> ProfileArtifact {
         ProfileArtifact {
             schema_version: SCHEMA_VERSION.to_owned(),
             evidence_kind: EvidenceKind::CpuSamples,
             evidence_unit: EvidenceUnit::SampleCount,
             attribution_schema_version: ATTRIBUTION_SCHEMA_VERSION.to_owned(),
-            provenance: BuildProvenance {
-                compiler_version: "compiler".to_owned(),
-                rust_toolchain: "toolchain".to_owned(),
-                target: "x86_64-unknown-linux-gnu".to_owned(),
-                rust_sysroot: "/rust".to_owned(),
-                rustc_release: "rustc".to_owned(),
-                abi_recipe: "abi".to_owned(),
-                artifact_profile: CPU_ARTIFACT_PROFILE.id.to_owned(),
-                optimization: CPU_ARTIFACT_PROFILE.optimization.to_owned(),
-                debug_information: CPU_ARTIFACT_PROFILE.debug_information.to_owned(),
-                inlining: CPU_ARTIFACT_PROFILE.inlining.to_owned(),
-                stripping: CPU_ARTIFACT_PROFILE.stripping.to_owned(),
-                lto: CPU_ARTIFACT_PROFILE.lto.to_owned(),
-                codegen_units: CPU_ARTIFACT_PROFILE.codegen_units,
-                panic: CPU_ARTIFACT_PROFILE.panic.to_owned(),
-                inputs: Vec::new(),
-                native_module: NativeModuleIdentity {
-                    file_name: "program".to_owned(),
-                    content_hash: "sha256:program".to_owned(),
-                },
-                relocation: RelocationMapping {
-                    build_root: "/build".to_owned(),
-                    source_root: "/source".to_owned(),
-                },
-            },
+            provenance: build_provenance(),
             source_attribution: DebugInformation {
                 schema_version: crate::debugging::SCHEMA_VERSION.to_owned(),
                 compiler_version: crate::VERSION.to_owned(),

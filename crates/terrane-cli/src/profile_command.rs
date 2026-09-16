@@ -518,8 +518,7 @@ fn parse_perf_script(
     let executable = executable
         .canonicalize()
         .unwrap_or_else(|_| executable.to_path_buf());
-    let mut module_indices = BTreeMap::new();
-    let mut modules = Vec::new();
+    let mut captured_modules = CapturedModules::new(build_ids, &executable, executable_hash);
     let mut samples = Vec::new();
     let mut current: Option<CpuSample> = None;
     let mut lost_events = 0_u64;
@@ -556,49 +555,13 @@ fn parse_perf_script(
         };
         match parse_frame(trimmed) {
             Some(ParsedFrame::Inline(frame)) => pending_inline.push(frame),
-            Some(ParsedFrame::Concrete(frame)) => {
-                let module = module_index(
-                    &frame.module_path,
-                    &mut module_indices,
-                    &mut modules,
-                    build_ids,
-                    &executable,
-                    executable_hash,
-                );
-                let is_profiled_executable = modules[module].is_profiled_executable;
-                for inline in pending_inline.drain(..) {
-                    if inline.instruction == frame.instruction {
-                        push_native_frame(
-                            sample,
-                            NativeFrame {
-                                module,
-                                module_offset: frame.module_offset,
-                                symbol: inline.symbol,
-                                symbol_offset: inline.symbol_offset,
-                                generated_location: inline
-                                    .generated_location
-                                    .filter(|_| is_profiled_executable),
-                                inline: true,
-                            },
-                            &mut dropped_frames,
-                        );
-                    } else {
-                        dropped_frames = dropped_frames.saturating_add(1);
-                    }
-                }
-                push_native_frame(
-                    sample,
-                    NativeFrame {
-                        module,
-                        module_offset: frame.module_offset,
-                        symbol: frame.symbol,
-                        symbol_offset: frame.symbol_offset,
-                        generated_location: None,
-                        inline: false,
-                    },
-                    &mut dropped_frames,
-                );
-            }
+            Some(ParsedFrame::Concrete(frame)) => record_concrete_frame(
+                frame,
+                sample,
+                &mut pending_inline,
+                &mut captured_modules,
+                &mut dropped_frames,
+            ),
             None => {
                 if let Some((location, inline)) = parse_source_location(trimmed) {
                     if inline {
@@ -606,7 +569,7 @@ fn parse_perf_script(
                             frame.generated_location = Some(location);
                         }
                     } else if let Some(frame) = sample.stack.last_mut()
-                        && modules[frame.module].is_profiled_executable
+                        && captured_modules.modules[frame.module].is_profiled_executable
                     {
                         frame.generated_location = Some(location);
                     }
@@ -629,18 +592,8 @@ fn parse_perf_script(
             sample.unreadable = true;
         }
     }
-    if !modules.iter().any(|module| module.is_profiled_executable) {
-        let path = executable.to_string_lossy().into_owned();
-        modules.push(CapturedModule {
-            build_id: build_ids
-                .get(&path)
-                .cloned()
-                .unwrap_or_else(|| "unavailable".to_owned()),
-            path,
-            content_hash: executable_hash.to_owned(),
-            is_profiled_executable: true,
-        });
-    }
+    captured_modules.ensure_profiled_executable();
+    let modules = captured_modules.modules;
     Ok(ParsedPerfEvidence {
         modules,
         samples,
@@ -729,39 +682,121 @@ fn parse_timestamp_nanoseconds(value: &str) -> Option<u64> {
         .checked_add(fraction.parse().ok()?)
 }
 
-fn module_index(
-    module_path: &str,
-    indices: &mut BTreeMap<String, usize>,
-    modules: &mut Vec<CapturedModule>,
-    build_ids: &BTreeMap<String, String>,
-    executable: &Path,
-    executable_hash: &str,
-) -> usize {
-    if let Some(index) = indices.get(module_path) {
-        return *index;
+struct CapturedModules<'a> {
+    indices: BTreeMap<String, usize>,
+    modules: Vec<CapturedModule>,
+    build_ids: &'a BTreeMap<String, String>,
+    executable: &'a Path,
+    executable_hash: &'a str,
+}
+
+impl<'a> CapturedModules<'a> {
+    fn new(
+        build_ids: &'a BTreeMap<String, String>,
+        executable: &'a Path,
+        executable_hash: &'a str,
+    ) -> Self {
+        Self {
+            indices: BTreeMap::new(),
+            modules: Vec::new(),
+            build_ids,
+            executable,
+            executable_hash,
+        }
     }
-    let path = PathBuf::from(module_path);
-    let canonical = path.canonicalize().unwrap_or(path);
-    let is_profiled_executable = canonical == executable;
-    let content_hash = if is_profiled_executable {
-        executable_hash.to_owned()
-    } else if let Ok(bytes) = fs::read(&canonical) {
-        hash_bytes(&bytes)
-    } else {
-        "unavailable".to_owned()
-    };
-    let index = modules.len();
-    modules.push(CapturedModule {
-        path: module_path.to_owned(),
-        build_id: build_ids
-            .get(module_path)
-            .cloned()
-            .unwrap_or_else(|| "unavailable".to_owned()),
-        content_hash,
-        is_profiled_executable,
-    });
-    indices.insert(module_path.to_owned(), index);
-    index
+
+    fn index(&mut self, module_path: &str) -> usize {
+        if let Some(index) = self.indices.get(module_path) {
+            return *index;
+        }
+        let path = PathBuf::from(module_path);
+        let canonical = path.canonicalize().unwrap_or(path);
+        let is_profiled_executable = canonical == self.executable;
+        let content_hash = if is_profiled_executable {
+            self.executable_hash.to_owned()
+        } else if let Ok(bytes) = fs::read(&canonical) {
+            hash_bytes(&bytes)
+        } else {
+            "unavailable".to_owned()
+        };
+        let index = self.modules.len();
+        self.modules.push(CapturedModule {
+            path: module_path.to_owned(),
+            build_id: self
+                .build_ids
+                .get(module_path)
+                .cloned()
+                .unwrap_or_else(|| "unavailable".to_owned()),
+            content_hash,
+            is_profiled_executable,
+        });
+        self.indices.insert(module_path.to_owned(), index);
+        index
+    }
+
+    fn ensure_profiled_executable(&mut self) {
+        if self
+            .modules
+            .iter()
+            .any(|module| module.is_profiled_executable)
+        {
+            return;
+        }
+        let path = self.executable.to_string_lossy().into_owned();
+        self.modules.push(CapturedModule {
+            build_id: self
+                .build_ids
+                .get(&path)
+                .cloned()
+                .unwrap_or_else(|| "unavailable".to_owned()),
+            path,
+            content_hash: self.executable_hash.to_owned(),
+            is_profiled_executable: true,
+        });
+    }
+}
+
+fn record_concrete_frame(
+    frame: ConcreteFrame,
+    sample: &mut CpuSample,
+    pending_inline: &mut Vec<PendingInlineFrame>,
+    modules: &mut CapturedModules<'_>,
+    dropped_frames: &mut u64,
+) {
+    let module = modules.index(&frame.module_path);
+    let is_profiled_executable = modules.modules[module].is_profiled_executable;
+    for inline in pending_inline.drain(..) {
+        if inline.instruction == frame.instruction {
+            push_native_frame(
+                sample,
+                NativeFrame {
+                    module,
+                    module_offset: frame.module_offset,
+                    symbol: inline.symbol,
+                    symbol_offset: inline.symbol_offset,
+                    generated_location: inline
+                        .generated_location
+                        .filter(|_| is_profiled_executable),
+                    inline: true,
+                },
+                dropped_frames,
+            );
+        } else {
+            *dropped_frames = dropped_frames.saturating_add(1);
+        }
+    }
+    push_native_frame(
+        sample,
+        NativeFrame {
+            module,
+            module_offset: frame.module_offset,
+            symbol: frame.symbol,
+            symbol_offset: frame.symbol_offset,
+            generated_location: None,
+            inline: false,
+        },
+        dropped_frames,
+    );
 }
 
 #[derive(Debug)]

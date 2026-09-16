@@ -198,18 +198,19 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
             .sum::<u64>(),
         captured
     );
+    let source_row = report["report"]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["source"]["source_uri"] == "src/α.trn")
+        .unwrap();
+    assert_eq!(source_row["quality"], "exact-authored");
     assert!(
-        buckets["exact-authored"].as_u64().unwrap() * 100 >= captured * 95,
+        source_row["inclusive_samples"].as_u64().unwrap() * 100 >= captured * 95,
         "{report}"
     );
+    assert!(buckets["native-only"].as_u64().unwrap() > 0);
     assert_eq!(report["report"]["fidelity"], "exact-build-source");
-    assert!(
-        report["report"]["rows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row["source"]["source_uri"] == "src/α.trn")
-    );
 }
 
 #[test]
