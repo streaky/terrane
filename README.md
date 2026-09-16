@@ -194,11 +194,13 @@ Then check, run, build, or inspect it:
 ./target/release/terrane run hello.trn
 ./target/release/terrane build hello.trn
 ./target/release/terrane debug hello.trn
+./target/release/terrane profile record --cpu --output hello.trnprof hello.trn
+./target/release/terrane profile show hello.trnprof
 ./target/release/terrane rust hello.trn
 ```
 
-`check`, `rust`, `build`, `run`, and `debug` use the same source, resolution, semantic, lowering,
-and Cargo pipeline. They differ only in how far they take the result:
+`check`, `rust`, `build`, `run`, `debug`, and `profile record` use the same source, resolution,
+semantic, lowering, and Cargo pipeline. They differ only in how far they take the result:
 
 | Command | Result |
 | --- | --- |
@@ -208,6 +210,8 @@ and Cargo pipeline. They differ only in how far they take the result:
 | `terrane build <path>` | Builds a native executable and prints its path. |
 | `terrane run <path>` | Builds and runs the program, forwarding arguments after `--`. |
 | `terrane debug [--embed-sources] [--embed-generated-sources] <path>` | Builds a native executable with exact target/toolchain/ABI provenance and opens the LLDB-backed Terrane source debugger; authored and generated source snapshots are independently omitted unless requested. |
+| `terrane profile record --cpu [--embed-sources] [--retain-arguments] [-o FILE] <path> [-- arguments]` | Builds the exact executable with the optimized `terrane-profile-cpu-v1` profile, records Linux `perf` CPU samples for the launched process tree, and writes a typed `.trnprof` artifact. Arguments are omitted from the artifact unless explicitly retained. |
+| `terrane profile show <file.trnprof> [--focus PATH:LINE] [--generated] [--native] [--format text\|json] [--limit N]` | Re-runs versioned attribution and presents sample-count accounting, hottest source groups, source-first call trees, and folded flame-graph stacks. |
 | `terrane test [options] <package>` | Compiles one isolated runner per populated tier and runs native tests. |
 | `terrane <file.trn> [args]` | Runs a source file directly, which is useful for executable scripts. |
 | `terrane toolchains` | Reports Rust toolchain pins previously requested by Terrane. |
@@ -220,7 +224,7 @@ Use `--release` with `build` or `run` for an optimized executable. `terrane debu
 rejected because optimized source fidelity is not part of the supported debugger contract. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
-Debug builds write deterministic, exact-build schema `1.2` provenance beside generated Rust and the
+Debug builds write deterministic, exact-build schema `1.3` provenance beside generated Rust and the
 executable. Cargo emission and provenance consume the same named `terrane-debug-v1` profile
 (optimization 0, full debug information, no stripping, and compiler-default inlining at that
 optimization level). Provenance also records the exact `rustc -vV` release and binds the selected
@@ -236,6 +240,28 @@ cancellation; request ingress is serialized. Attach remains experimental and hos
 Conditional breakpoints, logpoints, restart, direct isolated test-case debugging, a Terrane
 expression evaluator, optimized/stripped source fidelity, alternate backends, and time travel are
 not supported. See the debugging reference for the complete boundary.
+
+CPU profiling currently supports Linux x86-64 with the host `perf` collector. It uses a dedicated
+optimized profile with line tables, no stripping, ThinLTO, one code-generation unit, and ordinary
+optimized inlining; unlike the ordinary release profile, which uses fat LTO, it is tuned to retain
+the location information the selected sampler needs. It does not measure a debug build. The
+schema `1.1` `.trnprof` artifact records attribution version, exact
+compiler/Rust/target/profile/module identity, normalized load-relative frames,
+source/generated/native mappings, collector configuration, timing, process/thread scope, exit or
+signal state, lost-event/sample-drop/frame-drop counts, and an explicit privacy declaration.
+Authored source text is excluded unless `--embed-sources` is requested; generated Rust and bundled
+compiler sources are embedded so an exact relocated capture remains attributable. Workload
+arguments are excluded unless `--retain-arguments` is requested.
+
+Every captured sample enters exactly one exclusive bucket: exact authored, shared or ambiguous,
+runtime-associated, generated-only, native-only, or unavailable. `profile show` validates current
+source, generated files, executable, and captured module identities. `--source-root` and
+`--build-root` relocate copied-but-identical trees; changed or unavailable identities produce an
+explicit reduced-native view rather than guessed source attribution. CPU sample counts are
+statistical evidence, not deterministic wall time, call counts, allocation counts, or memory
+measurements. Allocation/event profiling, live-set and retained-graph analysis, process memory
+timelines, thresholds, comparisons, continuous-service capture, and non-Linux backends remain
+future work.
 
 `terrane test` discovers parameterless top-level `test-*` functions under `tests/unit`,
 `tests/integration`, and `tests/end-to-end`. Semantic analysis covers production sources and every

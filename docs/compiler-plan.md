@@ -207,202 +207,6 @@ This section contains only work that remains required by the settled version-one
 
 
 
-### Milestone 30.4 — Native profiling with compiler-owned source attribution
-
-The source debugger proves the identity path from authored Terrane through final generated Rust to
-the exact native executable. Reuse that path to explain representative production performance
-without turning the debugger into a profiler or inventing Terrane-only collectors. Existing native
-tools own measurement; Terrane owns exact-build validation, semantic attribution, accounting, the
-versioned artifact, and one source-first presentation layer.
-
-`terrane profile` is the single user-facing tool and `.trnprof` is the single typed artifact family
-for CPU, allocation, retention, and process-memory evidence. A flame graph is one shared view over
-weighted stacks, not the stored evidence model and not a collector. Milestone 30.4 delivers the
-first vertical slice—optimized CPU sampling on Linux x86-64—and establishes the common contracts;
-milestone 30.5 adds allocation/retention and process-memory evidence without introducing another
-profiling command, artifact, or attribution implementation. Later off-CPU samples, hardware
-counters, and async runtime events must extend the same typed evidence envelope but are not
-advertised until separately captured and exercised.
-
-#### Command and collection boundary
-
-Deliver:
-
-- `terrane profile record --cpu [--output <profile.trnprof>] <source-or-package> [-- arguments]`
-  builds a representative optimized artifact, runs it under the selected native sampler, preserves
-  output and exit status, and writes a profile even when the workload exits unsuccessfully or is
-  interrupted after usable evidence has been collected;
-- `terrane profile show <profile.trnprof> [--focus <source>:<line>]` for progressive source-first
-  inspection; `--generated` and `--native` expose lower layers, while `--format text|json` and
-  `--limit <rows>` provide bounded human or machine-readable output for editor and CI consumers;
-- one selected existing native CPU-sampling backend proven end to end on Linux x86-64, with
-  explicit detection, version, permissions, unsupported-host diagnostics, and collection failure
-  behavior; evaluate Linux `perf` first, but select it only after a measured fixture proves the
-  required stack, module-relative address, inlining, loss-accounting, and process-lifecycle
-  behavior; and
-- explicit collection conditions in every report: compiler and sampler versions, host/target,
-  optimized build profile, workload and arguments policy, included processes/threads, sample
-  period/frequency, elapsed and active collection time, warmup if any, process exit, lost samples,
-  and relevant backend settings.
-
-Profiling must run the artifact whose identity is recorded. It may not rebuild between collection
-and attribution, combine samples from merely similar binaries, or use an unoptimized debugger
-artifact as representative performance evidence. Define a dedicated profiling build policy from
-the release profile: preserve optimization, ThinLTO, panic policy, and codegen settings while
-retaining only the native location and inlining information the selected backend demonstrably
-needs. Measure and record any size, startup, or runtime effect of that retained information.
-
-The profiler owns its launched process tree, signal forwarding, output draining, and cleanup. Reuse
-the bounded process-supervision machinery where its ownership contract matches; do not route
-profiling through the test runner or silently inherit test deadlines, temporary-directory policy,
-or output truncation. Attaching to an existing process, system-wide profiling, elevated collection,
-and remote hosts are separate capabilities and remain unsupported in this milestone.
-
-#### Exact-build profile artifact
-
-Factor the debugger's compiler-owned build identity into a shared provenance envelope rather than
-parsing a debugger report or creating a second definition of source/build identity. A versioned
-`.trnprof` artifact records:
-
-- a declared evidence kind and unit whose schema is shared by CPU and later memory captures;
-- compiler, schema, Rust toolchain, target, ABI recipe, optimization/codegen profile, manifest,
-  projection lock, support component, generated-file, executable, and native module identities;
-- source hashes and optional explicitly requested embedded snapshots, with path relocation kept
-  separate from identity;
-- the selected collector and its raw collection configuration;
-- normalized native evidence as process/thread identity, module identity, load-relative instruction
-  locations, and sampled stacks, retaining enough raw data to re-run attribution and inspect native
-  frames; and
-- the attribution schema/version used for any cached aggregates.
-
-Captured samples are inherently nondeterministic; the artifact promises canonical encoding,
-stable identities, bounded data, and reproducible re-attribution of the same capture, not
-byte-identical profiles from repeated runs. Absolute process addresses are never portable profile
-identity. Validate every loaded module and generated-file identity before source attribution.
-Relocation of an identical artifact is allowed; changed source, executable, generated Rust,
-toolchain, profile, or projection inputs produce an explicit reduced-fidelity result rather than a
-plausible-looking source report. Usable raw native evidence remains available when source
-translation is rejected.
-
-Profile artifacts can disclose source paths, symbol names, arguments, and timing. Source embedding
-is opt-in, secret values are never sampled or added by compiler metadata, arguments are retained
-only under an explicit policy, and reports state which potentially sensitive fields they contain.
-
-#### Attribution and accounting
-
-Symbolize native instruction locations to final generated file/line and inline call-site records,
-then join them to final-file provenance associations and semantic identities. Never infer Terrane
-ownership from demangled Rust names, path similarity, display line alone, or a nearby association.
-Default grouping uses the widest meaningful authored construct represented by a stable tuple such
-as source identity, authored byte span, function identity, and semantic operation/association role.
-One Terrane operation may own several generated Rust ranges; those ranges form one source-level
-cost center rather than several unrelated hot lines.
-
-Each captured event has exactly one exclusive accounting outcome:
-
-- **exact authored attribution:** one most-specific valid Terrane association owns it;
-- **shared or ambiguous attribution:** optimization leaves multiple valid authored owners;
-- **runtime-associated:** generated support work has an explicit authored semantic parent;
-- **generated-only:** generated/runtime work has no valid authored owner;
-- **native-only:** native evidence cannot be joined to generated provenance; or
-- **unavailable:** the event cannot be decoded or validated under the recorded profile.
-
-Overlapping or one-to-many associations never multiply exclusive cost. Other contributing spans
-remain related-cause links. Inclusive views may aggregate exclusive cost through semantic parents
-and sampled call stacks, but must be labelled as overlapping and must never be presented as another
-partition of the total. For every unfiltered profile:
-
-```text
-exact authored
-+ shared or ambiguous
-+ runtime-associated
-+ generated-only
-+ native-only
-+ unavailable
-= all captured events
-```
-
-Unreadable captured events belong in the unavailable bucket. Backend-reported lost events were
-never captured and cannot be attributed; retain them as separate collection-loss accounting,
-report them alongside the captured-event denominator, and never present the captured distribution
-as all attempted observations. The primary CPU-sampling unit is event count and percentage of
-captured events. Any derived CPU-time estimate must state the recorded sampling period and remain
-labelled as an estimate; elapsed wall-clock time is context, not an interchangeable cost unit.
-Filtering and focusing may change the displayed subset but not the recorded whole-profile totals.
-Every source row can expand to its constituent generated ranges, native symbols/instructions,
-attribution-quality labels, related causes, exclusive cost, and inclusive cost.
-
-Inlining must not manufacture a source call that did not execute. Reconstruct an inline chain only
-from validated native inline records joined to exact compiler provenance; otherwise attribute the
-instruction to the most-specific supported association and mark the uncertain caller relationship.
-Folded or eliminated operations may have no sampled identity. Async stacks are native task-poll
-stacks unless compiler/runtime continuation identity explicitly proves a logical relationship;
-generated future names alone are not Terrane task provenance.
-
-#### Shared profile presentation
-
-All evidence kinds use the same semantic frame identities, source/generated/native expansion,
-quality labels, filtering, privacy policy, and bounded text/JSON response envelope. Tables and call
-trees remain the default diagnostic views. A shared flame-graph renderer consumes typed weighted
-stacks and labels the weight everywhere: CPU sample count or estimated CPU time in 30.3; allocated
-bytes, allocation count, or retained bytes in 30.4. It must never compare unlike units on one width
-scale or describe allocation volume as memory retained.
-
-Flame graphs are derived views. The `.trnprof` artifact retains normalized events/stacks so a later
-viewer can change semantic grouping, switch exclusive/inclusive cost, recalculate retained memory,
-inspect ambiguity, or expand generated/native evidence without recollecting. A source frame may
-collapse several generated/native frames by stable semantic identity and must expand back to those
-constituents. Differential flame graphs require two separately valid exact-build captures and
-preserve each capture's denominators, units, attribution quality, and statistical limitations.
-
-#### Workflow, evidence, and exclusions
-
-The default report answers source-level questions first: hottest authored spans/functions,
-exclusive versus inclusive cost, attribution quality, and generated/runtime overhead. A focused
-row then exposes generated Rust and native detail. Keep debugger and profiler roles explicit:
-debugging validates selected live state in an intentionally unoptimized artifact; profiling
-establishes where representative optimized execution spends time or resources.
-
-Deliver in vertical slices:
-
-1. select the native sampler with a disposable optimized fixture and prove exact executable,
-   module, address, generated-location, and source-association joins;
-2. define the shared provenance and `.trnprof` schemas, record a capture, and reject stale or
-   mismatched inputs while retaining raw native evidence;
-3. implement exclusive attribution, quality buckets, accounting invariants, and source/function
-   aggregation before adding inclusive call-path views;
-4. add progressive generated/native expansion, relocation, bounded machine-readable output, and
-   honest inline/async presentation; and
-5. run a before/after performance investigation where an intentionally excessive Terrane loop
-   bound is dominant in the first optimized capture and the corrected exact build changes samples,
-   runtime, executable identity, output, and attribution coherently.
-
-Use deterministic synthetic native-event fixtures for exact aggregation, overlap, inlining,
-relocation, stale identity, and accounting tests. Use the real selected sampler for end-to-end
-evidence, but assert robust dominance/range properties rather than exact sample counts. Cover
-multiple generated ranges for one source operation, ambiguous ownership, generated/runtime/native
-only buckets, an external dependency frame, Unicode and relocated paths, an unsuccessful workload,
-interruption and cleanup, backend unavailability, lost samples, and bounded large captures. Record
-the profiling build's overhead and the backend's total-event reconciliation.
-
-This milestone does not itself collect allocation, retention, or process-memory evidence; milestone
-30.5 adds those evidence kinds through the same tool, artifact, attribution, and presentation
-contracts. It also does not add hardware-counter interpretation, off-CPU or wall-clock attribution,
-statistical comparison/regression policy, PGO, continuous or production telemetry, distributed
-traces, logical async task reconstruction, system-wide/privileged collection, or another CPU
-backend. Those capabilities must reuse the typed event and attribution model and earn separate
-backend, overhead, privacy, and end-to-end evidence.
-
-Exit criterion: one representative optimized Terrane workload can be captured with
-`terrane profile record --cpu` through the selected Linux x86-64 native sampler, bound to its exact
-compiler/toolchain/source/generated/executable identity, attributed without double counting into
-source-first semantic groups plus explicit non-source and reduced-fidelity buckets, rendered as a
-table, call tree, and correctly labelled CPU flame graph, expanded into generated and native
-evidence, serialized and re-read through a bounded versioned profile artifact, and compared
-before/after a source fix. Real-backend fixtures, deterministic attribution tests, strict Clippy,
-the complete conformance matrix, and the measured workspace suite pass; documentation clearly
-distinguishes debugger hypothesis validation from profiler measurement and does not advertise
-deferred evidence kinds.
 
 ### Milestone 30.5 — Allocation and process-memory profiling in the unified profiler
 
@@ -4247,7 +4051,7 @@ suite pass; and optimized/unsupported cases report limitations rather than false
 
 Completion evidence:
 
-- compiler-owned schema `1.2` metadata binds shared logical source text/line indices without
+- compiler-owned schema `1.3` metadata binds shared logical source text/line indices without
   eager embedding, optional independently selected authored and generated snapshots, final
   formatted Rust, sequence points, multi-cause source associations, semantic
   function/scope/binding/object identities, privacy policy, exact Rust
@@ -4503,3 +4307,226 @@ query projection; and focused variadic, scope, lifetime, value-ownership, branch
 concatenation, awaited-statement, and diagnostic regressions fail before the fixes and pass
 afterward. The reference/manual/tutorial updates, strict Clippy, complete conformance matrix, and
 measured workspace suite pass.
+
+### Milestone 30.4 — Native profiling with compiler-owned source attribution
+**Status:** completed on `native-cpu-profiling`.
+
+
+The source debugger proves the identity path from authored Terrane through final generated Rust to
+the exact native executable. Reuse that path to explain representative production performance
+without turning the debugger into a profiler or inventing Terrane-only collectors. Existing native
+tools own measurement; Terrane owns exact-build validation, semantic attribution, accounting, the
+versioned artifact, and one source-first presentation layer.
+
+`terrane profile` is the single user-facing tool and `.trnprof` is the single typed artifact family
+for CPU, allocation, retention, and process-memory evidence. A flame graph is one shared view over
+weighted stacks, not the stored evidence model and not a collector. Milestone 30.4 delivers the
+first vertical slice—optimized CPU sampling on Linux x86-64—and establishes the common contracts;
+milestone 30.5 adds allocation/retention and process-memory evidence without introducing another
+profiling command, artifact, or attribution implementation. Later off-CPU samples, hardware
+counters, and async runtime events must extend the same typed evidence envelope but are not
+advertised until separately captured and exercised.
+
+#### Command and collection boundary
+
+Deliver:
+
+- `terrane profile record --cpu [--output <profile.trnprof>] <source-or-package> [-- arguments]`
+  builds a representative optimized artifact, runs it under the selected native sampler, preserves
+  output and exit status, and writes a profile even when the workload exits unsuccessfully or is
+  interrupted after usable evidence has been collected;
+- `terrane profile show <profile.trnprof> [--focus <source>:<line>]` for progressive source-first
+  inspection; `--generated` and `--native` expose lower layers, while `--format text|json` and
+  `--limit <rows>` provide bounded human or machine-readable output for editor and CI consumers;
+- one selected existing native CPU-sampling backend proven end to end on Linux x86-64, with
+  explicit detection, version, permissions, unsupported-host diagnostics, and collection failure
+  behavior; evaluate Linux `perf` first, but select it only after a measured fixture proves the
+  required stack, module-relative address, inlining, loss-accounting, and process-lifecycle
+  behavior; and
+- explicit collection conditions in every report: compiler and sampler versions, host/target,
+  optimized build profile, workload and arguments policy, included processes/threads, sample
+  period/frequency, elapsed and active collection time, warmup if any, process exit, lost samples,
+  and relevant backend settings.
+
+Profiling must run the artifact whose identity is recorded. It may not rebuild between collection
+and attribution, combine samples from merely similar binaries, or use an unoptimized debugger
+artifact as representative performance evidence. Define a dedicated profiling build policy from
+the release profile: preserve optimization, ThinLTO, panic policy, and codegen settings while
+retaining only the native location and inlining information the selected backend demonstrably
+needs. Measure and record any size, startup, or runtime effect of that retained information.
+
+The profiler owns its launched process tree, signal forwarding, output draining, and cleanup. Reuse
+the bounded process-supervision machinery where its ownership contract matches; do not route
+profiling through the test runner or silently inherit test deadlines, temporary-directory policy,
+or output truncation. Attaching to an existing process, system-wide profiling, elevated collection,
+and remote hosts are separate capabilities and remain unsupported in this milestone.
+
+#### Exact-build profile artifact
+
+Factor the debugger's compiler-owned build identity into a shared provenance envelope rather than
+parsing a debugger report or creating a second definition of source/build identity. A versioned
+`.trnprof` artifact records:
+
+- a declared evidence kind and unit whose schema is shared by CPU and later memory captures;
+- compiler, schema, Rust toolchain, target, ABI recipe, optimization/codegen profile, manifest,
+  projection lock, support component, generated-file, executable, and native module identities;
+- source hashes and optional explicitly requested embedded snapshots, with path relocation kept
+  separate from identity;
+- the selected collector and its raw collection configuration;
+- normalized native evidence as process/thread identity, module identity, load-relative instruction
+  locations, and sampled stacks, retaining enough raw data to re-run attribution and inspect native
+  frames; and
+- the attribution schema/version used for any cached aggregates.
+
+Captured samples are inherently nondeterministic; the artifact promises canonical encoding,
+stable identities, bounded data, and reproducible re-attribution of the same capture, not
+byte-identical profiles from repeated runs. Absolute process addresses are never portable profile
+identity. Validate every loaded module and generated-file identity before source attribution.
+Relocation of an identical artifact is allowed; changed source, executable, generated Rust,
+toolchain, profile, or projection inputs produce an explicit reduced-fidelity result rather than a
+plausible-looking source report. Usable raw native evidence remains available when source
+translation is rejected.
+
+Profile artifacts can disclose source paths, symbol names, arguments, and timing. Source embedding
+is opt-in, secret values are never sampled or added by compiler metadata, arguments are retained
+only under an explicit policy, and reports state which potentially sensitive fields they contain.
+
+#### Attribution and accounting
+
+Symbolize native instruction locations to final generated file/line and inline call-site records,
+then join them to final-file provenance associations and semantic identities. Never infer Terrane
+ownership from demangled Rust names, path similarity, display line alone, or a nearby association.
+Default grouping uses the widest meaningful authored construct represented by a stable tuple such
+as source identity, authored byte span, function identity, and semantic operation/association role.
+One Terrane operation may own several generated Rust ranges; those ranges form one source-level
+cost center rather than several unrelated hot lines.
+
+Each captured event has exactly one exclusive accounting outcome:
+
+- **exact authored attribution:** one most-specific valid Terrane association owns it;
+- **shared or ambiguous attribution:** optimization leaves multiple valid authored owners;
+- **runtime-associated:** generated support work has an explicit authored semantic parent;
+- **generated-only:** generated/runtime work has no valid authored owner;
+- **native-only:** native evidence cannot be joined to generated provenance; or
+- **unavailable:** the event cannot be decoded or validated under the recorded profile.
+
+Overlapping or one-to-many associations never multiply exclusive cost. Other contributing spans
+remain related-cause links. Inclusive views may aggregate exclusive cost through semantic parents
+and sampled call stacks, but must be labelled as overlapping and must never be presented as another
+partition of the total. For every unfiltered profile:
+
+```text
+exact authored
++ shared or ambiguous
++ runtime-associated
++ generated-only
++ native-only
++ unavailable
+= all captured events
+```
+
+Unreadable captured events belong in the unavailable bucket. Backend-reported lost events were
+never captured and cannot be attributed; retain them as separate collection-loss accounting,
+report them alongside the captured-event denominator, and never present the captured distribution
+as all attempted observations. The primary CPU-sampling unit is event count and percentage of
+captured events. Any derived CPU-time estimate must state the recorded sampling period and remain
+labelled as an estimate; elapsed wall-clock time is context, not an interchangeable cost unit.
+Filtering and focusing may change the displayed subset but not the recorded whole-profile totals.
+Every source row can expand to its constituent generated ranges, native symbols/instructions,
+attribution-quality labels, related causes, exclusive cost, and inclusive cost.
+
+Inlining must not manufacture a source call that did not execute. Reconstruct an inline chain only
+from validated native inline records joined to exact compiler provenance; otherwise attribute the
+instruction to the most-specific supported association and mark the uncertain caller relationship.
+Folded or eliminated operations may have no sampled identity. Async stacks are native task-poll
+stacks unless compiler/runtime continuation identity explicitly proves a logical relationship;
+generated future names alone are not Terrane task provenance.
+
+#### Shared profile presentation
+
+All evidence kinds use the same semantic frame identities, source/generated/native expansion,
+quality labels, filtering, privacy policy, and bounded text/JSON response envelope. Tables and call
+trees remain the default diagnostic views. A shared flame-graph renderer consumes typed weighted
+stacks and labels the weight everywhere: CPU sample count in 30.4; allocated bytes, allocation
+count, or retained bytes in 30.5. It must never compare unlike units on one width
+scale or describe allocation volume as memory retained.
+
+Flame graphs are derived views. The `.trnprof` artifact retains normalized events/stacks so a later
+viewer can change semantic grouping, switch exclusive/inclusive cost, recalculate retained memory,
+inspect ambiguity, or expand generated/native evidence without recollecting. A source frame may
+collapse several generated/native frames by stable semantic identity and must expand back to those
+constituents. Differential flame graphs require two separately valid exact-build captures and
+preserve each capture's denominators, units, attribution quality, and statistical limitations.
+
+#### Workflow, evidence, and exclusions
+
+The default report answers source-level questions first: hottest authored spans/functions,
+exclusive versus inclusive cost, attribution quality, and generated/runtime overhead. A focused
+row then exposes generated Rust and native detail. Keep debugger and profiler roles explicit:
+debugging validates selected live state in an intentionally unoptimized artifact; profiling
+establishes where representative optimized execution spends time or resources.
+
+Deliver in vertical slices:
+
+1. select the native sampler with a disposable optimized fixture and prove exact executable,
+   module, address, generated-location, and source-association joins;
+2. define the shared provenance and `.trnprof` schemas, record a capture, and reject stale or
+   mismatched inputs while retaining raw native evidence;
+3. implement exclusive attribution, quality buckets, accounting invariants, and source/function
+   aggregation before adding inclusive call-path views;
+4. add progressive generated/native expansion, relocation, bounded machine-readable output, and
+   honest inline/async presentation; and
+5. run a before/after performance investigation where an intentionally excessive Terrane loop
+   bound is dominant in the first optimized capture and the corrected exact build changes samples,
+   runtime, executable identity, output, and attribution coherently.
+
+Use deterministic synthetic native-event fixtures for exact aggregation, overlap, inlining,
+relocation, stale identity, and accounting tests. Use the real selected sampler for end-to-end
+evidence, but assert robust dominance/range properties rather than exact sample counts. Cover
+multiple generated ranges for one source operation, ambiguous ownership, generated/runtime/native
+only buckets, an external dependency frame, Unicode and relocated paths, an unsuccessful workload,
+interruption and cleanup, backend unavailability, lost samples, and bounded large captures. Record
+the profiling build's overhead and the backend's total-event reconciliation.
+
+This milestone does not itself collect allocation, retention, or process-memory evidence; milestone
+30.5 adds those evidence kinds through the same tool, artifact, attribution, and presentation
+contracts. It also does not add hardware-counter interpretation, off-CPU or wall-clock attribution,
+statistical comparison/regression policy, PGO, continuous or production telemetry, distributed
+traces, logical async task reconstruction, system-wide/privileged collection, or another CPU
+backend. Those capabilities must reuse the typed event and attribution model and earn separate
+backend, overhead, privacy, and end-to-end evidence.
+
+Exit criterion: one representative optimized Terrane workload can be captured with
+`terrane profile record --cpu` through the selected Linux x86-64 native sampler, bound to its exact
+compiler/toolchain/source/generated/executable identity, attributed without double counting into
+source-first semantic groups plus explicit non-source and reduced-fidelity buckets, rendered as a
+table, call tree, and correctly labelled CPU flame graph, expanded into generated and native
+evidence, serialized and re-read through a bounded versioned profile artifact, and compared
+before/after a source fix. Real-backend fixtures, deterministic attribution tests, strict Clippy,
+the complete conformance matrix, and the measured workspace suite pass; documentation clearly
+distinguishes debugger hypothesis validation from profiler measurement and does not advertise
+deferred evidence kinds.
+
+#### Completion evidence
+
+- Linux x86-64 `perf` 7.2.6-1 captures the dedicated schema `1.1`
+  `terrane-profile-cpu-v1` ThinLTO artifact, including real inline records, exact executable and
+  loaded-module identity, process-tree/all-thread scope, signal forwarding, unsuccessful exits,
+  usable interrupted captures, lost events, and independent dropped-sample/dropped-frame counts.
+- Deterministic fixtures cover exact, shared, runtime-associated, generated-only, native-only, and
+  unavailable attribution; multiple generated ranges and related causes; ambiguous generated paths;
+  external modules; Unicode and relocation; weighted hierarchical call trees; bounded artifacts;
+  missing and permission-denied collectors; and privacy choices.
+- A recorded scalar-reduction capture stored 189 samples with zero collector loss or local drops.
+  Its exclusive buckets reconciled exactly to 189 (1 exact-authored and 188 native-only); the
+  source-first call tree retained the authored loop as an inclusive frame while the support/runtime
+  leaves remained native evidence.
+- Against the ordinary fat-LTO release artifact for the same scalar-reduction source and toolchain,
+  the profiling artifact measured 3,018,736 bytes versus 491,368 bytes (+514.35%). Direct execution
+  medians were 0.613 ms versus 0.543 ms for 20 one-iteration startup runs (+12.92%), and 476.394 ms
+  versus 474.787 ms for seven 500,000,000-iteration runs (+0.34%). These are host-specific
+  observations, not performance guarantees.
+- The real sampler suite exercises before/after corrected builds, exact executable identity,
+  unsuccessful exit, interruption/finalization, and raw-capture cleanup. Strict Clippy, targeted
+  profiler/debugger suites, the complete workspace test suite, and the recorded clean scorecard
+  passed at closeout.

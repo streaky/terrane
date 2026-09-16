@@ -209,10 +209,20 @@ fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
         assert!(output.stdout.is_empty());
         assert!(
             String::from_utf8_lossy(&output.stderr)
-                .contains("`run` and `debug` require an executable package"),
+                .contains("`run`, `debug`, and `profile record` require an executable package"),
             "{command:?}: {output:?}"
         );
     }
+    let profile = Command::new(binary)
+        .args(["profile", "record", "--cpu"])
+        .arg(package.0.join("package.toml"))
+        .output()
+        .unwrap();
+    assert_eq!(profile.status.code(), Some(2), "{profile:?}");
+    assert!(
+        String::from_utf8_lossy(&profile.stderr)
+            .contains("`run`, `debug`, and `profile record` require an executable package")
+    );
 }
 
 #[test]

@@ -2943,7 +2943,7 @@ mod tests {
 
     fn provenance() -> ProvenanceManifest {
         let mut provenance: ProvenanceManifest = serde_json::from_value(json!({
-            "schema_version": "1.2",
+            "schema_version": "1.3",
             "compiler_version": env!("CARGO_PKG_VERSION"),
             "rust_toolchain": "system",
             "target": "x86_64-unknown-linux-gnu",
@@ -2957,7 +2957,7 @@ mod tests {
             "stripping": "none",
             "inputs": [],
             "debug": {
-                "schema_version": "1.2",
+                "schema_version": "1.3",
                 "compiler_version": env!("CARGO_PKG_VERSION"),
                 "sources": [{
                     "id": 1,

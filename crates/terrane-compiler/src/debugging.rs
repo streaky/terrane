@@ -1,25 +1,21 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+pub use crate::provenance::{
+    BuildIdentity as DebugBuildIdentity, InputIdentity, NativeModuleIdentity, RelocationMapping,
+    abi_recipe_for_toolchain, hash_bytes,
+};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
+use crate::provenance::{ArtifactProfile, BuildProvenance};
 use crate::rust_ir::RenderedFile;
 use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
-pub const SCHEMA_VERSION: &str = "1.2";
+pub const SCHEMA_VERSION: &str = "1.3";
 const DEBUG_MARKER: &str = "/* terrane-debug-point:";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct DebugArtifactProfile {
-    pub id: &'static str,
-    pub optimization: &'static str,
-    pub cargo_debug: &'static str,
-    pub debug_information: &'static str,
-    pub stripping: &'static str,
-    pub inlining: &'static str,
-}
+pub type DebugArtifactProfile = ArtifactProfile;
 
 pub const DEBUG_ARTIFACT_PROFILE: DebugArtifactProfile = DebugArtifactProfile {
     id: "terrane-debug-v1",
@@ -28,17 +24,12 @@ pub const DEBUG_ARTIFACT_PROFILE: DebugArtifactProfile = DebugArtifactProfile {
     debug_information: "full",
     stripping: "none",
     inlining: "compiler-default-at-opt-level-0",
+    lto: "off",
+    codegen_units: 256,
+    panic: "package-policy",
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DebugBuildIdentity {
-    pub target: String,
-    pub rust_sysroot: String,
-    pub rustc_release: String,
-    pub artifact_profile: DebugArtifactProfile,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProvenanceRole {
     User,
@@ -196,7 +187,8 @@ impl DebugSymbols {
                 id: unit.source.id(),
                 uri: unit.source_path.clone(),
                 content_hash: hash_bytes(unit.source.text().as_bytes()),
-                embedded_source: embed_sources.then(|| unit.source.text().to_owned()),
+                embedded_source: (embed_sources || unit.role == crate::SourceRole::Bundled)
+                    .then(|| unit.source.text().to_owned()),
             });
             append_unit_symbols(
                 semantic,
@@ -540,41 +532,25 @@ fn text_line_column(text: &str, offset: usize) -> (usize, usize) {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct InputIdentity {
-    pub path: String,
-    pub content_hash: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct NativeModuleIdentity {
-    pub file_name: String,
-    pub content_hash: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RelocationMapping {
-    pub build_root: String,
-    pub source_root: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProvenanceManifest {
     pub schema_version: String,
-    pub compiler_version: String,
-    pub rust_toolchain: String,
-    pub target: String,
-    pub rust_sysroot: String,
-    pub rustc_release: String,
-    pub abi_recipe: String,
-    pub artifact_profile: String,
-    pub optimization: String,
-    pub debug_information: String,
-    pub inlining: String,
-    pub stripping: String,
-    pub inputs: Vec<InputIdentity>,
+    #[serde(flatten)]
+    pub build: BuildProvenance,
     pub debug: DebugInformation,
-    pub native_module: NativeModuleIdentity,
-    pub relocation: RelocationMapping,
+}
+
+impl std::ops::Deref for ProvenanceManifest {
+    type Target = BuildProvenance;
+
+    fn deref(&self) -> &Self::Target {
+        &self.build
+    }
+}
+
+impl std::ops::DerefMut for ProvenanceManifest {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.build
+    }
 }
 
 impl ProvenanceManifest {
@@ -590,70 +566,10 @@ impl ProvenanceManifest {
         build_root: &Path,
         build: DebugBuildIdentity,
     ) -> Result<Self, String> {
-        let DebugBuildIdentity {
-            target,
-            rust_sysroot,
-            rustc_release,
-            artifact_profile,
-        } = build;
-        let build_root = std::fs::canonicalize(build_root).map_err(|error| {
-            format!(
-                "cannot canonicalize debug build root {}: {error}",
-                build_root.display()
-            )
-        })?;
-        let source_root = std::fs::canonicalize(&package.root).map_err(|error| {
-            format!(
-                "cannot canonicalize debug source root {}: {error}",
-                package.root.display()
-            )
-        })?;
-        let executable_bytes = std::fs::read(executable).map_err(|error| {
-            format!(
-                "cannot read debug executable {}: {error}",
-                executable.display()
-            )
-        })?;
-        let mut inputs = Vec::new();
-        for name in [crate::MANIFEST_FILE_NAME, "terrane-projection.lock"] {
-            let path = package.root.join(name);
-            if let Ok(bytes) = std::fs::read(&path) {
-                inputs.push(InputIdentity {
-                    path: name.to_owned(),
-                    content_hash: hash_bytes(&bytes),
-                });
-            }
-        }
         Ok(Self {
             schema_version: SCHEMA_VERSION.to_owned(),
-            compiler_version: crate::VERSION.to_owned(),
-            rust_toolchain: match package.build_toolchain {
-                crate::BuildToolchain::Pinned => crate::BUILD_TOOLCHAIN.to_owned(),
-                crate::BuildToolchain::System => "system".to_owned(),
-            },
-            abi_recipe: abi_recipe_for_toolchain(&target, &rustc_release),
-            target,
-            rust_sysroot,
-            rustc_release,
-            artifact_profile: artifact_profile.id.to_owned(),
-            optimization: artifact_profile.optimization.to_owned(),
-            debug_information: artifact_profile.debug_information.to_owned(),
-            inlining: artifact_profile.inlining.to_owned(),
-            stripping: artifact_profile.stripping.to_owned(),
-            inputs,
+            build: BuildProvenance::create(package, executable, build_root, build)?,
             debug,
-            native_module: NativeModuleIdentity {
-                file_name: executable
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned(),
-                content_hash: hash_bytes(&executable_bytes),
-            },
-            relocation: RelocationMapping {
-                build_root: build_root.to_string_lossy().into_owned(),
-                source_root: source_root.to_string_lossy().into_owned(),
-            },
         })
     }
 
@@ -663,18 +579,13 @@ impl ProvenanceManifest {
     ///
     /// Returns an error when the executable cannot be read or its identity differs.
     pub fn validate_executable(&self, executable: &Path) -> Result<(), String> {
-        let bytes = std::fs::read(executable)
-            .map_err(|error| format!("cannot read executable {}: {error}", executable.display()))?;
-        let actual = hash_bytes(&bytes);
-        if actual != self.native_module.content_hash {
-            return Err(format!(
-                "debug provenance does not match executable {} (expected {}, found {})",
-                executable.display(),
-                self.native_module.content_hash,
-                actual
-            ));
-        }
-        Ok(())
+        self.build.validate_executable(executable).map_err(|error| {
+            error.replacen(
+                "provenance does not match",
+                "debug provenance does not match",
+                1,
+            )
+        })
     }
 
     /// Returns logical source paths that are missing or differ from their build-time identity.
@@ -691,24 +602,6 @@ impl ProvenanceManifest {
             })
             .collect()
     }
-}
-
-#[must_use]
-pub fn abi_recipe_for_toolchain(target: &str, rustc_release: &str) -> String {
-    match target {
-        "x86_64-unknown-linux-gnu" => {
-            format!(
-                "terrane-rust-x86_64-linux-gnu-v2@{}",
-                hash_bytes(rustc_release.as_bytes())
-            )
-        }
-        _ => "unsupported".to_owned(),
-    }
-}
-
-#[must_use]
-pub fn hash_bytes(bytes: &[u8]) -> String {
-    format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
 #[cfg(test)]

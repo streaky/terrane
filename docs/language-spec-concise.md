@@ -1110,7 +1110,7 @@ tests remain distinct. `/core/testing` is the first-party framework for code aut
 commands: terrane debug [--embed-sources] [--embed-generated-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected
 backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
 build: named terrane-debug-v1 profile shared by Cargo emission and provenance; full debug information, optimization 0, no stripping, compiler-default inlining at that optimization; optional --embed-sources and --embed-generated-sources independently record authored and generated build-time snapshots
-provenance: deterministic schema 1.2 sidecar beside generated Rust and executable
+provenance: deterministic schema 1.3 sidecar beside generated Rust and executable
 identity: compiler/toolchain/exact rustc release/sysroot/target/toolchain-bound ABI recipe/profile, manifest/projection-lock/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots
 validation: translation requires matching sidecar, executable, generated files, source bytes, compiler/schema, selected target/toolchain-bound ABI recipe, and every named debug-profile property; mismatch reports native fidelity without disabling raw native debugging
 breakpoints: every final-Rust location for an authored sequence point; relative paths resolve from the debugger invocation directory before the package root; non-executable lines adjust only forward within the same exact lexical scope; requested and resolved Terrane/generated locations are reported; unresolved requests remain pending
@@ -1125,6 +1125,21 @@ fidelity: terrane/fidelity reports source/native mode, target, toolchain-bound A
 supported_host: 30 Linux x86-64 LLDB 22 integration scenarios exercise CLI/DAP launch, pre- and post-launch breakpoint ordering, source stepping, fatal native stops, relocated exact-build source maps, split generated support, shadowed locals, debugger-like debuggee output isolation, temporary-breakpoint cleanup, delayed launch failures, relative invocation paths, and more than 500 sequence points; attach reports the selected host policy outcome
 experimental: CLI/DAP/provenance schema in 0.1; other hosts, attach regimes, optimized/stripped source fidelity, and unsupported layouts report limitations
 excluded: direct isolated test-runner debugging pending a separate process-ownership/context/timeout/temp-directory/reporting contract; conditional breakpoints, logpoints, restart, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time travel
+```
+
+## PROFILING
+
+```yaml
+commands: terrane profile record --cpu [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile show FILE.trnprof [--focus PATH:LINE] [--generated] [--native] [--format text|json] [--limit N] [--source-root PATH] [--build-root PATH]
+backend: Linux x86-64 perf CPU sampling of the launched process tree and all threads
+build: named terrane-profile-cpu-v1 profile; optimization 3, line tables, no stripping, compiler-default optimized inlining, ThinLTO, one code-generation unit, package panic policy
+artifact: bounded schema 1.1 typed .trnprof evidence; exact compiler/Rust/target/profile/input/executable/module identity; normalized load-relative frames; collector conditions, exit or signal result, loss, and independent dropped-sample/dropped-frame counts
+attribution: every captured sample enters exactly one exclusive exact-authored|shared-or-ambiguous|runtime-associated|generated-only|native-only|unavailable bucket; inclusive semantic groups deduplicate repeated frames in one stack
+presentation: reconciled bucket totals, hottest source groups, hierarchical source-first call tree, weight-ranked folded stacks, and explicitly requested generated/native constituents; --limit bounds top-level and per-row expansions; each row reports pre-limit totals so JSON consumers can detect clipping, while text reports render omitted counts
+relocation: copied-but-identical source and build roots remain attributable; changed, missing, or ambiguous identities preserve native evidence with explicit reduced fidelity
+privacy: generated Rust and compiler-bundled source are retained for exact attribution; other authored source requires --embed-sources; workload arguments require --retain-arguments
+unit: CPU sample count only; never deterministic wall time, calls, allocations, or memory
+unsupported: allocation/retention/process-memory evidence, off-CPU and hardware-counter evidence, async metrics, comparisons, continuous-service capture, non-Linux collectors
 ```
 
 ## CORE LIBRARY PRINCIPLE
