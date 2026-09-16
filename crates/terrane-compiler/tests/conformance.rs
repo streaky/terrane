@@ -481,14 +481,13 @@ fn prepare_conformance_case(
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
         lint_name_style: false,
         debug_build: terrane_compiler::DebugBuild::Disabled,
-        optimize_list_builders: boolean_field(&manifest, "iterator-list-builders").unwrap_or(false),
     };
 
     match (phase, status) {
         ("run" | "check", "accept") => {
             let lower_path = case.join("lower.rs");
             let expected = read_reviewed_golden(&lower_path, update_goldens);
-            let (compilation, dependencies) = if package_case {
+            let (mut compilation, dependencies) = if package_case {
                 compile_package_case(
                     &source_path,
                     options,
@@ -504,6 +503,17 @@ fn prepare_conformance_case(
             };
             assert_expected_warnings(case, &manifest, &compilation);
             verify_reviewed_rust(case, &lower_path, &expected, &compilation, update_goldens);
+            if let Some(limit) = usize_field(&manifest, "list-preallocation-limit-bytes") {
+                let production = format!("{}usize", 256 * 1024 * 1024);
+                assert!(
+                    compilation.rust.contains(&production),
+                    "{} did not emit the list preallocation literal",
+                    case.display()
+                );
+                compilation.rust = compilation
+                    .rust
+                    .replace(&production, &format!("{limit}usize"));
+            }
             timing.defer();
             Some(PreparedGeneratedCase {
                 binary_name,
@@ -1156,6 +1166,12 @@ fn boolean_field(manifest: &str, name: &str) -> Option<bool> {
             _ => None,
         }
     })
+}
+
+fn usize_field(manifest: &str, name: &str) -> Option<usize> {
+    manifest
+        .lines()
+        .find_map(|line| line.strip_prefix(name)?.strip_prefix(" = ")?.parse().ok())
 }
 
 #[test]

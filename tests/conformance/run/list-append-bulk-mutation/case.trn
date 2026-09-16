@@ -49,6 +49,10 @@ function validate-throw;
   catch arithmetic-overflow
     print; >throw-caught
 
+function observe-prefix int64; value int64
+  print; value
+  return value
+
 function main;
   validate-large-literal; false
   values list of int64 = list
@@ -186,6 +190,83 @@ function main;
     mapped.append; mapped-value * mapped-value
     mapped-index++
   print; mapped.length, mapped[3], mapped-index
+
+  mutated-before-builder list of int64 = list
+  mutated-before-builder.append; 7
+  mutated-index int64 = 0
+  while mutated-index < 2
+    mutated-before-builder.append; mutated-index
+    mutated-index++
+  print; mutated-before-builder.length, mutated-before-builder[0], mutated-before-builder[2]
+
+  reassigned-before-builder list of int64 = list
+  replacement list of int64 = list; 8
+  reassigned-before-builder = replacement
+  reassigned-index int64 = 0
+  while reassigned-index < 2
+    reassigned-before-builder.append; reassigned-index
+    reassigned-index++
+  print; reassigned-before-builder.length, reassigned-before-builder[0], reassigned-before-builder[2]
+
+  dynamically-reentered list of int64 = list
+  outer-builder-index int64 = 0
+  while outer-builder-index < 3
+    observed-length = dynamically-reentered.length
+    inner-builder-index int64 = 0
+    while inner-builder-index < 2
+      dynamically-reentered.append; inner-builder-index
+      inner-builder-index++
+    outer-builder-index++
+  print; dynamically-reentered.length
+
+  prefix-effects list of int64 = list
+  prefix-index int64 = 0
+  while prefix-index < 3
+    prefix-value int64 = observe-prefix; prefix-index
+    prefix-effects.append; prefix-value
+    prefix-index++
+  print; prefix-effects.length, prefix-effects[2], prefix-index
+
+  fallback list of int64 = list
+  fallback-index int64 = 0
+  while fallback-index < 5
+    fallback.append; fallback-index
+    fallback-index++
+  print; fallback.length, fallback[4], fallback-index
+
+  captured list of int64 = list
+  captured-index int64 = 0
+  capturing-builder = mutable function;
+    while captured-index < 3
+      captured.append; captured-index
+      captured-index++
+  capturing-builder;
+  captured-index = 0
+  capturing-builder;
+  print; captured.length, captured-index
+
+  local-mutation = mutable function int64;
+    local-value int64 = 0
+    local-value++
+    return local-value
+  print; (local-mutation;)
+
+  returned-capture list of int64 = list; 7, 8
+  return-capture = mutable function list of int64;
+    returned-capture.append; 9
+    return returned-capture
+  first-returned = return-capture;
+  second-returned = return-capture;
+  print; first-returned.length, first-returned[0], second-returned.length, second-returned[1]
+
+  inferred-capture list of int64 = list; 2, 3
+  inspect-capture = mutable function int64;
+    inferred-total int64 = inferred-capture.length
+    inferred-capture.append; 4
+    for inferred-value in inferred-capture
+      inferred-total = inferred-total + inferred-value
+    return inferred-total
+  print; (inspect-capture;)
 
   print; (validate-return;)
   validate-throw;

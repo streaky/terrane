@@ -200,6 +200,29 @@ impl Emitter<'_> {
         self.traced_await_output(awaited, operand)
     }
 
+    fn non_consuming_capture_read(&self, node: &SyntaxNode) -> bool {
+        if node.kind != SyntaxKind::Name {
+            return false;
+        }
+        self.unit
+            .functions
+            .iter()
+            .filter(|contract| {
+                contract.is_anonymous
+                    && contract.span.file == node.span.file
+                    && contract.span.start <= node.span.start
+                    && node.span.end <= contract.span.end
+            })
+            .min_by_key(|contract| contract.span.end - contract.span.start)
+            .is_some_and(|contract| {
+                contract.written_invocation_mode != InvocationMode::Consuming
+                    && contract
+                        .captures
+                        .iter()
+                        .any(|capture| capture == self.text(node))
+            })
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
@@ -680,7 +703,9 @@ impl Emitter<'_> {
             | ValueType::UnorderedSet(_)
             | ValueType::Object(_)
                 if self.text(node) == "this"
-                    || node.kind == SyntaxKind::Name && self.binding_value_is_reused(node) =>
+                    || node.kind == SyntaxKind::Name
+                        && (self.binding_value_is_reused(node)
+                            || self.non_consuming_capture_read(node)) =>
             {
                 format!("({}).clone()", self.expression(node))
             }

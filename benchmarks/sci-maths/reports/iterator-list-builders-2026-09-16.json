@@ -42,7 +42,7 @@
     "memory": "unavailable: memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope/terrane-sci-runner-392574'",
     "memory_available": false,
     "memory_unavailable_reason": "memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope/terrane-sci-runner-392574'",
-    "memory_recommendation": "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/iterator-list-builders-default-2026-09-16.md",
+    "memory_recommendation": "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/iterator-list-builders-2026-09-16.md",
     "memory_limitations": null
   },
   "lane_setup": {

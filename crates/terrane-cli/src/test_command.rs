@@ -185,16 +185,18 @@ fn discover_selected_cases(
     test_package: &TestPackage,
     options: &TestOptions,
 ) -> Result<Option<SelectedTestCases>, CliFailure> {
-    let discovered_tiers =
-        match terrane_compiler::discover_test_package(test_package, super::compiler_options()) {
-            Ok(discovered) => discovered,
-            Err(failure) => {
-                if let Some(path) = &options.report {
-                    write_discovery_failure_report(path, &failure, options)?;
-                }
-                return Err(CliFailure::compilation(failure));
+    let discovered_tiers = match terrane_compiler::discover_test_package(
+        test_package,
+        terrane_compiler::CompilerOptions::default(),
+    ) {
+        Ok(discovered) => discovered,
+        Err(failure) => {
+            if let Some(path) = &options.report {
+                write_discovery_failure_report(path, &failure, options)?;
             }
-        };
+            return Err(CliFailure::compilation(failure));
+        }
+    };
     emit_discovery_warnings(&discovered_tiers);
     let cases = discovered_tiers
         .iter()
@@ -235,7 +237,10 @@ fn compile_selected_tiers(
         .filter(|discovery| selected_tiers.contains(&discovery.tier))
     {
         let tier = discovery.tier;
-        match terrane_compiler::compile_discovered_test_tier(discovery, super::compiler_options()) {
+        match terrane_compiler::compile_discovered_test_tier(
+            discovery,
+            terrane_compiler::CompilerOptions::default(),
+        ) {
             Ok(compiled) => compiled_tiers.push(compiled),
             Err(failure) => {
                 if let Some(path) = &options.report {
