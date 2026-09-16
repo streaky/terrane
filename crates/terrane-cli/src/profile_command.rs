@@ -532,7 +532,8 @@ fn parse_perf_script(
             lost_events = lost_events.saturating_add(lost);
             continue;
         }
-        if !line.starts_with(char::is_whitespace) && line.contains(": ") {
+        let header = line.trim_start();
+        if header.contains(": ") {
             dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
             pending_inline.clear();
             if let Some(sample) = current.take() {
@@ -544,7 +545,7 @@ fn parse_perf_script(
                     (MAX_CAPTURED_SAMPLES, MAX_ARTIFACT_BYTES),
                 )?;
             }
-            current = Some(parse_sample_header(line)?);
+            current = Some(parse_sample_header(header)?);
             continue;
         }
         let trimmed = line.trim();
@@ -1374,8 +1375,8 @@ mod tests {
     }
 
     #[test]
-    fn perf_script_parser_retains_module_offsets_and_source_locations() {
-        let script = "123/123 10.250000000: cpu-clock:u: \n\
+    fn perf_script_parser_accepts_padded_pids_and_retains_frame_details() {
+        let script = " 314007/314007 10.250000000: cpu-clock:u: \n\
 \t    400123 hot+0x3\n\
   /tmp/build/src/main.rs:42 (inlined)\n\
 \t    400123 inline_parent+0x1 (/tmp/program+0x123)\n\
