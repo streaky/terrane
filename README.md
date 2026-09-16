@@ -224,7 +224,7 @@ Use `--release` with `build` or `run` for an optimized executable. `terrane debu
 rejected because optimized source fidelity is not part of the supported debugger contract. Use
 `--require-canonical-rust` with a compiler command when generated Rust must already match Terrane's
 bundled formatter.
-Debug builds write deterministic, exact-build schema `1.2` provenance beside generated Rust and the
+Debug builds write deterministic, exact-build schema `1.3` provenance beside generated Rust and the
 executable. Cargo emission and provenance consume the same named `terrane-debug-v1` profile
 (optimization 0, full debug information, no stripping, and compiler-default inlining at that
 optimization level). Provenance also records the exact `rustc -vV` release and binds the selected
@@ -243,12 +243,15 @@ not supported. See the debugging reference for the complete boundary.
 
 CPU profiling currently supports Linux x86-64 with the host `perf` collector. It uses a dedicated
 optimized profile with line tables, no stripping, ThinLTO, one code-generation unit, and ordinary
-optimized inlining; it does not measure a debug build. The `.trnprof` artifact records schema and
-attribution versions, exact compiler/Rust/target/profile/module identity, normalized load-relative
-frames, source/generated/native mappings, collector configuration, timing, process/thread scope,
-exit or signal state, loss/truncation counts, and an explicit privacy declaration. Authored source
-text is excluded unless `--embed-sources` is requested. Workload arguments are excluded unless
-`--retain-arguments` is requested.
+optimized inlining; unlike the ordinary release profile, which uses fat LTO, it is tuned to retain
+the location information the selected sampler needs. It does not measure a debug build. The
+schema `1.1` `.trnprof` artifact records attribution version, exact
+compiler/Rust/target/profile/module identity, normalized load-relative frames,
+source/generated/native mappings, collector configuration, timing, process/thread scope, exit or
+signal state, lost-event/sample-drop/frame-drop counts, and an explicit privacy declaration.
+Authored source text is excluded unless `--embed-sources` is requested; generated Rust and bundled
+compiler sources are embedded so an exact relocated capture remains attributable. Workload
+arguments are excluded unless `--retain-arguments` is requested.
 
 Every captured sample enters exactly one exclusive bucket: exact authored, shared or ambiguous,
 runtime-associated, generated-only, native-only, or unavailable. `profile show` validates current

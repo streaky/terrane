@@ -5331,20 +5331,22 @@ Tracing is feature/profile controlled and may be sampled.
 The implemented native CPU profiler measures an optimized exact build rather than a debug build.
 `terrane profile record --cpu` selects one supported Linux x86-64 `perf` sampling recipe and a
 compiler-owned `terrane-profile-cpu-v1` artifact profile: optimization level 3, line-table debug
-information, no stripping, optimized inlining, ThinLTO, and one code-generation unit. The workload
-inherits all threads and launched descendant processes. Standard output and standard error remain
-attached to the caller. Interrupt and termination signals are forwarded to the collector process
-group; any usable partial capture is finalized, and the workload's exit or signal result remains the
-command result.
+information, no stripping, optimized inlining, ThinLTO, and one code-generation unit. This differs
+from the ordinary release profile's fat LTO so the sampler retains useful location information.
+The workload includes all threads and launched descendant processes. Standard output and standard
+error remain attached to the caller. Interrupt and termination signals are forwarded to the
+collector process group; any usable partial capture is finalized, and the workload's exit or signal
+result remains the command result.
 
 The versioned `.trnprof` artifact is typed compiler data rather than parsed report text. It binds the
 compiler, exact Rust release and sysroot, target, toolchain-bound ABI recipe, named artifact profile,
 inputs, exact executable hash, captured module build identities and hashes, source/generated
 associations, and relocation roots. It stores normalized load-relative native frames, collector
 identity and raw configuration, process/thread scope, sampling frequency and period, elapsed and
-active intervals, process exit or signal state, lost/truncated/captured counts, and explicit privacy
-declarations. Authored source and workload arguments are omitted by default and require independent
-opt-ins.
+active intervals, process exit or signal state, captured, lost-event, dropped-sample, and
+dropped-frame counts, and explicit privacy declarations. Generated Rust and compiler-bundled
+sources are embedded for relocatable exact attribution. Other authored source and workload
+arguments are omitted by default and require independent opt-ins.
 
 Attribution is a versioned pass over normalized evidence. Every captured CPU sample contributes
 exactly once to one exclusive bucket:
@@ -6215,7 +6217,7 @@ end-to-end host. Launch is supported there; attach is experimental and additiona
 host process policy. Other hosts and optimized or stripped modules report native fidelity with a
 precise reason.
 
-Each build writes deterministic schema `1.2` provenance beside final generated Rust and the
+Each build writes deterministic schema `1.3` provenance beside final generated Rust and the
 executable. It records compiler/toolchain/exact-`rustc`-release/sysroot/target identity, an ABI
 recipe bound to that compiler release, and the named artifact profile; manifest, projection-lock,
 logical-source, final-generated-file, and executable hashes; authored/generated associations;
