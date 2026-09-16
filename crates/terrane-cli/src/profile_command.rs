@@ -533,7 +533,7 @@ fn parse_perf_script(
             continue;
         }
         let header = line.trim_start();
-        if header.contains(": ") {
+        if is_perf_sample_header(header) {
             dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
             pending_inline.clear();
             if let Some(sample) = current.take() {
@@ -642,6 +642,21 @@ fn retain_sample(
         *retained_bytes = next_bytes;
     }
     Ok(())
+}
+
+fn is_perf_sample_header(line: &str) -> bool {
+    let mut fields = line.split_whitespace();
+    let Some((process_id, thread_id)) = fields.next().and_then(|value| value.split_once('/'))
+    else {
+        return false;
+    };
+    process_id.parse::<u32>().is_ok()
+        && thread_id.parse::<u32>().is_ok()
+        && fields
+            .next()
+            .and_then(|value| value.strip_suffix(':'))
+            .and_then(parse_timestamp_nanoseconds)
+            .is_some()
 }
 
 fn parse_sample_header(line: &str) -> Result<CpuSample, String> {
@@ -1382,7 +1397,8 @@ mod tests {
 \t    400123 inline_parent+0x1 (/tmp/program+0x123)\n\
   /tmp/build/src/main.rs:12\n\
 \t    7f00 [unknown] (/usr/lib/libc.so.6+0x100)\n\
-  /usr/lib/libc.c:99\n\n\
+  /usr/lib/libc.c:99\n\
+\t    7f01 foreign_symbol: helper+0x2 (/usr/lib/libc.so.6+0x101)\n\n\
 PERF_RECORD_LOST 1 LOST 37 events\n";
         let evidence = parse_perf_script(
             script,
@@ -1394,8 +1410,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             "sha256:program",
         )
         .unwrap();
-        assert_eq!(evidence.samples.len(), 1);
-        assert_eq!(evidence.samples[0].stack.len(), 3);
+        assert_eq!(evidence.samples[0].stack.len(), 4);
         assert_eq!(evidence.lost_events, 37);
         assert_eq!(evidence.samples[0].stack[0].module_offset, 0x123);
         assert_eq!(
@@ -1409,6 +1424,10 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         assert!(evidence.samples[0].stack[0].inline);
         assert!(!evidence.samples[0].stack[1].inline);
         assert!(evidence.samples[0].stack[2].generated_location.is_none());
+        assert_eq!(
+            evidence.samples[0].stack[3].symbol.as_deref(),
+            Some("foreign_symbol: helper")
+        );
         assert_eq!(evidence.modules[0].build_id, "program-id");
         assert!(evidence.modules[0].is_profiled_executable);
     }
