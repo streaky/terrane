@@ -1,6 +1,7 @@
 #![cfg(all(target_os = "linux", target_arch = "x86_64"))]
 
 use std::fs;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -282,4 +283,39 @@ fn interruption_forwards_to_the_workload_and_finalizes_the_capture() {
             > 0
     );
     assert!(!contains_raw_capture(directory.path()));
+}
+
+#[test]
+fn missing_and_permission_denied_collectors_fail_explicitly() {
+    let directory = TemporaryDirectory::new();
+    fs::write(directory.path().join("src/main.trn"), workload(10, None)).unwrap();
+    let missing = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["profile", "record", "--cpu", "--output"])
+        .arg(directory.path().join("missing.trnprof"))
+        .arg(directory.path().join("package.toml"))
+        .env("TERRANE_PERF", directory.path().join("missing-perf"))
+        .output()
+        .unwrap();
+    assert!(!missing.status.success());
+    assert!(
+        String::from_utf8_lossy(&missing.stderr)
+            .contains("Linux perf is required for CPU profiling but could not be started")
+    );
+
+    let denied_perf = directory.path().join("denied-perf");
+    fs::write(
+        &denied_perf,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'perf version fixture'; exit 0; fi\necho 'perf permission denied fixture' >&2\nexit 255\n",
+    )
+    .unwrap();
+    fs::set_permissions(&denied_perf, fs::Permissions::from_mode(0o755)).unwrap();
+    let denied = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["profile", "record", "--cpu", "--output"])
+        .arg(directory.path().join("denied.trnprof"))
+        .arg(directory.path().join("package.toml"))
+        .env("TERRANE_PERF", &denied_perf)
+        .output()
+        .unwrap();
+    assert!(!denied.status.success());
+    assert!(String::from_utf8_lossy(&denied.stderr).contains("perf permission denied fixture"));
 }

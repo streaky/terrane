@@ -1058,7 +1058,7 @@ mod tests {
     fn attributes_each_sample_once_and_preserves_ambiguous_causes() {
         let mut artifact = artifact();
         let source_text = "function main;\n";
-        let generated_text = "fn main() {}\n";
+        let generated_text = " fn main() {}\n";
         let source = |id, uri: &str| SourceIdentity {
             id,
             uri: uri.to_owned(),
@@ -1074,14 +1074,14 @@ mod tests {
             end_line: 1,
             end_column: 15,
         };
-        let association = |source_id| DebugAssociation {
+        let association = |source_id, start| DebugAssociation {
             generated: GeneratedRange {
-                start: 0,
-                end: generated_text.len(),
+                start,
+                end: start + 13,
                 line: 1,
-                column: 1,
+                column: start + 1,
                 end_line: 1,
-                end_column: generated_text.len() + 1,
+                end_column: start + 14,
             },
             causes: vec![cause(source_id)],
             role: ProvenanceRole::User,
@@ -1094,7 +1094,7 @@ mod tests {
             path: "src/main.rs".to_owned(),
             content_hash: crate::provenance::hash_bytes(generated_text.as_bytes()),
             embedded_source: Some(generated_text.to_owned()),
-            associations: vec![association(1), association(2)],
+            associations: vec![association(1, 0), association(2, 1)],
         }];
         artifact.evidence.samples[0].stack[0].generated_location = Some(NativeSourceLocation {
             path: "/relocated/build/src/main.rs".to_owned(),
