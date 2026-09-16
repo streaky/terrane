@@ -170,6 +170,23 @@ function main;
     self-source.append; value
   print; self-source.length
 
+  negative list of int64 = list
+  negative-index int64 = 0
+  negative-limit int64 = -3
+  while negative-index < negative-limit
+    negative.append; negative-index
+    negative-index++
+  print; negative.length, negative-index
+
+  mapped list of float64 = list
+  mapped-index int64 = 0
+  mapped-limit int64 = 4
+  while mapped-index < mapped-limit
+    mapped-value float64 = mapped-index
+    mapped.append; mapped-value * mapped-value
+    mapped-index++
+  print; mapped.length, mapped[3], mapped-index
+
   print; (validate-return;)
   validate-throw;
   validate-exit;

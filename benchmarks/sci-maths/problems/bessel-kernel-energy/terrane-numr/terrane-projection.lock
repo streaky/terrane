@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "dependencies": [
     {
       "name": "numr",
@@ -150,6 +150,10 @@
           "TuckerOptions"
         ],
         [
+          "/deps/numr/algorithm/linalg",
+          "linalg_demote"
+        ],
+        [
           "/deps/numr/algorithm/linalg/cpinit",
           "Hosvd"
         ],
@@ -164,6 +168,26 @@
         [
           "/deps/numr/algorithm/linalg/tensor-decompose-core",
           "TensorDecomposeDTypeSupport"
+        ],
+        [
+          "/deps/numr/algorithm/linalg/tensor-decompose-core",
+          "cp_decompose_impl"
+        ],
+        [
+          "/deps/numr/algorithm/linalg/tensor-decompose-core",
+          "mode_n_product_impl"
+        ],
+        [
+          "/deps/numr/algorithm/linalg/tensor-decompose-core",
+          "tensor_train_impl"
+        ],
+        [
+          "/deps/numr/algorithm/linalg/tensor-decompose-core",
+          "tt_reconstruct_impl"
+        ],
+        [
+          "/deps/numr/algorithm/linalg/tensor-decompose-core",
+          "tucker_reconstruct_impl"
         ],
         [
           "/deps/numr/algorithm/linalg/tensor-decompose-core",
@@ -200,6 +224,26 @@
         [
           "/deps/numr/algorithm/polynomial/core",
           "DTypeSupport.check"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "convolve_impl"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "polyfromroots_impl"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "polymul_impl"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "polyroots_impl"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "polyval_impl"
         ],
         [
           "/deps/numr/algorithm/special",
@@ -347,11 +391,339 @@
         ],
         [
           "/deps/numr/autograd",
+          "backward"
+        ],
+        [
+          "/deps/numr/autograd",
+          "backward_with_graph"
+        ],
+        [
+          "/deps/numr/autograd",
+          "hvp"
+        ],
+        [
+          "/deps/numr/autograd",
+          "jacobian_forward"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_abs"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_add"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_add_scalar"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_cast"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_cholesky"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_clamp"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_cos"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_cumprod"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_cumsum"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_det"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_div"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_div_scalar"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_embedding_lookup"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_exp"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_fused_add_layer_norm"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_fused_add_rms_norm"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_gather"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_gelu_mul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_group_norm"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_inverse"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_layer_norm"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_log"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_log_softmax"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_matmul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_matmul_bias_activation"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_mul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_mul_scalar"
+        ],
+        [
+          "/deps/numr/autograd",
           "var_narrow"
         ],
         [
           "/deps/numr/autograd",
+          "var_neg"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_pow"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_pow_scalar"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_recip"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_relu"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_relu_mul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_rms_norm"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sigmoid"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sigmoid_mul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_silu"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_silu_mul"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sin"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_softmax"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_softplus"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_solve"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sqrt"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_square"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sub"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_sub_scalar"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_swiglu"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_tan"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_tanh"
+        ],
+        [
+          "/deps/numr/autograd",
+          "var_trace"
+        ],
+        [
+          "/deps/numr/autograd",
           "var_transpose"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_abs"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_add"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_add_scalar"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_contiguous"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_cos"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_div"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_div_scalar"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_exp"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_log"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_matmul"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_mul"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_mul_scalar"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_narrow"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_neg"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_pow_scalar"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_recip"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_relu"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_sigmoid"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_sin"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_sqrt"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_square"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_squeeze"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_sub"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_sub_scalar"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_tan"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_tanh"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_transpose"
+        ],
+        [
+          "/deps/numr/autograd/dual-ops",
+          "dual_unsqueeze"
         ],
         [
           "/deps/numr/dtype",
@@ -1253,11 +1625,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "b64bf22f17a2709f349c1b4ae90ea53f8527891740f3e296d44d45109f630430",
+  "cache_identity": "57a6efa036c0e4dbccb8fa26b0b68e57aea0fb3ed14cbc96f465a3e120a7a1bb",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "24",
-  "content_hash": "07f9aca7c6c5a70b9bf72667a727dc1b1b596d972e20d64aef4984ea94454a5b",
+  "projection_schema": "45",
+  "content_hash": "66454ea643b18914634e7165b3f9f291b0563faf5f9c9d809610d5af102720c1",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

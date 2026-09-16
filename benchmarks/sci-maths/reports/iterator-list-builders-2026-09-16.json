@@ -1,0 +1,2009 @@
+{
+  "format": 3,
+  "suite": "Terrane scientific mathematics and data workloads",
+  "groups": [
+    {
+      "id": "language-baseline",
+      "name": "Language baseline"
+    },
+    {
+      "id": "scientific-stack",
+      "name": "Scientific stack"
+    }
+  ],
+  "created_at": "2026-09-16T04:38:04.839094+00:00",
+  "environment": {
+    "platform": "Linux-7.2.3-1-cachyos-x86_64-with-glibc2.44",
+    "kernel": "7.2.3-1-cachyos",
+    "machine": "x86_64",
+    "cpu_model": "AMD Ryzen 9 3900XT 12-Core Processor",
+    "logical_cpus": 24,
+    "physical_cores": 12,
+    "memory_bytes": 101153280000,
+    "runner_python": "3.14.7",
+    "cpu_frequency_governor": "powersave",
+    "load_average": [
+      1.99658203125,
+      3.7822265625,
+      6.8349609375
+    ],
+    "inherited_performance_environment": {}
+  },
+  "measurement": {
+    "clock": "time.perf_counter",
+    "runs": 7,
+    "warmups": 2,
+    "cold_builds": false,
+    "setup_timeout_seconds": 300.0,
+    "runtime_timeout_seconds": 60.0,
+    "execution_timing": "process spawn to exit, as observed by the parent; setup and preparation complete before spawning",
+    "run_order": "problem-major and lane-minor within each warm-up or measured run index",
+    "build_cache": "existing adapter-declared caches preserved",
+    "memory": "unavailable: memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope/terrane-sci-runner-392574'",
+    "memory_available": false,
+    "memory_unavailable_reason": "memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope/terrane-sci-runner-392574'",
+    "memory_recommendation": "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/iterator-list-builders-default-2026-09-16.md",
+    "memory_limitations": null
+  },
+  "lane_setup": {
+    "terrane": {
+      "name": "Clean, idiomatic Terrane",
+      "metadata": {
+        "implementation": "Terrane compiler-generated Rust",
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0 (build rust 1.98.1, projection rustdoc nightly-2026-04-29)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.98.1 (797e8a9bc 2026-08-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 21.64882394403685,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "python": {
+      "name": "Clean, idiomatic Python",
+      "metadata": {
+        "implementation": "system CPython using only the standard language and library",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "python3",
+            "--version"
+          ],
+          "stdout": "Python 3.14.7\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "rust": {
+      "name": "Clean, idiomatic Rust control",
+      "metadata": {
+        "implementation": "standalone Rust compiled directly with rustc",
+        "native-build-profile": "opt-level=3, fat LTO, one codegen unit",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "go": {
+      "name": "Clean, idiomatic Go control",
+      "metadata": {
+        "implementation": "standalone Go compiled directly with go build",
+        "native-build-profile": "default optimized Go build with trimmed paths",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "go",
+            "version"
+          ],
+          "stdout": "go version go1.27.1-X:nodwarf5 linux/amd64\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "python-scipy": {
+      "name": "Python scientific stack",
+      "metadata": {
+        "implementation": "CPython with vectorized NumPy and SciPy special functions",
+        "scientific-packages": true,
+        "native-build-profile": "official binary wheels from the locked uv environment"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "--version"
+          ],
+          "stdout": "Python 3.14.7\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "-c",
+            "import numpy, scipy; print(f'numpy {numpy.__version__}; scipy {scipy.__version__}')"
+          ],
+          "stdout": "numpy 2.5.2; scipy 1.18.1\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.008857896958943456,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "terrane-numr": {
+      "name": "Terrane with numr",
+      "metadata": {
+        "implementation": "Terrane using numr 0.7.0 through /deps",
+        "scientific-packages": true,
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0 (build rust 1.98.1, projection rustdoc nightly-2026-04-29)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.98.1 (797e8a9bc 2026-08-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.08479966403683648,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    }
+  },
+  "results": [
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "terrane",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.04566735099069774,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.05009323899867013,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04869459301698953,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.050378366955555975,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.049302216968499124,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.048428226029500365,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046112677024211735,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.045479942986276,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "python",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 4.561001509020571,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.610059427970555,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.792860450979788,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.6747495899908245,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.636404480028432,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.656046456017066,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.790103737032041,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "rust",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.1583560360013507,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.028125165961682796,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.030014567950274795,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.030019368045032024,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029885230003856122,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03369131399085745,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02979115000925958,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03104747796896845,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "go",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.029033006983809173,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04978826199658215,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.045765921007841825,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.050068540032953024,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.050748142995871603,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04914682899834588,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04996108100749552,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04965328302932903,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.05905916495248675,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.020610237028449774,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020689035998657346,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020713705976959318,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.021660017024260014,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.022485929017420858,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020974523038603365,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020844754006247967,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 41268.35,
+      "performance_result": 412683500.0,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.9206869389745407,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.916555808042176,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9234954330022447,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.917070682044141,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8073964740033261,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8194030600134283,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9375633010058664,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.2926189249847084,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.021240760979708284,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.021115692041348666,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.021676396019756794,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02150161803001538,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.01913254999089986,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02063502703094855,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020471417054068297,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "go",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.02897686802316457,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.02811149600893259,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02689099800772965,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029263824981171638,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029236715054139495,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02667044900590554,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029169775953050703,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.028357153001707047,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.04788693995214999,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.051699914038181305,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05221145995892584,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.048688882030546665,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.051375227980315685,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046159517019987106,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.047799890977330506,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.049252666998654604,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 511.25451597539745,
+      "performance_result": 10225090.319507949,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.7944259390351363,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.879136372997891,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.889792934001889,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8922136800247245,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.686236765002832,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.811520718038082,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.7700531480368227,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.2355767819681205,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04918397800065577,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05286415299633518,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046387393958866596,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04937799595063552,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05040703702252358,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05088812200119719,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.050686774018686265,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "go",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.030466453987173736,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04964150401065126,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04979560198262334,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04778085101861507,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.049898020981345326,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04963885399047285,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04576021997490898,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04648068401729688,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "terrane",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.04777836101129651,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.2076112600043416,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21722289902390912,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21371823298977688,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.2063312020036392,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.19044174096779898,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.206252351985313,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.2171024910057895,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "python",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 8.955705708998721,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.861593843030278,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.81902497302508,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.867351859982591,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.75544139003614,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.818839034996927,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.84496046003187,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "rust",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.177335578016937,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.13920266297645867,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.12535726197529584,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1362112700007856,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.13341390702407807,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1231112329987809,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1356210260419175,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.12344872998073697,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "go",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.027983376989141107,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.2088100879918784,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21835715899942443,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1928088190034032,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21077268000226468,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.2227332480251789,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.19743752502836287,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1921022859751247,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "terrane",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.04973986302502453,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.048812251014169306,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04515697597526014,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04783540096832439,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04805397900054231,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.044650889991316944,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04710173700004816,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.044146685977466404,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "python",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.62954475794686,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.7506687490385957,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8135585370473564,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.831889886991121,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.747052473947406,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.805462566029746,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.826736206014175,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "rust",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.0783431680174544,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.03992692503379658,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04105873400112614,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.043031455017626286,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03973097598645836,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.039377170032821596,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04353435098892078,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04306736501166597,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "go",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.029915808991063386,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.0406166180036962,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03711069200653583,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03446905699092895,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0351371499709785,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.037184670043643564,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03764413599856198,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03732647903962061,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane",
+      "correctness_result": 0.12246207375340833,
+      "performance_result": 0.11273859033211667,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.05587911501061171,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.47488685901043937,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5138123540091328,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.48101077100727707,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.47489860898349434,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4775185749749653,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4736142909969203,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4743521849741228,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.12246207359176442,
+      "performance_result": 0.11273859023654974,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.3078266360098496,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2625245110248215,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.261490830045659,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2618360980413854,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.3089929340058006,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2200373300001957,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.215955697989557,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.12246207374772747,
+      "performance_result": 0.11273859032554075,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.14230374299222603,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.5422816770151258,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4997728160233237,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.542870289995335,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5426438529975712,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.543084628006909,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5022259230026975,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5630457219667733,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane",
+      "correctness_result": 0.11423642603119359,
+      "performance_result": 0.14715086979582306,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.0657755529973656,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 2.6080969420145266,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.451300685002934,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.496869107009843,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.6349187800078653,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.488631234038621,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.4424963669735007,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.604923402017448,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.11423642603119355,
+      "performance_result": 0.14715086979516895,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 2.8121275459998287,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.7569327839883044,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.685877971991431,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.825186363013927,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.7329758490086533,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.793906537001021,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.7782939830212854,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.1142364260311935,
+      "performance_result": 0.14715086979581601,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.14251295203575864,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 2.7146274219849147,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.4813759819953702,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.4812639729934745,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.6990905679995194,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.5859445199603215,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.6424217600142583,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.663488761987537,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    }
+  ]
+}

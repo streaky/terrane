@@ -63,6 +63,7 @@ fn canonical_rust_requirement_accepts_formatted_lowering() {
             require_canonical_rust: true,
             lint_name_style: false,
             debug_build: terrane_compiler::DebugBuild::Disabled,
+            optimize_list_builders: false,
         },
     )
     .unwrap();

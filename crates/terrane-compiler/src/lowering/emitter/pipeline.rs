@@ -176,16 +176,23 @@ fn main() {
 pub(crate) fn lower(
     package: &SemanticPackage,
     debug_information: bool,
+    optimize_list_builders: bool,
 ) -> Result<Program, LoweringFailure> {
-    lower_with_tests(package, None, debug_information)
+    lower_with_tests(package, None, debug_information, optimize_list_builders)
 }
 
 pub(crate) fn lower_tests(
     package: &SemanticPackage,
     tests: &[super::super::TestRunnerCase],
     debug_information: bool,
+    optimize_list_builders: bool,
 ) -> Result<Program, LoweringFailure> {
-    lower_with_tests(package, Some(tests), debug_information)
+    lower_with_tests(
+        package,
+        Some(tests),
+        debug_information,
+        optimize_list_builders,
+    )
 }
 
 #[expect(
@@ -196,6 +203,7 @@ fn lower_with_tests(
     package: &SemanticPackage,
     tests: Option<&[super::super::TestRunnerCase]>,
     debug_information: bool,
+    optimize_list_builders: bool,
 ) -> Result<Program, LoweringFailure> {
     debug_assert!(
         package.execution_requirements.is_consistent(),
@@ -678,7 +686,13 @@ fn lower_with_tests(
         .iter()
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
-                let mut emitter = Emitter::new(&registry, package, unit, debug_information);
+                let mut emitter = Emitter::new(
+                    &registry,
+                    package,
+                    unit,
+                    debug_information,
+                    optimize_list_builders,
+                );
                 for node in &unit.tree.root.children {
                     if node.kind == SyntaxKind::InterfaceDeclaration {
                         emitter.object(node);
@@ -697,7 +711,13 @@ fn lower_with_tests(
                     items: vec![Item::generated(&rust)],
                 });
             }
-            let mut emitter = Emitter::new(&registry, package, unit, debug_information);
+            let mut emitter = Emitter::new(
+                &registry,
+                package,
+                unit,
+                debug_information,
+                optimize_list_builders,
+            );
             emitter.emit_union_types();
             let mut items = Vec::new();
             if !emitter.output.is_empty() {

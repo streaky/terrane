@@ -136,7 +136,7 @@ impl Emitter<'_> {
         projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
     }
 
-    fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
+    pub(super) fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
         {
