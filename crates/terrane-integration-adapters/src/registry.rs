@@ -122,6 +122,32 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         removal_criterion: "generic projected static-call specialization infers the bind argument and emits direct TcpListener::bind",
     },
     IntegrationAdapter {
+        id: "markdown-gfm-options-constructor",
+        tracking_key: "projection/associated-self-constructor",
+        dependency: "markdown",
+        supported_versions: "1.0.x",
+        limitation: "Options::gfm returns Self and is rejected because the receiver type appears outside receiver position",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x",
+            feature: "docs-rendering",
+        },
+        removal_criterion: "generic static associated constructors returning an otherwise projectable receiver type are callable directly from Terrane",
+    },
+    IntegrationAdapter {
+        id: "pdf-oxide-html-bytes",
+        tracking_key: "projection/projected-namespace-cycles-and-generic-path-save",
+        dependency: "pdf_oxide",
+        supported_versions: "0.3.x",
+        limitation: "eager projected method closure creates cross-module source cycles and the path-saving API has an unprojectable generic path parameter",
+        status: AdapterStatus::Package {
+            name: "terrane-integration-adapters",
+            version: "0.1.x",
+            feature: "docs-rendering",
+        },
+        removal_criterion: "member-demand projection admits the HTML constructor and a concrete bytes or path saving operation without cyclic generated namespaces",
+    },
+    IntegrationAdapter {
         id: "godot-generated-api-projection",
         tracking_key: "projection/godot-generated-reexport-surface",
         dependency: "godot",
