@@ -120,7 +120,7 @@ impl Emitter<'_> {
         let [condition, then_block, else_clause] = node.children.as_slice() else {
             return None;
         };
-        if !pure_guard_condition(condition) {
+        if !self.pure_guard_condition(condition) {
             return None;
         }
         let [else_block] = else_clause.children.as_slice() else {
@@ -330,16 +330,34 @@ impl Emitter<'_> {
     }
 }
 
-fn pure_guard_condition(node: &SyntaxNode) -> bool {
-    matches!(
-        node.kind,
-        SyntaxKind::Name
-            | SyntaxKind::Literal
-            | SyntaxKind::UnaryOperator
-            | SyntaxKind::BinaryExpression
-            | SyntaxKind::UnaryExpression
-            | SyntaxKind::GroupExpression
-    ) && node.children.iter().all(pure_guard_condition)
+impl Emitter<'_> {
+    fn pure_guard_condition(&self, node: &SyntaxNode) -> bool {
+        if !matches!(
+            node.kind,
+            SyntaxKind::Name
+                | SyntaxKind::Literal
+                | SyntaxKind::UnaryOperator
+                | SyntaxKind::BinaryExpression
+                | SyntaxKind::UnaryExpression
+                | SyntaxKind::GroupExpression
+        ) {
+            return false;
+        }
+        if node.kind == SyntaxKind::Name {
+            let Some(binding) = self.local_typed_binding(node) else {
+                return false;
+            };
+            if self.global_storage(node).is_some()
+                || self.reference_backed(binding)
+                || self.async_mutable_captures.contains(self.text(node))
+            {
+                return false;
+            }
+        }
+        node.children
+            .iter()
+            .all(|child| self.pure_guard_condition(child))
+    }
 }
 
 fn effective_fast_interval(scalar: ScalarType, valid: IntegerInterval) -> Option<IntegerInterval> {
@@ -361,7 +379,9 @@ fn integer_interval_guard(
     valid: &IntegerInterval,
 ) -> String {
     debug_assert!(valid.lower >= BigInt::from(0_u8));
-    if let Some(unsigned) = unsigned_rust_type(scalar) {
+    if valid.lower == BigInt::from(0_u8)
+        && let Some(unsigned) = unsigned_rust_type(scalar)
+    {
         return format!("({target} as {unsigned}) <= {}_{unsigned}", valid.upper);
     }
     let mut clauses = Vec::new();
@@ -506,6 +526,19 @@ mod tests {
         let effective = effective_fast_interval(ScalarType::Int8, valid).unwrap();
         assert_eq!(effective.lower, BigInt::from(0_u8));
         assert_eq!(effective.upper, BigInt::from(42_i8));
+    }
+
+    #[test]
+    fn signed_positive_fast_intervals_keep_their_lower_bound() {
+        let bounds = fixed_integer_bounds(ScalarType::Int8).unwrap();
+        let valid = IntegerInterval {
+            lower: BigInt::from(72_u8),
+            upper: BigInt::from(127_u8),
+        };
+        assert_eq!(
+            integer_interval_guard("value", ScalarType::Int8, &bounds, &valid),
+            "value >= 72_i8"
+        );
     }
 
     #[test]

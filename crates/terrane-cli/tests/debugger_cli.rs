@@ -769,6 +769,52 @@ fn cli_next_returns_from_a_helpers_final_sequence_point() {
 }
 
 #[test]
+fn cli_steps_over_folded_guarded_branches_as_one_source_statement() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/output import print\n",
+            "function main;\n",
+            "  value int64 = 41\n",
+            "  if value % 2 == 0\n",
+            "    value = value / 2\n",
+            "  else\n",
+            "    value = 3 * value + 1\n",
+            "  print; value\n",
+        ),
+    )
+    .unwrap();
+    let _ = fixture.build_expecting(&[], b"124\r\n");
+    let commands = format!(
+        "break {}:5\ncontinue\nnext\nsource 0\nquit\n",
+        fixture.source.display()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", fixture.source.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "{:?}", output.stdout);
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains(">     9 |   print; value"), "{stderr}");
+    assert!(!stderr.contains(">     6 |"), "{stderr}");
+    assert!(!stderr.contains(">     8 |"), "{stderr}");
+}
+
+#[test]
 fn cli_preserves_breakpoints_and_reenters_loop_sequence_points() {
     let fixture = DebugFixture::new();
     fs::write(

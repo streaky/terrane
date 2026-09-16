@@ -2,6 +2,8 @@ namespace guarded-checked-arithmetic
 
 from /core/errors import arithmetic-overflow
 
+global parity int8 = 0
+
 function transition int8; input int8
   value int8 = input
   if value % 2 == 0
@@ -76,9 +78,31 @@ function nested-conditional int8; input int8
     value = 3 * value + 1
   return value
 
+function positive-lower-bound; input int8
+  value int8 = input
+  try
+    if value % 2 == 0
+      value = value - 100 - 100
+    else
+      value = value / 2
+    print; value
+  catch arithmetic-overflow
+    print; >lower-caught
+
+function global-condition int8; input int8
+  value int8 = input
+  if parity == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
 function main;
   print; (transition; 42)
   print; (transition; 41)
+  positive-lower-bound; 72
+  positive-lower-bound; 10
+  print; (global-condition; 41)
   upper int8 = 43
   try
     if upper % 2 == 0
