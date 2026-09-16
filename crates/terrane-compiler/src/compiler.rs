@@ -35,24 +35,11 @@ impl DebugBuild {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
     pub debug_build: DebugBuild,
-    /// Enables iterator-backed lowering for proven bounded list builders.
-    pub optimize_list_builders: bool,
-}
-
-impl Default for CompilerOptions {
-    fn default() -> Self {
-        Self {
-            require_canonical_rust: false,
-            lint_name_style: false,
-            debug_build: DebugBuild::default(),
-            optimize_list_builders: true,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -412,12 +399,8 @@ pub fn compile_package_with_options(
     let source = &unit.source;
     let sources = compilation_sources(&semantic, package);
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower(
-        &semantic,
-        options.debug_build.enabled(),
-        options.optimize_list_builders,
-    )
-    .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
+        .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
@@ -700,13 +683,9 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower_tests(
-        &semantic,
-        &runner_cases,
-        options.debug_build.enabled(),
-        options.optimize_list_builders,
-    )
-    .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rust_ir =
+        crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
+            .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);

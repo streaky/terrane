@@ -2,13 +2,6 @@ mod debug_command;
 mod profile_command;
 mod test_command;
 
-fn compiler_options() -> terrane_compiler::CompilerOptions {
-    terrane_compiler::CompilerOptions {
-        optimize_list_builders: cfg!(feature = "iterator-list-builders"),
-        ..terrane_compiler::CompilerOptions::default()
-    }
-}
-
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::ffi::OsString;
@@ -266,7 +259,6 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 },
                 _ => terrane_compiler::DebugBuild::Disabled,
             },
-            ..compiler_options()
         },
     ) {
         Ok(compilation) => compilation,

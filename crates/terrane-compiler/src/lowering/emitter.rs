@@ -158,7 +158,6 @@ pub(super) struct Emitter<'a> {
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
     fresh_empty_lists: Vec<crate::Span>,
-    optimize_list_builders: bool,
     debug_information: bool,
 }
 
@@ -168,7 +167,6 @@ impl<'a> Emitter<'a> {
         package: &'a SemanticPackage,
         unit: &'a SemanticUnit,
         debug_information: bool,
-        optimize_list_builders: bool,
     ) -> Self {
         Self {
             registry,
@@ -200,7 +198,6 @@ impl<'a> Emitter<'a> {
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
             fresh_empty_lists: Vec::new(),
-            optimize_list_builders,
             debug_information,
         }
     }

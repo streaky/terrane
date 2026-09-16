@@ -434,8 +434,6 @@ impl Emitter<'_> {
                     .iter()
                     .any(|child| contains_await(emitter, child))
         }
-
-        self.optimize_list_builders.then_some(())?;
         let (index, end) = self.while_capacity_hint(condition, block)?;
         let [left, right] = condition.children.as_slice() else {
             return None;

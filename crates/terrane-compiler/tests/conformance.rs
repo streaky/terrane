@@ -481,7 +481,6 @@ fn prepare_conformance_case(
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
         lint_name_style: false,
         debug_build: terrane_compiler::DebugBuild::Disabled,
-        optimize_list_builders: boolean_field(&manifest, "iterator-list-builders").unwrap_or(false),
     };
 
     match (phase, status) {
