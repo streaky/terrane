@@ -2,6 +2,10 @@
 
 Generated at `2026-09-16T04:38:04.839094+00:00`.
 
+This is a current-default suite measurement, not an isolated comparison between iterator-backed
+and legacy list-builder lowering. Differences from earlier published suites may also reflect other
+compiler changes and the recorded environment.
+
 ## Environment
 
 | Property | Value |
@@ -28,7 +32,7 @@ Generated at `2026-09-16T04:38:04.839094+00:00`.
 - Run order: problem-major and lane-minor within each warm-up or measured run index.
 - Setup timeout: 300.000 s; runtime timeout: 60.000 s.
 - Memory: unavailable: memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-167.scope/terrane-sci-runner-392574'.
-- Memory retry command: `systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/iterator-list-builders-default-2026-09-16.md`
+- Memory retry command: `systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/iterator-list-builders-2026-09-16.md`
 
 ## Lanes
 
@@ -112,4 +116,4 @@ Each problem uses its fastest median wall time as the baseline.
 
 Every recorded execution passed its problem's shared correctness contract. Successful process stderr is retained in the raw data; **0 warning line(s)** were detected.
 
-Complete measurements: [iterator-list-builders-default-2026-09-16.json](iterator-list-builders-default-2026-09-16.json)
+Complete measurements: [iterator-list-builders-2026-09-16.json](iterator-list-builders-2026-09-16.json)

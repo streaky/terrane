@@ -77,6 +77,12 @@ delegated cgroup with memory accounting available. The recorded one-minute load 
 on this 12-core host, so treat small timing differences as provisional rather than idle-host
 evidence.
 
+The current-default suite measured after iterator-backed list-builder lowering became enabled is
+[`iterator-list-builders-2026-09-16.md`](reports/iterator-list-builders-2026-09-16.md), with its
+[complete JSON process records](reports/iterator-list-builders-2026-09-16.json). It contains one
+Terrane lane and is not isolated A/B evidence for that lowering change; differences from earlier
+published suites may also include intervening compiler changes and the recorded environment.
+
 ## Historical pre-optimization diagnostics
 
 The measurements and disassembly in this section are a frozen snapshot from 2026-08-31, before
