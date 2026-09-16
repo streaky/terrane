@@ -5363,9 +5363,11 @@ capture conditions and bucket accounting, then reports hottest source groups, a 
 tree, and folded flame-graph stacks. Generated Rust and native modules/offsets are explicit
 expansions. `profile show` validates exact source, generated-file, executable, and loaded-module
 identities on every read; explicit source/build relocation may select copied-but-identical trees.
-Changed or unavailable identities retain native evidence with reduced fidelity rather than
-fabricating source attribution. CPU sample counts are the sole unit of this backend and are never
-presented as deterministic wall time or call counts.
+Changed or unavailable source/build identities retain native evidence with reduced source fidelity
+rather than fabricating attribution. External modules, including system libraries, retain their
+capture-time hashes: host drift downgrades native-module fidelity with a per-module reason while
+leaving source fidelity and exclusive bucket accounting unchanged. CPU sample counts are the sole
+unit of this backend and are never presented as deterministic wall time or call counts.
 
 The artifact envelope and attribution vocabulary are intended to admit later evidence kinds, but
 allocation/event profiling, live-set and retained-graph analysis, process memory timelines,

@@ -238,18 +238,114 @@ impl ProfileArtifact {
         }
         Ok(())
     }
+    /// Drops trailing captured samples until the complete serialized artifact fits its byte budget.
+    ///
+    /// Collector loss and previously dropped samples remain intact. Samples removed here are added
+    /// to `dropped_samples`, while the retained prefix becomes `captured_events`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if capture accounting is inconsistent, size measurement fails, or the
+    /// non-sample artifact envelope alone exceeds the byte budget.
+    pub fn fit_encoded_budget(&mut self) -> Result<(), String> {
+        self.fit_encoded_budget_to(MAX_ARTIFACT_BYTES)
+    }
+
+    fn fit_encoded_budget_to(&mut self, max_bytes: u64) -> Result<(), String> {
+        let encoded_bytes = self.encoded_json_bytes()?;
+        if encoded_bytes <= max_bytes {
+            return Ok(());
+        }
+        if self.evidence.loss.captured_events != self.evidence.samples.len() as u64 {
+            return Err(format!(
+                "capture accounting reports {} captured events but stores {} samples",
+                self.evidence.loss.captured_events,
+                self.evidence.samples.len()
+            ));
+        }
+
+        let sample_bytes = self
+            .evidence
+            .samples
+            .iter()
+            .map(encoded_json_bytes)
+            .collect::<Result<Vec<_>, _>>()?;
+        let original_dropped = self.evidence.loss.dropped_samples;
+        let original_captured = self.evidence.loss.captured_events;
+        let all_samples = std::mem::take(&mut self.evidence.samples);
+        self.evidence.loss.captured_events = 0;
+        self.evidence.loss.dropped_samples = original_dropped
+            .checked_add(original_captured)
+            .ok_or_else(|| "profile dropped-sample accounting overflow".to_owned())?;
+
+        let envelope_bytes = self.encoded_json_bytes()?;
+        if envelope_bytes > max_bytes {
+            self.evidence.samples = all_samples;
+            self.evidence.loss.captured_events = original_captured;
+            self.evidence.loss.dropped_samples = original_dropped;
+            return Err(format!(
+                "profile artifact envelope encodes to {envelope_bytes} bytes; limit is {max_bytes}"
+            ));
+        }
+
+        let mut estimated_bytes = envelope_bytes;
+        for (sample, sample_bytes) in all_samples.into_iter().zip(sample_bytes) {
+            let separator = u64::from(!self.evidence.samples.is_empty());
+            let Some(candidate_bytes) = estimated_bytes
+                .checked_add(sample_bytes)
+                .and_then(|bytes| bytes.checked_add(separator))
+            else {
+                continue;
+            };
+            if candidate_bytes <= max_bytes {
+                self.evidence.samples.push(sample);
+                estimated_bytes = candidate_bytes;
+            }
+        }
+        self.update_capture_accounting(original_dropped, original_captured)?;
+
+        while self.encoded_json_bytes()? > max_bytes {
+            if self.evidence.samples.pop().is_none() {
+                return Err(format!(
+                    "profile artifact envelope exceeds its {max_bytes}-byte budget"
+                ));
+            }
+            self.update_capture_accounting(original_dropped, original_captured)?;
+        }
+        Ok(())
+    }
+
+    fn update_capture_accounting(
+        &mut self,
+        original_dropped: u64,
+        original_captured: u64,
+    ) -> Result<(), String> {
+        let retained = self.evidence.samples.len() as u64;
+        let shed = original_captured
+            .checked_sub(retained)
+            .ok_or_else(|| "profile retained-sample accounting overflow".to_owned())?;
+        self.evidence.loss.captured_events = retained;
+        self.evidence.loss.dropped_samples = original_dropped
+            .checked_add(shed)
+            .ok_or_else(|| "profile dropped-sample accounting overflow".to_owned())?;
+        Ok(())
+    }
 
     /// Returns the encoded compact JSON size used by the artifact byte budget.
     ///
     /// # Errors
     ///
     /// Returns an error if the artifact cannot be serialized.
-    pub fn encoded_json_bytes(&self) -> Result<u64, String> {
-        let mut writer = CountingWriter::default();
-        serde_json::to_writer(&mut writer, self)
-            .map_err(|error| format!("cannot size profile artifact: {error}"))?;
-        Ok(writer.bytes)
+    fn encoded_json_bytes(&self) -> Result<u64, String> {
+        encoded_json_bytes(self)
     }
+}
+
+fn encoded_json_bytes<T: Serialize>(value: &T) -> Result<u64, String> {
+    let mut writer = CountingWriter::default();
+    serde_json::to_writer(&mut writer, value)
+        .map_err(|error| format!("cannot size profile artifact: {error}"))?;
+    Ok(writer.bytes)
 }
 
 #[derive(Default)]
@@ -1151,6 +1247,92 @@ mod tests {
         assert_eq!(stale.fidelity, "reduced-native");
     }
 
+    #[test]
+    fn full_artifact_budget_sheds_samples_but_preserves_the_envelope() {
+        let one_sample = artifact();
+        let one_sample_bytes = one_sample.encoded_json_bytes().unwrap();
+        let mut bounded = one_sample.clone();
+        let sample = bounded.evidence.samples[0].clone();
+        bounded.evidence.samples.extend([sample.clone(), sample]);
+        bounded.evidence.loss.captured_events = 3;
+
+        bounded.fit_encoded_budget_to(one_sample_bytes).unwrap();
+
+        assert_eq!(bounded.evidence.samples.len(), 1);
+        assert_eq!(bounded.evidence.loss.captured_events, 1);
+        assert_eq!(bounded.evidence.loss.dropped_samples, 2);
+        assert!(bounded.encoded_json_bytes().unwrap() <= one_sample_bytes);
+        bounded.validate().unwrap();
+
+        let mut envelope_too_large = one_sample.clone();
+        assert!(
+            envelope_too_large
+                .fit_encoded_budget_to(1)
+                .unwrap_err()
+                .contains("artifact envelope")
+        );
+        assert_eq!(envelope_too_large, one_sample);
+    }
+
+    #[test]
+    fn one_authored_operation_can_own_multiple_generated_ranges() {
+        let mut artifact = artifact();
+        let source_text = "function main;\n  value = 1\n";
+        let generated_text = "let value = 0;\nvalue = 1;\n";
+        let cause = SourceSpan {
+            source_id: 7,
+            start: 17,
+            end: 26,
+            line: 2,
+            column: 3,
+            end_line: 2,
+            end_column: 12,
+        };
+        let association = |line, start, end| DebugAssociation {
+            generated: GeneratedRange {
+                start,
+                end,
+                line,
+                column: 1,
+                end_line: line,
+                end_column: end - start + 1,
+            },
+            causes: vec![cause.clone()],
+            role: ProvenanceRole::User,
+            sequence_point: true,
+            function_id: None,
+            scope_ids: Vec::new(),
+        };
+        artifact.source_attribution.sources = vec![SourceIdentity {
+            id: 7,
+            uri: "src/main.trn".to_owned(),
+            content_hash: crate::provenance::hash_bytes(source_text.as_bytes()),
+            embedded_source: Some(source_text.to_owned()),
+        }];
+        artifact.source_attribution.generated_files = vec![GeneratedFileIdentity {
+            path: "src/main.rs".to_owned(),
+            content_hash: crate::provenance::hash_bytes(generated_text.as_bytes()),
+            embedded_source: Some(generated_text.to_owned()),
+            associations: vec![association(1, 0, 14), association(2, 15, 25)],
+        }];
+        artifact.evidence.samples[0].stack[0].generated_location = Some(NativeSourceLocation {
+            path: "/relocated/src/main.rs".to_owned(),
+            line: 1,
+            column: None,
+        });
+        let mut second_range = artifact.evidence.samples[0].stack[0].clone();
+        second_range.generated_location.as_mut().unwrap().line = 2;
+        artifact.evidence.samples[0].stack.push(second_range);
+
+        let report = attribute(&artifact, Path::new("/relocated"), Path::new("/relocated"));
+
+        assert_eq!(report.buckets[&AttributionQuality::ExactAuthored], 1);
+        assert_eq!(report.rows.len(), 1);
+        assert_eq!(report.rows[0].exclusive_samples, 1);
+        assert_eq!(report.rows[0].inclusive_samples, 1);
+        assert_eq!(report.rows[0].generated.len(), 2);
+        assert_eq!(report.rows[0].related_causes, [cause]);
+    }
     #[test]
     fn generated_file_resolution_rejects_ambiguous_suffixes() {
         let generated_files = vec![

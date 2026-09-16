@@ -144,7 +144,7 @@ pub(super) fn record(
         evidence,
     };
     let exit_code = command_exit_code(capture.status);
-    let artifact = assemble_artifact(
+    let mut artifact = assemble_artifact(
         options,
         debug,
         executable,
@@ -152,6 +152,7 @@ pub(super) fn record(
         perf_version,
         capture,
     );
+    artifact.fit_encoded_budget().map_err(CliFailure::backend)?;
     artifact.validate().map_err(CliFailure::backend)?;
     write_artifact(&options.output, &artifact)?;
     eprintln!(
@@ -1009,7 +1010,7 @@ fn validate_captured_modules(
         if !matches {
             "reduced-native-modules".clone_into(&mut report.native_fidelity);
             report.native_fidelity_reasons.push(format!(
-                "captured external module `{}` is missing or changed",
+                "captured external module `{}` is missing or changed; native offsets remain visible, but exact module identity is unavailable",
                 module.path
             ));
         }

@@ -230,13 +230,43 @@ fn nonzero_workload_still_publishes_usable_capture() {
     let recorded = record(&directory, "failed.trnprof");
 
     assert_eq!(recorded.status.code(), Some(7), "{recorded:?}");
-    let artifact = artifact(&directory, "failed.trnprof");
+    let path = directory.path().join("failed.trnprof");
+    let mut artifact = artifact(&directory, "failed.trnprof");
     assert_eq!(artifact["conditions"]["process_exit_code"], 7);
     assert!(
         artifact["evidence"]["loss"]["captured_events"]
             .as_u64()
             .unwrap()
             > 0
+    );
+    artifact["evidence"]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "path": "/missing/libfixture.so",
+            "build_id": "fixture",
+            "content_hash": "sha256:fixture",
+            "is_profiled_executable": false
+        }));
+    fs::write(&path, serde_json::to_vec(&artifact).unwrap()).unwrap();
+    let shown = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["profile", "show"])
+        .arg(&path)
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+    assert!(shown.status.success(), "{shown:?}");
+    let report: serde_json::Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(report["report"]["fidelity"], "exact-build-source");
+    assert_eq!(
+        report["report"]["native_fidelity"],
+        "reduced-native-modules"
+    );
+    assert!(
+        report["report"]["native_fidelity_reasons"][0]
+            .as_str()
+            .unwrap()
+            .contains("/missing/libfixture.so")
     );
 }
 
