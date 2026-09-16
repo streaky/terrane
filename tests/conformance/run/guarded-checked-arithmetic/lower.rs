@@ -416,29 +416,89 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 2] = [
+    pub static FUNCTIONS: [&str; 10] = [
         "/guarded-checked-arithmetic::transition",
+        "/guarded-checked-arithmetic::transition-uint8",
+        "/guarded-checked-arithmetic::transition-then",
+        "/guarded-checked-arithmetic::transition-remainder",
+        "/guarded-checked-arithmetic::transition-negative-coefficient",
+        "/guarded-checked-arithmetic::transition-int64",
+        "/guarded-checked-arithmetic::transition-int128",
+        "/guarded-checked-arithmetic::both-affine",
+        "/guarded-checked-arithmetic::nested-conditional",
         "/guarded-checked-arithmetic::main",
     ];
-    pub static SITES: [Site; 9] = [
+    pub static SITES: [Site; 35] = [
         /* terrane-site-row: site 0: /guarded-checked-arithmetic::transition (case.trn:8:13-8:22) */
         { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 22 } },
         /* terrane-site-row: site 1: /guarded-checked-arithmetic::transition (case.trn:10:13-10:22) */
         { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 22 } },
         /* terrane-site-row: site 2: /guarded-checked-arithmetic::transition (case.trn:10:13-10:26) */
         { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 26 } },
-        /* terrane-site-row: site 3: /guarded-checked-arithmetic::main (case.trn:19:15-19:24) */
-        { Site { function: 1, file: 0, line: 19, column: 15, end_line: 19, end_column: 24 } },
-        /* terrane-site-row: site 4: /guarded-checked-arithmetic::main (case.trn:21:15-21:24) */
-        { Site { function: 1, file: 0, line: 21, column: 15, end_line: 21, end_column: 24 } },
-        /* terrane-site-row: site 5: /guarded-checked-arithmetic::main (case.trn:21:15-21:28) */
-        { Site { function: 1, file: 0, line: 21, column: 15, end_line: 21, end_column: 28 } },
-        /* terrane-site-row: site 6: /guarded-checked-arithmetic::main (case.trn:28:22-28:38) */
-        { Site { function: 1, file: 0, line: 28, column: 22, end_line: 28, end_column: 38 } },
-        /* terrane-site-row: site 7: /guarded-checked-arithmetic::main (case.trn:30:22-30:38) */
-        { Site { function: 1, file: 0, line: 30, column: 22, end_line: 30, end_column: 38 } },
-        /* terrane-site-row: site 8: /guarded-checked-arithmetic::main (case.trn:30:22-30:42) */
-        { Site { function: 1, file: 0, line: 30, column: 22, end_line: 30, end_column: 42 } },
+        /* terrane-site-row: site 3: /guarded-checked-arithmetic::transition-uint8 (case.trn:16:13-16:22) */
+        { Site { function: 1, file: 0, line: 16, column: 13, end_line: 16, end_column: 22 } },
+        /* terrane-site-row: site 4: /guarded-checked-arithmetic::transition-uint8 (case.trn:18:13-18:22) */
+        { Site { function: 1, file: 0, line: 18, column: 13, end_line: 18, end_column: 22 } },
+        /* terrane-site-row: site 5: /guarded-checked-arithmetic::transition-uint8 (case.trn:18:13-18:26) */
+        { Site { function: 1, file: 0, line: 18, column: 13, end_line: 18, end_column: 26 } },
+        /* terrane-site-row: site 6: /guarded-checked-arithmetic::transition-then (case.trn:24:13-24:22) */
+        { Site { function: 2, file: 0, line: 24, column: 13, end_line: 24, end_column: 22 } },
+        /* terrane-site-row: site 7: /guarded-checked-arithmetic::transition-then (case.trn:24:13-24:26) */
+        { Site { function: 2, file: 0, line: 24, column: 13, end_line: 24, end_column: 26 } },
+        /* terrane-site-row: site 8: /guarded-checked-arithmetic::transition-then (case.trn:26:13-26:22) */
+        { Site { function: 2, file: 0, line: 26, column: 13, end_line: 26, end_column: 22 } },
+        /* terrane-site-row: site 9: /guarded-checked-arithmetic::transition-remainder (case.trn:34:13-34:22) */
+        { Site { function: 3, file: 0, line: 34, column: 13, end_line: 34, end_column: 22 } },
+        /* terrane-site-row: site 10: /guarded-checked-arithmetic::transition-remainder (case.trn:34:13-34:26) */
+        { Site { function: 3, file: 0, line: 34, column: 13, end_line: 34, end_column: 26 } },
+        /* terrane-site-row: site 11: /guarded-checked-arithmetic::transition-negative-coefficient (case.trn:40:13-40:22) */
+        { Site { function: 4, file: 0, line: 40, column: 13, end_line: 40, end_column: 22 } },
+        /* terrane-site-row: site 12: /guarded-checked-arithmetic::transition-negative-coefficient (case.trn:42:13-42:24) */
+        { Site { function: 4, file: 0, line: 42, column: 13, end_line: 42, end_column: 24 } },
+        /* terrane-site-row: site 13: /guarded-checked-arithmetic::transition-int64 (case.trn:48:13-48:22) */
+        { Site { function: 5, file: 0, line: 48, column: 13, end_line: 48, end_column: 22 } },
+        /* terrane-site-row: site 14: /guarded-checked-arithmetic::transition-int64 (case.trn:50:13-50:22) */
+        { Site { function: 5, file: 0, line: 50, column: 13, end_line: 50, end_column: 22 } },
+        /* terrane-site-row: site 15: /guarded-checked-arithmetic::transition-int64 (case.trn:50:13-50:26) */
+        { Site { function: 5, file: 0, line: 50, column: 13, end_line: 50, end_column: 26 } },
+        /* terrane-site-row: site 16: /guarded-checked-arithmetic::transition-int128 (case.trn:56:13-56:22) */
+        { Site { function: 6, file: 0, line: 56, column: 13, end_line: 56, end_column: 22 } },
+        /* terrane-site-row: site 17: /guarded-checked-arithmetic::transition-int128 (case.trn:58:13-58:22) */
+        { Site { function: 6, file: 0, line: 58, column: 13, end_line: 58, end_column: 22 } },
+        /* terrane-site-row: site 18: /guarded-checked-arithmetic::transition-int128 (case.trn:58:13-58:26) */
+        { Site { function: 6, file: 0, line: 58, column: 13, end_line: 58, end_column: 26 } },
+        /* terrane-site-row: site 19: /guarded-checked-arithmetic::both-affine (case.trn:64:13-64:22) */
+        { Site { function: 7, file: 0, line: 64, column: 13, end_line: 64, end_column: 22 } },
+        /* terrane-site-row: site 20: /guarded-checked-arithmetic::both-affine (case.trn:66:13-66:22) */
+        { Site { function: 7, file: 0, line: 66, column: 13, end_line: 66, end_column: 22 } },
+        /* terrane-site-row: site 21: /guarded-checked-arithmetic::both-affine (case.trn:66:13-66:26) */
+        { Site { function: 7, file: 0, line: 66, column: 13, end_line: 66, end_column: 26 } },
+        /* terrane-site-row: site 22: /guarded-checked-arithmetic::nested-conditional (case.trn:72:13-72:22) */
+        { Site { function: 8, file: 0, line: 72, column: 13, end_line: 72, end_column: 22 } },
+        /* terrane-site-row: site 23: /guarded-checked-arithmetic::nested-conditional (case.trn:74:13-74:22) */
+        { Site { function: 8, file: 0, line: 74, column: 13, end_line: 74, end_column: 22 } },
+        /* terrane-site-row: site 24: /guarded-checked-arithmetic::nested-conditional (case.trn:76:13-76:22) */
+        { Site { function: 8, file: 0, line: 76, column: 13, end_line: 76, end_column: 22 } },
+        /* terrane-site-row: site 25: /guarded-checked-arithmetic::nested-conditional (case.trn:76:13-76:26) */
+        { Site { function: 8, file: 0, line: 76, column: 13, end_line: 76, end_column: 26 } },
+        /* terrane-site-row: site 26: /guarded-checked-arithmetic::main (case.trn:85:15-85:24) */
+        { Site { function: 9, file: 0, line: 85, column: 15, end_line: 85, end_column: 24 } },
+        /* terrane-site-row: site 27: /guarded-checked-arithmetic::main (case.trn:87:15-87:24) */
+        { Site { function: 9, file: 0, line: 87, column: 15, end_line: 87, end_column: 24 } },
+        /* terrane-site-row: site 28: /guarded-checked-arithmetic::main (case.trn:87:15-87:28) */
+        { Site { function: 9, file: 0, line: 87, column: 15, end_line: 87, end_column: 28 } },
+        /* terrane-site-row: site 29: /guarded-checked-arithmetic::main (case.trn:94:22-94:38) */
+        { Site { function: 9, file: 0, line: 94, column: 22, end_line: 94, end_column: 38 } },
+        /* terrane-site-row: site 30: /guarded-checked-arithmetic::main (case.trn:96:22-96:38) */
+        { Site { function: 9, file: 0, line: 96, column: 22, end_line: 96, end_column: 38 } },
+        /* terrane-site-row: site 31: /guarded-checked-arithmetic::main (case.trn:96:22-96:42) */
+        { Site { function: 9, file: 0, line: 96, column: 22, end_line: 96, end_column: 42 } },
+        /* terrane-site-row: site 32: /guarded-checked-arithmetic::main (case.trn:112:20-112:36) */
+        { Site { function: 9, file: 0, line: 112, column: 20, end_line: 112, end_column: 36 } },
+        /* terrane-site-row: site 33: /guarded-checked-arithmetic::main (case.trn:114:20-114:36) */
+        { Site { function: 9, file: 0, line: 114, column: 20, end_line: 114, end_column: 36 } },
+        /* terrane-site-row: site 34: /guarded-checked-arithmetic::main (case.trn:114:20-114:40) */
+        { Site { function: 9, file: 0, line: 114, column: 20, end_line: 114, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -457,13 +517,11 @@ mod __terrane_trace {
 fn transition(input: i8) -> i8 {
     let mut value: i8 = input;
     value = if value as u8 <= 42_u8 {
-        let __terrane_guarded_then_147 = value / 2;
-        let __terrane_guarded_else_147 = 3 as i8 * value as i8 + 1 as i8;
-        let __terrane_guarded_mask_147 = 0_i8
-            .wrapping_sub((value.rem_euclid(2) == 0) as i8);
-        __terrane_guarded_else_147
-            ^ (__terrane_guarded_then_147 ^ __terrane_guarded_else_147)
-                & __terrane_guarded_mask_147
+        let __terrane_guarded_then = value / 2_i8;
+        let __terrane_guarded_else = 3_i8 * value as i8 + 1_i8;
+        let __terrane_guarded_mask = 0_i8.wrapping_sub((value.rem_euclid(2) == 0) as i8);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
     } else if value.rem_euclid(2) == 0 {
         __terrane_raised(
             terrane_int_support::fixed_division(value, 2),
@@ -483,6 +541,208 @@ fn transition(input: i8) -> i8 {
     };
     return value;
 }
+fn transition_uint8(input: u8) -> u8 {
+    let mut value: u8 = input;
+    value = if value <= 84_u8 {
+        let __terrane_guarded_then = value / 2_u8;
+        let __terrane_guarded_else = 3_u8 * value as u8 + 1_u8;
+        let __terrane_guarded_mask = 0_u8.wrapping_sub((value.rem_euclid(2) == 0) as u8);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) == 0 {
+        __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            3 /* terrane-site: case.trn:16:13-16:22 */,
+        )
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    4 /* terrane-site: case.trn:18:13-18:22 */,
+                ),
+                1,
+            ),
+            5 /* terrane-site: case.trn:18:13-18:26 */,
+        )
+    };
+    return value;
+}
+fn transition_then(input: i8) -> i8 {
+    let mut value: i8 = input;
+    value = if value as u8 <= 42_u8 {
+        let __terrane_guarded_then = 3_i8 * value as i8 + 1_i8;
+        let __terrane_guarded_else = value / 2_i8;
+        let __terrane_guarded_mask = 0_i8.wrapping_sub((value.rem_euclid(2) != 0) as i8);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) != 0 {
+        __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    6 /* terrane-site: case.trn:24:13-24:22 */,
+                ),
+                1,
+            ),
+            7 /* terrane-site: case.trn:24:13-24:26 */,
+        )
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            8 /* terrane-site: case.trn:26:13-26:22 */,
+        )
+    };
+    return value;
+}
+fn transition_remainder(input: i8) -> i8 {
+    let mut value: i8 = input;
+    value = if value as u8 <= 42_u8 {
+        let __terrane_guarded_then = value % 5_i8;
+        let __terrane_guarded_else = 3_i8 * value as i8 + 1_i8;
+        let __terrane_guarded_mask = 0_i8.wrapping_sub((value.rem_euclid(2) == 0) as i8);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) == 0 {
+        value.rem_euclid(5)
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    9 /* terrane-site: case.trn:34:13-34:22 */,
+                ),
+                1,
+            ),
+            10 /* terrane-site: case.trn:34:13-34:26 */,
+        )
+    };
+    return value;
+}
+fn transition_negative_coefficient(input: i8) -> i8 {
+    let mut value: i8 = input;
+    value = if value as u8 <= 127_u8 {
+        let __terrane_guarded_then = value / 2_i8;
+        let __terrane_guarded_else = 100_i8 - value as i8;
+        let __terrane_guarded_mask = 0_i8.wrapping_sub((value.rem_euclid(2) == 0) as i8);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) == 0 {
+        __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            11 /* terrane-site: case.trn:40:13-40:22 */,
+        )
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_subtraction(100, value),
+            12 /* terrane-site: case.trn:42:13-42:24 */,
+        )
+    };
+    return value;
+}
+fn transition_int64(input: i64) -> i64 {
+    let mut value: i64 = input;
+    value = if value as u64 <= 3074457345618258602_u64 {
+        let __terrane_guarded_then = value / 2_i64;
+        let __terrane_guarded_else = 3_i64 * value as i64 + 1_i64;
+        let __terrane_guarded_mask = 0_i64
+            .wrapping_sub((value.rem_euclid(2) == 0) as i64);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) == 0 {
+        __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            13 /* terrane-site: case.trn:48:13-48:22 */,
+        )
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    14 /* terrane-site: case.trn:50:13-50:22 */,
+                ),
+                1,
+            ),
+            15 /* terrane-site: case.trn:50:13-50:26 */,
+        )
+    };
+    return value;
+}
+fn transition_int128(input: i128) -> i128 {
+    let mut value: i128 = input;
+    value = if value as u128 <= 56713727820156410577229101238628035242_u128 {
+        let __terrane_guarded_then = value / 2_i128;
+        let __terrane_guarded_else = 3_i128 * value as i128 + 1_i128;
+        let __terrane_guarded_mask = 0_i128
+            .wrapping_sub((value.rem_euclid(2) == 0) as i128);
+        __terrane_guarded_else
+            ^ (__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask
+    } else if value.rem_euclid(2) == 0 {
+        __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            16 /* terrane-site: case.trn:56:13-56:22 */,
+        )
+    } else {
+        __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    17 /* terrane-site: case.trn:58:13-58:22 */,
+                ),
+                1,
+            ),
+            18 /* terrane-site: case.trn:58:13-58:26 */,
+        )
+    };
+    return value;
+}
+fn both_affine(input: i8) -> i8 {
+    let mut value: i8 = input;
+    if value > 0 {
+        value = __terrane_raised(
+            terrane_int_support::fixed_addition(value, 1),
+            19 /* terrane-site: case.trn:64:13-64:22 */,
+        );
+    } else {
+        value = __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    20 /* terrane-site: case.trn:66:13-66:22 */,
+                ),
+                1,
+            ),
+            21 /* terrane-site: case.trn:66:13-66:26 */,
+        );
+    }
+    return value;
+}
+fn nested_conditional(input: i8) -> i8 {
+    let mut value: i8 = input;
+    if value < 0 {
+        value = __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            22 /* terrane-site: case.trn:72:13-72:22 */,
+        );
+    } else if value.rem_euclid(2) == 0 {
+        value = __terrane_raised(
+            terrane_int_support::fixed_division(value, 2),
+            23 /* terrane-site: case.trn:74:13-74:22 */,
+        );
+    } else {
+        value = __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(3, value),
+                    24 /* terrane-site: case.trn:76:13-76:22 */,
+                ),
+                1,
+            ),
+            25 /* terrane-site: case.trn:76:13-76:26 */,
+        );
+    }
+    return value;
+}
 fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&transition(42)));
     println!("{}", terrane_scalar_support::scalar_text(&transition(41)));
@@ -490,22 +750,22 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             upper = if upper as u8 <= 42_u8 {
-                let __terrane_guarded_then_331 = upper / 2;
-                let __terrane_guarded_else_331 = 3 as i8 * upper as i8 + 1 as i8;
-                let __terrane_guarded_mask_331 = 0_i8
+                let __terrane_guarded_then = upper / 2_i8;
+                let __terrane_guarded_else = 3_i8 * upper as i8 + 1_i8;
+                let __terrane_guarded_mask = 0_i8
                     .wrapping_sub((upper.rem_euclid(2) == 0) as i8);
-                __terrane_guarded_else_331
-                    ^ (__terrane_guarded_then_331 ^ __terrane_guarded_else_331)
-                        & __terrane_guarded_mask_331
+                __terrane_guarded_else
+                    ^ (__terrane_guarded_then ^ __terrane_guarded_else)
+                        & __terrane_guarded_mask
             } else if upper.rem_euclid(2) == 0 {
                 __terrane_raised_completion!(
-                    terrane_int_support::fixed_division(upper, 2), 3 /* terrane-site: case.trn:19:15-19:24 */
+                    terrane_int_support::fixed_division(upper, 2), 26 /* terrane-site: case.trn:85:15-85:24 */
                 )
             } else {
                 __terrane_raised_completion!(
                     terrane_int_support::fixed_addition(__terrane_raised_completion!(terrane_int_support::fixed_multiplication(3,
-                    upper), 4 /* terrane-site: case.trn:21:15-21:24 */), 1),
-                    5 /* terrane-site: case.trn:21:15-21:28 */
+                    upper), 27 /* terrane-site: case.trn:87:15-87:24 */), 1),
+                    28 /* terrane-site: case.trn:87:15-87:28 */
                 )
             };
             println!("{}", terrane_scalar_support::scalar_text(&upper));
@@ -546,23 +806,23 @@ fn main() {
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             intermediate = if intermediate as u8 <= 42_u8 {
-                let __terrane_guarded_then_516 = intermediate / 2;
-                let __terrane_guarded_else_516 = 3 as i8 * intermediate as i8 + 1 as i8;
-                let __terrane_guarded_mask_516 = 0_i8
+                let __terrane_guarded_then = intermediate / 2_i8;
+                let __terrane_guarded_else = 3_i8 * intermediate as i8 + 1_i8;
+                let __terrane_guarded_mask = 0_i8
                     .wrapping_sub((intermediate.rem_euclid(2) == 0) as i8);
-                __terrane_guarded_else_516
-                    ^ (__terrane_guarded_then_516 ^ __terrane_guarded_else_516)
-                        & __terrane_guarded_mask_516
+                __terrane_guarded_else
+                    ^ (__terrane_guarded_then ^ __terrane_guarded_else)
+                        & __terrane_guarded_mask
             } else if intermediate.rem_euclid(2) == 0 {
                 __terrane_raised_completion!(
                     terrane_int_support::fixed_division(intermediate, 2),
-                    6 /* terrane-site: case.trn:28:22-28:38 */
+                    29 /* terrane-site: case.trn:94:22-94:38 */
                 )
             } else {
                 __terrane_raised_completion!(
                     terrane_int_support::fixed_addition(__terrane_raised_completion!(terrane_int_support::fixed_multiplication(3,
-                    intermediate), 7 /* terrane-site: case.trn:30:22-30:38 */), 1),
-                    8 /* terrane-site: case.trn:30:22-30:42 */
+                    intermediate), 30 /* terrane-site: case.trn:96:22-96:38 */), 1),
+                    31 /* terrane-site: case.trn:96:22-96:42 */
                 )
             };
             println!("{}", terrane_scalar_support::scalar_text(&intermediate));
@@ -599,4 +859,69 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
+    println!("{}", terrane_scalar_support::scalar_text(&transition_uint8(41)));
+    println!("{}", terrane_scalar_support::scalar_text(&transition_then(41)));
+    println!("{}", terrane_scalar_support::scalar_text(&transition_remainder(42)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&transition_negative_coefficient(41))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&transition_int64(41)));
+    println!("{}", terrane_scalar_support::scalar_text(&transition_int128(41)));
+    println!("{}", terrane_scalar_support::scalar_text(&both_affine(41)));
+    println!("{}", terrane_scalar_support::scalar_text(&nested_conditional(41)));
+    let shared_value: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
+        std::sync::Mutex::new(41),
+    );
+    let observer: std::sync::Arc<std::sync::Mutex<i8>> = shared_value.clone();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = observer
+        .lock().expect("shared reference lock poisoned").clone(); __terrane_value })
+    );
+    if {
+        let __terrane_value = shared_value
+            .lock()
+            .expect("reference lock poisoned")
+            .clone();
+        __terrane_value
+    }
+        .rem_euclid(2) == 0
+    {
+        *shared_value.lock().expect("reference lock poisoned") = __terrane_raised(
+            terrane_int_support::fixed_division(
+                {
+                    let __terrane_value = shared_value
+                        .lock()
+                        .expect("reference lock poisoned")
+                        .clone();
+                    __terrane_value
+                },
+                2,
+            ),
+            32 /* terrane-site: case.trn:112:20-112:36 */,
+        );
+    } else {
+        *shared_value.lock().expect("reference lock poisoned") = __terrane_raised(
+            terrane_int_support::fixed_addition(
+                __terrane_raised(
+                    terrane_int_support::fixed_multiplication(
+                        3,
+                        {
+                            let __terrane_value = shared_value
+                                .lock()
+                                .expect("reference lock poisoned")
+                                .clone();
+                            __terrane_value
+                        },
+                    ),
+                    33 /* terrane-site: case.trn:114:20-114:36 */,
+                ),
+                1,
+            ),
+            34 /* terrane-site: case.trn:114:20-114:40 */,
+        );
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = shared_value
+        .lock().expect("reference lock poisoned").clone(); __terrane_value })
+    );
 }

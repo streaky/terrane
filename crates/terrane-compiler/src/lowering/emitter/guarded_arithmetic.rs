@@ -7,16 +7,66 @@ enum GuardedBranch {
     Else,
 }
 
+#[derive(Clone, Copy)]
+enum AffineOperator {
+    Add,
+    Subtract,
+    Multiply,
+}
+
+impl AffineOperator {
+    fn symbol(self) -> &'static str {
+        match self {
+            Self::Add => "+",
+            Self::Subtract => "-",
+            Self::Multiply => "*",
+        }
+    }
+}
+
+#[derive(Clone)]
+enum AffineRender<'a> {
+    Binding(&'a SyntaxNode),
+    Constant(BigInt),
+    Binary {
+        operator: AffineOperator,
+        left: Box<AffineRender<'a>>,
+        right: Box<AffineRender<'a>>,
+    },
+}
+
+#[derive(Clone, Copy)]
+enum SafeDivisionOperator {
+    Divide,
+    Remainder,
+}
+
+impl SafeDivisionOperator {
+    fn symbol(self) -> &'static str {
+        match self {
+            Self::Divide => "/",
+            Self::Remainder => "%",
+        }
+    }
+}
+
+struct SafeDivision<'a> {
+    left: &'a SyntaxNode,
+    divisor: BigInt,
+    operator: SafeDivisionOperator,
+}
+
 #[derive(Clone)]
 struct IntegerInterval {
     lower: BigInt,
     upper: BigInt,
 }
 
-struct AffineExpression {
+struct AffineExpression<'a> {
     coefficient: BigInt,
     constant: BigInt,
     valid: IntegerInterval,
+    render: AffineRender<'a>,
 }
 
 struct GuardedAssignment<'a> {
@@ -24,7 +74,8 @@ struct GuardedAssignment<'a> {
     condition: &'a SyntaxNode,
     then_value: &'a SyntaxNode,
     else_value: &'a SyntaxNode,
-    guarded_value: &'a SyntaxNode,
+    guarded_render: AffineRender<'a>,
+    other_fast: SafeDivision<'a>,
     guarded_branch: GuardedBranch,
     scalar: ScalarType,
     bounds: IntegerInterval,
@@ -36,37 +87,27 @@ impl Emitter<'_> {
         let Some(plan) = self.guarded_integer_assignment(node) else {
             return false;
         };
+        debug_assert!(
+            plan.valid.lower >= BigInt::from(0_u8),
+            "raw native division and remainder require a nonnegative fast region"
+        );
         let target = self.expression(plan.target);
         let condition = self.control_condition(plan.condition);
-        let binding = self
-            .local_typed_binding(plan.target)
-            .expect("guarded target has a resolved local binding")
-            .span;
-        let other_value = match plan.guarded_branch {
-            GuardedBranch::Then => plan.else_value,
-            GuardedBranch::Else => plan.then_value,
-        };
-        let Some(other_fast) = self.statically_safe_division(other_value, binding, plan.scalar)
-        else {
-            return false;
-        };
         let checked_then = self.expression(plan.then_value);
         let checked_else = self.expression(plan.else_value);
-        let guarded_fast = self.unchecked_affine_expression(plan.guarded_value, plan.scalar);
+        let guarded_fast = self.render_affine(&plan.guarded_render, plan.scalar);
+        let other_fast = self.render_safe_division(&plan.other_fast, plan.scalar);
         let (fast_then, fast_else) = match plan.guarded_branch {
             GuardedBranch::Then => (guarded_fast, other_fast),
             GuardedBranch::Else => (other_fast, guarded_fast),
         };
         let guard = integer_interval_guard(&target, plan.scalar, &plan.bounds, &plan.valid);
-        let fast_then_name = format!("__terrane_guarded_then_{}", plan.condition.span.start);
-        let fast_else_name = format!("__terrane_guarded_else_{}", plan.condition.span.start);
-        let mask_name = format!("__terrane_guarded_mask_{}", plan.condition.span.start);
         let scalar_type = rust_type(plan.scalar);
         self.line(&format!(
-            "{target} = if {guard} {{ let {fast_then_name} = {fast_then}; \
-             let {fast_else_name} = {fast_else}; \
-             let {mask_name} = 0_{scalar_type}.wrapping_sub(({condition}) as {scalar_type}); \
-             {fast_else_name} ^ (({fast_then_name} ^ {fast_else_name}) & {mask_name}) }} \
+            "{target} = if {guard} {{ let __terrane_guarded_then = {fast_then}; \
+             let __terrane_guarded_else = {fast_else}; \
+             let __terrane_guarded_mask = 0_{scalar_type}.wrapping_sub(({condition}) as {scalar_type}); \
+             __terrane_guarded_else ^ ((__terrane_guarded_then ^ __terrane_guarded_else) & __terrane_guarded_mask) }} \
              else if {condition} {{ {checked_then} }} else {{ {checked_else} }};"
         ));
         true
@@ -76,7 +117,7 @@ impl Emitter<'_> {
         &self,
         node: &'a SyntaxNode,
     ) -> Option<GuardedAssignment<'a>> {
-        if self.debug_information {
+        if self.source_shaped_debug_lowering {
             return None;
         }
         let [condition, then_block, else_clause] = node.children.as_slice() else {
@@ -95,7 +136,11 @@ impl Emitter<'_> {
         }
         let binding = self.local_typed_binding(then_target)?;
         let else_binding = self.local_typed_binding(else_target)?;
-        if binding.span != else_binding.span || self.global_storage(then_target).is_some() {
+        if binding.span != else_binding.span
+            || self.global_storage(then_target).is_some()
+            || self.reference_backed(binding)
+            || self.async_mutable_captures.contains(self.text(then_target))
+        {
             return None;
         }
         let ValueType::Scalar(scalar) = binding.value_type else {
@@ -103,23 +148,28 @@ impl Emitter<'_> {
         };
         let bounds = fixed_integer_bounds(scalar)?;
         let candidate = [
-            (GuardedBranch::Else, else_value),
-            (GuardedBranch::Then, then_value),
+            (GuardedBranch::Else, else_value, then_value),
+            (GuardedBranch::Then, then_value, else_value),
         ]
         .into_iter()
-        .find_map(|(branch, value)| {
-            let affine = self.affine_expression(value, binding.span, scalar, &bounds)?;
-            (affine.coefficient != BigInt::from(0_u8)
-                && affine.valid.upper >= BigInt::from(0_u8)
-                && (affine.valid.lower > bounds.lower || affine.valid.upper < bounds.upper))
-                .then_some((branch, value, affine.valid))
+        .find_map(|(branch, guarded_value, other_value)| {
+            let affine = self.affine_expression(guarded_value, binding.span, scalar, &bounds)?;
+            if affine.coefficient == BigInt::from(0_u8)
+                || (affine.valid.lower <= bounds.lower && affine.valid.upper >= bounds.upper)
+            {
+                return None;
+            }
+            let valid = effective_fast_interval(scalar, affine.valid)?;
+            let other_fast = self.safe_division(other_value, binding.span, scalar)?;
+            Some((branch, affine.render, valid, other_fast))
         })?;
         Some(GuardedAssignment {
             target: then_target,
             condition,
             then_value,
             else_value,
-            guarded_value: candidate.1,
+            guarded_render: candidate.1,
+            other_fast: candidate.3,
             guarded_branch: candidate.0,
             scalar,
             bounds,
@@ -140,19 +190,20 @@ impl Emitter<'_> {
         Some((target, value))
     }
 
-    fn affine_expression(
+    fn affine_expression<'a>(
         &self,
-        node: &SyntaxNode,
+        node: &'a SyntaxNode,
         binding: crate::Span,
         scalar: ScalarType,
         bounds: &IntegerInterval,
-    ) -> Option<AffineExpression> {
+    ) -> Option<AffineExpression<'a>> {
         if node.kind == SyntaxKind::Name {
             let resolved = self.local_typed_binding(node)?;
             return (resolved.span == binding).then(|| AffineExpression {
                 coefficient: BigInt::from(1_u8),
                 constant: BigInt::from(0_u8),
                 valid: bounds.clone(),
+                render: AffineRender::Binding(node),
             });
         }
         if let Some(Ok(ContextualConstant::Integer(value))) =
@@ -163,8 +214,9 @@ impl Emitter<'_> {
             }
             return Some(AffineExpression {
                 coefficient: BigInt::from(0_u8),
-                constant: value,
+                constant: value.clone(),
                 valid: bounds.clone(),
+                render: AffineRender::Constant(value),
             });
         }
         let [left, right] = node.children.as_slice() else {
@@ -175,46 +227,53 @@ impl Emitter<'_> {
         {
             return None;
         }
-        let operator = self.source.text()[left.span.end..right.span.start].trim();
-        if !matches!(operator, "+" | "-" | "*") {
-            return None;
-        }
+        let operator = match self.source.text()[left.span.end..right.span.start].trim() {
+            "+" => AffineOperator::Add,
+            "-" => AffineOperator::Subtract,
+            "*" => AffineOperator::Multiply,
+            _ => return None,
+        };
         let left = self.affine_expression(left, binding, scalar, bounds)?;
         let right = self.affine_expression(right, binding, scalar, bounds)?;
         let valid = intersect_intervals(left.valid, right.valid)?;
         let (coefficient, constant) = match operator {
-            "+" => (
+            AffineOperator::Add => (
                 &left.coefficient + &right.coefficient,
                 &left.constant + &right.constant,
             ),
-            "-" => (
+            AffineOperator::Subtract => (
                 &left.coefficient - &right.coefficient,
                 &left.constant - &right.constant,
             ),
-            "*" if left.coefficient == BigInt::from(0_u8) => (
+            AffineOperator::Multiply if left.coefficient == BigInt::from(0_u8) => (
                 &right.coefficient * &left.constant,
                 &right.constant * &left.constant,
             ),
-            "*" if right.coefficient == BigInt::from(0_u8) => (
+            AffineOperator::Multiply if right.coefficient == BigInt::from(0_u8) => (
                 &left.coefficient * &right.constant,
                 &left.constant * &right.constant,
             ),
-            _ => return None,
+            AffineOperator::Multiply => return None,
         };
         let operation_valid = affine_range(&coefficient, &constant, bounds)?;
         Some(AffineExpression {
             coefficient,
             constant,
             valid: intersect_intervals(valid, operation_valid)?,
+            render: AffineRender::Binary {
+                operator,
+                left: Box::new(left.render),
+                right: Box::new(right.render),
+            },
         })
     }
 
-    fn statically_safe_division(
-        &mut self,
-        node: &SyntaxNode,
+    fn safe_division<'a>(
+        &self,
+        node: &'a SyntaxNode,
         binding: crate::Span,
         scalar: ScalarType,
-    ) -> Option<String> {
+    ) -> Option<SafeDivision<'a>> {
         let [left, right] = node.children.as_slice() else {
             return None;
         };
@@ -225,10 +284,11 @@ impl Emitter<'_> {
         {
             return None;
         }
-        let operator = self.source.text()[left.span.end..right.span.start].trim();
-        if !matches!(operator, "/" | "%") {
-            return None;
-        }
+        let operator = match self.source.text()[left.span.end..right.span.start].trim() {
+            "/" => SafeDivisionOperator::Divide,
+            "%" => SafeDivisionOperator::Remainder,
+            _ => return None,
+        };
         let Some(Ok(ContextualConstant::Integer(divisor))) =
             contextual_constant(self.source, right, scalar)
         else {
@@ -237,25 +297,39 @@ impl Emitter<'_> {
         if divisor == BigInt::from(0_u8) || divisor == BigInt::from(-1_i8) {
             return None;
         }
-        let left = self.expression_as(left, ValueType::Scalar(scalar));
-        let right = self.expression_as(right, ValueType::Scalar(scalar));
-        Some(format!("({left} {operator} {right})"))
+        Some(SafeDivision {
+            left,
+            divisor,
+            operator,
+        })
     }
 
-    fn unchecked_affine_expression(&mut self, node: &SyntaxNode, scalar: ScalarType) -> String {
-        if node.kind == SyntaxKind::BinaryExpression
-            && let [left, right] = node.children.as_slice()
-        {
-            let operator = self.source.text()[left.span.end..right.span.start].trim();
-            let left = self.unchecked_affine_expression(left, scalar);
-            let right = self.unchecked_affine_expression(right, scalar);
-            return format!("({left} {operator} {right})");
+    fn render_affine(&mut self, render: &AffineRender<'_>, scalar: ScalarType) -> String {
+        match render {
+            AffineRender::Binding(node) => format!(
+                "({} as {})",
+                self.expression_as(node, ValueType::Scalar(scalar)),
+                rust_type(scalar)
+            ),
+            AffineRender::Constant(value) => fixed_integer_literal(value, scalar),
+            AffineRender::Binary {
+                operator,
+                left,
+                right,
+            } => {
+                let left = self.render_affine(left, scalar);
+                let right = self.render_affine(right, scalar);
+                format!("({left} {} {right})", operator.symbol())
+            }
         }
-        format!(
-            "({} as {})",
-            self.expression_as(node, ValueType::Scalar(scalar)),
-            rust_type(scalar)
-        )
+    }
+
+    fn render_safe_division(&mut self, division: &SafeDivision<'_>, scalar: ScalarType) -> String {
+        // The planned fast interval is nonnegative. Raw Rust division and remainder
+        // are therefore equivalent to Terrane's Euclidean operations in this block.
+        let left = self.expression_as(division.left, ValueType::Scalar(scalar));
+        let right = fixed_integer_literal(&division.divisor, scalar);
+        format!("({left} {} {right})", division.operator.symbol())
     }
 }
 
@@ -271,16 +345,26 @@ fn pure_guard_condition(node: &SyntaxNode) -> bool {
     ) && node.children.iter().all(pure_guard_condition)
 }
 
+fn effective_fast_interval(scalar: ScalarType, valid: IntegerInterval) -> Option<IntegerInterval> {
+    let lower = valid.lower.max(BigInt::from(0_u8));
+    let effective = IntegerInterval {
+        lower,
+        upper: valid.upper,
+    };
+    if unsigned_rust_type(scalar).is_some() {
+        debug_assert!(effective.lower >= BigInt::from(0_u8));
+    }
+    (effective.lower <= effective.upper).then_some(effective)
+}
+
 fn integer_interval_guard(
     target: &str,
     scalar: ScalarType,
     bounds: &IntegerInterval,
     valid: &IntegerInterval,
 ) -> String {
-    if let Some(unsigned) = unsigned_rust_type(scalar)
-        && valid.lower <= BigInt::from(0_u8)
-        && valid.upper >= BigInt::from(0_u8)
-    {
+    debug_assert!(valid.lower >= BigInt::from(0_u8));
+    if let Some(unsigned) = unsigned_rust_type(scalar) {
         return format!("({target} as {unsigned}) <= {}_{unsigned}", valid.upper);
     }
     let mut clauses = Vec::new();
@@ -308,6 +392,11 @@ fn unsigned_rust_type(scalar: ScalarType) -> Option<&'static str> {
         ScalarType::Int128 => Some("u128"),
         _ => None,
     }
+}
+
+fn fixed_integer_literal(value: &BigInt, scalar: ScalarType) -> String {
+    let bounds = fixed_integer_bounds(scalar).expect("fixed integer literal has fixed bounds");
+    integer_literal(value, scalar, &bounds)
 }
 
 fn integer_literal(value: &BigInt, scalar: ScalarType, bounds: &IntegerInterval) -> String {
@@ -409,6 +498,17 @@ mod tests {
         let valid = intersect_intervals(multiplication, addition).unwrap();
         assert_eq!(valid.lower, BigInt::from(-42_i8));
         assert_eq!(valid.upper, BigInt::from(42_i8));
+    }
+
+    #[test]
+    fn signed_fast_intervals_are_clamped_to_nonnegative_inputs() {
+        let valid = IntegerInterval {
+            lower: BigInt::from(-42_i8),
+            upper: BigInt::from(42_i8),
+        };
+        let effective = effective_fast_interval(ScalarType::Int8, valid).unwrap();
+        assert_eq!(effective.lower, BigInt::from(0_u8));
+        assert_eq!(effective.upper, BigInt::from(42_i8));
     }
 
     #[test]

@@ -40,6 +40,7 @@ pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
     pub debug_build: DebugBuild,
+    pub source_shaped_debug_lowering: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -399,8 +400,12 @@ pub fn compile_package_with_options(
     let source = &unit.source;
     let sources = compilation_sources(&semantic, package);
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
-        .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rust_ir = crate::lowering::lower(
+        &semantic,
+        options.debug_build.enabled(),
+        options.source_shaped_debug_lowering,
+    )
+    .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
@@ -683,9 +688,13 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir =
-        crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
-            .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let rust_ir = crate::lowering::lower_tests(
+        &semantic,
+        &runner_cases,
+        options.debug_build.enabled(),
+        options.source_shaped_debug_lowering,
+    )
+    .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);

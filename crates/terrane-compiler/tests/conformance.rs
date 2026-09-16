@@ -481,6 +481,7 @@ fn prepare_conformance_case(
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
         lint_name_style: false,
         debug_build: terrane_compiler::DebugBuild::Disabled,
+        source_shaped_debug_lowering: false,
     };
 
     match (phase, status) {

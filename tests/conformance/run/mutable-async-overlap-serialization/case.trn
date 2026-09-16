@@ -56,11 +56,16 @@ async function main;
     print; second-value
   print; third
   counter = 0
+  guarded-capture int8 = 41
   step = mutable async function int; (
     delta int,
     started (channel-sender of int),
     gate (channel-receiver of int)
   )
+    if guarded-capture % 2 == 0
+      guarded-capture = guarded-capture / 2
+    else
+      guarded-capture = 3 * guarded-capture + 1
     seen = counter
     sent = await started.send; delta
     if not sent.accepted

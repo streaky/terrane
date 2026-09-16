@@ -680,6 +680,42 @@ mod tests {
     }
 
     #[test]
+    fn debug_metadata_does_not_require_source_shaped_lowering() {
+        let source = concat!(
+            "namespace optimized-debug\n",
+            "function main;\n",
+            "  value int64 = 41\n",
+            "  if value % 2 == 0\n",
+            "    value = value / 2\n",
+            "  else\n",
+            "    value = 3 * value + 1\n",
+            "  print; value\n",
+        );
+        let optimized = compile_with_options(
+            "optimized-debug.trn",
+            source.to_owned(),
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(optimized.rust.contains("__terrane_guarded_mask"));
+
+        let source_shaped = compile_with_options(
+            "source-shaped-debug.trn",
+            source.to_owned(),
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                source_shaped_debug_lowering: true,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(!source_shaped.rust.contains("__terrane_guarded_mask"));
+    }
+
+    #[test]
     fn sequence_markers_do_not_drift_from_non_emitting_statements() {
         let compilation = compile_with_options(
             "markers.trn",
