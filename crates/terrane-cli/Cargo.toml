@@ -10,6 +10,7 @@ name = "terrane"
 path = "src/main.rs"
 
 [features]
+default = ["iterator-list-builders"]
 iterator-list-builders = []
 
 [dependencies]

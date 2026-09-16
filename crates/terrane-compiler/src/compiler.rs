@@ -35,13 +35,24 @@ impl DebugBuild {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
     pub debug_build: DebugBuild,
-    /// Enables the experimental iterator-backed lowering for proven bounded list builders.
+    /// Enables iterator-backed lowering for proven bounded list builders.
     pub optimize_list_builders: bool,
+}
+
+impl Default for CompilerOptions {
+    fn default() -> Self {
+        Self {
+            require_canonical_rust: false,
+            lint_name_style: false,
+            debug_build: DebugBuild::default(),
+            optimize_list_builders: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

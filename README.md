@@ -178,20 +178,21 @@ cargo build --release -p terrane-cli
 ./target/release/terrane --version
 ```
 
-An opt-in compiler experiment replaces proven fresh, append-only bounded list builders with
-iterator-backed bulk construction while retaining the ordinary lowering as the default. Build both
-CLI variants into separate target directories for an A/B comparison:
+Terrane enables iterator-backed bulk construction for proven fresh, append-only bounded list
+builders by default. Build the default and legacy CLI variants into separate target directories for
+an A/B comparison:
 
 ```sh
-cargo build --release -p terrane-cli --target-dir /tmp/terrane-legacy
-cargo build --release -p terrane-cli --features iterator-list-builders \
-  --target-dir /tmp/terrane-iterator-list-builders
+cargo build --release -p terrane-cli --target-dir /tmp/terrane-iterator-list-builders
+cargo build --release -p terrane-cli --no-default-features \
+  --target-dir /tmp/terrane-legacy
 ```
 
-The feature is deliberately conservative: it applies only when the compiler proves a fresh list,
-canonical unit-step induction, one append per iteration, and no relevant early exit. Runtime ranges
-whose exact allocation would exceed the existing 256 MiB preallocation ceiling retain the ordinary
-bounded-growth loop.
+The optimization is deliberately conservative: it applies only when the compiler proves a fresh
+list, canonical unit-step induction, one append per iteration, and no relevant early exit. Runtime
+ranges whose exact allocation would exceed the existing 256 MiB preallocation ceiling retain the
+ordinary bounded-growth loop. Library callers can select either lowering through
+`CompilerOptions::optimize_list_builders`.
 
 Create `hello.trn`:
 
