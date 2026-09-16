@@ -1,0 +1,139 @@
+namespace guarded-checked-arithmetic
+
+from /core/errors import arithmetic-overflow
+
+global parity int8 = 0
+
+function transition int8; input int8
+  value int8 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function transition-uint8 uint8; input uint8
+  value uint8 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function transition-then int8; input int8
+  value int8 = input
+  if value % 2 != 0
+    value = 3 * value + 1
+  else
+    value = value / 2
+  return value
+
+function transition-remainder int8; input int8
+  value int8 = input
+  if value % 2 == 0
+    value = value % 5
+  else
+    value = 3 * value + 1
+  return value
+
+function transition-negative-coefficient int8; input int8
+  value int8 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 100 - value
+  return value
+
+function transition-int64 int64; input int64
+  value int64 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function transition-int128 int128; input int128
+  value int128 = input
+  if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function both-affine int8; input int8
+  value int8 = input
+  if value > 0
+    value = value + 1
+  else
+    value = 3 * value + 1
+  return value
+
+function nested-conditional int8; input int8
+  value int8 = input
+  if value < 0
+    value = value / 2
+  else if value % 2 == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function positive-lower-bound; input int8
+  value int8 = input
+  try
+    if value % 2 == 0
+      value = value - 100 - 100
+    else
+      value = value / 2
+    print; value
+  catch arithmetic-overflow
+    print; >lower-caught
+
+function global-condition int8; input int8
+  value int8 = input
+  if parity == 0
+    value = value / 2
+  else
+    value = 3 * value + 1
+  return value
+
+function main;
+  print; (transition; 42)
+  print; (transition; 41)
+  positive-lower-bound; 72
+  positive-lower-bound; 10
+  print; (global-condition; 41)
+  upper int8 = 43
+  try
+    if upper % 2 == 0
+      upper = upper / 2
+    else
+      upper = 3 * upper + 1
+    print; upper
+  catch arithmetic-overflow
+    print; >upper-caught
+  intermediate int8 = -43
+  try
+    if intermediate % 2 == 0
+      intermediate = intermediate / 2
+    else
+      intermediate = 3 * intermediate + 1
+    print; intermediate
+  catch arithmetic-overflow
+    print; >intermediate-caught
+  print; (transition-uint8; 41)
+  print; (transition-then; 41)
+  print; (transition-remainder; 42)
+  print; (transition-negative-coefficient; 41)
+  print; (transition-int64; 41)
+  print; (transition-int128; 41)
+  print; (both-affine; 41)
+  print; (nested-conditional; 41)
+  shared-value int8 = 41
+  observer shared ref int8 = shared ref shared-value
+  print; observer
+  if shared-value % 2 == 0
+    shared-value = shared-value / 2
+  else
+    shared-value = 3 * shared-value + 1
+  print; shared-value

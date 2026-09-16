@@ -680,6 +680,30 @@ mod tests {
     }
 
     #[test]
+    fn debug_metadata_keeps_optimized_lowering() {
+        let source = concat!(
+            "namespace optimized-debug\n",
+            "function main;\n",
+            "  value int64 = 41\n",
+            "  if value % 2 == 0\n",
+            "    value = value / 2\n",
+            "  else\n",
+            "    value = 3 * value + 1\n",
+            "  print; value\n",
+        );
+        let optimized = compile_with_options(
+            "optimized-debug.trn",
+            source.to_owned(),
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(optimized.rust.contains("__terrane_guarded_mask"));
+    }
+
+    #[test]
     fn sequence_markers_do_not_drift_from_non_emitting_statements() {
         let compilation = compile_with_options(
             "markers.trn",

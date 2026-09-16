@@ -415,9 +415,16 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 0] = [];
-    pub static FUNCTIONS: [&str; 0] = [];
-    pub static SITES: [Site; 0] = [];
+    pub static FILES: [&str; 1] = ["case.trn"];
+    pub static FUNCTIONS: [&str; 1] = ["/mutable-async-overlap-serialization::main"];
+    pub static SITES: [Site; 3] = [
+        /* terrane-site-row: site 0: /mutable-async-overlap-serialization::main (case.trn:66:25-66:44) */
+        { Site { function: 0, file: 0, line: 66, column: 25, end_line: 66, end_column: 44 } },
+        /* terrane-site-row: site 1: /mutable-async-overlap-serialization::main (case.trn:68:25-68:44) */
+        { Site { function: 0, file: 0, line: 68, column: 25, end_line: 68, end_column: 44 } },
+        /* terrane-site-row: site 2: /mutable-async-overlap-serialization::main (case.trn:68:25-68:48) */
+        { Site { function: 0, file: 0, line: 68, column: 25, end_line: 68, end_column: 48 } },
+    ];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -658,6 +665,7 @@ fn main() {
         }
         println!("{}", terrane_scalar_support::scalar_text(&third));
         let counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+        let guarded_capture: i8 = 41;
         let step: TerraneMutableCallable<
             (
                 terrane_int_support::Int,
@@ -667,6 +675,7 @@ fn main() {
             std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
         > = {
             let counter = TerraneAsyncMutableState::new(counter.clone());
+            let guarded_capture = TerraneAsyncMutableState::new(guarded_capture.clone());
             let __terrane_invocation = TerraneAsyncInvocationGate::new();
             TerraneMutableCallable::new(move |
                 (
@@ -682,9 +691,39 @@ fn main() {
                 Box<dyn Future<Output = terrane_int_support::Int> + Send>,
             > {
                 let counter = counter.share();
+                let guarded_capture = guarded_capture.share();
                 let __terrane_invocation = __terrane_invocation.share();
                 Box::pin(async move {
                     let _invocation = __terrane_invocation.enter().await;
+                    if guarded_capture.snapshot().rem_euclid(2) == 0 {
+                        {
+                            let callable_capture_value = __terrane_raised(
+                                terrane_int_support::fixed_division(
+                                    guarded_capture.snapshot(),
+                                    2,
+                                ),
+                                0 /* terrane-site: case.trn:66:25-66:44 */,
+                            );
+                            guarded_capture.replace(callable_capture_value);
+                        }
+                    } else {
+                        {
+                            let callable_capture_value = __terrane_raised(
+                                terrane_int_support::fixed_addition(
+                                    __terrane_raised(
+                                        terrane_int_support::fixed_multiplication(
+                                            3,
+                                            guarded_capture.snapshot(),
+                                        ),
+                                        1 /* terrane-site: case.trn:68:25-68:44 */,
+                                    ),
+                                    1,
+                                ),
+                                2 /* terrane-site: case.trn:68:25-68:48 */,
+                            );
+                            guarded_capture.replace(callable_capture_value);
+                        }
+                    }
                     let seen: terrane_int_support::Int = counter.snapshot();
                     let sent: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
                             Box::pin(started.send(delta.clone())),
