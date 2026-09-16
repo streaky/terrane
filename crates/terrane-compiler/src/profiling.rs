@@ -295,12 +295,13 @@ impl ProfileArtifact {
                 .checked_add(sample_bytes)
                 .and_then(|bytes| bytes.checked_add(separator))
             else {
-                continue;
+                break;
             };
-            if candidate_bytes <= max_bytes {
-                self.evidence.samples.push(sample);
-                estimated_bytes = candidate_bytes;
+            if candidate_bytes > max_bytes {
+                break;
             }
+            self.evidence.samples.push(sample);
+            estimated_bytes = candidate_bytes;
         }
         self.update_capture_accounting(original_dropped, original_captured)?;
 
@@ -427,10 +428,13 @@ pub struct AttributionRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceCostIdentity>,
     pub related_causes: Vec<SourceSpan>,
+    pub related_causes_total: usize,
     pub exclusive_samples: u64,
     pub inclusive_samples: u64,
     pub generated: Vec<GeneratedConstituent>,
+    pub generated_total: usize,
     pub native: Vec<NativeConstituent>,
+    pub native_total: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -555,32 +559,51 @@ fn finish_report(
 ) -> AttributionReport {
     let mut rows = rows
         .into_iter()
-        .map(|(key, accumulator)| AttributionRow {
-            quality: key.quality,
-            label: key.label,
-            source: key.source,
-            related_causes: accumulator.related_causes,
-            exclusive_samples: accumulator.exclusive,
-            inclusive_samples: accumulator.inclusive,
-            generated: accumulator
-                .generated
-                .into_iter()
-                .map(|(path, line, start, end)| GeneratedConstituent {
-                    path,
-                    line,
-                    start,
-                    end,
-                })
-                .collect(),
-            native: accumulator
-                .native
-                .into_iter()
-                .map(|(module, module_offset, symbol)| NativeConstituent {
-                    module,
-                    module_offset,
-                    symbol,
-                })
-                .collect(),
+        .map(|(key, mut accumulator)| {
+            accumulator.related_causes.sort_by_key(|cause| {
+                (
+                    cause.source_id,
+                    cause.start,
+                    cause.end,
+                    cause.line,
+                    cause.column,
+                    cause.end_line,
+                    cause.end_column,
+                )
+            });
+            let related_causes_total = accumulator.related_causes.len();
+            let generated_total = accumulator.generated.len();
+            let native_total = accumulator.native.len();
+            AttributionRow {
+                quality: key.quality,
+                label: key.label,
+                source: key.source,
+                related_causes: accumulator.related_causes,
+                related_causes_total,
+                exclusive_samples: accumulator.exclusive,
+                inclusive_samples: accumulator.inclusive,
+                generated: accumulator
+                    .generated
+                    .into_iter()
+                    .map(|(path, line, start, end)| GeneratedConstituent {
+                        path,
+                        line,
+                        start,
+                        end,
+                    })
+                    .collect(),
+                generated_total,
+                native: accumulator
+                    .native
+                    .into_iter()
+                    .map(|(module, module_offset, symbol)| NativeConstituent {
+                        module,
+                        module_offset,
+                        symbol,
+                    })
+                    .collect(),
+                native_total,
+            }
         })
         .collect::<Vec<_>>();
     rows.sort_by(|left, right| {
@@ -1194,7 +1217,7 @@ mod tests {
             path: "src/main.rs".to_owned(),
             content_hash: crate::provenance::hash_bytes(generated_text.as_bytes()),
             embedded_source: Some(generated_text.to_owned()),
-            associations: vec![association(1, 0), association(2, 1)],
+            associations: vec![association(2, 1), association(1, 0)],
         }];
         artifact.evidence.samples[0].stack[0].generated_location = Some(NativeSourceLocation {
             path: "/relocated/build/src/main.rs".to_owned(),
@@ -1208,6 +1231,15 @@ mod tests {
         assert_eq!(report.buckets.values().sum::<u64>(), 1);
         assert_eq!(report.rows[0].exclusive_samples, 1);
         assert_eq!(report.rows[0].related_causes.len(), 2);
+        assert_eq!(report.rows[0].related_causes_total, 2);
+        assert_eq!(
+            report.rows[0]
+                .related_causes
+                .iter()
+                .map(|cause| cause.source_id)
+                .collect::<Vec<_>>(),
+            [1, 2]
+        );
         assert_eq!(report.fidelity, "exact-build-source");
 
         artifact.source_attribution.generated_files[0]
@@ -1275,6 +1307,27 @@ mod tests {
     }
 
     #[test]
+    fn artifact_budget_never_skips_an_oversized_middle_sample() {
+        let one_sample = artifact();
+        let first = one_sample.evidence.samples[0].clone();
+        let mut two_small = one_sample.clone();
+        two_small.evidence.samples.push(first.clone());
+        two_small.evidence.loss.captured_events = 2;
+        let two_sample_budget = two_small.encoded_json_bytes().unwrap();
+
+        let mut oversized = first.clone();
+        oversized.stack[0].symbol = Some("x".repeat(usize::try_from(two_sample_budget).unwrap()));
+        let mut bounded = one_sample;
+        bounded.evidence.samples = vec![first.clone(), oversized, first.clone()];
+        bounded.evidence.loss.captured_events = 3;
+
+        bounded.fit_encoded_budget_to(two_sample_budget).unwrap();
+
+        assert_eq!(bounded.evidence.samples, [first]);
+        assert_eq!(bounded.evidence.loss.captured_events, 1);
+        assert_eq!(bounded.evidence.loss.dropped_samples, 2);
+    }
+    #[test]
     fn one_authored_operation_can_own_multiple_generated_ranges() {
         let mut artifact = artifact();
         let source_text = "function main;\n  value = 1\n";
@@ -1331,6 +1384,8 @@ mod tests {
         assert_eq!(report.rows[0].exclusive_samples, 1);
         assert_eq!(report.rows[0].inclusive_samples, 1);
         assert_eq!(report.rows[0].generated.len(), 2);
+        assert_eq!(report.rows[0].generated_total, 2);
+        assert_eq!(report.rows[0].related_causes_total, 1);
         assert_eq!(report.rows[0].related_causes, [cause]);
     }
     #[test]

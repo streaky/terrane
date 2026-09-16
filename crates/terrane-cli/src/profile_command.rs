@@ -1158,6 +1158,11 @@ fn render_text_report(
                     generated.path, generated.line, generated.start, generated.end
                 );
             }
+            render_omitted(
+                "generated constituents",
+                row.generated_total,
+                row.generated.len(),
+            );
         }
         for cause in &row.related_causes {
             let uri = artifact
@@ -1171,6 +1176,11 @@ fn render_text_report(
                 cause.line, cause.column, cause.start, cause.end
             );
         }
+        render_omitted(
+            "related source causes",
+            row.related_causes_total,
+            row.related_causes.len(),
+        );
         if options.native {
             for native in &row.native {
                 println!(
@@ -1180,6 +1190,7 @@ fn render_text_report(
                     native.symbol.as_deref().unwrap_or("<unknown>")
                 );
             }
+            render_omitted("native constituents", row.native_total, row.native.len());
         }
     }
     println!("\ncall tree (inclusive CPU sample count; root to leaf)");
@@ -1190,8 +1201,40 @@ fn render_text_report(
     }
 }
 
+fn render_omitted(label: &str, total: usize, displayed: usize) {
+    if let Some(omitted) = total.checked_sub(displayed).filter(|omitted| *omitted > 0) {
+        println!("    ... {omitted} more {label}");
+    }
+}
+
 fn limit_row_expansions(rows: &mut [terrane_compiler::profiling::AttributionRow], limit: usize) {
     for row in rows {
+        row.generated.sort_by(|left, right| {
+            (&left.path, left.line, left.start, left.end).cmp(&(
+                &right.path,
+                right.line,
+                right.start,
+                right.end,
+            ))
+        });
+        row.related_causes.sort_by_key(|cause| {
+            (
+                cause.source_id,
+                cause.start,
+                cause.end,
+                cause.line,
+                cause.column,
+                cause.end_line,
+                cause.end_column,
+            )
+        });
+        row.native.sort_by(|left, right| {
+            (&left.module, left.module_offset, &left.symbol).cmp(&(
+                &right.module,
+                right.module_offset,
+                &right.symbol,
+            ))
+        });
         row.generated.truncate(limit);
         row.related_causes.truncate(limit);
         row.native.truncate(limit);
@@ -1466,6 +1509,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             label: "hot".to_owned(),
             source: None,
             related_causes: (0..3)
+                .rev()
                 .map(|source_id| SourceSpan {
                     source_id,
                     start: 0,
@@ -1476,9 +1520,11 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
                     end_column: 2,
                 })
                 .collect(),
+            related_causes_total: 3,
             exclusive_samples: 1,
             inclusive_samples: 1,
             generated: (0..3)
+                .rev()
                 .map(|line| GeneratedConstituent {
                     path: "src/main.rs".to_owned(),
                     line,
@@ -1486,13 +1532,16 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
                     end: 1,
                 })
                 .collect(),
+            generated_total: 3,
             native: (0..3)
+                .rev()
                 .map(|module_offset| NativeConstituent {
                     module: "/build/artifacts/terrane-profile/program".to_owned(),
                     module_offset,
                     symbol: None,
                 })
                 .collect(),
+            native_total: 3,
         }];
 
         limit_row_expansions(&mut rows, 2);
@@ -1501,6 +1550,12 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         assert_eq!(rows[0].generated.len(), 2);
         assert_eq!(rows[0].related_causes.len(), 2);
         assert_eq!(rows[0].native.len(), 2);
+        assert_eq!(rows[0].generated_total, 3);
+        assert_eq!(rows[0].related_causes_total, 3);
+        assert_eq!(rows[0].native_total, 3);
+        assert_eq!(rows[0].generated[0].line, 0);
+        assert_eq!(rows[0].related_causes[0].source_id, 0);
+        assert_eq!(rows[0].native[0].module_offset, 0);
         assert_eq!(
             rows[0].native[0].module,
             "artifacts/terrane-profile/program"
