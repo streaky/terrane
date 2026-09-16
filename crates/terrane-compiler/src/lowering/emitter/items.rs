@@ -1863,6 +1863,7 @@ impl<'a> Emitter<'a> {
                 .collect(),
         );
         let outer_async_mutable_captures = std::mem::take(&mut self.async_mutable_captures);
+        let outer_fresh_empty_lists = std::mem::take(&mut self.fresh_empty_lists);
         if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
             self.async_mutable_captures
                 .extend(contract.captures.iter().cloned());
@@ -1888,6 +1889,7 @@ impl<'a> Emitter<'a> {
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
         self.async_mutable_captures = outer_async_mutable_captures;
+        self.fresh_empty_lists = outer_fresh_empty_lists;
         let (mut captures, mut invocation_captures) =
             self.anonymous_function_captures(node, contract);
         let invocation_guard =

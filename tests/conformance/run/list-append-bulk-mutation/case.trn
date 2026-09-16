@@ -234,6 +234,40 @@ function main;
     fallback-index++
   print; fallback.length, fallback[4], fallback-index
 
+  captured list of int64 = list
+  captured-index int64 = 0
+  capturing-builder = mutable function;
+    while captured-index < 3
+      captured.append; captured-index
+      captured-index++
+  capturing-builder;
+  captured-index = 0
+  capturing-builder;
+  print; captured.length, captured-index
+
+  local-mutation = mutable function int64;
+    local-value int64 = 0
+    local-value++
+    return local-value
+  print; (local-mutation;)
+
+  returned-capture list of int64 = list; 7, 8
+  return-capture = mutable function list of int64;
+    returned-capture.append; 9
+    return returned-capture
+  first-returned = return-capture;
+  second-returned = return-capture;
+  print; first-returned.length, first-returned[0], second-returned.length, second-returned[1]
+
+  inferred-capture list of int64 = list; 2, 3
+  inspect-capture = mutable function int64;
+    inferred-total int64 = inferred-capture.length
+    inferred-capture.append; 4
+    for inferred-value in inferred-capture
+      inferred-total = inferred-total + inferred-value
+    return inferred-total
+  print; (inspect-capture;)
+
   print; (validate-return;)
   validate-throw;
   validate-exit;

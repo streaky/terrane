@@ -1046,6 +1046,17 @@ pub(super) fn call_site_bindings(
         .cloned()
         .collect::<Vec<_>>();
     if let Some(function) = active_function {
+        for capture in &function.captures {
+            if let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == *capture
+                    && binding.is_visible_at(unit.source.id(), function.span.start)
+            }) && !bindings
+                .iter()
+                .any(|existing| existing.span == binding.span)
+            {
+                bindings.push(binding.clone());
+            }
+        }
         bindings.extend(function.parameters.iter().filter_map(|parameter| {
             parameter
                 .binding_value_type()

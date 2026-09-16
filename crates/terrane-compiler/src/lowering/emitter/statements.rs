@@ -1010,6 +1010,14 @@ impl Emitter<'_> {
         self.line("}");
     }
 
+    fn local_binding_closure_writes(&self) -> ClosureWrites {
+        if self.closure_depth == 0 {
+            ClosureWrites::Exclude
+        } else {
+            ClosureWrites::Include
+        }
+    }
+
     pub(super) fn binding(&mut self, node: &SyntaxNode) {
         let Some((name_index, name_node)) = node
             .children
@@ -1052,6 +1060,7 @@ impl Emitter<'_> {
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
         );
+        let closure_writes = self.local_binding_closure_writes();
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
                 binding.mutable
@@ -1060,7 +1069,7 @@ impl Emitter<'_> {
                         self.unit,
                         node.span,
                         initializer.is_some(),
-                        ClosureWrites::Exclude,
+                        closure_writes,
                     )
                     && !matches!(
                         binding.value_type,
