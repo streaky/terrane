@@ -1,3 +1,5 @@
+use std::io::{self, Write};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -8,10 +10,11 @@ use crate::debugging::{
 };
 use crate::provenance::{ArtifactProfile, BuildProvenance};
 
-pub const SCHEMA_VERSION: &str = "1.0";
-pub const ATTRIBUTION_SCHEMA_VERSION: &str = "1.0";
-pub const MAX_CAPTURED_SAMPLES: usize = 1_000_000;
+pub const SCHEMA_VERSION: &str = "1.1";
+pub const ATTRIBUTION_SCHEMA_VERSION: &str = "1.1";
+pub const MAX_CAPTURED_SAMPLES: usize = 100_000;
 pub const MAX_STACK_DEPTH: usize = 4_096;
+pub const MAX_ARTIFACT_BYTES: u64 = 512 * 1024 * 1024;
 
 pub const CPU_ARTIFACT_PROFILE: ArtifactProfile = ArtifactProfile {
     id: "terrane-profile-cpu-v1",
@@ -57,7 +60,9 @@ pub struct PrivacyDeclaration {
     pub symbol_names: Disclosure,
     pub arguments: ArgumentPolicy,
     pub timing: Disclosure,
-    pub embedded_sources: Disclosure,
+    pub authored_sources: Disclosure,
+    pub compiler_sources: Disclosure,
+    pub generated_sources: Disclosure,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -132,7 +137,8 @@ pub struct CpuSample {
 pub struct CollectionLoss {
     pub lost_events: u64,
     pub captured_events: u64,
-    pub truncated_events: u64,
+    pub dropped_samples: u64,
+    pub dropped_frames: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -163,6 +169,12 @@ impl ProfileArtifact {
     ///
     /// Returns a stable explanation when the artifact cannot be safely consumed.
     pub fn validate(&self) -> Result<(), String> {
+        let encoded_bytes = self.encoded_json_bytes()?;
+        if encoded_bytes > MAX_ARTIFACT_BYTES {
+            return Err(format!(
+                "profile artifact encodes to {encoded_bytes} bytes; limit is {MAX_ARTIFACT_BYTES}"
+            ));
+        }
         if self.schema_version != SCHEMA_VERSION {
             return Err(format!(
                 "unsupported profile schema `{}`; expected `{SCHEMA_VERSION}`",
@@ -226,8 +238,38 @@ impl ProfileArtifact {
         }
         Ok(())
     }
+
+    /// Returns the encoded compact JSON size used by the artifact byte budget.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the artifact cannot be serialized.
+    pub fn encoded_json_bytes(&self) -> Result<u64, String> {
+        let mut writer = CountingWriter::default();
+        serde_json::to_writer(&mut writer, self)
+            .map_err(|error| format!("cannot size profile artifact: {error}"))?;
+        Ok(writer.bytes)
+    }
 }
 
+#[derive(Default)]
+struct CountingWriter {
+    bytes: u64,
+}
+
+impl Write for CountingWriter {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.bytes = self
+            .bytes
+            .checked_add(buffer.len() as u64)
+            .ok_or_else(|| io::Error::other("profile artifact size overflow"))?;
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AttributionQuality {
@@ -305,7 +347,8 @@ pub struct WeightedStack {
 pub struct AttributionReport {
     pub captured_samples: u64,
     pub lost_samples: u64,
-    pub truncated_samples: u64,
+    pub dropped_samples: u64,
+    pub dropped_frames: u64,
     pub buckets: BTreeMap<AttributionQuality, u64>,
     pub rows: Vec<AttributionRow>,
     pub call_tree: Vec<WeightedStack>,
@@ -449,7 +492,8 @@ fn finish_report(
     AttributionReport {
         captured_samples: artifact.evidence.loss.captured_events,
         lost_samples: artifact.evidence.loss.lost_events,
-        truncated_samples: artifact.evidence.loss.truncated_events,
+        dropped_samples: artifact.evidence.loss.dropped_samples,
+        dropped_frames: artifact.evidence.loss.dropped_frames,
         buckets,
         rows,
         call_tree: weighted_stacks.clone(),
@@ -858,7 +902,9 @@ mod tests {
                 symbol_names: Disclosure::Included,
                 arguments: ArgumentPolicy::Omitted,
                 timing: Disclosure::Included,
-                embedded_sources: Disclosure::Omitted,
+                authored_sources: Disclosure::Omitted,
+                compiler_sources: Disclosure::Included,
+                generated_sources: Disclosure::Included,
             },
             evidence: CpuEvidence {
                 modules: vec![CapturedModule {
@@ -884,7 +930,8 @@ mod tests {
                 loss: CollectionLoss {
                     lost_events: 0,
                     captured_events: 1,
-                    truncated_events: 0,
+                    dropped_samples: 0,
+                    dropped_frames: 0,
                 },
             },
         }

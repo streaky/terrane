@@ -246,15 +246,18 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
-            debug_build: if matches!(command, CliCommand::Debug | CliCommand::Profile) {
-                match (embed_debug_sources, embed_generated_sources) {
+            debug_build: match command {
+                CliCommand::Profile if embed_debug_sources => {
+                    terrane_compiler::DebugBuild::EmbeddedAllSources
+                }
+                CliCommand::Profile => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
+                CliCommand::Debug => match (embed_debug_sources, embed_generated_sources) {
                     (false, false) => terrane_compiler::DebugBuild::ExternalSources,
                     (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
                     (false, true) => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
                     (true, true) => terrane_compiler::DebugBuild::EmbeddedAllSources,
-                }
-            } else {
-                terrane_compiler::DebugBuild::Disabled
+                },
+                _ => terrane_compiler::DebugBuild::Disabled,
             },
         },
     ) {
@@ -296,8 +299,14 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         package.build_toolchain,
     )?;
     let artifact_profile = match command {
-        CliCommand::Debug => Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE),
-        CliCommand::Profile => Some(terrane_compiler::profiling::CPU_ARTIFACT_PROFILE),
+        CliCommand::Debug => Some(profile_with_panic(
+            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+            package.profile.panic,
+        )),
+        CliCommand::Profile => Some(profile_with_panic(
+            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
+            package.profile.panic,
+        )),
         _ => None,
     };
     write_generated_crate(
@@ -356,7 +365,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .expect("profile compilation produces source-attribution metadata");
         let build_identity = rust_build_identity(
             &crate_dir,
-            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
+            artifact_profile.expect("profile build has an artifact profile"),
             "profiling",
         )?;
         return profile_command::record(
@@ -375,7 +384,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .expect("debug compilation produces debugger metadata");
         let build_identity = rust_build_identity(
             &crate_dir,
-            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+            artifact_profile.expect("debug build has an artifact profile"),
             "debug",
         )?;
         let provenance = terrane_compiler::debugging::ProvenanceManifest::create(
@@ -999,6 +1008,17 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
+fn profile_with_panic(
+    mut profile: terrane_compiler::provenance::ArtifactProfile,
+    panic: terrane_compiler::PanicProfile,
+) -> terrane_compiler::provenance::ArtifactProfile {
+    profile.panic = match panic {
+        terrane_compiler::PanicProfile::Unwind => "unwind",
+        terrane_compiler::PanicProfile::Abort => "abort",
+    };
+    profile
+}
+
 type ArtifactProfile = Option<terrane_compiler::provenance::ArtifactProfile>;
 #[derive(Clone, Copy)]
 enum UnsafeCodePolicy {
@@ -1082,6 +1102,9 @@ fn append_build_profiles(
         writeln!(manifest, "lto = {:?}", profile.lto).expect("writing to a string cannot fail");
         writeln!(manifest, "codegen-units = {}", profile.codegen_units)
             .expect("writing to a string cannot fail");
+        if panic == terrane_compiler::PanicProfile::Abort {
+            manifest.push_str("panic = \"abort\"\n");
+        }
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }

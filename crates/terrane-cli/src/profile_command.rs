@@ -13,8 +13,8 @@ use terrane_compiler::debugging::DebugInformation;
 use terrane_compiler::profiling::{
     ATTRIBUTION_SCHEMA_VERSION, ArgumentPolicy, CapturedModule, CollectionConditions,
     CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, Disclosure, EvidenceKind,
-    EvidenceUnit, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame, NativeSourceLocation,
-    PrivacyDeclaration, ProfileArtifact, SCHEMA_VERSION,
+    EvidenceUnit, MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame,
+    NativeSourceLocation, PrivacyDeclaration, ProfileArtifact, SCHEMA_VERSION,
 };
 use terrane_compiler::provenance::{BuildIdentity, BuildProvenance, hash_bytes};
 
@@ -56,6 +56,11 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
                         .ok_or_else(CliFailure::usage)?,
                 );
             }
+            argument if argument.starts_with('-') => {
+                return Err(CliFailure::usage_with(format!(
+                    "unknown profile record option `{argument}`"
+                )));
+            }
             _ => break,
         }
         index += 1;
@@ -94,7 +99,8 @@ struct ParsedPerfEvidence {
     modules: Vec<CapturedModule>,
     samples: Vec<CpuSample>,
     lost_events: u64,
-    truncated_events: u64,
+    dropped_samples: u64,
+    dropped_frames: u64,
 }
 
 #[derive(Debug)]
@@ -149,10 +155,11 @@ pub(super) fn record(
     artifact.validate().map_err(CliFailure::backend)?;
     write_artifact(&options.output, &artifact)?;
     eprintln!(
-        "recorded {} CPU samples ({} lost, {} truncated) in {}",
+        "recorded {} CPU samples ({} lost, {} samples dropped, {} frames dropped) in {}",
         artifact.evidence.samples.len(),
         artifact.evidence.loss.lost_events,
-        artifact.evidence.loss.truncated_events,
+        artifact.evidence.loss.dropped_samples,
+        artifact.evidence.loss.dropped_frames,
         options.output.display()
     );
     Ok(ExitCode::from(exit_code))
@@ -225,17 +232,20 @@ fn assemble_artifact(
                 ArgumentPolicy::Omitted
             },
             timing: Disclosure::Included,
-            embedded_sources: if options.embed_sources {
+            authored_sources: if options.embed_sources {
                 Disclosure::Included
             } else {
                 Disclosure::Omitted
             },
+            compiler_sources: Disclosure::Included,
+            generated_sources: Disclosure::Included,
         },
         evidence: CpuEvidence {
             loss: CollectionLoss {
                 lost_events: capture.evidence.lost_events,
                 captured_events: capture.evidence.samples.len() as u64,
-                truncated_events: capture.evidence.truncated_events,
+                dropped_samples: capture.evidence.dropped_samples,
+                dropped_frames: capture.evidence.dropped_frames,
             },
             modules: capture.evidence.modules,
             samples: capture.evidence.samples,
@@ -273,8 +283,12 @@ fn require_supported_host(target: &str) -> Result<(), CliFailure> {
     )))
 }
 
+fn perf_program() -> OsString {
+    std::env::var_os("TERRANE_PERF").unwrap_or_else(|| OsString::from("perf"))
+}
+
 fn perf_version() -> Result<String, CliFailure> {
-    let output = Command::new("perf")
+    let output = Command::new(perf_program())
         .arg("--version")
         .output()
         .map_err(|error| {
@@ -324,7 +338,8 @@ fn run_perf(
     arguments: &[OsString],
     output: &Path,
 ) -> Result<ExitStatus, CliFailure> {
-    let mut command = Command::new("perf");
+    let signals = install_signal_flags()?;
+    let mut command = Command::new(perf_program());
     command
         .args(["record", "-q", "-o"])
         .arg(output)
@@ -351,7 +366,6 @@ fn run_perf(
     let mut child = command.spawn().map_err(|error| {
         CliFailure::backend(format!("failed to start Linux perf collector: {error}"))
     })?;
-    let signals = install_signal_flags()?;
     loop {
         if let Some(status) = child
             .try_wait()
@@ -360,14 +374,14 @@ fn run_perf(
             return Ok(status);
         }
         #[cfg(unix)]
-        for (signal, flag) in &signals {
-            if flag.swap(false, Ordering::SeqCst) {
+        for entry in &signals.0 {
+            if entry.flag.swap(false, Ordering::SeqCst) {
                 let pid = i32::try_from(child.id()).map_err(|_| {
                     CliFailure::backend("perf process identity exceeds host range".to_owned())
                 })?;
                 nix::sys::signal::killpg(
                     nix::unistd::Pid::from_raw(pid),
-                    nix::sys::signal::Signal::try_from(*signal).map_err(|error| {
+                    nix::sys::signal::Signal::try_from(entry.signal).map_err(|error| {
                         CliFailure::backend(format!("cannot forward profiling signal: {error}"))
                     })?,
                 )
@@ -382,7 +396,25 @@ fn run_perf(
     }
 }
 
-fn install_signal_flags() -> Result<Vec<(i32, Arc<AtomicBool>)>, CliFailure> {
+struct SignalFlag {
+    signal: i32,
+    flag: Arc<AtomicBool>,
+    registration: Option<signal_hook::SigId>,
+}
+
+struct SignalFlags(Vec<SignalFlag>);
+
+impl Drop for SignalFlags {
+    fn drop(&mut self) {
+        for entry in &mut self.0 {
+            if let Some(registration) = entry.registration.take() {
+                signal_hook::low_level::unregister(registration);
+            }
+        }
+    }
+}
+
+fn install_signal_flags() -> Result<SignalFlags, CliFailure> {
     #[cfg(unix)]
     let signal_numbers = [
         signal_hook::consts::SIGINT,
@@ -396,12 +428,18 @@ fn install_signal_flags() -> Result<Vec<(i32, Arc<AtomicBool>)>, CliFailure> {
         .into_iter()
         .map(|signal| {
             let flag = Arc::new(AtomicBool::new(false));
-            signal_hook::flag::register(signal, Arc::clone(&flag)).map_err(|error| {
-                CliFailure::backend(format!("cannot install profiling signal handler: {error}"))
-            })?;
-            Ok((signal, flag))
+            let registration =
+                signal_hook::flag::register(signal, Arc::clone(&flag)).map_err(|error| {
+                    CliFailure::backend(format!("cannot install profiling signal handler: {error}"))
+                })?;
+            Ok(SignalFlag {
+                signal,
+                flag,
+                registration: Some(registration),
+            })
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
+        .map(SignalFlags)
 }
 
 fn status_parts(status: ExitStatus) -> (Option<i32>, Option<i32>) {
@@ -422,7 +460,7 @@ fn parse_capture(
     executable_hash: &str,
 ) -> Result<ParsedPerfEvidence, CliFailure> {
     let build_ids = perf_build_ids(capture)?;
-    let output = Command::new("perf")
+    let output = Command::new(perf_program())
         .args(["script", "-i"])
         .arg(capture)
         .args([
@@ -451,7 +489,7 @@ fn parse_capture(
 }
 
 fn perf_build_ids(capture: &Path) -> Result<BTreeMap<String, String>, CliFailure> {
-    let output = Command::new("perf")
+    let output = Command::new(perf_program())
         .args(["buildid-list", "-i"])
         .arg(capture)
         .output()
@@ -487,18 +525,22 @@ fn parse_perf_script(
     let mut samples = Vec::new();
     let mut current: Option<CpuSample> = None;
     let mut lost_events = 0_u64;
-    let mut truncated_events = 0_u64;
+    let mut dropped_samples = 0_u64;
+    let mut dropped_frames = 0_u64;
+    let mut pending_inline = Vec::<PendingInlineFrame>::new();
     for line in script.lines() {
-        if line.contains("LOST") && line.contains("events") {
-            lost_events = lost_events.saturating_add(first_decimal(line).unwrap_or(1));
+        if let Some(lost) = parse_lost_events(line) {
+            lost_events = lost_events.saturating_add(lost);
             continue;
         }
         if !line.starts_with(char::is_whitespace) && line.contains(": ") {
+            dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
+            pending_inline.clear();
             if let Some(sample) = current.take() {
                 samples.push(sample);
             }
             if samples.len() == MAX_CAPTURED_SAMPLES {
-                truncated_events = truncated_events.saturating_add(1);
+                dropped_samples = dropped_samples.saturating_add(1);
                 current = None;
                 continue;
             }
@@ -512,36 +554,62 @@ fn parse_perf_script(
         let Some(sample) = current.as_mut() else {
             continue;
         };
-        if let Some((module_path, module_offset, symbol, symbol_offset)) = parse_frame(trimmed) {
-            if sample.stack.len() == MAX_STACK_DEPTH {
-                truncated_events = truncated_events.saturating_add(1);
-                continue;
+        match parse_frame(trimmed) {
+            Some(ParsedFrame::Inline(frame)) => pending_inline.push(frame),
+            Some(ParsedFrame::Concrete(frame)) => {
+                let module = module_index(
+                    &frame.module_path,
+                    &mut module_indices,
+                    &mut modules,
+                    build_ids,
+                    &executable,
+                    executable_hash,
+                );
+                for inline in pending_inline.drain(..) {
+                    if inline.instruction == frame.instruction {
+                        push_native_frame(
+                            sample,
+                            NativeFrame {
+                                module,
+                                module_offset: frame.module_offset,
+                                symbol: inline.symbol,
+                                symbol_offset: inline.symbol_offset,
+                                generated_location: inline.generated_location,
+                                inline: true,
+                            },
+                            &mut dropped_frames,
+                        );
+                    } else {
+                        dropped_frames = dropped_frames.saturating_add(1);
+                    }
+                }
+                push_native_frame(
+                    sample,
+                    NativeFrame {
+                        module,
+                        module_offset: frame.module_offset,
+                        symbol: frame.symbol,
+                        symbol_offset: frame.symbol_offset,
+                        generated_location: None,
+                        inline: false,
+                    },
+                    &mut dropped_frames,
+                );
             }
-            let module = module_index(
-                &module_path,
-                &mut module_indices,
-                &mut modules,
-                build_ids,
-                &executable,
-                executable_hash,
-            );
-            let inline = sample.stack.last().is_some_and(|caller| {
-                caller.module == module && caller.module_offset == module_offset
-            });
-            sample.stack.push(NativeFrame {
-                module,
-                module_offset,
-                symbol,
-                symbol_offset,
-                generated_location: None,
-                inline,
-            });
-        } else if let Some(location) = parse_source_location(trimmed)
-            && let Some(frame) = sample.stack.last_mut()
-        {
-            frame.generated_location = Some(location);
+            None => {
+                if let Some((location, inline)) = parse_source_location(trimmed) {
+                    if inline {
+                        if let Some(frame) = pending_inline.last_mut() {
+                            frame.generated_location = Some(location);
+                        }
+                    } else if let Some(frame) = sample.stack.last_mut() {
+                        frame.generated_location = Some(location);
+                    }
+                }
+            }
         }
     }
+    dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
     if let Some(sample) = current {
         samples.push(sample);
     }
@@ -566,7 +634,8 @@ fn parse_perf_script(
         modules,
         samples,
         lost_events,
-        truncated_events,
+        dropped_samples,
+        dropped_frames,
     })
 }
 
@@ -645,13 +714,55 @@ fn module_index(
     index
 }
 
-fn parse_frame(line: &str) -> Option<(String, u64, Option<String>, Option<u64>)> {
-    let (prefix, module) = line.rsplit_once(" (")?;
-    let module = module.strip_suffix(')')?;
-    let (module_path, module_offset) = module.rsplit_once("+0x")?;
-    let module_offset = u64::from_str_radix(module_offset, 16).ok()?;
-    let mut fields = prefix.split_whitespace();
-    let _instruction = fields.next()?;
+#[derive(Debug)]
+enum ParsedFrame {
+    Concrete(ConcreteFrame),
+    Inline(PendingInlineFrame),
+}
+
+#[derive(Debug)]
+struct ConcreteFrame {
+    instruction: u64,
+    module_path: String,
+    module_offset: u64,
+    symbol: Option<String>,
+    symbol_offset: Option<u64>,
+}
+
+#[derive(Debug)]
+struct PendingInlineFrame {
+    instruction: u64,
+    symbol: Option<String>,
+    symbol_offset: Option<u64>,
+    generated_location: Option<NativeSourceLocation>,
+}
+
+fn parse_frame(line: &str) -> Option<ParsedFrame> {
+    if let Some((prefix, module)) = line.rsplit_once(" (")
+        && let Some(module) = module.strip_suffix(')')
+        && let Some((module_path, module_offset)) = module.rsplit_once("+0x")
+    {
+        let (instruction, symbol, symbol_offset) = parse_instruction_and_symbol(prefix)?;
+        return Some(ParsedFrame::Concrete(ConcreteFrame {
+            instruction,
+            module_path: module_path.to_owned(),
+            module_offset: u64::from_str_radix(module_offset, 16).ok()?,
+            symbol,
+            symbol_offset,
+        }));
+    }
+    let (instruction, symbol, symbol_offset) = parse_instruction_and_symbol(line)?;
+    Some(ParsedFrame::Inline(PendingInlineFrame {
+        instruction,
+        symbol,
+        symbol_offset,
+        generated_location: None,
+    }))
+}
+
+fn parse_instruction_and_symbol(line: &str) -> Option<(u64, Option<String>, Option<u64>)> {
+    let mut fields = line.split_whitespace();
+    let instruction = u64::from_str_radix(fields.next()?.trim_start_matches("0x"), 16).ok()?;
     let symbol = fields.collect::<Vec<_>>().join(" ");
     let (symbol, symbol_offset) = if let Some((name, offset)) = symbol.rsplit_once("+0x") {
         (
@@ -661,24 +772,44 @@ fn parse_frame(line: &str) -> Option<(String, u64, Option<String>, Option<u64>)>
     } else {
         ((symbol != "[unknown]").then_some(symbol), None)
     };
-    Some((module_path.to_owned(), module_offset, symbol, symbol_offset))
+    Some((instruction, symbol, symbol_offset))
 }
 
-fn parse_source_location(line: &str) -> Option<NativeSourceLocation> {
+fn parse_source_location(line: &str) -> Option<(NativeSourceLocation, bool)> {
+    let (line, inline) = line
+        .strip_suffix(" (inlined)")
+        .map_or((line, false), |line| (line, true));
     let (path, line) = line.rsplit_once(':')?;
     let line = line.parse().ok()?;
-    Some(NativeSourceLocation {
-        path: path.to_owned(),
-        line,
-        column: None,
-    })
+    if path == "??" || line == 0 {
+        return None;
+    }
+    Some((
+        NativeSourceLocation {
+            path: path.to_owned(),
+            line,
+            column: None,
+        },
+        inline,
+    ))
 }
 
-fn first_decimal(line: &str) -> Option<u64> {
-    line.split(|character: char| !character.is_ascii_digit())
-        .find(|field| !field.is_empty())?
-        .parse()
-        .ok()
+fn parse_lost_events(line: &str) -> Option<u64> {
+    let mut fields = line.split_whitespace();
+    while let Some(field) = fields.next() {
+        if field == "LOST" {
+            return fields.next()?.parse().ok();
+        }
+    }
+    None
+}
+
+fn push_native_frame(sample: &mut CpuSample, frame: NativeFrame, dropped_frames: &mut u64) {
+    if sample.stack.len() == MAX_STACK_DEPTH {
+        *dropped_frames = dropped_frames.saturating_add(1);
+    } else {
+        sample.stack.push(frame);
+    }
 }
 #[derive(Debug)]
 struct ShowOptions {
@@ -889,10 +1020,11 @@ fn render_text_report(
     let elapsed_seconds = artifact.conditions.elapsed_nanoseconds / 1_000_000_000;
     let elapsed_milliseconds = artifact.conditions.elapsed_nanoseconds % 1_000_000_000 / 1_000_000;
     println!(
-        "CPU samples: {} captured, {} lost, {} truncated; {} Hz; {}.{:03}s elapsed",
+        "CPU samples: {} captured, {} lost, {} samples dropped, {} frames dropped; {} Hz; {}.{:03}s elapsed",
         report.captured_samples,
         report.lost_samples,
-        report.truncated_samples,
+        report.dropped_samples,
+        report.dropped_frames,
         artifact.conditions.sample_frequency_hz,
         elapsed_seconds,
         elapsed_milliseconds
@@ -971,7 +1103,6 @@ fn percentage(part: u64, total: u64) -> String {
 }
 
 fn read_artifact(path: &Path) -> Result<ProfileArtifact, CliFailure> {
-    const MAX_ARTIFACT_BYTES: u64 = 512 * 1024 * 1024;
     let file = File::open(path).map_err(|error| {
         CliFailure::backend(format!(
             "cannot open profile artifact {}: {error}",
@@ -1022,7 +1153,7 @@ fn write_artifact(path: &Path, artifact: &ProfileArtifact) -> Result<(), CliFail
             temporary.display()
         ))
     })?;
-    serde_json::to_writer_pretty(BufWriter::new(file), artifact)
+    serde_json::to_writer(BufWriter::new(file), artifact)
         .map_err(|error| CliFailure::backend(format!("cannot encode profile artifact: {error}")))?;
     fs::rename(&temporary, path).map_err(|error| {
         CliFailure::backend(format!(
@@ -1059,11 +1190,13 @@ mod tests {
     #[test]
     fn perf_script_parser_retains_module_offsets_and_source_locations() {
         let script = "123/123 10.250000000: cpu-clock:u: \n\
-\t    400123 hot+0x3 (/tmp/program+0x123)\n\
-  /tmp/build/src/main.rs:42\n\
+\t    400123 hot+0x3\n\
+  /tmp/build/src/main.rs:42 (inlined)\n\
 \t    400123 inline_parent+0x1 (/tmp/program+0x123)\n\
   /tmp/build/src/main.rs:12\n\
-\t    7f00 [unknown] (/usr/lib/libc.so.6+0x100)\n\n";
+\t    7f00 [unknown] (/usr/lib/libc.so.6+0x100)\n\
+  ??:0\n\n\
+PERF_RECORD_LOST 1 LOST 37 events\n";
         let evidence = parse_perf_script(
             script,
             &BTreeMap::from([
@@ -1076,6 +1209,7 @@ mod tests {
         .unwrap();
         assert_eq!(evidence.samples.len(), 1);
         assert_eq!(evidence.samples[0].stack.len(), 3);
+        assert_eq!(evidence.lost_events, 37);
         assert_eq!(evidence.samples[0].stack[0].module_offset, 0x123);
         assert_eq!(
             evidence.samples[0].stack[0]
@@ -1085,7 +1219,8 @@ mod tests {
                 .line,
             42
         );
-        assert!(evidence.samples[0].stack[1].inline);
+        assert!(evidence.samples[0].stack[0].inline);
+        assert!(!evidence.samples[0].stack[1].inline);
         assert_eq!(evidence.modules[0].build_id, "program-id");
         assert!(evidence.modules[0].is_profiled_executable);
     }
