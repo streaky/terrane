@@ -5372,17 +5372,20 @@ allocation/event profiling, live-set and retained-graph analysis, process memory
 thresholds, before/after comparison commands, continuous-service capture, non-Linux collectors, and
 the broader source metrics below are not currently supported:
 
-```text
-request-handler
-
-cpu samples                611
-allocations             42,190       (future)
-bytes allocated        18.4 mb       (future)
-semantic assignments  128,402       (future)
-physical copies         1,931       (future)
-cow splits                417       (future)
-lock wait                29 ms       (future)
-```
+| Metric | Illustrative value | Status |
+| --- | ---: | --- |
+| CPU samples | capture-dependent | current |
+| calls | — | future evidence |
+| wall time | — | future evidence |
+| self CPU time | — | future evidence |
+| allocations | — | future evidence |
+| bytes allocated | — | future evidence |
+| semantic assignments | — | future evidence |
+| physical copies | — | future evidence |
+| COW splits | — | future evidence |
+| refs created | — | future evidence |
+| lock wait | — | future evidence |
+| foreign calls | — | future evidence |
 
 ### 26.7 Causal performance explanation
 

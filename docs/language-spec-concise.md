@@ -1127,6 +1127,21 @@ experimental: CLI/DAP/provenance schema in 0.1; other hosts, attach regimes, opt
 excluded: direct isolated test-runner debugging pending a separate process-ownership/context/timeout/temp-directory/reporting contract; conditional breakpoints, logpoints, restart, Terrane expression evaluation, arbitrary debuggee formatting calls, DWARF rewriting, alternate native backends, time travel
 ```
 
+## PROFILING
+
+```yaml
+commands: terrane profile record --cpu [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile show FILE.trnprof [--focus PATH:LINE] [--generated] [--native] [--format text|json] [--limit N] [--source-root PATH] [--build-root PATH]
+backend: Linux x86-64 perf CPU sampling of the launched process tree and all threads
+build: named terrane-profile-cpu-v1 profile; optimization 3, line tables, no stripping, compiler-default optimized inlining, ThinLTO, one code-generation unit, package panic policy
+artifact: bounded schema 1.1 typed .trnprof evidence; exact compiler/Rust/target/profile/input/executable/module identity; normalized load-relative frames; collector conditions, exit or signal result, loss, and independent dropped-sample/dropped-frame counts
+attribution: every captured sample enters exactly one exclusive exact-authored|shared-or-ambiguous|runtime-associated|generated-only|native-only|unavailable bucket; inclusive semantic groups deduplicate repeated frames in one stack
+presentation: reconciled bucket totals, hottest source groups, hierarchical source-first call tree, weight-ranked folded stacks, and explicitly requested generated/native constituents; --limit bounds top-level and per-row expansions
+relocation: copied-but-identical source and build roots remain attributable; changed, missing, or ambiguous identities preserve native evidence with explicit reduced fidelity
+privacy: generated Rust and compiler-bundled source are retained for exact attribution; other authored source requires --embed-sources; workload arguments require --retain-arguments
+unit: CPU sample count only; never deterministic wall time, calls, allocations, or memory
+unsupported: allocation/retention/process-memory evidence, off-CPU and hardware-counter evidence, async metrics, comparisons, continuous-service capture, non-Linux collectors
+```
+
 ## CORE LIBRARY PRINCIPLE
 
 ```yaml
