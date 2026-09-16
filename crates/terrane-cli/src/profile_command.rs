@@ -957,6 +957,12 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         });
     }
     report.rows.truncate(options.limit);
+    limit_row_expansions(&mut report.rows, options.limit);
+    relativize_native_modules(
+        &mut report.rows,
+        &build_root,
+        Path::new(&artifact.provenance.relocation.build_root),
+    );
     limit_call_tree(&mut report.call_tree, options.limit);
     report.flame_graph.truncate(options.limit);
     if options.format == "json" {
@@ -1180,6 +1186,29 @@ fn render_text_report(
     println!("\nflame graph (folded stacks; weight = CPU sample count)");
     for stack in &report.flame_graph {
         println!("{} {}", stack.frames.join(";"), stack.samples);
+    }
+}
+
+fn limit_row_expansions(rows: &mut [terrane_compiler::profiling::AttributionRow], limit: usize) {
+    for row in rows {
+        row.generated.truncate(limit);
+        row.related_causes.truncate(limit);
+        row.native.truncate(limit);
+    }
+}
+
+fn relativize_native_modules(
+    rows: &mut [terrane_compiler::profiling::AttributionRow],
+    build_root: &Path,
+    recorded_build_root: &Path,
+) {
+    for native in rows.iter_mut().flat_map(|row| &mut row.native) {
+        let path = Path::new(&native.module);
+        if let Ok(relative) = path.strip_prefix(build_root) {
+            native.module = relative.display().to_string();
+        } else if let Ok(relative) = path.strip_prefix(recorded_build_root) {
+            native.module = relative.display().to_string();
+        }
     }
 }
 
@@ -1422,5 +1451,58 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         }
         assert_eq!(sample.stack.len(), MAX_STACK_DEPTH);
         assert_eq!(dropped_frames, 1);
+    }
+
+    #[test]
+    fn report_limits_bound_every_row_expansion_and_shorten_build_paths() {
+        use terrane_compiler::debugging::SourceSpan;
+        use terrane_compiler::profiling::{
+            AttributionQuality, AttributionRow, GeneratedConstituent, NativeConstituent,
+        };
+
+        let mut rows = vec![AttributionRow {
+            quality: AttributionQuality::NativeOnly,
+            label: "hot".to_owned(),
+            source: None,
+            related_causes: (0..3)
+                .map(|source_id| SourceSpan {
+                    source_id,
+                    start: 0,
+                    end: 1,
+                    line: 1,
+                    column: 1,
+                    end_line: 1,
+                    end_column: 2,
+                })
+                .collect(),
+            exclusive_samples: 1,
+            inclusive_samples: 1,
+            generated: (0..3)
+                .map(|line| GeneratedConstituent {
+                    path: "src/main.rs".to_owned(),
+                    line,
+                    start: 0,
+                    end: 1,
+                })
+                .collect(),
+            native: (0..3)
+                .map(|module_offset| NativeConstituent {
+                    module: "/build/artifacts/terrane-profile/program".to_owned(),
+                    module_offset,
+                    symbol: None,
+                })
+                .collect(),
+        }];
+
+        limit_row_expansions(&mut rows, 2);
+        relativize_native_modules(&mut rows, Path::new("/relocated"), Path::new("/build"));
+
+        assert_eq!(rows[0].generated.len(), 2);
+        assert_eq!(rows[0].related_causes.len(), 2);
+        assert_eq!(rows[0].native.len(), 2);
+        assert_eq!(
+            rows[0].native[0].module,
+            "artifacts/terrane-profile/program"
+        );
     }
 }
