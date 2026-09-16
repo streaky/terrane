@@ -396,6 +396,20 @@ impl Emitter<'_> {
         Some((rust_name(&binding.name), end))
     }
 
+    pub(super) fn fresh_lists_referenced_by(&self, node: &SyntaxNode) -> Vec<crate::Span> {
+        self.fresh_empty_lists
+            .iter()
+            .copied()
+            .filter(|span| {
+                self.unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == *span)
+                    .is_some_and(|binding| self.node_references_binding(node, binding))
+            })
+            .collect()
+    }
+
     pub(super) fn iterator_list_builder(
         &self,
         condition: &SyntaxNode,

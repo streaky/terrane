@@ -33,18 +33,7 @@ impl Emitter<'_> {
         ) {
             self.debug_point(node, "user");
         }
-        let referenced_fresh_lists = self
-            .fresh_empty_lists
-            .iter()
-            .copied()
-            .filter(|span| {
-                self.unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == *span)
-                    .is_some_and(|binding| self.node_references_binding(node, binding))
-            })
-            .collect::<Vec<_>>();
+        let referenced_fresh_lists = self.fresh_lists_referenced_by(node);
         match node.kind {
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {
