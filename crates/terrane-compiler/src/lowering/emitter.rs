@@ -160,7 +160,6 @@ pub(super) struct Emitter<'a> {
     list_append_borrows: Vec<ListAppendBorrow>,
     fresh_empty_lists: Vec<crate::Span>,
     debug_information: bool,
-    source_shaped_debug_lowering: bool,
 }
 
 impl<'a> Emitter<'a> {
@@ -169,7 +168,6 @@ impl<'a> Emitter<'a> {
         package: &'a SemanticPackage,
         unit: &'a SemanticUnit,
         debug_information: bool,
-        source_shaped_debug_lowering: bool,
     ) -> Self {
         Self {
             registry,
@@ -202,7 +200,6 @@ impl<'a> Emitter<'a> {
             list_append_borrows: Vec::new(),
             fresh_empty_lists: Vec::new(),
             debug_information,
-            source_shaped_debug_lowering,
         }
     }
 }

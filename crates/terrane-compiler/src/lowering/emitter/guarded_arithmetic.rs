@@ -117,9 +117,6 @@ impl Emitter<'_> {
         &self,
         node: &'a SyntaxNode,
     ) -> Option<GuardedAssignment<'a>> {
-        if self.source_shaped_debug_lowering {
-            return None;
-        }
         let [condition, then_block, else_clause] = node.children.as_slice() else {
             return None;
         };

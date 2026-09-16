@@ -259,7 +259,6 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 },
                 _ => terrane_compiler::DebugBuild::Disabled,
             },
-            source_shaped_debug_lowering: command == CliCommand::Debug,
         },
     ) {
         Ok(compilation) => compilation,

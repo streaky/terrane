@@ -680,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_metadata_does_not_require_source_shaped_lowering() {
+    fn debug_metadata_keeps_optimized_lowering() {
         let source = concat!(
             "namespace optimized-debug\n",
             "function main;\n",
@@ -701,18 +701,6 @@ mod tests {
         )
         .unwrap();
         assert!(optimized.rust.contains("__terrane_guarded_mask"));
-
-        let source_shaped = compile_with_options(
-            "source-shaped-debug.trn",
-            source.to_owned(),
-            CompilerOptions {
-                debug_build: crate::DebugBuild::ExternalSources,
-                source_shaped_debug_lowering: true,
-                ..CompilerOptions::default()
-            },
-        )
-        .unwrap();
-        assert!(!source_shaped.rust.contains("__terrane_guarded_mask"));
     }
 
     #[test]

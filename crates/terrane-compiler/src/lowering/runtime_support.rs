@@ -846,7 +846,7 @@ pub(super) fn emit_global_storage(
         else {
             continue;
         };
-        let emitter = Emitter::new(registry, package, unit, false, false);
+        let emitter = Emitter::new(registry, package, unit, false);
         let value_type = unit
             .typed_bindings
             .iter()
@@ -886,7 +886,7 @@ pub(super) fn emit_global_storage(
                 .iter()
                 .position(|child| child.span == initial_name.span)?;
             let initializer = binding_initializer(initial_node, name_index)?;
-            let mut initial_emitter = Emitter::new(registry, package, initial_unit, false, false);
+            let mut initial_emitter = Emitter::new(registry, package, initial_unit, false);
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
         });
         let initial = initial.map_or_else(|| "None".to_owned(), |value| format!("Some({value})"));
