@@ -140,10 +140,10 @@ fn contains_raw_capture(path: &Path) -> bool {
 fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
     let _serial = RealProfilerGuard::acquire();
     let directory = TemporaryDirectory::new();
-    if !perf_available(directory.path()) {
-        eprintln!("skipping real profiler evidence: Linux perf is unavailable to this account");
-        return;
-    }
+    assert!(
+        perf_available(directory.path()),
+        "Linux x86-64 profiling evidence requires an available perf collector"
+    );
     let source = directory.path().join("src/α.trn");
     fs::write(&source, workload(300_000_000, None)).unwrap();
     let slow = record(&directory, "slow.trnprof");
@@ -215,10 +215,10 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
 fn nonzero_workload_still_publishes_usable_capture() {
     let _serial = RealProfilerGuard::acquire();
     let directory = TemporaryDirectory::new();
-    if !perf_available(directory.path()) {
-        eprintln!("skipping real profiler evidence: Linux perf is unavailable to this account");
-        return;
-    }
+    assert!(
+        perf_available(directory.path()),
+        "Linux x86-64 profiling evidence requires an available perf collector"
+    );
     fs::write(
         directory.path().join("src/main.trn"),
         workload(50_000_000, Some(7)),
@@ -242,10 +242,10 @@ fn nonzero_workload_still_publishes_usable_capture() {
 fn interruption_forwards_to_the_workload_and_finalizes_the_capture() {
     let _serial = RealProfilerGuard::acquire();
     let directory = TemporaryDirectory::new();
-    if !perf_available(directory.path()) {
-        eprintln!("skipping real profiler evidence: Linux perf is unavailable to this account");
-        return;
-    }
+    assert!(
+        perf_available(directory.path()),
+        "Linux x86-64 profiling evidence requires an available perf collector"
+    );
     fs::write(
         directory.path().join("src/main.trn"),
         workload(100_000_000_000, None),

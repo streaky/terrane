@@ -12,7 +12,7 @@ use crate::rust_ir::RenderedFile;
 use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
-pub const SCHEMA_VERSION: &str = "1.2";
+pub const SCHEMA_VERSION: &str = "1.3";
 const DEBUG_MARKER: &str = "/* terrane-debug-point:";
 
 pub type DebugArtifactProfile = ArtifactProfile;

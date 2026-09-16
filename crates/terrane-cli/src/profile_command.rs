@@ -424,22 +424,20 @@ fn install_signal_flags() -> Result<SignalFlags, CliFailure> {
     ];
     #[cfg(not(unix))]
     let signal_numbers = [];
-    signal_numbers
-        .into_iter()
-        .map(|signal| {
-            let flag = Arc::new(AtomicBool::new(false));
-            let registration =
-                signal_hook::flag::register(signal, Arc::clone(&flag)).map_err(|error| {
-                    CliFailure::backend(format!("cannot install profiling signal handler: {error}"))
-                })?;
-            Ok(SignalFlag {
-                signal,
-                flag,
-                registration: Some(registration),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(SignalFlags)
+    let mut flags = SignalFlags(Vec::new());
+    for signal in signal_numbers {
+        let flag = Arc::new(AtomicBool::new(false));
+        let registration =
+            signal_hook::flag::register(signal, Arc::clone(&flag)).map_err(|error| {
+                CliFailure::backend(format!("cannot install profiling signal handler: {error}"))
+            })?;
+        flags.0.push(SignalFlag {
+            signal,
+            flag,
+            registration: Some(registration),
+        });
+    }
+    Ok(flags)
 }
 
 fn status_parts(status: ExitStatus) -> (Option<i32>, Option<i32>) {
@@ -527,6 +525,7 @@ fn parse_perf_script(
     let mut lost_events = 0_u64;
     let mut dropped_samples = 0_u64;
     let mut dropped_frames = 0_u64;
+    let mut retained_sample_bytes = 0_u64;
     let mut pending_inline = Vec::<PendingInlineFrame>::new();
     for line in script.lines() {
         if let Some(lost) = parse_lost_events(line) {
@@ -537,12 +536,13 @@ fn parse_perf_script(
             dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
             pending_inline.clear();
             if let Some(sample) = current.take() {
-                samples.push(sample);
-            }
-            if samples.len() == MAX_CAPTURED_SAMPLES {
-                dropped_samples = dropped_samples.saturating_add(1);
-                current = None;
-                continue;
+                retain_sample(
+                    sample,
+                    &mut samples,
+                    &mut retained_sample_bytes,
+                    &mut dropped_samples,
+                    (MAX_CAPTURED_SAMPLES, MAX_ARTIFACT_BYTES),
+                )?;
             }
             current = Some(parse_sample_header(line)?);
             continue;
@@ -565,6 +565,7 @@ fn parse_perf_script(
                     &executable,
                     executable_hash,
                 );
+                let is_profiled_executable = modules[module].is_profiled_executable;
                 for inline in pending_inline.drain(..) {
                     if inline.instruction == frame.instruction {
                         push_native_frame(
@@ -574,7 +575,9 @@ fn parse_perf_script(
                                 module_offset: frame.module_offset,
                                 symbol: inline.symbol,
                                 symbol_offset: inline.symbol_offset,
-                                generated_location: inline.generated_location,
+                                generated_location: inline
+                                    .generated_location
+                                    .filter(|_| is_profiled_executable),
                                 inline: true,
                             },
                             &mut dropped_frames,
@@ -602,7 +605,9 @@ fn parse_perf_script(
                         if let Some(frame) = pending_inline.last_mut() {
                             frame.generated_location = Some(location);
                         }
-                    } else if let Some(frame) = sample.stack.last_mut() {
+                    } else if let Some(frame) = sample.stack.last_mut()
+                        && modules[frame.module].is_profiled_executable
+                    {
                         frame.generated_location = Some(location);
                     }
                 }
@@ -611,7 +616,13 @@ fn parse_perf_script(
     }
     dropped_frames = dropped_frames.saturating_add(pending_inline.len() as u64);
     if let Some(sample) = current {
-        samples.push(sample);
+        retain_sample(
+            sample,
+            &mut samples,
+            &mut retained_sample_bytes,
+            &mut dropped_samples,
+            (MAX_CAPTURED_SAMPLES, MAX_ARTIFACT_BYTES),
+        )?;
     }
     for sample in &mut samples {
         if sample.stack.is_empty() {
@@ -637,6 +648,45 @@ fn parse_perf_script(
         dropped_samples,
         dropped_frames,
     })
+}
+#[derive(Default)]
+struct ByteCounter(u64);
+
+impl std::io::Write for ByteCounter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.0 = self
+            .0
+            .checked_add(buffer.len() as u64)
+            .ok_or_else(|| std::io::Error::other("profile sample size overflow"))?;
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn retain_sample(
+    sample: CpuSample,
+    samples: &mut Vec<CpuSample>,
+    retained_bytes: &mut u64,
+    dropped_samples: &mut u64,
+    limits: (usize, u64),
+) -> Result<(), String> {
+    let mut counter = ByteCounter::default();
+    serde_json::to_writer(&mut counter, &sample)
+        .map_err(|error| format!("cannot measure captured CPU sample: {error}"))?;
+    let next_bytes = retained_bytes
+        .checked_add(counter.0)
+        .and_then(|bytes| bytes.checked_add(u64::from(!samples.is_empty())))
+        .ok_or_else(|| "profile sample size overflow".to_owned())?;
+    if samples.len() == limits.0 || next_bytes > limits.1 {
+        *dropped_samples = dropped_samples.saturating_add(1);
+    } else {
+        samples.push(sample);
+        *retained_bytes = next_bytes;
+    }
+    Ok(())
 }
 
 fn parse_sample_header(line: &str) -> Result<CpuSample, String> {
@@ -849,7 +899,7 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         "reduced-native".clone_into(&mut report.fidelity);
         report.fidelity_reasons.push(reason);
     }
-    validate_captured_modules(&artifact, executable, &mut report);
+    validate_captured_modules(&artifact, &mut report);
     if let Some((path, line)) = &options.focus {
         report.rows.retain(|row| {
             row.source.as_ref().is_some_and(|source| {
@@ -863,12 +913,7 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .iter()
             .map(|row| row.label.as_str())
             .collect::<std::collections::BTreeSet<_>>();
-        report.call_tree.retain(|stack| {
-            stack
-                .frames
-                .iter()
-                .any(|frame| labels.contains(frame.as_str()))
-        });
+        retain_call_tree(&mut report.call_tree, &labels);
         report.flame_graph.retain(|stack| {
             stack
                 .frames
@@ -877,7 +922,7 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         });
     }
     report.rows.truncate(options.limit);
-    report.call_tree.truncate(options.limit);
+    limit_call_tree(&mut report.call_tree, options.limit);
     report.flame_graph.truncate(options.limit);
     if options.format == "json" {
         let mut output_report = report.clone();
@@ -912,29 +957,24 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 }
 fn validate_captured_modules(
     artifact: &ProfileArtifact,
-    relocated_executable: &Path,
     report: &mut terrane_compiler::profiling::AttributionReport,
 ) {
     for module in &artifact.evidence.modules {
-        if module.content_hash == "unavailable" {
+        if module.is_profiled_executable || module.content_hash == "unavailable" {
             continue;
         }
-        let path = if module.is_profiled_executable {
-            relocated_executable
-        } else {
-            Path::new(&module.path)
-        };
+        let path = Path::new(&module.path);
         let matches = fs::read(path).is_ok_and(|bytes| hash_bytes(&bytes) == module.content_hash);
         if !matches {
-            "reduced-native".clone_into(&mut report.fidelity);
-            report.fidelity_reasons.push(format!(
-                "captured module `{}` is missing or changed",
+            "reduced-native-modules".clone_into(&mut report.native_fidelity);
+            report.native_fidelity_reasons.push(format!(
+                "captured external module `{}` is missing or changed",
                 module.path
             ));
         }
     }
-    report.fidelity_reasons.sort();
-    report.fidelity_reasons.dedup();
+    report.native_fidelity_reasons.sort();
+    report.native_fidelity_reasons.dedup();
 }
 
 fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
@@ -1030,14 +1070,18 @@ fn render_text_report(
         elapsed_milliseconds
     );
     println!(
-        "collector: {} {}; build: {}; fidelity: {}",
+        "collector: {} {}; build: {}; source fidelity: {}; native fidelity: {}",
         artifact.collector.name,
         artifact.collector.version,
         artifact.provenance.artifact_profile,
-        report.fidelity
+        report.fidelity,
+        report.native_fidelity
     );
     for reason in &report.fidelity_reasons {
-        println!("  fidelity: {reason}");
+        println!("  source fidelity: {reason}");
+    }
+    for reason in &report.native_fidelity_reasons {
+        println!("  native fidelity: {reason}");
     }
     println!("\nexclusive accounting (CPU sample count)");
     for quality in [
@@ -1073,6 +1117,18 @@ fn render_text_report(
                 );
             }
         }
+        for cause in &row.related_causes {
+            let uri = artifact
+                .source_attribution
+                .sources
+                .iter()
+                .find(|source| source.id == cause.source_id)
+                .map_or("<unknown source>", |source| source.uri.as_str());
+            println!(
+                "    related {uri}:{}:{} bytes {}..{}",
+                cause.line, cause.column, cause.start, cause.end
+            );
+        }
         if options.native {
             for native in &row.native {
                 println!(
@@ -1085,12 +1141,34 @@ fn render_text_report(
         }
     }
     println!("\ncall tree (inclusive CPU sample count; root to leaf)");
-    for stack in &report.call_tree {
-        println!("{:>9}  {}", stack.samples, stack.frames.join(" -> "));
-    }
+    render_call_tree(&report.call_tree, 0);
     println!("\nflame graph (folded stacks; weight = CPU sample count)");
     for stack in &report.flame_graph {
         println!("{} {}", stack.frames.join(";"), stack.samples);
+    }
+}
+
+fn retain_call_tree(
+    nodes: &mut Vec<terrane_compiler::profiling::CallTreeNode>,
+    labels: &std::collections::BTreeSet<&str>,
+) {
+    nodes.retain_mut(|node| {
+        retain_call_tree(&mut node.children, labels);
+        labels.contains(node.label.as_str()) || !node.children.is_empty()
+    });
+}
+
+fn limit_call_tree(nodes: &mut Vec<terrane_compiler::profiling::CallTreeNode>, limit: usize) {
+    nodes.truncate(limit);
+    for node in nodes {
+        limit_call_tree(&mut node.children, limit);
+    }
+}
+
+fn render_call_tree(nodes: &[terrane_compiler::profiling::CallTreeNode], depth: usize) {
+    for node in nodes {
+        println!("{:>9}  {}{}", node.samples, "  ".repeat(depth), node.label);
+        render_call_tree(&node.children, depth + 1);
     }
 }
 
@@ -1195,7 +1273,7 @@ mod tests {
 \t    400123 inline_parent+0x1 (/tmp/program+0x123)\n\
   /tmp/build/src/main.rs:12\n\
 \t    7f00 [unknown] (/usr/lib/libc.so.6+0x100)\n\
-  ??:0\n\n\
+  /usr/lib/libc.c:99\n\n\
 PERF_RECORD_LOST 1 LOST 37 events\n";
         let evidence = parse_perf_script(
             script,
@@ -1221,6 +1299,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         );
         assert!(evidence.samples[0].stack[0].inline);
         assert!(!evidence.samples[0].stack[1].inline);
+        assert!(evidence.samples[0].stack[2].generated_location.is_none());
         assert_eq!(evidence.modules[0].build_id, "program-id");
         assert!(evidence.modules[0].is_profiled_executable);
     }
@@ -1254,5 +1333,59 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         assert!(options.generated);
         assert!(options.native);
         assert_eq!(options.limit, 7);
+    }
+
+    #[test]
+    fn sample_and_frame_limits_have_independent_loss_counts() {
+        let sample = parse_sample_header("1/1 1.0: cpu-clock:u:").unwrap();
+        let mut samples = Vec::new();
+        let mut retained_bytes = 0;
+        let mut dropped_samples = 0;
+        retain_sample(
+            sample.clone(),
+            &mut samples,
+            &mut retained_bytes,
+            &mut dropped_samples,
+            (1, u64::MAX),
+        )
+        .unwrap();
+        retain_sample(
+            sample,
+            &mut samples,
+            &mut retained_bytes,
+            &mut dropped_samples,
+            (1, u64::MAX),
+        )
+        .unwrap();
+
+        let mut byte_limited = Vec::new();
+        let mut byte_count = 0;
+        retain_sample(
+            parse_sample_header("1/1 1.0: cpu-clock:u:").unwrap(),
+            &mut byte_limited,
+            &mut byte_count,
+            &mut dropped_samples,
+            (usize::MAX, 0),
+        )
+        .unwrap();
+        assert!(byte_limited.is_empty());
+        assert_eq!(dropped_samples, 2);
+        assert_eq!(samples.len(), 1);
+
+        let mut sample = samples.pop().unwrap();
+        let frame = NativeFrame {
+            module: 0,
+            module_offset: 0,
+            symbol: None,
+            symbol_offset: None,
+            generated_location: None,
+            inline: false,
+        };
+        let mut dropped_frames = 0;
+        for _ in 0..=MAX_STACK_DEPTH {
+            push_native_frame(&mut sample, frame.clone(), &mut dropped_frames);
+        }
+        assert_eq!(sample.stack.len(), MAX_STACK_DEPTH);
+        assert_eq!(dropped_frames, 1);
     }
 }

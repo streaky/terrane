@@ -344,6 +344,13 @@ pub struct WeightedStack {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CallTreeNode {
+    pub label: String,
+    pub samples: u64,
+    pub children: Vec<CallTreeNode>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AttributionReport {
     pub captured_samples: u64,
     pub lost_samples: u64,
@@ -351,9 +358,11 @@ pub struct AttributionReport {
     pub dropped_frames: u64,
     pub buckets: BTreeMap<AttributionQuality, u64>,
     pub rows: Vec<AttributionRow>,
-    pub call_tree: Vec<WeightedStack>,
+    pub call_tree: Vec<CallTreeNode>,
     pub flame_graph: Vec<WeightedStack>,
     pub fidelity: String,
+    pub native_fidelity: String,
+    pub native_fidelity_reasons: Vec<String>,
     pub fidelity_reasons: Vec<String>,
 }
 
@@ -485,10 +494,8 @@ fn finish_report(
             .then_with(|| right.inclusive_samples.cmp(&left.inclusive_samples))
             .then_with(|| left.label.cmp(&right.label))
     });
-    let weighted_stacks = stacks
-        .into_iter()
-        .map(|(frames, samples)| WeightedStack { frames, samples })
-        .collect::<Vec<_>>();
+    let weighted_stacks = build_weighted_stacks(&stacks);
+    let call_tree = build_call_tree(&stacks);
     AttributionReport {
         captured_samples: artifact.evidence.loss.captured_events,
         lost_samples: artifact.evidence.loss.lost_events,
@@ -496,7 +503,7 @@ fn finish_report(
         dropped_frames: artifact.evidence.loss.dropped_frames,
         buckets,
         rows,
-        call_tree: weighted_stacks.clone(),
+        call_tree,
         flame_graph: weighted_stacks,
         fidelity: if fidelity_reasons.is_empty() {
             "exact-build-source".to_owned()
@@ -504,7 +511,63 @@ fn finish_report(
             "reduced-native".to_owned()
         },
         fidelity_reasons,
+        native_fidelity: "exact-modules".to_owned(),
+        native_fidelity_reasons: Vec::new(),
     }
+}
+
+#[derive(Default)]
+struct CallTreeAccumulator {
+    samples: u64,
+    children: BTreeMap<String, CallTreeAccumulator>,
+}
+
+fn build_weighted_stacks(stacks: &BTreeMap<Vec<String>, u64>) -> Vec<WeightedStack> {
+    let mut weighted_stacks = stacks
+        .iter()
+        .map(|(frames, samples)| WeightedStack {
+            frames: frames.clone(),
+            samples: *samples,
+        })
+        .collect::<Vec<_>>();
+    weighted_stacks.sort_by(|left, right| {
+        right
+            .samples
+            .cmp(&left.samples)
+            .then_with(|| left.frames.cmp(&right.frames))
+    });
+    weighted_stacks
+}
+
+fn build_call_tree(stacks: &BTreeMap<Vec<String>, u64>) -> Vec<CallTreeNode> {
+    let mut roots = BTreeMap::<String, CallTreeAccumulator>::new();
+    for (frames, samples) in stacks {
+        let mut level = &mut roots;
+        for frame in frames {
+            let node = level.entry(frame.clone()).or_default();
+            node.samples = node.samples.saturating_add(*samples);
+            level = &mut node.children;
+        }
+    }
+    finish_call_tree(roots)
+}
+
+fn finish_call_tree(nodes: BTreeMap<String, CallTreeAccumulator>) -> Vec<CallTreeNode> {
+    let mut nodes = nodes
+        .into_iter()
+        .map(|(label, node)| CallTreeNode {
+            label,
+            samples: node.samples,
+            children: finish_call_tree(node.children),
+        })
+        .collect::<Vec<_>>();
+    nodes.sort_by(|left, right| {
+        right
+            .samples
+            .cmp(&left.samples)
+            .then_with(|| left.label.cmp(&right.label))
+    });
+    nodes
 }
 
 fn validate_attribution_inputs(
@@ -595,25 +658,32 @@ fn classify_frame(
             native,
         };
     };
-    let Some(file) = artifact
-        .source_attribution
-        .generated_files
-        .iter()
-        .find(|file| Path::new(&location.path).ends_with(&file.path))
-    else {
-        return FrameAttribution {
-            key: RowKey {
-                quality: AttributionQuality::NativeOnly,
-                label: frame
-                    .symbol
-                    .clone()
-                    .unwrap_or_else(|| location.path.clone()),
-                source: None,
-            },
-            related_causes: Vec::new(),
-            generated: Vec::new(),
-            native,
-        };
+    let file = match resolve_generated_file(
+        &artifact.source_attribution.generated_files,
+        &location.path,
+    ) {
+        Ok(Some(file)) => file,
+        Ok(None) => {
+            return FrameAttribution {
+                key: RowKey {
+                    quality: AttributionQuality::NativeOnly,
+                    label: frame
+                        .symbol
+                        .clone()
+                        .unwrap_or_else(|| location.path.clone()),
+                    source: None,
+                },
+                related_causes: Vec::new(),
+                generated: Vec::new(),
+                native,
+            };
+        }
+        Err(()) => {
+            return unavailable_attribution_with_native(
+                format!("<ambiguous generated source {}>", location.path),
+                native,
+            );
+        }
     };
     if !valid_generated.contains(&file.path) {
         return unavailable_attribution_with_native(
@@ -622,6 +692,23 @@ fn classify_frame(
         );
     }
     association_attribution(artifact, file, location.line, native, valid_sources)
+}
+
+fn resolve_generated_file<'a>(
+    files: &'a [GeneratedFileIdentity],
+    captured_path: &str,
+) -> Result<Option<&'a GeneratedFileIdentity>, ()> {
+    let captured = Path::new(captured_path);
+    if let Some(exact) = files.iter().find(|file| captured == Path::new(&file.path)) {
+        return Ok(Some(exact));
+    }
+    let mut suffixes = files.iter().filter(|file| captured.ends_with(&file.path));
+    let first = suffixes.next();
+    if suffixes.next().is_some() {
+        Err(())
+    } else {
+        Ok(first)
+    }
 }
 
 fn association_attribution(
@@ -1016,7 +1103,6 @@ mod tests {
         });
 
         let report = attribute(&artifact, Path::new("/missing"), Path::new("/missing"));
-
         assert_eq!(report.captured_samples, 1);
         assert_eq!(report.buckets[&AttributionQuality::SharedOrAmbiguous], 1);
         assert_eq!(report.buckets.values().sum::<u64>(), 1);
@@ -1039,10 +1125,71 @@ mod tests {
         assert_eq!(authored.exclusive_samples, 1);
         assert_eq!(authored.inclusive_samples, 1);
 
+        artifact.source_attribution.generated_files[0].associations[0].role =
+            ProvenanceRole::Runtime;
+        let runtime = attribute(&artifact, Path::new("/relocated"), Path::new("/relocated"));
+        assert_eq!(runtime.buckets[&AttributionQuality::RuntimeAssociated], 1);
+
+        let association = artifact.source_attribution.generated_files[0].associations[0].clone();
+        artifact.source_attribution.generated_files[0]
+            .associations
+            .clear();
+        let generated = attribute(&artifact, Path::new("/relocated"), Path::new("/relocated"));
+        assert_eq!(generated.buckets[&AttributionQuality::GeneratedOnly], 1);
+        artifact.source_attribution.generated_files[0]
+            .associations
+            .push(association);
+
         artifact.source_attribution.sources[0].embedded_source = None;
         artifact.source_attribution.generated_files[0].embedded_source = None;
         let stale = attribute(&artifact, Path::new("/missing"), Path::new("/missing"));
         assert_eq!(stale.buckets[&AttributionQuality::Unavailable], 1);
         assert_eq!(stale.fidelity, "reduced-native");
+    }
+
+    #[test]
+    fn generated_file_resolution_rejects_ambiguous_suffixes() {
+        let generated_files = vec![
+            GeneratedFileIdentity {
+                path: "src/main.rs".to_owned(),
+                content_hash: String::new(),
+                embedded_source: None,
+                associations: Vec::new(),
+            },
+            GeneratedFileIdentity {
+                path: "generated/src/main.rs".to_owned(),
+                content_hash: String::new(),
+                embedded_source: None,
+                associations: Vec::new(),
+            },
+        ];
+        assert!(resolve_generated_file(&generated_files, "/build/generated/src/main.rs").is_err());
+        assert_eq!(
+            resolve_generated_file(&generated_files, "/build/src/main.rs")
+                .unwrap()
+                .unwrap()
+                .path,
+            "src/main.rs"
+        );
+    }
+
+    #[test]
+    fn call_tree_is_hierarchical_and_weight_ordered() {
+        let stacks = BTreeMap::from([
+            (vec!["root".to_owned(), "cold".to_owned()], 2),
+            (vec!["root".to_owned(), "hot".to_owned()], 7),
+            (vec!["other".to_owned()], 3),
+        ]);
+
+        let tree = build_call_tree(&stacks);
+        assert_eq!(tree[0].label, "root");
+        assert_eq!(tree[0].samples, 9);
+        assert_eq!(tree[0].children[0].label, "hot");
+        assert_eq!(tree[0].children[0].samples, 7);
+
+        let weighted = build_weighted_stacks(&stacks);
+        assert_eq!(weighted[0].samples, 7);
+        assert_eq!(weighted[1].samples, 3);
+        assert_eq!(weighted[2].samples, 2);
     }
 }
