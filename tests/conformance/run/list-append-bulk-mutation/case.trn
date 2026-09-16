@@ -49,6 +49,10 @@ function validate-throw;
   catch arithmetic-overflow
     print; >throw-caught
 
+function observe-prefix int64; value int64
+  print; value
+  return value
+
 function main;
   validate-large-literal; false
   values list of int64 = list
@@ -186,6 +190,49 @@ function main;
     mapped.append; mapped-value * mapped-value
     mapped-index++
   print; mapped.length, mapped[3], mapped-index
+
+  mutated-before-builder list of int64 = list
+  mutated-before-builder.append; 7
+  mutated-index int64 = 0
+  while mutated-index < 2
+    mutated-before-builder.append; mutated-index
+    mutated-index++
+  print; mutated-before-builder.length, mutated-before-builder[0], mutated-before-builder[2]
+
+  reassigned-before-builder list of int64 = list
+  replacement list of int64 = list; 8
+  reassigned-before-builder = replacement
+  reassigned-index int64 = 0
+  while reassigned-index < 2
+    reassigned-before-builder.append; reassigned-index
+    reassigned-index++
+  print; reassigned-before-builder.length, reassigned-before-builder[0], reassigned-before-builder[2]
+
+  dynamically-reentered list of int64 = list
+  outer-builder-index int64 = 0
+  while outer-builder-index < 3
+    observed-length = dynamically-reentered.length
+    inner-builder-index int64 = 0
+    while inner-builder-index < 2
+      dynamically-reentered.append; inner-builder-index
+      inner-builder-index++
+    outer-builder-index++
+  print; dynamically-reentered.length
+
+  prefix-effects list of int64 = list
+  prefix-index int64 = 0
+  while prefix-index < 3
+    prefix-value int64 = observe-prefix; prefix-index
+    prefix-effects.append; prefix-value
+    prefix-index++
+  print; prefix-effects.length, prefix-effects[2], prefix-index
+
+  fallback list of int64 = list
+  fallback-index int64 = 0
+  while fallback-index < 5
+    fallback.append; fallback-index
+    fallback-index++
+  print; fallback.length, fallback[4], fallback-index
 
   print; (validate-return;)
   validate-throw;

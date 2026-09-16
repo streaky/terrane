@@ -397,6 +397,17 @@ impl Emitter<'_> {
     }
 
     pub(super) fn fresh_lists_referenced_by(&self, node: &SyntaxNode) -> Vec<crate::Span> {
+        fn uses_binding(emitter: &Emitter<'_>, node: &SyntaxNode, binding: &TypedBinding) -> bool {
+            (node.kind == SyntaxKind::Name
+                && emitter
+                    .local_typed_binding(node)
+                    .is_some_and(|resolved| resolved.span == binding.span))
+                || node
+                    .children
+                    .iter()
+                    .any(|child| uses_binding(emitter, child, binding))
+        }
+
         self.fresh_empty_lists
             .iter()
             .copied()
@@ -405,7 +416,7 @@ impl Emitter<'_> {
                     .typed_bindings
                     .iter()
                     .find(|binding| binding.span == *span)
-                    .is_some_and(|binding| self.node_references_binding(node, binding))
+                    .is_some_and(|binding| uses_binding(self, node, binding))
             })
             .collect()
     }
@@ -465,7 +476,6 @@ impl Emitter<'_> {
             || !self.expression_throws_synchronously(block))
         .then_some(())?;
         Some(IteratorListBuilder {
-            fresh: self.fresh_empty_lists.contains(&binding),
             binding,
             index,
             end,

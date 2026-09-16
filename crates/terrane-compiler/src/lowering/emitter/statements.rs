@@ -13,6 +13,19 @@ impl Emitter<'_> {
         self.line(&format!("{expression};"));
     }
 
+    fn statement_fresh_list_references(&mut self, node: &SyntaxNode) -> Vec<crate::Span> {
+        let referenced = self.fresh_lists_referenced_by(node);
+        if node.kind == SyntaxKind::ForStatement {
+            self.invalidate_fresh_lists(&referenced);
+        }
+        referenced
+    }
+
+    fn invalidate_fresh_lists(&mut self, referenced: &[crate::Span]) {
+        self.fresh_empty_lists
+            .retain(|binding| !referenced.contains(binding));
+    }
+
     pub(super) fn statement(&mut self, node: &SyntaxNode) {
         if matches!(
             node.kind,
@@ -33,7 +46,7 @@ impl Emitter<'_> {
         ) {
             self.debug_point(node, "user");
         }
-        let referenced_fresh_lists = self.fresh_lists_referenced_by(node);
+        let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {
@@ -112,8 +125,7 @@ impl Emitter<'_> {
             }
             _ => {}
         }
-        self.fresh_empty_lists
-            .retain(|binding| !referenced_fresh_lists.contains(binding));
+        self.invalidate_fresh_lists(&referenced_fresh_lists);
     }
 
     pub(super) fn collection_mutation_statement(&mut self, node: &SyntaxNode) -> Option<String> {
@@ -1327,7 +1339,6 @@ impl Emitter<'_> {
         let Some(builder) = self.iterator_list_builder(condition, block) else {
             return false;
         };
-        debug_assert!(builder.fresh);
         let prior_borrow_count = self.begin_list_append_region(vec![builder.binding], None);
         let vector = self
             .list_append_borrows
@@ -1385,7 +1396,7 @@ impl Emitter<'_> {
         self.line("} else {");
         self.indent += 1;
         self.line(&format!("{vector}.reserve({capacity_limit});"));
-        self.block(block);
+        self.emit_ordinary_while_loop(condition, block, Vec::new(), None);
         self.indent -= 1;
         self.line("}");
         self.line(&format!("let _ = &{};", builder.index));
@@ -1400,15 +1411,26 @@ impl Emitter<'_> {
         if self.emit_iterator_list_builder(condition, block) {
             return;
         }
-        let bounded_range = self.bounded_integer_range(condition, block);
-        let has_bounded_range = bounded_range.is_some();
+        let referenced_fresh_lists = self.fresh_lists_referenced_by(node);
+        self.invalidate_fresh_lists(&referenced_fresh_lists);
         let append_bindings = self.inactive_list_append_bindings(condition, block);
         let capacity_hint = (!append_bindings.is_empty())
             .then(|| self.while_capacity_hint(condition, block))
             .flatten();
+        self.emit_ordinary_while_loop(condition, block, append_bindings, capacity_hint.as_ref());
+    }
+
+    fn emit_ordinary_while_loop(
+        &mut self,
+        condition: &SyntaxNode,
+        block: &SyntaxNode,
+        append_bindings: Vec<crate::Span>,
+        capacity_hint: Option<&(String, String)>,
+    ) {
+        let bounded_range = self.bounded_integer_range(condition, block);
+        let has_bounded_range = bounded_range.is_some();
         let condition = self.control_condition(condition);
-        let prior_borrow_count =
-            self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
+        let prior_borrow_count = self.begin_list_append_region(append_bindings, capacity_hint);
         let header = if condition == "true" {
             "loop {".to_owned()
         } else {

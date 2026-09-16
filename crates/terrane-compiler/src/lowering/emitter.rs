@@ -121,7 +121,6 @@ pub(super) struct IteratorListBuilder {
     pub(super) end: String,
     pub(super) prefix: Vec<crate::syntax::SyntaxNode>,
     pub(super) append: crate::syntax::SyntaxNode,
-    pub(super) fresh: bool,
     pub(super) value: crate::syntax::SyntaxNode,
 }
 

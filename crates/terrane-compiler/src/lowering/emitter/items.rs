@@ -1596,6 +1596,7 @@ impl<'a> Emitter<'a> {
         receiver: Option<&str>,
         name_override: Option<&str>,
     ) {
+        self.fresh_empty_lists.clear();
         let contract = self
             .unit
             .functions
