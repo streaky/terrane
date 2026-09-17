@@ -1,16 +1,20 @@
 reviewed-against = "projection schema 45; variadic contracts, structural call bindings, complete supertrait identities, final-admission bound filtering, and call-site generic specialization are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
-build-toolchain = "1.93.0"
-rustdoc-toolchain = "nightly-2026-07-06"
+build-toolchain = "1.98.1"
+rustdoc-toolchain = "nightly-2026-04-29"
 rustdoc-format = 57
 
 [cost]
-observed-on = "2026-09-15"
+observed-on = "2026-09-17"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
-method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust"
-cold-wall-seconds = 58.940
-warm-wall-seconds = 0.720
+method = "fresh target/debug/terrane check package.toml in a disposable fixture copy; cold removes the copied project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust package.toml"
+compiler-revision = "d38d3ef2a7684c0e6465c69a2cc645855d7f4823"
+compiler-binary-sha256 = "57d91d860362db5f121884f2450a1253efe5bf47f06be150fdcfada93be908ee"
+package-manifest-sha256 = "3f60295ea24d94202d07c7285f4c1eaeabc41f5191efbcac8738eb6b46b0cd8c"
+resolved-cargo-lock-sha256 = "53966f2e578a164d919759e7cfc478614cdc224698721304f0ef75482b68c52e"
+cold-wall-seconds = 49.499
+warm-wall-seconds = 0.451
 generated-rust-lines = 579
 generated-rust-bytes = 19497
 
