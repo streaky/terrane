@@ -1027,7 +1027,13 @@ impl Emitter<'_> {
         else {
             return;
         };
-        let name = rust_name(self.text(name_node));
+        let source_name = self.text(name_node);
+        let discard = source_name == "_";
+        let name = if discard {
+            "_".to_owned()
+        } else {
+            rust_name(source_name)
+        };
         let binding = self
             .unit
             .typed_bindings
@@ -1077,6 +1083,9 @@ impl Emitter<'_> {
                     )
             });
         self.line_start();
+        if discard {
+            self.output.push_str("{ ");
+        }
         self.output.push_str("let ");
         if mutable {
             self.output.push_str("mut ");
@@ -1105,8 +1114,14 @@ impl Emitter<'_> {
             };
             write!(self.output, " = {value}").unwrap();
         }
-        self.output.push_str(";\n");
-        if initializer.is_some() && !binding_store_value_is_read(self.package, node.span, node.span)
+        if discard {
+            self.output.push_str("; }\n");
+        } else {
+            self.output.push_str(";\n");
+        }
+        if !discard
+            && initializer.is_some()
+            && !binding_store_value_is_read(self.package, node.span, node.span)
         {
             let borrow = if mutable { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));

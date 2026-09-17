@@ -1140,6 +1140,7 @@ W4002 initial or later store cannot reach a read before definite replacement
 W4003 duplicate semantic union arm
 W4004 namespace-wide import shadows, replaces, or is skipped for a different visible object
 W4005 authored top-level function is never referenced
+W4006 underscore-prefixed binding marked intentionally unused is read
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error

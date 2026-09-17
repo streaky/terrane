@@ -1,0 +1,15 @@
+namespace app
+
+from /core/output import print
+from /deps/terrane-discard-witness import Probe, probe
+
+function main;
+  _ = probe; 'untyped'
+  print; 'after-untyped'
+  _ Probe = probe; 'typed'
+  print; 'after-typed'
+  _guard = probe; 'retained'
+  print; 'after-retained'
+  _used = 7
+  print; _used
+  print; _used

@@ -656,22 +656,12 @@
   "projection_schema": "45",
   "content_hash": "f0e3996b285a67fe7d87ecc2b5cb3716657b75422835c34adae8759d3e3a8e9d",
   "resolution": {
-    "outcome": "LocalRustdoc",
+    "outcome": "ExactCache",
     "events": [
       {
-        "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
-      },
-      {
-        "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
-      },
-      {
-        "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `2e16ec87be4831c1f145eaff15882eaf46d1fbc6e8cd45d10e3a467f270ebca6`"
       }
     ]
   }

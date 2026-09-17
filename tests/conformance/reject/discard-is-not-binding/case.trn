@@ -1,0 +1,5 @@
+namespace discard-is-not-binding
+
+function main;
+  _ = 1
+  print; _

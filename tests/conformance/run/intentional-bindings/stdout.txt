@@ -1,0 +1,11 @@
+make untyped
+drop untyped
+after-untyped
+make typed
+drop typed
+after-typed
+make retained
+after-retained
+7
+7
+drop retained

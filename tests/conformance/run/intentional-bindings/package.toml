@@ -1,0 +1,9 @@
+package = "intentional-bindings"
+executor = "cooperative"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-discard-witness]
+version = "=0.1.0"
+effects = ["build"]

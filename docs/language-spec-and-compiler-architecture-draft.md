@@ -1926,6 +1926,18 @@ result task-struct|none
 
 An initialized typed binding is immediately available. Outside class field declarations, a typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error. Class fields instead follow the canonical-default rule in §18.1 because every fresh instance begins with complete field state.
 
+The bare spelling `_` is a discard binding, not a readable name. `_ = expression` and
+`_ T = expression` require an initializer and accept no visibility, storage, or mutability
+qualifier. They evaluate the expression exactly once, use `T` as the destination where supplied,
+create no binding, and release the resulting value at the end of that statement before the next
+statement begins. Binding-use and dead-store warnings do not apply because there is no stored value.
+
+A longer identifier beginning with `_` is an ordinary lexical binding. It owns its value until its
+normal scope endpoint and participates in move, cleanup, and lifetime analysis normally. `W4001` is
+suppressed because the spelling marks an intentionally unread value. The first read emits `W4006`
+and suggests removing the leading underscore, because the name's stated intent no longer matches
+its use.
+
 A declaration's initializer resolves names against the scope as it stands immediately before that declaration. The name being declared is therefore not in scope from its own initializer. Where nothing else binds that name, reading it — directly, or indirectly through a called function — is a compile-time error naming the absent binding, rather than a read of uninitialized storage. Namespace binding initialization dependencies, including dependencies reached through called functions and later namespace-level assignments folded into initialization, must be acyclic. The compiler rejects a statically provable cycle before lowering; it must not defer the cycle to backend initialization machinery.
 
 Where the name *is* already bound in that same lexical scope, the initializer reads the earlier binding and the declaration replaces it:
@@ -5785,11 +5797,14 @@ exactly.
 
 Binding-use analysis is resolved by declaration identity and recorded once per semantic unit, so
 shadowing does not merge unrelated bindings and later lowering does not repeatedly scan whole
-syntax trees. `W4001` reports an initialized local binding whose value is never read. `W4002`
-reports an initial or later assignment whose stored value cannot reach a subsequent read before a
-definite replacement. Conditional stores do not by themselves kill the incoming value. Parameters
-do not receive unused-binding warnings: an unused parameter can be required by a callable contract,
-and parameter-name linting belongs to a later explicit policy rather than these local-store
+syntax trees. `W4001` reports an initialized local binding whose value is never read, except that
+an underscore-prefixed name explicitly marks the binding as intentionally unread and suppresses
+the warning. Bare `_` is a discard and creates no binding or store to diagnose. `W4002` reports an
+initial or later assignment whose stored value cannot reach a subsequent read before a definite
+replacement. Conditional stores do not by themselves kill the incoming value. The first read of
+an underscore-prefixed retained binding emits `W4006` and suggests removing the leading underscore.
+Parameters do not receive unused-binding warnings: an unused parameter can be required by a callable
+contract, and parameter-name linting belongs to a later explicit policy rather than these local-store
 diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explicitly consumes unused
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
 opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic

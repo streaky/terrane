@@ -1113,7 +1113,8 @@ pub struct TypedBinding {
 
 impl TypedBinding {
     pub(crate) fn is_visible_at(&self, file: u32, position: usize) -> bool {
-        self.span.file == file
+        self.name != "_"
+            && self.span.file == file
             && self.visible_from <= position
             && self.scope.is_none_or(|scope| position <= scope.end)
     }

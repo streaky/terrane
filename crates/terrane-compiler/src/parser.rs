@@ -410,9 +410,19 @@ impl Parser<'_> {
             self.error_here("S1029", "visibility must precede binding qualifiers");
             children.push(self.leaf(SyntaxKind::Visibility));
         }
+        let discard = self.at(TokenKind::Identifier) && self.text() == "_";
+        let mut discard_span = None;
         if self.at(TokenKind::Identifier) {
+            if discard && (!qualifiers.is_empty() || !children.is_empty()) {
+                self.error_here(
+                    "S1098",
+                    "`_` discard bindings cannot have visibility or storage qualifiers",
+                );
+            }
             self.reject_keyword_declaration_name();
-            children.push(self.leaf(SyntaxKind::Name));
+            let name = self.leaf(SyntaxKind::Name);
+            discard_span = discard.then_some(name.span);
+            children.push(name);
         } else if self.at(TokenKind::Dot) && self.peek_kind(1) == Some(TokenKind::Identifier) {
             self.error_here_with_help(
                 "S1017",
@@ -437,6 +447,15 @@ impl Parser<'_> {
         } else {
             None
         };
+        if let Some(span) = discard_span
+            && initializer.is_none()
+        {
+            self.diagnostics.push(Diagnostic::error(
+                "S1098",
+                "`_` discard bindings require an initializer",
+                span,
+            ));
+        }
         if self.at_text("metadata") {
             if self.block_depth != self.class_body_depth {
                 self.error_here("S1097", "field metadata is only valid on class fields");
@@ -1676,9 +1695,15 @@ impl Parser<'_> {
             has_prefix = true;
             offset += 1;
         }
+        let bare_discard = self.peek_text(offset) == Some("_")
+            && matches!(
+                self.peek_kind(offset + 1),
+                Some(TokenKind::Assign | TokenKind::Newline)
+            );
         self.peek_kind(offset) == Some(TokenKind::Identifier)
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
-            && (self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
+            && (bare_discard
+                || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
                 || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
                     && self.grouped_binding_type_precedes_assignment(offset + 1))
                 || (has_prefix

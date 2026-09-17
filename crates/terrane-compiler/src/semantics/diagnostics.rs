@@ -16,6 +16,7 @@ pub(super) fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str,
     let mut declarations = unit
         .typed_bindings
         .iter()
+        .filter(|binding| !binding.name.starts_with('_'))
         .map(|binding| (binding.name.as_str(), binding.span))
         .chain(
             unit.functions
@@ -234,6 +235,33 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
             let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
                 continue;
             };
+            if binding.name.starts_with('_') && binding.name != "_" {
+                if let Some(BindingEvent::Read { span, .. }) = events
+                    .iter()
+                    .find(|event| matches!(event, BindingEvent::Read { .. }))
+                {
+                    let suggested = binding.name.trim_start_matches('_');
+                    let help = if suggested.is_empty() {
+                        "rename the binding without a leading underscore".to_owned()
+                    } else {
+                        format!("rename the binding to `{suggested}`")
+                    };
+                    warnings.push(
+                        Diagnostic::warning(
+                            "W4006",
+                            format!(
+                                "binding `{}` is marked intentionally unused but is read",
+                                binding.name
+                            ),
+                            *span,
+                        )
+                        .with_help(help),
+                    );
+                }
+            }
+            if binding.name == "_" {
+                continue;
+            }
             for (index, event) in events.iter().enumerate() {
                 let BindingEvent::Write {
                     span: store_span, ..
@@ -249,7 +277,7 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
                     .any(|event| matches!(event, BindingEvent::Write { .. }));
                 let initial_store = *store_span == binding.span;
                 let (code, message) = if initial_store && !later_store {
-                    if parameter || loop_target {
+                    if parameter || loop_target || binding.name.starts_with('_') {
                         continue;
                     }
                     ("W4001", format!("binding `{}` is never read", binding.name))

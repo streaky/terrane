@@ -10,5 +10,5 @@ async function main;
     database SqliteConnection = await connect; options
     await (execute; database, 'CREATE TABLE values (body BLOB NOT NULL)')
     await (execute_with_bytes; database, 'INSERT INTO values (body) VALUES (?)', b'value')
-    rows list of bytes = await query_bytes; database, 'SELECT body FROM values', 'body'
+    _ list of bytes = await query_bytes; database, 'SELECT body FROM values', 'body'
     await (close; move database)

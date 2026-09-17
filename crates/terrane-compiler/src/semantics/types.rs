@@ -156,7 +156,8 @@ pub(super) fn analyze_binding_node(
         validate_invocation_only_member_expression(unit, initializer, bindings)?;
     }
 
-    if node.kind == SyntaxKind::Assignment
+    if name != "_"
+        && node.kind == SyntaxKind::Assignment
         && declared.is_none()
         && let Some(previous) = bindings.iter().rev().find(|binding| binding.name == name)
         && let Some(initializer) = initializer
