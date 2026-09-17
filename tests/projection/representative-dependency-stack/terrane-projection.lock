@@ -11,10 +11,6 @@
         ],
         [
           "/deps/axum",
-          "Router.as_service"
-        ],
-        [
-          "/deps/axum",
           "Router.fallback"
         ],
         [
@@ -108,10 +104,6 @@
         [
           "/deps/axum/extract",
           "RawPathParams"
-        ],
-        [
-          "/deps/axum/extract",
-          "RawPathParams.iter"
         ],
         [
           "/deps/axum/extract",
@@ -367,6 +359,10 @@
         ],
         [
           "/deps/axum/extract/ws",
+          "Utf8Bytes::from_static"
+        ],
+        [
+          "/deps/axum/extract/ws",
           "WebSocket"
         ],
         [
@@ -482,6 +478,10 @@
           "IntoResponseHandler"
         ],
         [
+          "/deps/axum/iter/traits/collect",
+          "into_iter"
+        ],
+        [
           "/deps/axum/middleware",
           "Next"
         ],
@@ -534,6 +534,10 @@
           "MapResponseResponseFuture"
         ],
         [
+          "/deps/axum/ops/deref",
+          "deref"
+        ],
+        [
           "/deps/axum/response",
           "NoContent"
         ],
@@ -550,12 +554,28 @@
           "Redirect.status_code"
         ],
         [
+          "/deps/axum/response",
+          "Redirect::permanent"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect::temporary"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect::to"
+        ],
+        [
           "/deps/axum/response/sse",
           "Event"
         ],
         [
           "/deps/axum/response/sse",
           "Event.comment"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.data"
         ],
         [
           "/deps/axum/response/sse",
@@ -568,6 +588,10 @@
         [
           "/deps/axum/response/sse",
           "Event.into_data_writer"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.json_data"
         ],
         [
           "/deps/axum/response/sse",
@@ -586,8 +610,28 @@
           "KeepAlive"
         ],
         [
+          "/deps/axum/response/sse",
+          "KeepAlive.event"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive.interval"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive.text"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive::new"
+        ],
+        [
           "/deps/axum/routing",
           "MethodFilter"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodFilter.or"
         ],
         [
           "/deps/axum/routing",
@@ -772,6 +816,10 @@
         [
           "/deps/axum/serve/private",
           "ServeFuture"
+        ],
+        [
+          "/deps/axum/stream",
+          "is_terminated"
         ]
       ]
     },
@@ -794,6 +842,10 @@
         [
           "/deps/http",
           "Extensions.clear"
+        ],
+        [
+          "/deps/http",
+          "Extensions.extend"
         ],
         [
           "/deps/http",
@@ -841,19 +893,7 @@
         ],
         [
           "/deps/http",
-          "HeaderMap.drain"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.entry"
-        ],
-        [
-          "/deps/http",
           "HeaderMap.get"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.get_all"
         ],
         [
           "/deps/http",
@@ -866,18 +906,6 @@
         [
           "/deps/http",
           "HeaderMap.is_empty"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.iter"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.iter_mut"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.keys"
         ],
         [
           "/deps/http",
@@ -901,23 +929,11 @@
         ],
         [
           "/deps/http",
-          "HeaderMap.try_entry"
-        ],
-        [
-          "/deps/http",
           "HeaderMap.try_insert"
         ],
         [
           "/deps/http",
           "HeaderMap.try_reserve"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.values"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.values_mut"
         ],
         [
           "/deps/http",
@@ -962,6 +978,10 @@
         [
           "/deps/http",
           "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.to_str"
         ],
         [
           "/deps/http",
@@ -1085,11 +1105,31 @@
         ],
         [
           "/deps/http",
+          "Uri::from_maybe_shared"
+        ],
+        [
+          "/deps/http",
           "Uri::from_parts"
         ],
         [
           "/deps/http",
+          "Uri::from_static"
+        ],
+        [
+          "/deps/http",
           "Version"
+        ],
+        [
+          "/deps/http/borrow",
+          "borrow_mut"
+        ],
+        [
+          "/deps/http/borrow",
+          "clone_into"
+        ],
+        [
+          "/deps/http/borrow",
+          "to_owned"
         ],
         [
           "/deps/http/header",
@@ -1110,6 +1150,14 @@
         [
           "/deps/http/header/map/as-header-name",
           "TryEntryError"
+        ],
+        [
+          "/deps/http/iter/traits/collect",
+          "from_iter"
+        ],
+        [
+          "/deps/http/iter/traits/collect",
+          "into_iter"
         ],
         [
           "/deps/http/method",
@@ -1253,11 +1301,31 @@
         ],
         [
           "/deps/http/uri",
+          "Authority::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority::from_static"
+        ],
+        [
+          "/deps/http/uri",
           "Builder"
         ],
         [
           "/deps/http/uri",
+          "Builder.authority"
+        ],
+        [
+          "/deps/http/uri",
           "Builder.build"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.path_and_query"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.scheme"
         ],
         [
           "/deps/http/uri",
@@ -1290,6 +1358,14 @@
         [
           "/deps/http/uri",
           "PathAndQuery.query"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_static"
         ],
         [
           "/deps/http/uri",
@@ -1555,6 +1631,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
         ],
         [
@@ -1599,6 +1679,10 @@
         ],
         [
           "/deps/reqwest",
+          "Error.without_url"
+        ],
+        [
+          "/deps/reqwest",
           "Identity"
         ],
         [
@@ -1608,6 +1692,10 @@
         [
           "/deps/reqwest",
           "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy::from_string"
         ],
         [
           "/deps/reqwest",
@@ -1759,6 +1847,14 @@
         ],
         [
           "/deps/reqwest",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest",
           "Response.extensions"
         ],
         [
@@ -1804,6 +1900,10 @@
         [
           "/deps/reqwest",
           "get"
+        ],
+        [
+          "/deps/reqwest",
+          "is_end_stream"
         ],
         [
           "/deps/reqwest/async-impl/client",
@@ -2059,6 +2159,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
@@ -2175,6 +2279,14 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.extensions"
         ],
         [
@@ -2214,6 +2326,18 @@
           "get"
         ],
         [
+          "/deps/reqwest/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "partial_cmp"
+        ],
+        [
           "/deps/reqwest/connect/sealed",
           "Conn"
         ],
@@ -2224,6 +2348,10 @@
         [
           "/deps/reqwest/connect/uds",
           "Internal"
+        ],
+        [
+          "/deps/reqwest/convert",
+          "try_from"
         ],
         [
           "/deps/reqwest/dns",
@@ -2238,6 +2366,10 @@
           "InvalidNameError"
         ],
         [
+          "/deps/reqwest/io",
+          "is_write_vectored"
+        ],
+        [
           "/deps/reqwest/redirect",
           "Action"
         ],
@@ -2247,11 +2379,35 @@
         ],
         [
           "/deps/reqwest/redirect",
-          "Policy.redirect"
+          "Policy::custom"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::limited"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::none"
         ],
         [
           "/deps/reqwest/retry",
           "Builder"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.classify_fn"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_extra_load"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_retries_per_request"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.no_budget"
         ],
         [
           "/deps/reqwest/retry",
@@ -2272,6 +2428,14 @@
         [
           "/deps/reqwest/retry/classify/action",
           "Success"
+        ],
+        [
+          "/deps/reqwest/str/traits",
+          "from_str"
+        ],
+        [
+          "/deps/reqwest/string",
+          "to_string"
         ],
         [
           "/deps/reqwest/tls",
@@ -2304,6 +2468,22 @@
           "init"
         ],
         [
+          "/deps/sentry/clone",
+          "clone"
+        ],
+        [
+          "/deps/sentry/ops/drop",
+          "drop"
+        ],
+        [
+          "/deps/sentry/transport",
+          "flush"
+        ],
+        [
+          "/deps/sentry/transport",
+          "shutdown"
+        ],
+        [
           "/deps/sentry/transports",
           "DefaultTransportFactory"
         ],
@@ -2325,6 +2505,22 @@
         [
           "/deps/tokio/fs",
           "DirBuilder"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirBuilder.create"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirBuilder.mode"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirBuilder.recursive"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirBuilder::new"
         ],
         [
           "/deps/tokio/fs",
@@ -2396,11 +2592,19 @@
         ],
         [
           "/deps/tokio/fs",
+          "File::create"
+        ],
+        [
+          "/deps/tokio/fs",
           "File::create_new"
         ],
         [
           "/deps/tokio/fs",
           "File::from_std"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File::open"
         ],
         [
           "/deps/tokio/fs",
@@ -2432,6 +2636,10 @@
         ],
         [
           "/deps/tokio/fs",
+          "OpenOptions.open"
+        ],
+        [
+          "/deps/tokio/fs",
           "OpenOptions.read"
         ],
         [
@@ -2456,7 +2664,75 @@
         ],
         [
           "/deps/tokio/fs",
-          "ReadDir.poll_next_entry"
+          "canonicalize"
+        ],
+        [
+          "/deps/tokio/fs",
+          "copy"
+        ],
+        [
+          "/deps/tokio/fs",
+          "create_dir"
+        ],
+        [
+          "/deps/tokio/fs",
+          "create_dir_all"
+        ],
+        [
+          "/deps/tokio/fs",
+          "hard_link"
+        ],
+        [
+          "/deps/tokio/fs",
+          "metadata"
+        ],
+        [
+          "/deps/tokio/fs",
+          "read"
+        ],
+        [
+          "/deps/tokio/fs",
+          "read_dir"
+        ],
+        [
+          "/deps/tokio/fs",
+          "read_link"
+        ],
+        [
+          "/deps/tokio/fs",
+          "read_to_string"
+        ],
+        [
+          "/deps/tokio/fs",
+          "remove_dir"
+        ],
+        [
+          "/deps/tokio/fs",
+          "remove_dir_all"
+        ],
+        [
+          "/deps/tokio/fs",
+          "remove_file"
+        ],
+        [
+          "/deps/tokio/fs",
+          "rename"
+        ],
+        [
+          "/deps/tokio/fs",
+          "set_permissions"
+        ],
+        [
+          "/deps/tokio/fs",
+          "symlink"
+        ],
+        [
+          "/deps/tokio/fs",
+          "symlink_metadata"
+        ],
+        [
+          "/deps/tokio/fs",
+          "try_exists"
         ],
         [
           "/deps/tokio/io",
@@ -2736,18 +3012,6 @@
         ],
         [
           "/deps/tokio/net",
-          "TcpStream.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "TcpStream.quickack"
         ],
         [
@@ -2860,34 +3124,6 @@
         ],
         [
           "/deps/tokio/net",
-          "UdpSocket.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_sender"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_send_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "UdpSocket.readable"
         ],
         [
@@ -2988,6 +3224,14 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixSocket.bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket.connect"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixSocket.listen"
         ],
         [
@@ -3017,14 +3261,6 @@
         [
           "/deps/tokio/net",
           "UnixStream.peer_cred"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_write_ready"
         ],
         [
           "/deps/tokio/net",
@@ -3073,10 +3309,6 @@
         [
           "/deps/tokio/net/tcp",
           "OwnedReadHalf.peer_addr"
-        ],
-        [
-          "/deps/tokio/net/tcp",
-          "OwnedReadHalf.poll_peek"
         ],
         [
           "/deps/tokio/net/tcp",
@@ -3220,6 +3452,14 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
+          "OpenOptions.read_write"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "OpenOptions.unchecked"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
           "OpenOptions::new"
         ],
         [
@@ -3233,10 +3473,6 @@
         [
           "/deps/tokio/net/unix/pipe",
           "Receiver.into_nonblocking_fd"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
-          "Receiver.poll_read_ready"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -3276,10 +3512,6 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
-          "Sender.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
           "Sender.ready"
         ],
         [
@@ -3303,6 +3535,22 @@
           "Sender::from_owned_fd_unchecked"
         ],
         [
+          "/deps/tokio/ops/arith",
+          "add"
+        ],
+        [
+          "/deps/tokio/ops/arith",
+          "add_assign"
+        ],
+        [
+          "/deps/tokio/ops/arith",
+          "sub_assign"
+        ],
+        [
+          "/deps/tokio/ops/bit",
+          "bitand"
+        ],
+        [
           "/deps/tokio/runtime",
           "Builder"
         ],
@@ -3316,6 +3564,66 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Builder.enable_all"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.enable_io"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.enable_time"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.event_interval"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.global_queue_interval"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.max_blocking_threads"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.max_io_events_per_tick"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_park"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_start"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_stop"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_unpark"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_keep_alive"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_name_fn"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_stack_size"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.worker_threads"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Builder::new_current_thread"
         ],
         [
@@ -3325,10 +3633,6 @@
         [
           "/deps/tokio/runtime",
           "Handle"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "Handle.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -3348,6 +3652,14 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle::current"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle::try_current"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Id"
         ],
         [
@@ -3357,10 +3669,6 @@
         [
           "/deps/tokio/runtime",
           "LocalRuntime"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "LocalRuntime.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -3385,10 +3693,6 @@
         [
           "/deps/tokio/runtime",
           "Runtime"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "Runtime.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -3476,10 +3780,6 @@
         ],
         [
           "/deps/tokio/signal/unix",
-          "Signal.poll_recv"
-        ],
-        [
-          "/deps/tokio/signal/unix",
           "Signal.recv"
         ],
         [
@@ -3489,6 +3789,54 @@
         [
           "/deps/tokio/signal/unix",
           "SignalKind.as_raw_value"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::alarm"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::child"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::from_raw"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::hangup"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::interrupt"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::io"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::pipe"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::quit"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::terminate"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::user_defined1"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::user_defined2"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind::window_change"
         ],
         [
           "/deps/tokio/signal/unix",
@@ -3524,10 +3872,6 @@
         ],
         [
           "/deps/tokio/sync",
-          "Notify.notified"
-        ],
-        [
-          "/deps/tokio/sync",
           "Notify.notify_last"
         ],
         [
@@ -3556,6 +3900,10 @@
         ],
         [
           "/deps/tokio/sync",
+          "OwnedSemaphorePermit.merge"
+        ],
+        [
+          "/deps/tokio/sync",
           "OwnedSemaphorePermit.num_permits"
         ],
         [
@@ -3564,15 +3912,11 @@
         ],
         [
           "/deps/tokio/sync",
+          "OwnedSemaphorePermit.split"
+        ],
+        [
+          "/deps/tokio/sync",
           "Semaphore"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.acquire"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.acquire_many"
         ],
         [
           "/deps/tokio/sync",
@@ -3596,11 +3940,11 @@
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.try_acquire"
+          "Semaphore::const_new"
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.try_acquire_many"
+          "Semaphore::new"
         ],
         [
           "/deps/tokio/sync",
@@ -3752,10 +4096,6 @@
         ],
         [
           "/deps/tokio/task/coop",
-          "poll_proceed"
-        ],
-        [
-          "/deps/tokio/task/coop",
           "unconstrained"
         ],
         [
@@ -3813,10 +4153,6 @@
         [
           "/deps/tokio/time",
           "Interval.period"
-        ],
-        [
-          "/deps/tokio/time",
-          "Interval.poll_tick"
         ],
         [
           "/deps/tokio/time",
@@ -3952,15 +4288,35 @@
         ],
         [
           "/deps/tower/limit",
+          "ConcurrencyLimitLayer::new"
+        ],
+        [
+          "/deps/tower/limit",
           "GlobalConcurrencyLimitLayer"
+        ],
+        [
+          "/deps/tower/limit",
+          "GlobalConcurrencyLimitLayer::new"
+        ],
+        [
+          "/deps/tower/limit",
+          "GlobalConcurrencyLimitLayer::with_semaphore"
         ],
         [
           "/deps/tower/limit",
           "RateLimitLayer"
         ],
         [
+          "/deps/tower/limit",
+          "RateLimitLayer::new"
+        ],
+        [
           "/deps/tower/limit/rate",
           "Rate"
+        ],
+        [
+          "/deps/tower/limit/rate",
+          "Rate::new"
         ],
         [
           "/deps/tower/retry/backoff",
@@ -3983,6 +4339,14 @@
           "MakeBackoff"
         ],
         [
+          "/deps/tower/retry/backoff",
+          "make_backoff"
+        ],
+        [
+          "/deps/tower/retry/backoff",
+          "next_backoff"
+        ],
+        [
           "/deps/tower/retry/budget",
           "Budget"
         ],
@@ -3991,11 +4355,15 @@
           "TpsBudget"
         ],
         [
-          "/deps/tower/retry/budget/budget",
+          "/deps/tower/retry/budget",
+          "TpsBudget::new"
+        ],
+        [
+          "/deps/tower/retry/budget",
           "deposit"
         ],
         [
-          "/deps/tower/retry/budget/budget",
+          "/deps/tower/retry/budget",
           "withdraw"
         ],
         [
@@ -4003,8 +4371,16 @@
           "TimeoutLayer"
         ],
         [
+          "/deps/tower/timeout",
+          "TimeoutLayer::new"
+        ],
+        [
           "/deps/tower/timeout/error",
           "Elapsed"
+        ],
+        [
+          "/deps/tower/timeout/error",
+          "Elapsed::new"
         ],
         [
           "/deps/tower/util",
@@ -4031,7 +4407,7 @@
           "Rng"
         ],
         [
-          "/deps/tower/util/rng/rng",
+          "/deps/tower/util/rng",
           "next_u64"
         ]
       ]
@@ -4043,6 +4419,10 @@
         [
           "/deps/tower-http",
           "LatencyUnit"
+        ],
+        [
+          "/deps/tower-http",
+          "is_end_stream"
         ],
         [
           "/deps/tower-http/body",
@@ -4062,6 +4442,18 @@
         ],
         [
           "/deps/tower-http/classify",
+          "GrpcErrorsAsFailures.with_success"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "GrpcErrorsAsFailures::make_classifier"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "GrpcErrorsAsFailures::new"
+        ],
+        [
+          "/deps/tower-http/classify",
           "GrpcFailureClass"
         ],
         [
@@ -4070,11 +4462,31 @@
         ],
         [
           "/deps/tower-http/classify",
+          "ServerErrorsAsFailures::make_classifier"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "ServerErrorsAsFailures::new"
+        ],
+        [
+          "/deps/tower-http/classify",
           "ServerErrorsFailureClass"
         ],
         [
           "/deps/tower-http/classify",
           "StatusInRangeAsFailures"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "StatusInRangeAsFailures.into_make_classifier"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "StatusInRangeAsFailures::new"
+        ],
+        [
+          "/deps/tower-http/classify",
+          "StatusInRangeAsFailures::new_for_client_and_server_errors"
         ],
         [
           "/deps/tower-http/classify",
@@ -4149,6 +4561,10 @@
           "Unknown"
         ],
         [
+          "/deps/tower-http/convert",
+          "from"
+        ],
+        [
           "/deps/tower-http/follow-redirect",
           "FollowRedirectLayer"
         ],
@@ -4174,11 +4590,47 @@
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.block_any"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.block_cross_origin"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.block_none"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.remove_all"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.remove_blocklisted"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials.remove_none"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "FilterCredentials::new"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
           "Limited"
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
+          "Limited::new"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
           "SameOrigin"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
+          "SameOrigin::new"
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
@@ -4217,12 +4669,24 @@
           "RequestBodyLimitLayer"
         ],
         [
+          "/deps/tower-http/limit",
+          "RequestBodyLimitLayer::new"
+        ],
+        [
           "/deps/tower-http/request-id",
           "MakeRequestUuid"
         ],
         [
           "/deps/tower-http/request-id",
           "PropagateRequestIdLayer"
+        ],
+        [
+          "/deps/tower-http/request-id",
+          "PropagateRequestIdLayer::new"
+        ],
+        [
+          "/deps/tower-http/request-id",
+          "PropagateRequestIdLayer::x_request_id"
         ],
         [
           "/deps/tower-http/request-id",
@@ -4237,8 +4701,16 @@
           "RequestId.into_header_value"
         ],
         [
-          "/deps/tower-http/request-id/makerequestid",
+          "/deps/tower-http/request-id",
+          "RequestId::new"
+        ],
+        [
+          "/deps/tower-http/request-id",
           "make_request_id"
+        ],
+        [
+          "/deps/tower-http/string",
+          "to_string"
         ],
         [
           "/deps/tower-http/timeout",
@@ -4246,7 +4718,15 @@
         ],
         [
           "/deps/tower-http/timeout",
+          "RequestBodyTimeoutLayer::new"
+        ],
+        [
+          "/deps/tower-http/timeout",
           "ResponseBodyTimeoutLayer"
+        ],
+        [
+          "/deps/tower-http/timeout",
+          "ResponseBodyTimeoutLayer::new"
         ],
         [
           "/deps/tower-http/timeout",
@@ -4257,8 +4737,24 @@
           "TimeoutLayer"
         ],
         [
+          "/deps/tower-http/timeout",
+          "TimeoutLayer::new"
+        ],
+        [
+          "/deps/tower-http/timeout",
+          "TimeoutLayer::with_status_code"
+        ],
+        [
           "/deps/tower-http/trace",
           "DefaultMakeSpan"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultMakeSpan.include_headers"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultMakeSpan::new"
         ],
         [
           "/deps/tower-http/trace",
@@ -4266,7 +4762,19 @@
         ],
         [
           "/deps/tower-http/trace",
+          "DefaultOnBodyChunk::new"
+        ],
+        [
+          "/deps/tower-http/trace",
           "DefaultOnEos"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnEos.latency_unit"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnEos::new"
         ],
         [
           "/deps/tower-http/trace",
@@ -4274,11 +4782,35 @@
         ],
         [
           "/deps/tower-http/trace",
+          "DefaultOnFailure.latency_unit"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnFailure::new"
+        ],
+        [
+          "/deps/tower-http/trace",
           "DefaultOnRequest"
         ],
         [
           "/deps/tower-http/trace",
+          "DefaultOnRequest::new"
+        ],
+        [
+          "/deps/tower-http/trace",
           "DefaultOnResponse"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnResponse.include_headers"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnResponse.latency_unit"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "DefaultOnResponse::new"
         ]
       ]
     },
@@ -4289,10 +4821,6 @@
         [
           "/deps/tracing",
           "Span"
-        ],
-        [
-          "/deps/tracing",
-          "Span.enter"
         ],
         [
           "/deps/tracing",
@@ -4312,11 +4840,31 @@
         ],
         [
           "/deps/tracing",
+          "Span.or_current"
+        ],
+        [
+          "/deps/tracing",
+          "Span.record"
+        ],
+        [
+          "/deps/tracing",
           "Span::current"
         ],
         [
           "/deps/tracing",
           "Span::none"
+        ],
+        [
+          "/deps/tracing/clone",
+          "clone"
+        ],
+        [
+          "/deps/tracing/cmp",
+          "eq"
+        ],
+        [
+          "/deps/tracing/ops/deref",
+          "deref"
         ],
         [
           "/deps/tracing/span",
@@ -4350,11 +4898,47 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "AllOf::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOf::with_capacity"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "AllOfBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "AllOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.discriminator"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.examples"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.item"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.schema_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.title"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4374,6 +4958,14 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Array::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Array::new_nullable"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ArrayBuilder"
         ],
         [
@@ -4382,7 +4974,63 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "ArrayBuilder.content_encoding"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.content_media_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.deprecated"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.examples"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.items"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.max_items"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.min_items"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.prefix_items"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.schema_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.title"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ArrayBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.unique_items"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.xml"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4406,11 +5054,47 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Components::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ComponentsBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ComponentsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.response"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.response_from"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.responses_from_iter"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.schema"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.schema_from"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.schemas_from_iter"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.security_scheme"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4426,11 +5110,31 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Contact::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ContactBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ContactBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder.email"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder.name"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder.url"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4446,11 +5150,31 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Content::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ContentBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ContentBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder.encoding"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder.examples_from_iter"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder.schema"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4466,11 +5190,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Discriminator::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Discriminator::with_mapping"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ExternalDocs"
         ],
         [
           "/deps/utoipa/openapi",
           "ExternalDocs::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ExternalDocs::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4482,11 +5218,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Header::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "HeaderBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "HeaderBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "HeaderBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "HeaderBuilder.schema"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4506,11 +5254,43 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Info::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "InfoBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "InfoBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.contact"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.license"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.terms_of_service"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.title"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.version"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4530,11 +5310,31 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "License::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "LicenseBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "LicenseBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder.identifier"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder.name"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder.url"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4550,7 +5350,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Object::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Object::with_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ObjectBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.additional_properties"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4558,7 +5370,111 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "ObjectBuilder.content_encoding"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.content_media_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.deprecated"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.enum_values"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.examples"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.exclusive_maximum"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.exclusive_minimum"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.format"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.max_length"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.max_properties"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.maximum"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.min_length"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.min_properties"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.minimum"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.multiple_of"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.pattern"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.property"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.property_names"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.read_only"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.required"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.schema_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.title"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ObjectBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.write_only"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.xml"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4574,11 +5490,47 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "OneOf::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOf::with_capacity"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "OneOfBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "OneOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.discriminator"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.examples"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.item"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.schema_type"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.title"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4602,6 +5554,14 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "OpenApi.nest"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApi.nest_with_path_composer"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "OpenApi.to_json"
         ],
         [
@@ -4614,11 +5574,47 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "OpenApi::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "OpenApiBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "OpenApiBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.components"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.external_docs"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.info"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.paths"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.schema"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.security"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.servers"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.tags"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4639,6 +5635,14 @@
         [
           "/deps/utoipa/openapi",
           "PathItem::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathItem::from_http_methods"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathItem::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4666,11 +5670,27 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Paths::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "PathsBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "PathsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathsBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathsBuilder.path"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathsBuilder.path_from"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4690,6 +5710,18 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Ref::from_response_name"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Ref::from_schema_name"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Ref::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Required"
         ],
         [
@@ -4702,11 +5734,35 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Response::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ResponseBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ResponseBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.content"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.header"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.link"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4722,11 +5778,31 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Responses::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ResponsesBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ResponsesBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder.response"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder.responses_from_into_responses"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder.responses_from_iter"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4746,6 +5822,14 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "SecurityRequirement.add"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "SecurityRequirement::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Server"
         ],
         [
@@ -4754,11 +5838,31 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Server::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ServerBuilder"
         ],
         [
           "/deps/utoipa/openapi",
           "ServerBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder.parameter"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder.url"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4782,6 +5886,22 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "ServerVariableBuilder.default_value"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerVariableBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerVariableBuilder.enum_values"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerVariableBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ServerVariableBuilder::new"
         ],
         [
@@ -4791,6 +5911,10 @@
         [
           "/deps/utoipa/openapi",
           "Tag::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Tag::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -4818,7 +5942,31 @@
         ],
         [
           "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.allow_reserved"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
           "EncodingBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.content_type"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.explode"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.header"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
+          "EncodingBuilder.style"
         ],
         [
           "/deps/utoipa/openapi/encoding",
@@ -4834,11 +5982,27 @@
         ],
         [
           "/deps/utoipa/openapi/example",
+          "Example::new"
+        ],
+        [
+          "/deps/utoipa/openapi/example",
           "ExampleBuilder"
         ],
         [
           "/deps/utoipa/openapi/example",
           "ExampleBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/example",
+          "ExampleBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/example",
+          "ExampleBuilder.external_value"
+        ],
+        [
+          "/deps/utoipa/openapi/example",
+          "ExampleBuilder.summary"
         ],
         [
           "/deps/utoipa/openapi/example",
@@ -4862,6 +6026,10 @@
         ],
         [
           "/deps/utoipa/openapi/extensions",
+          "ExtensionsBuilder.add"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions",
           "ExtensionsBuilder.build"
         ],
         [
@@ -4875,6 +6043,18 @@
         [
           "/deps/utoipa/openapi/external-docs",
           "ExternalDocsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs",
+          "ExternalDocsBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs",
+          "ExternalDocsBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs",
+          "ExternalDocsBuilder.url"
         ],
         [
           "/deps/utoipa/openapi/external-docs",
@@ -5018,6 +6198,34 @@
         ],
         [
           "/deps/utoipa/openapi/link",
+          "LinkBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.operation_id"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.operation_ref"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.parameter"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.request_body"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
+          "LinkBuilder.server"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
           "LinkBuilder::new"
         ],
         [
@@ -5034,11 +6242,79 @@
         ],
         [
           "/deps/utoipa/openapi/path",
+          "Operation::new"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
           "OperationBuilder"
         ],
         [
           "/deps/utoipa/openapi/path",
           "OperationBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.deprecated"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.operation_id"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.parameter"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.parameters"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.request_body"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.response"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.responses"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.securities"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.security"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.server"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.servers"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.summary"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.tag"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.tags"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -5054,11 +6330,55 @@
         ],
         [
           "/deps/utoipa/openapi/path",
+          "Parameter::new"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
           "ParameterBuilder"
         ],
         [
           "/deps/utoipa/openapi/path",
+          "ParameterBuilder.allow_reserved"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
           "ParameterBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.deprecated"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.explode"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.name"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.parameter_in"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.required"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.schema"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.style"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -5079,6 +6399,30 @@
         [
           "/deps/utoipa/openapi/path",
           "PathItemBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.operation"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.parameters"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.servers"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.summary"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -5138,11 +6482,31 @@
         ],
         [
           "/deps/utoipa/openapi/request-body",
+          "RequestBody::new"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
           "RequestBodyBuilder"
         ],
         [
           "/deps/utoipa/openapi/request-body",
           "RequestBodyBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
+          "RequestBodyBuilder.content"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
+          "RequestBodyBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
+          "RequestBodyBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
+          "RequestBodyBuilder.required"
         ],
         [
           "/deps/utoipa/openapi/request-body",
@@ -5166,11 +6530,43 @@
         ],
         [
           "/deps/utoipa/openapi/schema",
+          "AnyOf::new"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOf::with_capacity"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
           "AnyOfBuilder"
         ],
         [
           "/deps/utoipa/openapi/schema",
           "AnyOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.discriminator"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.examples"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.item"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.schema_type"
         ],
         [
           "/deps/utoipa/openapi/schema",
@@ -5194,6 +6590,22 @@
         ],
         [
           "/deps/utoipa/openapi/schema",
+          "RefBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "RefBuilder.ref_location"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "RefBuilder.ref_location_from_schema_name"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "RefBuilder.summary"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
           "RefBuilder::new"
         ],
         [
@@ -5214,11 +6626,35 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "ApiKeyValue::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "ApiKeyValue::with_description"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "AuthorizationCode"
         ],
         [
           "/deps/utoipa/openapi/security",
+          "AuthorizationCode::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "AuthorizationCode::with_refresh_url"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "ClientCredentials"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "ClientCredentials::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "ClientCredentials::with_refresh_url"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -5234,6 +6670,10 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "Http::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "HttpAuthScheme"
         ],
         [
@@ -5242,7 +6682,19 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "HttpBuilder.bearer_format"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "HttpBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "HttpBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "HttpBuilder.scheme"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -5254,7 +6706,23 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "Implicit::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "Implicit::with_refresh_url"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "OAuth2"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "OAuth2::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "OAuth2::with_description"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -5262,11 +6730,35 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "OpenIdConnect::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "OpenIdConnect::with_description"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "Password"
         ],
         [
           "/deps/utoipa/openapi/security",
+          "Password::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "Password::with_refresh_url"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "Scopes"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "Scopes::new"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "Scopes::one"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -5322,6 +6814,22 @@
         ],
         [
           "/deps/utoipa/openapi/tag",
+          "TagBuilder.description"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "TagBuilder.extensions"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "TagBuilder.external_docs"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "TagBuilder.name"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
           "TagBuilder::new"
         ],
         [
@@ -5362,11 +6870,35 @@
         ],
         [
           "/deps/utoipa/openapi/xml",
+          "Xml::new"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
           "XmlBuilder"
         ],
         [
           "/deps/utoipa/openapi/xml",
+          "XmlBuilder.attribute"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
           "XmlBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
+          "XmlBuilder.name"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
+          "XmlBuilder.namespace"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
+          "XmlBuilder.prefix"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
+          "XmlBuilder.wrapped"
         ],
         [
           "/deps/utoipa/openapi/xml",
@@ -5388,15 +6920,75 @@
         ],
         [
           "/deps/utoipa-swagger-ui",
+          "SwaggerUi.external_urls_from_iter_unchecked"
+        ],
+        [
+          "/deps/utoipa-swagger-ui",
+          "SwaggerUi.oauth"
+        ],
+        [
+          "/deps/utoipa-swagger-ui",
+          "SwaggerUi.url"
+        ],
+        [
+          "/deps/utoipa-swagger-ui",
+          "SwaggerUi::new"
+        ],
+        [
+          "/deps/utoipa-swagger-ui",
           "SyntaxHighlight"
         ],
         [
           "/deps/utoipa-swagger-ui",
-          "serve"
+          "SyntaxHighlight.activated"
+        ],
+        [
+          "/deps/utoipa-swagger-ui",
+          "SyntaxHighlight.theme"
         ],
         [
           "/deps/utoipa-swagger-ui/oauth",
           "Config"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.additional_query_string_params"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.app_name"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.client_id"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.client_secret"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.realm"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.scope_separator"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.scopes"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.use_basic_authentication_with_access_code_grant"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config.use_pkce_with_authorization_code_grant"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth",
+          "Config::new"
         ]
       ]
     }
@@ -5419,11 +7011,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "a26dc22f4033acf6c9ba4b76a7eb82c41e4909672e0cd57e57208c8826461c7a",
+  "cache_identity": "bc96c831547df2035b2a2e0e1445d93ac46b3fb0cb2550736dd9f84d2fe65145",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "45",
-  "content_hash": "0abf3eaf051deec47dd975682f889b3c9923023e1d0606f24b2c4f1f6fd1bfcb",
+  "projection_schema": "47",
+  "content_hash": "11793aebabe957d30cf0e136260182456ec2059c1f0595af8d3ca059f05b1c33",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [
