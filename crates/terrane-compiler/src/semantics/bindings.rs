@@ -1849,17 +1849,22 @@ pub(super) fn projected_function_for_call<'a>(
     let [receiver, member] = callee.children.as_slice() else {
         return None;
     };
-    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
-        .ok()
-        .flatten()
-    else {
-        return None;
+    let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
+        (class_designator_identity(unit, receiver)?, true)
+    } else {
+        let ValueType::Object(identity) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            .ok()
+            .flatten()?
+        else {
+            return None;
+        };
+        (identity, false)
     };
     package.projection.method(
         &identity.namespace,
         &identity.name,
         node_text(&unit.source, member),
-        false,
+        is_static,
     )
 }
 

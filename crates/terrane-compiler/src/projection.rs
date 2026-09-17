@@ -6018,10 +6018,13 @@ fn project_resolved_type(
         .map(|argument| project_type(argument, index, paths, generics))
         .collect::<Result<Vec<_>, _>>()?;
     let name = instantiated_type_name(&short, &rust_path);
+    let base_rust_path = rust_path
+        .split_once('<')
+        .map_or_else(|| rust_path.clone(), |(base, _)| base.to_owned());
     Ok(ProjectedType::Foreign {
         rust_path,
         name,
-        base_rust_path: resolved,
+        base_rust_path,
         arguments,
     })
 }
@@ -6077,6 +6080,7 @@ fn render_resolved_path(
 ) -> Result<String, String> {
     let base = match resolved_path_name(path, paths).as_str() {
         "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
+        "core::task::wake::Context" => "core::task::Context".to_owned(),
         "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
         path => path
             .strip_prefix("alloc::")

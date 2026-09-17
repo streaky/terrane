@@ -2343,18 +2343,13 @@ fn collect_projected_destinations(
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && callee.kind == SyntaxKind::Name
         && let Some(function) = projected_function_for_call(package, unit, callee)
         && function.chain_role.is_none()
         && function
             .generic_parameters
             .iter()
             .any(|generic| generic.input_selected)
-        && let Some(contract) = super::analysis::resolved_function_contract(
-            unit,
-            node_text(&unit.source, callee),
-            callee.span.start,
-        )
+        && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
     {
         let mut value_bindings = BTreeMap::new();
         for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {

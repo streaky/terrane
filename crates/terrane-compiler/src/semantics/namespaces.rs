@@ -747,11 +747,11 @@ pub(super) fn construction_contract<'a>(
     method_contract(package, &identity, "construct", false)
 }
 
-pub(super) fn function_parameters<'a>(
+pub(super) fn function_contract_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     callee: &SyntaxNode,
-) -> Option<&'a [ParameterContract]> {
+) -> Option<&'a FunctionContract> {
     if matches!(
         callee.kind,
         SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
@@ -772,23 +772,26 @@ pub(super) fn function_parameters<'a>(
             &object_identity,
             node_text(&unit.source, member),
             callee.kind == SyntaxKind::StaticMemberExpression,
-        )
-        .map(|method| method.parameters.as_slice());
+        );
     }
     if callee.kind == SyntaxKind::ConstructionExpression {
-        return construction_contract(package, unit, callee)
-            .map(|function| function.parameters.as_slice());
+        return construction_contract(package, unit, callee);
     }
-    if callee.kind != SyntaxKind::Name {
-        return None;
-    }
-    let symbol =
-        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
-    let declaration = symbol.declaration_span?;
-    package
-        .units
-        .iter()
-        .flat_map(|candidate| &candidate.functions)
-        .find(|function| function.span == declaration)
-        .map(|function| function.parameters.as_slice())
+    (callee.kind == SyntaxKind::Name)
+        .then(|| {
+            super::analysis::resolved_function_contract(
+                unit,
+                node_text(&unit.source, callee),
+                callee.span.start,
+            )
+        })
+        .flatten()
+}
+
+pub(super) fn function_parameters<'a>(
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a [ParameterContract]> {
+    function_contract_for_call(package, unit, callee).map(|function| function.parameters.as_slice())
 }

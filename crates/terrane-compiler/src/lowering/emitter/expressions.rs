@@ -101,31 +101,8 @@ impl Emitter<'_> {
             .then(|| operand.children.first())
             .flatten();
         let contract = callee.and_then(|callee| self.contract_for_call(callee));
-        let projected = callee.is_some_and(|callee| {
-            if callee.kind == SyntaxKind::Name {
-                return self
-                    .package
-                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-                    .and_then(|symbol| symbol.identity.rsplit_once("::"))
-                    .and_then(|(namespace, name)| self.package.projection.item(namespace, name))
-                    .is_some_and(|item| {
-                        matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
-                    });
-            }
-            let Some(contract) = contract else {
-                return false;
-            };
-            let Some(receiver) = callee.children.first() else {
-                return false;
-            };
-            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
-                return false;
-            };
-            self.package
-                .projection
-                .method(&identity.namespace, &identity.name, &contract.name, false)
-                .is_some()
-        });
+        let projected =
+            callee.is_some_and(|callee| self.projected_function_for_call(callee).is_some());
         let function_value_throws = contract.is_none()
             && callee
                 .and_then(|callee| self.value_type(callee))

@@ -1649,7 +1649,15 @@ impl Emitter<'_> {
             && let Some(object) = self.class_designator(receiver)
         {
             let rust_type = rust_object_type_name(self.package, &object.identity);
-            if let Some(owner) = projected_static_owner {
+            if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+                && let Some(item) = self
+                    .package
+                    .projection
+                    .item(&object.identity.namespace, &object.identity.name)
+                && let Some(projected) = self.projected_function_for_call(callee)
+            {
+                format!("{}::{}", item.rust_path, rust_name(&projected.name))
+            } else if let Some(owner) = projected_static_owner {
                 crate::lowering::dependencies::projected_static_shim_name(owner, self.text(member))
             } else {
                 format!(
