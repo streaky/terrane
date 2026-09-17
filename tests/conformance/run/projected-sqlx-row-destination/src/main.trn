@@ -1,0 +1,21 @@
+namespace app
+
+from /deps/sqlx-sqlite/row import try_get
+from /deps/terrane-sqlx-row-producer import sample_row
+from /core/errors import dependency-error
+from /core/output import print
+
+async function main;
+  row = await sample_row;
+  body bytes = try_get; row, 'body'
+  print; body.length, body[0], body[1]
+  try
+    missing bytes = try_get; row, 'missing'
+    print; missing.length
+  catch dependency-error
+    print; 'missing-column'
+  try
+    incompatible bytes = try_get; row, 'count'
+    print; incompatible.length
+  catch dependency-error
+    print; 'incompatible-value'

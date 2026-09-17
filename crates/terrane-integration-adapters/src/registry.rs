@@ -31,43 +31,17 @@ pub struct IntegrationAdapter {
 /// Every bridged and known unbridged ecosystem integration gap.
 pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
     IntegrationAdapter {
-        id: "sqlx-sqlite-connection-traits",
-        tracking_key: "projection/sqlx-connection-trait-members",
-        dependency: "sqlx-sqlite",
-        supported_versions: "0.8.x with bundled SQLite",
-        limitation: "SqliteConnection projects as its upstream identity, but trait-provided connect and close operations do not yet project as callable members",
-        status: AdapterStatus::Package {
-            name: "terrane-integration-adapters",
-            version: "0.1.x",
-            feature: "sqlx-sqlite",
-        },
-        removal_criterion: "generic trait-member projection lets Terrane construct and explicitly close the directly projected SqliteConnection",
-    },
-    IntegrationAdapter {
         id: "sqlx-sqlite-query-lifetimes",
         tracking_key: "projection/sqlx-query-lifetime-chain",
         dependency: "sqlx",
         supported_versions: "0.8.x with SQLite and Tokio runtime",
-        limitation: "Query<'q, DB, A> and its borrowed argument state cannot cross a free-standing Terrane value boundary",
+        limitation: "Query<'q, DB, A> cannot cross a free-standing Terrane value boundary, and returned non-Clone rows cannot yet be consumed through Terrane collection iteration",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
             version: "0.1.x",
             feature: "sqlx-sqlite",
         },
-        removal_criterion: "generic chain-only lowering keeps SQLx query, bind, and execute intermediates inside one generated Rust expression",
-    },
-    IntegrationAdapter {
-        id: "sqlx-sqlite-row-extraction",
-        tracking_key: "projection/sqlx-row-generic-extraction",
-        dependency: "sqlx-core",
-        supported_versions: "0.8.x",
-        limitation: "Row::try_get<T, I> requires generic result and column-index selection that the projected call cannot yet close from an application destination",
-        status: AdapterStatus::Package {
-            name: "terrane-integration-adapters",
-            version: "0.1.x",
-            feature: "sqlx-sqlite",
-        },
-        removal_criterion: "generic projected trait calls infer bytes row results and string column indices for direct Row::try_get use",
+        removal_criterion: "generic chain-only lowering executes SQLx queries and consuming collection or stream iteration lets Terrane process the resulting rows directly",
     },
     IntegrationAdapter {
         id: "axum-closed-response-alias",

@@ -1,14 +1,11 @@
 {
-  "format": 3,
   "dependencies": [
     {
+      "members": [],
       "name": "futures-core",
-      "version": "0.3.34",
-      "members": []
+      "version": "0.3.34"
     },
     {
-      "name": "sqlx-core",
-      "version": "0.8.6",
       "members": [
         [
           "/deps/sqlx-core",
@@ -167,30 +164,6 @@
           "PoolConnectionMetadata"
         ],
         [
-          "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.bind"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_bind"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "query_with"
-        ],
-        [
-          "/deps/sqlx-core/raw-sql",
-          "raw_sql"
-        ],
-        [
           "/deps/sqlx-core/rt",
           "TimeoutError"
         ],
@@ -208,10 +181,6 @@
         ],
         [
           "/deps/sqlx-core/sync",
-          "AsyncSemaphore.acquire"
-        ],
-        [
-          "/deps/sqlx-core/sync",
           "AsyncSemaphore.permits"
         ],
         [
@@ -220,23 +189,7 @@
         ],
         [
           "/deps/sqlx-core/sync",
-          "AsyncSemaphore.try_acquire"
-        ],
-        [
-          "/deps/sqlx-core/sync",
           "AsyncSemaphore::new"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "begin_ansi_transaction_sql"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "commit_ansi_transaction_sql"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "rollback_ansi_transaction_sql"
         ],
         [
           "/deps/sqlx-core/type-checking",
@@ -250,11 +203,11 @@
           "/deps/sqlx-core/type-checking/paramchecking",
           "Weak"
         ]
-      ]
+      ],
+      "name": "sqlx-core",
+      "version": "0.8.6"
     },
     {
-      "name": "sqlx-sqlite",
-      "version": "0.8.6",
       "members": [
         [
           "/deps/sqlx-sqlite",
@@ -362,10 +315,6 @@
         ],
         [
           "/deps/sqlx-sqlite",
-          "SqliteConnection.lock_handle"
-        ],
-        [
-          "/deps/sqlx-sqlite",
           "SqliteError"
         ],
         [
@@ -417,10 +366,6 @@
           "SqliteValue"
         ],
         [
-          "/deps/sqlx-sqlite/acquire",
-          "begin"
-        ],
-        [
           "/deps/sqlx-sqlite/cmp",
           "eq"
         ],
@@ -466,10 +411,6 @@
         ],
         [
           "/deps/sqlx-sqlite/error",
-          "code"
-        ],
-        [
-          "/deps/sqlx-sqlite/error",
           "kind"
         ],
         [
@@ -486,7 +427,19 @@
         ],
         [
           "/deps/sqlx-sqlite/row",
-          "try_get_raw"
+          "get"
+        ],
+        [
+          "/deps/sqlx-sqlite/row",
+          "get_unchecked"
+        ],
+        [
+          "/deps/sqlx-sqlite/row",
+          "try_get"
+        ],
+        [
+          "/deps/sqlx-sqlite/row",
+          "try_get_unchecked"
         ],
         [
           "/deps/sqlx-sqlite/sqliteautovacuum",
@@ -562,43 +515,46 @@
         ],
         [
           "/deps/sqlx-sqlite/value",
-          "as_ref"
-        ],
-        [
-          "/deps/sqlx-sqlite/value",
           "is_null"
-        ],
-        [
-          "/deps/sqlx-sqlite/value",
-          "type_info"
         ]
-      ]
+      ],
+      "name": "sqlx-sqlite",
+      "version": "0.8.6"
     },
     {
-      "name": "terrane-sqlx-lifecycle-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-sqlx-lifecycle-witness",
           "prepare_missing_path"
         ]
-      ]
+      ],
+      "name": "terrane-sqlx-lifecycle-witness",
+      "version": "0.1.0"
     }
   ],
-  "removed": [],
-  "cache_identity": "bf7623b4cb1bd16a147bd5d8b339843df909d1ac5060e6dd4b05515d7740939c",
-  "source": "Local",
-  "rustdoc_format": 57,
+  "format": 3,
   "projection_schema": "45",
-  "content_hash": "c1b3a2d62c17d7bc785d16fa68f25acffd9612764e9af35fd7a3d3abf56b188d",
+  "removed": [],
   "resolution": {
-    "outcome": "ExactCache",
     "events": [
       {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `bf7623b4cb1bd16a147bd5d8b339843df909d1ac5060e6dd4b05515d7740939c`"
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

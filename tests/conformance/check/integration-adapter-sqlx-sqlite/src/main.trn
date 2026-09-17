@@ -1,9 +1,13 @@
 namespace app
 
-from /deps/sqlx-sqlite import SqliteConnection, open, execute, execute_with_bytes, query_bytes, close
+from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection, execute, execute_with_bytes, query_bytes
+from /deps/sqlx-sqlite/connection import close, connect
 
 async function main;
-    database SqliteConnection = await open; 'adapter.db'
+    options = SqliteConnectOptions::new;
+    options = options.filename; 'adapter.db'
+    options = options.create_if_missing; true
+    database SqliteConnection = await connect; options
     await (execute; database, 'CREATE TABLE values (body BLOB NOT NULL)')
     await (execute_with_bytes; database, 'INSERT INTO values (body) VALUES (?)', b'value')
     rows list of bytes = await query_bytes; database, 'SELECT body FROM values', 'body'

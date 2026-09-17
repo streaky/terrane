@@ -739,8 +739,6 @@ pub use tokio::io::Interest;
 pub use tokio::io::Ready;
 // Source: <terrane>/projected/deps/tokio/net.trn
 // Namespace: deps/tokio/net
-pub use core::task::Context as ContextE2f73277b29d612015f5c6f11f9f316cada8658520e3adff4ea775220737023d;
 pub use core::time::Duration;
-pub use tokio::io::ReadBuf as ReadBuf3da25ce0d8c7f75c44729063aff9806e2dad66282843d515c70355232e1fa5d0;
 pub use tokio::net::TcpListener;
 pub use tokio::net::TcpStream;

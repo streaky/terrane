@@ -295,6 +295,10 @@
           "Place"
         ],
         [
+          "/deps/markdown/string",
+          "to_string"
+        ],
+        [
           "/deps/markdown/unist",
           "Point"
         ],
@@ -367,6 +371,18 @@
         [
           "/deps/terrane-owner-witness",
           "PlainOwner::standard"
+        ],
+        [
+          "/deps/terrane-owner-witness/borrow",
+          "borrow"
+        ],
+        [
+          "/deps/terrane-owner-witness/borrow",
+          "borrow_mut"
+        ],
+        [
+          "/deps/terrane-owner-witness/convert",
+          "from"
         ]
       ],
       "name": "terrane-owner-witness",

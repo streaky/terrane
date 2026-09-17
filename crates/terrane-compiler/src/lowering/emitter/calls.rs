@@ -1522,6 +1522,11 @@ impl Emitter<'_> {
                     .or_else(|| parameter.element_value_type());
                 let expression = if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
+                        || parameter.borrowed
+                            && matches!(
+                                parameter.ty,
+                                crate::projection::ProjectedType::Foreign { .. }
+                            )
                         || matches!(
                             parameter.ty,
                             crate::projection::ProjectedType::BoxedInterface { .. }
@@ -1563,10 +1568,19 @@ impl Emitter<'_> {
                                 ))
                     })
                     .map_or(expression.clone(), |parameter| {
-                        if parameter.mutable_borrow {
-                            format!("&mut {expression}")
-                        } else {
-                            format!("&{expression}")
+                        match (&parameter.ty, parameter.mutable_borrow) {
+                            (crate::projection::ProjectedType::String, false)
+                                if parameter.generic_parameter.is_some() =>
+                            {
+                                format!("({expression}).as_str()")
+                            }
+                            (crate::projection::ProjectedType::Bytes, false)
+                                if parameter.generic_parameter.is_some() =>
+                            {
+                                format!("({expression}).as_slice()")
+                            }
+                            (_, true) => format!("&mut {expression}"),
+                            _ => format!("&{expression}"),
                         }
                     });
                 if parameter.variadic {

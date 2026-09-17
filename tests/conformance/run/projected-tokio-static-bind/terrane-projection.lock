@@ -23,6 +23,10 @@
         [
           "/deps/terrane-static-witness",
           "available_loopback_address"
+        ],
+        [
+          "/deps/terrane-static-witness/any",
+          "type_id"
         ]
       ],
       "name": "terrane-static-witness",
@@ -30,6 +34,18 @@
     },
     {
       "members": [
+        [
+          "/deps/tokio/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/tokio/cmp",
+          "partial_cmp"
+        ],
+        [
+          "/deps/tokio/default",
+          "default"
+        ],
         [
           "/deps/tokio/io",
           "Interest"
@@ -264,18 +280,6 @@
         ],
         [
           "/deps/tokio/net",
-          "TcpStream.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "TcpStream.quickack"
         ],
         [
@@ -388,34 +392,6 @@
         ],
         [
           "/deps/tokio/net",
-          "UdpSocket.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_sender"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_send_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "UdpSocket.readable"
         ],
         [
@@ -516,6 +492,14 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixSocket.bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket.connect"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixSocket.listen"
         ],
         [
@@ -545,14 +529,6 @@
         [
           "/deps/tokio/net",
           "UnixStream.peer_cred"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_write_ready"
         ],
         [
           "/deps/tokio/net",
@@ -601,10 +577,6 @@
         [
           "/deps/tokio/net/tcp",
           "OwnedReadHalf.peer_addr"
-        ],
-        [
-          "/deps/tokio/net/tcp",
-          "OwnedReadHalf.poll_peek"
         ],
         [
           "/deps/tokio/net/tcp",
@@ -772,10 +744,6 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
-          "Receiver.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
           "Receiver.readable"
         ],
         [
@@ -812,10 +780,6 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
-          "Sender.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
           "Sender.ready"
         ],
         [
@@ -837,6 +801,14 @@
         [
           "/deps/tokio/net/unix/pipe",
           "Sender::from_owned_fd_unchecked"
+        ],
+        [
+          "/deps/tokio/ops/arith",
+          "sub"
+        ],
+        [
+          "/deps/tokio/ops/bit",
+          "bitand"
         ]
       ],
       "name": "tokio",

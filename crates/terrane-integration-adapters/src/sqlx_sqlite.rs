@@ -1,10 +1,13 @@
 //! Narrow bridges for `SQLx` SQLite shapes that Terrane cannot yet project directly.
+//!
+//! Connection lifecycle and single-row extraction now use projected upstream trait operations;
+//! this module remains only for query-builder chains and non-Clone row collection.
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
-use sqlx::{Connection, Row};
+use sqlx::Row;
+use sqlx::sqlite::SqliteConnection;
 
 #[derive(Debug)]
 pub struct SqliteAdapterError(sqlx::Error);
@@ -21,18 +24,6 @@ impl From<sqlx::Error> for SqliteAdapterError {
     fn from(error: sqlx::Error) -> Self {
         Self(error)
     }
-}
-
-/// Opens a SQLite connection whose concrete upstream type crosses the projected boundary.
-///
-/// # Errors
-///
-/// Returns [`SqliteAdapterError`] when `SQLx` cannot open the database.
-pub async fn open(path: String) -> Result<SqliteConnection, SqliteAdapterError> {
-    let options = SqliteConnectOptions::new()
-        .filename(path)
-        .create_if_missing(true);
-    Ok(SqliteConnection::connect_with(&options).await?)
 }
 
 /// Executes one SQL statement on an upstream SQLite connection without bound values.
@@ -86,21 +77,15 @@ pub async fn query_bytes(
         .collect()
 }
 
-/// Closes an upstream SQLite connection and reports close failures.
-///
-/// # Errors
-///
-/// Returns [`SqliteAdapterError`] when `SQLx` cannot close the database cleanly.
-pub async fn close(connection: SqliteConnection) -> Result<(), SqliteAdapterError> {
-    Ok(connection.close().await?)
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{close, execute, execute_with_bytes, open, query_bytes};
+    use sqlx::Connection;
+    use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
+
+    use super::{execute, execute_with_bytes, query_bytes};
 
     struct TempDatabase(std::path::PathBuf);
 
@@ -129,7 +114,10 @@ mod tests {
         ));
         let database = TempDatabase(path);
         let path_text = database.0.to_string_lossy().into_owned();
-        let mut connection = open(path_text)
+        let options = SqliteConnectOptions::new()
+            .filename(path_text)
+            .create_if_missing(true);
+        let mut connection = SqliteConnection::connect_with(&options)
             .await
             .expect("database connection must open");
 
@@ -163,7 +151,8 @@ mod tests {
         .expect("query must succeed");
         assert_eq!(rows, [b"first".to_vec(), b"second".to_vec()]);
 
-        close(connection)
+        connection
+            .close()
             .await
             .expect("database connection must close");
         fs::remove_file(&database.0).expect("temporary database must be removable");

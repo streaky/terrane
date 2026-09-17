@@ -462,33 +462,19 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 13] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:10:10-10:31) */
-        { Site { function: 0, file: 0, line: 10, column: 10, end_line: 10, end_column: 31 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:11:21-11:47) */
-        { Site { function: 0, file: 0, line: 11, column: 21, end_line: 11, end_column: 47 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:12:21-12:51) */
-        { Site { function: 0, file: 0, line: 12, column: 21, end_line: 12, end_column: 51 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:13:21-13:61) */
-        { Site { function: 0, file: 0, line: 13, column: 21, end_line: 13, end_column: 61 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:15:32-15:56) */
-        { Site { function: 0, file: 0, line: 15, column: 32, end_line: 15, end_column: 56 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:17:12-17:42) */
-        { Site { function: 0, file: 0, line: 17, column: 12, end_line: 17, end_column: 42 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:17:11-17:43) */
-        { Site { function: 0, file: 0, line: 17, column: 11, end_line: 17, end_column: 43 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:20:20-20:46) */
-        { Site { function: 0, file: 0, line: 20, column: 20, end_line: 20, end_column: 46 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:21:20-21:49) */
-        { Site { function: 0, file: 0, line: 21, column: 20, end_line: 21, end_column: 49 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:22:20-22:58) */
-        { Site { function: 0, file: 0, line: 22, column: 20, end_line: 22, end_column: 58 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:23:22-23:45) */
-        { Site { function: 0, file: 0, line: 23, column: 22, end_line: 23, end_column: 45 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:24:10-24:32) */
-        { Site { function: 0, file: 0, line: 24, column: 10, end_line: 24, end_column: 32 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:24:9-24:33) */
-        { Site { function: 0, file: 0, line: 24, column: 9, end_line: 24, end_column: 33 } },
+    pub static SITES: [Site; 6] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:9:15-9:26) */
+        { Site { function: 0, file: 0, line: 9, column: 15, end_line: 9, end_column: 26 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:10:16-10:36) */
+        { Site { function: 0, file: 0, line: 10, column: 16, end_line: 10, end_column: 36 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:11:23-11:30) */
+        { Site { function: 0, file: 0, line: 11, column: 23, end_line: 11, end_column: 30 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:32-11:39) */
+        { Site { function: 0, file: 0, line: 11, column: 32, end_line: 11, end_column: 39 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:13:21-13:44) */
+        { Site { function: 0, file: 0, line: 13, column: 21, end_line: 13, end_column: 44 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:18:26-18:47) */
+        { Site { function: 0, file: 0, line: 18, column: 26, end_line: 18, end_column: 47 } },
     ];
     #[cold]
     #[inline(never)]
@@ -506,69 +492,78 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let path: String = __terrane_raised(
-            prepare_missing_path(),
-            0 /* terrane-site: src/main.trn:10:10-10:31 */,
+        let row: SqliteRow = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = sample_row();
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            0 /* terrane-site: src/main.trn:9:15-9:26 */,
+                        )
+                    }
+                })
+                .await,
+            0 /* terrane-site: src/main.trn:9:15-9:26 */,
         );
-        let mut missing_options: SqliteConnectOptions = __terrane_raised(
-            terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
-            1 /* terrane-site: src/main.trn:11:21-11:47 */,
-        );
-        missing_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| missing_options.filename(path.as_str())),
-            ) {
-                Ok(value) => Ok(value),
+        let body: Vec<u8> = __terrane_raised(
+            match std::panic::catch_unwind(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
+                &row,
+                String::from("body").as_str(),
+            )) {
+                Ok(Ok(value)) => Ok(value),
+                Ok(Err(error)) => {
+                    Err(
+                        crate::TerraneForeignError(
+                            crate::TerraneError::custom_raised(
+                                crate::TERRANE_DEPENDENCY_ERROR,
+                                format!(
+                                    "Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"
+                                ),
+                                crate::TERRANE_NO_SITE,
+                            ),
+                        ),
+                    )
+                }
                 Err(payload) => {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "sqlx_sqlite",
-                            "sqlx_sqlite::SqliteConnectOptions::filename",
+                            "<sqlx_sqlite",
+                            "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get",
                         ),
                     )
                 }
             },
-            2 /* terrane-site: src/main.trn:12:21-12:51 */,
+            1 /* terrane-site: src/main.trn:10:16-10:36 */,
         );
-        missing_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| missing_options.create_if_missing(false)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "sqlx_sqlite",
-                            "sqlx_sqlite::SqliteConnectOptions::create_if_missing",
-                        ),
-                    )
-                }
-            },
-            3 /* terrane-site: src/main.trn:13:21-13:61 */,
+        println!(
+            "{}{}{}", terrane_scalar_support::scalar_text(&(body.len() as i128)),
+            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&body,
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            2 /* terrane-site: src/main.trn:11:23-11:30 */)), 2 /* terrane-site: src/main.trn:11:23-11:30 */)),
+            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&body,
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
+            3 /* terrane-site: src/main.trn:11:32-11:39 */)), 3 /* terrane-site: src/main.trn:11:32-11:39 */))
         );
-        let __terrane_completion_0: TerraneCompletion<()> = async {
-            let __terrane_try_0: TerraneCompletion<()> = async {
-                let missing_connection: SqliteConnection = __terrane_traced_completion!(
-                    __terrane_await({ let __terrane_future = connect(&missing_options);
-                    async move { __terrane_raised_err(__terrane_future. await,
-                    4 /* terrane-site: src/main.trn:15:32-15:56 */) } }). await,
-                    4 /* terrane-site: src/main.trn:15:32-15:56 */
+        let __terrane_completion_0: TerraneCompletion<()> = (|| {
+            let __terrane_try_0: TerraneCompletion<()> = (|| {
+                let missing: Vec<u8> = __terrane_raised_completion!(
+                    match std::panic::catch_unwind(| | < sqlx_sqlite::SqliteRow as
+                    sqlx_core::row::Row > ::try_get(&row, String::from("missing")
+                    .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+                    ::TERRANE_DEPENDENCY_ERROR,
+                    format!("Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
+                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload, "<sqlx_sqlite",
+                    "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
+                    4 /* terrane-site: src/main.trn:13:21-13:44 */
                 );
                 println!(
-                    "{}",
-                    terrane_scalar_support::scalar_text(&String::from("unexpected-open"))
-                );
-                __terrane_traced_completion!(
-                    __terrane_await({ let __terrane_future = close(missing_connection);
-                    async move { __terrane_raised_err(__terrane_future. await,
-                    5 /* terrane-site: src/main.trn:17:12-17:42 */) } }). await,
-                    6 /* terrane-site: src/main.trn:17:11-17:43 */
+                    "{}", terrane_scalar_support::scalar_text(&(missing.len() as i128))
                 );
                 TerraneCompletion::Normal
-            }
-                .await;
+            })();
             match __terrane_try_0 {
                 TerraneCompletion::Return(value) => {
                     return TerraneCompletion::Return(value);
@@ -585,7 +580,7 @@ fn main() {
                         __terrane_handled_0 = true;
                         println!(
                             "{}",
-                            terrane_scalar_support::scalar_text(&String::from("missing"))
+                            terrane_scalar_support::scalar_text(&String::from("missing-column"))
                         );
                     }
                     if !__terrane_handled_0 {
@@ -594,8 +589,7 @@ fn main() {
                 }
             }
             TerraneCompletion::Normal
-        }
-            .await;
+        })();
         match __terrane_completion_0 {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Return(value) => return value,
@@ -604,115 +598,72 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        let mut create_options: SqliteConnectOptions = __terrane_raised(
-            terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
-            7 /* terrane-site: src/main.trn:20:20-20:46 */,
-        );
-        create_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| create_options.filename(path.as_str())),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "sqlx_sqlite",
-                            "sqlx_sqlite::SqliteConnectOptions::filename",
-                        ),
-                    )
+        let __terrane_completion_1: TerraneCompletion<()> = (|| {
+            let __terrane_try_1: TerraneCompletion<()> = (|| {
+                let incompatible: Vec<u8> = __terrane_raised_completion!(
+                    match std::panic::catch_unwind(| | < sqlx_sqlite::SqliteRow as
+                    sqlx_core::row::Row > ::try_get(&row, String::from("count")
+                    .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+                    ::TERRANE_DEPENDENCY_ERROR,
+                    format!("Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
+                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload, "<sqlx_sqlite",
+                    "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
+                    5 /* terrane-site: src/main.trn:18:26-18:47 */
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&(incompatible.len() as
+                    i128))
+                );
+                TerraneCompletion::Normal
+            })();
+            match __terrane_try_1 {
+                TerraneCompletion::Return(value) => {
+                    return TerraneCompletion::Return(value);
                 }
-            },
-            8 /* terrane-site: src/main.trn:21:20-21:49 */,
-        );
-        create_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| create_options.create_if_missing(true)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "sqlx_sqlite",
-                            "sqlx_sqlite::SqliteConnectOptions::create_if_missing",
-                        ),
-                    )
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                TerraneCompletion::Normal => {}
+                TerraneCompletion::Error(__terrane_error_1) => {
+                    let mut __terrane_handled_1 = false;
+                    if !__terrane_handled_1
+                        && __terrane_error_1.kind
+                            == TerraneErrorKind::Custom(DescriptorId(0))
+                    {
+                        __terrane_handled_1 = true;
+                        println!(
+                            "{}",
+                            terrane_scalar_support::scalar_text(&String::from("incompatible-value"))
+                        );
+                    }
+                    if !__terrane_handled_1 {
+                        return TerraneCompletion::Error(__terrane_error_1);
+                    }
                 }
-            },
-            9 /* terrane-site: src/main.trn:22:20-22:58 */,
-        );
-        let connection: SqliteConnection = __terrane_traced(
-            __terrane_await({
-                    let __terrane_future = connect(&create_options);
-                    async move {
-                        __terrane_raised_err(
-                            __terrane_future.await,
-                            10 /* terrane-site: src/main.trn:23:22-23:45 */,
-                        )
-                    }
-                })
-                .await,
-            10 /* terrane-site: src/main.trn:23:22-23:45 */,
-        );
-        __terrane_traced(
-            __terrane_await({
-                    let __terrane_future = close(connection);
-                    async move {
-                        __terrane_raised_err(
-                            __terrane_future.await,
-                            11 /* terrane-site: src/main.trn:24:10-24:32 */,
-                        )
-                    }
-                })
-                .await,
-            12 /* terrane-site: src/main.trn:24:9-24:33 */,
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("created-and-closed"))
-        );
+            }
+            TerraneCompletion::Normal
+        })();
+        match __terrane_completion_1 {
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                __terrane_generated_defect("loop control escaped a non-loop try")
+            }
+        }
     });
 }
 // Source: <terrane>/projected/deps/sqlx-sqlite.trn
 // Namespace: deps/sqlx-sqlite
-pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
-pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
-pub use sqlx_sqlite::SqliteAutoVacuum;
-pub use sqlx_sqlite::SqliteConnection;
-pub use sqlx_sqlite::SqliteJournalMode;
-pub use sqlx_sqlite::SqliteLockingMode;
-pub use sqlx_sqlite::SqliteSynchronous;
-pub use sqlx_sqlite::SqliteConnectOptions;
-pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Result<
-    SqliteConnectOptions,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| sqlx_sqlite::SqliteConnectOptions::new()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "sqlx-sqlite",
-                    "sqlx_sqlite::SqliteConnectOptions",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/sqlx-sqlite/connection.trn
-// Namespace: deps/sqlx-sqlite/connection
-pub async fn close(
-    receiver: SqliteConnection,
-) -> Result<(), crate::TerraneForeignError> {
-    let receiver = receiver;
+pub use sqlx_sqlite::SqliteRow;
+// Source: <terrane>/projected/deps/sqlx-sqlite/row.trn
+// Namespace: deps/sqlx-sqlite/row
+// Source: <terrane>/projected/deps/terrane-sqlx-row-producer.trn
+// Namespace: deps/terrane-sqlx-row-producer
+pub async fn sample_row() -> Result<SqliteRow, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
-            <sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close(
-                receiver,
-            ),
+            terrane_sqlx_row_producer::sample_row(),
         )
         .await
     {
@@ -723,7 +674,7 @@ pub async fn close(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close` failed: {error}"
+                            "Rust dependency `terrane-sqlx-row-producer` member `terrane_sqlx_row_producer::sample_row` failed: {error}"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -734,61 +685,8 @@ pub async fn close(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "sqlx-sqlite",
-                    "<sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close",
-                ),
-            )
-        }
-    }
-}
-pub async fn connect(
-    receiver: &SqliteConnectOptions,
-) -> Result<SqliteConnection, crate::TerraneForeignError> {
-    match crate::__terrane_dependency_await_unwind(
-            <sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect(
-                receiver,
-            ),
-        )
-        .await
-    {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "sqlx-sqlite",
-                    "<sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/terrane-sqlx-lifecycle-witness.trn
-// Namespace: deps/terrane-sqlx-lifecycle-witness
-pub fn prepare_missing_path() -> Result<String, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_sqlx_lifecycle_witness::prepare_missing_path()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-sqlx-lifecycle-witness",
-                    "terrane_sqlx_lifecycle_witness::prepare_missing_path",
+                    "terrane-sqlx-row-producer",
+                    "terrane_sqlx_row_producer::sample_row",
                 ),
             )
         }
