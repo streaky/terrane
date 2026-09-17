@@ -1,0 +1,10 @@
+package = "projected-associated-self-constructor"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.markdown]
+version = "=1.0.0"
+
+[rust-dependencies.terrane-owner-witness]
+version = "=0.1.0"

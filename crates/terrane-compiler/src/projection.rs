@@ -4035,14 +4035,14 @@ fn project_rustdoc(
                             continue;
                         }
                     };
-                if !owner_generics.is_empty() {
-                    let base_rust_path = rust_path.clone();
-                    let arguments = structure
-                        .generics
-                        .params
-                        .iter()
-                        .filter_map(|parameter| owner_generics.get(&parameter.name).cloned())
-                        .collect::<Vec<_>>();
+                let base_rust_path = rust_path.clone();
+                let arguments = structure
+                    .generics
+                    .params
+                    .iter()
+                    .filter_map(|parameter| owner_generics.get(&parameter.name).cloned())
+                    .collect::<Vec<_>>();
+                if !arguments.is_empty() {
                     rust_path = format!(
                         "{base_rust_path}<{}>",
                         arguments
@@ -4051,16 +4051,16 @@ fn project_rustdoc(
                             .collect::<Vec<_>>()
                             .join(", ")
                     );
-                    owner_generics.insert(
-                        "Self".to_owned(),
-                        ProjectedType::Foreign {
-                            rust_path: rust_path.clone(),
-                            name: name.clone(),
-                            base_rust_path,
-                            arguments,
-                        },
-                    );
                 }
+                owner_generics.insert(
+                    "Self".to_owned(),
+                    ProjectedType::Foreign {
+                        rust_path: rust_path.clone(),
+                        name: name.clone(),
+                        base_rust_path,
+                        arguments,
+                    },
+                );
                 {
                     let (projected_methods, trait_methods, method_declines) = project_methods(
                         &structure.impls,
