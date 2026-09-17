@@ -7,8 +7,8 @@ use pdf_oxide::api::Pdf;
 ///
 /// # Errors
 /// Returns the parser diagnostic as display text.
-pub fn markdown_to_html(markdown: String) -> Result<String, String> {
-    to_html_with_options(&markdown, &Options::gfm()).map_err(|error| error.to_string())
+pub fn markdown_to_html(markdown: String, options: Options) -> Result<String, String> {
+    to_html_with_options(&markdown, &options).map_err(|error| error.to_string())
 }
 
 /// Render HTML into PDF bytes without exposing `pdf_oxide`'s editor graph.

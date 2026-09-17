@@ -109,32 +109,6 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         removal_criterion: "generic enum constructors and optional/result async member projection support the same bounded Terrane-authored echo session directly",
     },
     IntegrationAdapter {
-        id: "tokio-listener-static-methods",
-        tracking_key: "projection/projected-static-wrapper-dependencies",
-        dependency: "tokio",
-        supported_versions: "1.53.x with net",
-        limitation: "TcpListener::bind is input-selected, but projected static member calls do not yet select its concrete string instantiation",
-        status: AdapterStatus::Package {
-            name: "terrane-integration-adapters",
-            version: "0.1.x",
-            feature: "axum-08",
-        },
-        removal_criterion: "generic projected static-call specialization infers the bind argument and emits direct TcpListener::bind",
-    },
-    IntegrationAdapter {
-        id: "markdown-gfm-options-constructor",
-        tracking_key: "projection/associated-self-constructor",
-        dependency: "markdown",
-        supported_versions: "1.0.x",
-        limitation: "Options::gfm returns Self and is rejected because the receiver type appears outside receiver position",
-        status: AdapterStatus::Package {
-            name: "terrane-integration-adapters",
-            version: "0.1.x",
-            feature: "docs-rendering",
-        },
-        removal_criterion: "generic static associated constructors returning an otherwise projectable receiver type are callable directly from Terrane",
-    },
-    IntegrationAdapter {
         id: "pdf-oxide-html-bytes",
         tracking_key: "projection/projected-namespace-cycles-and-generic-path-save",
         dependency: "pdf_oxide",

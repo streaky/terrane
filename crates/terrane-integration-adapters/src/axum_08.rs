@@ -56,15 +56,6 @@ pub fn close_message() -> Message {
     Message::Close(None)
 }
 
-/// Bind the Tokio listener required by `axum::serve` without exposing its unprojectable static API.
-///
-/// # Errors
-///
-/// Returns the operating-system bind error when the address cannot be listened on.
-pub async fn bind_listener(address: String) -> Result<TcpListener, std::io::Error> {
-    TcpListener::bind(address).await
-}
-
 /// Await Axum's `IntoFuture` server value at the currently projectable concrete router boundary.
 ///
 /// # Errors
