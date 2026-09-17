@@ -1,6 +1,8 @@
 namespace app
 
 from /deps/axum import Router, UpgradeResponse, close_message, receive_text, serve_router, text_message, upgrade
+from /deps/axum/router import default as default_router
+from /deps/axum/routing/methodrouter import default as default_method_router
 from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
 from /deps/tokio/net import TcpListener
@@ -19,6 +21,8 @@ async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
     return upgrade; move request, socket-task
 
 async function main;
+    _ = default_router;
+    _ = default_method_router;
     router = Router::new;
     router = router.route; '/', (get; health)
     router = router.route; '/ws', (get; upgrade-handler)

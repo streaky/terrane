@@ -435,10 +435,6 @@
           "get"
         ],
         [
-          "/deps/reqwest",
-          "is_end_stream"
-        ],
-        [
           "/deps/reqwest/async-impl/client",
           "Pending"
         ],
@@ -787,16 +783,80 @@
           "get"
         ],
         [
-          "/deps/reqwest/cmp",
-          "cmp"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-static-str",
+          "from"
         ],
         [
-          "/deps/reqwest/cmp",
-          "eq"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/fs/file",
+          "from"
         ],
         [
-          "/deps/reqwest/cmp",
-          "partial_cmp"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body",
+          "default"
+        ],
+        [
+          "/deps/reqwest/body",
+          "is_end_stream"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-reqwest/response",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-static-str",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/certificate",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "from"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -811,10 +871,6 @@
           "Internal"
         ],
         [
-          "/deps/reqwest/convert",
-          "try_from"
-        ],
-        [
           "/deps/reqwest/dns",
           "Name"
         ],
@@ -823,12 +879,28 @@
           "Name.as_str"
         ],
         [
+          "/deps/reqwest/dns/name",
+          "from_str"
+        ],
+        [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
         ],
         [
-          "/deps/reqwest/io/async-write",
-          "is_write_vectored"
+          "/deps/reqwest/identity",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/proxy",
+          "clone"
         ],
         [
           "/deps/reqwest/redirect",
@@ -849,6 +921,14 @@
         [
           "/deps/reqwest/redirect",
           "Policy::none"
+        ],
+        [
+          "/deps/reqwest/redirect/policy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/request",
+          "try_from"
         ],
         [
           "/deps/reqwest/retry",
@@ -891,14 +971,6 @@
           "Success"
         ],
         [
-          "/deps/reqwest/str/traits",
-          "from_str"
-        ],
-        [
-          "/deps/reqwest/string",
-          "to_string"
-        ],
-        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -909,6 +981,30 @@
         [
           "/deps/reqwest/tls",
           "Version"
+        ],
+        [
+          "/deps/reqwest/tls/tlsinfo",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "partial_cmp"
+        ],
+        [
+          "/deps/reqwest/upgraded",
+          "is_write_vectored"
         ]
       ],
       "name": "reqwest",
@@ -916,7 +1012,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

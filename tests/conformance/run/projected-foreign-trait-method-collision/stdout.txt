@@ -1,1 +1,1 @@
-colliding trait method declined
+12 222

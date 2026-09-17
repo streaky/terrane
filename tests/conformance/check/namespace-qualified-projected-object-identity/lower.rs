@@ -504,8 +504,10 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/reqwest.trn
 // Namespace: deps/reqwest
-pub use reqwest::Upgraded;
+pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8BlockingResponse;
+pub use std::net::SocketAddr as TerraneNs4Deps7Reqwest8BlockingSocketAddr;
 pub use reqwest::Response as TerraneNs4Deps7ReqwestResponse;
+pub use std::net::SocketAddr as TerraneNs4Deps7ReqwestSocketAddr;
+pub use reqwest::Upgraded;
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
-pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8BlockingResponse;

@@ -673,6 +673,8 @@ fn lower_with_tests(
     }
     emit_global_storage(package, &registry, &mut globals);
     let static_method_references = index_projected_static_method_references(package);
+    let dependency_import_owners =
+        index_dependency_import_owners(package, &static_method_references);
     let mut modules = package
         .units
         .iter()
@@ -689,6 +691,7 @@ fn lower_with_tests(
                     package,
                     unit,
                     &static_method_references,
+                    &dependency_import_owners,
                 ));
                 return Ok(Module {
                     source_path: unit.source_path.clone(),

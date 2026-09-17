@@ -19,24 +19,36 @@
           "parse_http_date"
         ],
         [
-          "/deps/date-codec/clone",
+          "/deps/date-codec/error",
+          "from"
+        ],
+        [
+          "/deps/date-codec/httpdate",
           "clone"
         ],
         [
-          "/deps/date-codec/cmp",
+          "/deps/date-codec/httpdate",
           "cmp"
         ],
         [
-          "/deps/date-codec/cmp",
+          "/deps/date-codec/httpdate",
           "eq"
         ],
         [
-          "/deps/date-codec/cmp",
+          "/deps/date-codec/httpdate",
+          "from_str"
+        ],
+        [
+          "/deps/date-codec/httpdate",
           "partial_cmp"
         ],
         [
-          "/deps/date-codec/str/traits",
-          "from_str"
+          "/deps/date-codec/httpdate/trait/core/convert/from-httpdate/httpdate",
+          "from"
+        ],
+        [
+          "/deps/date-codec/httpdate/trait/core/convert/from-std/time/systemtime",
+          "from"
         ]
       ],
       "name": "date-codec",
@@ -44,7 +56,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [
     {
       "current_version": "1.0.3",

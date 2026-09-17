@@ -39,11 +39,7 @@
           "sequence_total"
         ],
         [
-          "/deps/terrane-associated-witness/any",
-          "type_id"
-        ],
-        [
-          "/deps/terrane-associated-witness/clone",
+          "/deps/terrane-associated-witness/nested",
           "clone"
         ]
       ],
@@ -52,7 +48,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

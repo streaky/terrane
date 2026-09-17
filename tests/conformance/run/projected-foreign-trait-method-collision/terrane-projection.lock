@@ -30,6 +30,14 @@
         [
           "/deps/terrane-trait-collision-impls",
           "second"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls/first",
+          "transform"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls/second",
+          "transform"
         ]
       ],
       "name": "terrane-trait-collision-impls",
@@ -37,7 +45,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

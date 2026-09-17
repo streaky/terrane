@@ -1,10 +1,12 @@
 use super::prelude::*;
-fn value_type_mentions_object(value_type: &ValueType, identity: &ObjectIdentity) -> bool {
-    let element =
-        |element: &ElementType| value_type_mentions_object(element.value_type_ref(), identity);
+use std::collections::BTreeMap;
+
+pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<String>, bool)>;
+
+fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&ObjectIdentity)) {
     match value_type {
-        ValueType::Object(candidate) => candidate == identity,
-        ValueType::Optional(inner) => value_type_mentions_object(inner, identity),
+        ValueType::Object(identity) => visit(identity),
+        ValueType::Optional(inner) => visit_value_type_objects(inner, visit),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::AsyncIterationStep(item)
@@ -17,81 +19,256 @@ fn value_type_mentions_object(value_type: &ValueType, identity: &ObjectIdentity)
         | ValueType::List(item)
         | ValueType::Set(item)
         | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
         | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => element(item),
+        | ValueType::SharedReference(item) => {
+            visit_value_type_objects(item.value_type_ref(), visit);
+        }
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
-        | ValueType::UnorderedMap(key, value) => element(key) || element(value),
+        | ValueType::UnorderedMap(key, value) => {
+            visit_value_type_objects(key.value_type_ref(), visit);
+            visit_value_type_objects(value.value_type_ref(), visit);
+        }
         ValueType::Function(parameters, result, _)
         | ValueType::AsyncFunction(parameters, result, _, _) => {
-            parameters
-                .iter()
-                .any(|parameter| element(&parameter.element_type()))
-                || element(result)
+            for parameter in parameters {
+                visit_value_type_objects(parameter.value_type_ref(), visit);
+            }
+            visit_value_type_objects(result.value_type_ref(), visit);
         }
-        _ => false,
+        _ => {}
     }
 }
 
-pub(super) fn emit_dependency_imports(
+fn value_type_mentions_object(value_type: &ValueType, target: &ObjectIdentity) -> bool {
+    let mut mentions = false;
+    visit_value_type_objects(value_type, &mut |identity| {
+        mentions |= identity == target;
+    });
+    mentions
+}
+
+fn collect_value_type_objects(value_type: &ValueType, objects: &mut BTreeSet<ObjectIdentity>) {
+    visit_value_type_objects(value_type, &mut |identity| {
+        objects.insert(identity.clone());
+    });
+}
+
+fn unit_references_object(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+    static_method_references: &StaticMethodReferences,
+) -> bool {
+    unit.functions.iter().any(|function| {
+        if function.is_static {
+            let Some(owner) = &function.owner_identity else {
+                return false;
+            };
+            if !static_method_references.contains(&(
+                owner.namespace.clone(),
+                owner.name.clone(),
+                function.name.clone(),
+            )) {
+                return false;
+            }
+            if owner == identity {
+                return true;
+            }
+        } else if function.owner_identity.as_ref() == Some(identity) {
+            return true;
+        }
+        function
+            .return_type
+            .as_ref()
+            .is_some_and(|return_type| value_type_mentions_object(return_type, identity))
+            || function.parameters.iter().any(|parameter| {
+                parameter
+                    .value_type
+                    .as_ref()
+                    .is_some_and(|value_type| value_type_mentions_object(value_type, identity))
+            })
+    })
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "cross-unit import ownership is one deterministic indexing pass"
+)]
+pub(super) fn index_dependency_import_owners(
     package: &SemanticPackage,
+    static_method_references: &StaticMethodReferences,
+) -> DependencyImportOwners {
+    let mut owners = BTreeMap::new();
+    for unit in &package.units {
+        if !unit.bundled || !unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for object in &unit.descriptors {
+            if object.kind == ObjectKind::Interface {
+                continue;
+            }
+            if object.identity.namespace != unit.namespace
+                || !unit_references_object(unit, &object.identity, static_method_references)
+                || package
+                    .projection
+                    .item(&object.identity.namespace, &object.identity.name)
+                    .is_some_and(|item| {
+                        matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                    })
+            {
+                continue;
+            }
+            let projected = package
+                .projection
+                .projected_type(&object.identity.namespace, &object.identity.name);
+            let path = package
+                .projection
+                .foreign_rust_path(&object.identity.namespace, &object.identity.name)
+                .map(str::to_owned)
+                .or_else(|| {
+                    projected
+                        .as_ref()
+                        .map(crate::projection::ProjectedType::rust_type)
+                });
+            let Some(path) = path else {
+                continue;
+            };
+            let rust_name = rust_object_type_name(package, &object.identity);
+            let generic_parameters = projected
+                .as_ref()
+                .map(projected_generic_names)
+                .unwrap_or_default();
+            owners
+                .entry(rust_name)
+                .and_modify(
+                    |(owner, selected_path, selected_parameters, canonical): &mut (
+                        String,
+                        String,
+                        Vec<String>,
+                        bool,
+                    )| {
+                        if unit.namespace < *owner {
+                            owner.clone_from(&unit.namespace);
+                        }
+                        if !*canonical {
+                            selected_path.clone_from(&path);
+                            selected_parameters.clone_from(&generic_parameters);
+                            *canonical = true;
+                        }
+                    },
+                )
+                .or_insert_with(|| (unit.namespace.clone(), path, generic_parameters, true));
+        }
+        for (name, path) in package.projection.foreign_imports(&unit.namespace) {
+            let rust_name = rust_object_name(&name);
+            if !unit.descriptors.iter().any(|object| {
+                object.kind != ObjectKind::Interface
+                    && rust_object_type_name(package, &object.identity) == rust_name
+                    && unit_references_object(unit, &object.identity, static_method_references)
+            }) {
+                continue;
+            }
+            let projected = package.projection.projected_type(&unit.namespace, &name);
+            let generic_parameters = projected
+                .as_ref()
+                .map(projected_generic_names)
+                .unwrap_or_default();
+            owners
+                .entry(rust_name)
+                .and_modify(
+                    |(owner, _, _, _): &mut (String, String, Vec<String>, bool)| {
+                        if unit.namespace < *owner {
+                            owner.clone_from(&unit.namespace);
+                        }
+                    },
+                )
+                .or_insert_with(|| (unit.namespace.clone(), path, generic_parameters, false));
+        }
+    }
+    let Some(emission_namespace) = package
+        .units
+        .iter()
+        .filter(|unit| unit.bundled && unit.namespace.starts_with("/deps/"))
+        .map(|unit| unit.namespace.as_str())
+        .min()
+    else {
+        return owners;
+    };
+    let mut source_objects = BTreeSet::new();
+    for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for binding in &unit.typed_bindings {
+            collect_value_type_objects(&binding.value_type, &mut source_objects);
+        }
+        for function in &unit.functions {
+            if let Some(return_type) = &function.return_type {
+                collect_value_type_objects(return_type, &mut source_objects);
+            }
+            for parameter in &function.parameters {
+                if let Some(value_type) = &parameter.value_type {
+                    collect_value_type_objects(value_type, &mut source_objects);
+                }
+            }
+        }
+    }
+    for identity in source_objects
+        .into_iter()
+        .filter(|identity| identity.namespace.starts_with("/deps/"))
+    {
+        if package.units.iter().any(|unit| {
+            unit.descriptors
+                .iter()
+                .any(|object| object.identity == identity && object.kind == ObjectKind::Interface)
+        }) {
+            continue;
+        }
+        let projected = package
+            .projection
+            .projected_type(&identity.namespace, &identity.name);
+        let path = package
+            .projection
+            .foreign_rust_path(&identity.namespace, &identity.name)
+            .map(str::to_owned)
+            .or_else(|| {
+                projected
+                    .as_ref()
+                    .map(crate::projection::ProjectedType::rust_type)
+            });
+        let Some(path) = path else {
+            continue;
+        };
+        let rust_name = rust_object_type_name(package, &identity);
+        let generic_parameters = projected
+            .as_ref()
+            .map(projected_generic_names)
+            .unwrap_or_default();
+        owners.entry(rust_name).or_insert_with(|| {
+            (
+                emission_namespace.to_owned(),
+                path,
+                generic_parameters,
+                true,
+            )
+        });
+    }
+    owners
+}
+
+pub(super) fn emit_dependency_imports(
+    import_owners: &DependencyImportOwners,
     unit: &SemanticUnit,
     output: &mut String,
 ) {
-    let mut imported = BTreeSet::new();
-    for object in &unit.descriptors {
-        if object.identity.namespace != unit.namespace {
-            continue;
-        }
-        if package
-            .projection
-            .item(&object.identity.namespace, &object.identity.name)
-            .is_some_and(|item| matches!(item.kind, crate::projection::ProjectedKind::Interface(_)))
-        {
-            continue;
-        }
-        let direct_path = package
-            .projection
-            .foreign_rust_path(&object.identity.namespace, &object.identity.name);
-        if direct_path.is_none()
-            && !unit
-                .typed_bindings
-                .iter()
-                .any(|binding| value_type_mentions_object(&binding.value_type, &object.identity))
-        {
-            continue;
-        }
-        let path = direct_path.map(str::to_owned).or_else(|| {
-            package
-                .projection
-                .projected_type(&object.identity.namespace, &object.identity.name)
-                .map(|projected| projected.rust_type())
-        });
-        if let Some(path) = path {
-            let rust_name = rust_object_type_name(package, &object.identity);
-            if !imported.insert(rust_name.clone()) {
-                continue;
-            }
-            let generic_parameters = package
-                .projection
-                .projected_type(&object.identity.namespace, &object.identity.name)
-                .map(|projected| projected_generic_names(&projected))
-                .unwrap_or_default();
-            write_foreign_import(output, &path, &rust_name, &generic_parameters);
-        }
-    }
-    for (name, path) in package.projection.foreign_imports(&unit.namespace) {
-        let rust_name = rust_object_name(&name);
-        if imported.insert(rust_name.clone()) {
-            let generic_parameters = package
-                .projection
-                .projected_type(&unit.namespace, &name)
-                .map(|projected| projected_generic_names(&projected))
-                .unwrap_or_default();
-            write_foreign_import(output, &path, &rust_name, &generic_parameters);
+    let first_namespace = import_owners.values().map(|(owner, _, _, _)| owner).min();
+    if first_namespace.is_some_and(|namespace| namespace == &unit.namespace) {
+        for (rust_name, (_, path, generic_parameters, _)) in import_owners {
+            write_foreign_import(output, path, rust_name, generic_parameters);
         }
     }
 }
@@ -141,12 +318,23 @@ fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String>
     names.into_iter().collect()
 }
 
+fn canonical_foreign_import_path(path: &str) -> std::borrow::Cow<'_, str> {
+    if path == "std::io::error::Error" {
+        "std::io::Error".into()
+    } else if let Some(suffix) = path.strip_prefix("core::net::socket_addr::") {
+        format!("std::net::{suffix}").into()
+    } else {
+        path.into()
+    }
+}
+
 pub(super) fn write_foreign_import(
     output: &mut String,
     path: &str,
     rust_name: &str,
     generic_parameters: &[String],
 ) {
+    let path = canonical_foreign_import_path(path);
     if path.contains("<'_>") {
         return;
     }
@@ -494,9 +682,10 @@ pub(super) fn emit_dependency_unit(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     static_method_references: &StaticMethodReferences,
+    import_owners: &DependencyImportOwners,
 ) -> String {
     let mut output = String::new();
-    emit_dependency_imports(package, unit, &mut output);
+    emit_dependency_imports(import_owners, unit, &mut output);
     for contract in &unit.functions {
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
@@ -675,7 +864,7 @@ pub(super) fn emit_dependency_unit(
             "pub {}fn {}{generic_declaration}({}) -> {result} {{",
             if projected.is_async { "async " } else { "" },
             static_owner.map_or_else(
-                || rust_name(&contract.name),
+                || function_name(package, contract),
                 |owner| projected_static_shim_name(owner, &contract.name),
             ),
             parameters.join(", ")
@@ -792,5 +981,21 @@ mod tests {
             &["T".to_owned()],
         );
         assert_eq!(output, "pub type Wrapper_open<T> = witness::Wrapper<T>;\n");
+    }
+
+    #[test]
+    fn private_standard_library_paths_use_public_reexports() {
+        let mut output = String::new();
+        write_foreign_import(&mut output, "std::io::error::Error", "Error", &[]);
+        write_foreign_import(
+            &mut output,
+            "core::net::socket_addr::SocketAddr",
+            "SocketAddr",
+            &[],
+        );
+        assert_eq!(
+            output,
+            "pub use std::io::Error;\npub use std::net::SocketAddr;\n"
+        );
     }
 }

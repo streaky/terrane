@@ -729,10 +729,11 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 45 records
 structural call bindings, complete supertrait identities, final-admission bound filtering,
 call-site generic templates, and validated dependency namespace overlays.
-Projection schema 47 invalidates earlier caches for concrete nongeneric `Self` constructors,
+Projection schema 50 invalidates earlier caches for concrete nongeneric `Self` constructors,
 input-selected static and consuming calls, structural `impl AsRef<Path>` inputs, canonical
-`BoxFuture` unwrapping, concrete external-trait operations including qualified provided-method
-declines, and lifetime-bearing chain values that remain confined to one expression.
+`BoxFuture` unwrapping, concrete external-trait operations beneath their projected owners with
+deterministic trait-qualified collision fallbacks, lifetime-bearing chain values confined to one
+expression, and generated-module-wide canonical foreign imports.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 

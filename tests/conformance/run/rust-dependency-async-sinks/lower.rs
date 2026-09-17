@@ -1181,10 +1181,10 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/terrane-sink-witness.trn
 // Namespace: deps/terrane-sink-witness
+pub use terrane_sink_witness::Duplex;
 pub use terrane_sink_witness::Incoming;
 pub use terrane_sink_witness::Outgoing;
 pub use terrane_sink_witness::QueueSink;
-pub use terrane_sink_witness::Duplex;
 pub use terrane_sink_witness::SplitEndpoints;
 pub fn blocked_sink() -> Result<Outgoing, crate::TerraneForeignError> {
     match std::panic::catch_unwind(

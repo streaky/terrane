@@ -1,4 +1,4 @@
-package = "projected-static-associated-decline"
+package = "projected-static-associated-owner"
 [namespaces]
 app = "src"
 [rust-dependencies.bytes]

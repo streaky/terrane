@@ -522,7 +522,9 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/markdown.trn
 // Namespace: deps/markdown
+pub type DefaultOwner = terrane_owner_witness::DefaultOwner<String>;
 pub use markdown::Options;
+pub use terrane_owner_witness::PlainOwner;
 pub fn terrane_static_trn_4f7074696f6e73_gfm() -> Result<
     Options,
     crate::TerraneForeignError,
@@ -577,8 +579,6 @@ pub fn to_html_with_options(
 }
 // Source: <terrane>/projected/deps/terrane-owner-witness.trn
 // Namespace: deps/terrane-owner-witness
-pub type DefaultOwner = terrane_owner_witness::DefaultOwner<String>;
-pub use terrane_owner_witness::PlainOwner;
 pub fn terrane_static_trn_44656661756c744f776e6572_standard() -> Result<
     DefaultOwner,
     crate::TerraneForeignError,

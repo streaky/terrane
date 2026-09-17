@@ -39,10 +39,6 @@
         [
           "/deps/terrane-generic-row-witness",
           "row"
-        ],
-        [
-          "/deps/terrane-generic-row-witness/any",
-          "type_id"
         ]
       ],
       "name": "terrane-generic-row-witness",
@@ -50,7 +46,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [
     {
       "current_version": "0.1.1",

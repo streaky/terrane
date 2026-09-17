@@ -15,9 +15,17 @@ impl Second {
     }
 }
 
-impl Transform for First {}
+impl Transform for First {
+    fn transform(&self, value: i64) -> i64 {
+        self.0 + value
+    }
+}
 
-impl Transform for Second {}
+impl Transform for Second {
+    fn transform(&self, value: i64) -> i64 {
+        self.0 * 100 + value
+    }
+}
 
 pub fn first(value: i64) -> First {
     First(value)

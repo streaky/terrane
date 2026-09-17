@@ -657,8 +657,8 @@ fn main() {
 // Source: <terrane>/projected/deps/sqlx-sqlite.trn
 // Namespace: deps/sqlx-sqlite
 pub use sqlx_sqlite::SqliteRow;
-// Source: <terrane>/projected/deps/sqlx-sqlite/row.trn
-// Namespace: deps/sqlx-sqlite/row
+// Source: <terrane>/projected/deps/sqlx-sqlite/sqliterow.trn
+// Namespace: deps/sqlx-sqlite/sqliterow
 // Source: <terrane>/projected/deps/terrane-sqlx-row-producer.trn
 // Namespace: deps/terrane-sqlx-row-producer
 pub async fn sample_row() -> Result<SqliteRow, crate::TerraneForeignError> {

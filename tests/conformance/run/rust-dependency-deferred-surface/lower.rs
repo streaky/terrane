@@ -524,6 +524,8 @@ fn main() {
 // Namespace: deps/bytes
 pub use bytes::Bytes;
 pub use bytes::BytesMut;
+pub use serde_json::error::Category;
+pub use serde_json::Number;
 pub fn terrane_static_trn_42797465734d7574_with_capacity(
     capacity: terrane_int_support::Int,
 ) -> Result<BytesMut, crate::TerraneForeignError> {
@@ -540,6 +542,8 @@ pub fn terrane_static_trn_42797465734d7574_with_capacity(
         }
     }
 }
+// Source: <terrane>/projected/deps/bytes/bytesmut.trn
+// Namespace: deps/bytes/bytesmut
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
@@ -562,7 +566,6 @@ pub fn remaining_mut(
 }
 // Source: <terrane>/projected/deps/serde-json.trn
 // Namespace: deps/serde-json
-pub use serde_json::Number;
 pub fn terrane_static_trn_4e756d626572_from_u128(
     i: terrane_int_support::Int,
 ) -> Result<Option<Number>, crate::TerraneForeignError> {
@@ -587,7 +590,6 @@ pub fn terrane_static_trn_4e756d626572_from_u128(
 }
 // Source: <terrane>/projected/deps/serde-json/error.trn
 // Namespace: deps/serde-json/error
-pub use serde_json::error::Category;
 // Source: <terrane>/projected/deps/serde-json/error/category.trn
 // Namespace: deps/serde-json/error/category
 /// Projected enum variant constructor for `serde_json::error::Category::Data`.

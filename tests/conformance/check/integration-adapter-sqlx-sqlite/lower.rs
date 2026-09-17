@@ -463,28 +463,28 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 11] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:15-7:41) */
-        { Site { function: 0, file: 0, line: 7, column: 15, end_line: 7, end_column: 41 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:15-8:45) */
-        { Site { function: 0, file: 0, line: 8, column: 15, end_line: 8, end_column: 45 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:9:15-9:46) */
-        { Site { function: 0, file: 0, line: 9, column: 15, end_line: 9, end_column: 46 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:10:39-10:55) */
-        { Site { function: 0, file: 0, line: 10, column: 39, end_line: 10, end_column: 55 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:11:12-11:73) */
-        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 73 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:11:11-11:74) */
-        { Site { function: 0, file: 0, line: 11, column: 11, end_line: 11, end_column: 74 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:12:12-12:90) */
-        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 90 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:12:11-12:91) */
-        { Site { function: 0, file: 0, line: 12, column: 11, end_line: 12, end_column: 91 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:13:29-13:85) */
-        { Site { function: 0, file: 0, line: 13, column: 29, end_line: 13, end_column: 85 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:14:12-14:32) */
-        { Site { function: 0, file: 0, line: 14, column: 12, end_line: 14, end_column: 32 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:14:11-14:33) */
-        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 33 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:8:15-8:41) */
+        { Site { function: 0, file: 0, line: 8, column: 15, end_line: 8, end_column: 41 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:9:15-9:45) */
+        { Site { function: 0, file: 0, line: 9, column: 15, end_line: 9, end_column: 45 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:15-10:46) */
+        { Site { function: 0, file: 0, line: 10, column: 15, end_line: 10, end_column: 46 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:39-11:55) */
+        { Site { function: 0, file: 0, line: 11, column: 39, end_line: 11, end_column: 55 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:12:12-12:73) */
+        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 73 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:12:11-12:74) */
+        { Site { function: 0, file: 0, line: 12, column: 11, end_line: 12, end_column: 74 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:13:12-13:90) */
+        { Site { function: 0, file: 0, line: 13, column: 12, end_line: 13, end_column: 90 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:13:11-13:91) */
+        { Site { function: 0, file: 0, line: 13, column: 11, end_line: 13, end_column: 91 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:14:29-14:85) */
+        { Site { function: 0, file: 0, line: 14, column: 29, end_line: 14, end_column: 85 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:15:12-15:32) */
+        { Site { function: 0, file: 0, line: 15, column: 12, end_line: 15, end_column: 32 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:15:11-15:33) */
+        { Site { function: 0, file: 0, line: 15, column: 11, end_line: 15, end_column: 33 } },
     ];
     #[cold]
     #[inline(never)]
@@ -504,7 +504,7 @@ fn main() {
     __terrane_run(async move {
         let mut options: SqliteConnectOptions = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
-            0 /* terrane-site: src/main.trn:7:15-7:41 */,
+            0 /* terrane-site: src/main.trn:8:15-8:41 */,
         );
         options = __terrane_raised(
             match std::panic::catch_unwind(
@@ -523,7 +523,7 @@ fn main() {
                     )
                 }
             },
-            1 /* terrane-site: src/main.trn:8:15-8:45 */,
+            1 /* terrane-site: src/main.trn:9:15-9:45 */,
         );
         options = __terrane_raised(
             match std::panic::catch_unwind(
@@ -540,7 +540,7 @@ fn main() {
                     )
                 }
             },
-            2 /* terrane-site: src/main.trn:9:15-9:46 */,
+            2 /* terrane-site: src/main.trn:10:15-10:46 */,
         );
         let mut database: SqliteConnection = __terrane_traced(
             __terrane_await({
@@ -548,12 +548,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            3 /* terrane-site: src/main.trn:10:39-10:55 */,
+                            3 /* terrane-site: src/main.trn:11:39-11:55 */,
                         )
                     }
                 })
                 .await,
-            3 /* terrane-site: src/main.trn:10:39-10:55 */,
+            3 /* terrane-site: src/main.trn:11:39-11:55 */,
         );
         __terrane_traced(
             __terrane_await({
@@ -564,12 +564,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:11:12-11:73 */,
+                            4 /* terrane-site: src/main.trn:12:12-12:73 */,
                         )
                     }
                 })
                 .await,
-            5 /* terrane-site: src/main.trn:11:11-11:74 */,
+            5 /* terrane-site: src/main.trn:12:11-12:74 */,
         );
         __terrane_traced(
             __terrane_await({
@@ -581,12 +581,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            6 /* terrane-site: src/main.trn:12:12-12:90 */,
+                            6 /* terrane-site: src/main.trn:13:12-13:90 */,
                         )
                     }
                 })
                 .await,
-            7 /* terrane-site: src/main.trn:12:11-12:91 */,
+            7 /* terrane-site: src/main.trn:13:11-13:91 */,
         );
         {
             let _: terrane_collection_support::List<Vec<u8>> = __terrane_traced(
@@ -599,12 +599,12 @@ fn main() {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                8 /* terrane-site: src/main.trn:13:29-13:85 */,
+                                8 /* terrane-site: src/main.trn:14:29-14:85 */,
                             )
                         }
                     })
                     .await,
-                8 /* terrane-site: src/main.trn:13:29-13:85 */,
+                8 /* terrane-site: src/main.trn:14:29-14:85 */,
             );
         }
         __terrane_traced(
@@ -613,25 +613,26 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            9 /* terrane-site: src/main.trn:14:12-14:32 */,
+                            9 /* terrane-site: src/main.trn:15:12-15:32 */,
                         )
                     }
                 })
                 .await,
-            10 /* terrane-site: src/main.trn:14:11-14:33 */,
+            10 /* terrane-site: src/main.trn:15:11-15:33 */,
         );
     });
 }
 // Source: <terrane>/projected/deps/sqlx-sqlite.trn
 // Namespace: deps/sqlx-sqlite
-pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
-pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
 pub use sqlx_sqlite::SqliteAutoVacuum;
+pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
 pub use sqlx_sqlite::SqliteJournalMode;
 pub use sqlx_sqlite::SqliteLockingMode;
 pub use sqlx_sqlite::SqliteSynchronous;
-pub use sqlx_sqlite::SqliteConnectOptions;
+pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
+pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
+pub use std::path::Path as TerraneNs4Deps11SqlxSqlitePath;
 pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Result<
     SqliteConnectOptions,
     crate::TerraneForeignError,
@@ -768,8 +769,8 @@ pub async fn query_bytes(
         }
     }
 }
-// Source: <terrane>/projected/deps/sqlx-sqlite/connection.trn
-// Namespace: deps/sqlx-sqlite/connection
+// Source: <terrane>/projected/deps/sqlx-sqlite/sqliteconnection.trn
+// Namespace: deps/sqlx-sqlite/sqliteconnection
 pub async fn close(
     receiver: SqliteConnection,
 ) -> Result<(), crate::TerraneForeignError> {
@@ -806,6 +807,8 @@ pub async fn close(
         }
     }
 }
+// Source: <terrane>/projected/deps/sqlx-sqlite/sqliteconnectoptions.trn
+// Namespace: deps/sqlx-sqlite/sqliteconnectoptions
 pub async fn connect(
     receiver: &SqliteConnectOptions,
 ) -> Result<SqliteConnection, crate::TerraneForeignError> {

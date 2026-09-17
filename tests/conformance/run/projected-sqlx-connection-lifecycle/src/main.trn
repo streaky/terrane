@@ -1,7 +1,8 @@
 namespace app
 
 from /deps/sqlx-sqlite import SqliteConnectOptions
-from /deps/sqlx-sqlite/connection import close, connect
+from /deps/sqlx-sqlite/sqliteconnection import close
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 from /deps/terrane-sqlx-lifecycle-witness import prepare_missing_path
 from /core/errors import dependency-error
 from /core/output import print

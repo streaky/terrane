@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "47";
+const PROJECTION_SCHEMA: &str = "50";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2815,26 +2815,39 @@ fn record_public_module_items(
             if import.is_glob {
                 record_public_module_items(index, target_id, module_path, public_paths, visiting);
             } else {
-                let candidate = module_path
-                    .iter()
-                    .map(String::as_str)
-                    .chain(std::iter::once(import.name.as_str()))
-                    .collect::<Vec<_>>()
-                    .join("::");
-                prefer_public_path(public_paths, target_id, candidate);
+                let mut candidate_segments = module_path.to_vec();
+                candidate_segments.push(import.name.clone());
+                prefer_public_path(public_paths, target_id, candidate_segments.join("::"));
+                if matches!(
+                    index.get(&target_id).map(|item| &item.inner),
+                    Some(ItemEnum::Module(_))
+                ) {
+                    record_public_module_items(
+                        index,
+                        target_id,
+                        &candidate_segments,
+                        public_paths,
+                        visiting,
+                    );
+                }
             }
             continue;
         }
         let Some(name) = item.name.as_deref() else {
             continue;
         };
-        let candidate = module_path
-            .iter()
-            .map(String::as_str)
-            .chain(std::iter::once(name))
-            .collect::<Vec<_>>()
-            .join("::");
-        prefer_public_path(public_paths, *child_id, candidate);
+        let mut candidate_segments = module_path.to_vec();
+        candidate_segments.push(name.to_owned());
+        prefer_public_path(public_paths, *child_id, candidate_segments.join("::"));
+        if matches!(item.inner, ItemEnum::Module(_)) {
+            record_public_module_items(
+                index,
+                *child_id,
+                &candidate_segments,
+                public_paths,
+                visiting,
+            );
+        }
     }
     visiting.remove(&module_id);
 }
@@ -3461,23 +3474,20 @@ fn parse_rustdoc(
 
 fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
     let mut public_paths = BTreeMap::new();
-    for (module_id, summary) in &document.paths {
-        if summary.crate_id != 0
-            || !matches!(
-                document.index.get(module_id).map(|item| &item.inner),
-                Some(ItemEnum::Module(_))
-            )
-        {
-            continue;
-        }
-        record_public_module_items(
-            &document.index,
-            *module_id,
-            &summary.path,
-            &mut public_paths,
-            &mut BTreeSet::new(),
-        );
-    }
+    let Some(root_path) = document
+        .paths
+        .get(&document.root)
+        .map(|summary| &summary.path)
+    else {
+        return public_paths;
+    };
+    record_public_module_items(
+        &document.index,
+        document.root,
+        root_path,
+        &mut public_paths,
+        &mut BTreeSet::new(),
+    );
     public_paths
 }
 
@@ -3957,6 +3967,113 @@ fn projected_interface_impl_question(
     }
 }
 
+struct ProjectedTraitOperation {
+    item: ProjectedItem,
+    fallback_namespace: String,
+}
+
+fn owner_trait_namespace(owner_namespace: &str, owner_name: &str) -> String {
+    format!(
+        "{owner_namespace}/{}",
+        owner_name.to_lowercase().replace('_', "-")
+    )
+}
+
+fn trait_fallback_namespace(owner_namespace: &str, trait_path: &str) -> String {
+    let segments = trait_path
+        .split("::")
+        .map(|segment| {
+            let mut normalized = String::new();
+            let mut separator = false;
+            for character in segment.chars() {
+                if character.is_ascii_alphanumeric() {
+                    normalized.push(character.to_ascii_lowercase());
+                    separator = false;
+                } else if !normalized.is_empty() && !separator {
+                    normalized.push('-');
+                    separator = true;
+                }
+            }
+            normalized.trim_end_matches('-').to_owned()
+        })
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>()
+        .join("/");
+    format!("{owner_namespace}/trait/{segments}")
+}
+
+fn trait_operation_docs(rust_path: &str, docs: Option<&str>) -> String {
+    let provenance =
+        format!("Projected Rust trait operation `{rust_path}` for this concrete owner.");
+    docs.map_or(provenance.clone(), |docs| format!("{provenance}\n\n{docs}"))
+}
+
+fn merge_projected_trait_operations(
+    items: &mut Vec<ProjectedItem>,
+    declined: &mut Vec<DeclinedItem>,
+    operations: Vec<ProjectedTraitOperation>,
+) {
+    let mut occupied = items
+        .iter()
+        .map(|item| (item.namespace.clone(), item.name.clone()))
+        .collect::<BTreeSet<_>>();
+    let mut primary_counts = BTreeMap::new();
+    for operation in &operations {
+        *primary_counts
+            .entry((
+                operation.item.namespace.clone(),
+                operation.item.name.clone(),
+            ))
+            .or_insert(0usize) += 1;
+    }
+    let (primary, mut fallback): (Vec<_>, Vec<_>) = operations.into_iter().partition(|operation| {
+        let key = (
+            operation.item.namespace.clone(),
+            operation.item.name.clone(),
+        );
+        primary_counts.get(&key).copied().unwrap_or_default() == 1 && !occupied.contains(&key)
+    });
+    for operation in primary {
+        occupied.insert((
+            operation.item.namespace.clone(),
+            operation.item.name.clone(),
+        ));
+        items.push(operation.item);
+    }
+    for operation in &mut fallback {
+        operation
+            .item
+            .namespace
+            .clone_from(&operation.fallback_namespace);
+    }
+    let mut fallback_counts = BTreeMap::new();
+    for operation in &fallback {
+        *fallback_counts
+            .entry((
+                operation.item.namespace.clone(),
+                operation.item.name.clone(),
+            ))
+            .or_insert(0usize) += 1;
+    }
+    for operation in fallback {
+        let key = (
+            operation.item.namespace.clone(),
+            operation.item.name.clone(),
+        );
+        if fallback_counts.get(&key).copied().unwrap_or_default() == 1 && !occupied.contains(&key) {
+            occupied.insert(key);
+            items.push(operation.item);
+        } else {
+            declined.push(DeclinedItem {
+                rust_path: operation.item.rust_path,
+                reason:
+                    "trait method conflicts within its concrete owner and trait-qualified namespace"
+                        .to_owned(),
+            });
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one pass must classify every concrete provided-method candidate before resolving collisions"
@@ -3966,7 +4083,7 @@ fn project_external_provided_trait_methods(
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
     canonical_public_paths: &BTreeMap<String, String>,
 ) {
-    for (dependency_index, (dependency, document, _)) in rustdocs.iter().enumerate() {
+    for (dependency_index, (_, document, _)) in rustdocs.iter().enumerate() {
         let mut paths = document.paths.clone();
         for summary in paths.values_mut() {
             if let Some(public_path) = canonical_public_paths.get(&summary.path.join("::")) {
@@ -4032,7 +4149,7 @@ fn project_external_provided_trait_methods(
             {
                 continue;
             }
-            let Ok(owner) = project_type(
+            let Ok(mut owner) = project_type(
                 &implementation.for_,
                 &document.index,
                 &paths,
@@ -4047,13 +4164,27 @@ fn project_external_provided_trait_methods(
             else {
                 continue;
             };
-            if !projected[dependency_index]
+            let owner_rust_path = owner_rust_path.clone();
+            let Some(owner_item) = projected[dependency_index]
                 .items
                 .iter()
-                .any(|item| item.rust_path == *owner_rust_path)
-            {
+                .find(|item| item.rust_path == owner_rust_path)
+            else {
                 continue;
+            };
+            if let ProjectedType::Foreign {
+                name,
+                base_rust_path,
+                ..
+            } = &mut owner
+            {
+                name.clone_from(&owner_item.name);
+                *base_rust_path = owner_item
+                    .rust_path
+                    .split_once('<')
+                    .map_or_else(|| owner_item.rust_path.clone(), |(base, _)| base.to_owned());
             }
+            let owner_namespace = owner_trait_namespace(&owner_item.namespace, &owner_item.name);
             let mut supplied = BTreeMap::from([("Self".to_owned(), owner.clone())]);
             for associated_id in &implementation.items {
                 let Some(Item {
@@ -4076,12 +4207,7 @@ fn project_external_provided_trait_methods(
                 "__terrane_external_associated_bounds".to_owned(),
                 ProjectedType::None,
             );
-            let mut trait_segments = trait_path
-                .split("::")
-                .map(str::to_owned)
-                .collect::<Vec<_>>();
-            let _trait_name = trait_segments.pop();
-            let namespace = dependency_namespace(dependency, &trait_segments);
+            let namespace = owner_namespace;
             let public_trait_path = trait_public_paths
                 .get(trait_id)
                 .cloned()
@@ -4096,18 +4222,7 @@ fn project_external_provided_trait_methods(
             for method_name in &implementation.provided_trait_methods {
                 let method_rust_path =
                     format!("<{owner_rust_path} as {public_trait_path}>::{method_name}");
-                if projected[dependency_index]
-                    .items
-                    .iter()
-                    .any(|item| item.namespace == namespace && item.name == *method_name)
-                {
-                    projected[dependency_index].declined.push(DeclinedItem {
-                        rust_path: method_rust_path,
-                        reason: "provided trait method conflicts with an existing projected name"
-                            .to_owned(),
-                    });
-                    continue;
-                }
+
                 let Some(Item {
                     inner: ItemEnum::Function(function),
                     docs,
@@ -4200,37 +4315,23 @@ fn project_external_provided_trait_methods(
                         },
                     );
                 }
-                additions.push(ProjectedItem {
-                    namespace: namespace.clone(),
-                    name: method_name.clone(),
-                    rust_path: method_rust_path,
-                    docs: docs.clone(),
-                    kind: ProjectedKind::Function(method),
+                additions.push(ProjectedTraitOperation {
+                    fallback_namespace: trait_fallback_namespace(&namespace, &trait_path),
+                    item: ProjectedItem {
+                        namespace: namespace.clone(),
+                        name: method_name.clone(),
+                        rust_path: method_rust_path.clone(),
+                        docs: Some(trait_operation_docs(&method_rust_path, docs.as_deref())),
+                        kind: ProjectedKind::Function(method),
+                    },
                 });
             }
         }
-        let mut addition_counts = BTreeMap::new();
-        for item in &additions {
-            *addition_counts
-                .entry((item.namespace.clone(), item.name.clone()))
-                .or_insert(0usize) += 1;
-        }
-        for item in additions {
-            if addition_counts
-                .get(&(item.namespace.clone(), item.name.clone()))
-                .copied()
-                .unwrap_or_default()
-                > 1
-            {
-                projected[dependency_index].declined.push(DeclinedItem {
-                    rust_path: item.rust_path,
-                    reason: "trait method has multiple concrete receiver implementations"
-                        .to_owned(),
-                });
-            } else {
-                projected[dependency_index].items.push(item);
-            }
-        }
+        merge_projected_trait_operations(
+            &mut projected[dependency_index].items,
+            &mut projected[dependency_index].declined,
+            additions,
+        );
     }
 }
 
@@ -4384,27 +4485,32 @@ fn project_rustdoc(
                         .partition(|method| method.receiver.is_some());
                     promote_async_endpoint_methods(&mut methods);
                     promote_async_endpoint_methods(&mut static_methods);
-                    for (trait_path, public_trait_path, local_trait, method) in trait_methods {
-                        let mut trait_segments = trait_path
-                            .split("::")
-                            .map(str::to_owned)
-                            .collect::<Vec<_>>();
-                        let _trait_name = trait_segments.pop();
-                        let trait_namespace = dependency_namespace(dependency, &trait_segments);
+                    let owner_namespace = owner_trait_namespace(&namespace, &name);
+                    for (trait_implementation_path, public_trait_path, local_trait, docs, method) in
+                        trait_methods
+                    {
                         let trait_rust_path = if local_trait {
                             extern_rust_path(dependency, &public_trait_path)
                         } else {
                             public_trait_path.replace('-', "_")
                         };
-                        projected_trait_items.push(ProjectedItem {
-                            namespace: trait_namespace,
-                            name: method.name.clone(),
-                            rust_path: format!(
-                                "<{rust_path} as {trait_rust_path}>::{}",
-                                method.name
+                        let method_rust_path =
+                            format!("<{rust_path} as {trait_rust_path}>::{}", method.name);
+                        projected_trait_items.push(ProjectedTraitOperation {
+                            fallback_namespace: trait_fallback_namespace(
+                                &owner_namespace,
+                                &trait_implementation_path,
                             ),
-                            docs: None,
-                            kind: ProjectedKind::Function(method),
+                            item: ProjectedItem {
+                                namespace: owner_namespace.clone(),
+                                name: method.name.clone(),
+                                rust_path: method_rust_path.clone(),
+                                docs: Some(trait_operation_docs(
+                                    &method_rust_path,
+                                    docs.as_deref(),
+                                )),
+                                kind: ProjectedKind::Function(method),
+                            },
                         });
                     }
                     declined.extend(method_declines.into_iter().map(|(name, reason)| {
@@ -4572,44 +4678,7 @@ fn project_rustdoc(
             );
         }
     }
-    projected_trait_items.sort_by(|left, right| {
-        (&left.namespace, &left.name, &left.rust_path).cmp(&(
-            &right.namespace,
-            &right.name,
-            &right.rust_path,
-        ))
-    });
-    let mut projected_index = 0;
-    while projected_index < projected_trait_items.len() {
-        let first = projected_index;
-        let key = (
-            projected_trait_items[projected_index].namespace.clone(),
-            projected_trait_items[projected_index].name.clone(),
-        );
-        while projected_index < projected_trait_items.len()
-            && projected_trait_items[projected_index].namespace == key.0
-            && projected_trait_items[projected_index].name == key.1
-        {
-            projected_index += 1;
-        }
-        if projected_index - first == 1
-            && !items
-                .iter()
-                .any(|item| item.namespace == key.0 && item.name == key.1)
-        {
-            items.push(projected_trait_items[first].clone());
-        } else {
-            declined.extend(
-                projected_trait_items[first..projected_index]
-                    .iter()
-                    .map(|item| DeclinedItem {
-                        rust_path: item.rust_path.clone(),
-                        reason: "trait method has multiple concrete receiver implementations"
-                            .to_owned(),
-                    }),
-            );
-        }
-    }
+    merge_projected_trait_operations(&mut items, &mut declined, projected_trait_items);
     let projected_interfaces = items
         .iter()
         .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
@@ -4793,7 +4862,7 @@ fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
 
 type ProjectedMethods = (
     Vec<ProjectedFunction>,
-    Vec<(String, String, bool, ProjectedFunction)>,
+    Vec<(String, String, bool, Option<String>, ProjectedFunction)>,
     Vec<(String, String)>,
 );
 
@@ -4821,7 +4890,10 @@ fn project_methods(
         else {
             continue;
         };
-        if implementation.is_negative {
+        if implementation.is_negative
+            || implementation.is_synthetic
+            || implementation.blanket_impl.is_some()
+        {
             continue;
         }
         let inherent = implementation.trait_.is_none();
@@ -4875,6 +4947,13 @@ fn project_methods(
                     .get(&trait_.id)
                     .cloned()
                     .unwrap_or_else(|| trait_path.clone());
+                let rendered_trait =
+                    render_resolved_path(trait_, index, paths, &implementation_generics)
+                        .unwrap_or_else(|_| trait_path.clone());
+                let trait_implementation_path = rendered_trait.find('<').map_or_else(
+                    || trait_path.clone(),
+                    |start| format!("{trait_path}{}", &rendered_trait[start..]),
+                );
                 match project_function_with_generics(
                     function,
                     index,
@@ -4889,19 +4968,24 @@ fn project_methods(
                                 0,
                                 ProjectedParameter {
                                     name: "receiver".to_owned(),
-                                    ty: ProjectedType::Foreign {
-                                        rust_path: owner_rust_path.to_owned(),
-                                        name: owner_rust_path
-                                            .rsplit("::")
-                                            .next()
-                                            .unwrap_or(owner_rust_path)
-                                            .to_owned(),
-                                        base_rust_path: owner_rust_path
-                                            .split_once('<')
-                                            .map_or(owner_rust_path, |(base, _)| base)
-                                            .to_owned(),
-                                        arguments: Vec::new(),
-                                    },
+                                    ty: implementation_generics
+                                        .get("Self")
+                                        .cloned()
+                                        .unwrap_or_else(|| {
+                                            let base_rust_path = owner_rust_path
+                                                .split_once('<')
+                                                .map_or(owner_rust_path, |(base, _)| base);
+                                            ProjectedType::Foreign {
+                                                rust_path: owner_rust_path.to_owned(),
+                                                name: base_rust_path
+                                                    .rsplit("::")
+                                                    .next()
+                                                    .unwrap_or(base_rust_path)
+                                                    .to_owned(),
+                                                base_rust_path: base_rust_path.to_owned(),
+                                                arguments: Vec::new(),
+                                            }
+                                        }),
                                     generic_parameter: None,
                                     generic_interface: None,
                                     generic_bounds: Vec::new(),
@@ -4911,7 +4995,13 @@ fn project_methods(
                                 },
                             );
                         }
-                        trait_methods.push((trait_path, public_trait_path, local_trait, method));
+                        trait_methods.push((
+                            trait_implementation_path,
+                            public_trait_path,
+                            local_trait,
+                            item.docs.clone(),
+                            method,
+                        ));
                     }
                     Err(reason) => declined.push((name.to_owned(), reason)),
                 }

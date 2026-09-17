@@ -1,7 +1,8 @@
 namespace app
 
 from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection, execute, execute_with_bytes, query_bytes
-from /deps/sqlx-sqlite/connection import close, connect
+from /deps/sqlx-sqlite/sqliteconnection import close
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 
 async function main;
     options = SqliteConnectOptions::new;

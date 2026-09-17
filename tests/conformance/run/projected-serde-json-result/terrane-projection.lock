@@ -138,24 +138,12 @@
           "to_writer_pretty"
         ],
         [
-          "/deps/serde-json/cmp",
-          "eq"
-        ],
-        [
-          "/deps/serde-json/de",
-          "custom"
-        ],
-        [
-          "/deps/serde-json/de",
-          "deserialize"
-        ],
-        [
-          "/deps/serde-json/default",
-          "default"
+          "/deps/serde-json/error",
+          "Category"
         ],
         [
           "/deps/serde-json/error",
-          "Category"
+          "from"
         ],
         [
           "/deps/serde-json/error/category",
@@ -174,8 +162,12 @@
           "Syntax"
         ],
         [
-          "/deps/serde-json/iter/traits/iterator",
-          "next"
+          "/deps/serde-json/error/trait/serde-core/de/error",
+          "custom"
+        ],
+        [
+          "/deps/serde-json/error/trait/serde-core/ser/error",
+          "custom"
         ],
         [
           "/deps/serde-json/map",
@@ -184,6 +176,78 @@
         [
           "/deps/serde-json/map",
           "IntoValues"
+        ],
+        [
+          "/deps/serde-json/map/intoiter",
+          "len"
+        ],
+        [
+          "/deps/serde-json/map/intovalues",
+          "len"
+        ],
+        [
+          "/deps/serde-json/map/intovalues",
+          "next"
+        ],
+        [
+          "/deps/serde-json/number",
+          "clone"
+        ],
+        [
+          "/deps/serde-json/number",
+          "deserialize"
+        ],
+        [
+          "/deps/serde-json/number",
+          "eq"
+        ],
+        [
+          "/deps/serde-json/number",
+          "from_str"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i16",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i32",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i64",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i8",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-isize",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-serde-json/number",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u16",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u32",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u64",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u8",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-usize",
+          "from"
         ],
         [
           "/deps/serde-json/read",
@@ -198,132 +262,12 @@
           "CompactFormatter"
         ],
         [
-          "/deps/serde-json/ser",
-          "collect_str"
+          "/deps/serde-json/ser/compactformatter",
+          "clone"
         ],
         [
-          "/deps/serde-json/ser",
-          "custom"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_bool"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_char"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_f32"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_f64"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_i128"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_i16"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_i32"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_i64"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_i8"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_map"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_newtype_struct"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_newtype_variant"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_none"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_seq"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_some"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_str"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_struct"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_struct_variant"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_tuple"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_tuple_struct"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_tuple_variant"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_u128"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_u16"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_u32"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_u64"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_u8"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_unit"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_unit_struct"
-        ],
-        [
-          "/deps/serde-json/ser",
-          "serialize_unit_variant"
-        ],
-        [
-          "/deps/serde-json/str/traits",
-          "from_str"
+          "/deps/serde-json/ser/compactformatter",
+          "default"
         ],
         [
           "/deps/serde-json/value",
@@ -344,6 +288,126 @@
         [
           "/deps/serde-json/value/ser",
           "SerializeVec"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "collect_str"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_bool"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_char"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_f32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_f64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i128"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i16"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i8"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_map"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_newtype_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_newtype_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_none"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_seq"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_some"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_str"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_struct_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u128"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u16"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u8"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit_variant"
         ]
       ],
       "name": "serde-json",
@@ -351,7 +415,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

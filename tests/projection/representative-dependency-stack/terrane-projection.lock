@@ -154,6 +154,10 @@
           "WebSocketUpgrade.write_buffer_size"
         ],
         [
+          "/deps/axum/extract/nestedpath",
+          "clone"
+        ],
+        [
           "/deps/axum/extract/path",
           "ErrorKind"
         ],
@@ -188,6 +192,18 @@
         [
           "/deps/axum/extract/path",
           "InvalidUtf8InPathParam.status"
+        ],
+        [
+          "/deps/axum/extract/path/failedtodeserializepathparams",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/path/invalidutf8inpathparam",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rawpathparams",
+          "into_iter"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -338,6 +354,50 @@
           "RawPathParamsRejection"
         ],
         [
+          "/deps/axum/extract/rejection/failedtodeserializeform",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/failedtodeserializeformbody",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/failedtodeserializequerystring",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/invalidformcontenttype",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/rejection/jsondataerror",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/jsonsyntaxerror",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/missingextension",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/missingjsoncontenttype",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/rejection/missingjsoncontenttype",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/rejection/missingpathparams",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/rejection/nestedpathrejection",
+          "default"
+        ],
+        [
           "/deps/axum/extract/ws",
           "CloseFrame"
         ],
@@ -372,6 +432,14 @@
         [
           "/deps/axum/extract/ws",
           "WebSocket.send"
+        ],
+        [
+          "/deps/axum/extract/ws/closeframe",
+          "clone"
+        ],
+        [
+          "/deps/axum/extract/ws/closeframe",
+          "eq"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -474,12 +542,104 @@
           "WebSocketUpgradeRejection"
         ],
         [
-          "/deps/axum/handler/private",
-          "IntoResponseHandler"
+          "/deps/axum/extract/ws/rejection/connectionnotupgradable",
+          "default"
         ],
         [
-          "/deps/axum/iter/traits/collect",
-          "into_iter"
+          "/deps/axum/extract/ws/rejection/connectionnotupgradable",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidconnectionheader",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidconnectionheader",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidprotocolpseudoheader",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidprotocolpseudoheader",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidupgradeheader",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidupgradeheader",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidwebsocketversionheader",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/invalidwebsocketversionheader",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/methodnotconnect",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/methodnotconnect",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/methodnotget",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/methodnotget",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/websocketkeyheadermissing",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection/websocketkeyheadermissing",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes",
+          "clone"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes",
+          "default"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes",
+          "deref"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes",
+          "eq"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes/trait/core/convert/from-axum/extract/ws/utf8bytes",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes/trait/core/convert/from-str",
+          "from"
+        ],
+        [
+          "/deps/axum/extract/ws/utf8bytes/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/axum/extract/ws/websocket",
+          "is_terminated"
+        ],
+        [
+          "/deps/axum/handler/private",
+          "IntoResponseHandler"
         ],
         [
           "/deps/axum/middleware",
@@ -534,8 +694,12 @@
           "MapResponseResponseFuture"
         ],
         [
-          "/deps/axum/ops/deref",
-          "deref"
+          "/deps/axum/middleware/next",
+          "clone"
+        ],
+        [
+          "/deps/axum/middleware/responseaxumbodylayer",
+          "clone"
         ],
         [
           "/deps/axum/response",
@@ -564,6 +728,14 @@
         [
           "/deps/axum/response",
           "Redirect::to"
+        ],
+        [
+          "/deps/axum/response/nocontent",
+          "clone"
+        ],
+        [
+          "/deps/axum/response/redirect",
+          "clone"
         ],
         [
           "/deps/axum/response/sse",
@@ -624,6 +796,30 @@
         [
           "/deps/axum/response/sse",
           "KeepAlive::new"
+        ],
+        [
+          "/deps/axum/response/sse/event",
+          "clone"
+        ],
+        [
+          "/deps/axum/response/sse/event",
+          "default"
+        ],
+        [
+          "/deps/axum/response/sse/keepalive",
+          "clone"
+        ],
+        [
+          "/deps/axum/response/sse/keepalive",
+          "default"
+        ],
+        [
+          "/deps/axum/router",
+          "clone"
+        ],
+        [
+          "/deps/axum/router",
+          "default"
         ],
         [
           "/deps/axum/routing",
@@ -814,12 +1010,32 @@
           "NoMatchingMethodFilter"
         ],
         [
-          "/deps/axum/serve/private",
-          "ServeFuture"
+          "/deps/axum/routing/methodfilter",
+          "clone"
         ],
         [
-          "/deps/axum/stream",
-          "is_terminated"
+          "/deps/axum/routing/methodfilter",
+          "eq"
+        ],
+        [
+          "/deps/axum/routing/methodfilter",
+          "try_from"
+        ],
+        [
+          "/deps/axum/routing/methodrouter",
+          "clone"
+        ],
+        [
+          "/deps/axum/routing/methodrouter",
+          "default"
+        ],
+        [
+          "/deps/axum/routing/route",
+          "clone"
+        ],
+        [
+          "/deps/axum/serve/private",
+          "ServeFuture"
         ]
       ]
     },
@@ -1120,16 +1336,44 @@
           "Version"
         ],
         [
-          "/deps/http/borrow",
-          "borrow_mut"
+          "/deps/http/error/trait/core/convert/from-core/convert/infallible",
+          "from"
         ],
         [
-          "/deps/http/borrow",
-          "clone_into"
+          "/deps/http/error/trait/core/convert/from-http/header/invalidheadername",
+          "from"
         ],
         [
-          "/deps/http/borrow",
-          "to_owned"
+          "/deps/http/error/trait/core/convert/from-http/header/invalidheadervalue",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/header/maxsizereached",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/method/invalidmethod",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/status/invalidstatuscode",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/uri/invaliduri",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/uri/invaliduriparts",
+          "from"
+        ],
+        [
+          "/deps/http/extensions",
+          "clone"
+        ],
+        [
+          "/deps/http/extensions",
+          "default"
         ],
         [
           "/deps/http/header",
@@ -1148,20 +1392,244 @@
           "ToStrError"
         ],
         [
+          "/deps/http/header/invalidheadername",
+          "from"
+        ],
+        [
+          "/deps/http/header/invalidheadervalue",
+          "from"
+        ],
+        [
           "/deps/http/header/map/as-header-name",
           "TryEntryError"
         ],
         [
-          "/deps/http/iter/traits/collect",
+          "/deps/http/header/maxsizereached",
+          "from"
+        ],
+        [
+          "/deps/http/headermap",
+          "clone"
+        ],
+        [
+          "/deps/http/headermap",
+          "default"
+        ],
+        [
+          "/deps/http/headermap",
+          "eq"
+        ],
+        [
+          "/deps/http/headermap",
           "from_iter"
         ],
         [
-          "/deps/http/iter/traits/collect",
+          "/deps/http/headermap",
           "into_iter"
+        ],
+        [
+          "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue",
+          "extend"
+        ],
+        [
+          "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue",
+          "extend"
+        ],
+        [
+          "/deps/http/headername",
+          "as_ref"
+        ],
+        [
+          "/deps/http/headername",
+          "borrow"
+        ],
+        [
+          "/deps/http/headername",
+          "clone"
+        ],
+        [
+          "/deps/http/headername",
+          "from_str"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-a-http/headername",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/from-a-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/from-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue",
+          "clone"
+        ],
+        [
+          "/deps/http/headervalue",
+          "cmp"
+        ],
+        [
+          "/deps/http/headervalue",
+          "from_str"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-a-http/headervalue",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i16",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i32",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i64",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-isize",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u16",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u32",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u64",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-usize",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
         ],
         [
           "/deps/http/method",
           "InvalidMethod"
+        ],
+        [
+          "/deps/http/method",
+          "as_ref"
+        ],
+        [
+          "/deps/http/method",
+          "clone"
+        ],
+        [
+          "/deps/http/method",
+          "default"
+        ],
+        [
+          "/deps/http/method",
+          "from"
+        ],
+        [
+          "/deps/http/method",
+          "from_str"
+        ],
+        [
+          "/deps/http/method",
+          "try_from"
+        ],
+        [
+          "/deps/http/method/invalidmethod",
+          "from"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-a-http/method",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-str",
+          "eq"
         ],
         [
           "/deps/http/request",
@@ -1228,6 +1696,14 @@
           "Parts"
         ],
         [
+          "/deps/http/request/builder",
+          "default"
+        ],
+        [
+          "/deps/http/request/parts",
+          "clone"
+        ],
+        [
           "/deps/http/response",
           "Builder"
         ],
@@ -1276,8 +1752,68 @@
           "Parts"
         ],
         [
+          "/deps/http/response/builder",
+          "default"
+        ],
+        [
+          "/deps/http/response/parts",
+          "clone"
+        ],
+        [
           "/deps/http/status",
           "InvalidStatusCode"
+        ],
+        [
+          "/deps/http/status/invalidstatuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode",
+          "clone"
+        ],
+        [
+          "/deps/http/statuscode",
+          "cmp"
+        ],
+        [
+          "/deps/http/statuscode",
+          "default"
+        ],
+        [
+          "/deps/http/statuscode",
+          "from_str"
+        ],
+        [
+          "/deps/http/statuscode",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq-http/statuscode",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq-u16",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/from-a-http/statuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/from-http/statuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/tryfrom-u16",
+          "try_from"
         ],
         [
           "/deps/http/uri",
@@ -1374,6 +1910,250 @@
         [
           "/deps/http/uri",
           "Scheme.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "clone"
+        ],
+        [
+          "/deps/http/uri",
+          "default"
+        ],
+        [
+          "/deps/http/uri",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "as_ref"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "from"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-a-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "default"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "from"
+        ],
+        [
+          "/deps/http/uri/invaliduri",
+          "from"
+        ],
+        [
+          "/deps/http/uri/invaliduriparts",
+          "from"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "default"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "from"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "from"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-a-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "as_ref"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq-http/uri/scheme",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/from-http/uri/authority",
+          "from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/from-http/uri/pathandquery",
+          "from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-http/uri",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-http/uri/parts",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/version",
+          "clone"
+        ],
+        [
+          "/deps/http/version",
+          "cmp"
+        ],
+        [
+          "/deps/http/version",
+          "default"
+        ],
+        [
+          "/deps/http/version",
+          "eq"
+        ],
+        [
+          "/deps/http/version",
+          "partial_cmp"
         ]
       ]
     },
@@ -1902,10 +2682,6 @@
           "get"
         ],
         [
-          "/deps/reqwest",
-          "is_end_stream"
-        ],
-        [
           "/deps/reqwest/async-impl/client",
           "Pending"
         ],
@@ -2326,16 +3102,80 @@
           "get"
         ],
         [
-          "/deps/reqwest/cmp",
-          "cmp"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-static-str",
+          "from"
         ],
         [
-          "/deps/reqwest/cmp",
-          "eq"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/fs/file",
+          "from"
         ],
         [
-          "/deps/reqwest/cmp",
-          "partial_cmp"
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body",
+          "default"
+        ],
+        [
+          "/deps/reqwest/body",
+          "is_end_stream"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-reqwest/response",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-static-str",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/certificate",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "from"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -2350,10 +3190,6 @@
           "Internal"
         ],
         [
-          "/deps/reqwest/convert",
-          "try_from"
-        ],
-        [
           "/deps/reqwest/dns",
           "Name"
         ],
@@ -2362,12 +3198,28 @@
           "Name.as_str"
         ],
         [
+          "/deps/reqwest/dns/name",
+          "from_str"
+        ],
+        [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
         ],
         [
-          "/deps/reqwest/io",
-          "is_write_vectored"
+          "/deps/reqwest/identity",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/proxy",
+          "clone"
         ],
         [
           "/deps/reqwest/redirect",
@@ -2388,6 +3240,14 @@
         [
           "/deps/reqwest/redirect",
           "Policy::none"
+        ],
+        [
+          "/deps/reqwest/redirect/policy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/request",
+          "try_from"
         ],
         [
           "/deps/reqwest/retry",
@@ -2430,14 +3290,6 @@
           "Success"
         ],
         [
-          "/deps/reqwest/str/traits",
-          "from_str"
-        ],
-        [
-          "/deps/reqwest/string",
-          "to_string"
-        ],
-        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -2448,6 +3300,30 @@
         [
           "/deps/reqwest/tls",
           "Version"
+        ],
+        [
+          "/deps/reqwest/tls/tlsinfo",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "partial_cmp"
+        ],
+        [
+          "/deps/reqwest/upgraded",
+          "is_write_vectored"
         ]
       ]
     },
@@ -2468,20 +3344,8 @@
           "init"
         ],
         [
-          "/deps/sentry/clone",
-          "clone"
-        ],
-        [
-          "/deps/sentry/ops/drop",
+          "/deps/sentry/clientinitguard",
           "drop"
-        ],
-        [
-          "/deps/sentry/transport",
-          "flush"
-        ],
-        [
-          "/deps/sentry/transport",
-          "shutdown"
         ],
         [
           "/deps/sentry/transports",
@@ -2490,6 +3354,18 @@
         [
           "/deps/sentry/transports",
           "ReqwestHttpTransport"
+        ],
+        [
+          "/deps/sentry/transports/defaulttransportfactory",
+          "clone"
+        ],
+        [
+          "/deps/sentry/transports/reqwesthttptransport",
+          "flush"
+        ],
+        [
+          "/deps/sentry/transports/reqwesthttptransport",
+          "shutdown"
         ]
       ]
     },
@@ -2735,6 +3611,38 @@
           "try_exists"
         ],
         [
+          "/deps/tokio/fs/dirbuilder",
+          "default"
+        ],
+        [
+          "/deps/tokio/fs/file",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/fs/file",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/fs/file/trait/core/convert/from-std/fs/file",
+          "from"
+        ],
+        [
+          "/deps/tokio/fs/file/trait/core/convert/from-std/os/fd/owned/ownedfd",
+          "from"
+        ],
+        [
+          "/deps/tokio/fs/openoptions",
+          "clone"
+        ],
+        [
+          "/deps/tokio/fs/openoptions",
+          "default"
+        ],
+        [
+          "/deps/tokio/fs/openoptions",
+          "from"
+        ],
+        [
           "/deps/tokio/io",
           "DuplexStream"
         ],
@@ -2837,6 +3745,70 @@
         [
           "/deps/tokio/io",
           "sink"
+        ],
+        [
+          "/deps/tokio/io/duplexstream",
+          "drop"
+        ],
+        [
+          "/deps/tokio/io/duplexstream",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/io/empty",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "bitor"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "bitor_assign"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "clone"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "eq"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitand"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitor"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitor_assign"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "clone"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "cmp"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "eq"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "partial_cmp"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "sub"
+        ],
+        [
+          "/deps/tokio/io/simplexstream",
+          "is_write_vectored"
         ],
         [
           "/deps/tokio/io/unix",
@@ -3355,6 +4327,58 @@
           "ReuniteError"
         ],
         [
+          "/deps/tokio/net/tcp/ownedreadhalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "drop"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
+          "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "try_from"
+        ],
+        [
           "/deps/tokio/net/unix",
           "OwnedReadHalf"
         ],
@@ -3437,6 +4461,22 @@
         [
           "/deps/tokio/net/unix",
           "UCred.uid"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedreadhalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "drop"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "is_write_vectored"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -3535,20 +4575,72 @@
           "Sender::from_owned_fd_unchecked"
         ],
         [
-          "/deps/tokio/ops/arith",
-          "add"
+          "/deps/tokio/net/unix/pipe/openoptions",
+          "clone"
         ],
         [
-          "/deps/tokio/ops/arith",
-          "add_assign"
+          "/deps/tokio/net/unix/pipe/openoptions",
+          "default"
         ],
         [
-          "/deps/tokio/ops/arith",
-          "sub_assign"
+          "/deps/tokio/net/unix/pipe/receiver",
+          "as_raw_fd"
         ],
         [
-          "/deps/tokio/ops/bit",
-          "bitand"
+          "/deps/tokio/net/unix/pipe/sender",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/sender",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr",
+          "clone"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-std/os/unix/net/addr/socketaddr",
+          "from"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-tokio/net/unix/socketaddr",
+          "from"
+        ],
+        [
+          "/deps/tokio/net/unix/ucred",
+          "clone"
+        ],
+        [
+          "/deps/tokio/net/unix/ucred",
+          "eq"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
+          "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "try_from"
         ],
         [
           "/deps/tokio/runtime",
@@ -3763,12 +4855,40 @@
           "is_rt_shutdown_err"
         ],
         [
+          "/deps/tokio/runtime/handle",
+          "clone"
+        ],
+        [
+          "/deps/tokio/runtime/id",
+          "clone"
+        ],
+        [
+          "/deps/tokio/runtime/id",
+          "eq"
+        ],
+        [
+          "/deps/tokio/runtime/localoptions",
+          "default"
+        ],
+        [
+          "/deps/tokio/runtime/localruntime",
+          "drop"
+        ],
+        [
+          "/deps/tokio/runtime/runtime",
+          "drop"
+        ],
+        [
           "/deps/tokio/runtime/runtimeflavor",
           "CurrentThread"
         ],
         [
           "/deps/tokio/runtime/runtimeflavor",
           "MultiThread"
+        ],
+        [
+          "/deps/tokio/runtime/runtimemetrics",
+          "clone"
         ],
         [
           "/deps/tokio/signal",
@@ -3841,6 +4961,22 @@
         [
           "/deps/tokio/signal/unix",
           "signal"
+        ],
+        [
+          "/deps/tokio/signal/unix/signalkind",
+          "clone"
+        ],
+        [
+          "/deps/tokio/signal/unix/signalkind",
+          "eq"
+        ],
+        [
+          "/deps/tokio/signal/unix/signalkind/trait/core/convert/from-i32",
+          "from"
+        ],
+        [
+          "/deps/tokio/signal/unix/signalkind/trait/core/convert/from-tokio/signal/unix/signalkind",
+          "from"
         ],
         [
           "/deps/tokio/sync",
@@ -3955,6 +5091,10 @@
           "TryLockError"
         ],
         [
+          "/deps/tokio/sync/barrierwaitresult",
+          "clone"
+        ],
+        [
           "/deps/tokio/sync/broadcast/error",
           "RecvError"
         ],
@@ -3965,6 +5105,10 @@
         [
           "/deps/tokio/sync/futures",
           "OwnedNotified"
+        ],
+        [
+          "/deps/tokio/sync/futures/ownednotified",
+          "drop"
         ],
         [
           "/deps/tokio/sync/mpsc/error",
@@ -3979,6 +5123,10 @@
           "Empty"
         ],
         [
+          "/deps/tokio/sync/notify",
+          "default"
+        ],
+        [
           "/deps/tokio/sync/oneshot/error",
           "RecvError"
         ],
@@ -3987,12 +5135,24 @@
           "TryRecvError"
         ],
         [
+          "/deps/tokio/sync/oneshot/error/recverror",
+          "clone"
+        ],
+        [
+          "/deps/tokio/sync/oneshot/error/recverror",
+          "eq"
+        ],
+        [
           "/deps/tokio/sync/oneshot/error/tryrecverror",
           "Closed"
         ],
         [
           "/deps/tokio/sync/oneshot/error/tryrecverror",
           "Empty"
+        ],
+        [
+          "/deps/tokio/sync/ownedsemaphorepermit",
+          "drop"
         ],
         [
           "/deps/tokio/sync/tryacquireerror",
@@ -4005,6 +5165,10 @@
         [
           "/deps/tokio/sync/watch/error",
           "RecvError"
+        ],
+        [
+          "/deps/tokio/sync/watch/error/recverror",
+          "clone"
         ],
         [
           "/deps/tokio/task",
@@ -4075,6 +5239,14 @@
           "yield_now"
         ],
         [
+          "/deps/tokio/task/aborthandle",
+          "clone"
+        ],
+        [
+          "/deps/tokio/task/aborthandle",
+          "drop"
+        ],
+        [
           "/deps/tokio/task/coop",
           "RestoreOnPending"
         ],
@@ -4097,6 +5269,42 @@
         [
           "/deps/tokio/task/coop",
           "unconstrained"
+        ],
+        [
+          "/deps/tokio/task/coop/restoreonpending",
+          "drop"
+        ],
+        [
+          "/deps/tokio/task/id",
+          "clone"
+        ],
+        [
+          "/deps/tokio/task/id",
+          "cmp"
+        ],
+        [
+          "/deps/tokio/task/id",
+          "eq"
+        ],
+        [
+          "/deps/tokio/task/id",
+          "partial_cmp"
+        ],
+        [
+          "/deps/tokio/task/joinerror",
+          "from"
+        ],
+        [
+          "/deps/tokio/task/localenterguard",
+          "drop"
+        ],
+        [
+          "/deps/tokio/task/localset",
+          "default"
+        ],
+        [
+          "/deps/tokio/task/localset",
+          "drop"
         ],
         [
           "/deps/tokio/task/task-local",
@@ -4243,6 +5451,62 @@
           "Error::shutdown"
         ],
         [
+          "/deps/tokio/time/error/elapsed",
+          "eq"
+        ],
+        [
+          "/deps/tokio/time/error/elapsed",
+          "from"
+        ],
+        [
+          "/deps/tokio/time/error/error",
+          "clone"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "add"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "add_assign"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "clone"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "cmp"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "eq"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "partial_cmp"
+        ],
+        [
+          "/deps/tokio/time/instant",
+          "sub_assign"
+        ],
+        [
+          "/deps/tokio/time/instant/trait/core/convert/from-std/time/instant",
+          "from"
+        ],
+        [
+          "/deps/tokio/time/instant/trait/core/convert/from-tokio/time/instant",
+          "from"
+        ],
+        [
+          "/deps/tokio/time/instant/trait/core/ops/arith/sub",
+          "sub"
+        ],
+        [
+          "/deps/tokio/time/instant/trait/core/ops/arith/sub-core/time/duration",
+          "sub"
+        ],
+        [
           "/deps/tokio/time/missedtickbehavior",
           "Burst"
         ],
@@ -4311,12 +5575,28 @@
           "RateLimitLayer::new"
         ],
         [
+          "/deps/tower/limit/concurrencylimitlayer",
+          "clone"
+        ],
+        [
+          "/deps/tower/limit/globalconcurrencylimitlayer",
+          "clone"
+        ],
+        [
           "/deps/tower/limit/rate",
           "Rate"
         ],
         [
           "/deps/tower/limit/rate",
           "Rate::new"
+        ],
+        [
+          "/deps/tower/limit/rate/rate",
+          "clone"
+        ],
+        [
+          "/deps/tower/limit/ratelimitlayer",
+          "clone"
         ],
         [
           "/deps/tower/retry/backoff",
@@ -4339,12 +5619,24 @@
           "MakeBackoff"
         ],
         [
-          "/deps/tower/retry/backoff",
-          "make_backoff"
+          "/deps/tower/retry/backoff/exponentialbackoff",
+          "clone"
         ],
         [
-          "/deps/tower/retry/backoff",
+          "/deps/tower/retry/backoff/exponentialbackoff",
           "next_backoff"
+        ],
+        [
+          "/deps/tower/retry/backoff/exponentialbackoffmaker",
+          "clone"
+        ],
+        [
+          "/deps/tower/retry/backoff/exponentialbackoffmaker",
+          "default"
+        ],
+        [
+          "/deps/tower/retry/backoff/exponentialbackoffmaker",
+          "make_backoff"
         ],
         [
           "/deps/tower/retry/budget",
@@ -4359,11 +5651,15 @@
           "TpsBudget::new"
         ],
         [
-          "/deps/tower/retry/budget",
+          "/deps/tower/retry/budget/tpsbudget",
+          "default"
+        ],
+        [
+          "/deps/tower/retry/budget/tpsbudget",
           "deposit"
         ],
         [
-          "/deps/tower/retry/budget",
+          "/deps/tower/retry/budget/tpsbudget",
           "withdraw"
         ],
         [
@@ -4383,11 +5679,19 @@
           "Elapsed::new"
         ],
         [
+          "/deps/tower/timeout/error/elapsed",
+          "default"
+        ],
+        [
+          "/deps/tower/timeout/timeoutlayer",
+          "clone"
+        ],
+        [
           "/deps/tower/util",
           "future_service"
         ],
         [
-          "/deps/tower/util/optional/error",
+          "/deps/tower/util/error/optional",
           "None"
         ],
         [
@@ -4407,7 +5711,15 @@
           "Rng"
         ],
         [
-          "/deps/tower/util/rng",
+          "/deps/tower/util/rng/hasherrng",
+          "clone"
+        ],
+        [
+          "/deps/tower/util/rng/hasherrng",
+          "default"
+        ],
+        [
+          "/deps/tower/util/rng/hasherrng",
           "next_u64"
         ]
       ]
@@ -4421,12 +5733,16 @@
           "LatencyUnit"
         ],
         [
-          "/deps/tower-http",
-          "is_end_stream"
-        ],
-        [
           "/deps/tower-http/body",
           "Full"
+        ],
+        [
+          "/deps/tower-http/body/full",
+          "default"
+        ],
+        [
+          "/deps/tower-http/body/full",
+          "is_end_stream"
         ],
         [
           "/deps/tower-http/classify",
@@ -4561,8 +5877,44 @@
           "Unknown"
         ],
         [
-          "/deps/tower-http/convert",
-          "from"
+          "/deps/tower-http/classify/grpceoserrorsasfailures",
+          "classify_error"
+        ],
+        [
+          "/deps/tower-http/classify/grpceoserrorsasfailures",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/classify/grpcerrorsasfailures",
+          "classify_error"
+        ],
+        [
+          "/deps/tower-http/classify/grpcerrorsasfailures",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/classify/grpcerrorsasfailures",
+          "default"
+        ],
+        [
+          "/deps/tower-http/classify/servererrorsasfailures",
+          "classify_error"
+        ],
+        [
+          "/deps/tower-http/classify/servererrorsasfailures",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/classify/servererrorsasfailures",
+          "default"
+        ],
+        [
+          "/deps/tower-http/classify/statusinrangeasfailures",
+          "classify_error"
+        ],
+        [
+          "/deps/tower-http/classify/statusinrangeasfailures",
+          "clone"
         ],
         [
           "/deps/tower-http/follow-redirect",
@@ -4579,6 +5931,14 @@
         [
           "/deps/tower-http/follow-redirect",
           "RequestUri"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/followredirectlayer",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/followredirectlayer",
+          "default"
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
@@ -4649,6 +6009,34 @@
           "Stop"
         ],
         [
+          "/deps/tower-http/follow-redirect/policy/filtercredentials",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy/filtercredentials",
+          "default"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy/limited",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy/limited",
+          "default"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy/sameorigin",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy/sameorigin",
+          "default"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/requesturi",
+          "clone"
+        ],
+        [
           "/deps/tower-http/latencyunit",
           "Micros"
         ],
@@ -4671,6 +6059,10 @@
         [
           "/deps/tower-http/limit",
           "RequestBodyLimitLayer::new"
+        ],
+        [
+          "/deps/tower-http/limit/requestbodylimitlayer",
+          "clone"
         ],
         [
           "/deps/tower-http/request-id",
@@ -4705,12 +6097,28 @@
           "RequestId::new"
         ],
         [
-          "/deps/tower-http/request-id",
+          "/deps/tower-http/request-id/makerequestuuid",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/request-id/makerequestuuid",
+          "default"
+        ],
+        [
+          "/deps/tower-http/request-id/makerequestuuid",
           "make_request_id"
         ],
         [
-          "/deps/tower-http/string",
-          "to_string"
+          "/deps/tower-http/request-id/propagaterequestidlayer",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/request-id/requestid",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/request-id/requestid",
+          "from"
         ],
         [
           "/deps/tower-http/timeout",
@@ -4743,6 +6151,18 @@
         [
           "/deps/tower-http/timeout",
           "TimeoutLayer::with_status_code"
+        ],
+        [
+          "/deps/tower-http/timeout/requestbodytimeoutlayer",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/timeout/responsebodytimeoutlayer",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/timeout/timeoutlayer",
+          "clone"
         ],
         [
           "/deps/tower-http/trace",
@@ -4811,6 +6231,54 @@
         [
           "/deps/tower-http/trace",
           "DefaultOnResponse::new"
+        ],
+        [
+          "/deps/tower-http/trace/defaultmakespan",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultmakespan",
+          "default"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonbodychunk",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonbodychunk",
+          "default"
+        ],
+        [
+          "/deps/tower-http/trace/defaultoneos",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultoneos",
+          "default"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonfailure",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonfailure",
+          "default"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonrequest",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonrequest",
+          "default"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonresponse",
+          "clone"
+        ],
+        [
+          "/deps/tower-http/trace/defaultonresponse",
+          "default"
         ]
       ]
     },
@@ -4855,24 +6323,36 @@
           "Span::none"
         ],
         [
-          "/deps/tracing/clone",
-          "clone"
-        ],
-        [
-          "/deps/tracing/cmp",
-          "eq"
-        ],
-        [
-          "/deps/tracing/ops/deref",
-          "deref"
-        ],
-        [
           "/deps/tracing/span",
           "EnteredSpan"
         ],
         [
           "/deps/tracing/span",
           "EnteredSpan.exit"
+        ],
+        [
+          "/deps/tracing/span",
+          "clone"
+        ],
+        [
+          "/deps/tracing/span",
+          "drop"
+        ],
+        [
+          "/deps/tracing/span",
+          "eq"
+        ],
+        [
+          "/deps/tracing/span/enteredspan",
+          "deref"
+        ],
+        [
+          "/deps/tracing/span/enteredspan",
+          "drop"
+        ],
+        [
+          "/deps/tracing/span/trait/core/convert/from-tracing/span",
+          "from"
         ],
         [
           "/deps/tracing/subscriber",
@@ -5921,12 +7401,192 @@
           "Type"
         ],
         [
+          "/deps/utoipa/openapi/allof",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/allof",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/allof",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/allof",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/allof/trait/core/convert/from-utoipa/openapi/allofbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/allofbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/allofbuilder/trait/core/convert/from-utoipa/openapi/allof",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/array",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/array",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/array",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/array",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/array/trait/core/convert/from-utoipa/openapi/arraybuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/arraybuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/arraybuilder/trait/core/convert/from-utoipa/openapi/array",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/components",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/components",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/components",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/components",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/components/trait/core/convert/from-utoipa/openapi/components",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/components/trait/core/convert/from-utoipa/openapi/componentsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/componentsbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/componentsbuilder/trait/core/convert/from-utoipa/openapi/components",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/componentsbuilder/trait/core/convert/from-utoipa/openapi/componentsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contact",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/contact",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/contact",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/contact",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/contact/trait/core/convert/from-utoipa/openapi/contact",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contact/trait/core/convert/from-utoipa/openapi/contactbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contactbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/contactbuilder/trait/core/convert/from-utoipa/openapi/contact",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contactbuilder/trait/core/convert/from-utoipa/openapi/contactbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/content",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/content",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/content",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/content",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/content/trait/core/convert/from-utoipa/openapi/content",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/content/trait/core/convert/from-utoipa/openapi/contentbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contentbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/contentbuilder/trait/core/convert/from-utoipa/openapi/content",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/contentbuilder/trait/core/convert/from-utoipa/openapi/contentbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/deprecated",
           "False"
         ],
         [
           "/deps/utoipa/openapi/deprecated",
           "True"
+        ],
+        [
+          "/deps/utoipa/openapi/discriminator",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/discriminator",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/discriminator",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/discriminator",
+          "eq"
         ],
         [
           "/deps/utoipa/openapi/encoding",
@@ -5973,6 +7633,42 @@
           "EncodingBuilder::new"
         ],
         [
+          "/deps/utoipa/openapi/encoding/encoding",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding/trait/core/convert/from-utoipa/openapi/encoding/encoding",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding/trait/core/convert/from-utoipa/openapi/encoding/encodingbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encodingbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encodingbuilder/trait/core/convert/from-utoipa/openapi/encoding/encoding",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encodingbuilder/trait/core/convert/from-utoipa/openapi/encoding/encodingbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/example",
           "Example"
         ],
@@ -6009,6 +7705,38 @@
           "ExampleBuilder::new"
         ],
         [
+          "/deps/utoipa/openapi/example/example",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/example/example",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/example/example",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/example/example",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/example/example/trait/core/convert/from-utoipa/openapi/example/example",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/example/example/trait/core/convert/from-utoipa/openapi/example/examplebuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/example/examplebuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/example/examplebuilder/trait/core/convert/from-utoipa/openapi/example/example",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/extensions",
           "Extensions"
         ],
@@ -6037,6 +7765,38 @@
           "ExtensionsBuilder::new"
         ],
         [
+          "/deps/utoipa/openapi/extensions/extensions",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensions",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensions",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensions",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensions/trait/core/convert/from-utoipa/openapi/extensions/extensionsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensionsbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensionsbuilder/trait/core/convert/from-utoipa/openapi/extensions/extensions",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensionsbuilder/trait/core/convert/from-utoipa/openapi/extensions/extensionsbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/external-docs",
           "ExternalDocsBuilder"
         ],
@@ -6059,6 +7819,78 @@
         [
           "/deps/utoipa/openapi/external-docs",
           "ExternalDocsBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs/externaldocsbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs/externaldocsbuilder/trait/core/convert/from-utoipa/openapi/external-docs/externaldocsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs/externaldocsbuilder/trait/core/convert/from-utoipa/openapi/externaldocs",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs/trait/core/convert/from-utoipa/openapi/external-docs/externaldocsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/externaldocs/trait/core/convert/from-utoipa/openapi/externaldocs",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/header",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/header",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/header",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/header",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/header/trait/core/convert/from-utoipa/openapi/header",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/header/trait/core/convert/from-utoipa/openapi/headerbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/headerbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/headerbuilder/trait/core/convert/from-utoipa/openapi/header",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/headerbuilder/trait/core/convert/from-utoipa/openapi/headerbuilder",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/httpmethod",
@@ -6091,6 +7923,42 @@
         [
           "/deps/utoipa/openapi/httpmethod",
           "Trace"
+        ],
+        [
+          "/deps/utoipa/openapi/info",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/info",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/info",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/info",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/info/trait/core/convert/from-utoipa/openapi/info",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/info/trait/core/convert/from-utoipa/openapi/infobuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/infobuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/infobuilder/trait/core/convert/from-utoipa/openapi/info",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/infobuilder/trait/core/convert/from-utoipa/openapi/infobuilder",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/knownformat",
@@ -6181,6 +8049,42 @@
           "Uuid"
         ],
         [
+          "/deps/utoipa/openapi/license",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/license",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/license",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/license",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/license/trait/core/convert/from-utoipa/openapi/license",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/license/trait/core/convert/from-utoipa/openapi/licensebuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/licensebuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/licensebuilder/trait/core/convert/from-utoipa/openapi/license",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/licensebuilder/trait/core/convert/from-utoipa/openapi/licensebuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/link",
           "Link"
         ],
@@ -6227,6 +8131,134 @@
         [
           "/deps/utoipa/openapi/link",
           "LinkBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link/trait/core/convert/from-utoipa/openapi/link/link",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/link/link/trait/core/convert/from-utoipa/openapi/link/linkbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/link/linkbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/link/linkbuilder/trait/core/convert/from-utoipa/openapi/link/link",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/link/linkbuilder/trait/core/convert/from-utoipa/openapi/link/linkbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/object",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/object",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/object",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/object",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/object/trait/core/convert/from-utoipa/openapi/objectbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/objectbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/objectbuilder/trait/core/convert/from-utoipa/openapi/object",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/oneof",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/oneof",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/oneof",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/oneof",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/oneof/trait/core/convert/from-utoipa/openapi/oneofbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/oneofbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/oneofbuilder/trait/core/convert/from-utoipa/openapi/oneof",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi/trait/core/convert/from-utoipa/openapi/openapi",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi/trait/core/convert/from-utoipa/openapi/openapibuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/openapibuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/openapibuilder/trait/core/convert/from-utoipa/openapi/openapi",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/openapibuilder/trait/core/convert/from-utoipa/openapi/openapibuilder",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/openapiversion",
@@ -6429,6 +8461,78 @@
           "PathItemBuilder::new"
         ],
         [
+          "/deps/utoipa/openapi/path/operation",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operation",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operation",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operation",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operation/trait/core/convert/from-utoipa/openapi/path/operation",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operation/trait/core/convert/from-utoipa/openapi/path/operationbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operationbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operationbuilder/trait/core/convert/from-utoipa/openapi/path/operation",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/operationbuilder/trait/core/convert/from-utoipa/openapi/path/operationbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter/trait/core/convert/from-utoipa/openapi/path/parameter",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter/trait/core/convert/from-utoipa/openapi/path/parameterbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameterbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameterbuilder/trait/core/convert/from-utoipa/openapi/path/parameter",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameterbuilder/trait/core/convert/from-utoipa/openapi/path/parameterbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/path/parameterin",
           "Cookie"
         ],
@@ -6473,6 +8577,98 @@
           "SpaceDelimited"
         ],
         [
+          "/deps/utoipa/openapi/path/pathitembuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/path/pathitembuilder/trait/core/convert/from-utoipa/openapi/path/pathitembuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/path/pathitembuilder/trait/core/convert/from-utoipa/openapi/pathitem",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem/trait/core/convert/from-utoipa/openapi/path/pathitembuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/pathitem/trait/core/convert/from-utoipa/openapi/pathitem",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/paths",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/paths",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/paths",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/paths",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/paths/trait/core/convert/from-utoipa/openapi/paths",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/paths/trait/core/convert/from-utoipa/openapi/pathsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/pathsbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/pathsbuilder/trait/core/convert/from-utoipa/openapi/paths",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/pathsbuilder/trait/core/convert/from-utoipa/openapi/pathsbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/ref",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/ref",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/ref",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/ref",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/ref/trait/core/convert/from-utoipa/openapi/schema/refbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/request-body",
           "RequestBody"
         ],
@@ -6513,12 +8709,112 @@
           "RequestBodyBuilder::new"
         ],
         [
+          "/deps/utoipa/openapi/request-body/requestbody",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbody",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbody",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbody",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbody/trait/core/convert/from-utoipa/openapi/request-body/requestbody",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbody/trait/core/convert/from-utoipa/openapi/request-body/requestbodybuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbodybuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbodybuilder/trait/core/convert/from-utoipa/openapi/request-body/requestbody",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body/requestbodybuilder/trait/core/convert/from-utoipa/openapi/request-body/requestbodybuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/required",
           "False"
         ],
         [
           "/deps/utoipa/openapi/required",
           "True"
+        ],
+        [
+          "/deps/utoipa/openapi/response",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/response",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/response",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/response",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/response/trait/core/convert/from-utoipa/openapi/response",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/response/trait/core/convert/from-utoipa/openapi/responsebuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/responsebuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/responsebuilder/trait/core/convert/from-utoipa/openapi/response",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/responses",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/responses",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/responses",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/responses",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/responses/trait/core/convert/from-utoipa/openapi/responsesbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/responsesbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/responsesbuilder/trait/core/convert/from-utoipa/openapi/responses",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/responsesbuilder/trait/core/convert/from-utoipa/openapi/responsesbuilder",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/schema",
@@ -6615,6 +8911,42 @@
         [
           "/deps/utoipa/openapi/schema",
           "empty"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof/trait/core/convert/from-utoipa/openapi/schema/anyofbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyofbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyofbuilder/trait/core/convert/from-utoipa/openapi/schema/anyof",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/refbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/refbuilder/trait/core/convert/from-utoipa/openapi/ref",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -6765,6 +9097,66 @@
           "SecurityScheme"
         ],
         [
+          "/deps/utoipa/openapi/security/apikeyvalue",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/apikeyvalue",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/apikeyvalue",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/authorizationcode",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/authorizationcode",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/authorizationcode",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/clientcredentials",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/clientcredentials",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/clientcredentials",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http/trait/core/convert/from-utoipa/openapi/security/http",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http/trait/core/convert/from-utoipa/openapi/security/httpbuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/security/httpauthscheme",
           "Basic"
         ],
@@ -6805,6 +9197,170 @@
           "Vapid"
         ],
         [
+          "/deps/utoipa/openapi/security/httpbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/security/httpbuilder/trait/core/convert/from-utoipa/openapi/security/http",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/security/httpbuilder/trait/core/convert/from-utoipa/openapi/security/httpbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/security/implicit",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/implicit",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/implicit",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/oauth2",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/oauth2",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/oauth2",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/openidconnect",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/openidconnect",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/openidconnect",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/password",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/password",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/password",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/scopes",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/security/scopes",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/security/scopes",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/security/scopes",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/securityrequirement",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/securityrequirement",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/securityrequirement",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/securityrequirement",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/server",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/server",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/server",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/server",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/server/trait/core/convert/from-utoipa/openapi/server",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/server/trait/core/convert/from-utoipa/openapi/serverbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/serverbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/serverbuilder/trait/core/convert/from-utoipa/openapi/server",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/serverbuilder/trait/core/convert/from-utoipa/openapi/serverbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable/trait/core/convert/from-utoipa/openapi/servervariable",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable/trait/core/convert/from-utoipa/openapi/servervariablebuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariablebuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariablebuilder/trait/core/convert/from-utoipa/openapi/servervariable",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariablebuilder/trait/core/convert/from-utoipa/openapi/servervariablebuilder",
+          "from"
+        ],
+        [
           "/deps/utoipa/openapi/tag",
           "TagBuilder"
         ],
@@ -6831,6 +9387,42 @@
         [
           "/deps/utoipa/openapi/tag",
           "TagBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/tag/tagbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/tag/tagbuilder/trait/core/convert/from-utoipa/openapi/tag",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/tag/tagbuilder/trait/core/convert/from-utoipa/openapi/tag/tagbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/tag/trait/core/convert/from-utoipa/openapi/tag",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/tag/trait/core/convert/from-utoipa/openapi/tag/tagbuilder",
+          "from"
         ],
         [
           "/deps/utoipa/openapi/type",
@@ -6903,6 +9495,42 @@
         [
           "/deps/utoipa/openapi/xml",
           "XmlBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml",
+          "clone"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml",
+          "deserialize"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml",
+          "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml/trait/core/convert/from-utoipa/openapi/xml/xml",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xml/trait/core/convert/from-utoipa/openapi/xml/xmlbuilder",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xmlbuilder",
+          "default"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xmlbuilder/trait/core/convert/from-utoipa/openapi/xml/xml",
+          "from"
+        ],
+        [
+          "/deps/utoipa/openapi/xml/xmlbuilder/trait/core/convert/from-utoipa/openapi/xml/xmlbuilder",
+          "from"
         ]
       ]
     },
@@ -6947,6 +9575,10 @@
           "SyntaxHighlight.theme"
         ],
         [
+          "/deps/utoipa-swagger-ui/basicauth",
+          "clone"
+        ],
+        [
           "/deps/utoipa-swagger-ui/oauth",
           "Config"
         ],
@@ -6989,6 +9621,34 @@
         [
           "/deps/utoipa-swagger-ui/oauth",
           "Config::new"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth/config",
+          "clone"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/oauth/config",
+          "default"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/swaggerui",
+          "clone"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/swaggerui",
+          "from"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/syntaxhighlight",
+          "clone"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/syntaxhighlight",
+          "default"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/syntaxhighlight",
+          "from"
         ]
       ]
     }
@@ -7011,11 +9671,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "bc96c831547df2035b2a2e0e1445d93ac46b3fb0cb2550736dd9f84d2fe65145",
+  "cache_identity": "c9aa7fad3c8e5aebef7e3c7ac09b3bc7a679210cade053b29fa5e2feb1070b4b",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "47",
-  "content_hash": "11793aebabe957d30cf0e136260182456ec2059c1f0595af8d3ca059f05b1c33",
+  "projection_schema": "50",
+  "content_hash": "45ab3a47bd9c3fee6b13ec4aa8f5244936c8a5943db943bff972d7e30831381f",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

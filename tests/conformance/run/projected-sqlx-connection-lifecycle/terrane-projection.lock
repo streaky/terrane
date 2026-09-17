@@ -7,15 +7,15 @@
           "Error"
         ],
         [
-          "/deps/sqlx-core/clone",
-          "clone"
-        ],
-        [
           "/deps/sqlx-core/connection",
           "LogSettings"
         ],
         [
-          "/deps/sqlx-core/default",
+          "/deps/sqlx-core/connection/logsettings",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-core/connection/logsettings",
           "default"
         ],
         [
@@ -103,10 +103,6 @@
           "remove_file"
         ],
         [
-          "/deps/sqlx-core/future",
-          "is_terminated"
-        ],
-        [
           "/deps/sqlx-core/logger",
           "parse_query_summary"
         ],
@@ -157,6 +153,10 @@
         [
           "/deps/sqlx-core/pool",
           "PoolConnectionMetadata"
+        ],
+        [
+          "/deps/sqlx-core/pool/closeevent",
+          "is_terminated"
         ],
         [
           "/deps/sqlx-core/query",
@@ -381,80 +381,8 @@
           "SqliteValue"
         ],
         [
-          "/deps/sqlx-sqlite/cmp",
-          "eq"
-        ],
-        [
-          "/deps/sqlx-sqlite/column",
-          "name"
-        ],
-        [
-          "/deps/sqlx-sqlite/column",
-          "ordinal"
-        ],
-        [
-          "/deps/sqlx-sqlite/column",
-          "type_info"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "cached_statements_size"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "clear_cached_statements"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "close"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "connect"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "ping"
-        ],
-        [
-          "/deps/sqlx-sqlite/connection",
-          "shrink_buffers"
-        ],
-        [
-          "/deps/sqlx-sqlite/encode",
+          "/deps/sqlx-sqlite/sqlite",
           "size_hint"
-        ],
-        [
-          "/deps/sqlx-sqlite/error",
-          "kind"
-        ],
-        [
-          "/deps/sqlx-sqlite/error",
-          "message"
-        ],
-        [
-          "/deps/sqlx-sqlite/iter/traits/collect",
-          "extend"
-        ],
-        [
-          "/deps/sqlx-sqlite/ops/drop",
-          "drop"
-        ],
-        [
-          "/deps/sqlx-sqlite/row",
-          "get"
-        ],
-        [
-          "/deps/sqlx-sqlite/row",
-          "get_unchecked"
-        ],
-        [
-          "/deps/sqlx-sqlite/row",
-          "try_get"
-        ],
-        [
-          "/deps/sqlx-sqlite/row",
-          "try_get_unchecked"
         ],
         [
           "/deps/sqlx-sqlite/sqliteautovacuum",
@@ -467,6 +395,66 @@
         [
           "/deps/sqlx-sqlite/sqliteautovacuum",
           "None"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "name"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "ordinal"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "type_info"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "cached_statements_size"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "clear_cached_statements"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "close"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "ping"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "shrink_buffers"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "connect"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "default"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "from_str"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteerror",
+          "kind"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteerror",
+          "message"
         ],
         [
           "/deps/sqlx-sqlite/sqlitejournalmode",
@@ -501,6 +489,34 @@
           "Normal"
         ],
         [
+          "/deps/sqlx-sqlite/sqliteownedbuf",
+          "drop"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitequeryresult",
+          "default"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitequeryresult",
+          "extend"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "get"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "get_unchecked"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "try_get"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "try_get_unchecked"
+        ],
+        [
           "/deps/sqlx-sqlite/sqlitesynchronous",
           "Extra"
         ],
@@ -517,19 +533,27 @@
           "Off"
         ],
         [
-          "/deps/sqlx-sqlite/str/traits",
-          "from_str"
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "clone"
         ],
         [
-          "/deps/sqlx-sqlite/type-info",
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "eq"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
           "is_null"
         ],
         [
-          "/deps/sqlx-sqlite/type-info",
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
           "name"
         ],
         [
-          "/deps/sqlx-sqlite/value",
+          "/deps/sqlx-sqlite/sqlitevalue",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitevalue",
           "is_null"
         ]
       ],
@@ -548,7 +572,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

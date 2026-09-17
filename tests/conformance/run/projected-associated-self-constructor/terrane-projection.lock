@@ -67,6 +67,26 @@
           "to_mdast"
         ],
         [
+          "/deps/markdown/compileoptions",
+          "clone"
+        ],
+        [
+          "/deps/markdown/compileoptions",
+          "default"
+        ],
+        [
+          "/deps/markdown/constructs",
+          "clone"
+        ],
+        [
+          "/deps/markdown/constructs",
+          "default"
+        ],
+        [
+          "/deps/markdown/constructs",
+          "eq"
+        ],
+        [
           "/deps/markdown/lineending",
           "CarriageReturn"
         ],
@@ -263,6 +283,230 @@
           "Right"
         ],
         [
+          "/deps/markdown/mdast/attributevalueexpression",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/attributevalueexpression",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/blockquote",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/blockquote",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/break",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/break",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/code",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/code",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/definition",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/definition",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/delete",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/delete",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/emphasis",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/emphasis",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/footnotedefinition",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/footnotedefinition",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/footnotereference",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/footnotereference",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/heading",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/heading",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/html",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/html",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/image",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/image",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/imagereference",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/imagereference",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/inlinecode",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/inlinecode",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/inlinemath",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/inlinemath",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/link",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/link",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/linkreference",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/linkreference",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/list",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/list",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/listitem",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/listitem",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/math",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/math",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxflowexpression",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxflowexpression",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsesm",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsesm",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxattribute",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxattribute",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxexpressionattribute",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxexpressionattribute",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxflowelement",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxflowelement",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxtextelement",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxjsxtextelement",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/mdxtextexpression",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/mdxtextexpression",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/paragraph",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/paragraph",
+          "eq"
+        ],
+        [
           "/deps/markdown/mdast/referencekind",
           "Collapsed"
         ],
@@ -273,6 +517,78 @@
         [
           "/deps/markdown/mdast/referencekind",
           "Shortcut"
+        ],
+        [
+          "/deps/markdown/mdast/root",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/root",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/strong",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/strong",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/table",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/table",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/tablecell",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/tablecell",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/tablerow",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/tablerow",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/text",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/text",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/thematicbreak",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/thematicbreak",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/toml",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/toml",
+          "eq"
+        ],
+        [
+          "/deps/markdown/mdast/yaml",
+          "clone"
+        ],
+        [
+          "/deps/markdown/mdast/yaml",
+          "eq"
         ],
         [
           "/deps/markdown/mdxexpressionkind",
@@ -295,8 +611,20 @@
           "Place"
         ],
         [
-          "/deps/markdown/string",
-          "to_string"
+          "/deps/markdown/message/message",
+          "clone"
+        ],
+        [
+          "/deps/markdown/message/message",
+          "eq"
+        ],
+        [
+          "/deps/markdown/options",
+          "default"
+        ],
+        [
+          "/deps/markdown/parseoptions",
+          "default"
         ],
         [
           "/deps/markdown/unist",
@@ -313,6 +641,22 @@
         [
           "/deps/markdown/unist",
           "Position::new"
+        ],
+        [
+          "/deps/markdown/unist/point",
+          "clone"
+        ],
+        [
+          "/deps/markdown/unist/point",
+          "eq"
+        ],
+        [
+          "/deps/markdown/unist/position",
+          "clone"
+        ],
+        [
+          "/deps/markdown/unist/position",
+          "eq"
         ],
         [
           "/deps/markdown/util/character-reference",
@@ -371,18 +715,6 @@
         [
           "/deps/terrane-owner-witness",
           "PlainOwner::standard"
-        ],
-        [
-          "/deps/terrane-owner-witness/borrow",
-          "borrow"
-        ],
-        [
-          "/deps/terrane-owner-witness/borrow",
-          "borrow_mut"
-        ],
-        [
-          "/deps/terrane-owner-witness/convert",
-          "from"
         ]
       ],
       "name": "terrane-owner-witness",
@@ -390,7 +722,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [

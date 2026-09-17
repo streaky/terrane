@@ -23,10 +23,6 @@
         [
           "/deps/terrane-static-witness",
           "available_loopback_address"
-        ],
-        [
-          "/deps/terrane-static-witness/any",
-          "type_id"
         ]
       ],
       "name": "terrane-static-witness",
@@ -34,18 +30,6 @@
     },
     {
       "members": [
-        [
-          "/deps/tokio/cmp",
-          "cmp"
-        ],
-        [
-          "/deps/tokio/cmp",
-          "partial_cmp"
-        ],
-        [
-          "/deps/tokio/default",
-          "default"
-        ],
         [
           "/deps/tokio/io",
           "Interest"
@@ -105,6 +89,54 @@
         [
           "/deps/tokio/io",
           "Ready.is_write_closed"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "bitor"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "bitor_assign"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "clone"
+        ],
+        [
+          "/deps/tokio/io/interest",
+          "eq"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitand"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitor"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "bitor_assign"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "clone"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "cmp"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "eq"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "partial_cmp"
+        ],
+        [
+          "/deps/tokio/io/ready",
+          "sub"
         ],
         [
           "/deps/tokio/io/unix",
@@ -623,6 +655,58 @@
           "ReuniteError"
         ],
         [
+          "/deps/tokio/net/tcp/ownedreadhalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "drop"
+        ],
+        [
+          "/deps/tokio/net/tcp/ownedwritehalf",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
+          "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "try_from"
+        ],
+        [
           "/deps/tokio/net/unix",
           "OwnedReadHalf"
         ],
@@ -705,6 +789,22 @@
         [
           "/deps/tokio/net/unix",
           "UCred.uid"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedreadhalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "as_ref"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "drop"
+        ],
+        [
+          "/deps/tokio/net/unix/ownedwritehalf",
+          "is_write_vectored"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -803,12 +903,72 @@
           "Sender::from_owned_fd_unchecked"
         ],
         [
-          "/deps/tokio/ops/arith",
-          "sub"
+          "/deps/tokio/net/unix/pipe/openoptions",
+          "clone"
         ],
         [
-          "/deps/tokio/ops/bit",
-          "bitand"
+          "/deps/tokio/net/unix/pipe/openoptions",
+          "default"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/receiver",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/sender",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/sender",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr",
+          "clone"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-std/os/unix/net/addr/socketaddr",
+          "from"
+        ],
+        [
+          "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-tokio/net/unix/socketaddr",
+          "from"
+        ],
+        [
+          "/deps/tokio/net/unix/ucred",
+          "clone"
+        ],
+        [
+          "/deps/tokio/net/unix/ucred",
+          "eq"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
+          "try_from"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
+          "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "is_write_vectored"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "try_from"
         ]
       ],
       "name": "tokio",
@@ -816,7 +976,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "47",
+  "projection_schema": "50",
   "removed": [],
   "resolution": {
     "events": [
