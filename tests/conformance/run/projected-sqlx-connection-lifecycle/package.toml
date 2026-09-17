@@ -17,10 +17,6 @@ effects = ["build", "filesystem", "threads"]
 version = "=0.8.6"
 effects = ["build", "filesystem", "threads"]
 
-[rust-dependencies.futures-core]
-version = "=0.3.34"
-effects = ["threads"]
-
 [rust-dependencies.terrane-sqlx-lifecycle-witness]
 version = "=0.1.0"
 effects = ["filesystem"]

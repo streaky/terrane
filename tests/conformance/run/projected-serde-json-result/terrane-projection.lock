@@ -138,6 +138,22 @@
           "to_writer_pretty"
         ],
         [
+          "/deps/serde-json/cmp",
+          "eq"
+        ],
+        [
+          "/deps/serde-json/de",
+          "custom"
+        ],
+        [
+          "/deps/serde-json/de",
+          "deserialize"
+        ],
+        [
+          "/deps/serde-json/default",
+          "default"
+        ],
+        [
           "/deps/serde-json/error",
           "Category"
         ],
@@ -158,6 +174,10 @@
           "Syntax"
         ],
         [
+          "/deps/serde-json/iter/traits/iterator",
+          "next"
+        ],
+        [
           "/deps/serde-json/map",
           "IntoIter"
         ],
@@ -176,6 +196,134 @@
         [
           "/deps/serde-json/ser",
           "CompactFormatter"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "collect_str"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "custom"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_bool"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_char"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_f32"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_f64"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_i128"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_i16"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_i32"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_i64"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_i8"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_map"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_newtype_struct"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_newtype_variant"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_none"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_seq"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_some"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_str"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_struct"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_struct_variant"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_tuple"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_tuple_struct"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_tuple_variant"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_u128"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_u16"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_u32"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_u64"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_u8"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_unit"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_unit_struct"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "serialize_unit_variant"
+        ],
+        [
+          "/deps/serde-json/str/traits",
+          "from_str"
         ],
         [
           "/deps/serde-json/value",
@@ -203,7 +351,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

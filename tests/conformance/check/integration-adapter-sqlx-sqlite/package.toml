@@ -18,10 +18,6 @@ effects = ["build", "filesystem"]
 version = "=0.8.6"
 effects = ["build"]
 
-[rust-dependencies.futures-core]
-version = "=0.3.31"
-effects = ["build"]
-
 [rust-dependencies.terrane-integration-adapters]
 package = "terrane-integration-adapters"
 version = "=0.1.0"

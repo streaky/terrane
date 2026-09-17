@@ -2,21 +2,12 @@
   "format": 3,
   "dependencies": [
     {
-      "name": "futures-core",
-      "version": "0.3.31",
-      "members": []
-    },
-    {
       "name": "sqlx-core",
       "version": "0.8.6",
       "members": [
         [
           "/deps/sqlx-core",
           "Error"
-        ],
-        [
-          "/deps/sqlx-core",
-          "is_terminated"
         ],
         [
           "/deps/sqlx-core/connection",
@@ -109,6 +100,10 @@
         [
           "/deps/sqlx-core/fs",
           "remove_file"
+        ],
+        [
+          "/deps/sqlx-core/future",
+          "is_terminated"
         ],
         [
           "/deps/sqlx-core/logger",
@@ -221,6 +216,26 @@
         [
           "/deps/sqlx-core/pool",
           "PoolConnectionMetadata"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "query_with"
         ],
         [
           "/deps/sqlx-core/rt",
@@ -509,10 +524,6 @@
           "message"
         ],
         [
-          "/deps/sqlx-sqlite/executor",
-          "fetch_optional"
-        ],
-        [
           "/deps/sqlx-sqlite/iter/traits/collect",
           "extend"
         ],
@@ -650,18 +661,28 @@
     }
   ],
   "removed": [],
-  "cache_identity": "2e16ec87be4831c1f145eaff15882eaf46d1fbc6e8cd45d10e3a467f270ebca6",
+  "cache_identity": "a4b4804c98ad5763e99d7bab0a551151117d17ef868e90e70b8f0da52f3b8fed",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "45",
-  "content_hash": "f0e3996b285a67fe7d87ecc2b5cb3716657b75422835c34adae8759d3e3a8e9d",
+  "projection_schema": "47",
+  "content_hash": "5eff44418b6aa1d5f99da2db37f6c8dfffd38527ed5d0a0b9ba0273349759cfa",
   "resolution": {
-    "outcome": "ExactCache",
+    "outcome": "LocalRustdoc",
     "events": [
       {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `2e16ec87be4831c1f145eaff15882eaf46d1fbc6e8cd45d10e3a467f270ebca6`"
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
       }
     ]
   }

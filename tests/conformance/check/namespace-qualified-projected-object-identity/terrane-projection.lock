@@ -244,6 +244,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
         ],
         [
@@ -280,6 +284,10 @@
         ],
         [
           "/deps/reqwest",
+          "Error.without_url"
+        ],
+        [
+          "/deps/reqwest",
           "Identity"
         ],
         [
@@ -289,6 +297,10 @@
         [
           "/deps/reqwest",
           "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy::from_string"
         ],
         [
           "/deps/reqwest",
@@ -396,6 +408,14 @@
         ],
         [
           "/deps/reqwest",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest",
           "Response.remote_addr"
         ],
         [
@@ -413,6 +433,10 @@
         [
           "/deps/reqwest",
           "get"
+        ],
+        [
+          "/deps/reqwest",
+          "is_end_stream"
         ],
         [
           "/deps/reqwest/async-impl/client",
@@ -660,6 +684,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
@@ -740,6 +768,14 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.remote_addr"
         ],
         [
@@ -749,6 +785,18 @@
         [
           "/deps/reqwest/blocking",
           "get"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "partial_cmp"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -763,6 +811,10 @@
           "Internal"
         ],
         [
+          "/deps/reqwest/convert",
+          "try_from"
+        ],
+        [
           "/deps/reqwest/dns",
           "Name"
         ],
@@ -775,6 +827,10 @@
           "InvalidNameError"
         ],
         [
+          "/deps/reqwest/io/async-write",
+          "is_write_vectored"
+        ],
+        [
           "/deps/reqwest/redirect",
           "Action"
         ],
@@ -784,11 +840,35 @@
         ],
         [
           "/deps/reqwest/redirect",
-          "Policy.redirect"
+          "Policy::custom"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::limited"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::none"
         ],
         [
           "/deps/reqwest/retry",
           "Builder"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.classify_fn"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_extra_load"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_retries_per_request"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.no_budget"
         ],
         [
           "/deps/reqwest/retry",
@@ -811,6 +891,14 @@
           "Success"
         ],
         [
+          "/deps/reqwest/str/traits",
+          "from_str"
+        ],
+        [
+          "/deps/reqwest/string",
+          "to_string"
+        ],
+        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -828,7 +916,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

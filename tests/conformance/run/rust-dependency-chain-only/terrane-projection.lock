@@ -11,6 +11,10 @@
           "LogSettings"
         ],
         [
+          "/deps/sqlx-core/default",
+          "default"
+        ],
+        [
           "/deps/sqlx-core/encode",
           "IsNull"
         ],
@@ -95,6 +99,10 @@
           "remove_file"
         ],
         [
+          "/deps/sqlx-core/future",
+          "is_terminated"
+        ],
+        [
           "/deps/sqlx-core/logger",
           "parse_query_summary"
         ],
@@ -120,11 +128,15 @@
         ],
         [
           "/deps/sqlx-core/migrate",
-          "Migrator.iter"
+          "Migrator.run"
         ],
         [
           "/deps/sqlx-core/migrate",
-          "Migrator.run"
+          "Migrator.set_ignore_missing"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.set_locking"
         ],
         [
           "/deps/sqlx-core/migrate",
@@ -133,6 +145,10 @@
         [
           "/deps/sqlx-core/migrate",
           "Migrator.version_exists"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator::new"
         ],
         [
           "/deps/sqlx-core/migrate/migrationtype",
@@ -219,10 +235,6 @@
           "query_with"
         ],
         [
-          "/deps/sqlx-core/raw-sql",
-          "raw_sql"
-        ],
-        [
           "/deps/sqlx-core/rt",
           "TimeoutError"
         ],
@@ -244,10 +256,6 @@
         ],
         [
           "/deps/sqlx-core/sync",
-          "AsyncSemaphore.acquire"
-        ],
-        [
-          "/deps/sqlx-core/sync",
           "AsyncSemaphore.permits"
         ],
         [
@@ -256,7 +264,7 @@
         ],
         [
           "/deps/sqlx-core/sync",
-          "AsyncSemaphore.try_acquire"
+          "AsyncSemaphore::new"
         ],
         [
           "/deps/sqlx-core/testing",
@@ -265,6 +273,10 @@
         [
           "/deps/sqlx-core/testing",
           "TestArgs.migrator"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs::new"
         ],
         [
           "/deps/sqlx-core/testing",
@@ -281,18 +293,6 @@
         [
           "/deps/sqlx-core/testing/fixtures",
           "FixtureError"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "begin_ansi_transaction_sql"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "commit_ansi_transaction_sql"
-        ],
-        [
-          "/deps/sqlx-core/transaction",
-          "rollback_ansi_transaction_sql"
         ],
         [
           "/deps/sqlx-core/type-checking",
@@ -359,6 +359,10 @@
         [
           "/deps/terrane-chain-witness",
           "query_scalar"
+        ],
+        [
+          "/deps/terrane-chain-witness/any",
+          "type_id"
         ]
       ],
       "name": "terrane-chain-witness",
@@ -366,7 +370,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

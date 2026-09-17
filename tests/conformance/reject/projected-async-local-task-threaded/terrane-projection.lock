@@ -49,6 +49,14 @@
         [
           "/deps/async-witness",
           "wait_until_operation_started"
+        ],
+        [
+          "/deps/async-witness/any",
+          "type_id"
+        ],
+        [
+          "/deps/async-witness/string",
+          "to_string"
         ]
       ],
       "name": "async-witness",
@@ -56,7 +64,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

@@ -540,8 +540,6 @@ pub fn terrane_static_trn_42797465734d7574_with_capacity(
         }
     }
 }
-// Source: <terrane>/projected/deps/bytes/bufmut.trn
-// Namespace: deps/bytes/bufmut
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {

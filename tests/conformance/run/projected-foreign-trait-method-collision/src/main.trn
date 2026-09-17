@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-trait-collision-impls import first, second
+from /core/output import print
+
+function main;
+  _ = first; 1
+  _ = second; 2
+  print; 'colliding trait method declined'

@@ -235,29 +235,29 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
             let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
                 continue;
             };
-            if binding.name.starts_with('_') && binding.name != "_" {
-                if let Some(BindingEvent::Read { span, .. }) = events
+            if binding.name.starts_with('_')
+                && binding.name != "_"
+                && let Some(BindingEvent::Read { span, .. }) = events
                     .iter()
                     .find(|event| matches!(event, BindingEvent::Read { .. }))
-                {
-                    let suggested = binding.name.trim_start_matches('_');
-                    let help = if suggested.is_empty() {
-                        "rename the binding without a leading underscore".to_owned()
-                    } else {
-                        format!("rename the binding to `{suggested}`")
-                    };
-                    warnings.push(
-                        Diagnostic::warning(
-                            "W4006",
-                            format!(
-                                "binding `{}` is marked intentionally unused but is read",
-                                binding.name
-                            ),
-                            *span,
-                        )
-                        .with_help(help),
-                    );
-                }
+            {
+                let suggested = binding.name.trim_start_matches('_');
+                let help = if suggested.is_empty() {
+                    "rename the binding without a leading underscore".to_owned()
+                } else {
+                    format!("rename the binding to `{suggested}`")
+                };
+                warnings.push(
+                    Diagnostic::warning(
+                        "W4006",
+                        format!(
+                            "binding `{}` is marked intentionally unused but is read",
+                            binding.name
+                        ),
+                        *span,
+                    )
+                    .with_help(help),
+                );
             }
             if binding.name == "_" {
                 continue;

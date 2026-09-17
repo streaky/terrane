@@ -25,6 +25,14 @@
         [
           "/deps/terrane-associated-reject-witness",
           "sequence_total"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness/any",
+          "type_id"
+        ],
+        [
+          "/deps/terrane-associated-reject-witness/clone",
+          "clone"
         ]
       ],
       "name": "terrane-associated-reject-witness",
@@ -32,7 +40,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

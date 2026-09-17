@@ -24,11 +24,27 @@
         ],
         [
           "/deps/bytes",
+          "Bytes.split_off"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.split_to"
+        ],
+        [
+          "/deps/bytes",
           "Bytes.truncate"
         ],
         [
           "/deps/bytes",
           "Bytes.try_into_mut"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes::from_owner"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes::new"
         ],
         [
           "/deps/bytes",
@@ -103,6 +119,22 @@
           "TryGetError"
         ],
         [
+          "/deps/bytes",
+          "chunk_mut"
+        ],
+        [
+          "/deps/bytes",
+          "put"
+        ],
+        [
+          "/deps/bytes",
+          "put_bytes"
+        ],
+        [
+          "/deps/bytes",
+          "remaining_mut"
+        ],
+        [
           "/deps/bytes/buf",
           "UninitSlice"
         ],
@@ -115,24 +147,8 @@
           "UninitSlice.write_byte"
         ],
         [
-          "/deps/bytes/buf",
-          "copy_to_bytes"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "chunk_mut"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "put"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "put_bytes"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "remaining_mut"
+          "/deps/bytes/string",
+          "to_string"
         ]
       ],
       "name": "bytes",
@@ -140,7 +156,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

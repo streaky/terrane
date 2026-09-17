@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "45";
+const PROJECTION_SCHEMA: &str = "47";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1083,11 +1083,19 @@ impl Projection {
         exact_path: Option<&str>,
         suffix: &str,
     ) -> Option<&'a str> {
+        let qualified_prefix = exact_path
+            .and_then(|path| path.strip_suffix(suffix))
+            .map(|owner| format!("<{owner} as "));
         let mut matches = dependencies
             .iter()
             .flat_map(|dependency| &dependency.declined)
             .filter(|item| match exact_path {
-                Some(path) => item.rust_path == path,
+                Some(path) => {
+                    item.rust_path == path
+                        || qualified_prefix.as_ref().is_some_and(|prefix| {
+                            item.rust_path.starts_with(prefix) && item.rust_path.ends_with(suffix)
+                        })
+                }
                 None => item.rust_path.ends_with(suffix),
             })
             .map(|item| item.reason.as_str());
@@ -3792,18 +3800,24 @@ fn project_interface_inner(
                 parameter.name
             ));
         }
-        let projected =
-            match project_function_with_generics(function, index, paths, Some(name), &supplied) {
-                Ok(projected) => projected,
-                Err(reason) if provided => {
-                    declined_methods.push(DeclinedItem {
-                        rust_path: member_path,
-                        reason,
-                    });
-                    continue;
-                }
-                Err(reason) => return Err(format!("trait member `{name}`: {reason}")),
-            };
+        let projected = match project_function_with_generics(
+            function,
+            index,
+            paths,
+            Some(name),
+            &supplied,
+            false,
+        ) {
+            Ok(projected) => projected,
+            Err(reason) if provided => {
+                declined_methods.push(DeclinedItem {
+                    rust_path: member_path,
+                    reason,
+                });
+                continue;
+            }
+            Err(reason) => return Err(format!("trait member `{name}`: {reason}")),
+        };
         if !provided && projected.error.is_some() {
             return Err(format!(
                 "trait member `{name}`: required Result-returning methods are deferred"
@@ -3943,6 +3957,10 @@ fn projected_interface_impl_question(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass must classify every concrete provided-method candidate before resolving collisions"
+)]
 fn project_external_provided_trait_methods(
     projected: &mut [ProjectedDependency],
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
@@ -4024,7 +4042,6 @@ fn project_external_provided_trait_methods(
             };
             let ProjectedType::Foreign {
                 rust_path: owner_rust_path,
-                name: _,
                 ..
             } = &owner
             else {
@@ -4077,12 +4094,18 @@ fn project_external_provided_trait_methods(
                 }
             }
             for method_name in &implementation.provided_trait_methods {
+                let method_rust_path =
+                    format!("<{owner_rust_path} as {public_trait_path}>::{method_name}");
                 if projected[dependency_index]
                     .items
                     .iter()
-                    .chain(&additions)
                     .any(|item| item.namespace == namespace && item.name == *method_name)
                 {
+                    projected[dependency_index].declined.push(DeclinedItem {
+                        rust_path: method_rust_path,
+                        reason: "provided trait method conflicts with an existing projected name"
+                            .to_owned(),
+                    });
                     continue;
                 }
                 let Some(Item {
@@ -4096,6 +4119,10 @@ fn project_external_provided_trait_methods(
                         .filter(|method| method.name.as_deref() == Some(method_name))
                 })
                 else {
+                    projected[dependency_index].declined.push(DeclinedItem {
+                        rust_path: method_rust_path,
+                        reason: "provided trait method declaration is unavailable".to_owned(),
+                    });
                     continue;
                 };
                 let mut generic_type_parameters =
@@ -4123,17 +4150,28 @@ fn project_external_provided_trait_methods(
                             .any(|(_, ty)| type_mentions_generic(ty, generic))
                 });
                 if !has_input_selected || !has_destination_selected {
+                    projected[dependency_index].declined.push(DeclinedItem {
+                        rust_path: method_rust_path,
+                        reason: "provided external trait method requires both input- and destination-selected generic parameters".to_owned(),
+                    });
                     continue;
                 }
-                let projected_method = project_function_with_generics(
+                let mut method = match project_function_with_generics(
                     function,
                     &trait_document.index,
                     &trait_paths,
                     Some(method_name),
                     &supplied,
-                );
-                let Ok(mut method) = projected_method else {
-                    continue;
+                    false,
+                ) {
+                    Ok(method) => method,
+                    Err(reason) => {
+                        projected[dependency_index].declined.push(DeclinedItem {
+                            rust_path: method_rust_path,
+                            reason,
+                        });
+                        continue;
+                    }
                 };
                 if method.destination_result.is_none()
                     || !method
@@ -4141,6 +4179,10 @@ fn project_external_provided_trait_methods(
                         .iter()
                         .any(|generic| generic.input_selected)
                 {
+                    projected[dependency_index].declined.push(DeclinedItem {
+                        rust_path: method_rust_path,
+                        reason: "provided external trait method did not retain both input- and destination-selected generic parameters".to_owned(),
+                    });
                     continue;
                 }
                 if let Some(receiver) = method.receiver.take() {
@@ -4161,13 +4203,34 @@ fn project_external_provided_trait_methods(
                 additions.push(ProjectedItem {
                     namespace: namespace.clone(),
                     name: method_name.clone(),
-                    rust_path: format!("<{owner_rust_path} as {public_trait_path}>::{method_name}"),
+                    rust_path: method_rust_path,
                     docs: docs.clone(),
                     kind: ProjectedKind::Function(method),
                 });
             }
         }
-        projected[dependency_index].items.extend(additions);
+        let mut addition_counts = BTreeMap::new();
+        for item in &additions {
+            *addition_counts
+                .entry((item.namespace.clone(), item.name.clone()))
+                .or_insert(0usize) += 1;
+        }
+        for item in additions {
+            if addition_counts
+                .get(&(item.namespace.clone(), item.name.clone()))
+                .copied()
+                .unwrap_or_default()
+                > 1
+            {
+                projected[dependency_index].declined.push(DeclinedItem {
+                    rust_path: item.rust_path,
+                    reason: "trait method has multiple concrete receiver implementations"
+                        .to_owned(),
+                });
+            } else {
+                projected[dependency_index].items.push(item);
+            }
+        }
     }
 }
 
@@ -4237,21 +4300,37 @@ fn project_rustdoc(
         let mut rust_path = extern_rust_path(dependency, &public_rust_path);
         let docs = item.docs.clone();
         let projected = match &item.inner {
-            ItemEnum::Function(function) => project_function(function, index, paths, Some(&name))
-                .map(|mut projected_function| {
-                    if let Some(chain_owner) = project_chain_owner(
-                        dependency,
-                        function,
-                        &projected_function.result,
-                        index,
-                        paths,
-                        public_paths,
-                    ) {
-                        projected_function.chain_role = Some(ChainRole::Root);
-                        projected_associated_items.push(chain_owner);
-                    }
-                    ProjectedKind::Function(projected_function)
-                }),
+            ItemEnum::Function(function) => {
+                project_function(function, index, paths, Some(&name), true).and_then(
+                    |mut projected_function| {
+                        let chain_owner = project_chain_owner(
+                            dependency,
+                            function,
+                            &projected_function.result,
+                            index,
+                            paths,
+                            public_paths,
+                        );
+                        if function
+                            .sig
+                            .output
+                            .as_ref()
+                            .is_some_and(type_contains_lifetime_argument)
+                            && chain_owner.is_none()
+                        {
+                            return Err(
+                                "lifetime-bearing foreign type cannot cross a projected boundary"
+                                    .to_owned(),
+                            );
+                        }
+                        if let Some(chain_owner) = chain_owner {
+                            projected_function.chain_role = Some(ChainRole::Root);
+                            projected_associated_items.push(chain_owner);
+                        }
+                        Ok(ProjectedKind::Function(projected_function))
+                    },
+                )
+            }
             ItemEnum::Struct(structure) => {
                 let mut owner_generics =
                     match default_generic_instantiation(structure, index, paths) {
@@ -4298,6 +4377,7 @@ fn project_rustdoc(
                         public_paths,
                         &rust_path,
                         &owner_generics,
+                        false,
                     );
                     let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
                         .into_iter()
@@ -4728,6 +4808,7 @@ fn project_methods(
     public_paths: &BTreeMap<Id, String>,
     owner_rust_path: &str,
     owner_generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_output: bool,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
     let mut trait_methods = Vec::new();
@@ -4800,6 +4881,7 @@ fn project_methods(
                     paths,
                     Some(name),
                     &implementation_generics,
+                    allow_lifetime_output,
                 ) {
                     Ok(mut method) => {
                         if let Some(receiver) = method.receiver.take() {
@@ -4841,6 +4923,7 @@ fn project_methods(
                 paths,
                 Some(name),
                 &implementation_generics,
+                allow_lifetime_output,
             ) {
                 Ok(method) => candidates.push(method),
                 Err(reason) => declined.push((name.to_owned(), reason)),
@@ -4927,6 +5010,7 @@ fn project_chain_owner(
         public_paths,
         rust_path,
         &owner_generics,
+        true,
     );
     methods.retain_mut(|method| {
         if method.receiver.is_none() {
@@ -4971,8 +5055,16 @@ fn project_function_with_generics(
     paths: &HashMap<Id, ItemSummary>,
     method_name: Option<&str>,
     supplied_generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
-    project_function_inner(function, index, paths, method_name, supplied_generics)
+    project_function_inner(
+        function,
+        index,
+        paths,
+        method_name,
+        supplied_generics,
+        allow_lifetime_output,
+    )
 }
 
 fn project_function(
@@ -4980,8 +5072,16 @@ fn project_function(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     method_name: Option<&str>,
+    allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
-    project_function_inner(function, index, paths, method_name, &BTreeMap::new())
+    project_function_inner(
+        function,
+        index,
+        paths,
+        method_name,
+        &BTreeMap::new(),
+        allow_lifetime_output,
+    )
 }
 
 #[expect(
@@ -4994,6 +5094,7 @@ fn project_function_inner(
     paths: &HashMap<Id, ItemSummary>,
     method_name: Option<&str>,
     supplied_generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
     if function.header.is_unsafe {
         return Err("unsafe function".to_owned());
@@ -5018,6 +5119,11 @@ fn project_function_inner(
         }
         if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
             return Err("nested borrowed parameter cannot cross a projected boundary".to_owned());
+        }
+        if type_contains_lifetime_argument(ty) {
+            return Err(
+                "lifetime-bearing foreign type cannot cross a projected boundary".to_owned(),
+            );
         }
         let (projected_type, impl_trait_parameter) = if let Some(bounds) = impl_trait_bounds(ty) {
             if let Some(projected) = structural_impl_trait_input(bounds, paths) {
@@ -5207,8 +5313,8 @@ fn project_function_inner(
     }
     let (effective_output, returns_future) = match function.sig.output.as_ref() {
         Some(output)
-            if resolved_name(output, paths)
-                .is_some_and(|name| name.ends_with("::BoxFuture") || name == "BoxFuture") =>
+            if resolved_name(output, paths).as_deref()
+                == Some("futures_core::future::BoxFuture") =>
         {
             (
                 type_arguments(output).into_iter().next_back().cloned(),
@@ -5217,6 +5323,20 @@ fn project_function_inner(
         }
         output => (output.cloned(), false),
     };
+    if (function.header.is_async || returns_future)
+        && effective_output
+            .as_ref()
+            .is_some_and(type_contains_borrowed_ref)
+    {
+        return Err("borrowed result values cannot cross a projected boundary".to_owned());
+    }
+    if effective_output
+        .as_ref()
+        .is_some_and(type_contains_lifetime_argument)
+        && !allow_lifetime_output
+    {
+        return Err("lifetime-bearing foreign type cannot cross a projected boundary".to_owned());
+    }
     let mut error = None;
     let result = if let Some(output) = effective_output.as_ref() {
         if resolved_name(output, paths)
@@ -5390,8 +5510,7 @@ fn structural_impl_trait_input(
         }
         let trait_path = paths
             .get(&trait_.id)
-            .map(|summary| summary.path.join("::"))
-            .unwrap_or_else(|| trait_.path.clone());
+            .map_or_else(|| trait_.path.clone(), |summary| summary.path.join("::"));
         (!matches!(
             trait_path.as_str(),
             "core::marker::Send" | "core::marker::Sync"
@@ -5421,9 +5540,8 @@ fn structural_impl_trait_input(
         Type::ResolvedPath(path)
             if paths
                 .get(&path.id)
-                .map(|summary| summary.path.join("::"))
-                .unwrap_or_else(|| path.path.clone())
-                .ends_with("::Path") =>
+                .map_or_else(|| path.path.clone(), |summary| summary.path.join("::"))
+                == "std::path::Path" =>
         {
             Some(ProjectedType::String)
         }
@@ -5646,6 +5764,63 @@ fn type_mentions_generic(ty: &Type, generic: &str) -> bool {
             .iter()
             .any(|item| type_mentions_generic(item, generic)),
         _ => false,
+    }
+}
+
+fn type_contains_lifetime_argument(ty: &Type) -> bool {
+    match ty {
+        Type::ResolvedPath(path) => path
+            .args
+            .as_deref()
+            .is_some_and(generic_args_contain_lifetime),
+        Type::QualifiedPath {
+            args, self_type, ..
+        } => {
+            args.as_deref().is_some_and(generic_args_contain_lifetime)
+                || type_contains_lifetime_argument(self_type)
+        }
+        Type::BorrowedRef { type_, .. }
+        | Type::RawPointer { type_, .. }
+        | Type::Slice(type_)
+        | Type::Array { type_, .. }
+        | Type::Pat { type_, .. } => type_contains_lifetime_argument(type_),
+        Type::Tuple(types) => types.iter().any(type_contains_lifetime_argument),
+        _ => false,
+    }
+}
+
+fn generic_args_contain_lifetime(arguments: &GenericArgs) -> bool {
+    match arguments {
+        GenericArgs::AngleBracketed { args, constraints } => {
+            args.iter().any(|argument| match argument {
+                GenericArg::Lifetime(_) => true,
+                GenericArg::Type(ty) => type_contains_lifetime_argument(ty),
+                GenericArg::Const(_) | GenericArg::Infer => false,
+            }) || constraints
+                .iter()
+                .any(|constraint| match &constraint.binding {
+                    AssocItemConstraintKind::Equality(Term::Type(ty)) => {
+                        type_contains_lifetime_argument(ty)
+                    }
+                    AssocItemConstraintKind::Constraint(bounds) => bounds.iter().any(|bound| {
+                        matches!(bound, GenericBound::Outlives(_))
+                            || matches!(
+                                bound,
+                                GenericBound::TraitBound { generic_params, trait_, .. }
+                                    if !generic_params.is_empty()
+                                        || trait_.args.as_deref().is_some_and(
+                                            generic_args_contain_lifetime
+                                        )
+                            )
+                    }),
+                    AssocItemConstraintKind::Equality(Term::Constant(_)) => false,
+                })
+        }
+        GenericArgs::Parenthesized { inputs, output } => {
+            inputs.iter().any(type_contains_lifetime_argument)
+                || output.as_ref().is_some_and(type_contains_lifetime_argument)
+        }
+        GenericArgs::ReturnTypeNotation => false,
     }
 }
 
@@ -6229,15 +6404,6 @@ fn project_resolved_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
-    if path.args.as_deref().is_some_and(|arguments| {
-        matches!(
-            arguments,
-            GenericArgs::AngleBracketed { args, .. }
-                if args.iter().any(|argument| matches!(argument, GenericArg::Lifetime(_)))
-        )
-    }) {
-        return Err("lifetime-bearing foreign type cannot cross a projected boundary".to_owned());
-    }
     if let Some(Item {
         inner: ItemEnum::TypeAlias(alias),
         ..

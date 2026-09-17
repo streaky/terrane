@@ -81,6 +81,10 @@
         [
           "/deps/terrane-sequence-witness",
           "make_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness/string",
+          "to_string"
         ]
       ],
       "name": "terrane-sequence-witness",
@@ -88,7 +92,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

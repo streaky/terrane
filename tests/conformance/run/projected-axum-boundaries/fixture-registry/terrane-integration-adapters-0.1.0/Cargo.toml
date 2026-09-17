@@ -20,6 +20,7 @@ feature = "axum-08"
 default = []
 sqlx-sqlite = ["dep:sqlx"]
 axum-08 = ["dep:axum", "dep:tokio"]
+docs-rendering = []
 
 [dependencies]
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"], optional = true }

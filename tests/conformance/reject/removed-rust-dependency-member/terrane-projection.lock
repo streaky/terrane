@@ -17,6 +17,26 @@
         [
           "/deps/date-codec",
           "parse_http_date"
+        ],
+        [
+          "/deps/date-codec/clone",
+          "clone"
+        ],
+        [
+          "/deps/date-codec/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/date-codec/cmp",
+          "eq"
+        ],
+        [
+          "/deps/date-codec/cmp",
+          "partial_cmp"
+        ],
+        [
+          "/deps/date-codec/str/traits",
+          "from_str"
         ]
       ],
       "name": "date-codec",
@@ -24,7 +44,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [
     {
       "current_version": "1.0.3",

@@ -20,6 +20,10 @@
         ],
         [
           "/deps/http",
+          "Extensions.extend"
+        ],
+        [
+          "/deps/http",
           "Extensions.get_or_insert"
         ],
         [
@@ -64,19 +68,7 @@
         ],
         [
           "/deps/http",
-          "HeaderMap.drain"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.entry"
-        ],
-        [
-          "/deps/http",
           "HeaderMap.get"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.get_all"
         ],
         [
           "/deps/http",
@@ -89,18 +81,6 @@
         [
           "/deps/http",
           "HeaderMap.is_empty"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.iter"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.iter_mut"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.keys"
         ],
         [
           "/deps/http",
@@ -124,23 +104,11 @@
         ],
         [
           "/deps/http",
-          "HeaderMap.try_entry"
-        ],
-        [
-          "/deps/http",
           "HeaderMap.try_insert"
         ],
         [
           "/deps/http",
           "HeaderMap.try_reserve"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.values"
-        ],
-        [
-          "/deps/http",
-          "HeaderMap.values_mut"
         ],
         [
           "/deps/http",
@@ -185,6 +153,10 @@
         [
           "/deps/http",
           "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.to_str"
         ],
         [
           "/deps/http",
@@ -308,11 +280,31 @@
         ],
         [
           "/deps/http",
+          "Uri::from_maybe_shared"
+        ],
+        [
+          "/deps/http",
           "Uri::from_parts"
         ],
         [
           "/deps/http",
+          "Uri::from_static"
+        ],
+        [
+          "/deps/http",
           "Version"
+        ],
+        [
+          "/deps/http/borrow",
+          "borrow_mut"
+        ],
+        [
+          "/deps/http/borrow",
+          "clone_into"
+        ],
+        [
+          "/deps/http/borrow",
+          "to_owned"
         ],
         [
           "/deps/http/header",
@@ -333,6 +325,14 @@
         [
           "/deps/http/header/map/as-header-name",
           "TryEntryError"
+        ],
+        [
+          "/deps/http/iter/traits/collect",
+          "from_iter"
+        ],
+        [
+          "/deps/http/iter/traits/collect",
+          "into_iter"
         ],
         [
           "/deps/http/method",
@@ -476,11 +476,31 @@
         ],
         [
           "/deps/http/uri",
+          "Authority::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority::from_static"
+        ],
+        [
+          "/deps/http/uri",
           "Builder"
         ],
         [
           "/deps/http/uri",
+          "Builder.authority"
+        ],
+        [
+          "/deps/http/uri",
           "Builder.build"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.path_and_query"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.scheme"
         ],
         [
           "/deps/http/uri",
@@ -513,6 +533,14 @@
         [
           "/deps/http/uri",
           "PathAndQuery.query"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_static"
         ],
         [
           "/deps/http/uri",
@@ -778,6 +806,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
         ],
         [
@@ -818,6 +850,10 @@
         ],
         [
           "/deps/reqwest",
+          "Error.without_url"
+        ],
+        [
+          "/deps/reqwest",
           "Identity"
         ],
         [
@@ -827,6 +863,10 @@
         [
           "/deps/reqwest",
           "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy::from_string"
         ],
         [
           "/deps/reqwest",
@@ -974,6 +1014,14 @@
         ],
         [
           "/deps/reqwest",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest",
           "Response.extensions"
         ],
         [
@@ -1015,6 +1063,10 @@
         [
           "/deps/reqwest",
           "get"
+        ],
+        [
+          "/deps/reqwest",
+          "is_end_stream"
         ],
         [
           "/deps/reqwest/async-impl/client",
@@ -1270,6 +1322,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
@@ -1382,6 +1438,14 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.extensions"
         ],
         [
@@ -1417,6 +1481,18 @@
           "get"
         ],
         [
+          "/deps/reqwest/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/cmp",
+          "partial_cmp"
+        ],
+        [
           "/deps/reqwest/connect/sealed",
           "Conn"
         ],
@@ -1427,6 +1503,10 @@
         [
           "/deps/reqwest/connect/uds",
           "Internal"
+        ],
+        [
+          "/deps/reqwest/convert",
+          "try_from"
         ],
         [
           "/deps/reqwest/dns",
@@ -1441,6 +1521,10 @@
           "InvalidNameError"
         ],
         [
+          "/deps/reqwest/io/async-write",
+          "is_write_vectored"
+        ],
+        [
           "/deps/reqwest/redirect",
           "Action"
         ],
@@ -1450,11 +1534,35 @@
         ],
         [
           "/deps/reqwest/redirect",
-          "Policy.redirect"
+          "Policy::custom"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::limited"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::none"
         ],
         [
           "/deps/reqwest/retry",
           "Builder"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.classify_fn"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_extra_load"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_retries_per_request"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.no_budget"
         ],
         [
           "/deps/reqwest/retry",
@@ -1477,6 +1585,14 @@
           "Success"
         ],
         [
+          "/deps/reqwest/str/traits",
+          "from_str"
+        ],
+        [
+          "/deps/reqwest/string",
+          "to_string"
+        ],
+        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -1494,7 +1610,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

@@ -13,6 +13,10 @@
         [
           "/deps/terrane-nonclone-witness",
           "make_non_clone"
+        ],
+        [
+          "/deps/terrane-nonclone-witness/any",
+          "type_id"
         ]
       ],
       "name": "terrane-nonclone-witness",
@@ -20,7 +24,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

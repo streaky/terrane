@@ -8,10 +8,6 @@
         ],
         [
           "/deps/axum",
-          "Router.as_service"
-        ],
-        [
-          "/deps/axum",
           "Router.fallback"
         ],
         [
@@ -117,10 +113,6 @@
         [
           "/deps/axum/extract",
           "RawPathParams"
-        ],
-        [
-          "/deps/axum/extract",
-          "RawPathParams.iter"
         ],
         [
           "/deps/axum/extract",
@@ -336,6 +328,10 @@
         ],
         [
           "/deps/axum/extract/ws",
+          "Utf8Bytes::from_static"
+        ],
+        [
+          "/deps/axum/extract/ws",
           "WebSocket"
         ],
         [
@@ -347,7 +343,7 @@
           "WebSocket.send"
         ],
         [
-          "/deps/axum/extract/ws/onfailedupgrade",
+          "/deps/axum/extract/ws",
           "call"
         ],
         [
@@ -419,8 +415,16 @@
           "WebSocketUpgradeRejection"
         ],
         [
+          "/deps/axum/handler",
+          "call"
+        ],
+        [
           "/deps/axum/handler/private",
           "IntoResponseHandler"
+        ],
+        [
+          "/deps/axum/iter/traits/collect",
+          "into_iter"
         ],
         [
           "/deps/axum/middleware",
@@ -491,12 +495,28 @@
           "Redirect.location"
         ],
         [
+          "/deps/axum/response",
+          "Redirect::permanent"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect::temporary"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect::to"
+        ],
+        [
           "/deps/axum/response/sse",
           "Event"
         ],
         [
           "/deps/axum/response/sse",
           "Event.comment"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.data"
         ],
         [
           "/deps/axum/response/sse",
@@ -509,6 +529,10 @@
         [
           "/deps/axum/response/sse",
           "Event.into_data_writer"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.json_data"
         ],
         [
           "/deps/axum/response/sse",
@@ -527,8 +551,28 @@
           "KeepAlive"
         ],
         [
+          "/deps/axum/response/sse",
+          "KeepAlive.event"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive.interval"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive.text"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "KeepAlive::new"
+        ],
+        [
           "/deps/axum/routing",
           "MethodFilter"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodFilter.or"
         ],
         [
           "/deps/axum/routing",
@@ -713,6 +757,10 @@
         [
           "/deps/axum/serve/private",
           "ServeFuture"
+        ],
+        [
+          "/deps/axum/stream",
+          "is_terminated"
         ]
       ],
       "name": "axum",
@@ -734,11 +782,39 @@
         ],
         [
           "/deps/axum-core/body",
+          "Body::empty"
+        ],
+        [
+          "/deps/axum-core/body",
+          "Body::from_stream"
+        ],
+        [
+          "/deps/axum-core/body",
+          "Body::new"
+        ],
+        [
+          "/deps/axum-core/body",
           "BodyDataStream"
+        ],
+        [
+          "/deps/axum-core/clone",
+          "clone"
+        ],
+        [
+          "/deps/axum-core/default",
+          "default"
         ],
         [
           "/deps/axum-core/extract",
           "DefaultBodyLimit"
+        ],
+        [
+          "/deps/axum-core/extract",
+          "DefaultBodyLimit::disable"
+        ],
+        [
+          "/deps/axum-core/extract",
+          "DefaultBodyLimit::max"
         ],
         [
           "/deps/axum-core/extract/private",
@@ -804,10 +880,6 @@
         ],
         [
           "/deps/axum",
-          "bind_listener"
-        ],
-        [
-          "/deps/axum",
           "close_message"
         ],
         [
@@ -825,6 +897,14 @@
         [
           "/deps/axum",
           "upgrade"
+        ],
+        [
+          "/deps/terrane-integration-adapters/any",
+          "type_id"
+        ],
+        [
+          "/deps/terrane-integration-adapters/response",
+          "into_response"
         ]
       ],
       "name": "terrane-integration-adapters",
@@ -1110,18 +1190,6 @@
         ],
         [
           "/deps/tokio/net",
-          "TcpStream.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "TcpStream.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "TcpStream.quickack"
         ],
         [
@@ -1234,34 +1302,6 @@
         ],
         [
           "/deps/tokio/net",
-          "UdpSocket.poll_peek"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_peek_sender"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_from"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_recv_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UdpSocket.poll_send_ready"
-        ],
-        [
-          "/deps/tokio/net",
           "UdpSocket.readable"
         ],
         [
@@ -1362,6 +1402,14 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixSocket.bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket.connect"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixSocket.listen"
         ],
         [
@@ -1391,14 +1439,6 @@
         [
           "/deps/tokio/net",
           "UnixStream.peer_cred"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_read_ready"
-        ],
-        [
-          "/deps/tokio/net",
-          "UnixStream.poll_write_ready"
         ],
         [
           "/deps/tokio/net",
@@ -1447,10 +1487,6 @@
         [
           "/deps/tokio/net/tcp",
           "OwnedReadHalf.peer_addr"
-        ],
-        [
-          "/deps/tokio/net/tcp",
-          "OwnedReadHalf.poll_peek"
         ],
         [
           "/deps/tokio/net/tcp",
@@ -1594,6 +1630,14 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
+          "OpenOptions.read_write"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "OpenOptions.unchecked"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
           "OpenOptions::new"
         ],
         [
@@ -1607,10 +1651,6 @@
         [
           "/deps/tokio/net/unix/pipe",
           "Receiver.into_nonblocking_fd"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
-          "Receiver.poll_read_ready"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -1650,10 +1690,6 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
-          "Sender.poll_write_ready"
-        ],
-        [
-          "/deps/tokio/net/unix/pipe",
           "Sender.ready"
         ],
         [
@@ -1677,6 +1713,22 @@
           "Sender::from_owned_fd_unchecked"
         ],
         [
+          "/deps/tokio/ops/arith",
+          "add"
+        ],
+        [
+          "/deps/tokio/ops/arith",
+          "add_assign"
+        ],
+        [
+          "/deps/tokio/ops/arith",
+          "sub_assign"
+        ],
+        [
+          "/deps/tokio/ops/bit",
+          "bitand"
+        ],
+        [
           "/deps/tokio/runtime",
           "Builder"
         ],
@@ -1690,15 +1742,71 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Builder.enable_all"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.enable_io"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.enable_time"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.event_interval"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.global_queue_interval"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.max_blocking_threads"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.max_io_events_per_tick"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_park"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_start"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_stop"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.on_thread_unpark"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_keep_alive"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_name_fn"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_stack_size"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.worker_threads"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Builder::new_current_thread"
         ],
         [
           "/deps/tokio/runtime",
           "Handle"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "Handle.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -1718,6 +1826,14 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle::current"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle::try_current"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Id"
         ],
         [
@@ -1727,10 +1843,6 @@
         [
           "/deps/tokio/runtime",
           "LocalRuntime"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "LocalRuntime.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -1755,10 +1867,6 @@
         [
           "/deps/tokio/runtime",
           "Runtime"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "Runtime.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -1862,10 +1970,6 @@
         ],
         [
           "/deps/tokio/sync",
-          "Notify.notified"
-        ],
-        [
-          "/deps/tokio/sync",
           "Notify.notify_last"
         ],
         [
@@ -1894,6 +1998,10 @@
         ],
         [
           "/deps/tokio/sync",
+          "OwnedSemaphorePermit.merge"
+        ],
+        [
+          "/deps/tokio/sync",
           "OwnedSemaphorePermit.num_permits"
         ],
         [
@@ -1902,15 +2010,11 @@
         ],
         [
           "/deps/tokio/sync",
+          "OwnedSemaphorePermit.split"
+        ],
+        [
+          "/deps/tokio/sync",
           "Semaphore"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.acquire"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.acquire_many"
         ],
         [
           "/deps/tokio/sync",
@@ -1934,11 +2038,11 @@
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.try_acquire"
+          "Semaphore::const_new"
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.try_acquire_many"
+          "Semaphore::new"
         ],
         [
           "/deps/tokio/sync",
@@ -2090,10 +2194,6 @@
         ],
         [
           "/deps/tokio/task/coop",
-          "poll_proceed"
-        ],
-        [
-          "/deps/tokio/task/coop",
           "unconstrained"
         ],
         [
@@ -2151,10 +2251,6 @@
         [
           "/deps/tokio/time",
           "Interval.period"
-        ],
-        [
-          "/deps/tokio/time",
-          "Interval.poll_tick"
         ],
         [
           "/deps/tokio/time",
@@ -2267,7 +2363,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [

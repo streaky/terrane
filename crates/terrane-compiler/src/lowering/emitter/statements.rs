@@ -1018,6 +1018,10 @@ impl Emitter<'_> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "binding lowering keeps typed storage, ownership, discard, and initialization in one path"
+    )]
     pub(super) fn binding(&mut self, node: &SyntaxNode) {
         let Some((name_index, name_node)) = node
             .children

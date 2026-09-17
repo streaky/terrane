@@ -4606,7 +4606,7 @@ A Rust crate dependency is declared in `package.toml` with its package name, ver
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. An operation supplied by a concrete Rust trait implementation is exposed as a namespace function beneath the trait's module path grafted onto the implementing dependency namespace; a receiver becomes its leading `receiver` parameter. If distinct concrete implementations produce the same namespace and function name, every colliding operation declines rather than one being chosen by dependency or traversal order. It records a reason for every public item it declines, including provided trait methods that cannot satisfy the supported call-directed generic contract.
 
 The projector deserializes the complete rustdoc document through the version-matched
 `rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
@@ -4627,6 +4627,11 @@ and `Self` in its methods resolves to that concrete identity. Generated dependen
 instantiated spellings as Rust type aliases rather than invalid `use` paths.
 Lifetime-parameterized types and generic parameters without defaults remain explicit declines until
 a call-directed or non-escaping-chain rule proves a concrete use.
+
+Structural call-site adaptation recognizes `AsRef<str>` and canonical
+`AsRef<std::path::Path>` as string inputs. Projected asynchronous alias unwrapping recognizes only
+canonical `futures_core::future::BoxFuture`; a same-named type or alias from another crate does not
+acquire these boundary semantics.
 
 A concrete Rust callback bound projects when its complete callable contract is monomorphic.
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback

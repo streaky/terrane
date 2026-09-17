@@ -17,6 +17,26 @@
         [
           "/deps/httpdate",
           "parse_http_date"
+        ],
+        [
+          "/deps/httpdate/clone",
+          "clone"
+        ],
+        [
+          "/deps/httpdate/cmp",
+          "cmp"
+        ],
+        [
+          "/deps/httpdate/cmp",
+          "eq"
+        ],
+        [
+          "/deps/httpdate/cmp",
+          "partial_cmp"
+        ],
+        [
+          "/deps/httpdate/str/traits",
+          "from_str"
         ]
       ],
       "name": "httpdate",
@@ -24,7 +44,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "47",
   "removed": [],
   "resolution": {
     "events": [
