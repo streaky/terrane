@@ -16,3 +16,6 @@ effects = ["build", "networking", "threads"]
 [rust-dependencies.terrane-static-witness]
 version = "=0.1.0"
 effects = ["networking"]
+
+[rust-dependencies.terrane-static-consumer]
+version = "=0.1.0"

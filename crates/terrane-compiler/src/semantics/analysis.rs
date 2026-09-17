@@ -1058,9 +1058,27 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
     let objects = package
         .units
         .iter()
-        .flat_map(|unit| unit.descriptors.iter())
-        .map(|object| (object.identity.clone(), object.clone()))
-        .collect::<BTreeMap<_, _>>();
+        .flat_map(|unit| {
+            unit.descriptors
+                .iter()
+                .map(move |object| (unit.namespace.as_str(), object))
+        })
+        .fold(
+            BTreeMap::<ObjectIdentity, DescriptorContract>::new(),
+            |mut objects, (namespace, object)| {
+                let canonical =
+                    object.name == object.identity.name && namespace == object.identity.namespace;
+                objects
+                    .entry(object.identity.clone())
+                    .and_modify(|existing| {
+                        if canonical {
+                            existing.clone_from(object);
+                        }
+                    })
+                    .or_insert_with(|| object.clone());
+                objects
+            },
+        );
     let methods = package
         .units
         .iter()

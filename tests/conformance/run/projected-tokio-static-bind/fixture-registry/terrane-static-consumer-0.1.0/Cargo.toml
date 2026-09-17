@@ -1,0 +1,10 @@
+[package]
+name = "terrane-static-consumer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+terrane-static-witness = "=0.1.0"

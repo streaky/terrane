@@ -463,20 +463,20 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:9:13-9:40) */
-        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 40 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:10:12-10:41) */
-        { Site { function: 0, file: 0, line: 10, column: 12, end_line: 10, end_column: 41 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:11:20-11:45) */
-        { Site { function: 0, file: 0, line: 11, column: 20, end_line: 11, end_column: 45 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:12:18-12:44) */
-        { Site { function: 0, file: 0, line: 12, column: 18, end_line: 12, end_column: 44 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:13:11-13:26) */
-        { Site { function: 0, file: 0, line: 13, column: 11, end_line: 13, end_column: 26 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:15:22-15:47) */
-        { Site { function: 0, file: 0, line: 15, column: 22, end_line: 15, end_column: 47 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:16:13-16:26) */
-        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 26 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:10:13-10:40) */
+        { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 40 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:11:12-11:41) */
+        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 41 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:12:20-12:45) */
+        { Site { function: 0, file: 0, line: 12, column: 20, end_line: 12, end_column: 45 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:13:18-13:44) */
+        { Site { function: 0, file: 0, line: 13, column: 18, end_line: 13, end_column: 44 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:14:11-14:26) */
+        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 26 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:16:22-16:47) */
+        { Site { function: 0, file: 0, line: 16, column: 22, end_line: 16, end_column: 47 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:17:13-17:26) */
+        { Site { function: 0, file: 0, line: 17, column: 13, end_line: 17, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]
@@ -496,7 +496,7 @@ fn main() {
     __terrane_run(async move {
         let address: String = __terrane_raised(
             available_loopback_address(),
-            0 /* terrane-site: src/main.trn:9:13-9:40 */,
+            0 /* terrane-site: src/main.trn:10:13-10:40 */,
         );
         let chosen: String = __terrane_raised(
             match std::panic::catch_unwind(|| terrane_static_witness::GenericFactory::open(
@@ -513,7 +513,7 @@ fn main() {
                     )
                 }
             },
-            1 /* terrane-site: src/main.trn:10:12-10:41 */,
+            1 /* terrane-site: src/main.trn:11:12-11:41 */,
         );
         let listener: TcpListener = __terrane_traced(
             __terrane_await({
@@ -556,12 +556,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:11:20-11:45 */,
+                            2 /* terrane-site: src/main.trn:12:20-12:45 */,
                         )
                     }
                 })
                 .await,
-            2 /* terrane-site: src/main.trn:11:20-11:45 */,
+            2 /* terrane-site: src/main.trn:12:20-12:45 */,
         );
         let _ = &listener;
         let client: TcpStream = __terrane_traced(
@@ -605,12 +605,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            3 /* terrane-site: src/main.trn:12:18-12:44 */,
+                            3 /* terrane-site: src/main.trn:13:18-13:44 */,
                         )
                     }
                 })
                 .await,
-            3 /* terrane-site: src/main.trn:12:18-12:44 */,
+            3 /* terrane-site: src/main.trn:13:18-13:44 */,
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -621,7 +621,7 @@ fn main() {
             format!("Rust dependency `tokio` member `tokio::net::TcpStream::nodelay` failed: {error}"),
             crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "tokio",
-            "tokio::net::TcpStream::nodelay")) }, 4 /* terrane-site: src/main.trn:13:11-13:26 */))
+            "tokio::net::TcpStream::nodelay")) }, 4 /* terrane-site: src/main.trn:14:11-14:26 */))
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
@@ -636,7 +636,7 @@ fn main() {
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "tokio",
                     "tokio::net::TcpListener::bind")) } } }; async move {
-                    __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:15:22-15:47 */) } }). await, 5 /* terrane-site: src/main.trn:15:22-15:47 */
+                    __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:16:22-16:47 */) } }). await, 5 /* terrane-site: src/main.trn:16:22-16:47 */
                 );
                 println!(
                     "{}",
@@ -649,7 +649,7 @@ fn main() {
                     format!("Rust dependency `tokio` member `tokio::net::TcpListener::ttl` failed: {error}"),
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "tokio",
-                    "tokio::net::TcpListener::ttl")) }, 6 /* terrane-site: src/main.trn:16:13-16:26 */))
+                    "tokio::net::TcpListener::ttl")) }, 6 /* terrane-site: src/main.trn:17:13-17:26 */))
                 );
                 TerraneCompletion::Normal
             }
@@ -705,6 +705,29 @@ pub fn available_loopback_address() -> Result<String, crate::TerraneForeignError
                     payload,
                     "terrane-static-witness",
                     "terrane_static_witness::available_loopback_address",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/terrane-static-consumer.trn
+// Namespace: deps/terrane-static-consumer
+pub fn consume_factory(
+    factory: GenericFactory,
+) -> Result<GenericFactory, crate::TerraneForeignError> {
+    let factory = factory;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_static_consumer::consume_factory(
+            factory,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-static-consumer",
+                    "terrane_static_consumer::consume_factory",
                 ),
             )
         }
