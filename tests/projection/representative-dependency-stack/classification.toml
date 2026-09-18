@@ -1,42 +1,43 @@
-reviewed-against = "projection schema 45; variadic contracts, structural call bindings, complete supertrait identities, final-admission bound filtering, and call-site generic specialization are reflected in the reviewed surface"
+reviewed-against = "projection schema 62; owner-qualified demand excludes unrelated imported-name collisions, canonical closed aliases, concrete IntoFuture output/conversion, shared native Rust analysis, proof-selected call arguments, expression-local generic chains, typed nested failures, and root-reachable public Rust paths are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
-build-toolchain = "1.93.0"
-rustdoc-toolchain = "nightly-2026-07-06"
+build-toolchain = "1.98.1"
+rustdoc-toolchain = "nightly-2026-04-29"
 rustdoc-format = 57
 
 [cost]
-observed-on = "2026-09-15"
+observed-on = "2026-09-18"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
-method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust"
-cold-wall-seconds = 58.940
-warm-wall-seconds = 0.720
-generated-rust-lines = 579
-generated-rust-bytes = 19497
+method = "target/debug/terrane check package.toml in the representative fixture; cold removes .trn/dependencies but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust package.toml"
+compiler-revision = "7eb7cc31bd46806270677cd15f001e775ee992f8"
+compiler-binary-sha256 = "5347fb1b6feefb409db5c1bc4a6fc4d31d15744234da04e58d1935ef43844f0a"
+package-manifest-sha256 = "3f60295ea24d94202d07c7285f4c1eaeabc41f5191efbcac8738eb6b46b0cd8c"
+resolved-cargo-lock-sha256 = "53966f2e578a164d919759e7cfc478614cdc224698721304f0ef75482b68c52e"
+cold-wall-seconds = 62.917
+warm-wall-seconds = 0.544
+generated-rust-lines = 573
+generated-rust-bytes = 19391
 
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-projected-count = 78
-declined-count = 997
-instance-count = 112
-static-count = 2
-canonical-members = ["/deps/axum::Router"]
-instance-members = ["/deps/axum::Router.has_routes"]
-static-members = ["/deps/axum::Router::new"]
-required-gaps = ["axum::serve: projected associated IntoFuture result is not yet directly lowerable"]
-classification = "call-site specialization admits closed callback, handler, middleware, routing, and service shapes; the remaining application boundary is associated future lowering for direct serve"
-declined-members = [
-  { rust-path = "axum::Router<()>::default", reason = "trait method is not declared by this dependency crate" },
-]
+projected-count = 145
+declined-count = 291
+instance-count = 147
+static-count = 31
+canonical-members = ["/deps/axum::Router", "/deps/axum/extract/ws::Message"]
+instance-members = ["/deps/axum::Router.has_routes", "/deps/axum/extract/ws::Message.variant-name"]
+static-members = ["/deps/axum::Router::new", "/deps/axum/extract/ws::Message::Text"]
+required-gaps = []
+classification = "call-site specialization admits closed callbacks, handler results, middleware, routing, and service shapes; supported payload enums remain owner-qualified; closed response identity and concrete axum::serve IntoFuture conversion are direct"
 
 [[dependency]]
 name = "http"
 version = "1.3.1"
-projected-count = 27
-declined-count = 814
-instance-count = 88
-static-count = 15
+projected-count = 173
+declined-count = 364
+instance-count = 87
+static-count = 23
 canonical-members = ["/deps/http::HeaderMap"]
 instance-members = []
 static-members = []
@@ -46,10 +47,10 @@ classification = "direct canonical owner for status, header, request, and respon
 [[dependency]]
 name = "reqwest"
 version = "0.12.28"
-projected-count = 37
-declined-count = 492
-instance-count = 194
-static-count = 14
+projected-count = 67
+declined-count = 138
+instance-count = 202
+static-count = 22
 canonical-members = ["/deps/reqwest::Response"]
 instance-members = ["/deps/reqwest::Response.status"]
 static-members = []
@@ -59,15 +60,15 @@ classification = "async lowering and destination-directed JSON results are imple
 [[dependency]]
 name = "sentry"
 version = "0.46.2"
-projected-count = 4
-declined-count = 56
+projected-count = 9
+declined-count = 10
 instance-count = 1
 static-count = 0
 canonical-members = ["/deps/sentry::ClientInitGuard"]
 instance-members = []
 static-members = []
 required-gaps = []
-classification = "generic init is admitted through call-site specialization while the concrete client guard remains canonically owned by sentry"
+classification = "generic init is admitted through call-site specialization while closed defaulted aliases and the concrete client guard remain canonically owned by sentry"
 
 [[dependency]]
 name = "sqlx"
@@ -85,10 +86,10 @@ classification = "macro-exported construction and call-directed closed specializ
 [[dependency]]
 name = "tokio"
 version = "1.53.1"
-projected-count = 102
-declined-count = 1235
-instance-count = 252
-static-count = 45
+projected-count = 211
+declined-count = 442
+instance-count = 264
+static-count = 79
 canonical-members = ["/deps/tokio/io::duplex"]
 instance-members = []
 static-members = []
@@ -98,10 +99,10 @@ classification = "async lowering is implemented; open generic handle identities 
 [[dependency]]
 name = "tokio-tungstenite"
 version = "0.30.0"
-projected-count = 3
-declined-count = 12
-instance-count = 0
-static-count = 0
+projected-count = 1
+declined-count = 16
+instance-count = 1
+static-count = 1
 canonical-members = ["/deps/tokio-tungstenite::Connector"]
 instance-members = []
 static-members = []
@@ -111,10 +112,10 @@ classification = "generic inbound accept entrypoints are admitted through call-s
 [[dependency]]
 name = "tower"
 version = "0.5.3"
-projected-count = 20
-declined-count = 272
+projected-count = 34
+declined-count = 107
 instance-count = 0
-static-count = 3
+static-count = 11
 canonical-members = ["/deps/tower/limit::RateLimitLayer"]
 instance-members = []
 static-members = []
@@ -124,10 +125,10 @@ classification = "default generic identity is reusable and one closed associated
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-projected-count = 56
-declined-count = 550
-instance-count = 2
-static-count = 2
+projected-count = 80
+declined-count = 114
+instance-count = 24
+static-count = 54
 canonical-members = ["/deps/tower-http::LatencyUnit"]
 instance-members = []
 static-members = []
@@ -137,9 +138,9 @@ classification = "reusable generic identity and non-escaping builder-chain compo
 [[dependency]]
 name = "tracing"
 version = "0.1.44"
-projected-count = 3
-declined-count = 84
-instance-count = 6
+projected-count = 8
+declined-count = 55
+instance-count = 7
 static-count = 2
 canonical-members = ["/deps/tracing::Span"]
 instance-members = []
@@ -150,10 +151,10 @@ classification = "macro-only logging entrypoints remain better served by Terrane
 [[dependency]]
 name = "utoipa"
 version = "5.5.0"
-projected-count = 151
-declined-count = 1510
-instance-count = 48
-static-count = 60
+projected-count = 415
+declined-count = 106
+instance-count = 270
+static-count = 201
 canonical-members = ["/deps/utoipa::Number"]
 instance-members = []
 static-members = []
@@ -163,10 +164,10 @@ classification = "derive-driven compile-time generation remains outside callable
 [[dependency]]
 name = "utoipa-swagger-ui"
 version = "9.0.2"
-projected-count = 5
-declined-count = 99
-instance-count = 0
-static-count = 0
+projected-count = 15
+declined-count = 9
+instance-count = 14
+static-count = 2
 canonical-members = ["/deps/utoipa-swagger-ui::SwaggerUi"]
 instance-members = []
 static-members = []
@@ -210,11 +211,11 @@ member = "reqwest::get"
 
 [[decision]]
 unit = "A8"
-outcome = "deferred"
+outcome = "implemented"
 witness = "sqlx::Row::try_get::<String, _>"
 probe = "projection_oracle::tests::exact_sqlx_row_accessor_call_compiles_against_resolved_dependency"
 probe-answer = "yes"
-reason = "the exact call compiles against sqlx 0.8.6, including its lifetime-parameterized Decode and Type bounds; projection remains deferred because direct destination-driven specialization is not required by the current application boundary and an owned narrow facade is cheaper"
+reason = "destination-selected row extraction now resolves the concrete result and column index from the Terrane call, proves the exact Decode and Type bounds against sqlx 0.8.6, and lowers the qualified Row trait operation directly"
 
 [[decision]]
 unit = "A9"

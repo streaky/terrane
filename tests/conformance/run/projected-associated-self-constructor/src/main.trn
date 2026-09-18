@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/markdown import Options, to_html_with_options
+from /deps/terrane-owner-witness import DefaultOwner, PlainOwner
+from /core/output import print
+
+function main;
+  plain = PlainOwner::standard;
+  defaulted = DefaultOwner::standard;
+  options = Options::gfm;
+  html string = to_html_with_options; '|a|\n|-|\n|b|', options
+  print; (plain.label;), (defaulted.label;), html

@@ -1,0 +1,4 @@
+namespace discard-rejects-qualifiers
+
+function main;
+  global _ int = 1

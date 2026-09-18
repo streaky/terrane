@@ -1,0 +1,22 @@
+package = "projected-sqlx-connection-lifecycle"
+executor = "threaded"
+
+[profile]
+name = "projected-sqlx-connection-lifecycle"
+capabilities = ["build", "filesystem", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.sqlx-sqlite]
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem", "threads"]
+
+[rust-dependencies.sqlx-core]
+version = "=0.8.6"
+effects = ["build", "filesystem", "threads"]
+
+[rust-dependencies.terrane-sqlx-lifecycle-witness]
+version = "=0.1.0"
+effects = ["filesystem"]

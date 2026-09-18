@@ -9,6 +9,145 @@ fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
     }
 }
 
+type ProjectedOwner = (String, String);
+
+fn imported_projected_types(
+    projection: &crate::projection::Projection,
+    imports: &BTreeMap<String, BTreeSet<String>>,
+) -> BTreeMap<String, ProjectedOwner> {
+    imports
+        .iter()
+        .flat_map(|(namespace, names)| {
+            names.iter().filter_map(|name| {
+                projection
+                    .projected_owner_for_import(namespace, name)
+                    .map(|owner| (name.clone(), owner))
+            })
+        })
+        .collect()
+}
+
+fn projected_name<'a>(source: &'a SourceFile, node: &SyntaxNode) -> Option<&'a str> {
+    if node.kind == SyntaxKind::Name {
+        return Some(&source.text()[node.span.start..node.span.end]);
+    }
+    node.children
+        .iter()
+        .find_map(|child| projected_name(source, child))
+}
+
+fn projected_expression_owners(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
+    projection: &crate::projection::Projection,
+) -> BTreeSet<ProjectedOwner> {
+    if node.kind == SyntaxKind::Name {
+        let name = &source.text()[node.span.start..node.span.end];
+        return bindings
+            .get(name)
+            .cloned()
+            .or_else(|| {
+                imported
+                    .get(name)
+                    .cloned()
+                    .map(|owner| BTreeSet::from([owner]))
+            })
+            .unwrap_or_default();
+    }
+    if matches!(
+        node.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+    ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
+    {
+        let receiver_owners =
+            projected_expression_owners(source, receiver, imported, bindings, projection);
+        let member = &source.text()[member.span.start..member.span.end];
+        let result = receiver_owners
+            .into_iter()
+            .filter_map(|(namespace, owner)| {
+                projection.projected_member_result_owner(&namespace, &owner, member)
+            })
+            .collect::<BTreeSet<_>>();
+        return if result.is_empty() {
+            bindings.get(member).cloned().unwrap_or_default()
+        } else {
+            result
+        };
+    }
+    node.children
+        .iter()
+        .flat_map(|child| {
+            projected_expression_owners(source, child, imported, bindings, projection)
+        })
+        .collect()
+}
+
+fn collect_projected_binding_owners(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    bindings: &mut BTreeMap<String, BTreeSet<ProjectedOwner>>,
+    projection: &crate::projection::Projection,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
+    ) && let Some(name) = node
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Name)
+    {
+        let owner = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::TypeExpression)
+            .and_then(|ty| projected_name(source, ty))
+            .and_then(|ty| imported.get(ty).cloned())
+            .or_else(|| {
+                node.children.last().and_then(|value| {
+                    projected_expression_owners(source, value, imported, bindings, projection)
+                        .into_iter()
+                        .next()
+                })
+            });
+        if let Some(owner) = owner {
+            bindings
+                .entry(source.text()[name.span.start..name.span.end].to_owned())
+                .or_default()
+                .insert(owner);
+        }
+    }
+    for child in &node.children {
+        collect_projected_binding_owners(source, child, imported, bindings, projection);
+    }
+}
+
+fn collect_demanded_projected_members(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
+    demanded: &mut BTreeMap<ProjectedOwner, BTreeSet<String>>,
+    projection: &crate::projection::Projection,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+    ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
+    {
+        let owners = projected_expression_owners(source, receiver, imported, bindings, projection);
+        let member = source.text()[member.span.start..member.span.end].to_owned();
+        for owner in owners {
+            demanded.entry(owner).or_default().insert(member.clone());
+        }
+    }
+    for child in &node.children {
+        collect_demanded_projected_members(source, child, imported, bindings, demanded, projection);
+    }
+}
+
 pub(super) fn parse_unit(
     source: &SourceFile,
     source_path: String,
@@ -124,6 +263,7 @@ pub(super) fn parse_units(
         .collect::<BTreeSet<_>>();
     let mut next_source_id = package.next_source_id();
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut imported_aliases = BTreeMap::<String, ProjectedOwner>::new();
     for unit in &units {
         for import in imports_in_tree(unit)?
             .into_iter()
@@ -140,23 +280,50 @@ pub(super) fn parse_units(
                     import.span,
                 ));
             }
+            if let Some(owner) =
+                projection.projected_owner_for_import(&import.target, &import.object)
+            {
+                imported_aliases.insert(import.alias.clone(), owner);
+            }
             dependency_imports
                 .entry(import.target)
                 .or_default()
                 .insert(import.object);
         }
     }
-    let projected_sources =
-        projection
-            .source_for_imports(&dependency_imports)
-            .map_err(|message| SemanticFailure {
-                source: package.units[0].source.clone(),
-                diagnostics: vec![Diagnostic::error(
-                    "S2028",
-                    message,
-                    Span::new(package.units[0].source.id(), 0, 0),
-                )],
-            })?;
+    let mut imported_types = imported_projected_types(projection, &dependency_imports);
+    imported_types.extend(imported_aliases);
+    let mut binding_owners = BTreeMap::<String, BTreeSet<ProjectedOwner>>::new();
+    for unit in &units {
+        collect_projected_binding_owners(
+            &unit.source,
+            &unit.tree.root,
+            &imported_types,
+            &mut binding_owners,
+            projection,
+        );
+    }
+    let mut demanded_members = BTreeMap::<ProjectedOwner, BTreeSet<String>>::new();
+    for unit in &units {
+        collect_demanded_projected_members(
+            &unit.source,
+            &unit.tree.root,
+            &imported_types,
+            &binding_owners,
+            &mut demanded_members,
+            projection,
+        );
+    }
+    let projected_sources = projection
+        .source_for_imports_with_members(&dependency_imports, &demanded_members)
+        .map_err(|message| SemanticFailure {
+            source: package.units[0].source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "S2028",
+                message,
+                Span::new(package.units[0].source.id(), 0, 0),
+            )],
+        })?;
     for (namespace, text) in projected_sources {
         if !loaded.insert(namespace.clone()) {
             continue;
@@ -376,6 +543,7 @@ pub(super) fn analyze_with_projection(
                     crate::projection::ProjectedKind::Enum {
                         data_carrying: false,
                         comparable: true,
+                        ..
                     }
                 )
             })
@@ -812,6 +980,10 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     symbol.kind == SymbolKind::ErrorObject
                         || (symbol.kind == SymbolKind::Interface
                             && symbol.identity == "/core/errors::throwable")
+                        || (symbol.kind == SymbolKind::Class
+                            && package
+                                .projection
+                                .is_projected_error_type(&symbol.namespace, &symbol.name))
                         || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
                             && identity_implements(
                                 package,
@@ -1058,9 +1230,27 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
     let objects = package
         .units
         .iter()
-        .flat_map(|unit| unit.descriptors.iter())
-        .map(|object| (object.identity.clone(), object.clone()))
-        .collect::<BTreeMap<_, _>>();
+        .flat_map(|unit| {
+            unit.descriptors
+                .iter()
+                .map(move |object| (unit.namespace.as_str(), object))
+        })
+        .fold(
+            BTreeMap::<ObjectIdentity, DescriptorContract>::new(),
+            |mut objects, (namespace, object)| {
+                let canonical =
+                    object.name == object.identity.name && namespace == object.identity.namespace;
+                objects
+                    .entry(object.identity.clone())
+                    .and_modify(|existing| {
+                        if canonical {
+                            existing.clone_from(object);
+                        }
+                    })
+                    .or_insert_with(|| object.clone());
+                objects
+            },
+        );
     let methods = package
         .units
         .iter()

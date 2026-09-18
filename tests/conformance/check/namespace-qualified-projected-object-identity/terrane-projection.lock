@@ -244,6 +244,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
         ],
         [
@@ -280,6 +284,10 @@
         ],
         [
           "/deps/reqwest",
+          "Error.without_url"
+        ],
+        [
+          "/deps/reqwest",
           "Identity"
         ],
         [
@@ -289,6 +297,10 @@
         [
           "/deps/reqwest",
           "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy::from_string"
         ],
         [
           "/deps/reqwest",
@@ -393,6 +405,14 @@
         [
           "/deps/reqwest",
           "Response.content_length"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.error_for_status_ref"
         ],
         [
           "/deps/reqwest",
@@ -660,6 +680,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "ClientBuilder::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
@@ -740,6 +764,14 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.error_for_status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.error_for_status_ref"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.remote_addr"
         ],
         [
@@ -749,6 +781,82 @@
         [
           "/deps/reqwest/blocking",
           "get"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-static-str",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/fs/file",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/blocking/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/blocking/clientbuilder",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body",
+          "default"
+        ],
+        [
+          "/deps/reqwest/body",
+          "is_end_stream"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-reqwest/response",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-static-str",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/reqwest/certificate",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/client",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "default"
+        ],
+        [
+          "/deps/reqwest/clientbuilder",
+          "from"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -771,8 +879,28 @@
           "Name.as_str"
         ],
         [
+          "/deps/reqwest/dns/name",
+          "from_str"
+        ],
+        [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
+        ],
+        [
+          "/deps/reqwest/identity",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/noproxy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/proxy",
+          "clone"
         ],
         [
           "/deps/reqwest/redirect",
@@ -784,11 +912,43 @@
         ],
         [
           "/deps/reqwest/redirect",
-          "Policy.redirect"
+          "Policy::custom"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::limited"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy::none"
+        ],
+        [
+          "/deps/reqwest/redirect/policy",
+          "default"
+        ],
+        [
+          "/deps/reqwest/request",
+          "try_from"
         ],
         [
           "/deps/reqwest/retry",
           "Builder"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.classify_fn"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_extra_load"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.max_retries_per_request"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder.no_budget"
         ],
         [
           "/deps/reqwest/retry",
@@ -803,14 +963,6 @@
           "Action"
         ],
         [
-          "/deps/reqwest/retry/classify/action",
-          "Retryable"
-        ],
-        [
-          "/deps/reqwest/retry/classify/action",
-          "Success"
-        ],
-        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -821,6 +973,30 @@
         [
           "/deps/reqwest/tls",
           "Version"
+        ],
+        [
+          "/deps/reqwest/tls/tlsinfo",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "clone"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "cmp"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "eq"
+        ],
+        [
+          "/deps/reqwest/tls/version",
+          "partial_cmp"
+        ],
+        [
+          "/deps/reqwest/upgraded",
+          "is_write_vectored"
         ]
       ],
       "name": "reqwest",
@@ -828,7 +1004,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [],
   "resolution": {
     "events": [

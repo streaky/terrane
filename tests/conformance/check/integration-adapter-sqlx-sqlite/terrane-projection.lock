@@ -3,6 +3,412 @@
     {
       "members": [
         [
+          "/deps/sqlx-core",
+          "Error"
+        ],
+        [
+          "/deps/sqlx-core/connection",
+          "LogSettings"
+        ],
+        [
+          "/deps/sqlx-core/connection/logsettings",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-core/connection/logsettings",
+          "default"
+        ],
+        [
+          "/deps/sqlx-core/encode",
+          "IsNull"
+        ],
+        [
+          "/deps/sqlx-core/error",
+          "ErrorKind"
+        ],
+        [
+          "/deps/sqlx-core/error",
+          "UnexpectedNullError"
+        ],
+        [
+          "/deps/sqlx-core/ext/ustr",
+          "UStr"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "DirEntry"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "ReadDir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "ReadDir.next"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "create_dir_all"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read_dir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read_to_string"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_dir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_dir_all"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "remove_file"
+        ],
+        [
+          "/deps/sqlx-core/logger",
+          "parse_query_summary"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "AppliedMigration"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "MigrateError"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migration"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "MigrationType"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.run"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.set_ignore_missing"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.set_locking"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.undo"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.version_exists"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator::new"
+        ],
+        [
+          "/deps/sqlx-core/migrate/appliedmigration",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-core/migrate/source",
+          "ResolveError"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "SocketIntoBox"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.advance"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.buf_mut"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.is_empty"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.is_full"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.shrink"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "connect_tcp"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "connect_uds"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "CertificateInput"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "available"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "error_if_unavailable"
+        ],
+        [
+          "/deps/sqlx-core/pool",
+          "CloseEvent"
+        ],
+        [
+          "/deps/sqlx-core/pool",
+          "CloseEvent.do_until"
+        ],
+        [
+          "/deps/sqlx-core/pool",
+          "PoolConnectionMetadata"
+        ],
+        [
+          "/deps/sqlx-core/pool/closeevent",
+          "is_terminated"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.execute"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.execute"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.map"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_map"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "query"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "query_with"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "query_as"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "query_scalar"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "TimeoutError"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "sleep"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "spawn"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "test_block_on"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "timeout"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "yield_now"
+        ],
+        [
+          "/deps/sqlx-core/rt/rt-tokio",
+          "available"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.permits"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.release"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore::new"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs.migrator"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs::new"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestFixture"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestFn"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestTermination"
+        ],
+        [
+          "/deps/sqlx-core/testing/fixtures",
+          "FixtureError"
+        ],
+        [
+          "/deps/sqlx-core/type-checking",
+          "ParamChecking"
+        ]
+      ],
+      "name": "sqlx-core",
+      "version": "0.8.6"
+    },
+    {
+      "members": [
+        [
           "/deps/sqlx-sqlite",
           "Sqlite"
         ],
@@ -20,15 +426,91 @@
         ],
         [
           "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.auto_vacuum"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.busy_timeout"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.collation"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.command_buffer_size"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.create_if_missing"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.filename"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.foreign_keys"
+        ],
+        [
+          "/deps/sqlx-sqlite",
           "SqliteConnectOptions.get_filename"
         ],
         [
           "/deps/sqlx-sqlite",
-          "SqliteConnection"
+          "SqliteConnectOptions.immutable"
         ],
         [
           "/deps/sqlx-sqlite",
-          "SqliteConnection.lock_handle"
+          "SqliteConnectOptions.in_memory"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.journal_mode"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.locking_mode"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.page_size"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.pragma"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.read_only"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.row_buffer_size"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.serialized"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.shared_cache"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.statement_cache_capacity"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.synchronous"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions::new"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnection"
         ],
         [
           "/deps/sqlx-sqlite",
@@ -49,6 +531,14 @@
         [
           "/deps/sqlx-sqlite",
           "SqliteOwnedBuf"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqlitePool"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqlitePoolOptions"
         ],
         [
           "/deps/sqlx-sqlite",
@@ -83,64 +573,124 @@
           "SqliteValue"
         ],
         [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "Full"
+          "/deps/sqlx-sqlite/sqlite",
+          "size_hint"
         ],
         [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "Incremental"
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "clone"
         ],
         [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "None"
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "name"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Delete"
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "ordinal"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Memory"
+          "/deps/sqlx-sqlite/sqlitecolumn",
+          "type_info"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Off"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "cached_statements_size"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Persist"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "clear_cached_statements"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Truncate"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "close"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Wal"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "fetch_optional"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitelockingmode",
-          "Exclusive"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "ping"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitelockingmode",
-          "Normal"
+          "/deps/sqlx-sqlite/sqliteconnection",
+          "shrink_buffers"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Extra"
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "clone"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Full"
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "connect"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Normal"
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "default"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Off"
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "from_str"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteerror",
+          "kind"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteerror",
+          "message"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteownedbuf",
+          "drop"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitequeryresult",
+          "default"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitequeryresult",
+          "extend"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "get"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "get_unchecked"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "try_get"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliterow",
+          "try_get_unchecked"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "eq"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "is_null"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitetypeinfo",
+          "name"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitevalue",
+          "clone"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqlitevalue",
+          "is_null"
         ]
       ],
       "name": "sqlx-sqlite",
@@ -148,26 +698,6 @@
     },
     {
       "members": [
-        [
-          "/deps/sqlx-sqlite",
-          "SqliteAdapterError"
-        ],
-        [
-          "/deps/sqlx-sqlite",
-          "close"
-        ],
-        [
-          "/deps/sqlx-sqlite",
-          "execute"
-        ],
-        [
-          "/deps/sqlx-sqlite",
-          "execute_with_bytes"
-        ],
-        [
-          "/deps/sqlx-sqlite",
-          "open"
-        ],
         [
           "/deps/sqlx-sqlite",
           "query_bytes"
@@ -178,7 +708,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [],
   "resolution": {
     "events": [

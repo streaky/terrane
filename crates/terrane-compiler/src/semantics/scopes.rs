@@ -322,6 +322,9 @@ pub(super) fn populate_binding(
     let Some(declaration) = declaration_from_syntax(unit, node) else {
         return Ok(());
     };
+    if declaration.name == "_" {
+        return Ok(());
+    }
     if declaration.global {
         return Ok(());
     }
@@ -349,6 +352,9 @@ pub(super) fn populate_assignment(
     let Some(declaration) = declaration_from_syntax(unit, node) else {
         return Ok(());
     };
+    if declaration.name == "_" {
+        return Ok(());
+    }
     let typed_declaration = node
         .children
         .iter()

@@ -463,16 +463,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 5] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:8:14-8:40) */
-        { Site { function: 0, file: 0, line: 8, column: 14, end_line: 8, end_column: 40 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:17-9:38) */
+        /* terrane-site-row: site 0: /app::main (src/main.trn:7:14-7:40) */
+        { Site { function: 0, file: 0, line: 7, column: 14, end_line: 7, end_column: 40 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:17-8:38) */
+        { Site { function: 0, file: 0, line: 8, column: 17, end_line: 8, end_column: 38 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:9:17-9:38) */
         { Site { function: 0, file: 0, line: 9, column: 17, end_line: 9, end_column: 38 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:17-10:38) */
-        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 38 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:12-11:17) */
-        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 17 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:12:10-12:13) */
-        { Site { function: 0, file: 0, line: 12, column: 10, end_line: 12, end_column: 13 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:10:12-10:27) */
+        { Site { function: 0, file: 0, line: 10, column: 12, end_line: 10, end_column: 27 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:11:10-11:23) */
+        { Site { function: 0, file: 0, line: 11, column: 10, end_line: 11, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]
@@ -493,25 +493,47 @@ fn main() {
         terrane_static_trn_42797465734d7574_with_capacity(
             terrane_int_support::Int::from(8_i128),
         ),
-        0 /* terrane-site: src/main.trn:8:14-8:40 */,
+        0 /* terrane-site: src/main.trn:7:14-7:40 */,
     );
     let remaining: terrane_int_support::Int = __terrane_raised(
         remaining_mut(&buffer),
-        1 /* terrane-site: src/main.trn:9:17-9:38 */,
+        1 /* terrane-site: src/main.trn:8:17-8:38 */,
     );
     let candidate: Option<Number> = __terrane_raised(
         terrane_static_trn_4e756d626572_from_u128(
             terrane_int_support::Int::from(42_i128),
         ),
-        2 /* terrane-site: src/main.trn:10:17-10:38 */,
+        2 /* terrane-site: src/main.trn:9:17-9:38 */,
     );
     let data: Category = __terrane_raised(
-        __trn_44617461(),
-        3 /* terrane-site: src/main.trn:11:12-11:17 */,
+        match std::panic::catch_unwind(|| serde_json::error::Category::Data) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "serde_json",
+                        "serde_json::error::Category::Data",
+                    ),
+                )
+            }
+        },
+        3 /* terrane-site: src/main.trn:10:12-10:27 */,
     );
     let io: Category = __terrane_raised(
-        __trn_496f(),
-        4 /* terrane-site: src/main.trn:12:10-12:13 */,
+        match std::panic::catch_unwind(|| serde_json::error::Category::Io) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "serde_json",
+                        "serde_json::error::Category::Io",
+                    ),
+                )
+            }
+        },
+        4 /* terrane-site: src/main.trn:11:10-11:23 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
@@ -522,8 +544,9 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/bytes.trn
 // Namespace: deps/bytes
-pub use bytes::Bytes;
 pub use bytes::BytesMut;
+pub use serde_json::error::Category;
+pub use serde_json::Number;
 pub fn terrane_static_trn_42797465734d7574_with_capacity(
     capacity: terrane_int_support::Int,
 ) -> Result<BytesMut, crate::TerraneForeignError> {
@@ -540,8 +563,8 @@ pub fn terrane_static_trn_42797465734d7574_with_capacity(
         }
     }
 }
-// Source: <terrane>/projected/deps/bytes/bufmut.trn
-// Namespace: deps/bytes/bufmut
+// Source: <terrane>/projected/deps/bytes/bytesmut.trn
+// Namespace: deps/bytes/bytesmut
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
@@ -564,7 +587,6 @@ pub fn remaining_mut(
 }
 // Source: <terrane>/projected/deps/serde-json.trn
 // Namespace: deps/serde-json
-pub use serde_json::Number;
 pub fn terrane_static_trn_4e756d626572_from_u128(
     i: terrane_int_support::Int,
 ) -> Result<Option<Number>, crate::TerraneForeignError> {
@@ -589,40 +611,3 @@ pub fn terrane_static_trn_4e756d626572_from_u128(
 }
 // Source: <terrane>/projected/deps/serde-json/error.trn
 // Namespace: deps/serde-json/error
-pub use serde_json::error::Category;
-// Source: <terrane>/projected/deps/serde-json/error/category.trn
-// Namespace: deps/serde-json/error/category
-/// Projected enum variant constructor for `serde_json::error::Category::Data`.
-pub fn __trn_44617461() -> Result<Category, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| serde_json::error::Category::Data),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "serde-json",
-                    "serde_json::error::Category::Data",
-                ),
-            )
-        }
-    }
-}
-/// Projected enum variant constructor for `serde_json::error::Category::Io`.
-pub fn __trn_496f() -> Result<Category, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| serde_json::error::Category::Io),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "serde-json",
-                    "serde_json::error::Category::Io",
-                ),
-            )
-        }
-    }
-}

@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::projection::{
-    Containment, ProjectedDependency, ProjectedItem, ProjectedKind, Projection,
-    ProjectionResolution, ProjectionSource,
+    Containment, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem, ProjectedKind,
+    Projection, ProjectionResolution, ProjectionSource,
 };
 
 fn ambiguous_projection() -> Projection {
@@ -20,6 +20,8 @@ fn ambiguous_projection() -> Projection {
                 cloneable: false,
                 send,
                 sync: false,
+                boundary: ProjectedBoundaryCapabilities::default(),
+                displayable: false,
             },
         }],
         declined: Vec::new(),

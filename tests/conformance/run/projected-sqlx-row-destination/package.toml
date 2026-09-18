@@ -1,0 +1,23 @@
+package = "projected-sqlx-row-destination"
+executor = "threaded"
+
+[profile]
+name = "projected-sqlx-row-destination"
+capabilities = ["build", "filesystem", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.sqlx]
+version = "=0.8.6"
+features = ["runtime-tokio", "sqlite"]
+effects = ["build", "filesystem", "threads"]
+
+[rust-dependencies.sqlx-core]
+version = "=0.8.6"
+effects = ["build", "filesystem", "threads"]
+
+[rust-dependencies.sqlx-sqlite]
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem", "threads"]

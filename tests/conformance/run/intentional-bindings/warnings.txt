@@ -1,0 +1,2 @@
+main.trn:14:10: warning[W4006]: binding `_used` is marked intentionally unused but is read
+  help: rename the binding to `used`

@@ -1,0 +1,7 @@
+[package]
+name = "terrane-error-api-witness"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+terrane-error-owner-witness = "=0.1.0"

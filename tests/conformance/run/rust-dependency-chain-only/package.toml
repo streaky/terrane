@@ -6,6 +6,11 @@ app = "src"
 package = "terrane-chain-witness"
 version = "=0.1.0"
 effects = ["build"]
+[rust-dependencies.sqlx]
+version = "=0.8.6"
+default-features = false
+features = ["runtime-tokio", "sqlite"]
+effects = ["build"]
 [rust-dependencies.sqlx-core]
 package = "sqlx-core"
 version = "=0.8.6"

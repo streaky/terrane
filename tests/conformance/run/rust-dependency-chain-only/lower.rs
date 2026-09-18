@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/sqlx-core::Error",
     ];
 }
 mod __terrane_trace {
@@ -535,10 +536,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_chain_witness` member `terrane_chain_witness::ScalarQuery<'_>::fetch_one` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -618,10 +617,8 @@ pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `terrane-chain-witness` member `terrane_chain_witness::memory_database` failed: {error}"
-                        ),
+                        crate::DescriptorId(2),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

@@ -11,17 +11,10 @@ module = "sqlx_sqlite"
 target-package = "sqlx-sqlite"
 feature = "sqlx-sqlite"
 
-[[package.metadata.terrane.namespace-overlays]]
-module = "axum_08"
-target-package = "axum"
-feature = "axum-08"
 
 [features]
 default = []
 sqlx-sqlite = ["dep:sqlx"]
-axum-08 = ["dep:axum", "dep:tokio"]
 
 [dependencies]
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"], optional = true }
-axum = { version = "=0.8.9", features = ["ws"], optional = true }
-tokio = { version = "=1.53.0", features = ["net"], optional = true }

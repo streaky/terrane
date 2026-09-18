@@ -1,0 +1,6 @@
+end
+message
+transport failed
+absent
+value
+protocol failed

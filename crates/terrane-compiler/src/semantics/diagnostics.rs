@@ -16,6 +16,7 @@ pub(super) fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str,
     let mut declarations = unit
         .typed_bindings
         .iter()
+        .filter(|binding| !binding.name.starts_with('_'))
         .map(|binding| (binding.name.as_str(), binding.span))
         .chain(
             unit.functions
@@ -234,6 +235,33 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
             let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
                 continue;
             };
+            if binding.name.starts_with('_')
+                && binding.name != "_"
+                && let Some(BindingEvent::Read { span, .. }) = events
+                    .iter()
+                    .find(|event| matches!(event, BindingEvent::Read { .. }))
+            {
+                let suggested = binding.name.trim_start_matches('_');
+                let help = if suggested.is_empty() {
+                    "rename the binding without a leading underscore".to_owned()
+                } else {
+                    format!("rename the binding to `{suggested}`")
+                };
+                warnings.push(
+                    Diagnostic::warning(
+                        "W4006",
+                        format!(
+                            "binding `{}` is marked intentionally unused but is read",
+                            binding.name
+                        ),
+                        *span,
+                    )
+                    .with_help(help),
+                );
+            }
+            if binding.name == "_" {
+                continue;
+            }
             for (index, event) in events.iter().enumerate() {
                 let BindingEvent::Write {
                     span: store_span, ..
@@ -249,7 +277,7 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
                     .any(|event| matches!(event, BindingEvent::Write { .. }));
                 let initial_store = *store_span == binding.span;
                 let (code, message) = if initial_store && !later_store {
-                    if parameter || loop_target {
+                    if parameter || loop_target || binding.name.starts_with('_') {
                         continue;
                     }
                     ("W4001", format!("binding `{}` is never read", binding.name))
@@ -481,32 +509,16 @@ fn projected_call_mutates_binding(
     let [callee, arguments] = call.children.as_slice() else {
         return false;
     };
-    if callee.kind != SyntaxKind::Name {
-        return false;
-    }
-    let Some(symbol) =
-        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+    let Some(projected) = super::bindings::projected_function_for_call(package, unit, callee)
     else {
         return false;
     };
-    let Some(callee_span) = symbol.declaration_span else {
-        return false;
-    };
-    let Some((owner, contract)) = package.units.iter().find_map(|owner| {
-        owner
-            .functions
-            .iter()
-            .find(|contract| contract.span == callee_span)
-            .map(|contract| (owner, contract))
-    }) else {
-        return false;
-    };
-    let Some(item) = package.projection.item(&owner.namespace, &contract.name) else {
-        return false;
-    };
-    let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
-        return false;
-    };
+    let projected_parameters = unit
+        .projected_call_specializations
+        .get(&(call.span.file, call.span.start, call.span.end))
+        .map_or(projected.parameters.as_slice(), |specialization| {
+            specialization.projected_parameters.as_slice()
+        });
     let mut positional = 0;
     arguments.children.iter().any(|argument| {
         let named = argument
@@ -520,22 +532,25 @@ fn projected_call_mutates_binding(
                 index
             },
             |name| {
-                projected
-                    .parameters
+                projected_parameters
                     .iter()
                     .position(|parameter| parameter.name == node_text(&unit.source, name))
                     .unwrap_or(usize::MAX)
             },
         );
-        projected
-            .parameters
-            .get(index)
-            .is_some_and(|parameter| parameter.mutable_borrow)
-            && root_name(argument).is_some_and(|root| {
-                package
-                    .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
-            })
+        let explicit_reference = argument.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, argument).as_deref() == Some("ref")
+            || argument.children.iter().any(|child| {
+                child.kind == SyntaxKind::UnaryExpression
+                    && unary_operator_text(unit, child).as_deref() == Some("ref")
+            });
+        projected_parameters.get(index).is_some_and(|parameter| {
+            parameter.mutable_borrow || parameter.generic_parameter.is_some() && explicit_reference
+        }) && root_name(argument).is_some_and(|root| {
+            package
+                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+        })
     })
 }
 

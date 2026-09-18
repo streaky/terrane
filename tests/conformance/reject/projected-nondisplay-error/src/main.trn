@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-nondisplay-error-witness import fail
+
+function main;
+  fail;

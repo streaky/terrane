@@ -17,6 +17,38 @@
         [
           "/deps/httpdate",
           "parse_http_date"
+        ],
+        [
+          "/deps/httpdate/error",
+          "from"
+        ],
+        [
+          "/deps/httpdate/httpdate",
+          "clone"
+        ],
+        [
+          "/deps/httpdate/httpdate",
+          "cmp"
+        ],
+        [
+          "/deps/httpdate/httpdate",
+          "eq"
+        ],
+        [
+          "/deps/httpdate/httpdate",
+          "from_str"
+        ],
+        [
+          "/deps/httpdate/httpdate",
+          "partial_cmp"
+        ],
+        [
+          "/deps/httpdate/httpdate/trait/core/convert/from-httpdate/httpdate",
+          "from"
+        ],
+        [
+          "/deps/httpdate/httpdate/trait/core/convert/from-std/time/systemtime",
+          "from"
         ]
       ],
       "name": "httpdate",
@@ -24,7 +56,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [
     {
       "current_version": "1.0.3",

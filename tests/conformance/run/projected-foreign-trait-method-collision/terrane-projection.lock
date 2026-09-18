@@ -1,0 +1,72 @@
+{
+  "dependencies": [
+    {
+      "members": [],
+      "name": "terrane-trait-collision-contract",
+      "version": "0.1.0"
+    },
+    {
+      "members": [
+        [
+          "/deps/terrane-trait-collision-impls",
+          "First"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls",
+          "First.value"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls",
+          "Second"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls",
+          "Second.value"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls",
+          "first"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls",
+          "second"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls/first",
+          "transform"
+        ],
+        [
+          "/deps/terrane-trait-collision-impls/second",
+          "transform"
+        ]
+      ],
+      "name": "terrane-trait-collision-impls",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 3,
+  "projection_schema": "62",
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

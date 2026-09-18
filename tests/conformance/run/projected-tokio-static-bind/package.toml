@@ -1,0 +1,21 @@
+package = "projected-tokio-static-bind"
+executor = "threaded"
+
+[profile]
+name = "projected-tokio-static-bind"
+capabilities = ["build", "networking", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.tokio]
+version = "=1.53.0"
+features = ["net"]
+effects = ["build", "networking", "threads"]
+
+[rust-dependencies.terrane-static-witness]
+version = "=0.1.0"
+effects = ["networking"]
+
+[rust-dependencies.terrane-static-consumer]
+version = "=0.1.0"

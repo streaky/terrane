@@ -1,0 +1,26 @@
+namespace app
+
+from /deps/sqlx-sqlite import SqliteConnectOptions
+from /deps/sqlx-sqlite/sqliteconnection import close
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
+from /deps/terrane-sqlx-lifecycle-witness import prepare_missing_path
+from /deps/sqlx-core import Error
+from /core/output import print
+
+async function main;
+  path = prepare_missing_path;
+  missing_options = SqliteConnectOptions::new;
+  missing_options = missing_options.filename; path
+  missing_options = missing_options.create_if_missing; false
+  try
+    missing_connection = await connect; missing_options
+    print; 'unexpected-open'
+    await (close; move missing_connection)
+  catch Error
+    print; 'missing'
+  create_options = SqliteConnectOptions::new;
+  create_options = create_options.filename; path
+  create_options = create_options.create_if_missing; true
+  connection = await connect; create_options
+  await (close; move connection)
+  print; 'created-and-closed'

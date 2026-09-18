@@ -347,7 +347,13 @@ fn validate_projected_generic_arguments(
         return Ok(());
     };
     for (argument, parameter) in arguments.children.iter().zip(&projected.parameters) {
-        if parameter.generic_parameter.is_none() {
+        if parameter.generic_parameter.is_none()
+            || (parameter.generic_interface.is_none()
+                && !matches!(
+                    parameter.ty,
+                    crate::projection::ProjectedType::BoxedInterface { .. }
+                ))
+        {
             continue;
         }
         let value = argument.children.last().unwrap_or(argument);

@@ -1,0 +1,7 @@
+package = "projected-nondisplay-error"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-nondisplay-error-witness]
+version = "=0.1.0"

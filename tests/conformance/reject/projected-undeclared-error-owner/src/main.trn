@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-error-api-witness import fail
+
+function main;
+  fail;

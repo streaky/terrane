@@ -469,7 +469,10 @@ fn projected_surface(items: &[serde_json::Value]) -> (usize, usize, Vec<String>)
             item["name"].as_str().unwrap()
         );
         members.push(base.clone());
-        if let Some(foreign) = item["kind"].get("ForeignType") {
+        if let Some(foreign) = item["kind"]
+            .get("ForeignType")
+            .or_else(|| item["kind"].get("Enum"))
+        {
             let methods = foreign["methods"].as_array().unwrap();
             let static_methods = foreign["static_methods"].as_array().unwrap();
             instance_count += methods.len();

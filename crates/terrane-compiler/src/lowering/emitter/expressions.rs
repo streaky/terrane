@@ -101,31 +101,8 @@ impl Emitter<'_> {
             .then(|| operand.children.first())
             .flatten();
         let contract = callee.and_then(|callee| self.contract_for_call(callee));
-        let projected = callee.is_some_and(|callee| {
-            if callee.kind == SyntaxKind::Name {
-                return self
-                    .package
-                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-                    .and_then(|symbol| symbol.identity.rsplit_once("::"))
-                    .and_then(|(namespace, name)| self.package.projection.item(namespace, name))
-                    .is_some_and(|item| {
-                        matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
-                    });
-            }
-            let Some(contract) = contract else {
-                return false;
-            };
-            let Some(receiver) = callee.children.first() else {
-                return false;
-            };
-            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
-                return false;
-            };
-            self.package
-                .projection
-                .method(&identity.namespace, &identity.name, &contract.name, false)
-                .is_some()
-        });
+        let projected =
+            callee.is_some_and(|callee| self.projected_function_for_call(callee).is_some());
         let function_value_throws = contract.is_none()
             && callee
                 .and_then(|callee| self.value_type(callee))
@@ -223,6 +200,74 @@ impl Emitter<'_> {
             })
     }
 
+    fn unary_expression(&mut self, node: &SyntaxNode) -> String {
+        let Some(operand) = node.children.last() else {
+            return String::new();
+        };
+        let source_operator = self.unary_operator(node).unwrap_or_default();
+        if source_operator == "ref" {
+            return match self.value_type(operand) {
+                Some(ValueType::Reference(_)) => self.expression(operand),
+                _ => self.reference_address_expression(operand),
+            };
+        }
+        if source_operator == "shared ref" {
+            return match self.value_type(operand) {
+                Some(ValueType::SharedReference(_)) => {
+                    format!("({}).clone()", self.expression(operand))
+                }
+                Some(ValueType::Reference(_)) => unreachable!(
+                    "semantic analysis rejects promoting a non-owning ref to shared ownership"
+                ),
+                _ => self.reference_storage_expression(operand),
+            };
+        }
+        if source_operator == "await" {
+            return self.await_expression(operand);
+        }
+        if source_operator == "move" {
+            return match operand.kind {
+                SyntaxKind::Name => {
+                    let source_name = self.text(operand);
+                    let narrowed = narrowed_value_type(
+                        self.unit,
+                        operand,
+                        &self.unit.typed_bindings,
+                    )
+                    .or_else(|| {
+                        self.parameter_types
+                            .iter()
+                            .rev()
+                            .find(|(name, _)| name == source_name)
+                            .and_then(|(_, value_type)| {
+                                narrowed_optional_type(self.unit, operand, value_type.clone())
+                            })
+                    });
+                    let storage = self.raw_storage_name(operand);
+                    if narrowed.is_some() {
+                        format!("{storage}.expect(\"semantic optional narrowing\")")
+                    } else {
+                        storage
+                    }
+                }
+                _ => self.expression(operand),
+            };
+        }
+        if self.is_adaptive_expression(operand) {
+            return self.adaptive_expression(node);
+        }
+        let operator = match source_operator.as_str() {
+            "not" => "!",
+            other => other,
+        };
+        let operand = if let Some(value_type) = self.receiver_value_type(operand) {
+            self.expression_as(operand, value_type)
+        } else {
+            self.receiver_expression(operand)
+        };
+        format!("{operator}{operand}")
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
@@ -263,51 +308,7 @@ impl Emitter<'_> {
                 .children
                 .first()
                 .map_or_else(String::new, |child| self.expression(child)),
-            SyntaxKind::UnaryExpression => {
-                let Some(operand) = node.children.last() else {
-                    return String::new();
-                };
-                let source_operator = self.unary_operator(node).unwrap_or_default();
-                if source_operator == "ref" {
-                    return match self.value_type(operand) {
-                        Some(ValueType::Reference(_)) => self.expression(operand),
-                        _ => self.reference_address_expression(operand),
-                    };
-                }
-                if source_operator == "shared ref" {
-                    return match self.value_type(operand) {
-                        Some(ValueType::SharedReference(_)) => {
-                            format!("({}).clone()", self.expression(operand))
-                        }
-                        Some(ValueType::Reference(_)) => unreachable!(
-                            "semantic analysis rejects promoting a non-owning ref to shared ownership"
-                        ),
-                        _ => self.reference_storage_expression(operand),
-                    };
-                }
-                if source_operator == "await" {
-                    return self.await_expression(operand);
-                }
-                if source_operator == "move" {
-                    return match operand.kind {
-                        SyntaxKind::Name => self.name(operand),
-                        _ => self.expression(operand),
-                    };
-                }
-                if self.is_adaptive_expression(operand) {
-                    return self.adaptive_expression(node);
-                }
-                let operator = match source_operator.as_str() {
-                    "not" => "!",
-                    other => other,
-                };
-                let operand = if let Some(value_type) = self.receiver_value_type(operand) {
-                    self.expression_as(operand, value_type)
-                } else {
-                    self.receiver_expression(operand)
-                };
-                format!("{operator}{operand}")
-            }
+            SyntaxKind::UnaryExpression => self.unary_expression(node),
             SyntaxKind::BinaryExpression => self.binary(node),
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
             SyntaxKind::MemberExpression => self.member(node),
@@ -332,16 +333,7 @@ impl Emitter<'_> {
         node: &SyntaxNode,
         value_type: ValueType,
     ) -> String {
-        if matches!(
-            &value_type,
-            ValueType::List(_)
-                | ValueType::Map(_, _)
-                | ValueType::Set(_)
-                | ValueType::Tuple(_, _)
-                | ValueType::Entry(_, _)
-                | ValueType::UnorderedMap(_, _)
-                | ValueType::UnorderedSet(_)
-        ) && node.kind == SyntaxKind::GroupExpression
+        if node.kind == SyntaxKind::GroupExpression
             && let [grouped] = node.children.as_slice()
         {
             return self.expression_as(grouped, value_type);
@@ -358,6 +350,11 @@ impl Emitter<'_> {
             && *inner == value_type
         {
             let expression = self.expression(node);
+            if node.kind == SyntaxKind::UnaryExpression
+                && self.unary_operator(node).as_deref() == Some("move")
+            {
+                return expression;
+            }
             return format!(
                 "({expression}).as_ref().expect(\"semantic optional narrowing\").clone()"
             );
@@ -729,10 +726,10 @@ impl Emitter<'_> {
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let constructor = callable_constructor(expected_mode);
-                let send = if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                let send = if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 };
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
@@ -805,10 +802,10 @@ impl Emitter<'_> {
                 let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let constructor = callable_constructor(expected_mode);
-                let send = if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                let send = if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 };
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let value_requires_throwing_abi = matches!(
@@ -1025,10 +1022,10 @@ impl Emitter<'_> {
                     } else {
                         format!("Box::pin({invocation})")
                     };
-                    let send = if transferability == TaskTransferability::Transferable {
-                        " + Send"
-                    } else {
+                    let send = if transferability == TaskTransferability::Local {
                         ""
+                    } else {
+                        " + Send"
                     };
                     format!(
                         "{{ let callable = {capture}; {constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {future} }}) }}"

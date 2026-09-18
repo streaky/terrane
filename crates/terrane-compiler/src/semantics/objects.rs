@@ -2168,6 +2168,15 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
 }
 
 #[derive(Clone)]
+struct PendingProjectedBound {
+    generic: Option<String>,
+    direct_rust_type: String,
+    borrowed_rust_type: Option<String>,
+    rust_bound: String,
+    inferred_parameters: Vec<String>,
+}
+
+#[derive(Clone)]
 struct PendingProjectedSpecialization {
     unit: usize,
     span: Span,
@@ -2178,7 +2187,7 @@ struct PendingProjectedSpecialization {
     direct_projected_call: bool,
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
-    bounds: Vec<(String, String, Vec<String>)>,
+    bounds: Vec<PendingProjectedBound>,
 }
 
 #[expect(
@@ -2200,17 +2209,15 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
     }
     let questions = pending
         .iter()
-        .flat_map(|specialization| {
-            specialization
-                .bounds
-                .iter()
-                .map(
-                    |(rust_type, rust_bound, inferred_parameters)| crate::BoundQuestion {
-                        rust_type: rust_type.clone(),
-                        rust_bound: rust_bound.clone(),
-                        inferred_parameters: inferred_parameters.clone(),
-                    },
-                )
+        .flat_map(|specialization| &specialization.bounds)
+        .flat_map(|bound| {
+            std::iter::once(&bound.direct_rust_type)
+                .chain(bound.borrowed_rust_type.as_ref())
+                .map(|rust_type| crate::BoundQuestion {
+                    rust_type: rust_type.clone(),
+                    rust_bound: bound.rust_bound.clone(),
+                    inferred_parameters: bound.inferred_parameters.clone(),
+                })
         })
         .collect::<Vec<_>>();
     let workspace = package.root.join(".trn/dependencies");
@@ -2244,35 +2251,101 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .projection
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
-    for specialization in pending {
-        for (rust_type, rust_bound, inferred_parameters) in &specialization.bounds {
-            let question = crate::BoundQuestion {
-                rust_type: rust_type.clone(),
-                rust_bound: rust_bound.clone(),
-                inferred_parameters: inferred_parameters.clone(),
+    for mut specialization in pending {
+        let mut generic_groups = Vec::new();
+        for bound in &specialization.bounds {
+            if !generic_groups.contains(&bound.generic) {
+                generic_groups.push(bound.generic.clone());
+            }
+        }
+        for generic in generic_groups {
+            let bounds = specialization
+                .bounds
+                .iter()
+                .filter(|bound| bound.generic == generic)
+                .collect::<Vec<_>>();
+            let candidate_works = |borrowed: bool| {
+                bounds.iter().all(|bound| {
+                    let rust_type = if borrowed {
+                        let Some(rust_type) = &bound.borrowed_rust_type else {
+                            return false;
+                        };
+                        rust_type
+                    } else {
+                        &bound.direct_rust_type
+                    };
+                    answers.get(&crate::BoundQuestion {
+                        rust_type: rust_type.clone(),
+                        rust_bound: bound.rust_bound.clone(),
+                        inferred_parameters: bound.inferred_parameters.clone(),
+                    }) == Some(&crate::ProbeAnswer::Yes)
+                })
             };
-            match answers.get(&question) {
-                Some(crate::ProbeAnswer::Yes) => {}
-                Some(crate::ProbeAnswer::No) => {
-                    return Err(failure(
-                        &package.units[specialization.unit].source,
-                        "T0119",
-                        format!(
-                            "projected result destination `{}` does not satisfy `{rust_bound}`",
-                            specialization.value_type
-                        ),
-                        specialization.span,
-                    ));
+            if candidate_works(false) {
+                continue;
+            }
+            if generic.is_some() && candidate_works(true) {
+                for parameter in &mut specialization.projected_parameters {
+                    if parameter.generic_parameter.as_ref() == generic.as_ref() {
+                        parameter.borrowed = true;
+                        parameter.mutable_borrow = bounds.iter().any(|bound| {
+                            bound
+                                .borrowed_rust_type
+                                .as_deref()
+                                .is_some_and(|rust_type| rust_type.starts_with("&mut "))
+                        });
+                    }
                 }
+                continue;
+            }
+            let bound = bounds
+                .iter()
+                .find(|bound| {
+                    answers.get(&crate::BoundQuestion {
+                        rust_type: bound.direct_rust_type.clone(),
+                        rust_bound: bound.rust_bound.clone(),
+                        inferred_parameters: bound.inferred_parameters.clone(),
+                    }) != Some(&crate::ProbeAnswer::Yes)
+                })
+                .copied()
+                .expect("a failed direct candidate has a failed bound");
+            let question = crate::BoundQuestion {
+                rust_type: bound.direct_rust_type.clone(),
+                rust_bound: bound.rust_bound.clone(),
+                inferred_parameters: bound.inferred_parameters.clone(),
+            };
+            let subject = generic.as_ref().map_or_else(
+                || {
+                    format!(
+                        "projected result destination `{}`",
+                        specialization.value_type
+                    )
+                },
+                |name| {
+                    format!(
+                        "projected generic input `{name}` with Rust type `{}`",
+                        bound.direct_rust_type
+                    )
+                },
+            );
+            match answers.get(&question) {
                 Some(crate::ProbeAnswer::Unknown { reason }) => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
                         "T0119",
                         format!(
-                            "projected result destination `{}` could not be proven against `{rust_bound}`: {}",
-                            specialization.value_type,
+                            "{subject} could not be proven against `{}`: {}",
+                            bound.rust_bound,
                             oracle_diagnostic_summary(reason)
                         ),
+                        specialization.span,
+                    ));
+                }
+                Some(crate::ProbeAnswer::No | crate::ProbeAnswer::Yes) => {
+                    return Err(failure(
+                        &package.units[specialization.unit].source,
+                        "T0119",
+                        format!("{subject} does not satisfy `{}`", bound.rust_bound),
                         specialization.span,
                     ));
                 }
@@ -2281,12 +2354,17 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                         &package.units[specialization.unit].source,
                         "T0119",
                         format!(
-                            "projection oracle returned no answer for destination `{}` against `{rust_bound}`",
-                            specialization.value_type
+                            "projection oracle returned no answer for {subject} against `{}`",
+                            bound.rust_bound
                         ),
                         specialization.span,
                     ));
                 }
+            }
+        }
+        for parameter in &mut specialization.projected_parameters {
+            if !parameter.borrowed {
+                parameter.generic_parameter = None;
             }
         }
         let key = (
@@ -2343,18 +2421,13 @@ fn collect_projected_destinations(
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && callee.kind == SyntaxKind::Name
         && let Some(function) = projected_function_for_call(package, unit, callee)
         && function.chain_role.is_none()
         && function
             .generic_parameters
             .iter()
             .any(|generic| generic.input_selected)
-        && let Some(contract) = super::analysis::resolved_function_contract(
-            unit,
-            node_text(&unit.source, callee),
-            callee.span.start,
-        )
+        && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
     {
         let mut value_bindings = BTreeMap::new();
         for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
@@ -2423,8 +2496,10 @@ fn collect_projected_destinations(
             .iter()
             .cloned()
             .map(|mut parameter| {
+                if let crate::projection::ProjectedType::Generic(name) = &parameter.ty {
+                    parameter.generic_parameter = Some(name.clone());
+                }
                 parameter.ty = specialize(&parameter.ty);
-                parameter.generic_parameter = None;
                 parameter.generic_bounds.clear();
                 parameter
             })
@@ -2446,7 +2521,7 @@ fn collect_projected_destinations(
                 .unwrap_or(&ValueType::Scalar(ScalarType::None)),
             &value_bindings,
         );
-        let mut value_type = if contract.is_async {
+        let mut value_type = if function.is_async {
             ValueType::Task(ElementType::new(result), contract.task_transferability)
         } else {
             result
@@ -2480,14 +2555,28 @@ fn collect_projected_destinations(
                 ),
                 &expected_projected,
             );
-            value_type = destination.clone();
+            value_type = match value_type {
+                ValueType::Task(_, transferability) => {
+                    ValueType::Task(ElementType::new(destination.clone()), transferability)
+                }
+                _ => destination.clone(),
+            };
         }
         let bounds = function
             .generic_parameters
             .iter()
             .filter(|generic| generic.input_selected)
             .flat_map(|generic| {
-                let rust_type = projected_bindings[&generic.name].rust_type();
+                let projected = &projected_bindings[&generic.name];
+                let rust_type = projected.rust_type();
+                let borrowed_rust_type = match projected {
+                    crate::projection::ProjectedType::String => Some("&str".to_owned()),
+                    crate::projection::ProjectedType::Bytes => Some("&[u8]".to_owned()),
+                    crate::projection::ProjectedType::Foreign { .. } => {
+                        Some(format!("&mut {rust_type}"))
+                    }
+                    _ => None,
+                };
                 generic
                     .rust_bounds
                     .iter()
@@ -2507,7 +2596,13 @@ fn collect_projected_destinations(
                             })
                             .map(|candidate| candidate.name.clone())
                             .collect();
-                        (rust_type.clone(), rust_bound, inferred_parameters)
+                        PendingProjectedBound {
+                            generic: Some(generic.name.clone()),
+                            direct_rust_type: rust_type.clone(),
+                            borrowed_rust_type: borrowed_rust_type.clone(),
+                            rust_bound,
+                            inferred_parameters,
+                        }
                     })
                     .collect::<Vec<_>>()
             })
@@ -2596,7 +2691,13 @@ fn collect_projected_destinations(
             bounds: destination_result
                 .rust_bounds
                 .iter()
-                .map(|bound| (projected_destination.rust_type(), bound.clone(), Vec::new()))
+                .map(|bound| PendingProjectedBound {
+                    generic: None,
+                    direct_rust_type: projected_destination.rust_type(),
+                    borrowed_rust_type: None,
+                    rust_bound: bound.clone(),
+                    inferred_parameters: Vec::new(),
+                })
                 .collect(),
             projected_parameters: function.parameters.clone(),
             direct_projected_call: false,
@@ -2820,7 +2921,7 @@ pub(crate) fn destination_projected_type(
                 parameters,
                 result,
                 true,
-                *transferability == TaskTransferability::Transferable,
+                *transferability != TaskTransferability::Local,
             )?
         }
         ValueType::Object(identity) => destination_projected_object(package, identity)?,

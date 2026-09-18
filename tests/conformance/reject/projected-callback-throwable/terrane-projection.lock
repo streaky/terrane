@@ -153,6 +153,10 @@
         [
           "/deps/terrane-callback-witness",
           "wait_until_retained_invocation_active"
+        ],
+        [
+          "/deps/terrane-callback-witness/marker",
+          "clone"
         ]
       ],
       "name": "terrane-callback-witness",
@@ -160,7 +164,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [],
   "resolution": {
     "events": [

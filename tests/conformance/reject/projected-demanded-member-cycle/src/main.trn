@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-member-graph-witness/left import Left
+from /deps/terrane-member-graph-witness/right import Right
+
+function main;
+  left = Left::new;
+  right Right = left.poison;
+  _ = right.poison;

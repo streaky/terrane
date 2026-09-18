@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/date-codec::Error",
     ];
 }
 mod __terrane_trace {
@@ -509,10 +510,8 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignErr
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `date-codec` member `date_codec::parse_http_date` failed: {error}"
-                        ),
+                        crate::DescriptorId(2),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

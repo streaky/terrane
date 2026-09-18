@@ -1018,6 +1018,10 @@ impl Emitter<'_> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "binding lowering keeps typed storage, ownership, discard, and initialization in one path"
+    )]
     pub(super) fn binding(&mut self, node: &SyntaxNode) {
         let Some((name_index, name_node)) = node
             .children
@@ -1027,7 +1031,13 @@ impl Emitter<'_> {
         else {
             return;
         };
-        let name = rust_name(self.text(name_node));
+        let source_name = self.text(name_node);
+        let discard = source_name == "_";
+        let name = if discard {
+            "_".to_owned()
+        } else {
+            rust_name(source_name)
+        };
         let binding = self
             .unit
             .typed_bindings
@@ -1063,20 +1073,21 @@ impl Emitter<'_> {
         let closure_writes = self.local_binding_closure_writes();
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
-                binding.mutable
-                    && binding_requires_mutable_storage(
-                        self.package,
-                        self.unit,
-                        node.span,
-                        initializer.is_some(),
-                        closure_writes,
-                    )
-                    && !matches!(
-                        binding.value_type,
-                        ValueType::Reference(_) | ValueType::SharedReference(_)
-                    )
+                binding_requires_mutable_storage(
+                    self.package,
+                    self.unit,
+                    node.span,
+                    initializer.is_some(),
+                    closure_writes,
+                ) && !matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                )
             });
         self.line_start();
+        if discard {
+            self.output.push_str("{ ");
+        }
         self.output.push_str("let ");
         if mutable {
             self.output.push_str("mut ");
@@ -1105,8 +1116,14 @@ impl Emitter<'_> {
             };
             write!(self.output, " = {value}").unwrap();
         }
-        self.output.push_str(";\n");
-        if initializer.is_some() && !binding_store_value_is_read(self.package, node.span, node.span)
+        if discard {
+            self.output.push_str("; }\n");
+        } else {
+            self.output.push_str(";\n");
+        }
+        if !discard
+            && initializer.is_some()
+            && !binding_store_value_is_read(self.package, node.span, node.span)
         {
             let borrow = if mutable { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));

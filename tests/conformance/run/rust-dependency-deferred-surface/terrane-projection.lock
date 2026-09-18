@@ -31,11 +31,23 @@
         ],
         [
           "/deps/bytes",
+          "Bytes.split_off"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.split_to"
+        ],
+        [
+          "/deps/bytes",
           "Bytes.truncate"
         ],
         [
           "/deps/bytes",
-          "Bytes.try_into_mut"
+          "Bytes::from_owner"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes::new"
         ],
         [
           "/deps/bytes",
@@ -122,24 +134,256 @@
           "UninitSlice.write_byte"
         ],
         [
-          "/deps/bytes/buf",
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/range-usize",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefrom-usize",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefull",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeinclusive-usize",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeto-usize",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangetoinclusive-usize",
+          "index"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/range-usize",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefrom-usize",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefull",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeinclusive-usize",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeto-usize",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize",
+          "index_mut"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "advance"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "clone"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "cmp"
+        ],
+        [
+          "/deps/bytes/bytes",
           "copy_to_bytes"
         ],
         [
-          "/deps/bytes/bufmut",
+          "/deps/bytes/bytes",
+          "default"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "drop"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "extend"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "from_iter"
+        ],
+        [
+          "/deps/bytes/bytes",
+          "remaining"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialeq-bytes/bytesmut",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialeq-std/vec/vec-u8",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialord-std/vec/vec-u8",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/convert/from-static-str",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/convert/from-std/string/string",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytes/trait/core/convert/from-std/vec/vec-u8",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytesmut",
+          "advance"
+        ],
+        [
+          "/deps/bytes/bytesmut",
           "chunk_mut"
         ],
         [
-          "/deps/bytes/bufmut",
+          "/deps/bytes/bytesmut",
+          "clone"
+        ],
+        [
+          "/deps/bytes/bytesmut",
+          "cmp"
+        ],
+        [
+          "/deps/bytes/bytesmut",
+          "copy_to_bytes"
+        ],
+        [
+          "/deps/bytes/bytesmut",
+          "default"
+        ],
+        [
+          "/deps/bytes/bytesmut",
+          "drop"
+        ],
+        [
+          "/deps/bytes/bytesmut",
           "put"
         ],
         [
-          "/deps/bytes/bufmut",
+          "/deps/bytes/bytesmut",
           "put_bytes"
         ],
         [
-          "/deps/bytes/bufmut",
+          "/deps/bytes/bytesmut",
+          "remaining"
+        ],
+        [
+          "/deps/bytes/bytesmut",
           "remaining_mut"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-bytes/bytes",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/vec/vec-u8",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/vec/vec-u8",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/convert/from-a-str",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/convert/from-bytes/bytes",
+          "from"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-a-u8",
+          "extend"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-bytes/bytes",
+          "extend"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-u8",
+          "extend"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-a-u8",
+          "from_iter"
+        ],
+        [
+          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8",
+          "from_iter"
+        ],
+        [
+          "/deps/bytes/trygeterror",
+          "eq"
+        ],
+        [
+          "/deps/bytes/trygeterror",
+          "from"
         ]
       ],
       "name": "bytes",
@@ -245,19 +489,11 @@
         ],
         [
           "/deps/serde-json",
-          "from_value"
-        ],
-        [
-          "/deps/serde-json",
           "to_string"
         ],
         [
           "/deps/serde-json",
           "to_string_pretty"
-        ],
-        [
-          "/deps/serde-json",
-          "to_value"
         ],
         [
           "/deps/serde-json",
@@ -280,20 +516,16 @@
           "Category"
         ],
         [
-          "/deps/serde-json/error/category",
-          "Data"
+          "/deps/serde-json/error",
+          "from"
         ],
         [
-          "/deps/serde-json/error/category",
-          "Eof"
+          "/deps/serde-json/error/trait/serde-core/de/error",
+          "custom"
         ],
         [
-          "/deps/serde-json/error/category",
-          "Io"
-        ],
-        [
-          "/deps/serde-json/error/category",
-          "Syntax"
+          "/deps/serde-json/error/trait/serde-core/ser/error",
+          "custom"
         ],
         [
           "/deps/serde-json/map",
@@ -302,6 +534,82 @@
         [
           "/deps/serde-json/map",
           "IntoValues"
+        ],
+        [
+          "/deps/serde-json/map/intoiter",
+          "len"
+        ],
+        [
+          "/deps/serde-json/map/intovalues",
+          "len"
+        ],
+        [
+          "/deps/serde-json/map/intovalues",
+          "next"
+        ],
+        [
+          "/deps/serde-json/number",
+          "clone"
+        ],
+        [
+          "/deps/serde-json/number",
+          "deserialize"
+        ],
+        [
+          "/deps/serde-json/number",
+          "eq"
+        ],
+        [
+          "/deps/serde-json/number",
+          "from_str"
+        ],
+        [
+          "/deps/serde-json/number",
+          "serialize"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i16",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i32",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i64",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-i8",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-isize",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-serde-json/number",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u16",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u32",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u64",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-u8",
+          "from"
+        ],
+        [
+          "/deps/serde-json/number/trait/core/convert/from-usize",
+          "from"
         ],
         [
           "/deps/serde-json/read",
@@ -314,6 +622,14 @@
         [
           "/deps/serde-json/ser",
           "CompactFormatter"
+        ],
+        [
+          "/deps/serde-json/ser/compactformatter",
+          "clone"
+        ],
+        [
+          "/deps/serde-json/ser/compactformatter",
+          "default"
         ],
         [
           "/deps/serde-json/value",
@@ -334,6 +650,126 @@
         [
           "/deps/serde-json/value/ser",
           "SerializeVec"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "collect_str"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_bool"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_char"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_f32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_f64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i128"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i16"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_i8"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_map"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_newtype_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_newtype_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_none"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_seq"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_some"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_str"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_struct_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_tuple_variant"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u128"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u16"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u32"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u64"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_u8"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit_struct"
+        ],
+        [
+          "/deps/serde-json/value/serializer",
+          "serialize_unit_variant"
         ]
       ],
       "name": "serde-json",
@@ -341,7 +777,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [],
   "resolution": {
     "events": [

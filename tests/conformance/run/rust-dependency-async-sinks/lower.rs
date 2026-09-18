@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/terrane-sink-witness::SinkError",
     ];
 }
 mod __terrane_trace {
@@ -555,10 +556,8 @@ async fn send_blocked(
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
-                                            format!(
-                                                "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::send` failed: {error}"
-                                            ),
+                                            crate::DescriptorId(2),
+                                            error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
                                     ),
@@ -602,10 +601,8 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
-                                format!(
-                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Duplex::split` failed: {error}"
-                                ),
+                                crate::DescriptorId(2),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -632,10 +629,8 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
-                                format!(
-                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::SplitEndpoints::take_incoming` failed: {error}"
-                                ),
+                                crate::DescriptorId(2),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -662,10 +657,8 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
-                                format!(
-                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::SplitEndpoints::take_outgoing` failed: {error}"
-                                ),
+                                crate::DescriptorId(2),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -723,10 +716,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::send` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -775,10 +766,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::send` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -826,10 +815,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::flush` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -872,10 +859,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::close` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -942,10 +927,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::send` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -992,10 +975,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::Outgoing::close` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -1080,10 +1061,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::QueueSink::send` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -1124,10 +1103,8 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
-                                format!(
-                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::QueueSink::flush` failed: {error}"
-                                ),
+                                crate::DescriptorId(2),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -1155,10 +1132,8 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
-                                format!(
-                                    "Rust dependency `terrane_sink_witness` member `terrane_sink_witness::QueueSink::close` failed: {error}"
-                                ),
+                                crate::DescriptorId(2),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -1181,10 +1156,10 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/terrane-sink-witness.trn
 // Namespace: deps/terrane-sink-witness
+pub use terrane_sink_witness::Duplex;
 pub use terrane_sink_witness::Incoming;
 pub use terrane_sink_witness::Outgoing;
 pub use terrane_sink_witness::QueueSink;
-pub use terrane_sink_witness::Duplex;
 pub use terrane_sink_witness::SplitEndpoints;
 pub fn blocked_sink() -> Result<Outgoing, crate::TerraneForeignError> {
     match std::panic::catch_unwind(

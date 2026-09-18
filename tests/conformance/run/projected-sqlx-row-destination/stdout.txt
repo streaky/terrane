@@ -1,0 +1,3 @@
+212
+no column found for name: missing
+error occurred while decoding column "count": mismatched types; Rust type `alloc::vec::Vec<u8>` (as SQL type `BLOB`) is not compatible with SQL type `INTEGER`

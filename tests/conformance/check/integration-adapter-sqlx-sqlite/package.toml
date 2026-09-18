@@ -14,6 +14,10 @@ version = "=0.8.6"
 features = ["bundled"]
 effects = ["build", "filesystem"]
 
+[rust-dependencies.sqlx-core]
+version = "=0.8.6"
+effects = ["build"]
+
 [rust-dependencies.terrane-integration-adapters]
 package = "terrane-integration-adapters"
 version = "=0.1.0"

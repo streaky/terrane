@@ -1,0 +1,19 @@
+namespace app
+
+from /deps/tokio/net import TcpListener, TcpStream
+from /deps/terrane-static-witness import GenericFactory, available_loopback_address
+from /deps/terrane-static-consumer import consume_factory
+from /core/errors import dependency-error
+from /core/output import print
+
+async function main;
+  address = available_loopback_address;
+  chosen = GenericFactory::open; address
+  listener = await TcpListener::bind; chosen
+  client = await TcpStream::connect; chosen
+  print; (client.nodelay;)
+  try
+    occupied = await TcpListener::bind; chosen
+    print; (occupied.ttl;)
+  catch dependency-error
+    print; 'occupied'

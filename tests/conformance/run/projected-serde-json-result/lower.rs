@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/serde-json::Error",
     ];
 }
 mod __terrane_trace {
@@ -501,10 +502,8 @@ pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `serde-json` member `serde_json::from_str` failed: {error}"
-                        ),
+                        crate::DescriptorId(2),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

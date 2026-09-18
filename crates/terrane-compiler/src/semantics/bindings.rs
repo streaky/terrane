@@ -327,14 +327,14 @@ pub(super) fn first_write_to<'a>(
 ) -> Option<&'a SyntaxNode> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && callee.kind == SyntaxKind::Name
-        && let Some(symbol) =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-        && let Some(crate::projection::ProjectedKind::Function(function)) = package
-            .projection
-            .item(&symbol.namespace, &symbol.name)
-            .map(|item| &item.kind)
+        && let Some(function) = projected_function_for_call(package, unit, callee)
     {
+        let projected_parameters = unit
+            .projected_call_specializations
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .map_or(function.parameters.as_slice(), |specialization| {
+                specialization.projected_parameters.as_slice()
+            });
         let mut positional = 0;
         for argument in &arguments.children {
             let named = argument
@@ -348,16 +348,21 @@ pub(super) fn first_write_to<'a>(
                     index
                 },
                 |name| {
-                    function
-                        .parameters
+                    projected_parameters
                         .iter()
                         .position(|parameter| parameter.name == node_text(&unit.source, name))
                         .unwrap_or(usize::MAX)
                 },
             );
             let value = argument.children.last().unwrap_or(argument);
-            if function
-                .parameters
+            let value = if value.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, value).as_deref() == Some("ref")
+            {
+                value.children.last().unwrap_or(value)
+            } else {
+                value
+            };
+            if projected_parameters
                 .get(index)
                 .is_some_and(|parameter| parameter.mutable_borrow)
                 && value.kind == SyntaxKind::Name
@@ -968,7 +973,7 @@ pub(super) fn value_type_satisfies_auto_trait(
             ValueType::AsyncFunction(_, _, transferability, _)
             | ValueType::Task(_, transferability)
             | ValueType::ScopedTask(_, transferability) => match obligation {
-                AutoTraitObligation::Send => *transferability == TaskTransferability::Transferable,
+                AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
                 AutoTraitObligation::Sync => false,
             },
             _ => true,
@@ -1010,7 +1015,7 @@ pub(super) fn value_type_is_task_transferable(
         ValueType::AsyncFunction(_, _, transferability, _)
         | ValueType::Task(_, transferability)
         | ValueType::ScopedTask(_, transferability) => {
-            *transferability == TaskTransferability::Transferable
+            *transferability != TaskTransferability::Local
         }
         _ => true,
     }
@@ -1038,29 +1043,40 @@ pub(super) fn value_type_is_owned_static(value_type: &ValueType) -> bool {
     }
 }
 
-pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
-    fn uses_local_async_boundary(
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        function_span: Span,
-    ) -> bool {
-        if node.span.start < function_span.start || node.span.end > function_span.end {
-            return false;
-        }
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
-                .is_some_and(|contract| {
-                    contract.is_async && contract.task_transferability == TaskTransferability::Local
-                })
-        {
-            return true;
-        }
-        node.children
-            .iter()
-            .any(|child| uses_local_async_boundary(unit, child, function_span))
+fn async_boundary_transferability(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    function_span: Span,
+) -> TaskTransferability {
+    if node.span.start < function_span.start || node.span.end > function_span.end {
+        return TaskTransferability::Transferable;
     }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
+            .is_some_and(|contract| {
+                contract.is_async && contract.task_transferability == TaskTransferability::Local
+            })
+    {
+        return if projected_function_for_call(package, unit, callee).is_some() {
+            TaskTransferability::RustProven
+        } else {
+            TaskTransferability::Local
+        };
+    }
+    node.children
+        .iter()
+        .map(|child| async_boundary_transferability(package, unit, child, function_span))
+        .min_by_key(|transferability| match transferability {
+            TaskTransferability::Local => 0,
+            TaskTransferability::RustProven => 1,
+            TaskTransferability::Transferable => 2,
+        })
+        .unwrap_or(TaskTransferability::Transferable)
+}
 
+pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
     for unit_index in 0..package.units.len() {
         let updates = {
             let unit = &package.units[unit_index];
@@ -1070,44 +1086,48 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
                 .iter()
                 .filter(|contract| contract.is_async)
                 .map(|contract| {
-                    let transferable = !unit.namespace.starts_with("/deps/")
-                        && !uses_local_async_boundary(unit, &unit.tree.root, contract.span)
-                        && contract.parameters.iter().all(|parameter| {
-                            parameter.value_type.as_ref().is_none_or(|value_type| {
-                                value_type_is_task_transferable(package, value_type)
-                            })
-                        })
-                        && unit.typed_bindings.iter().all(|binding| {
-                            if binding.span.start < contract.span.start
-                                || binding.span.end > contract.span.end
-                                || value_type_is_task_transferable(package, &binding.value_type)
-                            {
-                                return true;
-                            }
-                            let Some(events) = package.binding_events.get(&span_key(binding.span))
-                            else {
-                                return true;
-                            };
-                            !suspensions.iter().any(|suspension| {
-                                suspension.start >= binding.visible_from
-                                    && suspension.end <= contract.span.end
-                                    && events.iter().any(|event| {
-                                        matches!(
-                                            event,
-                                            BindingEvent::Read { span, .. }
-                                                if span.start > suspension.end
-                                        )
-                                    })
-                            })
-                        });
-                    (
+                    let boundary = async_boundary_transferability(
+                        package,
+                        unit,
+                        &unit.tree.root,
                         contract.span,
-                        if transferable {
-                            TaskTransferability::Transferable
-                        } else {
-                            TaskTransferability::Local
-                        },
-                    )
+                    );
+                    let values_transfer = contract.parameters.iter().all(|parameter| {
+                        parameter.value_type.as_ref().is_none_or(|value_type| {
+                            value_type_is_task_transferable(package, value_type)
+                        })
+                    }) && unit.typed_bindings.iter().all(|binding| {
+                        if binding.span.start < contract.span.start
+                            || binding.span.end > contract.span.end
+                            || value_type_is_task_transferable(package, &binding.value_type)
+                        {
+                            return true;
+                        }
+                        let Some(events) = package.binding_events.get(&span_key(binding.span))
+                        else {
+                            return true;
+                        };
+                        !suspensions.iter().any(|suspension| {
+                            suspension.start >= binding.visible_from
+                                && suspension.end <= contract.span.end
+                                && events.iter().any(|event| {
+                                    matches!(
+                                        event,
+                                        BindingEvent::Read { span, .. }
+                                            if span.start > suspension.end
+                                    )
+                                })
+                        })
+                    });
+                    let transferability = if unit.namespace.starts_with("/deps/")
+                        || boundary == TaskTransferability::Local
+                        || !values_transfer
+                    {
+                        TaskTransferability::Local
+                    } else {
+                        boundary
+                    };
+                    (contract.span, transferability)
                 })
                 .collect::<Vec<_>>()
         };
@@ -1127,7 +1147,7 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
             contract.execution_requirements.tasks.local =
                 contract.task_transferability == TaskTransferability::Local;
             contract.execution_requirements.tasks.transferable =
-                contract.task_transferability == TaskTransferability::Transferable;
+                contract.task_transferability != TaskTransferability::Local;
         }
     }
     synchronize_execution_requirements(package);
@@ -1849,17 +1869,22 @@ pub(super) fn projected_function_for_call<'a>(
     let [receiver, member] = callee.children.as_slice() else {
         return None;
     };
-    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
-        .ok()
-        .flatten()
-    else {
-        return None;
+    let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
+        (class_designator_identity(unit, receiver)?, true)
+    } else {
+        let ValueType::Object(identity) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            .ok()
+            .flatten()?
+        else {
+            return None;
+        };
+        (identity, false)
     };
     package.projection.method(
         &identity.namespace,
         &identity.name,
         node_text(&unit.source, member),
-        false,
+        is_static,
     )
 }
 

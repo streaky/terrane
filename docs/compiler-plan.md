@@ -729,6 +729,45 @@ explicit source imports for the ancestors. `projected-associated-bare`,
 `projected-unprojectable-supertrait` cover the rejected boundary. Projection schema 45 records
 structural call bindings, complete supertrait identities, final-admission bound filtering,
 call-site generic templates, and validated dependency namespace overlays.
+Projection schema 50 invalidates earlier caches for concrete nongeneric `Self` constructors,
+input-selected static and consuming calls, structural `impl AsRef<Path>` inputs, canonical
+`BoxFuture` unwrapping, concrete external-trait operations beneath their projected owners with
+deterministic trait-qualified collision fallbacks, lifetime-bearing chain values confined to one
+expression, and generated-module-wide canonical foreign imports.
+
+### Milestone 28.4 — Payload enums, nested outcomes, and typed dependency failures
+
+Projection must preserve enough shape to compose dependency protocols in Terrane rather than in
+dependency-specific Rust helpers. A data-carrying Rust enum projects one nominal class with exact
+unit and supported single-payload constructors, shared `variant-name` inspection, and consuming
+`into-<Variant>` extraction. Extraction moves rather than clones the payload. Unsupported
+multi-field, named-field, borrowed, open-generic, or unrepresentable variants remain visible as
+per-variant declines, and non-exhaustive inspection yields `unknown`.
+
+The result projector must distinguish `Option<Result<T, E>>` from `Result<Option<T>, E>` even though
+both expose `T|none throws E` to Terrane. Lowering preserves the native wrapper order: end/absence,
+success, and failure remain three distinct outcomes. Each admitted `E` retains its canonical
+projected object identity for catch dispatch and supplies display text only through the throwable
+binding's explicit `message` property. Error display text is never a classifier.
+
+Evidence requires an independent payload-enum fixture, both nested-result orders, exact typed catch
+selection, Markdown's direct options/rendering boundary, and a real WebSocket scenario covering
+text, binary, ping, pong, close, orderly end, and transport/protocol failure. Only helpers whose
+complete behavior is replaced may be removed; Axum serving/callback bridges remain until their
+separate milestone.
+
+Implemented on `dependency-call-specialization` on 2026-09-18. Projection schema 52 records
+constructible/inspectable payload enum variants, native wrapper order for nested outcomes,
+canonical typed projected failures, displayability, cross-dependency payload conversions, and
+native future transfer evidence. Typed failure preservation currently means canonical projected
+identity plus `message`; arbitrary fields and the native Rust error value do not cross the
+throwable boundary. The independent payload and nested-outcome witnesses, direct Markdown
+rendering, and peer-driven WebSocket protocol scenario cover the required outcomes. The bounded
+protocol witness constructs and sends Axum's optional-foreign-payload `Message::Close`, observes it
+from the peer, and keeps the close decision in Terrane. The Markdown HTML bridge, PDF bridge, and
+Axum callback/server bridges have been removed. Their direct projection evidence is
+`projected-pdf-html-bytes`, `projected-into-future-output`, and the bounded
+`projected-websocket-protocol` runtime case.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -1140,6 +1179,7 @@ W4002 initial or later store cannot reach a read before definite replacement
 W4003 duplicate semantic union arm
 W4004 namespace-wide import shadows, replaces, or is skipped for a different visible object
 W4005 authored top-level function is never referenced
+W4006 underscore-prefixed binding marked intentionally unused is read
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
@@ -1984,6 +2024,16 @@ pending self-waking future plus typed success and failure results; accepted exec
 existing async-context and linear-task rejections cover the source contract without claiming a
 reactor-backed dependency runtime.
 
+Concrete non-`async` results implementing canonical
+`core::future::into_future::IntoFuture` use the same task path. Projection substitutes the concrete
+owner arguments into the associated `Output`, preserves ordinary `Result` success/failure mapping,
+and records an exact conversion bit on the callable. On the Terrane task's first poll, both
+generated wrappers and direct specialized calls evaluate the Rust operation once, invoke
+`IntoFuture::into_future` once, and then enter the existing async panic/cancellation/executor
+boundary; constructing the task alone performs neither step. Exact canonical trait identity, not a
+suffix match, selects this behavior; unresolved generic, borrowed, lifetime-escaping, and otherwise
+unrepresentable outputs are declined.
+
 The cancellation contract for the wake-driven replacement is now fixed before runtime selection:
 when cancellation is observed during suspension, the in-flight operation is dropped promptly, while
 compiler-separated `finally` state is retained and driven exactly once in innermost-first order.
@@ -2157,10 +2207,37 @@ receiver-position intermediates are legal, while binding, return, capture, and s
 `T0112`. Lowering leaves roots and continuing calls
 inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
-`rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
-concrete adapter that borrows its database input, plus a structurally dissimilar formatting chain
-that borrows its prefix. Open `sqlx::Query` itself remains honestly declined. Four focused rejects
-fix binding, return, capture, and suspension boundaries.
+`rust-dependency-chain-only` retains the independent formatting and concrete-adapter witnesses.
+
+The completed native-analysis extraction seam moves the shared Rustdoc decoder/public-path index,
+Cargo process policy, exact bound/call/impl/macro probes, probe cache, and containment into
+`terrane-rust-analysis`. The compiler retains graph resolution, Rustdoc generation, native
+declaration extraction, and every Terrane admission/lowering decision. The minimal standalone
+`terrane-rust-survey` currently consumes an already-generated Rustdoc artifact through that shared
+library. Resolved-package surveying, declaration/signature/discovery reports, the external fixture
+runner, and required/adversarial/popular/Godot corpus population remain open follow-up work rather
+than completed extraction evidence. The crate owns and exports the one pinned Rustdoc/probe
+toolchain constant, and a dependency-boundary test guards against compiler or CLI dependencies.
+Projection schema 55 additionally admits open generic/lifetime state for expression-local roots
+and records the removal of trait-name-based borrowing from unspecialized projected parameters:
+`projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row
+access operations. The query value remains unbindable and non-escaping. Per-call oracle evidence
+selects direct, shared, or mutable argument representation against the concrete executor type;
+lowering consumes that recorded specialization rather than matching trait names. Compilation of
+the exact emitted call validates the closed Rust application. Four focused rejects continue to fix
+binding, return, capture, and suspension boundaries. Completion and typed-error paths are covered;
+side-effecting-root exactly-once evaluation and cancellation across a chain await remain deferred
+evidence.
+
+Projection schema 61 makes projected source materialization owner-specific without narrowing the
+stored completion/catalog surface, admits closed defaulted aliases at their canonical owner, and
+records concrete `IntoFuture` conversion plus substituted output semantics. Structurally resolved
+receiver identities select demanded members; unrelated same-named user members cannot pull foreign
+operations into the source graph. Mutually referential demanded namespace signatures still decline
+under the recorded `projection/mutually-referential-namespace-sources` limitation. The compiler
+invokes canonical `IntoFuture::into_future` exactly once before the existing generated async panic
+boundary rather than hiding executor behavior in a host helper. Direct PDF generation and direct
+Axum response/callback/server operation have replaced their adapter features.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
@@ -4114,11 +4191,11 @@ Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. 
 authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
 qualifier remains invalid.
 
-Raw SQLx `Query<'q, DB, A>` values are not a promised projection shape: their open database,
-argument, and borrow parameters are intentionally unnameable as free-standing Terrane values.
-Do not special-case them. Preserve the existing chain-only projection route for a concrete adapter
-whose terminal operation owns a projectable result, and use the authored Rust boundary when an
-application needs to package a database-specific adapter locally.
+Raw SQLx `Query<'q, DB, A>` values remain unnameable as free-standing Terrane values. Generic
+projection may nevertheless carry their database, argument, associated-output, and borrow state
+through one expression-local chain. A terminal executor operation closes that state; its written
+Terrane collection or row destination provides contextual associated-output identity, and the exact
+emitted Rust call must compile. No SQLx package-name dispatch participates in this path.
 
 ##### Temporary integration-adapter ledger
 
@@ -4144,17 +4221,16 @@ Retire an operation when its upstream projection creates a collision and generic
 regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
 consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
 
-The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
-unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
-and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
-namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
-while projection provenance continues to name
-`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
+The remaining adapter feature is `sqlx-sqlite`. Direct SQLx projection covers connection
+lifecycle, query construction, byte binding, execution, fetch-all, fetch-one, and
+destination-selected row access. The adapter retains only `query_bytes` for consumers that must
+process every collected non-`Clone` row: Terrane's persistent list iteration cannot yet consume
+those rows. S1 owns that removal criterion.
 
-`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
-It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
-Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
-entries make every adapter operation removable without changing application imports.
+PDF construction/serialization and Axum routing, retained upgrade callbacks, canonical closed
+response identity, WebSocket messaging, listener binding, and `axum::serve` `IntoFuture`
+consumption now project directly. Their former adapter features and registry entries have been
+deleted.
 
 #### General variadic call contract
 

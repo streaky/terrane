@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-fake-into-future import immediate
+
+async function main;
+  _ uint32 = await immediate; 7

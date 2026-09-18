@@ -1116,41 +1116,61 @@ features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
 ```
 
-`SqliteConnection` is projected directly from `sqlx-sqlite`. The adapter package declares a
-feature-gated namespace overlay in Cargo metadata, so its `open`, `execute`, `execute_with_bytes`,
-`query_bytes`, and `close` operations appear beside that upstream type:
+`SqliteConnectOptions` and `SqliteConnection` project directly from `sqlx-sqlite`, while query
+construction projects from the application's explicit `sqlx-core` dependency. Query, bind,
+execute, fetch-all, fetch-one, row access, typed errors, and connection lifecycle are direct:
 
 ```terrane
-from /deps/sqlx-sqlite import SqliteConnection, open, execute, close
+from /deps/sqlx-core/query import query
+from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection
+from /deps/sqlx-sqlite/sqliteconnection import close
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 
-database SqliteConnection = await open; 'application.db'
-await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
+options = (SqliteConnectOptions::new).create_if_missing; true
+database SqliteConnection = await connect; options
+create_sql = 'CREATE TABLE events (body BLOB NOT NULL)'
+await (query; create_sql).execute; ref database
 await (close; move database)
 ```
 
-The projection artifact retains each item's exact Rust owner: `SqliteConnection` lowers through
-`sqlx_sqlite`, while the temporary operations lower through
-`terrane_integration_adapters::sqlx_sqlite`. Only their Terrane presentation namespace is unified.
-The adapter bridges trait-provided connection operations, the lifetime-bearing `Query<'q, DB, A>`
-chain, and generic row extraction; it does not define another SQLx object model.
+The adapter package's feature-gated namespace overlay contributes only `query_bytes`. That bridge
+consumes the non-`Clone` rows from a collected persistent list and converts each selected blob into
+ordinary Terrane bytes. It can be removed when S1 provides consuming collection or stream
+iteration. Exact projected Rust owners remain unchanged; the overlay only unifies the Terrane
+presentation namespace.
 
-Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
-`axum-08` feature, then imports the upstream router and handlers normally:
+PDF construction and byte serialization also project directly. The importing package names only
+the operations it uses; unrelated member dependencies remain in the completion catalog but do not
+enter generated source or its ordering graph:
 
 ```terrane
-from /deps/axum import Router, UpgradeResponse, bind_listener, receive_text, serve_router, text_message, upgrade
-from /deps/axum/routing import get
-from /deps/axum/extract import WebSocketUpgrade
-from /deps/axum/extract/ws import WebSocket
+from /deps/pdf-oxide/api import Pdf
+
+document Pdf = Pdf::from_html; html
+data bytes = document.save_to_bytes;
 ```
 
-`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks, and
-`WebSocket.send` are directly projected Axum operations. The feature overlays only the currently
-unprojectable boundaries: a concrete upgrade response around Axum's closed `Response` alias,
-flattened text receive and payload-bearing message constructors, Tokio listener binding, and
-awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an application router,
-handlers, route policy, or server facade. The BookVault WebSocket experiment is the executable
-end-to-end example.
+Axum applications likewise declare Axum, Axum Core, Tokio, and the canonical owners of signature
+types directly; no Axum adapter feature remains:
+
+```terrane
+from /deps/axum import Router, serve
+from /deps/axum-core/response import Response
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/tokio/net import TcpListener
+
+async function upgrade-handler Response; request WebSocketUpgrade
+    return request.on_upgrade; socket-session
+
+listener = await TcpListener::bind; address
+await (serve; move listener, move router)
+```
+
+Closed defaulted aliases retain their canonical owner identity. Concrete `IntoFuture` results are
+converted and awaited inside the generated dependency boundary, preserving their declared output,
+panic containment, ownership, and executor policy. Router construction, callbacks, handler
+results, health responses, WebSocket protocol policy, and server shutdown remain Terrane code.
 
 Namespace overlays are a generic Cargo-metadata facility available only to directly declared
 providers targeting another directly declared package. A declaration is active only with its named

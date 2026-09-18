@@ -1,0 +1,16 @@
+namespace app
+
+from /deps/markdown import Options, to_html_with_options
+from /deps/markdown/message import Message
+from /deps/terrane-markdown-error-witness import mdx_options
+from /core/output import print
+
+function main;
+  gfm = Options::gfm;
+  rendered = to_html_with_options; '~Venus~Mars!', gfm
+  print; rendered
+  try
+    invalid = to_html_with_options; '{', (mdx_options;)
+    print; invalid
+  catch Message as failure
+    print; failure.message

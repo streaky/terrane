@@ -1,0 +1,34 @@
+namespace app
+
+from /deps/terrane-nested-outcome-witness import Fault, channel
+from /core/output import print
+
+function inspect-next; mode int64
+  connection = channel; mode
+  try
+    value string|none = connection.next;
+    if value != none
+      print; value
+    else
+      print; 'end'
+  catch Fault as failure
+    print; failure.message
+
+function inspect-outer; mode int64
+  connection = channel; mode
+  try
+    value string|none = connection.outer;
+    if value != none
+      print; value
+    else
+      print; 'absent'
+  catch Fault as failure
+    print; failure.message
+
+function main;
+  inspect-next; 0
+  inspect-next; 1
+  inspect-next; 2
+  inspect-outer; 0
+  inspect-outer; 1
+  inspect-outer; 3

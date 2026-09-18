@@ -1926,6 +1926,18 @@ result task-struct|none
 
 An initialized typed binding is immediately available. Outside class field declarations, a typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error. Class fields instead follow the canonical-default rule in §18.1 because every fresh instance begins with complete field state.
 
+The bare spelling `_` is a discard binding, not a readable name. `_ = expression` and
+`_ T = expression` require an initializer and accept no visibility, storage, or mutability
+qualifier. They evaluate the expression exactly once, use `T` as the destination where supplied,
+create no binding, and release the resulting value at the end of that statement before the next
+statement begins. Binding-use and dead-store warnings do not apply because there is no stored value.
+
+A longer identifier beginning with `_` is an ordinary lexical binding. It owns its value until its
+normal scope endpoint and participates in move, cleanup, and lifetime analysis normally. `W4001` is
+suppressed because the spelling marks an intentionally unread value. The first read emits `W4006`
+and suggests removing the leading underscore, because the name's stated intent no longer matches
+its use.
+
 A declaration's initializer resolves names against the scope as it stands immediately before that declaration. The name being declared is therefore not in scope from its own initializer. Where nothing else binds that name, reading it — directly, or indirectly through a called function — is a compile-time error naming the absent binding, rather than a read of uninitialized storage. Namespace binding initialization dependencies, including dependencies reached through called functions and later namespace-level assignments folded into initialization, must be acyclic. The compiler rejects a statically provable cycle before lowering; it must not defer the cycle to backend initialization machinery.
 
 Where the name *is* already bound in that same lexical scope, the initializer reads the earlier binding and the declaration replaces it:
@@ -3191,7 +3203,7 @@ language-mandated classes, each of which implements it:
 | `integer-conversion-overflow` | An exact-or-throw numeric destination cannot preserve the mathematical source value. | Implicit assignment, argument, return, element, or field conversion across numeric types; throwing `coerce` to a fixed-width integer destination; floating-to-integer conversion for a fractional, NaN, or infinite value. | source value/type, destination type, and failed exactness condition |
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
-| `dependency-error` | A crossed Rust dependency call returned `Result::Err`. | Projected Rust functions and methods returning `Result<T, E>`. | dependency member and rendered Rust error |
+| `dependency-error` | A crossed Rust dependency call returned an error whose external standard-library type has no projectable identity. | Projected Rust functions and methods returning a `std`/`core` error that rustdoc does not expose as a projectable public class. | dependency member and rendered Rust error |
 | `dependency-panic` | A crossed Rust dependency call unwound through a profile that contains dependency panics. | Projected Rust functions and methods that panic under an unwinding profile. | dependency member and crossing context |
 
 Each class has `message`, `cause`, deterministic source context, and the structured information
@@ -4594,7 +4606,7 @@ A Rust crate dependency is declared in `package.toml` with its package name, ver
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, concrete trait operations, opaque foreign types, and data-free or data-carrying enums. An operation supplied by a concrete Rust trait implementation is exposed as a namespace function beneath its concrete projected owner; a receiver becomes its leading `receiver` parameter. A unique owner-local operation keeps its method name. If several operations would have the same owner-local name, every candidate moves beneath a deterministic `trait/<canonical-trait-path>` child namespace; normalized concrete trait arguments distinguish multiple implementations of one generic trait for the same owner. Only candidates that still collide after concrete-owner and trait qualification decline together, rather than selecting one by dependency or traversal order. The projected operation retains its exact qualified Rust path and source documentation for generated reference material and tooling. Projection records a reason for every public item it declines, including provided trait methods that cannot satisfy the supported call-directed generic contract.
 
 The projector deserializes the complete rustdoc document through the version-matched
 `rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
@@ -4615,6 +4627,11 @@ and `Self` in its methods resolves to that concrete identity. Generated dependen
 instantiated spellings as Rust type aliases rather than invalid `use` paths.
 Lifetime-parameterized types and generic parameters without defaults remain explicit declines until
 a call-directed or non-escaping-chain rule proves a concrete use.
+
+Structural call-site adaptation recognizes `AsRef<str>` and canonical
+`AsRef<std::path::Path>` as string inputs. Projected asynchronous alias unwrapping recognizes only
+canonical `futures_core::future::BoxFuture`; a same-named type or alias from another crate does not
+acquire these boundary semantics.
 
 A concrete Rust callback bound projects when its complete callable contract is monomorphic.
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
@@ -4800,16 +4817,48 @@ the returned vector directly in the Rust-to-Terrane direction. `Vec<u8>` remains
 representation. Tuple arguments move uniquely owned elements without cloning; shared tuple storage
 fails at the dependency boundary rather than panicking or cloning resource values. An aggregate
 declines as a whole when its first component cannot cross, and heterogeneous Rust tuples remain
-declined until Terrane has a matching heterogeneous tuple contract. A representable
-`Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared
-receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains
-`move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms
-use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required
-Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes
-`dependency-panic`; aborting profiles emit no unwind boundary and generated Cargo profiles use
-`panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
-`AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
-rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
+declined until Terrane has a matching heterogeneous tuple contract.
+
+A payload-bearing Rust enum remains one nominal projected class. Public unit variants are
+zero-argument static constructors. A public single-field tuple variant is a one-argument static
+constructor when its payload has one owned boundary representation; the constructor retains the
+exact Rust variant name. Every admitted payload enum has the shared `variant-name` operation and a
+consuming `into-<Variant>` operation for each admitted payload variant. `variant-name` returns the
+exact public Rust variant name, or `unknown` for a stripped or non-exhaustive variant. An
+`into-<Variant>` call moves the enum, returning its payload for that variant and `none` otherwise,
+so inspection neither borrows a value beyond the call nor clones its payload. Named-field and
+multi-field variants, borrowed payloads, open generics, and payloads without one owned
+representation are recorded as per-variant declines; their fields are never erased into an
+apparently complete constructor.
+An owned payload may use a dependency-declared byte/string wrapper conversion selected from
+concrete non-generic conversion implementations in the exact resolved graph. Projection records
+the selected conversion and its owning package, and the generated boundary is accepted only when
+the exact emitted call compiles under `rustc`; rustdoc enumeration is not itself a trait proof and
+crate-local spelling is not treated as a boundary guarantee.
+
+A representable `Result<T, E>` returns `T` and throws the canonical projected `E` class.
+`Option<Result<T, E>>` returns `T|none` and throws the same `E`: `None` returns `none`,
+`Some(Ok(value))` returns `value`, and `Some(Err(error))` throws `E`.
+`Result<Option<T>, E>` has the same Terrane signature but projection records the opposite Rust
+wrapper order and lowering preserves it. Result errors never become optional sentinels or implicit
+strings. An admitted `E` is catchable by its imported projected class identity; matching never
+depends on its text. The catch binding uses the ordinary throwable protocol, and `error.message`
+is the explicit source operation for display text, populated through Rust `Display`. A non-standard
+error without canonical projected identity and `Display` support declines the operation instead
+of collapsing to an undifferentiated dependency error. An external `std`/`core` error that rustdoc
+does not expose as a projectable identity retains the established `dependency-error` boundary.
+Typed failure preservation at this boundary means canonical class identity and its `message`
+operation. Version one does not preserve arbitrary fields or the native Rust `E` value after
+constructing the Terrane throwable.
+
+`&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected
+contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule.
+Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes
+lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing
+a generated shim becomes `dependency-panic`; aborting profiles emit no unwind boundary and
+generated Cargo profiles use `panic = "abort"`. Receiver-bearing unwind shims use the
+compiler-owned `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's
+ownership rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
 Projection records whether a foreign Rust type implements `Clone`. When a source class stores a
 non-`Clone` foreign value in a field, that class becomes resource-owning transitively and generated
@@ -4819,9 +4868,25 @@ instead of inventing target-language cloning that the Rust field type does not s
 A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
 constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits
 the Rust operation before applying the same argument conversion, result conversion, `Result` error
-mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
-future is constructed when the Terrane call expression is evaluated rather than being deferred
-until a later `await`.
+mapping, receiver ownership, and panic-containment rules as a synchronous projected member. Creating
+the Terrane task does not invoke the Rust operation; its first poll constructs the Rust future
+exactly once, and later polls reuse that value.
+When an asynchronous projected call must itself cross a transferable callback/task boundary, the
+compiler may use the projected Rust future's established `Send` contract as native proof of that
+specific execution value. It does not thereby classify unrelated Terrane values or arbitrary
+local async computations as transferable.
+
+A non-`async` Rust callable whose concrete result implements canonical
+`core::future::into_future::IntoFuture` also projects as a Terrane task. Projection substitutes the
+call's concrete owner arguments into `IntoFuture::Output`; a generic associated output therefore
+remains generic until call specialization rather than leaking an unresolved Rust type parameter.
+Lowering begins on the Terrane task's first poll: it evaluates the Rust call exactly once, invokes
+`IntoFuture::into_future` exactly once on that value, and polls the resulting future through the
+same panic, cancellation, ownership, and executor boundary as a projected `async fn`. Creating the
+task alone performs neither step. A `Result<T, E>` output applies the ordinary projected success and
+failure mapping after the future resolves. Merely having a similarly named trait is not evidence:
+admission uses the canonical trait identity. Borrowed, lifetime-escaping, unresolved
+associated-output, or otherwise unrepresentable shapes are declined.
 
 A concrete owned Rust producer projects as an async sequence when it exposes an asynchronous
 borrowed `next` method returning `Result<Option<Item>, E>` and a consuming `close` method. Awaiting
@@ -5785,11 +5850,14 @@ exactly.
 
 Binding-use analysis is resolved by declaration identity and recorded once per semantic unit, so
 shadowing does not merge unrelated bindings and later lowering does not repeatedly scan whole
-syntax trees. `W4001` reports an initialized local binding whose value is never read. `W4002`
-reports an initial or later assignment whose stored value cannot reach a subsequent read before a
-definite replacement. Conditional stores do not by themselves kill the incoming value. Parameters
-do not receive unused-binding warnings: an unused parameter can be required by a callable contract,
-and parameter-name linting belongs to a later explicit policy rather than these local-store
+syntax trees. `W4001` reports an initialized local binding whose value is never read, except that
+an underscore-prefixed name explicitly marks the binding as intentionally unread and suppresses
+the warning. Bare `_` is a discard and creates no binding or store to diagnose. `W4002` reports an
+initial or later assignment whose stored value cannot reach a subsequent read before a definite
+replacement. Conditional stores do not by themselves kill the incoming value. The first read of
+an underscore-prefixed retained binding emits `W4006` and suggests removing the leading underscore.
+Parameters do not receive unused-binding warnings: an unused parameter can be required by a callable
+contract, and parameter-name linting belongs to a later explicit policy rather than these local-store
 diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explicitly consumes unused
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
 opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic

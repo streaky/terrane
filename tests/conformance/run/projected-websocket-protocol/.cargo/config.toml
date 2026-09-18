@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-websocket-peer-witness = { path = "fixture-registry/terrane-websocket-peer-witness-0.1.0" }

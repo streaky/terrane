@@ -23,7 +23,11 @@
           "widget"
         ],
         [
-          "/deps/terrane-render-witness/renderable",
+          "/deps/terrane-render-witness/widget",
+          "clone"
+        ],
+        [
+          "/deps/terrane-render-witness/widget",
           "render"
         ]
       ],
@@ -32,7 +36,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "45",
+  "projection_schema": "62",
   "removed": [],
   "resolution": {
     "events": [

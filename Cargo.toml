@@ -2,6 +2,7 @@
 members = [
     "crates/terrane-cli",
     "crates/terrane-compiler",
+    "crates/terrane-rust-analysis",
     "crates/terrane-int-support",
     "crates/terrane-integration-adapters",
     "crates/terrane-collection-support",

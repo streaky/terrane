@@ -1,0 +1,4 @@
+namespace discard-requires-initializer
+
+function main;
+  _ int

@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8 import from_iter
+from /core/output import print
+
+function main;
+    print; 'associated operation namespaced'
