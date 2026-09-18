@@ -4,7 +4,7 @@ use std::future::Future;
 
 use axum::Router;
 use axum::extract::WebSocketUpgrade;
-use axum::extract::ws::{DefaultOnFailedUpgrade, Message, WebSocket};
+use axum::extract::ws::{DefaultOnFailedUpgrade, WebSocket};
 use axum::response::{IntoResponse, Response};
 use tokio::net::TcpListener;
 
@@ -27,33 +27,6 @@ where
     Fut: Future<Output = ()> + Send + 'static,
 {
     UpgradeResponse(request.on_upgrade(callback))
-}
-
-/// Receive the next text message, ignoring non-data control messages.
-///
-/// # Errors
-///
-/// Returns Axum's receive error when the WebSocket stream fails.
-pub async fn receive_text(socket: &mut WebSocket) -> Result<Option<String>, axum::Error> {
-    loop {
-        match socket.recv().await.transpose()? {
-            Some(Message::Text(text)) => return Ok(Some(text.to_string())),
-            Some(Message::Close(_)) | None => return Ok(None),
-            Some(_) => {}
-        }
-    }
-}
-
-/// Construct Axum's data-carrying text message variant.
-#[must_use]
-pub fn text_message(text: String) -> Message {
-    Message::Text(text.into())
-}
-
-/// Construct Axum's close message variant without a close payload.
-#[must_use]
-pub fn close_message() -> Message {
-    Message::Close(None)
 }
 
 /// Await Axum's `IntoFuture` server value at the currently projectable concrete router boundary.

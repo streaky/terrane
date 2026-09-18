@@ -1,0 +1,7 @@
+package = "projected-nested-outcomes"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-nested-outcome-witness]
+version = "=0.1.0"

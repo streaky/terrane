@@ -146,22 +146,6 @@
           "from"
         ],
         [
-          "/deps/serde-json/error/category",
-          "Data"
-        ],
-        [
-          "/deps/serde-json/error/category",
-          "Eof"
-        ],
-        [
-          "/deps/serde-json/error/category",
-          "Io"
-        ],
-        [
-          "/deps/serde-json/error/category",
-          "Syntax"
-        ],
-        [
           "/deps/serde-json/error/trait/serde-core/de/error",
           "custom"
         ],
@@ -415,7 +399,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

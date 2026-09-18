@@ -1,6 +1,5 @@
 namespace app
-from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling, reset_operation_state, wait_forever, wait_until_operation_started, operation_drop_count
-from /core/errors import dependency-error
+from /deps/async-witness import ValidationError, echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling, reset_operation_state, wait_forever, wait_until_operation_started, operation_drop_count
 from /core/concurrency import channel, channel-block
 
 async function source-ready string;
@@ -23,7 +22,7 @@ async function main;
   try
     rejected string = await checked_echo; >reject
     print; rejected
-  catch dependency-error
+  catch ValidationError
     print; 'caught projected async failure'
   selection-pair = channel; int, 0, channel-block
   selection-rx = selection-pair.receiver

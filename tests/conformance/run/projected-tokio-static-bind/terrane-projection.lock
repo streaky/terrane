@@ -1,16 +1,19 @@
 {
+  "format": 3,
   "dependencies": [
     {
+      "name": "terrane-static-consumer",
+      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-static-consumer",
           "consume_factory"
         ]
-      ],
-      "name": "terrane-static-consumer",
-      "version": "0.1.0"
+      ]
     },
     {
+      "name": "terrane-static-witness",
+      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-static-witness",
@@ -24,11 +27,11 @@
           "/deps/terrane-static-witness",
           "available_loopback_address"
         ]
-      ],
-      "name": "terrane-static-witness",
-      "version": "0.1.0"
+      ]
     },
     {
+      "name": "tokio",
+      "version": "1.53.0",
       "members": [
         [
           "/deps/tokio/io",
@@ -970,34 +973,33 @@
           "/deps/tokio/net/unixstream",
           "try_from"
         ]
-      ],
-      "name": "tokio",
-      "version": "1.53.0"
+      ]
     }
   ],
-  "format": 3,
-  "projection_schema": "50",
   "removed": [],
+  "cache_identity": "14a4b90eabb3fcbdcc3e02333f0ed3fdf6e6270afa5c0ee08bd31bab362b626e",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "51",
+  "content_hash": "b6a88eac33a2c074a04a3b81bd2117d71f6937cfe98c6da72eec6203e8984521",
   "resolution": {
+    "outcome": "LocalRustdoc",
     "events": [
       {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped"
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
       },
       {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped"
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
       },
       {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated"
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
       }
-    ],
-    "outcome": "LocalRustdoc"
-  },
-  "rustdoc_format": 57,
-  "source": "Local"
+    ]
+  }
 }

@@ -70,19 +70,6 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         removal_criterion: "generic projected IntoFuture lowering compiles and awaits direct axum::serve with a Router",
     },
     IntegrationAdapter {
-        id: "axum-websocket-message-shapes",
-        tracking_key: "projection/websocket-enum-stream-sink",
-        dependency: "axum",
-        supported_versions: "0.8.x with ws",
-        limitation: "WebSocket::recv nests optional and fallible results, while payload-bearing Message variants have no projected Terrane constructors",
-        status: AdapterStatus::Package {
-            name: "terrane-integration-adapters",
-            version: "0.1.x",
-            feature: "axum-08",
-        },
-        removal_criterion: "generic enum constructors and optional/result async member projection support the same bounded Terrane-authored echo session directly",
-    },
-    IntegrationAdapter {
         id: "pdf-oxide-html-bytes",
         tracking_key: "projection/projected-namespace-cycles-and-generic-path-save",
         dependency: "pdf_oxide",

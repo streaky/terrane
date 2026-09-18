@@ -2907,7 +2907,7 @@ pub(crate) fn destination_projected_type(
                 parameters,
                 result,
                 true,
-                *transferability == TaskTransferability::Transferable,
+                *transferability != TaskTransferability::Local,
             )?
         }
         ValueType::Object(identity) => destination_projected_object(package, identity)?,

@@ -23,40 +23,12 @@
           "IsNull"
         ],
         [
-          "/deps/sqlx-core/encode/isnull",
-          "No"
-        ],
-        [
-          "/deps/sqlx-core/encode/isnull",
-          "Yes"
-        ],
-        [
           "/deps/sqlx-core/error",
           "ErrorKind"
         ],
         [
           "/deps/sqlx-core/error",
           "UnexpectedNullError"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "CheckViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "ForeignKeyViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "NotNullViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "Other"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "UniqueViolation"
         ],
         [
           "/deps/sqlx-core/ext/ustr",
@@ -209,14 +181,6 @@
         [
           "/deps/sqlx-core/type-checking",
           "ParamChecking"
-        ],
-        [
-          "/deps/sqlx-core/type-checking/paramchecking",
-          "Strong"
-        ],
-        [
-          "/deps/sqlx-core/type-checking/paramchecking",
-          "Weak"
         ]
       ],
       "name": "sqlx-core",
@@ -385,18 +349,6 @@
           "size_hint"
         ],
         [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "Full"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "Incremental"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteautovacuum",
-          "None"
-        ],
-        [
           "/deps/sqlx-sqlite/sqlitecolumn",
           "clone"
         ],
@@ -457,38 +409,6 @@
           "message"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Delete"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Memory"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Off"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Persist"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Truncate"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitejournalmode",
-          "Wal"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitelockingmode",
-          "Exclusive"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitelockingmode",
-          "Normal"
-        ],
-        [
           "/deps/sqlx-sqlite/sqliteownedbuf",
           "drop"
         ],
@@ -515,22 +435,6 @@
         [
           "/deps/sqlx-sqlite/sqliterow",
           "try_get_unchecked"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Extra"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Full"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Normal"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitesynchronous",
-          "Off"
         ],
         [
           "/deps/sqlx-sqlite/sqlitetypeinfo",
@@ -572,7 +476,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

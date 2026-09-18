@@ -1,3 +1,3 @@
 212
-missing-column
-incompatible-value
+Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: no column found for name: missing
+Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: error occurred while decoding column "count": mismatched types; Rust type `alloc::vec::Vec<u8>` (as SQL type `BLOB`) is not compatible with SQL type `INTEGER`

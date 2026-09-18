@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/sqlx-core::Error",
     ];
 }
 mod __terrane_trace {
@@ -515,9 +516,9 @@ fn main() {
                     Err(
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
-                                crate::TERRANE_DEPENDENCY_ERROR,
+                                crate::DescriptorId(2),
                                 format!(
-                                    "Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"
+                                    "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"
                                 ),
                                 crate::TERRANE_NO_SITE,
                             ),
@@ -528,7 +529,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "<sqlx_sqlite",
+                            "sqlx-sqlite",
                             "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get",
                         ),
                     )
@@ -552,10 +553,10 @@ fn main() {
                     sqlx_core::row::Row > ::try_get(&row, String::from("missing")
                     .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::TERRANE_DEPENDENCY_ERROR,
-                    format!("Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
+                    ::DescriptorId(2),
+                    format!("Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                    ::__terrane_dependency_panic(payload, "<sqlx_sqlite",
+                    ::__terrane_dependency_panic(payload, "sqlx-sqlite",
                     "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
                     4 /* terrane-site: src/main.trn:13:21-13:44 */
                 );
@@ -575,12 +576,13 @@ fn main() {
                     let mut __terrane_handled_0 = false;
                     if !__terrane_handled_0
                         && __terrane_error_0.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
+                        let failure = __terrane_error_0.clone();
                         println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("missing-column"))
+                            "{}", terrane_scalar_support::scalar_text(&failure.message()
+                            .to_owned())
                         );
                     }
                     if !__terrane_handled_0 {
@@ -605,10 +607,10 @@ fn main() {
                     sqlx_core::row::Row > ::try_get(&row, String::from("count")
                     .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::TERRANE_DEPENDENCY_ERROR,
-                    format!("Rust dependency `<sqlx_sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
+                    ::DescriptorId(2),
+                    format!("Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                    ::__terrane_dependency_panic(payload, "<sqlx_sqlite",
+                    ::__terrane_dependency_panic(payload, "sqlx-sqlite",
                     "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
                     5 /* terrane-site: src/main.trn:18:26-18:47 */
                 );
@@ -629,12 +631,13 @@ fn main() {
                     let mut __terrane_handled_1 = false;
                     if !__terrane_handled_1
                         && __terrane_error_1.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_1 = true;
+                        let failure = __terrane_error_1.clone();
                         println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("incompatible-value"))
+                            "{}", terrane_scalar_support::scalar_text(&failure.message()
+                            .to_owned())
                         );
                     }
                     if !__terrane_handled_1 {
@@ -654,9 +657,12 @@ fn main() {
         }
     });
 }
+// Source: <terrane>/projected/deps/sqlx-core.trn
+// Namespace: deps/sqlx-core
+pub use sqlx_core::Error;
+pub use sqlx_sqlite::SqliteRow;
 // Source: <terrane>/projected/deps/sqlx-sqlite.trn
 // Namespace: deps/sqlx-sqlite
-pub use sqlx_sqlite::SqliteRow;
 // Source: <terrane>/projected/deps/sqlx-sqlite/sqliterow.trn
 // Namespace: deps/sqlx-sqlite/sqliterow
 // Source: <terrane>/projected/deps/terrane-sqlx-row-producer.trn
@@ -672,7 +678,7 @@ pub async fn sample_row() -> Result<SqliteRow, crate::TerraneForeignError> {
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
+                        crate::DescriptorId(2),
                         format!(
                             "Rust dependency `terrane-sqlx-row-producer` member `terrane_sqlx_row_producer::sample_row` failed: {error}"
                         ),

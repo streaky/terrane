@@ -87,18 +87,6 @@
           "eq"
         ],
         [
-          "/deps/markdown/lineending",
-          "CarriageReturn"
-        ],
-        [
-          "/deps/markdown/lineending",
-          "CarriageReturnLineFeed"
-        ],
-        [
-          "/deps/markdown/lineending",
-          "LineFeed"
-        ],
-        [
           "/deps/markdown/mdast",
           "AlignKind"
         ],
@@ -267,22 +255,6 @@
           "Yaml"
         ],
         [
-          "/deps/markdown/mdast/alignkind",
-          "Center"
-        ],
-        [
-          "/deps/markdown/mdast/alignkind",
-          "Left"
-        ],
-        [
-          "/deps/markdown/mdast/alignkind",
-          "None"
-        ],
-        [
-          "/deps/markdown/mdast/alignkind",
-          "Right"
-        ],
-        [
           "/deps/markdown/mdast/attributevalueexpression",
           "clone"
         ],
@@ -507,18 +479,6 @@
           "eq"
         ],
         [
-          "/deps/markdown/mdast/referencekind",
-          "Collapsed"
-        ],
-        [
-          "/deps/markdown/mdast/referencekind",
-          "Full"
-        ],
-        [
-          "/deps/markdown/mdast/referencekind",
-          "Shortcut"
-        ],
-        [
           "/deps/markdown/mdast/root",
           "clone"
         ],
@@ -589,18 +549,6 @@
         [
           "/deps/markdown/mdast/yaml",
           "eq"
-        ],
-        [
-          "/deps/markdown/mdxexpressionkind",
-          "AttributeExpression"
-        ],
-        [
-          "/deps/markdown/mdxexpressionkind",
-          "AttributeValueExpression"
-        ],
-        [
-          "/deps/markdown/mdxexpressionkind",
-          "Expression"
         ],
         [
           "/deps/markdown/message",
@@ -722,7 +670,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

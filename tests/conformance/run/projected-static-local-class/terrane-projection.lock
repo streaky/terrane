@@ -36,10 +36,6 @@
         ],
         [
           "/deps/bytes",
-          "Bytes.try_into_mut"
-        ],
-        [
-          "/deps/bytes",
           "Bytes::from_owner"
         ],
         [
@@ -388,7 +384,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

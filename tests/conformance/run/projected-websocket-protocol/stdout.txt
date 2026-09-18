@@ -1,0 +1,6 @@
+texthello
+binary2
+ping1
+pong1
+close
+failure

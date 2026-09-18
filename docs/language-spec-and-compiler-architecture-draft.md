@@ -4817,16 +4817,43 @@ the returned vector directly in the Rust-to-Terrane direction. `Vec<u8>` remains
 representation. Tuple arguments move uniquely owned elements without cloning; shared tuple storage
 fails at the dependency boundary rather than panicking or cloning resource values. An aggregate
 declines as a whole when its first component cannot cross, and heterogeneous Rust tuples remain
-declined until Terrane has a matching heterogeneous tuple contract. A representable
-`Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared
-receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains
-`move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms
-use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required
-Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes
-`dependency-panic`; aborting profiles emit no unwind boundary and generated Cargo profiles use
-`panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
-`AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
-rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
+declined until Terrane has a matching heterogeneous tuple contract.
+
+A payload-bearing Rust enum remains one nominal projected class. Public unit variants are
+zero-argument static constructors. A public single-field tuple variant is a one-argument static
+constructor when its payload has one owned boundary representation; the constructor retains the
+exact Rust variant name. Every admitted payload enum has the shared `variant-name` operation and a
+consuming `into-<Variant>` operation for each admitted payload variant. `variant-name` returns the
+exact public Rust variant name, or `unknown` for a stripped or non-exhaustive variant. An
+`into-<Variant>` call moves the enum, returning its payload for that variant and `none` otherwise,
+so inspection neither borrows a value beyond the call nor clones its payload. Named-field and
+multi-field variants, borrowed payloads, open generics, and payloads without one owned
+representation are recorded as per-variant declines; their fields are never erased into an
+apparently complete constructor.
+An owned payload may use a compiler-proven, dependency-declared byte/string wrapper conversion
+when the source and target dependencies are both present in the exact resolved graph. Projection
+records the selected conversion and its owning package rather than treating crate-local spelling
+as a boundary guarantee.
+
+A representable `Result<T, E>` returns `T` and throws the canonical projected `E` class.
+`Option<Result<T, E>>` returns `T|none` and throws the same `E`: `None` returns `none`,
+`Some(Ok(value))` returns `value`, and `Some(Err(error))` throws `E`.
+`Result<Option<T>, E>` has the same Terrane signature but projection records the opposite Rust
+wrapper order and lowering preserves it. Result errors never become optional sentinels or implicit
+strings. An admitted `E` is catchable by its imported projected class identity; matching never
+depends on its text. The catch binding uses the ordinary throwable protocol and `error.message`
+is the explicit source operation for display text, populated through Rust `Display`. An error
+without canonical projected identity and `Display` support declines the operation instead of
+collapsing to an undifferentiated dependency error.
+
+`&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected
+contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule.
+Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes
+lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing
+a generated shim becomes `dependency-panic`; aborting profiles emit no unwind boundary and
+generated Cargo profiles use `panic = "abort"`. Receiver-bearing unwind shims use the
+compiler-owned `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's
+ownership rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
 Projection records whether a foreign Rust type implements `Clone`. When a source class stores a
 non-`Clone` foreign value in a field, that class becomes resource-owning transitively and generated
@@ -4839,6 +4866,10 @@ the Rust operation before applying the same argument conversion, result conversi
 mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
 future is constructed when the Terrane call expression is evaluated rather than being deferred
 until a later `await`.
+When an asynchronous projected call must itself cross a transferable callback/task boundary, the
+compiler may use the projected Rust future's established `Send` contract as native proof of that
+specific execution value. It does not thereby classify unrelated Terrane values or arbitrary
+local async computations as transferable.
 
 A concrete owned Rust producer projects as an async sequence when it exposes an asynchronous
 borrowed `next` method returning `Result<Option<Item>, E>` and a consuming `close` method. Awaiting

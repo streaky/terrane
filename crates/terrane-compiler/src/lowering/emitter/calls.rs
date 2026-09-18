@@ -1786,6 +1786,10 @@ impl Emitter<'_> {
                     .is_some_and(|function| {
                         function.chain_role == Some(crate::projection::ChainRole::Root)
                     }));
+        let projected_enum_receiver = callee
+            .children
+            .first()
+            .map(|receiver| self.receiver_expression(receiver));
         let foreign_method = if direct_projected_function {
             self.projected_function_for_call(callee)
         } else {
@@ -1793,20 +1797,55 @@ impl Emitter<'_> {
                 let [receiver, _member] = callee.children.as_slice() else {
                     return None;
                 };
-                let ValueType::Object(identity) = self.value_type(receiver)? else {
-                    return None;
-                };
+                let identity = self
+                    .class_designator(receiver)
+                    .map(|object| object.identity.clone())
+                    .or_else(|| {
+                        let ValueType::Object(identity) = self.value_type(receiver)? else {
+                            return None;
+                        };
+                        Some(identity)
+                    })?;
                 if projected_interface_dispatch {
                     return None;
                 }
-                self.package.projection.method(
-                    &identity.namespace,
-                    &identity.name,
-                    &contract.name,
-                    false,
-                )
+                self.package
+                    .projection
+                    .method(
+                        &identity.namespace,
+                        &identity.name,
+                        &contract.name,
+                        contract.is_static,
+                    )
+                    .filter(|method| !contract.is_static || method.enum_operation.is_some())
             })
         };
+        let enum_operation = foreign_method.and_then(|method| method.enum_operation.clone());
+        let call = enum_operation
+            .as_ref()
+            .and_then(|operation| {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    return None;
+                };
+                let identity = self
+                    .class_designator(receiver)
+                    .map(|object| object.identity.clone())
+                    .or_else(|| {
+                        let ValueType::Object(identity) = self.value_type(receiver)? else {
+                            return None;
+                        };
+                        Some(identity)
+                    })?;
+                let owner = self
+                    .package
+                    .projection
+                    .foreign_rust_path(&identity.namespace, &identity.name)?;
+                let receiver = (!contract.as_ref().is_some_and(|contract| contract.is_static))
+                    .then_some(projected_enum_receiver.as_deref())
+                    .flatten();
+                Some(projected_enum_call(operation, owner, receiver, &values))
+            })
+            .unwrap_or(call);
         let chain_role = foreign_method
             .and_then(|method| method.chain_role)
             .or_else(|| {
@@ -1845,17 +1884,28 @@ impl Emitter<'_> {
             let (dependency, member) = if specialization
                 .is_some_and(|specialization| specialization.direct_projected_call)
             {
-                (
-                    name.split("::").next().unwrap_or("dependency").to_owned(),
-                    name.clone(),
-                )
+                let dependency = self
+                    .package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| symbol.namespace.strip_prefix("/deps/"))
+                    .and_then(|namespace| namespace.split('/').next())
+                    .unwrap_or("dependency")
+                    .to_owned();
+                (dependency, name.clone())
             } else {
                 let [receiver, _member] = callee.children.as_slice() else {
                     unreachable!("projected methods have a receiver")
                 };
-                let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
-                    unreachable!("projected method receiver has an object type")
-                };
+                let identity = self
+                    .class_designator(receiver)
+                    .map(|object| object.identity.clone())
+                    .or_else(|| {
+                        let ValueType::Object(identity) = self.value_type(receiver)? else {
+                            return None;
+                        };
+                        Some(identity)
+                    })
+                    .expect("projected method receiver has an object type");
                 let type_path = self
                     .package
                     .projection
@@ -1894,10 +1944,35 @@ impl Emitter<'_> {
                 &specialization.projected_result
             });
             let converted = projected_result_expression("value", projected_result);
+            let nested_converted = match projected_result {
+                crate::projection::ProjectedType::Optional(inner)
+                    if method.error_optional_depth == 1 =>
+                {
+                    projected_result_expression("value", inner)
+                }
+                _ => converted.clone(),
+            };
+            let projected_error_identity = method.error.as_deref().and_then(|rust_path| {
+                self.package
+                    .projection
+                    .projected_identity_for_rust_path(rust_path)
+                    .map(|(namespace, name)| (format!("{namespace}::{name}"), name.to_owned()))
+            });
+            let error_kind = projected_error_identity.map_or_else(
+                || "TERRANE_DEPENDENCY_ERROR".to_owned(),
+                |(identity, name)| {
+                    let descriptor = self.registry.register_descriptor(&identity, &name);
+                    format!("DescriptorId({descriptor})")
+                },
+            );
             let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
-                if method.error.is_some() {
+                if method.error_optional_depth == 1 {
                     format!(
-                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ None => Ok(None), Some(Ok(value)) => Ok(Some({nested_converted})), Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                    )
+                } else if method.error.is_some() {
+                    format!(
+                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
                     format!("{{ let _ = {invocation}; Ok(()) }}")
@@ -1907,9 +1982,13 @@ impl Emitter<'_> {
                         projected_result_expression(&invocation, projected_result)
                     )
                 }
+            } else if method.error_optional_depth == 1 {
+                format!(
+                    "match {caught} {{ Ok(None) => Ok(None), Ok(Some(Ok(value))) => Ok(Some({nested_converted})), Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
             } else if method.error.is_some() {
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 format!(
@@ -2001,6 +2080,74 @@ impl Emitter<'_> {
             } else {
                 mapped
             }
+        }
+    }
+}
+fn projected_enum_call(
+    operation: &crate::projection::ProjectedEnumOperation,
+    owner: &str,
+    receiver: Option<&str>,
+    values: &[String],
+) -> String {
+    match operation {
+        crate::projection::ProjectedEnumOperation::Construct {
+            variant,
+            unit,
+            conversion,
+            ..
+        } => {
+            if *unit {
+                return format!("{owner}::{variant}");
+            }
+            let arguments = values
+                .iter()
+                .map(|value| match conversion {
+                    crate::projection::ProjectedEnumPayloadConversion::Into => {
+                        format!("({value}).into()")
+                    }
+                    _ => value.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{owner}::{variant}({arguments})")
+        }
+        crate::projection::ProjectedEnumOperation::VariantName {
+            variants,
+            exhaustive,
+        } => {
+            let receiver = receiver.expect("enum inspection has a receiver");
+            let mut arms = variants
+                .iter()
+                .map(|variant| format!("{owner}::{variant} {{ .. }} => {variant:?}.to_owned()"))
+                .collect::<Vec<_>>();
+            if !exhaustive {
+                arms.push("_ => \"unknown\".to_owned()".to_owned());
+            }
+            format!("match &{receiver} {{ {} }}", arms.join(", "))
+        }
+        crate::projection::ProjectedEnumOperation::Extract {
+            variant,
+            conversion,
+            payload_rust_type,
+        } => {
+            let receiver = receiver.expect("enum extraction has a receiver");
+            let value = match conversion {
+                crate::projection::ProjectedEnumPayloadConversion::Identity
+                | crate::projection::ProjectedEnumPayloadConversion::Into => "value".to_owned(),
+                crate::projection::ProjectedEnumPayloadConversion::AsRefString => {
+                    format!("<{payload_rust_type} as AsRef<str>>::as_ref(&value).to_owned()")
+                }
+                crate::projection::ProjectedEnumPayloadConversion::AsRefBytes => {
+                    format!("<{payload_rust_type} as AsRef<[u8]>>::as_ref(&value).to_vec()")
+                }
+                crate::projection::ProjectedEnumPayloadConversion::DerefString => {
+                    format!("<{payload_rust_type} as std::ops::Deref>::deref(&value).to_owned()")
+                }
+                crate::projection::ProjectedEnumPayloadConversion::DerefBytes => {
+                    format!("<{payload_rust_type} as std::ops::Deref>::deref(&value).to_vec()")
+                }
+            };
+            format!("match {receiver} {{ {owner}::{variant}(value) => Some({value}), _ => None }}")
         }
     }
 }

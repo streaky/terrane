@@ -1,21 +1,25 @@
 namespace app
 
-from /deps/axum import Router, UpgradeResponse, close_message, receive_text, serve_router, text_message, upgrade
+from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
 from /deps/axum/router import default as default_router
 from /deps/axum/routing/methodrouter import default as default_method_router
 from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
 from /deps/tokio/net import TcpListener
-from /deps/axum/extract/ws import WebSocket
+from /deps/axum/extract/ws import Message, WebSocket
 from /core/output import print
 
 async function health string;
     return 'ok'
 async function socket-task; socket WebSocket
-    received string|none = await receive_text; socket
-    if received != none
-        await (socket.send; (text_message; received))
-    await (socket.send; (close_message;))
+    message Message|none = await socket.recv;
+    if message != none
+        kind string = message.variant-name;
+        if kind == 'Text'
+            received string|none = (move message).into-Text;
+            if received != none
+                await (socket.send; (Message::Text; received))
+    await (socket.send; (Message::Close; none))
 
 async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
     return upgrade; move request, socket-task

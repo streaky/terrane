@@ -1,0 +1,18 @@
+namespace app
+
+from /deps/terrane-payload-enum-witness import Event
+from /core/output import print
+
+function main;
+  text = Event::Text; 'hello'
+  print; (text.variant-name;)
+  text-value string|none = text.into-Text;
+  if text-value != none
+    print; text-value
+  binary = Event::Binary; b'AB'
+  print; (binary.variant-name;)
+  binary-value bytes|none = binary.into-Binary;
+  if binary-value != none
+    print; binary-value.length
+  ping = Event::Ping;
+  print; (ping.variant-name;)

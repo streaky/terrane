@@ -706,10 +706,10 @@ impl Emitter<'_> {
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let constructor = callable_constructor(expected_mode);
-                let send = if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                let send = if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 };
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
@@ -782,10 +782,10 @@ impl Emitter<'_> {
                 let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let constructor = callable_constructor(expected_mode);
-                let send = if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                let send = if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 };
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let value_requires_throwing_abi = matches!(
@@ -1002,10 +1002,10 @@ impl Emitter<'_> {
                     } else {
                         format!("Box::pin({invocation})")
                     };
-                    let send = if transferability == TaskTransferability::Transferable {
-                        " + Send"
-                    } else {
+                    let send = if transferability == TaskTransferability::Local {
                         ""
+                    } else {
+                        " + Send"
                     };
                     format!(
                         "{{ let callable = {capture}; {constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ {future} }}) }}"

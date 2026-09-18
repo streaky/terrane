@@ -376,6 +376,7 @@ pub(super) fn analyze_with_projection(
                     crate::projection::ProjectedKind::Enum {
                         data_carrying: false,
                         comparable: true,
+                        ..
                     }
                 )
             })
@@ -812,6 +813,10 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     symbol.kind == SymbolKind::ErrorObject
                         || (symbol.kind == SymbolKind::Interface
                             && symbol.identity == "/core/errors::throwable")
+                        || (symbol.kind == SymbolKind::Class
+                            && package
+                                .projection
+                                .is_projected_error_type(&symbol.namespace, &symbol.name))
                         || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
                             && identity_implements(
                                 package,

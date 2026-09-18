@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/sqlx-core::Error",
     ];
 }
 mod __terrane_trace {
@@ -580,7 +581,7 @@ fn main() {
                     let mut __terrane_handled_0 = false;
                     if !__terrane_handled_0
                         && __terrane_error_0.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
                         println!(
@@ -674,8 +675,9 @@ fn main() {
         );
     });
 }
-// Source: <terrane>/projected/deps/sqlx-sqlite.trn
-// Namespace: deps/sqlx-sqlite
+// Source: <terrane>/projected/deps/sqlx-core.trn
+// Namespace: deps/sqlx-core
+pub use sqlx_core::Error;
 pub use sqlx_sqlite::SqliteAutoVacuum;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
@@ -685,6 +687,8 @@ pub use sqlx_sqlite::SqliteSynchronous;
 pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
 pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
 pub use std::path::Path as TerraneNs4Deps11SqlxSqlitePath;
+// Source: <terrane>/projected/deps/sqlx-sqlite.trn
+// Namespace: deps/sqlx-sqlite
 pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Result<
     SqliteConnectOptions,
     crate::TerraneForeignError,
@@ -722,7 +726,7 @@ pub async fn close(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
+                        crate::DescriptorId(2),
                         format!(
                             "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close` failed: {error}"
                         ),
@@ -759,7 +763,7 @@ pub async fn connect(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
+                        crate::DescriptorId(2),
                         format!(
                             "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect` failed: {error}"
                         ),

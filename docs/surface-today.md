@@ -1116,14 +1116,17 @@ features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
 ```
 
-`SqliteConnection` is projected directly from `sqlx-sqlite`. The adapter package declares a
-feature-gated namespace overlay in Cargo metadata, so its `open`, `execute`, `execute_with_bytes`,
-`query_bytes`, and `close` operations appear beside that upstream type:
+`SqliteConnectOptions` and `SqliteConnection` project directly from `sqlx-sqlite`. The adapter
+package declares a feature-gated namespace overlay in Cargo metadata, so only its `execute`,
+`execute_with_bytes`, and `query_bytes` operations appear beside those upstream types:
 
 ```terrane
-from /deps/sqlx-sqlite import SqliteConnection, open, execute, close
+from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection, execute
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
+from /deps/sqlx-sqlite/sqliteconnection import close
 
-database SqliteConnection = await open; 'application.db'
+options = (SqliteConnectOptions::new).create_if_missing; true
+database SqliteConnection = await connect; options
 await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
 await (close; move database)
 ```
@@ -1131,26 +1134,27 @@ await (close; move database)
 The projection artifact retains each item's exact Rust owner: `SqliteConnection` lowers through
 `sqlx_sqlite`, while the temporary operations lower through
 `terrane_integration_adapters::sqlx_sqlite`. Only their Terrane presentation namespace is unified.
-The adapter bridges trait-provided connection operations, the lifetime-bearing `Query<'q, DB, A>`
-chain, and generic row extraction; it does not define another SQLx object model.
+The adapter bridges the lifetime-bearing `Query<'q, DB, A>` chain and collecting non-`Clone`
+rows; connection lifecycle and destination-selected row extraction are directly projected.
 
 Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
 `axum-08` feature, then imports the upstream router and handlers normally:
 
 ```terrane
-from /deps/axum import Router, UpgradeResponse, bind_listener, receive_text, serve_router, text_message, upgrade
+from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
 from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
-from /deps/axum/extract/ws import WebSocket
+from /deps/axum/extract/ws import Message, WebSocket
+from /deps/tokio/net import TcpListener
 ```
 
-`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks, and
-`WebSocket.send` are directly projected Axum operations. The feature overlays only the currently
-unprojectable boundaries: a concrete upgrade response around Axum's closed `Response` alias,
-flattened text receive and payload-bearing message constructors, Tokio listener binding, and
-awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an application router,
-handlers, route policy, or server facade. The BookVault WebSocket experiment is the executable
-end-to-end example.
+`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks,
+`TcpListener::bind`, payload-bearing `Message` construction and inspection, nested
+`WebSocket.recv` outcomes, and `WebSocket.send` project directly. The feature overlays only the
+remaining boundaries: a concrete upgrade response and retained callback around Axum's closed
+`Response` alias, and awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an
+application router, handlers, protocol filtering, route policy, or server facade. The BookVault
+WebSocket experiment is the executable end-to-end example.
 
 Namespace overlays are a generic Cargo-metadata facility available only to directly declared
 providers targeting another directly declared package. A declaration is active only with its named

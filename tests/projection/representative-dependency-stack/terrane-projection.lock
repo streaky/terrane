@@ -431,6 +431,10 @@
         ],
         [
           "/deps/axum/extract/ws",
+          "WebSocket.recv"
+        ],
+        [
+          "/deps/axum/extract/ws",
           "WebSocket.send"
         ],
         [
@@ -1016,10 +1020,6 @@
         [
           "/deps/axum/routing/methodfilter",
           "eq"
-        ],
-        [
-          "/deps/axum/routing/methodfilter",
-          "try_from"
         ],
         [
           "/deps/axum/routing/methodrouter",
@@ -3282,14 +3282,6 @@
           "Action"
         ],
         [
-          "/deps/reqwest/retry/classify/action",
-          "Retryable"
-        ],
-        [
-          "/deps/reqwest/retry/classify/action",
-          "Success"
-        ],
-        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -4879,14 +4871,6 @@
           "drop"
         ],
         [
-          "/deps/tokio/runtime/runtimeflavor",
-          "CurrentThread"
-        ],
-        [
-          "/deps/tokio/runtime/runtimeflavor",
-          "MultiThread"
-        ],
-        [
           "/deps/tokio/runtime/runtimemetrics",
           "clone"
         ],
@@ -5115,14 +5099,6 @@
           "TryRecvError"
         ],
         [
-          "/deps/tokio/sync/mpsc/error/tryrecverror",
-          "Disconnected"
-        ],
-        [
-          "/deps/tokio/sync/mpsc/error/tryrecverror",
-          "Empty"
-        ],
-        [
           "/deps/tokio/sync/notify",
           "default"
         ],
@@ -5143,24 +5119,8 @@
           "eq"
         ],
         [
-          "/deps/tokio/sync/oneshot/error/tryrecverror",
-          "Closed"
-        ],
-        [
-          "/deps/tokio/sync/oneshot/error/tryrecverror",
-          "Empty"
-        ],
-        [
           "/deps/tokio/sync/ownedsemaphorepermit",
           "drop"
-        ],
-        [
-          "/deps/tokio/sync/tryacquireerror",
-          "Closed"
-        ],
-        [
-          "/deps/tokio/sync/tryacquireerror",
-          "NoPermits"
         ],
         [
           "/deps/tokio/sync/watch/error",
@@ -5505,18 +5465,6 @@
         [
           "/deps/tokio/time/instant/trait/core/ops/arith/sub-core/time/duration",
           "sub"
-        ],
-        [
-          "/deps/tokio/time/missedtickbehavior",
-          "Burst"
-        ],
-        [
-          "/deps/tokio/time/missedtickbehavior",
-          "Delay"
-        ],
-        [
-          "/deps/tokio/time/missedtickbehavior",
-          "Skip"
         ]
       ]
     },
@@ -5809,74 +5757,6 @@
           "StatusInRangeFailureClass"
         ],
         [
-          "/deps/tower-http/classify/grpccode",
-          "Aborted"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "AlreadyExists"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Cancelled"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "DataLoss"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "DeadlineExceeded"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "FailedPrecondition"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Internal"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "InvalidArgument"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "NotFound"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Ok"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "OutOfRange"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "PermissionDenied"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "ResourceExhausted"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Unauthenticated"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Unavailable"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Unimplemented"
-        ],
-        [
-          "/deps/tower-http/classify/grpccode",
-          "Unknown"
-        ],
-        [
           "/deps/tower-http/classify/grpceoserrorsasfailures",
           "classify_error"
         ],
@@ -6001,14 +5881,6 @@
           "redirect_fn"
         ],
         [
-          "/deps/tower-http/follow-redirect/policy/action",
-          "Follow"
-        ],
-        [
-          "/deps/tower-http/follow-redirect/policy/action",
-          "Stop"
-        ],
-        [
           "/deps/tower-http/follow-redirect/policy/filtercredentials",
           "clone"
         ],
@@ -6035,22 +5907,6 @@
         [
           "/deps/tower-http/follow-redirect/requesturi",
           "clone"
-        ],
-        [
-          "/deps/tower-http/latencyunit",
-          "Micros"
-        ],
-        [
-          "/deps/tower-http/latencyunit",
-          "Millis"
-        ],
-        [
-          "/deps/tower-http/latencyunit",
-          "Nanos"
-        ],
-        [
-          "/deps/tower-http/latencyunit",
-          "Seconds"
         ],
         [
           "/deps/tower-http/limit",
@@ -7565,14 +7421,6 @@
           "from"
         ],
         [
-          "/deps/utoipa/openapi/deprecated",
-          "False"
-        ],
-        [
-          "/deps/utoipa/openapi/deprecated",
-          "True"
-        ],
-        [
           "/deps/utoipa/openapi/discriminator",
           "clone"
         ],
@@ -7893,38 +7741,6 @@
           "from"
         ],
         [
-          "/deps/utoipa/openapi/httpmethod",
-          "Delete"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Get"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Head"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Options"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Patch"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Post"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Put"
-        ],
-        [
-          "/deps/utoipa/openapi/httpmethod",
-          "Trace"
-        ],
-        [
           "/deps/utoipa/openapi/info",
           "clone"
         ],
@@ -7959,94 +7775,6 @@
         [
           "/deps/utoipa/openapi/infobuilder/trait/core/convert/from-utoipa/openapi/infobuilder",
           "from"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Binary"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Byte"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Date"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "DateTime"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Double"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Duration"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Email"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Float"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Hostname"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "IdnEmail"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "IdnHostname"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Int32"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Int64"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Ipv4"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Ipv6"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "JsonPointer"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Password"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Regex"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "RelativeJsonPointer"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Time"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "UriTemplate"
-        ],
-        [
-          "/deps/utoipa/openapi/knownformat",
-          "Uuid"
         ],
         [
           "/deps/utoipa/openapi/license",
@@ -8259,10 +7987,6 @@
         [
           "/deps/utoipa/openapi/openapibuilder/trait/core/convert/from-utoipa/openapi/openapibuilder",
           "from"
-        ],
-        [
-          "/deps/utoipa/openapi/openapiversion",
-          "Version31"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -8533,50 +8257,6 @@
           "from"
         ],
         [
-          "/deps/utoipa/openapi/path/parameterin",
-          "Cookie"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterin",
-          "Header"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterin",
-          "Path"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterin",
-          "Query"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "DeepObject"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "Form"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "Label"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "Matrix"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "PipeDelimited"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "Simple"
-        ],
-        [
-          "/deps/utoipa/openapi/path/parameterstyle",
-          "SpaceDelimited"
-        ],
-        [
           "/deps/utoipa/openapi/path/pathitembuilder",
           "default"
         ],
@@ -8743,14 +8423,6 @@
         [
           "/deps/utoipa/openapi/request-body/requestbodybuilder/trait/core/convert/from-utoipa/openapi/request-body/requestbodybuilder",
           "from"
-        ],
-        [
-          "/deps/utoipa/openapi/required",
-          "False"
-        ],
-        [
-          "/deps/utoipa/openapi/required",
-          "True"
         ],
         [
           "/deps/utoipa/openapi/response",
@@ -9157,46 +8829,6 @@
           "from"
         ],
         [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Basic"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Bearer"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Digest"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Hoba"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Mutual"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Negotiate"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "OAuth"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "ScramSha1"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "ScramSha256"
-        ],
-        [
-          "/deps/utoipa/openapi/security/httpauthscheme",
-          "Vapid"
-        ],
-        [
           "/deps/utoipa/openapi/security/httpbuilder",
           "default"
         ],
@@ -9425,34 +9057,6 @@
           "from"
         ],
         [
-          "/deps/utoipa/openapi/type",
-          "Array"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "Boolean"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "Integer"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "Null"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "Number"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "Object"
-        ],
-        [
-          "/deps/utoipa/openapi/type",
-          "String"
-        ],
-        [
           "/deps/utoipa/openapi/xml",
           "Xml"
         ],
@@ -9671,11 +9275,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "c9aa7fad3c8e5aebef7e3c7ac09b3bc7a679210cade053b29fa5e2feb1070b4b",
+  "cache_identity": "1050ba9028e44d49a3f085e24b923ba6304d2722d595df3448a5b46ea7c20565",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "50",
-  "content_hash": "45ab3a47bd9c3fee6b13ec4aa8f5244936c8a5943db943bff972d7e30831381f",
+  "projection_schema": "51",
+  "content_hash": "a6fdfe4ce8445b9793e7e41afca29f6cd4593ad2ec06a9850e83972575502378",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

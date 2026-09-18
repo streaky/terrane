@@ -3,13 +3,12 @@ from /deps/bytes import BytesMut
 from /deps/bytes/bytesmut import remaining_mut
 from /deps/serde-json import Number
 from /deps/serde-json/error import Category
-from /deps/serde-json/error/category import Data, Io
 function main;
     buffer = BytesMut::with_capacity; 8
     remaining = remaining_mut; buffer
     candidate = Number::from_u128; 42
-    data = Data;
-    io = Io;
+    data = Category::Data;
+    io = Category::Io;
     print; remaining > 0
     print; candidate != none
     print; data != io

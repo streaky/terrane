@@ -680,6 +680,7 @@ pub(super) fn index_projected_static_method_references(
 )]
 pub(super) fn emit_dependency_unit(
     package: &SemanticPackage,
+    registry: &LoweringRegistry,
     unit: &SemanticUnit,
     static_method_references: &StaticMethodReferences,
     import_owners: &DependencyImportOwners,
@@ -738,9 +739,10 @@ pub(super) fn emit_dependency_unit(
         if projected.chain_role == Some(crate::projection::ChainRole::Root) {
             continue;
         }
-        let dependency_name = package
-            .projection
-            .dependency_name(&unit.namespace, &item.name)
+        let dependency_name = unit
+            .namespace
+            .strip_prefix("/deps/")
+            .and_then(|namespace| namespace.split('/').next())
             .unwrap_or("dependency");
         let parameters = contract
             .parameters
@@ -810,10 +812,34 @@ pub(super) fn emit_dependency_unit(
             |_| projected.result.rust_type(),
         );
         let result = format!("Result<{value}, crate::TerraneForeignError>");
+        let error_kind = projected
+            .error
+            .as_deref()
+            .and_then(|rust_path| {
+                package
+                    .projection
+                    .projected_identity_for_rust_path(rust_path)
+                    .map(|(namespace, name)| (format!("{namespace}::{name}"), name.to_owned()))
+            })
+            .map_or_else(
+                || "TERRANE_DEPENDENCY_ERROR".to_owned(),
+                |(identity, name)| {
+                    let descriptor = registry.register_descriptor(&identity, &name);
+                    format!("DescriptorId({descriptor})")
+                },
+            );
         let converted_value = if projected.destination_result.is_some() {
             "value".to_owned()
         } else {
             projected_result_expression("value", &projected.result)
+        };
+        let nested_converted_value = match &projected.result {
+            crate::projection::ProjectedType::Optional(inner)
+                if projected.error_optional_depth == 1 =>
+            {
+                projected_result_expression("value", inner)
+            }
+            _ => converted_value.clone(),
         };
         let unit_variant = package.projection.is_unit_variant(item);
         if unit_variant {
@@ -905,10 +931,17 @@ pub(super) fn emit_dependency_unit(
             format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
         };
         if package.profile.panic == crate::package::PanicProfile::Abort {
-            if projected.error.is_some() {
+            if projected.error_optional_depth == 1 {
                 writeln!(
                     output,
-                    "    match {invocation} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
+                    "    match {invocation} {{\n        None => Ok(None),\n        Some(Ok(value)) => Ok(Some({nested_converted_value})),\n        Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
+                    item.rust_path,
+                )
+                .expect("writing to a string cannot fail");
+            } else if projected.error.is_some() {
+                writeln!(
+                    output,
+                    "    match {invocation} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
                     item.rust_path,
                 )
                 .expect("writing to a string cannot fail");
@@ -919,10 +952,20 @@ pub(super) fn emit_dependency_unit(
                 )
                 .expect("writing to a string cannot fail");
             }
+        } else if projected.error_optional_depth == 1 {
+            writeln!(
+                output,
+                "    match {caught} {{\n        Ok(None) => Ok(None),\n        Ok(Some(Ok(value))) => Ok(Some({nested_converted_value})),\n        Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                dependency_name,
+                item.rust_path,
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
         } else if projected.error.is_some() {
             writeln!(
                 output,
-                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
                 dependency_name,

@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-nested-outcome-witness = { path = "fixture-registry/terrane-nested-outcome-witness-0.1.0" }

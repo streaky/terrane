@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/axum-core::Error",
     ];
 }
 mod __terrane_trace {
@@ -466,43 +467,47 @@ mod __terrane_trace {
         "/app::upgrade-handler",
         "/app::main",
     ];
-    pub static SITES: [Site; 18] = [
-        /* terrane-site-row: site 0: /app::socket-task (src/main.trn:15:34-15:54) */
-        { Site { function: 0, file: 0, line: 15, column: 34, end_line: 15, end_column: 54 } },
-        /* terrane-site-row: site 1: /app::socket-task (src/main.trn:17:30-17:52) */
-        { Site { function: 0, file: 0, line: 17, column: 30, end_line: 17, end_column: 52 } },
-        /* terrane-site-row: site 2: /app::socket-task (src/main.trn:17:16-17:53) */
-        { Site { function: 0, file: 0, line: 17, column: 16, end_line: 17, end_column: 53 } },
-        /* terrane-site-row: site 3: /app::socket-task (src/main.trn:17:15-17:54) */
-        { Site { function: 0, file: 0, line: 17, column: 15, end_line: 17, end_column: 54 } },
-        /* terrane-site-row: site 4: /app::socket-task (src/main.trn:18:26-18:40) */
-        { Site { function: 0, file: 0, line: 18, column: 26, end_line: 18, end_column: 40 } },
-        /* terrane-site-row: site 5: /app::socket-task (src/main.trn:18:12-18:41) */
-        { Site { function: 0, file: 0, line: 18, column: 12, end_line: 18, end_column: 41 } },
-        /* terrane-site-row: site 6: /app::socket-task (src/main.trn:18:11-18:42) */
-        { Site { function: 0, file: 0, line: 18, column: 11, end_line: 18, end_column: 42 } },
-        /* terrane-site-row: site 7: /app::upgrade-handler (src/main.trn:21:12-21:46) */
-        { Site { function: 1, file: 0, line: 21, column: 12, end_line: 21, end_column: 46 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:24:9-24:24) */
-        { Site { function: 2, file: 0, line: 24, column: 9, end_line: 24, end_column: 24 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:25:9-25:31) */
-        { Site { function: 2, file: 0, line: 25, column: 9, end_line: 25, end_column: 31 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:26:14-26:26) */
-        { Site { function: 2, file: 0, line: 26, column: 14, end_line: 26, end_column: 26 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:27:34-27:45) */
-        { Site { function: 2, file: 0, line: 27, column: 34, end_line: 27, end_column: 45 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:27:14-27:46) */
-        { Site { function: 2, file: 0, line: 27, column: 14, end_line: 27, end_column: 46 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:28:36-28:56) */
-        { Site { function: 2, file: 0, line: 28, column: 36, end_line: 28, end_column: 56 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:28:14-28:57) */
-        { Site { function: 2, file: 0, line: 28, column: 14, end_line: 28, end_column: 57 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:29:22-29:54) */
-        { Site { function: 2, file: 0, line: 29, column: 22, end_line: 29, end_column: 54 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:31:16-31:56) */
-        { Site { function: 2, file: 0, line: 31, column: 16, end_line: 31, end_column: 56 } },
-        /* terrane-site-row: site 17: /app::main (src/main.trn:31:15-31:57) */
-        { Site { function: 2, file: 0, line: 31, column: 15, end_line: 31, end_column: 57 } },
+    pub static SITES: [Site; 20] = [
+        /* terrane-site-row: site 0: /app::socket-task (src/main.trn:15:34-15:46) */
+        { Site { function: 0, file: 0, line: 15, column: 34, end_line: 15, end_column: 46 } },
+        /* terrane-site-row: site 1: /app::socket-task (src/main.trn:17:23-17:44) */
+        { Site { function: 0, file: 0, line: 17, column: 23, end_line: 17, end_column: 44 } },
+        /* terrane-site-row: site 2: /app::socket-task (src/main.trn:19:36-19:61) */
+        { Site { function: 0, file: 0, line: 19, column: 36, end_line: 19, end_column: 61 } },
+        /* terrane-site-row: site 3: /app::socket-task (src/main.trn:21:38-21:61) */
+        { Site { function: 0, file: 0, line: 21, column: 38, end_line: 21, end_column: 61 } },
+        /* terrane-site-row: site 4: /app::socket-task (src/main.trn:21:24-21:62) */
+        { Site { function: 0, file: 0, line: 21, column: 24, end_line: 21, end_column: 62 } },
+        /* terrane-site-row: site 5: /app::socket-task (src/main.trn:21:23-21:63) */
+        { Site { function: 0, file: 0, line: 21, column: 23, end_line: 21, end_column: 63 } },
+        /* terrane-site-row: site 6: /app::socket-task (src/main.trn:22:26-22:46) */
+        { Site { function: 0, file: 0, line: 22, column: 26, end_line: 22, end_column: 46 } },
+        /* terrane-site-row: site 7: /app::socket-task (src/main.trn:22:12-22:47) */
+        { Site { function: 0, file: 0, line: 22, column: 12, end_line: 22, end_column: 47 } },
+        /* terrane-site-row: site 8: /app::socket-task (src/main.trn:22:11-22:48) */
+        { Site { function: 0, file: 0, line: 22, column: 11, end_line: 22, end_column: 48 } },
+        /* terrane-site-row: site 9: /app::upgrade-handler (src/main.trn:25:12-25:46) */
+        { Site { function: 1, file: 0, line: 25, column: 12, end_line: 25, end_column: 46 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:28:9-28:24) */
+        { Site { function: 2, file: 0, line: 28, column: 9, end_line: 28, end_column: 24 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:29:9-29:31) */
+        { Site { function: 2, file: 0, line: 29, column: 9, end_line: 29, end_column: 31 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:30:14-30:26) */
+        { Site { function: 2, file: 0, line: 30, column: 14, end_line: 30, end_column: 26 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:31:34-31:45) */
+        { Site { function: 2, file: 0, line: 31, column: 34, end_line: 31, end_column: 45 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:31:14-31:46) */
+        { Site { function: 2, file: 0, line: 31, column: 14, end_line: 31, end_column: 46 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:32:36-32:56) */
+        { Site { function: 2, file: 0, line: 32, column: 36, end_line: 32, end_column: 56 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:32:14-32:57) */
+        { Site { function: 2, file: 0, line: 32, column: 14, end_line: 32, end_column: 57 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:33:22-33:54) */
+        { Site { function: 2, file: 0, line: 33, column: 22, end_line: 33, end_column: 54 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:35:16-35:56) */
+        { Site { function: 2, file: 0, line: 35, column: 16, end_line: 35, end_column: 56 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:35:15-35:57) */
+        { Site { function: 2, file: 0, line: 35, column: 15, end_line: 35, end_column: 57 } },
     ];
     #[cold]
     #[inline(never)]
@@ -522,77 +527,183 @@ async fn health() -> String {
     return String::from("ok");
 }
 async fn socket_task(mut socket: WebSocket) {
-    let received: Option<String> = __terrane_traced(
+    let message: Option<Message> = __terrane_traced(
         __terrane_await({
-                let __terrane_future = receive_text(&mut socket);
+                let __terrane_future = {
+                    let __terrane_call = (&mut socket).recv();
+                    async move {
+                        match crate::__terrane_dependency_await_unwind(__terrane_call)
+                            .await
+                        {
+                            Ok(None) => Ok(None),
+                            Ok(Some(Ok(value))) => Ok(Some(value)),
+                            Ok(Some(Err(error))) => {
+                                Err(
+                                    crate::TerraneForeignError(
+                                        crate::TerraneError::custom_raised(
+                                            crate::DescriptorId(2),
+                                            format!(
+                                                "Rust dependency `axum` member `axum::extract::ws::WebSocket::recv` failed: {error}"
+                                            ),
+                                            crate::TERRANE_NO_SITE,
+                                        ),
+                                    ),
+                                )
+                            }
+                            Err(payload) => {
+                                Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "axum",
+                                        "axum::extract::ws::WebSocket::recv",
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                };
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        0 /* terrane-site: src/main.trn:15:34-15:54 */,
+                        0 /* terrane-site: src/main.trn:15:34-15:46 */,
                     )
                 }
             })
             .await,
-        0 /* terrane-site: src/main.trn:15:34-15:54 */,
+        0 /* terrane-site: src/main.trn:15:34-15:46 */,
     );
-    if received.is_some() {
-        __terrane_traced(
-            __terrane_await({
-                    let __terrane_future = {
-                        let __terrane_call = (&mut socket)
-                            .send(
-                                __terrane_raised(
-                                    text_message(
-                                        received
-                                            .as_ref()
-                                            .expect("semantic optional narrowing")
-                                            .clone(),
-                                    ),
-                                    1 /* terrane-site: src/main.trn:17:30-17:52 */,
-                                ),
-                            );
-                        async move {
-                            match crate::__terrane_dependency_await_unwind(
-                                    __terrane_call,
-                                )
-                                .await
-                            {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
-                                    Err(
-                                        crate::TerraneForeignError(
-                                            crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"
-                                                ),
-                                                crate::TERRANE_NO_SITE,
-                                            ),
-                                        ),
+    if message.is_some() {
+        let kind: String = __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| match &message
+                    .as_ref()
+                    .expect("semantic optional narrowing")
+                    .clone()
+                {
+                    axum::extract::ws::Message::Text { .. } => "Text".to_owned(),
+                    axum::extract::ws::Message::Binary { .. } => "Binary".to_owned(),
+                    axum::extract::ws::Message::Ping { .. } => "Ping".to_owned(),
+                    axum::extract::ws::Message::Pong { .. } => "Pong".to_owned(),
+                    axum::extract::ws::Message::Close { .. } => "Close".to_owned(),
+                }),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "axum",
+                            "axum::extract::ws::Message::variant-name",
+                        ),
+                    )
+                }
+            },
+            1 /* terrane-site: src/main.trn:17:23-17:44 */,
+        );
+        if kind == String::from("Text") {
+            let received: Option<String> = __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| match message
+                        .as_ref()
+                        .expect("semantic optional narrowing")
+                        .clone()
+                    {
+                        axum::extract::ws::Message::Text(value) => {
+                            Some(
+                                <axum::extract::ws::Utf8Bytes as std::ops::Deref>::deref(
+                                        &value,
                                     )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "axum",
-                                            "axum::extract::ws::WebSocket::send",
-                                        ),
-                                    )
-                                }
-                            }
+                                    .to_owned(),
+                            )
                         }
-                    };
-                    async move {
-                        __terrane_raised_err(
-                            __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:17:16-17:53 */,
+                        _ => None,
+                    }),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "axum",
+                                "axum::extract::ws::Message::into-Text",
+                            ),
                         )
                     }
-                })
-                .await,
-            3 /* terrane-site: src/main.trn:17:15-17:54 */,
-        );
+                },
+                2 /* terrane-site: src/main.trn:19:36-19:61 */,
+            );
+            if received.is_some() {
+                __terrane_traced(
+                    __terrane_await({
+                            let __terrane_future = {
+                                let __terrane_call = (&mut socket)
+                                    .send(
+                                        __terrane_raised(
+                                            match std::panic::catch_unwind(|| axum::extract::ws::Message::Text(
+                                                received
+                                                    .as_ref()
+                                                    .expect("semantic optional narrowing")
+                                                    .clone()
+                                                    .into(),
+                                            )) {
+                                                Ok(value) => Ok(value),
+                                                Err(payload) => {
+                                                    Err(
+                                                        crate::__terrane_dependency_panic(
+                                                            payload,
+                                                            "axum",
+                                                            "axum::extract::ws::Message::Text",
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                            3 /* terrane-site: src/main.trn:21:38-21:61 */,
+                                        ),
+                                    );
+                                async move {
+                                    match crate::__terrane_dependency_await_unwind(
+                                            __terrane_call,
+                                        )
+                                        .await
+                                    {
+                                        Ok(Ok(value)) => Ok(value),
+                                        Ok(Err(error)) => {
+                                            Err(
+                                                crate::TerraneForeignError(
+                                                    crate::TerraneError::custom_raised(
+                                                        crate::DescriptorId(2),
+                                                        format!(
+                                                            "Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"
+                                                        ),
+                                                        crate::TERRANE_NO_SITE,
+                                                    ),
+                                                ),
+                                            )
+                                        }
+                                        Err(payload) => {
+                                            Err(
+                                                crate::__terrane_dependency_panic(
+                                                    payload,
+                                                    "axum",
+                                                    "axum::extract::ws::WebSocket::send",
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+                            };
+                            async move {
+                                __terrane_raised_err(
+                                    __terrane_future.await,
+                                    4 /* terrane-site: src/main.trn:21:24-21:62 */,
+                                )
+                            }
+                        })
+                        .await,
+                    5 /* terrane-site: src/main.trn:21:23-21:63 */,
+                );
+            }
+        }
     }
     __terrane_traced(
         __terrane_await({
@@ -600,8 +711,21 @@ async fn socket_task(mut socket: WebSocket) {
                     let __terrane_call = (&mut socket)
                         .send(
                             __terrane_raised(
-                                close_message(),
-                                4 /* terrane-site: src/main.trn:18:26-18:40 */,
+                                match std::panic::catch_unwind(|| axum::extract::ws::Message::Close(
+                                    None,
+                                )) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "axum",
+                                                "axum::extract::ws::Message::Close",
+                                            ),
+                                        )
+                                    }
+                                },
+                                6 /* terrane-site: src/main.trn:22:26-22:46 */,
                             ),
                         );
                     async move {
@@ -613,7 +737,7 @@ async fn socket_task(mut socket: WebSocket) {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"
                                             ),
@@ -637,12 +761,12 @@ async fn socket_task(mut socket: WebSocket) {
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        5 /* terrane-site: src/main.trn:18:12-18:41 */,
+                        7 /* terrane-site: src/main.trn:22:12-22:47 */,
                     )
                 }
             })
             .await,
-        6 /* terrane-site: src/main.trn:18:11-18:42 */,
+        8 /* terrane-site: src/main.trn:22:11-22:48 */,
     );
 }
 async fn upgrade_handler(request: WebSocketUpgrade) -> UpgradeResponse {
@@ -655,7 +779,7 @@ async fn upgrade_handler(request: WebSocketUpgrade) -> UpgradeResponse {
                 Box::pin(socket_task(argument_0))
             }),
         ),
-        7 /* terrane-site: src/main.trn:21:12-21:46 */,
+        9 /* terrane-site: src/main.trn:25:12-25:46 */,
     );
 }
 fn main() {
@@ -663,18 +787,18 @@ fn main() {
         {
             let _: Router = __terrane_raised(
                 default_terrane_deps_axum_router(),
-                8 /* terrane-site: src/main.trn:24:9-24:24 */,
+                10 /* terrane-site: src/main.trn:28:9-28:24 */,
             );
         }
         {
             let _: MethodRouter = __terrane_raised(
                 default_terrane_deps_axum_routing_methodrouter(),
-                9 /* terrane-site: src/main.trn:25:9-25:31 */,
+                11 /* terrane-site: src/main.trn:29:9-29:31 */,
             );
         }
         let mut router: Router = __terrane_raised(
             terrane_static_trn_526f75746572_new(),
-            10 /* terrane-site: src/main.trn:26:14-26:26 */,
+            12 /* terrane-site: src/main.trn:30:14-30:26 */,
         );
         router = __terrane_raised(
             match std::panic::catch_unwind(
@@ -722,7 +846,7 @@ fn main() {
                                         )
                                     }
                                 },
-                                11 /* terrane-site: src/main.trn:27:34-27:45 */,
+                                13 /* terrane-site: src/main.trn:31:34-31:45 */,
                             ),
                         )
                 }),
@@ -738,7 +862,7 @@ fn main() {
                     )
                 }
             },
-            12 /* terrane-site: src/main.trn:27:14-27:46 */,
+            14 /* terrane-site: src/main.trn:31:14-31:46 */,
         );
         router = __terrane_raised(
             match std::panic::catch_unwind(
@@ -792,7 +916,7 @@ fn main() {
                                         )
                                     }
                                 },
-                                13 /* terrane-site: src/main.trn:28:36-28:56 */,
+                                15 /* terrane-site: src/main.trn:32:36-32:56 */,
                             ),
                         )
                 }),
@@ -808,7 +932,7 @@ fn main() {
                     )
                 }
             },
-            14 /* terrane-site: src/main.trn:28:14-28:57 */,
+            16 /* terrane-site: src/main.trn:32:14-32:57 */,
         );
         let listener: TcpListener = __terrane_traced(
             __terrane_await({
@@ -829,7 +953,7 @@ fn main() {
                                             crate::TerraneError::custom_raised(
                                                 crate::TERRANE_DEPENDENCY_ERROR,
                                                 format!(
-                                                    "Rust dependency `tokio` member `tokio::net::TcpListener::bind` failed: {error}"
+                                                    "Rust dependency `dependency` member `tokio::net::TcpListener::bind` failed: {error}"
                                                 ),
                                                 crate::TERRANE_NO_SITE,
                                             ),
@@ -840,7 +964,7 @@ fn main() {
                                     Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "tokio",
+                                            "dependency",
                                             "tokio::net::TcpListener::bind",
                                         ),
                                     )
@@ -851,12 +975,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            15 /* terrane-site: src/main.trn:29:22-29:54 */,
+                            17 /* terrane-site: src/main.trn:33:22-33:54 */,
                         )
                     }
                 })
                 .await,
-            15 /* terrane-site: src/main.trn:29:22-29:54 */,
+            17 /* terrane-site: src/main.trn:33:22-33:54 */,
         );
         if false {
             __terrane_traced(
@@ -865,12 +989,12 @@ fn main() {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                16 /* terrane-site: src/main.trn:31:16-31:56 */,
+                                18 /* terrane-site: src/main.trn:35:16-35:56 */,
                             )
                         }
                     })
                     .await,
-                17 /* terrane-site: src/main.trn:31:15-31:57 */,
+                19 /* terrane-site: src/main.trn:35:15-35:57 */,
             );
         }
         println!(
@@ -879,8 +1003,6 @@ fn main() {
         );
     });
 }
-// Source: <terrane>/projected/deps/axum-core.trn
-// Namespace: deps/axum-core
 // Source: <terrane>/projected/deps/axum/extract/ws.trn
 // Namespace: deps/axum/extract/ws
 // Source: <terrane>/projected/deps/axum/extract.trn
@@ -915,15 +1037,12 @@ pub fn default_terrane_deps_axum_routing_methodrouter() -> Result<
 // Namespace: deps/tokio/net
 // Source: <terrane>/projected/deps/axum.trn
 // Namespace: deps/axum
+pub use axum::extract::ws::CloseFrame;
 pub use axum::extract::ws::Message;
 pub use axum::routing::MethodFilter;
 pub type MethodRouter = axum::routing::MethodRouter<(), core::convert::Infallible>;
 pub type Router = axum::Router<()>;
 pub use tokio::net::TcpListener;
-pub type TerraneNs4Deps4Axum7Extract2WsResult48b72fbedaf851fdef46b20b67ede78941e7b9cf3a599d6dd753ebe1d0b6e4ef = core::result::Result<
-    axum::extract::ws::Message,
-    axum_core::Error,
->;
 pub use axum_core::response::Response as TerraneNs4Deps4Axum7ExtractResponse;
 pub type TerraneNs4Deps4Axum7ExtractWebSocketUpgrade3c883fea21bc271e02314eb477909d23ae17ecfc78e11684ad67ddf0d2a9f675<
     C,
@@ -955,55 +1074,6 @@ pub fn terrane_static_trn_526f75746572_new() -> Result<
         }
     }
 }
-pub fn close_message() -> Result<Message, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_integration_adapters::axum_08::close_message()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-integration-adapters",
-                    "terrane_integration_adapters::axum_08::close_message",
-                ),
-            )
-        }
-    }
-}
-pub async fn receive_text(
-    socket: &mut WebSocket,
-) -> Result<Option<String>, crate::TerraneForeignError> {
-    match crate::__terrane_dependency_await_unwind(
-            terrane_integration_adapters::axum_08::receive_text(socket),
-        )
-        .await
-    {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `terrane-integration-adapters` member `terrane_integration_adapters::axum_08::receive_text` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-integration-adapters",
-                    "terrane_integration_adapters::axum_08::receive_text",
-                ),
-            )
-        }
-    }
-}
 pub async fn serve_router(
     listener: TcpListener,
     router: Router,
@@ -1022,7 +1092,7 @@ pub async fn serve_router(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `terrane-integration-adapters` member `terrane_integration_adapters::axum_08::serve_router` failed: {error}"
+                            "Rust dependency `axum` member `terrane_integration_adapters::axum_08::serve_router` failed: {error}"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1033,27 +1103,8 @@ pub async fn serve_router(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-integration-adapters",
+                    "axum",
                     "terrane_integration_adapters::axum_08::serve_router",
-                ),
-            )
-        }
-    }
-}
-pub fn text_message(text: String) -> Result<Message, crate::TerraneForeignError> {
-    let text = text;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_integration_adapters::axum_08::text_message(
-            text,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-integration-adapters",
-                    "terrane_integration_adapters::axum_08::text_message",
                 ),
             )
         }
@@ -1095,7 +1146,7 @@ pub fn upgrade(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-integration-adapters",
+                    "axum",
                     "terrane_integration_adapters::axum_08::upgrade",
                 ),
             )

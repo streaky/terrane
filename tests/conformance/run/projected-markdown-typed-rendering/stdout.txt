@@ -1,0 +1,2 @@
+<p><del>Venus</del>Mars!</p>
+Rust dependency `markdown` member `markdown::to_html_with_options` failed: 1:2: Unexpected end of file in expression, expected a corresponding closing brace for `{` (markdown-rs:unexpected-eof)

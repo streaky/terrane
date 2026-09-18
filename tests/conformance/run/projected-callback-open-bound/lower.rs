@@ -513,7 +513,7 @@ fn main() {
             std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error)
             => std::panic::panic_any(error) })) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
             "terrane_callback_witness::open_callback")) }, 0 /* terrane-site: src/main.trn:9:13-9:39 */))
         );
         let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
@@ -534,7 +534,7 @@ fn main() {
             ::TERRANE_NO_SITE))) ?) }).collect:: < Result < std::vec::Vec < i64 >, _ > >
             () ?) } () { Ok(value) => value, Err(error) => std::panic::panic_any(error)
             })) { Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_callback_witness",
+            ::__terrane_dependency_panic(payload, "terrane-callback-witness",
             "terrane_callback_witness::render_many")) }, 1 /* terrane-site: src/main.trn:11:13-11:32 */))
         );
         println!(
@@ -561,7 +561,7 @@ fn main() {
             move { match crate ::__terrane_dependency_await_unwind(__terrane_call). await
             { Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_callback_witness", "terrane_callback_witness::open_async")) } } };
+            "terrane-callback-witness", "terrane_callback_witness::open_async")) } } };
             async move { __terrane_raised_err(__terrane_future. await,
             2 /* terrane-site: src/main.trn:13:19-13:48 */) } }). await,
             3 /* terrane-site: src/main.trn:13:18-13:49 */))

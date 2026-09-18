@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use rustdoc_types::{
-    AssocItemConstraintKind, Crate as RustdocCrate, Function, GenericArg, GenericArgs,
+    AssocItemConstraintKind, Attribute, Crate as RustdocCrate, Function, GenericArg, GenericArgs,
     GenericBound, GenericParamDef, GenericParamDefKind, Id, Impl, Item, ItemEnum, ItemSummary,
     Path as RustdocPath, Struct, Term, Type, VariantKind, Visibility, WherePredicate,
 };
@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "50";
+const PROJECTION_SCHEMA: &str = "51";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -239,6 +239,10 @@ pub enum ProjectedKind {
         #[serde(default)]
         static_methods: Vec<ProjectedFunction>,
         #[serde(default)]
+        boundary: ProjectedBoundaryCapabilities,
+        #[serde(default)]
+        displayable: bool,
+        #[serde(default)]
         cloneable: bool,
         #[serde(default)]
         send: bool,
@@ -247,6 +251,16 @@ pub enum ProjectedKind {
     },
     Interface(ProjectedInterface),
     Enum {
+        #[serde(default)]
+        methods: Vec<ProjectedFunction>,
+        #[serde(default)]
+        static_methods: Vec<ProjectedFunction>,
+        #[serde(default)]
+        displayable: bool,
+        #[serde(default)]
+        send: bool,
+        #[serde(default)]
+        sync: bool,
         data_carrying: bool,
         comparable: bool,
     },
@@ -300,6 +314,45 @@ pub enum ChainRole {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectedEnumOperation {
+    Construct {
+        variant: String,
+        unit: bool,
+        conversion: ProjectedEnumPayloadConversion,
+        payload_rust_type: String,
+    },
+    VariantName {
+        variants: Vec<String>,
+        exhaustive: bool,
+    },
+    Extract {
+        variant: String,
+        conversion: ProjectedEnumPayloadConversion,
+        payload_rust_type: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectedEnumPayloadConversion {
+    Identity,
+    Into,
+    AsRefString,
+    AsRefBytes,
+    DerefString,
+    DerefBytes,
+}
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedBoundaryCapabilities {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    string_constructor: Option<ProjectedEnumPayloadConversion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bytes_constructor: Option<ProjectedEnumPayloadConversion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    string_extraction: Option<ProjectedEnumPayloadConversion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bytes_extraction: Option<ProjectedEnumPayloadConversion>,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedFunction {
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
@@ -312,6 +365,10 @@ pub struct ProjectedFunction {
     pub is_async: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_requirements: Option<ProjectedExecutionRequirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enum_operation: Option<ProjectedEnumOperation>,
+    #[serde(default)]
+    pub error_optional_depth: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
@@ -908,6 +965,11 @@ impl Projection {
                     methods,
                     static_methods,
                     ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
                 } => {
                     if item.name == name {
                         candidates.push(ProjectedType::Foreign {
@@ -926,7 +988,6 @@ impl Projection {
                         collect_function_projected_types(&method.function, name, &mut candidates);
                     }
                 }
-                ProjectedKind::Enum { .. } => {}
             }
         }
         let first = candidates.first()?;
@@ -952,24 +1013,13 @@ impl Projection {
                 .find(|item| item.rust_path == base)
         });
         match direct.or(instantiated).map(|item| &item.kind) {
-            Some(ProjectedKind::ForeignType { send, .. }) => *send,
+            Some(ProjectedKind::ForeignType { send, .. } | ProjectedKind::Enum { send, .. }) => {
+                *send
+            }
             Some(ProjectedKind::Interface(interface)) => interface.send,
             _ => false,
         }
     }
-    #[must_use]
-    pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
-        self.dependencies
-            .iter()
-            .find(|dependency| {
-                dependency
-                    .items
-                    .iter()
-                    .any(|item| item.namespace == namespace && item.name == name)
-            })
-            .map(|dependency| dependency.name.as_str())
-    }
-
     #[must_use]
     pub fn foreign_rust_path(&self, namespace: &str, name: &str) -> Option<&str> {
         self.item(namespace, name)
@@ -1002,6 +1052,11 @@ impl Projection {
                     methods,
                     static_methods,
                     ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
                 } => {
                     let candidates = if is_static { static_methods } else { methods };
                     candidates.iter().find(|method| method.name == method_name)
@@ -1013,6 +1068,31 @@ impl Projection {
                     .map(|method| &method.function),
                 _ => None,
             })
+    }
+
+    #[must_use]
+    pub fn projected_identity_for_rust_path(&self, rust_path: &str) -> Option<(&str, &str)> {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| item.rust_path == rust_path)
+            .map(|item| (item.namespace.as_str(), item.name.as_str()))
+    }
+
+    pub fn is_projected_error_type(&self, namespace: &str, name: &str) -> bool {
+        let Some(error_item) = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| item.namespace == namespace && item.name == name)
+        else {
+            return false;
+        };
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .flat_map(projected_item_functions)
+            .any(|function| function.error.as_deref() == Some(error_item.rust_path.as_str()))
     }
     #[must_use]
     pub(crate) fn interface_method(
@@ -1140,6 +1220,27 @@ impl Projection {
     }
 }
 
+fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
+    match &item.kind {
+        ProjectedKind::Function(function) => vec![function],
+        ProjectedKind::ForeignType {
+            methods,
+            static_methods,
+            ..
+        }
+        | ProjectedKind::Enum {
+            methods,
+            static_methods,
+            ..
+        } => methods.iter().chain(static_methods).collect(),
+        ProjectedKind::Interface(interface) => interface
+            .methods
+            .iter()
+            .map(|method| &method.function)
+            .collect(),
+    }
+}
+
 fn expanded_source_imports(
     all_items: &[&ProjectedItem],
     imports: &BTreeMap<String, BTreeSet<String>>,
@@ -1215,6 +1316,11 @@ fn collect_source_foreign(
                 methods,
                 static_methods,
                 ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
             } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
                 for method in methods.iter().chain(static_methods) {
@@ -1230,28 +1336,33 @@ fn collect_source_foreign(
                     collect_foreign_function(&method.function, &mut foreign);
                 }
             }
-            ProjectedKind::Enum { .. } => {
-                foreign.insert(item.rust_path.clone(), item.name.clone());
-            }
         }
     }
     loop {
         let previous_len = foreign.len();
         let referenced = foreign.keys().cloned().collect::<Vec<_>>();
         for rust_path in referenced {
-            let Some(ProjectedItem {
-                kind:
-                    ProjectedKind::ForeignType {
-                        methods,
-                        static_methods,
-                        ..
-                    },
-                ..
-            }) = all_items
+            let Some(item) = all_items
                 .iter()
                 .copied()
                 .find(|item| item.rust_path == rust_path)
             else {
+                continue;
+            };
+            let methods = match &item.kind {
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
+                } => Some((methods, static_methods)),
+                _ => None,
+            };
+            let Some((methods, static_methods)) = methods else {
                 continue;
             };
             for method in methods.iter().chain(static_methods) {
@@ -1369,11 +1480,18 @@ fn render_foreign_declaration(
         }
         projected_kind => {
             writeln!(output, "class {name}").expect("writing to a string cannot fail");
-            if let Some(ProjectedKind::ForeignType {
-                methods,
-                static_methods,
-                ..
-            }) = projected_kind
+            if let Some(
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
+                },
+            ) = projected_kind
             {
                 for method in methods {
                     render_function(output, method, false, 4, aliases, None);
@@ -1880,12 +1998,19 @@ pub fn resolve(
         .collect::<Vec<_>>();
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     apply_namespace_overlays(&mut projected, &overlays)?;
+    resolve_cross_dependency_boundary_conversions(&mut projected);
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
+    decline_unrepresentable_error_types(&mut projected);
     canonicalize_projected_type_names(&mut projected);
     let auto_trait_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
-        .filter(|item| matches!(item.kind, ProjectedKind::ForeignType { .. }))
+        .filter(|item| {
+            matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+            )
+        })
         .flat_map(|item| {
             ["Send", "Sync"]
                 .into_iter()
@@ -1907,12 +2032,16 @@ pub fn resolve(
                 .flat_map(|dependency| &mut dependency.items)
                 .filter(|item| item.rust_path == evidence.question.rust_type)
             {
-                if let ProjectedKind::ForeignType { send, sync, .. } = &mut item.kind {
-                    match evidence.question.rust_bound.as_str() {
-                        "Send" => *send = satisfied,
-                        "Sync" => *sync = satisfied,
-                        _ => {}
+                match &mut item.kind {
+                    ProjectedKind::ForeignType { send, sync, .. }
+                    | ProjectedKind::Enum { send, sync, .. } => {
+                        match evidence.question.rust_bound.as_str() {
+                            "Send" => *send = satisfied,
+                            "Sync" => *sync = satisfied,
+                            _ => {}
+                        }
                     }
+                    _ => {}
                 }
             }
         }
@@ -2878,6 +3007,11 @@ fn enforce_transitive_reachability(
                 methods,
                 static_methods,
                 ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
             } = &mut item.kind
             {
                 let owner_path = item.rust_path.clone();
@@ -2903,6 +3037,7 @@ fn enforce_transitive_reachability(
             .declined
             .sort_by(|left, right| left.rust_path.cmp(&right.rust_path));
     }
+
     for owner in declared {
         let Some(owner_versions) = versions.get(&owner) else {
             continue;
@@ -2931,11 +3066,223 @@ fn enforce_transitive_reachability(
     }
     Ok(())
 }
+fn resolve_cross_dependency_boundary_conversions(projected: &mut [ProjectedDependency]) {
+    let capabilities = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter_map(|item| match &item.kind {
+            ProjectedKind::ForeignType { boundary, .. }
+                if boundary != &ProjectedBoundaryCapabilities::default() =>
+            {
+                Some((item.rust_path.clone(), boundary.clone()))
+            }
+            _ => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    for item in projected
+        .iter_mut()
+        .flat_map(|dependency| &mut dependency.items)
+    {
+        let ProjectedKind::Enum {
+            methods,
+            static_methods,
+            ..
+        } = &mut item.kind
+        else {
+            continue;
+        };
+        for function in static_methods.iter_mut().chain(methods.iter_mut()) {
+            let Some(operation) = &mut function.enum_operation else {
+                continue;
+            };
+            match operation {
+                ProjectedEnumOperation::Construct {
+                    unit: false,
+                    conversion,
+                    payload_rust_type,
+                    ..
+                } => {
+                    let Some(boundary) = capabilities.get(payload_rust_type) else {
+                        continue;
+                    };
+                    let selected = if boundary.bytes_extraction.is_some() {
+                        boundary
+                            .bytes_constructor
+                            .map(|conversion| (ProjectedType::Bytes, conversion))
+                    } else if boundary.string_extraction.is_some() {
+                        boundary
+                            .string_constructor
+                            .map(|conversion| (ProjectedType::String, conversion))
+                    } else {
+                        None
+                    };
+                    if let Some((ty, selected_conversion)) = selected
+                        && let Some(parameter) = function.parameters.first_mut()
+                    {
+                        parameter.ty = ty;
+                        *conversion = selected_conversion;
+                    }
+                }
+                ProjectedEnumOperation::Extract {
+                    conversion,
+                    payload_rust_type,
+                    ..
+                } => {
+                    let Some(boundary) = capabilities.get(payload_rust_type) else {
+                        continue;
+                    };
+                    let selected = boundary
+                        .bytes_extraction
+                        .map(|conversion| (ProjectedType::Bytes, conversion))
+                        .or_else(|| {
+                            boundary
+                                .string_extraction
+                                .map(|conversion| (ProjectedType::String, conversion))
+                        });
+                    if let Some((ty, selected_conversion)) = selected {
+                        function.result = ProjectedType::Optional(Box::new(ty));
+                        *conversion = selected_conversion;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn decline_unrepresentable_error_types(projected: &mut [ProjectedDependency]) {
+    let projected_error_types = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter_map(|item| match item.kind {
+            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => {
+                Some(item.rust_path.clone())
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let displayable = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter_map(|item| match &item.kind {
+            ProjectedKind::ForeignType {
+                displayable: true, ..
+            }
+            | ProjectedKind::Enum {
+                displayable: true, ..
+            } => Some(item.rust_path.clone()),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    for dependency in projected {
+        let mut retained = Vec::with_capacity(dependency.items.len());
+        for mut item in std::mem::take(&mut dependency.items) {
+            let item_path = item.rust_path.clone();
+            match &mut item.kind {
+                ProjectedKind::Function(function) => {
+                    if let Some(error) =
+                        unsupported_projected_error(function, &projected_error_types, &displayable)
+                    {
+                        dependency.declined.push(DeclinedItem {
+                            rust_path: item_path,
+                            reason: format!(
+                                "projected error `{error}` has no canonical displayable type"
+                            ),
+                        });
+                        continue;
+                    }
+                }
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
+                } => {
+                    retain_displayable_error_methods(
+                        methods,
+                        &projected_error_types,
+                        &displayable,
+                        &item_path,
+                        &mut dependency.declined,
+                    );
+                    retain_displayable_error_methods(
+                        static_methods,
+                        &projected_error_types,
+                        &displayable,
+                        &item_path,
+                        &mut dependency.declined,
+                    );
+                }
+                ProjectedKind::Interface(interface) => {
+                    interface.methods.retain(|method| {
+                        let Some(error) = unsupported_projected_error(
+                            &method.function,
+                            &projected_error_types,
+                            &displayable,
+                        ) else {
+                            return true;
+                        };
+                        dependency.declined.push(DeclinedItem {
+                            rust_path: format!("{item_path}::{}", method.function.name),
+                            reason: format!(
+                                "projected error `{error}` has no canonical displayable type"
+                            ),
+                        });
+                        false
+                    });
+                }
+            }
+            retained.push(item);
+        }
+        dependency.items = retained;
+    }
+}
+
+fn retain_displayable_error_methods(
+    methods: &mut Vec<ProjectedFunction>,
+    projected_error_types: &BTreeSet<String>,
+    displayable: &BTreeSet<String>,
+    owner_path: &str,
+    declined: &mut Vec<DeclinedItem>,
+) {
+    methods.retain(|method| {
+        let Some(error) = unsupported_projected_error(method, projected_error_types, displayable)
+        else {
+            return true;
+        };
+        declined.push(DeclinedItem {
+            rust_path: format!("{owner_path}::{}", method.name),
+            reason: format!("projected error `{error}` has no canonical displayable type"),
+        });
+        false
+    });
+}
+
+fn unsupported_projected_error<'a>(
+    function: &'a ProjectedFunction,
+    projected_error_types: &BTreeSet<String>,
+    displayable: &BTreeSet<String>,
+) -> Option<&'a str> {
+    function
+        .error
+        .as_deref()
+        .filter(|error| projected_error_types.contains(*error) && !displayable.contains(*error))
+}
 fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
     let names = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
-        .filter(|item| matches!(item.kind, ProjectedKind::ForeignType { .. }))
+        .filter(|item| {
+            matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+            )
+        })
         .map(|item| (item.rust_path.clone(), item.name.clone()))
         .collect::<BTreeMap<_, _>>();
     for item in projected
@@ -2948,13 +3295,17 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
                 methods,
                 static_methods,
                 ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
             } => methods.iter_mut().chain(static_methods).collect(),
             ProjectedKind::Interface(interface) => interface
                 .methods
                 .iter_mut()
                 .map(|method| &mut method.function)
                 .collect(),
-            ProjectedKind::Enum { .. } => Vec::new(),
         };
         for function in functions {
             for ty in function
@@ -3116,6 +3467,11 @@ fn decline_unnameable_bound_owners(
                     methods,
                     static_methods,
                     ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
                 } => {
                     for method_list in [methods, static_methods] {
                         let mut kept = Vec::new();
@@ -3143,7 +3499,6 @@ fn decline_unnameable_bound_owners(
                         continue;
                     }
                 }
-                ProjectedKind::Enum { .. } => {}
             }
             retained.push(item);
         }
@@ -3173,13 +3528,17 @@ fn projected_bound_dependencies(
                 methods,
                 static_methods,
                 ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
             } => methods.iter().chain(static_methods).collect(),
             ProjectedKind::Interface(interface) => interface
                 .methods
                 .iter()
                 .map(|method| &method.function)
                 .collect(),
-            ProjectedKind::Enum { .. } => Vec::new(),
         })
         .filter_map(|function| function.destination_result.as_ref())
         .flat_map(|destination| &destination.bound_roots)
@@ -3285,9 +3644,6 @@ fn write_workspace_with_bound_dependencies(
         effects: Vec::new(),
     }));
     write_workspace(workspace, &dependencies)?;
-    if bound_dependencies.is_empty() {
-        return Ok(());
-    }
     run_cargo(
         workspace,
         &["fetch", "--offline"],
@@ -3369,13 +3725,17 @@ fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
             methods,
             static_methods,
             ..
+        }
+        | ProjectedKind::Enum {
+            methods,
+            static_methods,
+            ..
         } => methods.iter().chain(static_methods).collect(),
         ProjectedKind::Interface(interface) => interface
             .methods
             .iter()
             .map(|method| &method.function)
             .collect(),
-        ProjectedKind::Enum { .. } => Vec::new(),
     };
     for function in functions {
         for ty in function
@@ -4362,7 +4722,6 @@ fn project_rustdoc(
         candidates.insert(*id, public_path.split("::").map(str::to_owned).collect());
     }
     let mut items = Vec::new();
-    let mut projected_enum_items = Vec::new();
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
@@ -4522,6 +4881,21 @@ fn project_rustdoc(
                     Ok(ProjectedKind::ForeignType {
                         methods,
                         static_methods,
+                        boundary: project_boundary_capabilities(
+                            &Type::ResolvedPath(RustdocPath {
+                                path: rust_path.clone(),
+                                id,
+                                args: None,
+                            }),
+                            index,
+                            paths,
+                        ),
+                        displayable: implements_trait(
+                            &structure.impls,
+                            index,
+                            paths,
+                            "core::fmt::Display",
+                        ),
                         cloneable: implements_trait(
                             &structure.impls,
                             index,
@@ -4537,48 +4911,182 @@ fn project_rustdoc(
                 if has_type_parameters(&enumeration.generics.params) {
                     Err("type has generic or lifetime parameters".to_owned())
                 } else {
-                    let data_carrying = enumeration.variants.iter().any(|id| {
-                        !matches!(
-                            index.get(id).map(|variant| &variant.inner),
-                            Some(ItemEnum::Variant(variant))
-                                if matches!(variant.kind, VariantKind::Plain)
-                        )
-                    });
-                    if !data_carrying {
-                        let variant_namespace = dependency_namespace(dependency, &path);
-                        for variant_id in &enumeration.variants {
-                            let Some(variant) = index.get(variant_id) else {
+                    let enum_type = ProjectedType::Foreign {
+                        rust_path: rust_path.clone(),
+                        name: name.clone(),
+                        base_rust_path: rust_path.clone(),
+                        arguments: Vec::new(),
+                    };
+                    let mut methods = Vec::new();
+                    let mut static_methods = Vec::new();
+                    let mut variant_names = Vec::new();
+                    let mut data_carrying = false;
+                    for variant_id in &enumeration.variants {
+                        let Some(variant_item) = index.get(variant_id) else {
+                            continue;
+                        };
+                        let Some(variant_name) = variant_item.name.as_deref() else {
+                            continue;
+                        };
+                        let ItemEnum::Variant(variant) = &variant_item.inner else {
+                            continue;
+                        };
+                        variant_names.push(variant_name.to_owned());
+                        let projected_payload = match &variant.kind {
+                            VariantKind::Plain => None,
+                            VariantKind::Tuple(fields) if fields.len() == 1 => {
+                                data_carrying = true;
+                                let Some(field_id) = fields[0].as_ref() else {
+                                    declined.push(DeclinedItem {
+                                        rust_path: format!("{rust_path}::{variant_name}"),
+                                        reason: "payload enum variant field is stripped".to_owned(),
+                                    });
+                                    continue;
+                                };
+                                let Some(Item {
+                                    inner: ItemEnum::StructField(field_type),
+                                    ..
+                                }) = index.get(field_id)
+                                else {
+                                    declined.push(DeclinedItem {
+                                        rust_path: format!("{rust_path}::{variant_name}"),
+                                        reason:
+                                            "payload enum variant field metadata is unavailable"
+                                                .to_owned(),
+                                    });
+                                    continue;
+                                };
+                                match project_enum_payload(field_type, index, paths) {
+                                    Ok(payload) => Some(payload),
+                                    Err(reason) => {
+                                        declined.push(DeclinedItem {
+                                            rust_path: format!("{rust_path}::{variant_name}"),
+                                            reason,
+                                        });
+                                        continue;
+                                    }
+                                }
+                            }
+                            VariantKind::Tuple(_) => {
+                                data_carrying = true;
+                                declined.push(DeclinedItem {
+                                    rust_path: format!("{rust_path}::{variant_name}"),
+                                    reason: "payload enum variant has multiple tuple fields"
+                                        .to_owned(),
+                                });
                                 continue;
-                            };
-                            let Some(variant_name) = variant.name.as_deref() else {
+                            }
+                            VariantKind::Struct { .. } => {
+                                data_carrying = true;
+                                declined.push(DeclinedItem {
+                                    rust_path: format!("{rust_path}::{variant_name}"),
+                                    reason: "payload enum variant has named fields".to_owned(),
+                                });
                                 continue;
-                            };
-                            projected_enum_items.push(ProjectedItem {
-                                namespace: variant_namespace.clone(),
-                                name: variant_name.to_owned(),
-                                rust_path: format!("{rust_path}::{variant_name}"),
-                                docs: variant.docs.clone(),
-                                kind: ProjectedKind::Function(ProjectedFunction {
-                                    name: variant_name.to_owned(),
-                                    parameters: Vec::new(),
-                                    generic_parameters: Vec::new(),
-                                    result: ProjectedType::Foreign {
-                                        rust_path: rust_path.clone(),
-                                        name: name.clone(),
-                                        base_rust_path: rust_path.clone(),
-                                        arguments: Vec::new(),
-                                    },
-                                    destination_result: None,
-                                    error: None,
-                                    is_async: false,
-                                    execution_requirements: None,
-                                    chain_role: None,
-                                    receiver: None,
+                            }
+                        };
+                        let (
+                            constructor_type,
+                            constructor_conversion,
+                            extraction_type,
+                            extraction_conversion,
+                            payload_rust_type,
+                        ) = projected_payload.unwrap_or_else(|| {
+                            (
+                                ProjectedType::None,
+                                ProjectedEnumPayloadConversion::Identity,
+                                ProjectedType::None,
+                                ProjectedEnumPayloadConversion::Identity,
+                                String::new(),
+                            )
+                        });
+                        static_methods.push(ProjectedFunction {
+                            name: variant_name.to_owned(),
+                            parameters: (constructor_type != ProjectedType::None)
+                                .then(|| ProjectedParameter {
+                                    name: "value".to_owned(),
+                                    ty: constructor_type,
+                                    borrowed: false,
+                                    mutable_borrow: false,
+                                    generic_parameter: None,
+                                    generic_bounds: Vec::new(),
+                                    generic_interface: None,
+                                    associated_type: None,
+                                })
+                                .into_iter()
+                                .collect(),
+                            generic_parameters: Vec::new(),
+                            result: enum_type.clone(),
+                            destination_result: None,
+                            error: None,
+                            is_async: false,
+                            execution_requirements: None,
+                            enum_operation: Some(ProjectedEnumOperation::Construct {
+                                variant: variant_name.to_owned(),
+                                conversion: constructor_conversion,
+                                unit: matches!(variant.kind, VariantKind::Plain),
+                                payload_rust_type: payload_rust_type.clone(),
+                            }),
+                            error_optional_depth: 0,
+                            chain_role: None,
+                            receiver: None,
+                        });
+                        if extraction_type != ProjectedType::None
+                            && !matches!(extraction_type, ProjectedType::Optional(_))
+                        {
+                            methods.push(ProjectedFunction {
+                                name: format!("into-{variant_name}"),
+                                parameters: Vec::new(),
+                                generic_parameters: Vec::new(),
+                                result: ProjectedType::Optional(Box::new(extraction_type)),
+                                destination_result: None,
+                                error: None,
+                                is_async: false,
+                                execution_requirements: None,
+                                enum_operation: Some(ProjectedEnumOperation::Extract {
+                                    variant: variant_name.to_owned(),
+                                    conversion: extraction_conversion,
+                                    payload_rust_type,
                                 }),
+                                error_optional_depth: 0,
+                                chain_role: None,
+                                receiver: Some(Receiver::Move),
                             });
                         }
                     }
+                    if data_carrying {
+                        methods.push(ProjectedFunction {
+                            name: "variant-name".to_owned(),
+                            parameters: Vec::new(),
+                            generic_parameters: Vec::new(),
+                            result: ProjectedType::String,
+                            destination_result: None,
+                            error: None,
+                            is_async: false,
+                            execution_requirements: None,
+                            enum_operation: Some(ProjectedEnumOperation::VariantName {
+                                variants: variant_names,
+                                exhaustive: !enumeration.has_stripped_variants
+                                    && !item.attrs.iter().any(|attribute| {
+                                        matches!(attribute, Attribute::NonExhaustive)
+                                    }),
+                            }),
+                            error_optional_depth: 0,
+                            chain_role: None,
+                            receiver: Some(Receiver::Borrow),
+                        });
+                    }
                     Ok(ProjectedKind::Enum {
+                        methods,
+                        static_methods,
+                        send: false,
+                        sync: false,
+                        displayable: implements_trait(
+                            &enumeration.impls,
+                            index,
+                            paths,
+                            "core::fmt::Display",
+                        ),
                         data_carrying,
                         comparable: implements_trait(
                             &enumeration.impls,
@@ -4639,7 +5147,6 @@ fn project_rustdoc(
             Err(reason) => declined.push(DeclinedItem { rust_path, reason }),
         }
     }
-    items.extend(projected_enum_items);
     projected_associated_items.sort_by(|left, right| {
         (&left.namespace, &left.name, &left.rust_path).cmp(&(
             &right.namespace,
@@ -4749,6 +5256,11 @@ fn project_rustdoc(
                 methods,
                 static_methods,
                 ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
             } => {
                 for method in methods.iter_mut().chain(static_methods) {
                     normalize(method);
@@ -4784,7 +5296,6 @@ fn project_rustdoc(
                     );
                 }
             }
-            ProjectedKind::Enum { .. } => {}
         }
     }
     items.sort_by(|left, right| {
@@ -5132,6 +5643,8 @@ fn project_chain_owner(
         kind: ProjectedKind::ForeignType {
             methods,
             static_methods: Vec::new(),
+            boundary: ProjectedBoundaryCapabilities::default(),
+            displayable: false,
             cloneable: false,
             send: false,
             sync: false,
@@ -5428,6 +5941,7 @@ fn project_function_inner(
         return Err("lifetime-bearing foreign type cannot cross a projected boundary".to_owned());
     }
     let mut error = None;
+    let mut error_optional_depth = 0;
     let result = if let Some(output) = effective_output.as_ref() {
         if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Result") || name == "Result")
@@ -5453,10 +5967,33 @@ fn project_function_inner(
                 .into_iter()
                 .next()
                 .ok_or_else(|| "Option has no value type".to_owned())?;
-            ProjectedType::Optional(Box::new(
-                project_type(value, index, paths, &generic_types)
-                    .map_err(|reason| format!("projected optional value: {reason}"))?,
-            ))
+            if resolved_name(value, paths)
+                .is_some_and(|name| name.ends_with("::Result") || name == "Result")
+            {
+                let arguments = type_arguments(value);
+                let success = arguments
+                    .first()
+                    .ok_or_else(|| "nested Result has no value type".to_owned())?;
+                let projected = project_type(success, index, paths, &generic_types)
+                    .map_err(|reason| format!("projected nested result value: {reason}"))?;
+                if projected.rust_type().contains('&') {
+                    return Err(
+                        "borrowed nested result values cannot cross a projected boundary"
+                            .to_owned(),
+                    );
+                }
+                error = arguments
+                    .get(1)
+                    .and_then(|ty| resolved_name(ty, paths))
+                    .or_else(|| Some("Error".to_owned()));
+                error_optional_depth = 1;
+                ProjectedType::Optional(Box::new(projected))
+            } else {
+                ProjectedType::Optional(Box::new(
+                    project_type(value, index, paths, &generic_types)
+                        .map_err(|reason| format!("projected optional value: {reason}"))?,
+                ))
+            }
         } else {
             project_type(output, index, paths, &generic_types)
                 .map_err(|reason| format!("projected output: {reason}"))?
@@ -5510,6 +6047,8 @@ fn project_function_inner(
                 transfer: RequirementKnowledge::Unknown,
             },
         ),
+        enum_operation: None,
+        error_optional_depth,
         chain_role: None,
         receiver,
     })
@@ -6884,10 +7423,288 @@ fn impl_trait_bounds(ty: &Type) -> Option<&[GenericBound]> {
         Type::ImplTrait(bounds) => Some(bounds),
         Type::BorrowedRef { type_, .. } => match type_.as_ref() {
             Type::ImplTrait(bounds) => Some(bounds),
+
             _ => None,
         },
         _ => None,
     }
+}
+fn project_enum_payload(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<
+    (
+        ProjectedType,
+        ProjectedEnumPayloadConversion,
+        ProjectedType,
+        ProjectedEnumPayloadConversion,
+        String,
+    ),
+    String,
+> {
+    let projected = project_type(ty, index, paths, &BTreeMap::new())?;
+    let rust_type = render_rust_type(ty, index, paths, &BTreeMap::new())?;
+    let mut constructor_type = projected.clone();
+    let mut constructor_conversion = ProjectedEnumPayloadConversion::Identity;
+    let mut extraction_type = projected.clone();
+    let mut extraction_conversion = ProjectedEnumPayloadConversion::Identity;
+    if matches!(projected, ProjectedType::Foreign { .. }) {
+        if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::From",
+            is_rust_string_type,
+        ) {
+            constructor_type = ProjectedType::String;
+            constructor_conversion = ProjectedEnumPayloadConversion::Into;
+        } else if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::From",
+            is_rust_byte_vector_type,
+        ) {
+            constructor_type = ProjectedType::Bytes;
+            constructor_conversion = ProjectedEnumPayloadConversion::Into;
+        }
+        if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::AsRef",
+            |argument, _| matches!(argument, Type::Primitive(name) if name == "str"),
+        ) {
+            extraction_type = ProjectedType::String;
+            extraction_conversion = ProjectedEnumPayloadConversion::AsRefString;
+        } else if type_implements_deref_target(
+            ty,
+            index,
+            paths,
+            |target| matches!(target, Type::Primitive(name) if name == "str"),
+        ) {
+            extraction_type = ProjectedType::String;
+            extraction_conversion = ProjectedEnumPayloadConversion::DerefString;
+        } else if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::AsRef",
+            |argument, _| {
+                matches!(
+                    argument,
+                    Type::Slice(item) if matches!(item.as_ref(), Type::Primitive(name) if name == "u8")
+                )
+            },
+        ) {
+            extraction_type = ProjectedType::Bytes;
+            extraction_conversion = ProjectedEnumPayloadConversion::AsRefBytes;
+        } else if type_implements_deref_target(ty, index, paths, |target| {
+            matches!(
+                target,
+                Type::Slice(item) if matches!(item.as_ref(), Type::Primitive(name) if name == "u8")
+            )
+        }) {
+            extraction_type = ProjectedType::Bytes;
+            extraction_conversion = ProjectedEnumPayloadConversion::DerefBytes;
+        }
+    }
+    Ok((
+        constructor_type,
+        constructor_conversion,
+        extraction_type,
+        extraction_conversion,
+        rust_type,
+    ))
+}
+
+fn type_implements_deref_target(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    target_matches: impl Fn(&Type) -> bool,
+) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    let Some(item) = index.get(&path.id) else {
+        return false;
+    };
+    let implementations = match &item.inner {
+        ItemEnum::Struct(structure) => &structure.impls,
+        ItemEnum::Enum(enumeration) => &enumeration.impls,
+        _ => return false,
+    };
+    implementations.iter().any(|implementation| {
+        let Some(Item {
+            inner:
+                ItemEnum::Impl(Impl {
+                    trait_: Some(trait_),
+                    items,
+                    ..
+                }),
+            ..
+        }) = index.get(implementation)
+        else {
+            return false;
+        };
+        if paths
+            .get(&trait_.id)
+            .is_none_or(|summary| summary.path.join("::") != "core::ops::deref::Deref")
+        {
+            return false;
+        }
+        items.iter().any(|item| {
+            matches!(
+                index.get(item),
+                Some(Item {
+                    name: Some(name),
+                    inner: ItemEnum::AssocType { type_: Some(target), .. },
+                    ..
+                }) if name == "Target" && target_matches(target)
+            )
+        })
+    })
+}
+
+fn type_implements_generic_trait(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    expected_trait: &str,
+    argument_matches: impl Fn(&Type, &HashMap<Id, ItemSummary>) -> bool,
+) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    let Some(item) = index.get(&path.id) else {
+        return false;
+    };
+    let implementations = match &item.inner {
+        ItemEnum::Struct(structure) => &structure.impls,
+        ItemEnum::Enum(enumeration) => &enumeration.impls,
+        _ => return false,
+    };
+    implementations.iter().any(|implementation| {
+        let Some(Item {
+            inner:
+                ItemEnum::Impl(Impl {
+                    trait_: Some(trait_),
+                    ..
+                }),
+            ..
+        }) = index.get(implementation)
+        else {
+            return false;
+        };
+        if paths
+            .get(&trait_.id)
+            .is_none_or(|summary| summary.path.join("::") != expected_trait)
+        {
+            return false;
+        }
+        let Some(arguments) = trait_.args.as_deref() else {
+            return false;
+        };
+        let GenericArgs::AngleBracketed { args, .. } = arguments else {
+            return false;
+        };
+        matches!(args.as_slice(), [GenericArg::Type(argument)] if argument_matches(argument, paths))
+    })
+}
+
+fn project_boundary_capabilities(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> ProjectedBoundaryCapabilities {
+    ProjectedBoundaryCapabilities {
+        string_constructor: type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::From",
+            is_rust_string_type,
+        )
+        .then_some(ProjectedEnumPayloadConversion::Into),
+        bytes_constructor: type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::From",
+            is_rust_byte_vector_type,
+        )
+        .then_some(ProjectedEnumPayloadConversion::Into),
+        string_extraction: if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::AsRef",
+            |argument, _| matches!(argument, Type::Primitive(name) if name == "str"),
+        ) {
+            Some(ProjectedEnumPayloadConversion::AsRefString)
+        } else {
+            type_implements_deref_target(
+                ty,
+                index,
+                paths,
+                |target| matches!(target, Type::Primitive(name) if name == "str"),
+            )
+            .then_some(ProjectedEnumPayloadConversion::DerefString)
+        },
+        bytes_extraction: if type_implements_generic_trait(
+            ty,
+            index,
+            paths,
+            "core::convert::AsRef",
+            |argument, _| {
+                matches!(
+                    argument,
+                    Type::Slice(item) if matches!(item.as_ref(), Type::Primitive(name) if name == "u8")
+                )
+            },
+        ) {
+            Some(ProjectedEnumPayloadConversion::AsRefBytes)
+        } else {
+            type_implements_deref_target(ty, index, paths, |target| {
+                matches!(
+                    target,
+                    Type::Slice(item)
+                        if matches!(item.as_ref(), Type::Primitive(name) if name == "u8")
+                )
+            })
+            .then_some(ProjectedEnumPayloadConversion::DerefBytes)
+        },
+    }
+}
+
+fn is_rust_string_type(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> bool {
+    matches!(
+        ty,
+        Type::ResolvedPath(path)
+            if matches!(
+                resolved_path_name(path, paths).as_str(),
+                "alloc::string::String" | "std::string::String" | "std::string::string::String"
+            )
+    )
+}
+
+fn is_rust_byte_vector_type(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    if !matches!(
+        resolved_path_name(path, paths).as_str(),
+        "alloc::vec::Vec" | "std::vec::Vec" | "std::vec::vec::Vec"
+    ) {
+        return false;
+    }
+    matches!(
+        path.args.as_deref(),
+        Some(GenericArgs::AngleBracketed { args, .. })
+            if matches!(args.as_slice(), [GenericArg::Type(Type::Primitive(name))] if name == "u8")
+    )
 }
 
 fn resolved_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<String> {
@@ -7211,15 +8028,16 @@ mod tests {
 
     use super::{
         ArtifactDependency, Containment, DeclinedItem, InvocationMode, NamespaceOverlay,
-        ProjectedBoundDependency, ProjectedDependency, ProjectedFunction, ProjectedInterface,
-        ProjectedItem, ProjectedKind, ProjectedParameter, ProjectedType, Projection,
-        ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
-        ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
-        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
-        enforce_transitive_reachability, has_type_parameters, namespace_overlays_from_metadata,
-        parse_rustdoc, prefer_public_path, project_type, projectable_interface_bound,
-        projection_content_hash, prune_projection_cache, receiver_kind, resolve,
-        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
+        ProjectedBoundDependency, ProjectedBoundaryCapabilities, ProjectedDependency,
+        ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind, ProjectedParameter,
+        ProjectedType, Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution,
+        ProjectionSource, Receiver, ResolutionOutcome, apply_namespace_overlays,
+        apply_projection_history, decline_functions_with_missing_generic_interfaces,
+        decline_unproven_projected_interfaces, enforce_transitive_reachability,
+        has_type_parameters, namespace_overlays_from_metadata, parse_rustdoc, prefer_public_path,
+        project_type, projectable_interface_bound, projection_content_hash, prune_projection_cache,
+        receiver_kind, resolve, rewrite_rust_bound_root, selected_target,
+        validate_projection_artifact,
     };
     use crate::RustDependency;
     fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
@@ -7252,6 +8070,8 @@ mod tests {
                 error: None,
                 is_async: false,
                 execution_requirements: None,
+                enum_operation: None,
+                error_optional_depth: 0,
                 chain_role: None,
                 receiver: None,
             }),
@@ -7585,6 +8405,8 @@ mod tests {
                 kind: ProjectedKind::ForeignType {
                     methods: Vec::new(),
                     static_methods: Vec::new(),
+                    boundary: ProjectedBoundaryCapabilities::default(),
+                    displayable: false,
                     cloneable: false,
                     send: false,
                     sync: false,
@@ -7746,6 +8568,8 @@ mod tests {
                         error: None,
                         is_async: false,
                         execution_requirements: None,
+                        enum_operation: None,
+                        error_optional_depth: 0,
                         chain_role: None,
                         receiver: None,
                     }),
@@ -8024,6 +8848,8 @@ mod tests {
                     error: None,
                     is_async: false,
                     execution_requirements: None,
+                    enum_operation: None,
+                    error_optional_depth: 0,
                     chain_role: None,
                     receiver: None,
                 }),
@@ -8377,6 +9203,8 @@ mod tests {
             rust_path: "fixture::removed".to_owned(),
             docs: None,
             kind: ProjectedKind::ForeignType {
+                boundary: ProjectedBoundaryCapabilities::default(),
+                displayable: false,
                 methods: vec![ProjectedFunction {
                     name: "read".to_owned(),
                     generic_parameters: Vec::new(),
@@ -8386,6 +9214,8 @@ mod tests {
                     error: None,
                     is_async: false,
                     execution_requirements: None,
+                    enum_operation: None,
+                    error_optional_depth: 0,
                     chain_role: None,
                     receiver: Some(Receiver::Borrow),
                 }],
@@ -8398,6 +9228,8 @@ mod tests {
                     error: None,
                     is_async: false,
                     execution_requirements: None,
+                    enum_operation: None,
+                    error_optional_depth: 0,
                     chain_role: None,
                     receiver: None,
                 }],

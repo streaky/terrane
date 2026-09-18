@@ -963,14 +963,6 @@
           "Action"
         ],
         [
-          "/deps/reqwest/retry/classify/action",
-          "Retryable"
-        ],
-        [
-          "/deps/reqwest/retry/classify/action",
-          "Success"
-        ],
-        [
           "/deps/reqwest/tls",
           "CertificateRevocationList"
         ],
@@ -1012,7 +1004,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

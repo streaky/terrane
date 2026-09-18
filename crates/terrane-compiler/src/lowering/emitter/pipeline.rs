@@ -689,6 +689,7 @@ fn lower_with_tests(
                 let mut rust = emitter.output;
                 rust.push_str(&emit_dependency_unit(
                     package,
+                    &registry,
                     unit,
                     &static_method_references,
                     &dependency_import_owners,

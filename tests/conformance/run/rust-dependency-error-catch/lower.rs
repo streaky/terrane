@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/httpdate::Error",
     ];
 }
 mod __terrane_trace {
@@ -497,12 +498,12 @@ fn main() {
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0
                     && __terrane_error_0.kind
-                        == TerraneErrorKind::Custom(DescriptorId(0))
+                        == TerraneErrorKind::Custom(DescriptorId(2))
                 {
                     __terrane_handled_0 = true;
                     println!(
                         "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught dependency error"))
+                        terrane_scalar_support::scalar_text(&String::from("caught typed dependency error"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -534,7 +535,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignErr
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
+                        crate::DescriptorId(2),
                         format!(
                             "Rust dependency `httpdate` member `httpdate::parse_http_date` failed: {error}"
                         ),

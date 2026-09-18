@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/terrane-sequence-witness::SequenceError",
     ];
 }
 mod __terrane_trace {
@@ -509,7 +510,7 @@ async fn wait_next(mut sequence: TokioSequence) {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
                                             ),

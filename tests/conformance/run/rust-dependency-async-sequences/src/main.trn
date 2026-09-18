@@ -1,7 +1,7 @@
 namespace app
-from /deps/terrane-sequence-witness import make_tcp_sequence, make_tokio_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, make_failing_queue_sequence, make_pending_queue_sequence, TokioSequence, TcpSequence, QueueSequence
+from /deps/terrane-sequence-witness import SequenceError, make_tcp_sequence, make_tokio_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, make_failing_queue_sequence, make_pending_queue_sequence, TokioSequence, TcpSequence, QueueSequence
 from /core/output import print
-from /core/errors import dependency-error
+
 
 async function drain-network bool; sequence TcpSequence
   first = await sequence.next;
@@ -61,13 +61,13 @@ async function main;
     failing = make_failing_tokio_sequence;
     failed-step = await failing.next;
     print; failed-step.end
-  catch dependency-error as error
+  catch SequenceError as error
     print; error.message
   try
     failing-queue = make_failing_queue_sequence;
     failed-queue-step = await failing-queue.next;
     print; failed-queue-step.end
-  catch dependency-error as error
+  catch SequenceError as error
     print; error.message
   tokio-scope = task-scope;
   pending = make_pending_tokio_sequence;

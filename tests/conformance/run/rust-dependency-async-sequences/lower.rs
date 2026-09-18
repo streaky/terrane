@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/terrane-sequence-witness::SequenceError",
     ];
 }
 mod __terrane_trace {
@@ -556,7 +557,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TcpSequence::next` failed: {error}"
                                             ),
@@ -618,7 +619,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TcpSequence::next` failed: {error}"
                                             ),
@@ -680,7 +681,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TcpSequence::next` failed: {error}"
                                             ),
@@ -725,7 +726,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TcpSequence::close` failed: {error}"
                                             ),
@@ -786,7 +787,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
                                             ),
@@ -852,7 +853,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
                                             ),
@@ -918,7 +919,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
                                             ),
@@ -963,7 +964,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::close` failed: {error}"
                                             ),
@@ -1020,7 +1021,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::next` failed: {error}"
                                             ),
@@ -1082,7 +1083,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::next` failed: {error}"
                                             ),
@@ -1144,7 +1145,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::next` failed: {error}"
                                             ),
@@ -1185,7 +1186,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                 Err(
                     crate::TerraneForeignError(
                         crate::TerraneError::custom_raised(
-                            crate::TERRANE_DEPENDENCY_ERROR,
+                            crate::DescriptorId(2),
                             format!(
                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::close` failed: {error}"
                             ),
@@ -1236,7 +1237,7 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
                                             ),
@@ -1294,7 +1295,7 @@ async fn wait_pending_queue(mut sequence: QueueSequence) {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
+                                            crate::DescriptorId(2),
                                             format!(
                                                 "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::next` failed: {error}"
                                             ),
@@ -1383,7 +1384,7 @@ fn main() {
                     terrane_collection_support::AsyncIterationStep::item(terrane_int_support::Int::from(i128::from(item))),
                     None => terrane_collection_support::AsyncIterationStep::end() }),
                     Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2),
                     format!("Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"),
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "terrane_sequence_witness",
@@ -1405,7 +1406,7 @@ fn main() {
                     let mut __terrane_handled_0 = false;
                     if !__terrane_handled_0
                         && __terrane_error_0.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
                         let error = __terrane_error_0.clone();
@@ -1445,7 +1446,7 @@ fn main() {
                     terrane_collection_support::AsyncIterationStep::item(item), None =>
                     terrane_collection_support::AsyncIterationStep::end() }),
                     Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2),
                     format!("Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::QueueSequence::next` failed: {error}"),
                     crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "terrane_sequence_witness",
@@ -1469,7 +1470,7 @@ fn main() {
                     let mut __terrane_handled_1 = false;
                     if !__terrane_handled_1
                         && __terrane_error_1.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_1 = true;
                         let error = __terrane_error_1.clone();
@@ -1662,7 +1663,7 @@ pub async fn make_tcp_sequence() -> Result<TcpSequence, crate::TerraneForeignErr
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
+                        crate::DescriptorId(2),
                         format!(
                             "Rust dependency `terrane-sequence-witness` member `terrane_sequence_witness::make_tcp_sequence` failed: {error}"
                         ),

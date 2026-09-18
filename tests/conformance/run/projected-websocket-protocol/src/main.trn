@@ -1,0 +1,61 @@
+namespace app
+
+from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/axum/extract/ws import Message, WebSocket
+from /deps/axum-core import Error
+from /deps/tokio/net import TcpListener
+from /deps/terrane-websocket-peer-witness import drive_peer
+from /core/output import print
+
+async function socket-session; socket WebSocket
+  try
+    open bool = true
+    while open
+      message Message|none = await socket.recv;
+      if message != none
+        kind string = message.variant-name;
+        if kind == 'Text'
+          value string|none = (move message).into-Text;
+          if value != none
+            print; 'text', value
+            await (socket.send; (Message::Text; value))
+        else if kind == 'Binary'
+          value bytes|none = (move message).into-Binary;
+          if value != none
+            print; 'binary', value.length
+            await (socket.send; (Message::Binary; value))
+        else if kind == 'Ping'
+          value bytes|none = (move message).into-Ping;
+          if value != none
+            print; 'ping', value.length
+            await (socket.send; (Message::Pong; value))
+        else if kind == 'Pong'
+          value bytes|none = (move message).into-Pong;
+          if value != none
+            print; 'pong', value.length
+        else if kind == 'Close'
+          print; 'close'
+          return
+      else
+        print; 'end'
+        return
+  catch Error
+    print; 'failure'
+
+async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
+  return upgrade; move request, socket-session
+
+async function run-server;
+  router = Router::new;
+  router = router.route; '/ws', (get; upgrade-handler)
+  listener = await TcpListener::bind; '127.0.0.1:38765'
+  await (serve_router; move listener, move router)
+
+async function main;
+  scope = task-scope;
+  server = scope.spawn; run-server
+  await drive_peer;
+  scope.cancel;
+  _ = await scope.join; server

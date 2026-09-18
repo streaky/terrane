@@ -384,6 +384,8 @@ impl CallableEffects {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TaskTransferability {
     Local,
+    /// The projected Rust future is required to be `Send`; generated Rust compilation proves it.
+    RustProven,
     Transferable,
 }
 

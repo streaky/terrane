@@ -23,40 +23,12 @@
           "IsNull"
         ],
         [
-          "/deps/sqlx-core/encode/isnull",
-          "No"
-        ],
-        [
-          "/deps/sqlx-core/encode/isnull",
-          "Yes"
-        ],
-        [
           "/deps/sqlx-core/error",
           "ErrorKind"
         ],
         [
           "/deps/sqlx-core/error",
           "UnexpectedNullError"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "CheckViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "ForeignKeyViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "NotNullViolation"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "Other"
-        ],
-        [
-          "/deps/sqlx-core/error/errorkind",
-          "UniqueViolation"
         ],
         [
           "/deps/sqlx-core/ext/ustr",
@@ -157,18 +129,6 @@
         [
           "/deps/sqlx-core/migrate/migration",
           "clone"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migrationtype",
-          "ReversibleDown"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migrationtype",
-          "ReversibleUp"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migrationtype",
-          "Simple"
         ],
         [
           "/deps/sqlx-core/migrate/source",
@@ -309,14 +269,6 @@
         [
           "/deps/sqlx-core/type-checking",
           "ParamChecking"
-        ],
-        [
-          "/deps/sqlx-core/type-checking/paramchecking",
-          "Strong"
-        ],
-        [
-          "/deps/sqlx-core/type-checking/paramchecking",
-          "Weak"
         ]
       ],
       "name": "sqlx-core",
@@ -378,7 +330,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "50",
+  "projection_schema": "51",
   "removed": [],
   "resolution": {
     "events": [

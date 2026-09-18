@@ -735,6 +735,35 @@ input-selected static and consuming calls, structural `impl AsRef<Path>` inputs,
 deterministic trait-qualified collision fallbacks, lifetime-bearing chain values confined to one
 expression, and generated-module-wide canonical foreign imports.
 
+### Milestone 28.4 — Payload enums, nested outcomes, and typed dependency failures
+
+Projection must preserve enough shape to compose dependency protocols in Terrane rather than in
+dependency-specific Rust helpers. A data-carrying Rust enum projects one nominal class with exact
+unit and supported single-payload constructors, shared `variant-name` inspection, and consuming
+`into-<Variant>` extraction. Extraction moves rather than clones the payload. Unsupported
+multi-field, named-field, borrowed, open-generic, or unrepresentable variants remain visible as
+per-variant declines, and non-exhaustive inspection yields `unknown`.
+
+The result projector must distinguish `Option<Result<T, E>>` from `Result<Option<T>, E>` even though
+both expose `T|none throws E` to Terrane. Lowering preserves the native wrapper order: end/absence,
+success, and failure remain three distinct outcomes. Each admitted `E` retains its canonical
+projected object identity for catch dispatch and supplies display text only through the throwable
+binding's explicit `message` property. Error display text is never a classifier.
+
+Evidence requires an independent payload-enum fixture, both nested-result orders, exact typed catch
+selection, Markdown's direct options/rendering boundary, and a real WebSocket scenario covering
+text, binary, ping, pong, close, orderly end, and transport/protocol failure. Only helpers whose
+complete behavior is replaced may be removed; Axum serving/callback bridges remain until their
+separate milestone.
+
+Implemented on `dependency-call-specialization` on 2026-09-18. Projection schema 51 records
+constructible/inspectable payload enum variants, native wrapper order for nested outcomes,
+canonical typed projected failures, displayability, cross-dependency payload conversions, and
+native future transfer evidence. The independent payload and nested-outcome witnesses, direct
+Markdown rendering, and peer-driven WebSocket protocol scenario cover the required outcomes.
+The Markdown HTML bridge and Axum message filtering/construction bridges were removed; Axum
+upgrade and serving remain for M6, and SQL query/collection bridges remain for M4.
+
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
 Projected Rust traits must enter Terrane through its existing object model rather than importing

@@ -499,7 +499,7 @@ fn main() {
         Result < _, crate ::TerraneForeignError > { Ok(values.into_vec()) } () {
         Ok(value) => value, Err(error) => std::panic::panic_any(error) })) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_render_witness",
+        ::__terrane_dependency_panic(payload, "terrane-render-witness",
         "terrane_render_witness::render_many")) }, 2 /* terrane-site: src/main.trn:6:13-6:32 */))
     );
 }

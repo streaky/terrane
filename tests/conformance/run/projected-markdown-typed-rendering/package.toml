@@ -1,0 +1,10 @@
+package = "projected-markdown-typed-rendering"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.markdown]
+version = "=1.0.0"
+
+[rust-dependencies.terrane-markdown-error-witness]
+version = "=0.1.0"

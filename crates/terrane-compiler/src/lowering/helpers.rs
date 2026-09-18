@@ -528,10 +528,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             };
             let future = format!(
                 "std::pin::Pin<Box<dyn Future<Output = {output}>{}>>",
-                if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 }
             );
             match effects.modes.written {
@@ -557,10 +557,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             format!(
                 "std::pin::Pin<Box<dyn Future<Output = {}>{}>>",
                 rust_element_type(package, result),
-                if transferability == TaskTransferability::Transferable {
-                    " + Send"
-                } else {
+                if transferability == TaskTransferability::Local {
                     ""
+                } else {
+                    " + Send"
                 }
             )
         }
