@@ -1,0 +1,13 @@
+package = "projected-into-future-output"
+executor = "threaded"
+
+[profile]
+name = "into-future-witness"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-into-future-witness]
+version = "=0.1.0"
+effects = ["build", "threads"]

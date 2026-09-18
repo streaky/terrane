@@ -625,7 +625,6 @@ fn main() {
 // Source: <terrane>/projected/deps/terrane-nested-outcome-witness.trn
 // Namespace: deps/terrane-nested-outcome-witness
 pub use terrane_nested_outcome_witness::Channel;
-pub use terrane_nested_outcome_witness::Fault;
 pub fn channel(
     mode: terrane_int_support::Int,
 ) -> Result<Channel, crate::TerraneForeignError> {

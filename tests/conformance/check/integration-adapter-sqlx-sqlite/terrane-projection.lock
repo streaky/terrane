@@ -534,6 +534,14 @@
         ],
         [
           "/deps/sqlx-sqlite",
+          "SqlitePool"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqlitePoolOptions"
+        ],
+        [
+          "/deps/sqlx-sqlite",
           "SqliteQueryResult"
         ],
         [
@@ -700,7 +708,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "55",
+  "projection_schema": "58",
   "removed": [],
   "resolution": {
     "events": [

@@ -11,8 +11,8 @@ use sqlx::sqlite::SqliteConnection;
 ///
 /// # Errors
 ///
-/// Returns [`std::io::Error`] when SQLx cannot execute the query, the requested column is absent,
-/// or a column value is not a SQLite blob. The bridge preserves SQLx's display text while using
+/// Returns [`std::io::Error`] when `SQLx` cannot execute the query, the requested column is absent,
+/// or a column value is not a SQLite blob. The bridge preserves `SQLx`'s display text while using
 /// the established standard-library dependency-error boundary.
 pub async fn query_bytes(
     connection: &mut SqliteConnection,

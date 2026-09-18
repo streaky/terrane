@@ -9,6 +9,23 @@ fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
     }
 }
 
+fn collect_demanded_projected_members(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    demanded: &mut BTreeSet<String>,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+    ) && let Some(member) = node.children.get(1)
+    {
+        demanded.insert(source.text()[member.span.start..member.span.end].to_owned());
+    }
+    for child in &node.children {
+        collect_demanded_projected_members(source, child, demanded);
+    }
+}
+
 pub(super) fn parse_unit(
     source: &SourceFile,
     source_path: String,
@@ -146,17 +163,24 @@ pub(super) fn parse_units(
                 .insert(import.object);
         }
     }
-    let projected_sources =
-        projection
-            .source_for_imports(&dependency_imports)
-            .map_err(|message| SemanticFailure {
-                source: package.units[0].source.clone(),
-                diagnostics: vec![Diagnostic::error(
-                    "S2028",
-                    message,
-                    Span::new(package.units[0].source.id(), 0, 0),
-                )],
-            })?;
+    let mut demanded_members = dependency_imports
+        .values()
+        .flat_map(BTreeSet::iter)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for unit in &units {
+        collect_demanded_projected_members(&unit.source, &unit.tree.root, &mut demanded_members);
+    }
+    let projected_sources = projection
+        .source_for_imports_with_members(&dependency_imports, &demanded_members)
+        .map_err(|message| SemanticFailure {
+            source: package.units[0].source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "S2028",
+                message,
+                Span::new(package.units[0].source.id(), 0, 0),
+            )],
+        })?;
     for (namespace, text) in projected_sources {
         if !loaded.insert(namespace.clone()) {
             continue;

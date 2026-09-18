@@ -544,7 +544,6 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/bytes.trn
 // Namespace: deps/bytes
-pub use bytes::Bytes;
 pub use bytes::BytesMut;
 pub use serde_json::error::Category;
 pub use serde_json::Number;

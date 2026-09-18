@@ -156,6 +156,14 @@
         ],
         [
           "/deps/axum/extract",
+          "WebSocketUpgrade.selected_protocol"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.set_selected_protocol"
+        ],
+        [
+          "/deps/axum/extract",
           "WebSocketUpgrade.write_buffer_size"
         ],
         [
@@ -169,6 +177,10 @@
         [
           "/deps/axum/extract/originaluri",
           "clone"
+        ],
+        [
+          "/deps/axum/extract/originaluri",
+          "deref"
         ],
         [
           "/deps/axum/extract/path",
@@ -192,11 +204,19 @@
         ],
         [
           "/deps/axum/extract/path",
+          "FailedToDeserializePathParams.status"
+        ],
+        [
+          "/deps/axum/extract/path",
           "InvalidUtf8InPathParam"
         ],
         [
           "/deps/axum/extract/path",
           "InvalidUtf8InPathParam.body_text"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "InvalidUtf8InPathParam.status"
         ],
         [
           "/deps/axum/extract/path/failedtodeserializepathparams",
@@ -232,6 +252,10 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "FailedToDeserializeForm.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "FailedToDeserializeFormBody"
         ],
         [
@@ -240,11 +264,19 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "FailedToDeserializeFormBody.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "FailedToDeserializeQueryString"
         ],
         [
           "/deps/axum/extract/rejection",
           "FailedToDeserializeQueryString.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "FailedToDeserializeQueryString.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -260,11 +292,19 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "InvalidFormContentType.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "JsonDataError"
         ],
         [
           "/deps/axum/extract/rejection",
           "JsonDataError.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "JsonDataError.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -280,11 +320,19 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "JsonSyntaxError.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "MatchedPathMissing"
         ],
         [
           "/deps/axum/extract/rejection",
           "MatchedPathMissing.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MatchedPathMissing.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -300,11 +348,19 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "MissingExtension.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "MissingJsonContentType"
         ],
         [
           "/deps/axum/extract/rejection",
           "MissingJsonContentType.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MissingJsonContentType.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -316,11 +372,19 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "MissingPathParams.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "NestedPathRejection"
         ],
         [
           "/deps/axum/extract/rejection",
           "NestedPathRejection.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "NestedPathRejection.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -464,6 +528,10 @@
         ],
         [
           "/deps/axum/extract/ws",
+          "WebSocket.protocol"
+        ],
+        [
+          "/deps/axum/extract/ws",
           "WebSocket.recv"
         ],
         [
@@ -492,11 +560,19 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "ConnectionNotUpgradable.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "InvalidConnectionHeader"
         ],
         [
           "/deps/axum/extract/ws/rejection",
           "InvalidConnectionHeader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidConnectionHeader.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -508,11 +584,19 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "InvalidProtocolPseudoheader.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "InvalidUpgradeHeader"
         ],
         [
           "/deps/axum/extract/ws/rejection",
           "InvalidUpgradeHeader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidUpgradeHeader.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -524,11 +608,19 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "InvalidWebSocketVersionHeader.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "MethodNotConnect"
         ],
         [
           "/deps/axum/extract/ws/rejection",
           "MethodNotConnect.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "MethodNotConnect.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -540,11 +632,19 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "MethodNotGet.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "WebSocketKeyHeaderMissing"
         ],
         [
           "/deps/axum/extract/ws/rejection",
           "WebSocketKeyHeaderMissing.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "WebSocketKeyHeaderMissing.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -757,6 +857,10 @@
         [
           "/deps/axum/response",
           "Redirect.location"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect.status_code"
         ],
         [
           "/deps/axum/response",
@@ -1198,11 +1302,19 @@
         ],
         [
           "/deps/axum-core/extract",
+          "DefaultBodyLimit.apply"
+        ],
+        [
+          "/deps/axum-core/extract",
           "DefaultBodyLimit::disable"
         ],
         [
           "/deps/axum-core/extract",
           "DefaultBodyLimit::max"
+        ],
+        [
+          "/deps/axum-core/extract",
+          "Request"
         ],
         [
           "/deps/axum-core/extract/defaultbodylimit",
@@ -1234,11 +1346,19 @@
         ],
         [
           "/deps/axum-core/extract/rejection",
+          "InvalidUtf8.status"
+        ],
+        [
+          "/deps/axum-core/extract/rejection",
           "LengthLimitError"
         ],
         [
           "/deps/axum-core/extract/rejection",
           "LengthLimitError.body_text"
+        ],
+        [
+          "/deps/axum-core/extract/rejection",
+          "LengthLimitError.status"
         ],
         [
           "/deps/axum-core/extract/rejection",
@@ -1251,6 +1371,10 @@
         [
           "/deps/axum-core/extract/rejection",
           "UnknownBodyError.body_text"
+        ],
+        [
+          "/deps/axum-core/extract/rejection",
+          "UnknownBodyError.status"
         ],
         [
           "/deps/axum-core/extract/rejection/invalidutf8",
@@ -1270,7 +1394,27 @@
         ],
         [
           "/deps/axum-core/response",
+          "Response"
+        ],
+        [
+          "/deps/axum-core/response",
           "ResponseParts"
+        ],
+        [
+          "/deps/axum-core/response",
+          "ResponseParts.extensions"
+        ],
+        [
+          "/deps/axum-core/response",
+          "ResponseParts.extensions_mut"
+        ],
+        [
+          "/deps/axum-core/response",
+          "ResponseParts.headers"
+        ],
+        [
+          "/deps/axum-core/response",
+          "ResponseParts.headers_mut"
         ]
       ],
       "name": "axum-core",
@@ -1279,24 +1423,1120 @@
     {
       "members": [
         [
-          "/deps/axum",
-          "UpgradeResponse"
+          "/deps/http",
+          "Error"
         ],
         [
-          "/deps/axum",
-          "serve_router"
+          "/deps/http",
+          "Error.is"
         ],
         [
-          "/deps/axum",
-          "upgrade"
+          "/deps/http",
+          "Extensions"
         ],
         [
-          "/deps/axum/upgraderesponse",
-          "into_response"
+          "/deps/http",
+          "Extensions.clear"
+        ],
+        [
+          "/deps/http",
+          "Extensions.extend"
+        ],
+        [
+          "/deps/http",
+          "Extensions.get_or_insert"
+        ],
+        [
+          "/deps/http",
+          "Extensions.insert"
+        ],
+        [
+          "/deps/http",
+          "Extensions.is_empty"
+        ],
+        [
+          "/deps/http",
+          "Extensions.len"
+        ],
+        [
+          "/deps/http",
+          "Extensions.remove"
+        ],
+        [
+          "/deps/http",
+          "Extensions::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.append"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.clear"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.contains_key"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.insert"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys_len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.remove"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_append"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_insert"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::try_with_capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::with_capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderName"
+        ],
+        [
+          "/deps/http",
+          "HeaderName.as_str"
+        ],
+        [
+          "/deps/http",
+          "HeaderName::from_static"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.to_str"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_maybe_shared"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_name"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_static"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_str"
+        ],
+        [
+          "/deps/http",
+          "Method"
+        ],
+        [
+          "/deps/http",
+          "Method.as_str"
+        ],
+        [
+          "/deps/http",
+          "Method.is_idempotent"
+        ],
+        [
+          "/deps/http",
+          "Method.is_safe"
+        ],
+        [
+          "/deps/http",
+          "StatusCode"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_str"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_u16"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.canonical_reason"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_client_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_informational"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_redirection"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_server_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_success"
+        ],
+        [
+          "/deps/http",
+          "StatusCode::from_u16"
+        ],
+        [
+          "/deps/http",
+          "Uri"
+        ],
+        [
+          "/deps/http",
+          "Uri.authority"
+        ],
+        [
+          "/deps/http",
+          "Uri.host"
+        ],
+        [
+          "/deps/http",
+          "Uri.into_parts"
+        ],
+        [
+          "/deps/http",
+          "Uri.path"
+        ],
+        [
+          "/deps/http",
+          "Uri.path_and_query"
+        ],
+        [
+          "/deps/http",
+          "Uri.port"
+        ],
+        [
+          "/deps/http",
+          "Uri.port_u16"
+        ],
+        [
+          "/deps/http",
+          "Uri.query"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme_str"
+        ],
+        [
+          "/deps/http",
+          "Uri::builder"
+        ],
+        [
+          "/deps/http",
+          "Uri::from_maybe_shared"
+        ],
+        [
+          "/deps/http",
+          "Uri::from_parts"
+        ],
+        [
+          "/deps/http",
+          "Uri::from_static"
+        ],
+        [
+          "/deps/http",
+          "Version"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-core/convert/infallible",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/header/invalidheadername",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/header/invalidheadervalue",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/header/maxsizereached",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/method/invalidmethod",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/status/invalidstatuscode",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/uri/invaliduri",
+          "from"
+        ],
+        [
+          "/deps/http/error/trait/core/convert/from-http/uri/invaliduriparts",
+          "from"
+        ],
+        [
+          "/deps/http/extensions",
+          "clone"
+        ],
+        [
+          "/deps/http/extensions",
+          "default"
+        ],
+        [
+          "/deps/http/header",
+          "InvalidHeaderName"
+        ],
+        [
+          "/deps/http/header",
+          "InvalidHeaderValue"
+        ],
+        [
+          "/deps/http/header",
+          "MaxSizeReached"
+        ],
+        [
+          "/deps/http/header",
+          "ToStrError"
+        ],
+        [
+          "/deps/http/header/invalidheadername",
+          "from"
+        ],
+        [
+          "/deps/http/header/invalidheadervalue",
+          "from"
+        ],
+        [
+          "/deps/http/header/map/as-header-name",
+          "TryEntryError"
+        ],
+        [
+          "/deps/http/header/maxsizereached",
+          "from"
+        ],
+        [
+          "/deps/http/headermap",
+          "clone"
+        ],
+        [
+          "/deps/http/headermap",
+          "default"
+        ],
+        [
+          "/deps/http/headermap",
+          "eq"
+        ],
+        [
+          "/deps/http/headermap",
+          "from_iter"
+        ],
+        [
+          "/deps/http/headermap",
+          "into_iter"
+        ],
+        [
+          "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue",
+          "extend"
+        ],
+        [
+          "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue",
+          "extend"
+        ],
+        [
+          "/deps/http/headername",
+          "as_ref"
+        ],
+        [
+          "/deps/http/headername",
+          "borrow"
+        ],
+        [
+          "/deps/http/headername",
+          "clone"
+        ],
+        [
+          "/deps/http/headername",
+          "from_str"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-a-http/headername",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/from-a-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/from-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headername/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue",
+          "clone"
+        ],
+        [
+          "/deps/http/headervalue",
+          "cmp"
+        ],
+        [
+          "/deps/http/headervalue",
+          "from_str"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-a-http/headervalue",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-http/headername",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i16",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i32",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-i64",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-isize",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u16",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u32",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-u64",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/from-usize",
+          "from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/headervalue/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/method",
+          "InvalidMethod"
+        ],
+        [
+          "/deps/http/method",
+          "as_ref"
+        ],
+        [
+          "/deps/http/method",
+          "clone"
+        ],
+        [
+          "/deps/http/method",
+          "default"
+        ],
+        [
+          "/deps/http/method",
+          "from"
+        ],
+        [
+          "/deps/http/method",
+          "from_str"
+        ],
+        [
+          "/deps/http/method",
+          "try_from"
+        ],
+        [
+          "/deps/http/method/invalidmethod",
+          "from"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-a-http/method",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/method/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/request",
+          "Builder"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.body"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.extension"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.extensions_mut"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.header"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.method"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.method_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.uri"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.uri_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/request",
+          "Parts"
+        ],
+        [
+          "/deps/http/request/builder",
+          "default"
+        ],
+        [
+          "/deps/http/request/parts",
+          "clone"
+        ],
+        [
+          "/deps/http/response",
+          "Builder"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.body"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.extension"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.extensions_mut"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.header"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.status"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/response",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/response",
+          "Parts"
+        ],
+        [
+          "/deps/http/response/builder",
+          "default"
+        ],
+        [
+          "/deps/http/response/parts",
+          "clone"
+        ],
+        [
+          "/deps/http/status",
+          "InvalidStatusCode"
+        ],
+        [
+          "/deps/http/status/invalidstatuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode",
+          "clone"
+        ],
+        [
+          "/deps/http/statuscode",
+          "cmp"
+        ],
+        [
+          "/deps/http/statuscode",
+          "default"
+        ],
+        [
+          "/deps/http/statuscode",
+          "from_str"
+        ],
+        [
+          "/deps/http/statuscode",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq-http/statuscode",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/cmp/partialeq-u16",
+          "eq"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/from-a-http/statuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/from-http/statuscode",
+          "from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/statuscode/trait/core/convert/tryfrom-u16",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.host"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port_u16"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority::from_static"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.authority"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.build"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.path_and_query"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.scheme"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUri"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUriParts"
+        ],
+        [
+          "/deps/http/uri",
+          "Parts"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.path"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.query"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_maybe_shared"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery::from_static"
+        ],
+        [
+          "/deps/http/uri",
+          "Scheme"
+        ],
+        [
+          "/deps/http/uri",
+          "Scheme.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "clone"
+        ],
+        [
+          "/deps/http/uri",
+          "default"
+        ],
+        [
+          "/deps/http/uri",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "as_ref"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "from"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-a-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/authority/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "default"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "from"
+        ],
+        [
+          "/deps/http/uri/invaliduri",
+          "from"
+        ],
+        [
+          "/deps/http/uri/invaliduriparts",
+          "from"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "default"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "from"
+        ],
+        [
+          "/deps/http/uri/parts",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "from"
+        ],
+        [
+          "/deps/http/uri/pathandquery",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-std/string/string",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-a-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-std/string/string",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/cmp/partialord-str",
+          "partial_cmp"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "as_ref"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "clone"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "from_str"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq-http/uri/scheme",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/scheme/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq-a-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/cmp/partialeq-str",
+          "eq"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/from-http/uri/authority",
+          "from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/from-http/uri/pathandquery",
+          "from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-http/uri",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-a-str",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-http/uri/parts",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-std/string/string",
+          "try_from"
+        ],
+        [
+          "/deps/http/uri/trait/core/convert/tryfrom-std/vec/vec-u8",
+          "try_from"
+        ],
+        [
+          "/deps/http/version",
+          "clone"
+        ],
+        [
+          "/deps/http/version",
+          "cmp"
+        ],
+        [
+          "/deps/http/version",
+          "default"
+        ],
+        [
+          "/deps/http/version",
+          "eq"
+        ],
+        [
+          "/deps/http/version",
+          "partial_cmp"
         ]
       ],
-      "name": "terrane-integration-adapters",
-      "version": "0.1.0"
+      "name": "http",
+      "version": "1.3.1"
     },
     {
       "members": [
@@ -2798,10 +4038,6 @@
         ],
         [
           "/deps/tokio/task",
-          "LocalSet::new"
-        ],
-        [
-          "/deps/tokio/task",
           "id"
         ],
         [
@@ -2875,10 +4111,6 @@
         [
           "/deps/tokio/task/localenterguard",
           "drop"
-        ],
-        [
-          "/deps/tokio/task/localset",
-          "default"
         ],
         [
           "/deps/tokio/task/localset",
@@ -2990,14 +4222,6 @@
         ],
         [
           "/deps/tokio/time",
-          "sleep"
-        ],
-        [
-          "/deps/tokio/time",
-          "sleep_until"
-        ],
-        [
-          "/deps/tokio/time",
           "timeout"
         ],
         [
@@ -3103,7 +4327,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "55",
+  "projection_schema": "58",
   "removed": [],
   "resolution": {
     "events": [

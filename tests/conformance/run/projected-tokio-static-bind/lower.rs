@@ -693,11 +693,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/terrane-static-witness.trn
 // Namespace: deps/terrane-static-witness
-pub use core::time::Duration;
-pub use std::io::Error;
 pub use terrane_static_witness::GenericFactory;
-pub use tokio::io::Interest;
-pub use tokio::io::Ready;
 pub use tokio::net::TcpListener;
 pub use tokio::net::TcpStream;
 pub fn available_loopback_address() -> Result<String, crate::TerraneForeignError> {
@@ -739,7 +735,5 @@ pub fn consume_factory(
         }
     }
 }
-// Source: <terrane>/projected/deps/tokio/io.trn
-// Namespace: deps/tokio/io
 // Source: <terrane>/projected/deps/tokio/net.trn
 // Namespace: deps/tokio/net

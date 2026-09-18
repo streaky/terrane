@@ -1,0 +1,7 @@
+package = "projected-demand-limited-member-graph"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-member-graph-witness]
+version = "=0.1.0"

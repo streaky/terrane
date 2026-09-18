@@ -1175,22 +1175,18 @@ fn usize_field(manifest: &str, name: &str) -> Option<usize> {
 }
 
 #[test]
-fn integration_adapter_fixtures_share_the_canonical_source_tree() {
+fn integration_adapter_fixture_shares_the_canonical_source_tree() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let canonical = fs::canonicalize(workspace.join("crates/terrane-integration-adapters/src"))
         .expect("canonical adapter source exists");
-    for fixture in [
-        "tests/conformance/check/integration-adapter-sqlx-sqlite/fixture-registry/terrane-integration-adapters-0.1.0/src",
-        "tests/conformance/run/projected-axum-boundaries/fixture-registry/terrane-integration-adapters-0.1.0/src",
-    ] {
-        assert_eq!(
-            fs::canonicalize(workspace.join(fixture)).unwrap_or_else(|error| panic!(
-                "cannot resolve shared fixture source `{fixture}`: {error}"
-            )),
-            canonical,
-            "fixture `{fixture}` must not copy adapter source files"
-        );
-    }
+    let fixture = "tests/conformance/check/integration-adapter-sqlx-sqlite/fixture-registry/terrane-integration-adapters-0.1.0/src";
+    assert_eq!(
+        fs::canonicalize(workspace.join(fixture)).unwrap_or_else(|error| panic!(
+            "cannot resolve shared fixture source `{fixture}`: {error}"
+        )),
+        canonical,
+        "fixture `{fixture}` must not copy adapter source files"
+    );
 }
 
 #[cfg(unix)]

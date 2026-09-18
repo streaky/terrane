@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "S2028"
+contains = "projected dependency source namespaces contain an import cycle"

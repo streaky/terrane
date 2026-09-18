@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, async_dependency.rs
+// Runtime support:
 // Vendored support crates: terrane-int-support, terrane-collection-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
@@ -23,7 +23,6 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
-    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -38,9 +37,6 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
-            Self::Custom(descriptor) => {
-                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
-            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -57,7 +53,6 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
-            Self::Custom(_) => "source error",
         }
     }
 }
@@ -107,15 +102,6 @@ impl TerraneError {
                 }),
             ),
         }
-    }
-    #[cold]
-    #[inline(never)]
-    fn custom_raised(
-        descriptor: DescriptorId,
-        message: impl Into<String>,
-        origin: TerraneSite,
-    ) -> Self {
-        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -416,40 +402,9 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
-#[allow(dead_code, reason = "a projected dependency may expose no Result members")]
-const TERRANE_DEPENDENCY_ERROR: DescriptorId = DescriptorId(0);
-#[allow(dead_code, reason = "panic catching may be disabled or not crossed")]
-const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
-#[allow(
-    dead_code,
-    reason = "projected type methods may be imported without being crossed"
-)]
-fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
-    crate_name: &'static str,
-    member: &'static str,
-) -> TerraneForeignError {
-    let detail = payload
-        .downcast_ref::<&str>()
-        .copied()
-        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-        .unwrap_or("non-string panic payload");
-    TerraneForeignError(
-        TerraneError::custom_raised(
-            TERRANE_DEPENDENCY_PANIC,
-            format!(
-                "Rust dependency `{crate_name}` member `{member}` panicked: {detail}"
-            ),
-            TERRANE_NO_SITE,
-        ),
-    )
-}
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
-        "/core/errors::dependency-error",
-        "/core/errors::dependency-panic",
-    ];
+    pub static DESCRIPTORS: [&str; 0] = [];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -505,9 +460,6 @@ fn main() {
 // Source: <terrane>/projected/deps/reqwest.trn
 // Namespace: deps/reqwest
 pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8BlockingResponse;
-pub use std::net::SocketAddr as TerraneNs4Deps7Reqwest8BlockingSocketAddr;
 pub use reqwest::Response as TerraneNs4Deps7ReqwestResponse;
-pub use std::net::SocketAddr as TerraneNs4Deps7ReqwestSocketAddr;
-pub use reqwest::Upgraded;
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking

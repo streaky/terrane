@@ -1139,24 +1139,38 @@ ordinary Terrane bytes. It can be removed when S1 provides consuming collection 
 iteration. Exact projected Rust owners remain unchanged; the overlay only unifies the Terrane
 presentation namespace.
 
-Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
-`axum-08` feature, then imports the upstream router and handlers normally:
+PDF construction and byte serialization also project directly. The importing package names only
+the operations it uses; unrelated member dependencies remain in the completion catalog but do not
+enter generated source or its ordering graph:
 
 ```terrane
-from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
-from /deps/axum/routing import get
-from /deps/axum/extract import WebSocketUpgrade
-from /deps/axum/extract/ws import Message, WebSocket
-from /deps/tokio/net import TcpListener
+from /deps/pdf-oxide/api import Pdf
+
+document Pdf = Pdf::from_html; html
+data bytes = document.save_to_bytes;
 ```
 
-`Router::new`, `get`, `Router::route`, `WebSocketUpgrade`, Terrane async handler callbacks,
-`TcpListener::bind`, payload-bearing `Message` construction and inspection, nested
-`WebSocket.recv` outcomes, and `WebSocket.send` project directly. The feature overlays only the
-remaining boundaries: a concrete upgrade response and retained callback around Axum's closed
-`Response` alias, and awaiting the `IntoFuture` returned by `axum::serve`. It does not supply an
-application router, handlers, protocol filtering, route policy, or server facade. The BookVault
-WebSocket experiment is the executable end-to-end example.
+Axum applications likewise declare Axum, Axum Core, Tokio, and the canonical owners of signature
+types directly; no Axum adapter feature remains:
+
+```terrane
+from /deps/axum import Router, serve
+from /deps/axum-core/response import Response
+from /deps/axum/routing import get
+from /deps/axum/extract import WebSocketUpgrade
+from /deps/tokio/net import TcpListener
+
+async function upgrade-handler Response; request WebSocketUpgrade
+    return request.on_upgrade; socket-session
+
+listener = await TcpListener::bind; address
+await (serve; move listener, move router)
+```
+
+Closed defaulted aliases retain their canonical owner identity. Concrete `IntoFuture` results are
+converted and awaited inside the generated dependency boundary, preserving their declared output,
+panic containment, ownership, and executor policy. Router construction, callbacks, handler
+results, health responses, WebSocket protocol policy, and server shutdown remain Terrane code.
 
 Namespace overlays are a generic Cargo-metadata facility available only to directly declared
 providers targeting another directly declared package. A declaration is active only with its named

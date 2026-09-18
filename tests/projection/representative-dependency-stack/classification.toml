@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 55; shared native Rust analysis, proof-selected direct/shared/mutable call arguments, concrete owner/static closure, expression-local generic chain state, contextual associated outputs, typed nested failures, native transfer evidence, deterministic collision declines, transitive error-owner reachability, and root-reachable public Rust paths are reflected in the reviewed surface"
+reviewed-against = "projection schema 58; demand-limited member materialization, canonical closed aliases, concrete IntoFuture output/conversion, shared native Rust analysis, proof-selected call arguments, expression-local generic chains, typed nested failures, and root-reachable public Rust paths are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.98.1"
@@ -9,8 +9,8 @@ rustdoc-format = 57
 observed-on = "2026-09-18"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
 method = "target/debug/terrane check package.toml in the representative fixture; cold removes .trn/dependencies but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust package.toml"
-compiler-revision = "cfaa511bac67a993130597a173411833c2c7c5b2"
-compiler-binary-sha256 = "4712919c77274214934a7887648b16574e94c8ffe1db4472f31dfe38d6b63583"
+compiler-revision = "7eb7cc31bd46806270677cd15f001e775ee992f8"
+compiler-binary-sha256 = "5347fb1b6feefb409db5c1bc4a6fc4d31d15744234da04e58d1935ef43844f0a"
 package-manifest-sha256 = "3f60295ea24d94202d07c7285f4c1eaeabc41f5191efbcac8738eb6b46b0cd8c"
 resolved-cargo-lock-sha256 = "53966f2e578a164d919759e7cfc478614cdc224698721304f0ef75482b68c52e"
 cold-wall-seconds = 62.917
@@ -28,8 +28,8 @@ static-count = 31
 canonical-members = ["/deps/axum::Router", "/deps/axum/extract/ws::Message"]
 instance-members = ["/deps/axum::Router.has_routes", "/deps/axum/extract/ws::Message.variant-name"]
 static-members = ["/deps/axum::Router::new", "/deps/axum/extract/ws::Message::Text"]
-required-gaps = ["axum::serve: projected associated IntoFuture result is not yet directly lowerable"]
-classification = "call-site specialization admits closed callback, handler, middleware, routing, and service shapes; supported payload-bearing enum variants and operations remain owner-qualified; concrete default trait operations are owner-qualified; the remaining application boundary is associated future lowering for direct serve"
+required-gaps = []
+classification = "call-site specialization admits closed callbacks, handler results, middleware, routing, and service shapes; supported payload enums remain owner-qualified; closed response identity and concrete axum::serve IntoFuture conversion are direct"
 
 [[dependency]]
 name = "http"
@@ -60,15 +60,15 @@ classification = "async lowering and destination-directed JSON results are imple
 [[dependency]]
 name = "sentry"
 version = "0.46.2"
-projected-count = 8
-declined-count = 11
+projected-count = 9
+declined-count = 10
 instance-count = 1
 static-count = 0
 canonical-members = ["/deps/sentry::ClientInitGuard"]
 instance-members = []
 static-members = []
 required-gaps = []
-classification = "generic init is admitted through call-site specialization while the concrete client guard remains canonically owned by sentry"
+classification = "generic init is admitted through call-site specialization while closed defaulted aliases and the concrete client guard remain canonically owned by sentry"
 
 [[dependency]]
 name = "sqlx"
@@ -86,10 +86,10 @@ classification = "macro-exported construction and call-directed closed specializ
 [[dependency]]
 name = "tokio"
 version = "1.53.1"
-projected-count = 214
-declined-count = 438
+projected-count = 211
+declined-count = 442
 instance-count = 264
-static-count = 80
+static-count = 79
 canonical-members = ["/deps/tokio/io::duplex"]
 instance-members = []
 static-members = []
@@ -125,8 +125,8 @@ classification = "default generic identity is reusable and one closed associated
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-projected-count = 77
-declined-count = 117
+projected-count = 80
+declined-count = 114
 instance-count = 24
 static-count = 54
 canonical-members = ["/deps/tower-http::LatencyUnit"]

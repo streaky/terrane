@@ -684,15 +684,8 @@ fn main() {
 // Source: <terrane>/projected/deps/sqlx-core/query.trn
 // Namespace: deps/sqlx-core/query
 pub use sqlx_core::query::Query as Query732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a;
-pub use sqlx_sqlite::SqliteAutoVacuum;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
-pub use sqlx_sqlite::SqliteJournalMode;
-pub use sqlx_sqlite::SqliteLockingMode;
-pub use sqlx_sqlite::SqliteSynchronous;
-pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
-pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
-pub use std::path::Path as TerraneNs4Deps11SqlxSqlitePath;
 // Source: <terrane>/projected/deps/sqlx-sqlite.trn
 // Namespace: deps/sqlx-sqlite
 pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Result<

@@ -596,11 +596,8 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/http.trn
 // Namespace: deps/http
-pub use http::Extensions;
 pub use http::HeaderMap;
 pub use reqwest::blocking::Response;
-pub use std::net::SocketAddr;
 pub use http::StatusCode;
-pub use http::Version;
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking

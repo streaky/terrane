@@ -1,6 +1,7 @@
 namespace app
 
-from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
+from /deps/axum import Router, serve
+from /deps/axum-core/response import Response
 from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
 from /deps/axum/extract/ws import Message, WebSocket
@@ -43,14 +44,18 @@ async function socket-session; socket WebSocket
   catch Error
     print; 'failure'
 
-async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
-  return upgrade; move request, socket-session
+async function health string;
+  return 'ok'
+
+async function upgrade-handler Response; request WebSocketUpgrade
+  return request.on_upgrade; socket-session
 
 async function run-server;
   router = Router::new;
+  router = router.route; '/health', (get; health)
   router = router.route; '/ws', (get; upgrade-handler)
   listener = await TcpListener::bind; '127.0.0.1:38765'
-  await (serve_router; move listener, move router)
+  await (serve; move listener, move router)
 
 async function main;
   scope = task-scope;

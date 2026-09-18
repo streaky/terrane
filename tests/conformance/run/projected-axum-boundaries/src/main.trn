@@ -1,8 +1,7 @@
 namespace app
 
-from /deps/axum import Router, UpgradeResponse, serve_router, upgrade
-from /deps/axum/router import default as default_router
-from /deps/axum/routing/methodrouter import default as default_method_router
+from /deps/axum import Router, serve
+from /deps/axum-core/response import Response
 from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
 from /deps/tokio/net import TcpListener
@@ -21,16 +20,14 @@ async function socket-task; socket WebSocket
                 await (socket.send; (Message::Text; received))
     await (socket.send; (Message::Close; none))
 
-async function upgrade-handler UpgradeResponse; request WebSocketUpgrade
-    return upgrade; move request, socket-task
+async function upgrade-handler Response; request WebSocketUpgrade
+    return request.on_upgrade; socket-task
 
 async function main;
-    _ = default_router;
-    _ = default_method_router;
     router = Router::new;
     router = router.route; '/', (get; health)
     router = router.route; '/ws', (get; upgrade-handler)
     listener = await TcpListener::bind; '127.0.0.1:0'
     if false
-        await (serve_router; move listener, move router)
+        await (serve; move listener, move router)
     print; 'axum route and serve built'

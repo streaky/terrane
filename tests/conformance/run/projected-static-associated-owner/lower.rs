@@ -485,7 +485,5 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/bytes.trn
 // Namespace: deps/bytes
-pub use bytes::Bytes;
-pub use bytes::BytesMut;
 // Source: <terrane>/projected/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8.trn
 // Namespace: deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8

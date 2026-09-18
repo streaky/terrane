@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "55";
+const PROJECTION_SCHEMA: &str = "58";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -359,6 +359,8 @@ pub struct ProjectedFunction {
     pub destination_result: Option<ProjectedDestinationResult>,
     pub error: Option<String>,
     pub is_async: bool,
+    #[serde(default)]
+    pub into_future: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_requirements: Option<ProjectedExecutionRequirements>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -741,22 +743,24 @@ fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
 }
 
 impl Projection {
-    /// Renders the projected dependency sources required by `imports`.
+    /// Renders the projected dependency sources required by `imports`, limiting foreign member
+    /// declarations and their type graph to member names that occur in the importing package.
     ///
     /// # Errors
     ///
-    /// Returns an error when an imported projected name is ambiguous or projected sources form a
-    /// cycle.
-    pub fn source_for_imports(
+    /// Returns an error when an imported projected name is ambiguous or demanded projected sources
+    /// form a cycle.
+    pub fn source_for_imports_with_members(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
+        demanded_members: &BTreeSet<String>,
     ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
             .iter()
             .flat_map(|dependency| dependency.items.iter())
             .collect::<Vec<_>>();
-        let imports = expanded_source_imports(&all_items, imports);
+        let imports = expanded_source_imports(&all_items, imports, demanded_members);
         let mut sources = Vec::new();
         for (namespace, names) in &imports {
             for name in names {
@@ -774,7 +778,7 @@ impl Projection {
             if selected.is_empty() {
                 continue;
             }
-            let foreign = collect_source_foreign(&all_items, &selected);
+            let foreign = collect_source_foreign(&all_items, &selected, demanded_members);
             let mut aliases = foreign_aliases(&foreign);
             let distinct_aliases = aliases.clone();
             for (rust_path, alias) in &mut aliases {
@@ -834,7 +838,14 @@ impl Projection {
                 if !rendered_foreign.insert(declaration_path) {
                     continue;
                 }
-                render_foreign_declaration(&mut text, namespace, name, projected_item, &aliases);
+                render_foreign_declaration(
+                    &mut text,
+                    namespace,
+                    name,
+                    projected_item,
+                    &aliases,
+                    demanded_members,
+                );
             }
             for item in selected {
                 if let ProjectedKind::Function(function) = &item.kind {
@@ -844,6 +855,26 @@ impl Projection {
             sources.push((namespace.clone(), text, source_dependencies));
         }
         Self::order_projected_sources(sources)
+    }
+
+    /// Renders complete projected dependency sources for callers without importing-package syntax.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an imported projected name is ambiguous or projected sources form a
+    /// cycle.
+    pub fn source_for_imports(
+        &self,
+        imports: &BTreeMap<String, BTreeSet<String>>,
+    ) -> Result<Vec<(String, String)>, String> {
+        let demanded_members = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .flat_map(projected_item_functions)
+            .map(|function| function.name.clone())
+            .collect();
+        self.source_for_imports_with_members(imports, &demanded_members)
     }
 
     fn order_projected_sources(
@@ -1240,6 +1271,7 @@ fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
 fn expanded_source_imports(
     all_items: &[&ProjectedItem],
     imports: &BTreeMap<String, BTreeSet<String>>,
+    demanded_members: &BTreeSet<String>,
 ) -> BTreeMap<String, BTreeSet<String>> {
     let mut expanded = imports.clone();
     loop {
@@ -1253,7 +1285,7 @@ fn expanded_source_imports(
                     .is_some_and(|names| names.contains(&item.name))
             })
             .collect::<Vec<_>>();
-        for (rust_path, name) in collect_source_foreign(all_items, &selected) {
+        for (rust_path, name) in collect_source_foreign(all_items, &selected, demanded_members) {
             if let Some(item) = projected_item_for_foreign(all_items, &rust_path, &name) {
                 expanded
                     .entry(item.namespace.clone())
@@ -1301,6 +1333,7 @@ fn projected_item_for_foreign<'a>(
 fn collect_source_foreign(
     all_items: &[&ProjectedItem],
     selected: &[&ProjectedItem],
+    demanded_members: &BTreeSet<String>,
 ) -> BTreeMap<String, String> {
     let mut foreign = BTreeMap::<String, String>::new();
     for item in selected {
@@ -1319,7 +1352,11 @@ fn collect_source_foreign(
                 ..
             } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
-                for method in methods.iter().chain(static_methods) {
+                for method in methods
+                    .iter()
+                    .chain(static_methods)
+                    .filter(|method| demanded_members.contains(&method.name))
+                {
                     collect_foreign_function(method, &mut foreign);
                 }
             }
@@ -1361,7 +1398,11 @@ fn collect_source_foreign(
             let Some((methods, static_methods)) = methods else {
                 continue;
             };
-            for method in methods.iter().chain(static_methods) {
+            for method in methods
+                .iter()
+                .chain(static_methods)
+                .filter(|method| demanded_members.contains(&method.name))
+            {
                 collect_foreign_function(method, &mut foreign);
             }
         }
@@ -1455,6 +1496,7 @@ fn render_foreign_declaration(
     name: &str,
     projected_item: Option<&ProjectedItem>,
     aliases: &BTreeMap<String, String>,
+    demanded_members: &BTreeSet<String>,
 ) {
     if let Some(item) = projected_item
         && item.namespace != namespace
@@ -1489,10 +1531,16 @@ fn render_foreign_declaration(
                 },
             ) = projected_kind
             {
-                for method in methods {
+                for method in methods
+                    .iter()
+                    .filter(|method| demanded_members.contains(&method.name))
+                {
                     render_function(output, method, false, 4, aliases, None);
                 }
-                for method in static_methods {
+                for method in static_methods
+                    .iter()
+                    .filter(|method| demanded_members.contains(&method.name))
+                {
                     render_function(output, method, false, 4, aliases, Some(name));
                 }
             }
@@ -4768,6 +4816,51 @@ fn project_rustdoc(
                     },
                 )
             }
+            ItemEnum::TypeAlias(alias) => (|| {
+                let mut alias_generics = BTreeMap::new();
+                for parameter in &alias.generics.params {
+                    let projected = match &parameter.kind {
+                        GenericParamDefKind::Type {
+                            default: Some(default),
+                            ..
+                        } => project_type(default, index, paths, &alias_generics)?,
+                        GenericParamDefKind::Type { default: None, .. } => {
+                            return Err(format!(
+                                "generic type parameter `{}` has no default instantiation",
+                                parameter.name
+                            ));
+                        }
+                        GenericParamDefKind::Lifetime { .. } => {
+                            return Err(format!(
+                                "lifetime parameter `{}` requires non-escaping chain projection",
+                                parameter.name
+                            ));
+                        }
+                        GenericParamDefKind::Const { .. } => {
+                            return Err(format!(
+                                "const parameter `{}` has no projected value identity",
+                                parameter.name
+                            ));
+                        }
+                    };
+                    alias_generics.insert(parameter.name.clone(), projected);
+                }
+                if !matches!(
+                    project_type(&alias.type_, index, paths, &alias_generics)?,
+                    ProjectedType::Foreign { .. }
+                ) {
+                    return Err("type alias target has no projectable foreign identity".to_owned());
+                }
+                Ok(ProjectedKind::ForeignType {
+                    methods: Vec::new(),
+                    static_methods: Vec::new(),
+                    boundary: project_boundary_capabilities(&alias.type_, index, paths),
+                    displayable: false,
+                    cloneable: false,
+                    send: false,
+                    sync: false,
+                })
+            })(),
             ItemEnum::Struct(structure) => {
                 let mut owner_generics =
                     match default_generic_instantiation(structure, index, paths) {
@@ -4997,6 +5090,7 @@ fn project_rustdoc(
                             destination_result: None,
                             error: None,
                             is_async: false,
+                            into_future: false,
                             execution_requirements: None,
                             enum_operation: Some(ProjectedEnumOperation::Construct {
                                 variant: variant_name.to_owned(),
@@ -5019,6 +5113,7 @@ fn project_rustdoc(
                                 destination_result: None,
                                 error: None,
                                 is_async: false,
+                                into_future: false,
                                 execution_requirements: None,
                                 enum_operation: Some(ProjectedEnumOperation::Extract {
                                     variant: variant_name.to_owned(),
@@ -5040,6 +5135,7 @@ fn project_rustdoc(
                             destination_result: None,
                             error: None,
                             is_async: false,
+                            into_future: false,
                             execution_requirements: None,
                             enum_operation: Some(ProjectedEnumOperation::VariantName {
                                 variants: variant_names,
@@ -6016,7 +6112,7 @@ fn project_function_inner(
             associated_type,
         });
     }
-    let (effective_output, returns_future) = match function.sig.output.as_ref() {
+    let (effective_output, returns_future, into_future) = match function.sig.output.as_ref() {
         Some(output)
             if resolved_name(output, paths).as_deref()
                 == Some("futures_core::future::BoxFuture") =>
@@ -6024,9 +6120,14 @@ fn project_function_inner(
             (
                 type_arguments(output).into_iter().next_back().cloned(),
                 true,
+                false,
             )
         }
-        output => (output.cloned(), false),
+        Some(output) => match concrete_into_future_output(output, index, paths) {
+            Some(into_future_output) => (Some(into_future_output), true, true),
+            None => (Some(output.clone()), false, false),
+        },
+        None => (None, false, false),
     };
     if (function.header.is_async || returns_future)
         && effective_output
@@ -6168,6 +6269,7 @@ fn project_function_inner(
         destination_result,
         error,
         is_async: function.header.is_async || returns_future,
+        into_future,
         execution_requirements: (function.header.is_async || returns_future).then_some(
             ProjectedExecutionRequirements {
                 runtime_context: RequirementKnowledge::Unknown,
@@ -6340,6 +6442,61 @@ fn generic_bounds(parameter: &GenericParamDef, function: &Function) -> Vec<Gener
         }
     }
     bounds
+}
+
+fn concrete_into_future_output(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Option<Type> {
+    let Type::ResolvedPath(path) = ty else {
+        return None;
+    };
+    let Item {
+        inner: ItemEnum::Struct(structure),
+        ..
+    } = index.get(&path.id)?
+    else {
+        return None;
+    };
+    for implementation_id in &structure.impls {
+        let Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        } = index.get(implementation_id)?
+        else {
+            continue;
+        };
+        let trait_path = implementation
+            .trait_
+            .as_ref()
+            .and_then(|trait_| paths.get(&trait_.id))
+            .map(|summary| summary.path.join("::"));
+        if !trait_path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("::IntoFuture"))
+        {
+            continue;
+        }
+        for item_id in &implementation.items {
+            let Some(Item {
+                name: Some(name),
+                inner:
+                    ItemEnum::AssocType {
+                        type_: Some(output),
+                        ..
+                    },
+                ..
+            }) = index.get(item_id)
+            else {
+                continue;
+            };
+            if name == "Output" {
+                return Some(output.clone());
+            }
+        }
+    }
+    None
 }
 
 fn future_output(
@@ -8266,6 +8423,7 @@ mod tests {
                 destination_result: None,
                 error: None,
                 is_async: false,
+                into_future: false,
                 execution_requirements: None,
                 enum_operation: None,
                 error_optional_depth: 0,
@@ -8764,6 +8922,7 @@ mod tests {
                         destination_result: None,
                         error: None,
                         is_async: false,
+                        into_future: false,
                         execution_requirements: None,
                         enum_operation: None,
                         error_optional_depth: 0,
@@ -9044,6 +9203,7 @@ mod tests {
                     destination_result: None,
                     error: None,
                     is_async: false,
+                    into_future: false,
                     execution_requirements: None,
                     enum_operation: None,
                     error_optional_depth: 0,
@@ -9417,6 +9577,7 @@ mod tests {
                     destination_result: None,
                     error: None,
                     is_async: false,
+                    into_future: false,
                     execution_requirements: None,
                     enum_operation: None,
                     error_optional_depth: 0,
@@ -9431,6 +9592,7 @@ mod tests {
                     destination_result: None,
                     error: None,
                     is_async: false,
+                    into_future: false,
                     execution_requirements: None,
                     enum_operation: None,
                     error_optional_depth: 0,

@@ -3377,6 +3377,10 @@
         ],
         [
           "/deps/sentry/transports",
+          "HttpTransport"
+        ],
+        [
+          "/deps/sentry/transports",
           "ReqwestHttpTransport"
         ],
         [
@@ -5260,10 +5264,6 @@
         ],
         [
           "/deps/tokio/task",
-          "LocalSet::new"
-        ],
-        [
-          "/deps/tokio/task",
           "id"
         ],
         [
@@ -5337,10 +5337,6 @@
         [
           "/deps/tokio/task/localenterguard",
           "drop"
-        ],
-        [
-          "/deps/tokio/task/localset",
-          "default"
         ],
         [
           "/deps/tokio/task/localset",
@@ -5449,14 +5445,6 @@
         [
           "/deps/tokio/time",
           "interval_at"
-        ],
-        [
-          "/deps/tokio/time",
-          "sleep"
-        ],
-        [
-          "/deps/tokio/time",
-          "sleep_until"
         ],
         [
           "/deps/tokio/time",
@@ -5962,6 +5950,10 @@
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
+          "Standard"
+        ],
+        [
+          "/deps/tower-http/follow-redirect/policy",
           "clone_body_fn"
         ],
         [
@@ -6175,6 +6167,14 @@
         [
           "/deps/tower-http/trace",
           "DefaultOnResponse::new"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "GrpcMakeClassifier"
+        ],
+        [
+          "/deps/tower-http/trace",
+          "HttpMakeClassifier"
         ],
         [
           "/deps/tower-http/trace/defaultmakespan",
@@ -9523,11 +9523,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "37e08555fa050feb351401bbc2edd2453743f0ff63b15ab4624081dbba0103b8",
+  "cache_identity": "5579e7684f4463e4d35a90ca321171e52b6f28c4523c9c24ef4b5f4436587357",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "55",
-  "content_hash": "67575f98ae6e5c784272743c9a546c84227d6c5e264e486cb30c8cda7ce65c02",
+  "projection_schema": "58",
+  "content_hash": "4c4e0667028afaf4f296a318861d581bf496448b3e5753873844693dab13614e",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

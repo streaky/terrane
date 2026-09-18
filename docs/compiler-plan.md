@@ -763,10 +763,10 @@ native future transfer evidence. Typed failure preservation currently means cano
 identity plus `message`; arbitrary fields and the native Rust error value do not cross the
 throwable boundary. The independent payload and nested-outcome witnesses, direct Markdown
 rendering, and peer-driven WebSocket protocol scenario cover the required outcomes except
-constructing and sending Axum's optional-foreign-payload `Message::Close`, which is deferred to
-M6/S1. The Markdown HTML bridge and Axum text/control filtering and supported message-construction
-bridges were removed; the removed `close_message` capability has not yet moved to direct Terrane.
-Axum upgrade and serving remain for M6, and SQL query/collection bridges remain for M4.
+constructing and sending Axum's optional-foreign-payload `Message::Close`, which remains deferred
+to S1. The Markdown HTML bridge, PDF bridge, and Axum callback/server bridges have been removed.
+Their direct projection evidence is `projected-pdf-html-bytes`, `projected-axum-boundaries`,
+`projected-into-future-output`, and the bounded `projected-websocket-protocol` runtime case.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -2217,6 +2217,13 @@ the exact emitted call validates the closed Rust application. Four focused rejec
 binding, return, capture, and suspension boundaries. Completion and typed-error paths are covered;
 side-effecting-root exactly-once evaluation and cancellation across a chain await remain deferred
 evidence.
+
+Projection schema 58 makes projected source materialization demand-limited without narrowing the
+stored completion/catalog surface, admits closed defaulted aliases at their canonical owner, and
+records concrete `IntoFuture` conversion plus output semantics. The compiler invokes
+`IntoFuture::into_future` before the existing generated async panic boundary rather than hiding
+executor behavior in a host helper. Direct PDF generation and direct Axum response/callback/server
+operation have replaced their adapter features.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
@@ -4200,17 +4207,16 @@ Retire an operation when its upstream projection creates a collision and generic
 regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
 consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
 
-The initial adapter features are `sqlx-sqlite` and `axum-08`. Direct SQLx projection now covers
-connection lifecycle, query construction, byte binding, execution, fetch-all, fetch-one, and
-destination-selected row access. The `sqlx-sqlite` adapter remains only for consumers that must
+The remaining adapter feature is `sqlx-sqlite`. Direct SQLx projection covers connection
+lifecycle, query construction, byte binding, execution, fetch-all, fetch-one, and
+destination-selected row access. The adapter retains only `query_bytes` for consumers that must
 process every collected non-`Clone` row: Terrane's persistent list iteration cannot yet consume
-those rows without an adapter-owned conversion. Its namespace overlay remains available until that
-last ledger criterion closes.
+those rows. S1 owns that removal criterion.
 
-`axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
-It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,
-Tokio listener binding, and the currently unawaitable `axum::serve` boundary. Separate ledger
-entries make every adapter operation removable without changing application imports.
+PDF construction/serialization and Axum routing, retained upgrade callbacks, canonical closed
+response identity, WebSocket messaging, listener binding, and `axum::serve` `IntoFuture`
+consumption now project directly. Their former adapter features and registry entries have been
+deleted.
 
 #### General variadic call contract
 

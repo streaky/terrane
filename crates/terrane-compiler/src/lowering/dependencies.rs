@@ -931,12 +931,18 @@ pub(super) fn emit_dependency_unit(
                 });
             format!("{value_path}{generic_arguments}({arguments})")
         };
-        let invocation = if projected.is_async {
+        let invocation = if projected.into_future {
+            format!("std::future::IntoFuture::into_future({call}).await")
+        } else if projected.is_async {
             format!("{call}.await")
         } else {
             call.clone()
         };
-        let caught = if projected.is_async {
+        let caught = if projected.into_future {
+            format!(
+                "crate::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future({call})).await"
+            )
+        } else if projected.is_async {
             format!("crate::__terrane_dependency_await_unwind({call}).await")
         } else {
             format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")

@@ -9,9 +9,3 @@ pub mod registry;
 
 #[cfg(feature = "sqlx-sqlite")]
 pub mod sqlx_sqlite;
-
-#[cfg(feature = "axum-08")]
-pub mod axum_08;
-
-#[cfg(feature = "docs-rendering")]
-pub mod docs_rendering;

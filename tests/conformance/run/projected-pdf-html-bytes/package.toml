@@ -1,0 +1,8 @@
+package = "projected-pdf-html-bytes"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.pdf-oxide]
+package = "pdf_oxide"
+version = "=0.3.78"

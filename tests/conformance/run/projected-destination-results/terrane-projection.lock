@@ -46,7 +46,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "55",
+  "projection_schema": "58",
   "removed": [
     {
       "current_version": "0.1.1",

@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/pdf-oxide import Error
+from /deps/pdf-oxide/api import Pdf
+from /core/output import print
+
+function main;
+  try
+    document Pdf = Pdf::from_html; '<h1>Terrane PDF</h1><p>direct projection</p>'
+    data bytes = document.save_to_bytes;
+    print; data[0] == 37 and data[1] == 80 and data[2] == 68 and data[3] == 70
+  catch Error as failure
+    print; failure.message

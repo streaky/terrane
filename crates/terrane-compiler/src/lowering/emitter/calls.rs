@@ -1949,7 +1949,9 @@ impl Emitter<'_> {
                     format!("{type_path}::{}", method.name),
                 )
             };
-            let invocation = if method.is_async {
+            let invocation = if method.into_future {
+                "std::future::IntoFuture::into_future(__terrane_call).await".to_owned()
+            } else if method.is_async {
                 "__terrane_call.await".to_owned()
             } else {
                 call.clone()
@@ -1962,7 +1964,9 @@ impl Emitter<'_> {
             } else {
                 call.clone()
             };
-            let caught = if method.is_async {
+            let caught = if method.into_future {
+                "crate::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call)).await".to_owned()
+            } else if method.is_async {
                 "crate::__terrane_dependency_await_unwind(__terrane_call).await".to_owned()
             } else if method.receiver.is_some() {
                 format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")

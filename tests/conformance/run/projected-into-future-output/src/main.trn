@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-into-future-witness import ready_value
+from /core/output import print
+
+async function main;
+  value uint32 = await ready_value; 42
+  print; value
