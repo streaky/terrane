@@ -1,0 +1,7 @@
+package = "projected-similarly-named-into-future"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-fake-into-future]
+version = "=0.1.0"

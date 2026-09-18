@@ -463,10 +463,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:10-7:20) */
-        { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 20 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:11-8:22) */
-        { Site { function: 0, file: 0, line: 8, column: 11, end_line: 8, end_column: 22 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:13:10-13:20) */
+        { Site { function: 0, file: 0, line: 13, column: 10, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:14:11-14:22) */
+        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 22 } },
     ];
     #[cold]
     #[inline(never)]
@@ -482,10 +482,22 @@ mod __terrane_trace {
 }
 // Source: src/main.trn
 // Namespace: app
+#[derive(Clone)]
+pub struct Unrelated {}
+impl Unrelated {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn poison(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(7_i128);
+    }
+}
 fn main() {
+    let local: Unrelated = Unrelated::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&local.poison()));
     let left: Left = __terrane_raised(
         terrane_static_trn_4c656674_new(),
-        0 /* terrane-site: src/main.trn:7:10-7:20 */,
+        0 /* terrane-site: src/main.trn:13:10-13:20 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -493,7 +505,7 @@ fn main() {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload,
         "terrane_member_graph_witness",
-        "terrane_member_graph_witness::left::Left::value")) }, 1 /* terrane-site: src/main.trn:8:11-8:22 */))
+        "terrane_member_graph_witness::left::Left::value")) }, 1 /* terrane-site: src/main.trn:14:11-14:22 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-member-graph-witness/left.trn

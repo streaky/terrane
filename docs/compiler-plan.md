@@ -762,11 +762,12 @@ canonical typed projected failures, displayability, cross-dependency payload con
 native future transfer evidence. Typed failure preservation currently means canonical projected
 identity plus `message`; arbitrary fields and the native Rust error value do not cross the
 throwable boundary. The independent payload and nested-outcome witnesses, direct Markdown
-rendering, and peer-driven WebSocket protocol scenario cover the required outcomes except
-constructing and sending Axum's optional-foreign-payload `Message::Close`, which remains deferred
-to S1. The Markdown HTML bridge, PDF bridge, and Axum callback/server bridges have been removed.
-Their direct projection evidence is `projected-pdf-html-bytes`, `projected-axum-boundaries`,
-`projected-into-future-output`, and the bounded `projected-websocket-protocol` runtime case.
+rendering, and peer-driven WebSocket protocol scenario cover the required outcomes. The bounded
+protocol witness constructs and sends Axum's optional-foreign-payload `Message::Close`, observes it
+from the peer, and keeps the close decision in Terrane. The Markdown HTML bridge, PDF bridge, and
+Axum callback/server bridges have been removed. Their direct projection evidence is
+`projected-pdf-html-bytes`, `projected-into-future-output`, and the bounded
+`projected-websocket-protocol` runtime case.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -2023,6 +2024,16 @@ pending self-waking future plus typed success and failure results; accepted exec
 existing async-context and linear-task rejections cover the source contract without claiming a
 reactor-backed dependency runtime.
 
+Concrete non-`async` results implementing canonical
+`core::future::into_future::IntoFuture` use the same task path. Projection substitutes the concrete
+owner arguments into the associated `Output`, preserves ordinary `Result` success/failure mapping,
+and records an exact conversion bit on the callable. On the Terrane task's first poll, both
+generated wrappers and direct specialized calls evaluate the Rust operation once, invoke
+`IntoFuture::into_future` once, and then enter the existing async panic/cancellation/executor
+boundary; constructing the task alone performs neither step. Exact canonical trait identity, not a
+suffix match, selects this behavior; unresolved generic, borrowed, lifetime-escaping, and otherwise
+unrepresentable outputs are declined.
+
 The cancellation contract for the wake-driven replacement is now fixed before runtime selection:
 when cancellation is observed during suspension, the in-flight operation is dropped promptly, while
 compiler-separated `finally` state is retained and driven exactly once in innermost-first order.
@@ -2218,12 +2229,15 @@ binding, return, capture, and suspension boundaries. Completion and typed-error 
 side-effecting-root exactly-once evaluation and cancellation across a chain await remain deferred
 evidence.
 
-Projection schema 58 makes projected source materialization demand-limited without narrowing the
+Projection schema 61 makes projected source materialization owner-specific without narrowing the
 stored completion/catalog surface, admits closed defaulted aliases at their canonical owner, and
-records concrete `IntoFuture` conversion plus output semantics. The compiler invokes
-`IntoFuture::into_future` before the existing generated async panic boundary rather than hiding
-executor behavior in a host helper. Direct PDF generation and direct Axum response/callback/server
-operation have replaced their adapter features.
+records concrete `IntoFuture` conversion plus substituted output semantics. Structurally resolved
+receiver identities select demanded members; unrelated same-named user members cannot pull foreign
+operations into the source graph. Mutually referential demanded namespace signatures still decline
+under the recorded `projection/mutually-referential-namespace-sources` limitation. The compiler
+invokes canonical `IntoFuture::into_future` exactly once before the existing generated async panic
+boundary rather than hiding executor behavior in a host helper. Direct PDF generation and direct
+Axum response/callback/server operation have replaced their adapter features.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

@@ -44,6 +44,15 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         removal_criterion: "S1 consuming collection or stream iteration lets Terrane process every non-Clone row returned by fetch-all without adapter-owned conversion",
     },
     IntegrationAdapter {
+        id: "projected-mutual-namespace-cycle",
+        tracking_key: "projection/mutually-referential-namespace-sources",
+        dependency: "generic Rust dependencies",
+        supported_versions: "all projected Rustdoc graphs",
+        limitation: "demanded methods whose signatures make generated Terrane dependency namespaces mutually import one another are declined because projected source units are currently ordered as an acyclic graph",
+        status: AdapterStatus::Unbridged,
+        removal_criterion: "projected dependency declarations use semantic descriptors or another representation that resolves mutually referential namespaces without cyclic generated-source ordering",
+    },
+    IntegrationAdapter {
         id: "godot-generated-api-projection",
         tracking_key: "projection/godot-generated-reexport-surface",
         dependency: "godot",

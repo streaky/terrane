@@ -462,11 +462,21 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:24-7:39) */
-        { Site { function: 0, file: 0, line: 7, column: 24, end_line: 7, end_column: 39 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:7:18-7:39) */
-        { Site { function: 0, file: 0, line: 7, column: 18, end_line: 7, end_column: 39 } },
+    pub static SITES: [Site; 7] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:8:24-8:53) */
+        { Site { function: 0, file: 0, line: 8, column: 24, end_line: 8, end_column: 53 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:10:29-10:47) */
+        { Site { function: 0, file: 0, line: 10, column: 29, end_line: 10, end_column: 47 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:23-10:47) */
+        { Site { function: 0, file: 0, line: 10, column: 23, end_line: 10, end_column: 47 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:13:22-13:41) */
+        { Site { function: 0, file: 0, line: 13, column: 22, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:13:16-13:41) */
+        { Site { function: 0, file: 0, line: 13, column: 16, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:16:11-16:30) */
+        { Site { function: 0, file: 0, line: 16, column: 11, end_line: 16, end_column: 30 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:17:11-17:28) */
+        { Site { function: 0, file: 0, line: 17, column: 11, end_line: 17, end_column: 28 } },
     ];
     #[cold]
     #[inline(never)]
@@ -484,54 +494,198 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let value: u32 = __terrane_raised(
+        let value: String = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = {
+                        let __terrane_call = terrane_into_future_witness::ready_value(
+                            String::from("generic-output"),
+                        );
+                        async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    std::future::IntoFuture::into_future(__terrane_call),
+                                )
+                                .await
+                            {
+                                Ok(value) => Ok(value),
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "terrane-into-future-witness",
+                                            "terrane_into_future_witness::ready_value",
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    };
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            0 /* terrane-site: src/main.trn:8:24-8:53 */,
+                        )
+                    }
+                })
+                .await,
+            0 /* terrane-site: src/main.trn:8:24-8:53 */,
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&value));
+        let successful: u32 = __terrane_raised(
             terrane_int_support::coerce::<
                 u32,
             >(
                 &__terrane_traced(
                     __terrane_await({
-                            let __terrane_future = ready_value(
-                                terrane_int_support::Int::from(42_i128),
-                            );
+                            let __terrane_future = ready_result(true);
                             async move {
                                 __terrane_raised_err(
                                     __terrane_future.await,
-                                    0 /* terrane-site: src/main.trn:7:24-7:39 */,
+                                    1 /* terrane-site: src/main.trn:10:29-10:47 */,
                                 )
                             }
                         })
                         .await,
-                    0 /* terrane-site: src/main.trn:7:24-7:39 */,
+                    1 /* terrane-site: src/main.trn:10:29-10:47 */,
                 ),
             ),
-            1 /* terrane-site: src/main.trn:7:18-7:39 */,
+            2 /* terrane-site: src/main.trn:10:23-10:47 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&value));
+        println!("{}", terrane_scalar_support::scalar_text(&successful));
+        let __terrane_completion_0: TerraneCompletion<()> = async {
+            let __terrane_try_0: TerraneCompletion<()> = async {
+                {
+                    let _: u32 = __terrane_raised_completion!(
+                        terrane_int_support::coerce:: < u32 >
+                        (&__terrane_traced_completion!(__terrane_await({ let
+                        __terrane_future = ready_result(false); async move {
+                        __terrane_raised_err(__terrane_future. await,
+                        3 /* terrane-site: src/main.trn:13:22-13:41 */) } }). await,
+                        3 /* terrane-site: src/main.trn:13:22-13:41 */)),
+                        4 /* terrane-site: src/main.trn:13:16-13:41 */
+                    );
+                }
+                TerraneCompletion::Normal
+            }
+                .await;
+            match __terrane_try_0 {
+                TerraneCompletion::Return(value) => {
+                    return TerraneCompletion::Return(value);
+                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                TerraneCompletion::Normal => {}
+                TerraneCompletion::Error(__terrane_error_0) => {
+                    let mut __terrane_handled_0 = false;
+                    if !__terrane_handled_0
+                        && __terrane_error_0.kind
+                            == TerraneErrorKind::Custom(DescriptorId(0))
+                    {
+                        __terrane_handled_0 = true;
+                        let failure = __terrane_error_0.clone();
+                        println!(
+                            "{}", terrane_scalar_support::scalar_text(&failure.message()
+                            .to_owned())
+                        );
+                    }
+                    if !__terrane_handled_0 {
+                        return TerraneCompletion::Error(__terrane_error_0);
+                    }
+                }
+            }
+            TerraneCompletion::Normal
+        }
+            .await;
+        match __terrane_completion_0 {
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                __terrane_generated_defect("loop control escaped a non-loop try")
+            }
+        }
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&__terrane_raised(construction_count(),
+            5 /* terrane-site: src/main.trn:16:11-16:30 */))
+        );
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&__terrane_raised(conversion_count(),
+            6 /* terrane-site: src/main.trn:17:11-17:28 */))
+        );
     });
 }
 // Source: <terrane>/projected/deps/terrane-into-future-witness.trn
 // Namespace: deps/terrane-into-future-witness
-pub async fn ready_value(
-    value: terrane_int_support::Int,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = terrane_int_support::coerce::<u32>(&value)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match crate::__terrane_dependency_await_unwind(
-            std::future::IntoFuture::into_future(
-                terrane_into_future_witness::ready_value(value),
-            ),
-        )
-        .await
-    {
+pub fn construction_count() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_into_future_witness::construction_count()),
+    ) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
                     "terrane-into-future-witness",
-                    "terrane_into_future_witness::ready_value",
+                    "terrane_into_future_witness::construction_count",
+                ),
+            )
+        }
+    }
+}
+pub fn conversion_count() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_into_future_witness::conversion_count()),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-into-future-witness",
+                    "terrane_into_future_witness::conversion_count",
+                ),
+            )
+        }
+    }
+}
+pub async fn ready_result(
+    succeed: bool,
+) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    let succeed = succeed;
+    match crate::__terrane_dependency_await_unwind(
+            std::future::IntoFuture::into_future(
+                terrane_into_future_witness::ready_result(succeed),
+            ),
+        )
+        .await
+    {
+        Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Ok(Err(error)) => {
+            Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        format!(
+                            "Rust dependency `terrane-into-future-witness` member `terrane_into_future_witness::ready_result` failed: {error}"
+                        ),
+                        crate::TERRANE_NO_SITE,
+                    ),
+                ),
+            )
+        }
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-into-future-witness",
+                    "terrane_into_future_witness::ready_result",
                 ),
             )
         }

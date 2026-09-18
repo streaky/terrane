@@ -3,6 +3,12 @@ namespace app
 from /deps/terrane-member-graph-witness/left import Left
 from /core/output import print
 
+class unrelated
+  function poison int;
+    return 7
+
 function main;
+  local = instance unrelated;
+  print; (local.poison;)
   left = Left::new;
   print; (left.value;)

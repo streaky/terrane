@@ -5,12 +5,16 @@ use tokio_tungstenite::tungstenite::{Bytes, Message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 async fn verify_health() {
-    let mut stream = loop {
-        if let Ok(stream) = tokio::net::TcpStream::connect("127.0.0.1:38765").await {
-            break stream;
+    let mut stream = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Ok(stream) = tokio::net::TcpStream::connect("127.0.0.1:38765").await {
+                break stream;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    };
+    })
+    .await
+    .expect("Axum health endpoint did not become ready within five seconds");
     stream
         .write_all(
             b"GET /health HTTP/1.1\r\nHost: 127.0.0.1:38765\r\nConnection: close\r\n\r\n",
@@ -58,12 +62,16 @@ pub async fn drive_peer() {
         .send(Message::Pong(Bytes::from_static(&[4])))
         .await
         .unwrap();
-    socket.send(Message::Close(None)).await.unwrap();
+    socket.send(Message::Text("shutdown".into())).await.unwrap();
     while let Some(message) = socket.next().await {
         if matches!(message, Ok(Message::Close(_))) {
             break;
         }
     }
+
+    let mut socket = connect().await;
+    socket.close(None).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     let socket = connect().await;
     drop(socket);

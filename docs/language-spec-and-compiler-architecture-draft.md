@@ -4868,13 +4868,25 @@ instead of inventing target-language cloning that the Rust field type does not s
 A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
 constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits
 the Rust operation before applying the same argument conversion, result conversion, `Result` error
-mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
-future is constructed when the Terrane call expression is evaluated rather than being deferred
-until a later `await`.
+mapping, receiver ownership, and panic-containment rules as a synchronous projected member. Creating
+the Terrane task does not invoke the Rust operation; its first poll constructs the Rust future
+exactly once, and later polls reuse that value.
 When an asynchronous projected call must itself cross a transferable callback/task boundary, the
 compiler may use the projected Rust future's established `Send` contract as native proof of that
 specific execution value. It does not thereby classify unrelated Terrane values or arbitrary
 local async computations as transferable.
+
+A non-`async` Rust callable whose concrete result implements canonical
+`core::future::into_future::IntoFuture` also projects as a Terrane task. Projection substitutes the
+call's concrete owner arguments into `IntoFuture::Output`; a generic associated output therefore
+remains generic until call specialization rather than leaking an unresolved Rust type parameter.
+Lowering begins on the Terrane task's first poll: it evaluates the Rust call exactly once, invokes
+`IntoFuture::into_future` exactly once on that value, and polls the resulting future through the
+same panic, cancellation, ownership, and executor boundary as a projected `async fn`. Creating the
+task alone performs neither step. A `Result<T, E>` output applies the ordinary projected success and
+failure mapping after the future resolves. Merely having a similarly named trait is not evidence:
+admission uses the canonical trait identity. Borrowed, lifetime-escaping, unresolved
+associated-output, or otherwise unrepresentable shapes are declined.
 
 A concrete owned Rust producer projects as an async sequence when it exposes an asynchronous
 borrowed `next` method returning `Result<Option<Item>, E>` and a consuming `close` method. Awaiting

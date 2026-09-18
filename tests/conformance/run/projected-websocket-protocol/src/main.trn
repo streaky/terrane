@@ -20,6 +20,10 @@ async function socket-session; socket WebSocket
         if kind == 'Text'
           value string|none = (move message).into-Text;
           if value != none
+            if value == 'shutdown'
+              print; 'close-sent'
+              await (socket.send; (Message::Close; none))
+              return
             print; 'text', value
             await (socket.send; (Message::Text; value))
         else if kind == 'Binary'

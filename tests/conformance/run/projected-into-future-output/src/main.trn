@@ -1,8 +1,17 @@
 namespace app
 
-from /deps/terrane-into-future-witness import ready_value
+from /deps/terrane-into-future-witness import construction_count, conversion_count, ready_result, ready_value
+from /core/errors import dependency-error
 from /core/output import print
 
 async function main;
-  value uint32 = await ready_value; 42
+  value string = await ready_value; 'generic-output'
   print; value
+  successful uint32 = await ready_result; true
+  print; successful
+  try
+    _ uint32 = await ready_result; false
+  catch dependency-error as failure
+    print; failure.message
+  print; (construction_count;)
+  print; (conversion_count;)

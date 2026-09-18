@@ -17,7 +17,8 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "58";
+const PROJECTION_SCHEMA: &str = "61";
+pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -742,6 +743,13 @@ fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
     )
 }
 
+fn projected_owner_path_matches(candidate: &str, owner: &str) -> bool {
+    candidate == owner
+        || candidate
+            .strip_prefix(owner)
+            .is_some_and(|suffix| suffix.starts_with('<'))
+}
+
 impl Projection {
     /// Renders the projected dependency sources required by `imports`, limiting foreign member
     /// declarations and their type graph to member names that occur in the importing package.
@@ -753,7 +761,7 @@ impl Projection {
     pub fn source_for_imports_with_members(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
-        demanded_members: &BTreeSet<String>,
+        demanded_members: &ProjectedMemberDemands,
     ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
@@ -871,8 +879,26 @@ impl Projection {
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .flat_map(projected_item_functions)
-            .map(|function| function.name.clone())
+            .filter_map(|item| match &item.kind {
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
+                } => Some((
+                    (item.namespace.clone(), item.name.clone()),
+                    methods
+                        .iter()
+                        .chain(static_methods)
+                        .map(|function| function.name.clone())
+                        .collect(),
+                )),
+                _ => None,
+            })
             .collect();
         self.source_for_imports_with_members(imports, &demanded_members)
     }
@@ -905,7 +931,9 @@ impl Projection {
                     .collect::<Vec<_>>()
                     .join("; ");
                 return Err(format!(
-                    "projected dependency source namespaces contain an import cycle: {cycle}"
+                    "projected dependency source namespaces contain an import cycle: {cycle}; \
+                     this is the recorded `projection/mutually-referential-namespace-sources` \
+                     limitation"
                 ));
             };
             let (namespace, text, _) = sources.remove(index);
@@ -953,6 +981,83 @@ impl Projection {
             .filter(|item| item.namespace == namespace && item.name == name);
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
+    }
+
+    #[must_use]
+    pub(crate) fn projected_owner_for_import(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Option<(String, String)> {
+        let item = self.item(namespace, name)?;
+        let owner_path = match &item.kind {
+            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => {
+                return Some((item.namespace.clone(), item.name.clone()));
+            }
+            ProjectedKind::Function(function) => match &function.result {
+                ProjectedType::Foreign {
+                    rust_path,
+                    base_rust_path,
+                    ..
+                } => {
+                    if base_rust_path.is_empty() {
+                        rust_path
+                    } else {
+                        base_rust_path
+                    }
+                }
+                _ => return None,
+            },
+            ProjectedKind::Interface(_) => return None,
+        };
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|candidate| projected_owner_path_matches(&candidate.rust_path, owner_path))
+            .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
+    }
+
+    pub(crate) fn projected_member_result_owner(
+        &self,
+        namespace: &str,
+        owner: &str,
+        member: &str,
+    ) -> Option<(String, String)> {
+        let item = self.item(namespace, owner)?;
+        let function = match &item.kind {
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+                ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
+            } => methods
+                .iter()
+                .chain(static_methods)
+                .find(|function| function.name == member)?,
+            _ => return None,
+        };
+        let ProjectedType::Foreign {
+            rust_path,
+            base_rust_path,
+            ..
+        } = &function.result
+        else {
+            return None;
+        };
+        let owner_path = if base_rust_path.is_empty() {
+            rust_path
+        } else {
+            base_rust_path
+        };
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|candidate| projected_owner_path_matches(&candidate.rust_path, owner_path))
+            .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
     }
 
     pub(crate) fn item_ambiguity(&self, namespace: &str, name: &str) -> Option<String> {
@@ -1176,6 +1281,7 @@ impl Projection {
         &self,
         namespace: &str,
         type_name: &str,
+
         method_name: &str,
     ) -> Option<&str> {
         let declined_path = self
@@ -1268,10 +1374,24 @@ fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
     }
 }
 
+fn projected_member_is_demanded(
+    namespace: &str,
+    owner: &str,
+    member: &str,
+    demanded: &ProjectedMemberDemands,
+) -> bool {
+    demanded
+        .get(&(namespace.to_owned(), owner.to_owned()))
+        .is_some_and(|members| members.contains(member))
+        || demanded
+            .get(&(String::new(), String::new()))
+            .is_some_and(|members| members.contains(member))
+}
+
 fn expanded_source_imports(
     all_items: &[&ProjectedItem],
     imports: &BTreeMap<String, BTreeSet<String>>,
-    demanded_members: &BTreeSet<String>,
+    demanded_members: &ProjectedMemberDemands,
 ) -> BTreeMap<String, BTreeSet<String>> {
     let mut expanded = imports.clone();
     loop {
@@ -1333,7 +1453,7 @@ fn projected_item_for_foreign<'a>(
 fn collect_source_foreign(
     all_items: &[&ProjectedItem],
     selected: &[&ProjectedItem],
-    demanded_members: &BTreeSet<String>,
+    demanded_members: &ProjectedMemberDemands,
 ) -> BTreeMap<String, String> {
     let mut foreign = BTreeMap::<String, String>::new();
     for item in selected {
@@ -1352,11 +1472,14 @@ fn collect_source_foreign(
                 ..
             } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
-                for method in methods
-                    .iter()
-                    .chain(static_methods)
-                    .filter(|method| demanded_members.contains(&method.name))
-                {
+                for method in methods.iter().chain(static_methods).filter(|method| {
+                    projected_member_is_demanded(
+                        &item.namespace,
+                        &item.name,
+                        &method.name,
+                        demanded_members,
+                    )
+                }) {
                     collect_foreign_function(method, &mut foreign);
                 }
             }
@@ -1398,11 +1521,14 @@ fn collect_source_foreign(
             let Some((methods, static_methods)) = methods else {
                 continue;
             };
-            for method in methods
-                .iter()
-                .chain(static_methods)
-                .filter(|method| demanded_members.contains(&method.name))
-            {
+            for method in methods.iter().chain(static_methods).filter(|method| {
+                projected_member_is_demanded(
+                    &item.namespace,
+                    &item.name,
+                    &method.name,
+                    demanded_members,
+                )
+            }) {
                 collect_foreign_function(method, &mut foreign);
             }
         }
@@ -1496,7 +1622,7 @@ fn render_foreign_declaration(
     name: &str,
     projected_item: Option<&ProjectedItem>,
     aliases: &BTreeMap<String, String>,
-    demanded_members: &BTreeSet<String>,
+    demanded_members: &ProjectedMemberDemands,
 ) {
     if let Some(item) = projected_item
         && item.namespace != namespace
@@ -1531,16 +1657,14 @@ fn render_foreign_declaration(
                 },
             ) = projected_kind
             {
-                for method in methods
-                    .iter()
-                    .filter(|method| demanded_members.contains(&method.name))
-                {
+                for method in methods.iter().filter(|method| {
+                    projected_member_is_demanded(namespace, name, &method.name, demanded_members)
+                }) {
                     render_function(output, method, false, 4, aliases, None);
                 }
-                for method in static_methods
-                    .iter()
-                    .filter(|method| demanded_members.contains(&method.name))
-                {
+                for method in static_methods.iter().filter(|method| {
+                    projected_member_is_demanded(namespace, name, &method.name, demanded_members)
+                }) {
                     render_function(output, method, false, 4, aliases, Some(name));
                 }
             }
@@ -6112,23 +6236,28 @@ fn project_function_inner(
             associated_type,
         });
     }
-    let (effective_output, returns_future, into_future) = match function.sig.output.as_ref() {
-        Some(output)
-            if resolved_name(output, paths).as_deref()
-                == Some("futures_core::future::BoxFuture") =>
-        {
-            (
-                type_arguments(output).into_iter().next_back().cloned(),
-                true,
-                false,
-            )
-        }
-        Some(output) => match concrete_into_future_output(output, index, paths) {
-            Some(into_future_output) => (Some(into_future_output), true, true),
-            None => (Some(output.clone()), false, false),
-        },
-        None => (None, false, false),
-    };
+    let (effective_output, returns_future, into_future, output_generic_types) =
+        match function.sig.output.as_ref() {
+            Some(output)
+                if resolved_name(output, paths).as_deref()
+                    == Some("futures_core::future::BoxFuture") =>
+            {
+                (
+                    type_arguments(output).into_iter().next_back().cloned(),
+                    true,
+                    false,
+                    generic_types.clone(),
+                )
+            }
+            Some(output) => match concrete_into_future_output(output, index, paths, &generic_types)
+            {
+                Some((into_future_output, into_future_generics)) => {
+                    (Some(into_future_output), true, true, into_future_generics)
+                }
+                None => (Some(output.clone()), false, false, generic_types.clone()),
+            },
+            None => (None, false, false, generic_types.clone()),
+        };
     if (function.header.is_async || returns_future)
         && effective_output
             .as_ref()
@@ -6154,7 +6283,7 @@ fn project_function_inner(
             let value = arguments
                 .first()
                 .ok_or_else(|| "Result has no value type".to_owned())?;
-            let projected = project_type(value, index, paths, &generic_types)
+            let projected = project_type(value, index, paths, &output_generic_types)
                 .map_err(|reason| format!("projected result value: {reason}"))?;
             if projected.rust_type().contains('&') {
                 return Err("borrowed result values cannot cross a projected boundary".to_owned());
@@ -6178,7 +6307,7 @@ fn project_function_inner(
                 let success = arguments
                     .first()
                     .ok_or_else(|| "nested Result has no value type".to_owned())?;
-                let projected = project_type(success, index, paths, &generic_types)
+                let projected = project_type(success, index, paths, &output_generic_types)
                     .map_err(|reason| format!("projected nested result value: {reason}"))?;
                 if projected.rust_type().contains('&') {
                     return Err(
@@ -6194,13 +6323,13 @@ fn project_function_inner(
                 ProjectedType::Optional(Box::new(projected))
             } else {
                 ProjectedType::Optional(Box::new(
-                    project_type(value, index, paths, &generic_types)
+                    project_type(value, index, paths, &output_generic_types)
                         .map_err(|reason| format!("projected optional value: {reason}"))?,
                 ))
             }
         } else {
-            project_type(output, index, paths, &generic_types).or_else(|reason| {
-                open_chain_result(output, index, paths, &generic_types)
+            project_type(output, index, paths, &output_generic_types).or_else(|reason| {
+                open_chain_result(output, index, paths, &output_generic_types)
                     .ok_or_else(|| format!("projected output: {reason}"))
             })?
         }
@@ -6448,7 +6577,8 @@ fn concrete_into_future_output(
     ty: &Type,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
-) -> Option<Type> {
+    outer_generics: &BTreeMap<String, ProjectedType>,
+) -> Option<(Type, BTreeMap<String, ProjectedType>)> {
     let Type::ResolvedPath(path) = ty else {
         return None;
     };
@@ -6459,11 +6589,28 @@ fn concrete_into_future_output(
     else {
         return None;
     };
+    let mut concrete_generics = outer_generics.clone();
+    for (parameter, argument) in structure
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .zip(type_arguments(ty))
+    {
+        let projected = match argument {
+            Type::Generic(name) => outer_generics
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| ProjectedType::Generic(name.clone())),
+            _ => project_type(argument, index, paths, outer_generics).ok()?,
+        };
+        concrete_generics.insert(parameter.name.clone(), projected);
+    }
     for implementation_id in &structure.impls {
-        let Item {
+        let Some(Item {
             inner: ItemEnum::Impl(implementation),
             ..
-        } = index.get(implementation_id)?
+        }) = index.get(implementation_id)
         else {
             continue;
         };
@@ -6472,10 +6619,7 @@ fn concrete_into_future_output(
             .as_ref()
             .and_then(|trait_| paths.get(&trait_.id))
             .map(|summary| summary.path.join("::"));
-        if !trait_path
-            .as_deref()
-            .is_some_and(|path| path.ends_with("::IntoFuture"))
-        {
+        if trait_path.as_deref() != Some("core::future::into_future::IntoFuture") {
             continue;
         }
         for item_id in &implementation.items {
@@ -6492,7 +6636,7 @@ fn concrete_into_future_output(
                 continue;
             };
             if name == "Output" {
-                return Some(output.clone());
+                return Some((output.clone(), concrete_generics));
             }
         }
     }
@@ -9347,7 +9491,8 @@ mod tests {
         assert_eq!(
             cycle,
             "projected dependency source namespaces contain an import cycle: \
-             /deps/one -> [/deps/two]; /deps/two -> [/deps/one]"
+             /deps/one -> [/deps/two]; /deps/two -> [/deps/one]; this is the recorded \
+             `projection/mutually-referential-namespace-sources` limitation"
         );
     }
     #[test]
