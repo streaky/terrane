@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "61";
+const PROJECTION_SCHEMA: &str = "62";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
@@ -1383,9 +1383,6 @@ fn projected_member_is_demanded(
     demanded
         .get(&(namespace.to_owned(), owner.to_owned()))
         .is_some_and(|members| members.contains(member))
-        || demanded
-            .get(&(String::new(), String::new()))
-            .is_some_and(|members| members.contains(member))
 }
 
 fn expanded_source_imports(

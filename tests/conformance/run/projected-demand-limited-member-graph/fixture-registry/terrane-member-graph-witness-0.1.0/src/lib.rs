@@ -17,6 +17,10 @@ pub mod left {
     }
 }
 
+pub fn poison() -> u32 {
+    99
+}
+
 pub mod right {
     #[derive(Clone)]
     pub struct Right;

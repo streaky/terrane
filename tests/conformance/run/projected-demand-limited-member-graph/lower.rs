@@ -462,11 +462,13 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:13:10-13:20) */
-        { Site { function: 0, file: 0, line: 13, column: 10, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:14:11-14:22) */
-        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 22 } },
+    pub static SITES: [Site; 3] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:14:11-14:18) */
+        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 18 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:15:10-15:20) */
+        { Site { function: 0, file: 0, line: 15, column: 10, end_line: 15, end_column: 20 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:16:11-16:22) */
+        { Site { function: 0, file: 0, line: 16, column: 11, end_line: 16, end_column: 22 } },
     ];
     #[cold]
     #[inline(never)]
@@ -495,9 +497,13 @@ impl Unrelated {
 fn main() {
     let local: Unrelated = Unrelated::terrane_construct();
     println!("{}", terrane_scalar_support::scalar_text(&local.poison()));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(poison(),
+        0 /* terrane-site: src/main.trn:14:11-14:18 */))
+    );
     let left: Left = __terrane_raised(
         terrane_static_trn_4c656674_new(),
-        0 /* terrane-site: src/main.trn:13:10-13:20 */,
+        1 /* terrane-site: src/main.trn:15:10-15:20 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -505,8 +511,26 @@ fn main() {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload,
         "terrane_member_graph_witness",
-        "terrane_member_graph_witness::left::Left::value")) }, 1 /* terrane-site: src/main.trn:14:11-14:22 */))
+        "terrane_member_graph_witness::left::Left::value")) }, 2 /* terrane-site: src/main.trn:16:11-16:22 */))
     );
+}
+// Source: <terrane>/projected/deps/terrane-member-graph-witness.trn
+// Namespace: deps/terrane-member-graph-witness
+pub fn poison() -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_member_graph_witness::poison()),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-member-graph-witness",
+                    "terrane_member_graph_witness::poison",
+                ),
+            )
+        }
+    }
 }
 // Source: <terrane>/projected/deps/terrane-member-graph-witness/left.trn
 // Namespace: deps/terrane-member-graph-witness/left

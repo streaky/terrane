@@ -304,14 +304,6 @@ pub(super) fn parse_units(
         );
     }
     let mut demanded_members = BTreeMap::<ProjectedOwner, BTreeSet<String>>::new();
-    demanded_members.insert(
-        (String::new(), String::new()),
-        dependency_imports
-            .values()
-            .flat_map(BTreeSet::iter)
-            .cloned()
-            .collect(),
-    );
     for unit in &units {
         collect_demanded_projected_members(
             &unit.source,

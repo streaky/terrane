@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 58; demand-limited member materialization, canonical closed aliases, concrete IntoFuture output/conversion, shared native Rust analysis, proof-selected call arguments, expression-local generic chains, typed nested failures, and root-reachable public Rust paths are reflected in the reviewed surface"
+reviewed-against = "projection schema 62; owner-qualified demand excludes unrelated imported-name collisions, canonical closed aliases, concrete IntoFuture output/conversion, shared native Rust analysis, proof-selected call arguments, expression-local generic chains, typed nested failures, and root-reachable public Rust paths are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.98.1"
