@@ -626,8 +626,8 @@ fn resolve_terrane_dependency(
     cache_owner: &Path,
     dependency: &TerraneDependency,
 ) -> Result<PathBuf, String> {
-    let resolved = match &dependency.source {
-        TerraneDependencySource::Path(path) => root.join(path),
+    let (resolved, already_verified) = match &dependency.source {
+        TerraneDependencySource::Path(path) => (root.join(path), false),
         TerraneDependencySource::Git { url, tag } => {
             let hash = dependency
                 .hash
@@ -671,7 +671,7 @@ fn resolve_terrane_dependency(
                     let _ = fs::remove_dir_all(&temporary);
                 }
             }
-            destination
+            (destination, true)
         }
     };
     if !resolved.is_dir() {
@@ -680,7 +680,7 @@ fn resolve_terrane_dependency(
             resolved.display()
         ));
     }
-    if let Some(expected) = dependency.hash.as_deref() {
+    if !already_verified && let Some(expected) = dependency.hash.as_deref() {
         let actual = source_tree_hash(&resolved)?;
         if actual != expected {
             return Err(format!(

@@ -1354,8 +1354,12 @@ impl SemanticPackage {
         super::bindings::synchronize_execution_requirements(self);
     }
 
-    #[must_use]
-    pub fn resolve_name(&self, namespace: &str, name: &str) -> Option<&Symbol> {
+    fn resolve_name_with_prelude(
+        &self,
+        namespace: &str,
+        name: &str,
+        prelude: bool,
+    ) -> Option<&Symbol> {
         namespace_chain(namespace)
             .find_map(|path| {
                 self.symbol(&path, name).filter(|symbol| {
@@ -1372,7 +1376,12 @@ impl SemanticPackage {
                     .filter(|symbol| visible_from(symbol, namespace))
             })
             .or_else(|| self.symbol("/core/types", name))
-            .or_else(|| self.prelude_bindings.get(name))
+            .or_else(|| prelude.then(|| self.prelude_bindings.get(name)).flatten())
+    }
+
+    #[must_use]
+    pub fn resolve_name(&self, namespace: &str, name: &str) -> Option<&Symbol> {
+        self.resolve_name_with_prelude(namespace, name, self.prelude)
     }
 
     #[must_use]
@@ -1394,7 +1403,7 @@ impl SemanticPackage {
                     .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
             })
             .or_else(|| {
-                self.resolve_name(&unit.namespace, name)
+                self.resolve_name_with_prelude(&unit.namespace, name, unit.prelude)
                     .filter(|symbol| !inside_lexical_scope || symbol.available_in_function_body())
             })
     }

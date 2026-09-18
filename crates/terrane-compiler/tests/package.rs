@@ -1228,6 +1228,42 @@ fn composed_library_keeps_its_own_prelude_setting() {
 }
 
 #[test]
+fn application_and_library_preludes_are_independent() {
+    for (application_prelude, library_prelude) in
+        [(false, false), (false, true), (true, false), (true, true)]
+    {
+        let workspace = TempPackage::new();
+        workspace.write(
+            "library/package.toml",
+            &format!(
+                "package = \"acme/lib\"\nartifact = \"library\"\nprelude = {library_prelude}\n[namespaces]\n\"acme/lib\" = \"src\"\n"
+            ),
+        );
+        workspace.write(
+            "library/src/library.trn",
+            "namespace acme/lib\nfunction announce;\n  print; >library\n",
+        );
+        workspace.write(
+            "app/package.toml",
+            &format!(
+                "package = \"example.app\"\nprelude = {application_prelude}\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n"
+            ),
+        );
+        workspace.write(
+            "app/src/main.trn",
+            "namespace app\nfunction main;\n  print; >application\n",
+        );
+
+        let package = Package::load(workspace.0.join("app")).unwrap();
+        assert_eq!(
+            compile_package(&package).is_ok(),
+            application_prelude && library_prelude,
+            "application prelude {application_prelude}, library prelude {library_prelude}"
+        );
+    }
+}
+
+#[test]
 fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
     let workspace = TempPackage::new();
     workspace.write(
