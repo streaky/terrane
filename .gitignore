@@ -18,6 +18,7 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 /editors/vscode/*.vsix
 
 /projects/
+/packages/
 
 .vscode/
 

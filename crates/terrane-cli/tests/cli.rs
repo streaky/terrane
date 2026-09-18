@@ -294,6 +294,146 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
     );
 }
 
+fn initialize_tagged_repository(path: &Path) {
+    for args in [
+        ["init"].as_slice(),
+        ["config", "user.email", "terrane@example.invalid"].as_slice(),
+        ["config", "user.name", "Terrane Test"].as_slice(),
+        ["add", "."].as_slice(),
+        ["commit", "-m", "library"].as_slice(),
+        ["tag", "v1.0.0"].as_slice(),
+    ] {
+        assert!(
+            Command::new("git")
+                .args(args)
+                .current_dir(path)
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
+}
+
+#[test]
+fn package_install_requires_a_current_application_manifest() {
+    let directory = TemporaryDirectory::new("package-install-no-manifest");
+    fs::create_dir_all(directory.path()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["package", "install", "library"])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("requires package.toml in the current directory")
+    );
+}
+
+#[test]
+fn package_hash_and_install_support_local_and_tagged_git_libraries() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let workspace = TemporaryDirectory::new("package-commands");
+    let library = workspace.path().join("library");
+    let app = workspace.path().join("app");
+    fs::create_dir_all(library.join("src")).unwrap();
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::write(
+        library.join("package.toml"),
+        "package = \"example/library\"\nartifact = \"library\"\n[namespaces]\n\"example/library\" = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        library.join("src/library.trn"),
+        "namespace example/library\nconstant answer = 42\n",
+    )
+    .unwrap();
+    fs::write(
+        app.join("package.toml"),
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+
+    let expected = terrane_compiler::source_tree_hash(&library).unwrap();
+    let local_hash = Command::new(binary)
+        .args(["package", "hash"])
+        .arg(&library)
+        .output()
+        .unwrap();
+    assert!(local_hash.status.success());
+    assert_eq!(
+        String::from_utf8(local_hash.stdout).unwrap().trim(),
+        expected
+    );
+
+    let local_install = Command::new(binary)
+        .args(["package", "install", "../library", "--name", "local"])
+        .current_dir(&app)
+        .output()
+        .unwrap();
+    assert!(
+        local_install.status.success(),
+        "{}",
+        String::from_utf8_lossy(&local_install.stderr)
+    );
+    let installed = fs::read_to_string(app.join("package.toml")).unwrap();
+    assert!(installed.contains("[terrane-dependencies.local]"));
+    assert!(!installed.contains("\n[terrane-dependencies]\n"));
+    assert!(!installed.contains("hash = "));
+    assert_eq!(
+        terrane_compiler::Package::load(&app).unwrap().units.len(),
+        2
+    );
+
+    initialize_tagged_repository(&library);
+    let git_hash = Command::new(binary)
+        .args([
+            "package",
+            "hash",
+            "--git",
+            library.to_str().unwrap(),
+            "--tag",
+            "v1.0.0",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        git_hash.status.success(),
+        "{}",
+        String::from_utf8_lossy(&git_hash.stderr)
+    );
+    assert_eq!(String::from_utf8(git_hash.stdout).unwrap().trim(), expected);
+
+    let git_install = Command::new(binary)
+        .args([
+            "package",
+            "install",
+            "--git",
+            library.to_str().unwrap(),
+            "--tag",
+            "v1.0.0",
+            "--name",
+            "remote",
+        ])
+        .current_dir(&app)
+        .output()
+        .unwrap();
+    assert!(
+        git_install.status.success(),
+        "{}",
+        String::from_utf8_lossy(&git_install.stderr)
+    );
+    let installed = fs::read_to_string(app.join("package.toml")).unwrap();
+    assert!(installed.contains("[terrane-dependencies.remote]"));
+    assert!(installed.contains("tag = \"v1.0.0\""));
+}
+
 #[test]
 fn canonical_rust_requirement_preserves_successful_rust_output() {
     let binary = env!("CARGO_BIN_EXE_terrane");

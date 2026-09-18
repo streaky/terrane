@@ -167,6 +167,7 @@ impl TestPackage {
                         relative_path,
                         source: SourceFile::new(source_id, source_path, source),
                         expected_namespace: None,
+                        prelude: package.prelude,
                         role: match tier {
                             TestTier::Unit => crate::SourceRole::UnitTest,
                             TestTier::Integration => crate::SourceRole::IntegrationTest,

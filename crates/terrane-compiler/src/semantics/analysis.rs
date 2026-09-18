@@ -251,7 +251,7 @@ pub(super) fn parse_units(
                 &unit.source,
                 unit.relative_path_text(),
                 unit.expected_namespace.as_deref(),
-                package.prelude,
+                unit.prelude,
                 false,
                 unit.role,
             )
@@ -784,13 +784,23 @@ pub(super) fn analyze_with_projection(
             return Err(failure(&import.source, "S2029", message, import.span));
         }
     }
-    let prelude_bindings = if package.prelude {
-        bootstrap_prelude()
-    } else {
+    let prelude_namespaces = units
+        .iter()
+        .filter(|unit| unit.prelude)
+        .map(|unit| unit.namespace.clone())
+        .collect::<BTreeSet<_>>();
+    let prelude_bindings = if prelude_namespaces.is_empty() {
         BTreeMap::new()
+    } else {
+        bootstrap_prelude()
     };
-    let mut import_warnings =
-        resolve_imports(imports, &mut namespaces, &globals, &prelude_bindings)?;
+    let mut import_warnings = resolve_imports(
+        imports,
+        &mut namespaces,
+        &globals,
+        &prelude_bindings,
+        &prelude_namespaces,
+    )?;
     for unit in &mut units {
         unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals, &prelude_bindings)?;
         import_warnings.extend(
@@ -1344,8 +1354,12 @@ impl SemanticPackage {
         super::bindings::synchronize_execution_requirements(self);
     }
 
-    #[must_use]
-    pub fn resolve_name(&self, namespace: &str, name: &str) -> Option<&Symbol> {
+    fn resolve_name_with_prelude(
+        &self,
+        namespace: &str,
+        name: &str,
+        prelude: bool,
+    ) -> Option<&Symbol> {
         namespace_chain(namespace)
             .find_map(|path| {
                 self.symbol(&path, name).filter(|symbol| {
@@ -1362,7 +1376,12 @@ impl SemanticPackage {
                     .filter(|symbol| visible_from(symbol, namespace))
             })
             .or_else(|| self.symbol("/core/types", name))
-            .or_else(|| self.prelude_bindings.get(name))
+            .or_else(|| prelude.then(|| self.prelude_bindings.get(name)).flatten())
+    }
+
+    #[must_use]
+    pub fn resolve_name(&self, namespace: &str, name: &str) -> Option<&Symbol> {
+        self.resolve_name_with_prelude(namespace, name, self.prelude)
     }
 
     #[must_use]
@@ -1384,7 +1403,7 @@ impl SemanticPackage {
                     .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
             })
             .or_else(|| {
-                self.resolve_name(&unit.namespace, name)
+                self.resolve_name_with_prelude(&unit.namespace, name, unit.prelude)
                     .filter(|symbol| !inside_lexical_scope || symbol.available_in_function_body())
             })
     }

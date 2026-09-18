@@ -33,7 +33,9 @@ pub use invocation::InvocationMode;
 pub use package::{
     ArtifactKind, AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile,
     IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose,
-    PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, with_tokio_runtime,
+    PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, TerraneDependency,
+    TerraneDependencySource, git_library_metadata, git_source_tree_hash, source_tree_hash,
+    with_tokio_runtime,
 };
 pub use projection_oracle::{
     BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,

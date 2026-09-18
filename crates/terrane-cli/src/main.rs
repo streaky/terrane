@@ -68,6 +68,13 @@ impl CliFailure {
     fn backend(message: String) -> Self {
         Self::diagnostic(PathBuf::from("<generated Rust>"), "S9002", message, 5)
     }
+
+    fn package(message: impl AsRef<str>) -> Self {
+        Self {
+            code: 3,
+            message: format!("error: {}\n", message.as_ref()),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -83,6 +90,7 @@ enum CliCommand {
     Tooling,
     Query,
     Format,
+    Package,
     Toolchains,
     Help,
     Version,
@@ -102,6 +110,7 @@ impl CliCommand {
             "tooling" => Some(Self::Tooling),
             "query" => Some(Self::Query),
             "fmt" => Some(Self::Format),
+            "package" => Some(Self::Package),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -175,6 +184,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Tooling => return run_tooling(arguments),
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
+        CliCommand::Package => return run_package(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
         CliCommand::Profile
@@ -241,6 +251,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             "`run`, `debug`, and `profile record` require an executable package; use `build` for a dynamic library",
         ));
     }
+    if package.artifact == terrane_compiler::ArtifactKind::Library
+        && !matches!(command, CliCommand::Check | CliCommand::Rust)
+    {
+        return Err(CliFailure::usage_with(
+            "Terrane library packages are lowered with an application; use `check` or `rust` directly",
+        ));
+    }
     let compilation = match terrane_compiler::compile_package_with_options(
         &package,
         terrane_compiler::CompilerOptions {
@@ -272,7 +289,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let rust_entrypoint = output_path.as_deref().unwrap_or_else(|| {
         Path::new(match package.artifact {
             terrane_compiler::ArtifactKind::Executable => "src/main.rs",
-            terrane_compiler::ArtifactKind::DynamicLibrary => "src/lib.rs",
+            terrane_compiler::ArtifactKind::DynamicLibrary
+            | terrane_compiler::ArtifactKind::Library => "src/lib.rs",
         })
     });
     let rust_files = compilation
@@ -662,6 +680,9 @@ fn artifact_path(directory: &Path, artifact_kind: terrane_compiler::ArtifactKind
             std::env::consts::DLL_PREFIX,
             std::env::consts::DLL_SUFFIX
         )),
+        terrane_compiler::ArtifactKind::Library => {
+            unreachable!("library packages are never prepared as standalone native artifacts")
+        }
     }
 }
 
@@ -1756,6 +1777,170 @@ fn protocol_parse_error(
     protocol_error_response("invalid-json", error.to_string(), request_id)
 }
 
+#[derive(Default)]
+struct PackageSourceArguments {
+    path: Option<PathBuf>,
+    git: Option<String>,
+    tag: Option<String>,
+    name: Option<String>,
+}
+
+fn parse_package_source(
+    arguments: &[OsString],
+    allow_name: bool,
+) -> Result<PackageSourceArguments, CliFailure> {
+    let mut parsed = PackageSourceArguments::default();
+    let mut index = 2;
+    while index < arguments.len() {
+        let argument = &arguments[index];
+        let option = argument.to_str();
+        if matches!(option, Some("--git" | "--tag" | "--name")) {
+            if option == Some("--name") && !allow_name {
+                return Err(CliFailure::usage_with(
+                    "`--name` is available only for `package install`",
+                ));
+            }
+            let value = arguments
+                .get(index + 1)
+                .and_then(|value| value.to_str())
+                .filter(|value| !value.is_empty())
+                .ok_or_else(CliFailure::usage)?;
+            let destination = match option {
+                Some("--git") => &mut parsed.git,
+                Some("--tag") => &mut parsed.tag,
+                Some("--name") => &mut parsed.name,
+                _ => unreachable!("matched package option"),
+            };
+            if destination.replace(value.to_owned()).is_some() {
+                return Err(CliFailure::usage_with(format!(
+                    "package option `{}` was provided more than once",
+                    option.expect("matched package option")
+                )));
+            }
+            index += 2;
+            continue;
+        }
+        if option.is_some_and(|argument| argument.starts_with('-')) || parsed.path.is_some() {
+            return Err(CliFailure::usage());
+        }
+        parsed.path = Some(PathBuf::from(argument));
+        index += 1;
+    }
+    match (&parsed.path, &parsed.git, &parsed.tag) {
+        (Some(_), None, None) | (None, Some(_), Some(_)) => Ok(parsed),
+        _ => Err(CliFailure::usage_with(
+            "package source must be one local directory or `--git <url> --tag <tag>`",
+        )),
+    }
+}
+
+fn local_library_identity(path: &Path) -> Result<String, CliFailure> {
+    let package = terrane_compiler::Package::load(path).map_err(|errors| {
+        CliFailure::package(
+            errors
+                .into_iter()
+                .map(|error| error.diagnostic.message)
+                .collect::<Vec<_>>()
+                .join("; "),
+        )
+    })?;
+    if package.artifact != terrane_compiler::ArtifactKind::Library {
+        return Err(CliFailure::package(format!(
+            "package `{}` must declare `artifact = \"library\"`",
+            package.identity
+        )));
+    }
+    Ok(package.identity)
+}
+
+fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    let source = parse_package_source(arguments, true)?;
+    let manifest_path = std::env::current_dir()
+        .map_err(|error| CliFailure::package(format!("cannot read current directory: {error}")))?
+        .join(terrane_compiler::MANIFEST_FILE_NAME);
+    if !manifest_path.is_file() {
+        return Err(CliFailure::package(
+            "`package install` requires package.toml in the current directory",
+        ));
+    }
+    let (identity, hash, source_fields) = if let Some(path) = source.path {
+        if path.is_absolute() {
+            return Err(CliFailure::usage_with(
+                "local package installation requires a relative directory path",
+            ));
+        }
+        let identity = local_library_identity(&path)?;
+        let path = path
+            .to_str()
+            .ok_or_else(|| CliFailure::package("local package path is not valid UTF-8"))?
+            .replace('\\', "/");
+        (identity, None, vec![("path", path)])
+    } else {
+        let url = source.git.expect("validated Git package source");
+        let tag = source.tag.expect("validated Git package tag");
+        let (identity, hash) =
+            terrane_compiler::git_library_metadata(&url, &tag).map_err(CliFailure::package)?;
+        (
+            identity,
+            Some(hash.clone()),
+            vec![("git", url), ("tag", tag), ("hash", hash)],
+        )
+    };
+    let name = source.name.unwrap_or(identity);
+    let manifest_text = fs::read_to_string(&manifest_path)
+        .map_err(|error| CliFailure::package(format!("cannot read package.toml: {error}")))?;
+    let mut document = manifest_text
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|error| CliFailure::package(format!("invalid package.toml: {error}")))?;
+    if document.get("terrane-dependencies").is_none() {
+        let mut dependencies = toml_edit::Table::new();
+        dependencies.set_implicit(true);
+        document.insert("terrane-dependencies", toml_edit::Item::Table(dependencies));
+    }
+    let dependencies = document["terrane-dependencies"]
+        .as_table_mut()
+        .ok_or_else(|| CliFailure::package("`terrane-dependencies` must be a table"))?;
+    if dependencies.contains_key(&name) {
+        return Err(CliFailure::package(format!(
+            "Terrane dependency `{name}` is already installed"
+        )));
+    }
+    let mut dependency = toml_edit::Table::new();
+    for (field, value) in source_fields {
+        dependency.insert(field, toml_edit::value(value));
+    }
+    dependencies.insert(&name, toml_edit::Item::Table(dependency));
+    fs::write(&manifest_path, document.to_string())
+        .map_err(|error| CliFailure::package(format!("cannot update package.toml: {error}")))?;
+    if let Some(hash) = hash {
+        println!("installed {name} ({hash})");
+    } else {
+        println!("installed {name}");
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    match arguments.get(1).and_then(|argument| argument.to_str()) {
+        Some("hash") => {
+            let source = parse_package_source(arguments, false)?;
+            let hash = if let Some(path) = source.path {
+                terrane_compiler::source_tree_hash(&path).map_err(CliFailure::package)?
+            } else {
+                terrane_compiler::git_source_tree_hash(
+                    &source.git.expect("validated Git package source"),
+                    &source.tag.expect("validated Git package tag"),
+                )
+                .map_err(CliFailure::package)?
+            };
+            println!("{hash}");
+            Ok(ExitCode::SUCCESS)
+        }
+        Some("install") => install_package(arguments),
+        _ => Err(CliFailure::usage()),
+    }
+}
+
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] <file-or-manifest> [-- program arguments]\n\
@@ -1773,6 +1958,10 @@ fn usage() -> String {
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\
      terrane fmt [--check] <file-or-manifest>\n\
+     terrane package hash <directory>\n\
+     terrane package hash --git <url> --tag <tag>\n\
+     terrane package install <relative-directory> [--name <dependency-name>]\n\
+     terrane package install --git <url> --tag <tag> [--name <dependency-name>]\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1788,6 +1977,7 @@ fn usage() -> String {
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
+     package  hash or install local and tagged-Git Terrane libraries\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }
@@ -1916,6 +2106,7 @@ mod tests {
             relative_path: PathBuf::from("case.trn"),
             source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
+            prelude: true,
             role: terrane_compiler::SourceRole::Production,
         }];
 

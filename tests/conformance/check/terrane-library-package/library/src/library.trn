@@ -1,0 +1,2 @@
+namespace example/library
+constant answer = 42

@@ -723,6 +723,7 @@ impl ToolingEngine {
                 relative_path: PathBuf::from(format!("snapshot/{file_id}.trn")),
                 source: source.clone(),
                 expected_namespace: None,
+                prelude: true,
                 role: crate::SourceRole::Production,
             });
             documents.insert(
@@ -1643,6 +1644,9 @@ fn snapshot_package(
         units,
         rust_dependencies: Vec::new(),
         authored_rust_modules: Vec::new(),
+        terrane_dependencies: Vec::new(),
+        dependency_manifests: Vec::new(),
+        library_source_ids: BTreeSet::new(),
     })
 }
 
@@ -2717,6 +2721,7 @@ fn candidate_sources(
             ),
             source,
             expected_namespace: original.and_then(|unit| unit.expected_namespace.clone()),
+            prelude: original.is_none_or(|unit| unit.prelude),
             role: original.map_or(crate::SourceRole::Production, |unit| unit.role),
         });
         candidate.insert(uri.clone(), text);
@@ -4024,5 +4029,57 @@ mod tests {
             first_projection.cache_identity,
             changed_projection.cache_identity
         );
+    }
+
+    #[test]
+    fn unsaved_manifest_dependencies_and_new_units_drive_tooling_snapshots() {
+        let directory = TemporaryDirectory::new("terrane-library-overlay");
+        let app = directory.path().join("app");
+        let library = directory.path().join("library");
+        fs::create_dir_all(app.join("src")).unwrap();
+        fs::create_dir_all(library.join("src")).unwrap();
+        fs::write(
+            app.join("package.toml"),
+            "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+        )
+        .unwrap();
+        fs::write(
+            library.join("package.toml"),
+            "package = \"example/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"example/lib\" = \"src\"\n",
+        )
+        .unwrap();
+        fs::write(
+            library.join("src/library.trn"),
+            "namespace example/lib\nconstant answer = 42\n",
+        )
+        .unwrap();
+        let manifest = "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n";
+        let main = "namespace app\nfrom /example/lib import answer\nfunction main;\n  answer\n";
+        let extra = "namespace app\nconstant unsaved = 1\n";
+        let mut engine = ToolingEngine::default();
+        let snapshot = engine
+            .open_snapshot(
+                vec![
+                    SourceInput {
+                        uri: format!("file://{}", app.join("src/main.trn").display()),
+                        text: main.to_owned(),
+                    },
+                    SourceInput {
+                        uri: format!("file://{}", app.join("src/unsaved.trn").display()),
+                        text: extra.to_owned(),
+                    },
+                ],
+                Some(SourceInput {
+                    uri: format!("file://{}", app.join("package.toml").display()),
+                    text: manifest.to_owned(),
+                }),
+                None,
+                SnapshotOptions {
+                    semantic: true,
+                    ..SnapshotOptions::default()
+                },
+            )
+            .expect("snapshot uses unsaved package inputs");
+        assert_eq!(snapshot.sources.len(), 2);
     }
 }

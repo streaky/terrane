@@ -1189,7 +1189,14 @@ pub(super) fn visible_symbol_for_lexical_import<'a>(
         };
         index = parent;
     }
-    visible_fallback_symbol(&unit.namespace, name, namespaces, globals, prelude_bindings)
+    visible_fallback_symbol(
+        &unit.namespace,
+        name,
+        namespaces,
+        globals,
+        prelude_bindings,
+        unit.prelude,
+    )
 }
 
 pub(super) fn populate_imports(

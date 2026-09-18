@@ -33,10 +33,14 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
                 ),
                 role: terrane_compiler::SourceRole::Production,
                 expected_namespace: None,
+                prelude,
             })
             .collect(),
         rust_dependencies: Vec::new(),
         authored_rust_modules: Vec::new(),
+        terrane_dependencies: Vec::new(),
+        dependency_manifests: Vec::new(),
+        library_source_ids: std::collections::BTreeSet::new(),
     }
 }
 

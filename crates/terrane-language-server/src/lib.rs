@@ -1296,13 +1296,18 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
     }
 }
 
-type CachedProjection = (
-    std::time::SystemTime,
-    terrane_compiler::projection::Projection,
-);
+type ProjectionStamp = Vec<(PathBuf, std::time::SystemTime)>;
+type CachedProjection = (ProjectionStamp, terrane_compiler::projection::Projection);
 
 static PROJECTIONS: LazyLock<Mutex<HashMap<PathBuf, CachedProjection>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn projection_stamp(paths: &[PathBuf]) -> Option<ProjectionStamp> {
+    paths
+        .iter()
+        .map(|path| Some((path.clone(), path.metadata().ok()?.modified().ok()?)))
+        .collect()
+}
 
 async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Projection> {
     let path = uri.to_file_path()?.into_owned();
@@ -1311,23 +1316,31 @@ async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::P
             .ancestors()
             .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
             .find(|candidate| candidate.is_file())?;
-        let modified = manifest.metadata().ok()?.modified().ok()?;
-        if let Some((cached_at, projection)) = PROJECTIONS
+        if let Some((stamp, projection)) = PROJECTIONS
             .lock()
             .expect("projection cache lock is not poisoned")
             .get(&manifest)
-            && *cached_at == modified
+            .cloned()
+            && projection_stamp(
+                &stamp
+                    .iter()
+                    .map(|(path, _)| path.clone())
+                    .collect::<Vec<_>>(),
+            )
+            .as_ref()
+                == Some(&stamp)
         {
-            return Some(projection.clone());
+            return Some(projection);
         }
         let package = terrane_compiler::Package::load(&manifest).ok()?;
+        let stamp = projection_stamp(&package.dependency_manifests)?;
         let projection =
             terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies)
                 .ok()?;
         PROJECTIONS
             .lock()
             .expect("projection cache lock is not poisoned")
-            .insert(manifest, (modified, projection.clone()));
+            .insert(manifest, (stamp, projection.clone()));
         Some(projection)
     })
     .await
@@ -1633,5 +1646,41 @@ mod tests {
         };
         assert_ne!(definition.uri, child_uri);
         assert!(definition.uri.ends_with("/app/main.trn"));
+    }
+
+    #[test]
+    fn package_snapshots_include_and_analyze_terrane_library_sources() {
+        let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repository root");
+        let app_path = repository
+            .join("tests/conformance/check/terrane-library-package/src/main.trn")
+            .canonicalize()
+            .expect("library consumer fixture");
+        let app_text = std::fs::read_to_string(&app_path).expect("application source");
+        let app_uri = format!("file://{}", app_path.display());
+        let uri = app_uri.parse::<Uri>().expect("file URI");
+        let (sources, manifest) =
+            package_snapshot_inputs(&uri, &app_text, &HashMap::new()).expect("package inputs");
+        assert!(
+            sources
+                .iter()
+                .any(|source| source.uri.ends_with("/library/src/library.trn"))
+        );
+        assert_eq!(sources.len(), 2);
+
+        let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
+        tooling
+            .open_snapshot(
+                sources,
+                manifest,
+                None,
+                terrane_compiler::tooling::SnapshotOptions {
+                    semantic: true,
+                    ..terrane_compiler::tooling::SnapshotOptions::default()
+                },
+            )
+            .expect("semantic library snapshot");
     }
 }
