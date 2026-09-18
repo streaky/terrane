@@ -32,16 +32,16 @@ pub struct IntegrationAdapter {
 pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
     IntegrationAdapter {
         id: "sqlx-sqlite-query-lifetimes",
-        tracking_key: "projection/sqlx-query-lifetime-chain",
+        tracking_key: "collections/consume-non-clone-foreign-items",
         dependency: "sqlx",
         supported_versions: "0.8.x with SQLite and Tokio runtime",
-        limitation: "Direct expression-local query, bind, execute, fetch-all, fetch-one, and row access now project generically; collected non-Clone rows still cannot be consumed through Terrane list iteration",
+        limitation: "`query_bytes` remains only because Terrane cannot yet consume each non-Clone row from a persistent list returned by direct `fetch_all`; query, bind, execute, fetch, row access, typed errors, and connection lifecycle are direct",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
             version: "0.1.x",
             feature: "sqlx-sqlite",
         },
-        removal_criterion: "consuming collection or stream iteration lets Terrane process every non-Clone row returned by fetch-all without an adapter-owned conversion",
+        removal_criterion: "S1 consuming collection or stream iteration lets Terrane process every non-Clone row returned by fetch-all without adapter-owned conversion",
     },
     IntegrationAdapter {
         id: "axum-closed-response-alias",

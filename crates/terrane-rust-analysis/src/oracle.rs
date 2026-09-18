@@ -457,7 +457,7 @@ fn cargo_output(
     };
     crate::configure_projection_cargo_command(&mut command);
     command
-        .arg("+nightly-2026-04-29")
+        .arg(format!("+{}", crate::RUSTDOC_TOOLCHAIN))
         .args(arguments)
         .current_dir(working_directory)
         .output()
@@ -491,7 +491,7 @@ mod tests {
     use rustdoc_types::{Crate as RustdocCrate, ItemEnum};
 
     use super::{BoundQuestion, CallQuestion, ImplQuestion, ProbeAnswer, ProjectionOracle};
-    use crate::Containment;
+    use crate::{Containment, RUSTDOC_TOOLCHAIN};
 
     fn workspace(name: &str) -> std::path::PathBuf {
         workspace_with_dependencies(name, "")
@@ -513,7 +513,7 @@ mod tests {
         .unwrap();
         fs::write(path.join("src/lib.rs"), "").unwrap();
         Command::new("cargo")
-            .arg("+nightly-2026-04-29")
+            .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
             .args(["generate-lockfile", "--offline"])
             .current_dir(&path)
             .status()
@@ -619,6 +619,38 @@ mod tests {
 
         assert_eq!(report.compiled_probe_count, 1);
         assert_eq!(report.evidence[0].answer, ProbeAnswer::Yes);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn call_probe_selects_shared_and_mutable_representations_without_trait_name_heuristics() {
+        let workspace = workspace("argument-representations");
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let prelude = "trait AccessTarget {}\nstruct Shared;\nstruct Mutable;\nimpl AccessTarget for &Shared {}\nimpl AccessTarget for &mut Mutable {}\nfn invoke<T: AccessTarget>(_: T) {}\n";
+        let report = oracle
+            .prove_calls(&[
+                CallQuestion {
+                    label: "shared candidate".to_owned(),
+                    source: format!(
+                        "{prelude}fn main() {{ let value = Shared; invoke(&value); }}\n"
+                    ),
+                },
+                CallQuestion {
+                    label: "mutable candidate".to_owned(),
+                    source: format!(
+                        "{prelude}fn main() {{ let mut value = Mutable; invoke(&mut value); }}\n"
+                    ),
+                },
+            ])
+            .unwrap();
+
+        assert_eq!(report.compiled_probe_count, 2);
+        assert!(
+            report
+                .evidence
+                .iter()
+                .all(|evidence| evidence.answer == ProbeAnswer::Yes)
+        );
         fs::remove_dir_all(workspace).unwrap();
     }
 

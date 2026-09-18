@@ -2,3 +2,5 @@ phase = "run"
 status = "accept"
 entrypoint = "package.toml"
 canonical-rust = true
+# `sqlx-core` is declared explicitly because the typed `Error` catch must have a reachable
+# canonical owner; omitting it intentionally changes the operation's admission boundary.

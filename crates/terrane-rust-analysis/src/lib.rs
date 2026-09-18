@@ -11,6 +11,9 @@ use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, Visibility};
 pub use cargo_toolchain::{configure_cargo_command, configure_projection_cargo_command};
 pub use oracle::*;
 
+/// Nightly toolchain pinned to the Rustdoc JSON format and native probe cache identity.
+pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
+
 #[derive(Clone, Copy, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
 pub enum Containment {
     Enforced,
@@ -146,4 +149,14 @@ fn visit(
         }
     }
     visiting.remove(&id);
+}
+
+#[cfg(test)]
+mod dependency_boundary_tests {
+    #[test]
+    fn crate_manifest_does_not_depend_on_compiler_or_cli() {
+        let manifest = include_str!("../Cargo.toml");
+        assert!(!manifest.contains("terrane-compiler"));
+        assert!(!manifest.contains("terrane-cli"));
+    }
 }

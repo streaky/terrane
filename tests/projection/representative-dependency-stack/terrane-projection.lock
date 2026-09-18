@@ -9523,11 +9523,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "d0c2b60ef6257ad3fd809b7e4ca66739076db26a878f71fbc0745e2497e64917",
+  "cache_identity": "37e08555fa050feb351401bbc2edd2453743f0ff63b15ab4624081dbba0103b8",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "54",
-  "content_hash": "d5cce9fd2d24c3b4936b7f449bb1fb108857f849d125156d046f8429126dc03a",
+  "projection_schema": "55",
+  "content_hash": "67575f98ae6e5c784272743c9a546c84227d6c5e264e486cb30c8cda7ce65c02",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

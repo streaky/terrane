@@ -1116,26 +1116,28 @@ features = ["sqlx-sqlite"]
 effects = ["build", "filesystem"]
 ```
 
-`SqliteConnectOptions` and `SqliteConnection` project directly from `sqlx-sqlite`. The adapter
-package declares a feature-gated namespace overlay in Cargo metadata, so only its `execute`,
-`execute_with_bytes`, and `query_bytes` operations appear beside those upstream types:
+`SqliteConnectOptions` and `SqliteConnection` project directly from `sqlx-sqlite`, while query
+construction projects from the application's explicit `sqlx-core` dependency. Query, bind,
+execute, fetch-all, fetch-one, row access, typed errors, and connection lifecycle are direct:
 
 ```terrane
-from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection, execute
-from /deps/sqlx-sqlite/sqliteconnectoptions import connect
+from /deps/sqlx-core/query import query
+from /deps/sqlx-sqlite import SqliteConnectOptions, SqliteConnection
 from /deps/sqlx-sqlite/sqliteconnection import close
+from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 
 options = (SqliteConnectOptions::new).create_if_missing; true
 database SqliteConnection = await connect; options
-await (execute; database, 'CREATE TABLE events (body BLOB NOT NULL)')
+create_sql = 'CREATE TABLE events (body BLOB NOT NULL)'
+await (query; create_sql).execute; ref database
 await (close; move database)
 ```
 
-The projection artifact retains each item's exact Rust owner: `SqliteConnection` lowers through
-`sqlx_sqlite`, while the temporary operations lower through
-`terrane_integration_adapters::sqlx_sqlite`. Only their Terrane presentation namespace is unified.
-The adapter bridges the lifetime-bearing `Query<'q, DB, A>` chain and collecting non-`Clone`
-rows; connection lifecycle and destination-selected row extraction are directly projected.
+The adapter package's feature-gated namespace overlay contributes only `query_bytes`. That bridge
+consumes the non-`Clone` rows from a collected persistent list and converts each selected blob into
+ordinary Terrane bytes. It can be removed when S1 provides consuming collection or stream
+iteration. Exact projected Rust owners remain unchanged; the overlay only unifies the Terrane
+presentation namespace.
 
 Axum follows the same direct-first rule. An application declares Axum, Tokio, and the adapter's
 `axum-08` feature, then imports the upstream router and handlers normally:

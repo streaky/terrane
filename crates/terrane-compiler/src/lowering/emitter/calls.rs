@@ -1521,30 +1521,12 @@ impl Emitter<'_> {
                     .cloned()
                     .flatten()
                     .or_else(|| parameter.element_value_type());
-                let executor_parameter = projected_parameter
-                    .and_then(|parameter| parameter.generic_parameter.as_ref())
-                    .is_some_and(|generic| {
-                        projected_function.as_ref().is_some_and(|function| {
-                            function.generic_parameters.iter().any(|parameter| {
-                                parameter.name == *generic
-                                    && parameter
-                                        .rust_bounds
-                                        .iter()
-                                        .any(|bound| bound.contains("Executor"))
-                            })
-                        })
-                    });
-                let explicit_reference = self.unit.source.text()
-                    [argument.span.start..argument.span.end]
-                    .trim()
-                    .starts_with("ref ")
-                    .then(|| {
-                        if value.kind == SyntaxKind::UnaryExpression {
-                            value.children.last().unwrap_or(value)
-                        } else {
-                            value
-                        }
-                    });
+                let explicit_reference = [argument, value].into_iter().find_map(|candidate| {
+                    (candidate.kind == SyntaxKind::UnaryExpression
+                        && self.unary_operator(candidate).as_deref() == Some("ref"))
+                    .then(|| candidate.children.last())
+                    .flatten()
+                });
                 let expression = if value.kind == SyntaxKind::Name
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed
@@ -1555,11 +1537,17 @@ impl Emitter<'_> {
                             )
                     }) {
                     self.raw_storage_name(value)
-                } else if executor_parameter {
-                    let operand = explicit_reference.unwrap_or(value);
-                    format!("&mut {}", self.raw_storage_name(operand))
-                } else if let Some(operand) = explicit_reference {
-                    self.reference_address_expression(operand)
+                } else if projected_parameter.is_some_and(|parameter| {
+                    parameter.generic_parameter.is_some()
+                        && (parameter.mutable_borrow || explicit_reference.is_some())
+                }) {
+                    if let Some(operand) = explicit_reference {
+                        format!("&mut {}", self.raw_storage_name(operand))
+                    } else {
+                        format!("&mut {}", self.expression(value))
+                    }
+                } else if projected_parameter.is_some_and(|parameter| parameter.mutable_borrow) {
+                    format!("&mut {}", self.expression(value))
                 } else if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         || parameter.borrowed
@@ -1597,7 +1585,7 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.borrowed
-                            && !executor_parameter
+                            && !parameter.mutable_borrow
                             && !projected_interface_dispatch
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)

@@ -2,15 +2,11 @@ use std::path::Path;
 fn main() {
     let mut args = std::env::args().skip(1);
     let Some(path) = args.next() else {
-        eprintln!("usage: terrane-rust-survey <rustdoc-json> <toolchain>");
-        std::process::exit(2);
-    };
-    let Some(toolchain) = args.next() else {
-        eprintln!("usage: terrane-rust-survey <rustdoc-json> <toolchain>");
+        eprintln!("usage: terrane-rust-survey <rustdoc-json>");
         std::process::exit(2);
     };
     if args.next().is_some() {
-        eprintln!("usage: terrane-rust-survey <rustdoc-json> <toolchain>");
+        eprintln!("usage: terrane-rust-survey <rustdoc-json>");
         std::process::exit(2);
     }
     let bytes = std::fs::read(&path)
@@ -19,8 +15,12 @@ fn main() {
         .file_stem()
         .and_then(|name| name.to_str())
         .unwrap_or("rustdoc");
-    let document = terrane_rust_analysis::parse_rustdoc(package, &bytes, &toolchain)
-        .unwrap_or_else(|error| fail(&error.message));
+    let document = terrane_rust_analysis::parse_rustdoc(
+        package,
+        &bytes,
+        terrane_rust_analysis::RUSTDOC_TOOLCHAIN,
+    )
+    .unwrap_or_else(|error| fail(&error.message));
     let paths = terrane_rust_analysis::public_paths(&document);
     println!(
         "{}",

@@ -1,78 +1,32 @@
 //! Narrow bridges for `SQLx` SQLite shapes that Terrane cannot yet project directly.
 //!
-//! Connection lifecycle and single-row extraction now use projected upstream trait operations;
-//! this module remains only for query-builder chains and non-Clone row collection.
-
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
+//! Direct query, bind, execute, fetch, row access, and connection lifecycle operations now use
+//! projected upstream APIs. This module remains only for consuming a collected sequence of
+//! non-`Clone` rows into ordinary Terrane byte values.
 
 use sqlx::Row;
 use sqlx::sqlite::SqliteConnection;
-
-#[derive(Debug)]
-pub struct SqliteAdapterError(sqlx::Error);
-
-impl Display for SqliteAdapterError {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, formatter)
-    }
-}
-
-impl Error for SqliteAdapterError {}
-
-impl From<sqlx::Error> for SqliteAdapterError {
-    fn from(error: sqlx::Error) -> Self {
-        Self(error)
-    }
-}
-
-/// Executes one SQL statement on an upstream SQLite connection without bound values.
-///
-/// # Errors
-///
-/// Returns [`SqliteAdapterError`] when `SQLx` cannot execute the statement.
-pub async fn execute(
-    connection: &mut SqliteConnection,
-    statement: String,
-) -> Result<(), SqliteAdapterError> {
-    sqlx::query(&statement).execute(connection).await?;
-    Ok(())
-}
-
-/// Executes one SQL statement whose single positional parameter is an owned byte value.
-///
-/// # Errors
-///
-/// Returns [`SqliteAdapterError`] when the value cannot be bound or `SQLx` cannot execute the
-/// statement.
-pub async fn execute_with_bytes(
-    connection: &mut SqliteConnection,
-    statement: String,
-    value: Vec<u8>,
-) -> Result<(), SqliteAdapterError> {
-    sqlx::query(&statement)
-        .bind(value)
-        .execute(connection)
-        .await?;
-    Ok(())
-}
 
 /// Executes a query and extracts one bytes column from every row in result order.
 ///
 /// # Errors
 ///
-/// Returns [`SqliteAdapterError`] when `SQLx` cannot execute the query, the requested column is
-/// absent, or a column value is not a SQLite blob.
+/// Returns [`std::io::Error`] when SQLx cannot execute the query, the requested column is absent,
+/// or a column value is not a SQLite blob. The bridge preserves SQLx's display text while using
+/// the established standard-library dependency-error boundary.
 pub async fn query_bytes(
     connection: &mut SqliteConnection,
     statement: String,
     column: String,
-) -> Result<Vec<Vec<u8>>, SqliteAdapterError> {
-    let rows = sqlx::query(&statement).fetch_all(connection).await?;
+) -> Result<Vec<Vec<u8>>, std::io::Error> {
+    let rows = sqlx::query(&statement)
+        .fetch_all(connection)
+        .await
+        .map_err(std::io::Error::other)?;
     rows.into_iter()
         .map(|row| {
             row.try_get::<Vec<u8>, _>(column.as_str())
-                .map_err(Into::into)
+                .map_err(std::io::Error::other)
         })
         .collect()
 }
@@ -85,7 +39,7 @@ mod tests {
     use sqlx::Connection;
     use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 
-    use super::{execute, execute_with_bytes, query_bytes};
+    use super::query_bytes;
 
     struct TempDatabase(std::path::PathBuf);
 
@@ -121,26 +75,20 @@ mod tests {
             .await
             .expect("database connection must open");
 
-        execute(
-            &mut connection,
-            "CREATE TABLE messages (sequence INTEGER PRIMARY KEY, body BLOB NOT NULL)".to_owned(),
-        )
-        .await
-        .expect("schema creation must succeed");
-        execute_with_bytes(
-            &mut connection,
-            "INSERT INTO messages (sequence, body) VALUES (1, ?)".to_owned(),
-            b"first".to_vec(),
-        )
-        .await
-        .expect("first insertion must succeed");
-        execute_with_bytes(
-            &mut connection,
-            "INSERT INTO messages (sequence, body) VALUES (2, ?)".to_owned(),
-            b"second".to_vec(),
-        )
-        .await
-        .expect("second insertion must succeed");
+        sqlx::query("CREATE TABLE messages (sequence INTEGER PRIMARY KEY, body BLOB NOT NULL)")
+            .execute(&mut connection)
+            .await
+            .expect("schema creation must succeed");
+        sqlx::query("INSERT INTO messages (sequence, body) VALUES (1, ?)")
+            .bind(b"first".to_vec())
+            .execute(&mut connection)
+            .await
+            .expect("first insertion must succeed");
+        sqlx::query("INSERT INTO messages (sequence, body) VALUES (2, ?)")
+            .bind(b"second".to_vec())
+            .execute(&mut connection)
+            .await
+            .expect("second insertion must succeed");
 
         let rows = query_bytes(
             &mut connection,

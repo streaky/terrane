@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 54; shared native Rust analysis, concrete owner/static closure, expression-local generic chain state, contextual associated outputs, typed nested failures, native transfer evidence, deterministic collision declines, transitive error-owner reachability, and root-reachable public Rust paths are reflected in the reviewed surface"
+reviewed-against = "projection schema 55; shared native Rust analysis, proof-selected direct/shared/mutable call arguments, concrete owner/static closure, expression-local generic chain state, contextual associated outputs, typed nested failures, native transfer evidence, deterministic collision declines, transitive error-owner reachability, and root-reachable public Rust paths are reflected in the reviewed surface"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.98.1"
@@ -9,8 +9,8 @@ rustdoc-format = 57
 observed-on = "2026-09-18"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
 method = "target/debug/terrane check package.toml in the representative fixture; cold removes .trn/dependencies but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust package.toml"
-compiler-revision = "889e1ac2f403930367c17f217bc33c14bbc05b8b"
-compiler-binary-sha256 = "7c3c9f4924f4f1fba9386fd4a60f7fedcc160c29a7f7608c8ca4c44f61903767"
+compiler-revision = "cfaa511bac67a993130597a173411833c2c7c5b2"
+compiler-binary-sha256 = "4712919c77274214934a7887648b16574e94c8ffe1db4472f31dfe38d6b63583"
 package-manifest-sha256 = "3f60295ea24d94202d07c7285f4c1eaeabc41f5191efbcac8738eb6b46b0cd8c"
 resolved-cargo-lock-sha256 = "53966f2e578a164d919759e7cfc478614cdc224698721304f0ef75482b68c52e"
 cold-wall-seconds = 62.917

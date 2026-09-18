@@ -17,6 +17,7 @@ async function main;
   create_sql = 'CREATE TABLE records (body BLOB NOT NULL)'
   insert_sql = 'INSERT INTO records (body) VALUES (?)'
   select_sql = 'SELECT body FROM records ORDER BY body'
+  second_sql = 'SELECT body FROM records ORDER BY body LIMIT 1 OFFSET 1'
   invalid_sql = 'SELECT missing FROM absent'
   await (query; create_sql).execute; ref connection
   await ((query; insert_sql).bind; b'first').execute; ref connection
@@ -26,6 +27,9 @@ async function main;
   row SqliteRow = await (query; select_sql).fetch_one; ref connection
   body bytes = try_get; row, 'body'
   print; body[0]
+  second_row SqliteRow = await (query; second_sql).fetch_one; ref connection
+  second_body bytes = try_get; second_row, 'body'
+  print; second_body[0]
   try
     await (query; invalid_sql).execute; ref connection
   catch Error

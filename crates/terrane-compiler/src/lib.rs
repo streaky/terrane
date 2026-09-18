@@ -45,6 +45,7 @@ pub use semantics::{
     SemanticUnit, Symbol, TypedBinding, ValueType, Visibility, analyze,
 };
 pub use source::{SourceFile, Span};
+pub use terrane_rust_analysis::RUSTDOC_TOOLCHAIN;
 pub use types::{ScalarType, TypeCategory};
 /// Unicode Character Database version selected by the compiler toolchain profile.
 pub const UNICODE_DATA_VERSION: &str = "16.0.0";
@@ -53,7 +54,6 @@ const UNICODE_DATA_VERSION_COMPONENTS: (u64, u64, u64) = (16, 0, 0);
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_TOOLCHAIN: &str = "1.98.1";
-pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
 
 #[must_use]
 pub fn platform_support_manifest() -> String {

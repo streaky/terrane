@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "54";
+const PROJECTION_SCHEMA: &str = "55";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -5999,11 +5999,7 @@ fn project_function_inner(
         } else {
             None
         };
-        let executor_borrow = rendered_generic_bounds
-            .iter()
-            .any(|bound| bound.contains("Executor"));
         let borrowed = borrowed
-            || executor_borrow
             || (generic_parameter
                 .as_ref()
                 .is_some_and(|name| name.starts_with("TerraneImpl"))
@@ -6013,7 +6009,7 @@ fn project_function_inner(
             name: safe_parameter_name(name),
             ty: projected_type,
             borrowed,
-            mutable_borrow: mutable_borrow || executor_borrow,
+            mutable_borrow,
             generic_parameter,
             generic_interface,
             generic_bounds: rendered_generic_bounds,

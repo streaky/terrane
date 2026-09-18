@@ -327,14 +327,14 @@ pub(super) fn first_write_to<'a>(
 ) -> Option<&'a SyntaxNode> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && callee.kind == SyntaxKind::Name
-        && let Some(symbol) =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-        && let Some(crate::projection::ProjectedKind::Function(function)) = package
-            .projection
-            .item(&symbol.namespace, &symbol.name)
-            .map(|item| &item.kind)
+        && let Some(function) = projected_function_for_call(package, unit, callee)
     {
+        let projected_parameters = unit
+            .projected_call_specializations
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .map_or(function.parameters.as_slice(), |specialization| {
+                specialization.projected_parameters.as_slice()
+            });
         let mut positional = 0;
         for argument in &arguments.children {
             let named = argument
@@ -348,16 +348,21 @@ pub(super) fn first_write_to<'a>(
                     index
                 },
                 |name| {
-                    function
-                        .parameters
+                    projected_parameters
                         .iter()
                         .position(|parameter| parameter.name == node_text(&unit.source, name))
                         .unwrap_or(usize::MAX)
                 },
             );
             let value = argument.children.last().unwrap_or(argument);
-            if function
-                .parameters
+            let value = if value.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, value).as_deref() == Some("ref")
+            {
+                value.children.last().unwrap_or(value)
+            } else {
+                value
+            };
+            if projected_parameters
                 .get(index)
                 .is_some_and(|parameter| parameter.mutable_borrow)
                 && value.kind == SyntaxKind::Name

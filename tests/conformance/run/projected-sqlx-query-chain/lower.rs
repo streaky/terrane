@@ -463,7 +463,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 14] = [
+    pub static SITES: [Site; 17] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:13:13-13:39) */
         { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 39 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:14:13-14:41) */
@@ -472,26 +472,32 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 15, column: 13, end_line: 15, end_column: 44 } },
         /* terrane-site-row: site 3: /app::main (src/main.trn:16:22-16:38) */
         { Site { function: 0, file: 0, line: 16, column: 22, end_line: 16, end_column: 38 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:21:9-21:52) */
-        { Site { function: 0, file: 0, line: 21, column: 9, end_line: 21, end_column: 52 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:22:9-22:69) */
-        { Site { function: 0, file: 0, line: 22, column: 9, end_line: 22, end_column: 69 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:23:9-23:70) */
-        { Site { function: 0, file: 0, line: 23, column: 9, end_line: 23, end_column: 70 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:24:34-24:79) */
-        { Site { function: 0, file: 0, line: 24, column: 34, end_line: 24, end_column: 79 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:26:25-26:70) */
-        { Site { function: 0, file: 0, line: 26, column: 25, end_line: 26, end_column: 70 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:27:16-27:36) */
-        { Site { function: 0, file: 0, line: 27, column: 16, end_line: 27, end_column: 36 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:28:10-28:17) */
-        { Site { function: 0, file: 0, line: 28, column: 10, end_line: 28, end_column: 17 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:30:11-30:55) */
-        { Site { function: 0, file: 0, line: 30, column: 11, end_line: 30, end_column: 55 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:33:10-33:32) */
-        { Site { function: 0, file: 0, line: 33, column: 10, end_line: 33, end_column: 32 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:33:9-33:33) */
-        { Site { function: 0, file: 0, line: 33, column: 9, end_line: 33, end_column: 33 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:22:9-22:52) */
+        { Site { function: 0, file: 0, line: 22, column: 9, end_line: 22, end_column: 52 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:23:9-23:69) */
+        { Site { function: 0, file: 0, line: 23, column: 9, end_line: 23, end_column: 69 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:24:9-24:70) */
+        { Site { function: 0, file: 0, line: 24, column: 9, end_line: 24, end_column: 70 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:25:34-25:79) */
+        { Site { function: 0, file: 0, line: 25, column: 34, end_line: 25, end_column: 79 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:27:25-27:70) */
+        { Site { function: 0, file: 0, line: 27, column: 25, end_line: 27, end_column: 70 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:28:16-28:36) */
+        { Site { function: 0, file: 0, line: 28, column: 16, end_line: 28, end_column: 36 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:29:10-29:17) */
+        { Site { function: 0, file: 0, line: 29, column: 10, end_line: 29, end_column: 17 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:30:32-30:77) */
+        { Site { function: 0, file: 0, line: 30, column: 32, end_line: 30, end_column: 77 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:31:23-31:50) */
+        { Site { function: 0, file: 0, line: 31, column: 23, end_line: 31, end_column: 50 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:32:10-32:24) */
+        { Site { function: 0, file: 0, line: 32, column: 10, end_line: 32, end_column: 24 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:34:11-34:55) */
+        { Site { function: 0, file: 0, line: 34, column: 11, end_line: 34, end_column: 55 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:37:10-37:32) */
+        { Site { function: 0, file: 0, line: 37, column: 10, end_line: 37, end_column: 32 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:37:9-37:33) */
+        { Site { function: 0, file: 0, line: 37, column: 9, end_line: 37, end_column: 33 } },
     ];
     #[cold]
     #[inline(never)]
@@ -567,6 +573,9 @@ fn main() {
         );
         let insert_sql: String = String::from("INSERT INTO records (body) VALUES (?)");
         let select_sql: String = String::from("SELECT body FROM records ORDER BY body");
+        let second_sql: String = String::from(
+            "SELECT body FROM records ORDER BY body LIMIT 1 OFFSET 1",
+        );
         let invalid_sql: String = String::from("SELECT missing FROM absent");
         __terrane_traced(
             __terrane_await({
@@ -606,12 +615,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:21:9-21:52 */,
+                            4 /* terrane-site: src/main.trn:22:9-22:52 */,
                         )
                     }
                 })
                 .await,
-            4 /* terrane-site: src/main.trn:21:9-21:52 */,
+            4 /* terrane-site: src/main.trn:22:9-22:52 */,
         );
         __terrane_traced(
             __terrane_await({
@@ -652,12 +661,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            5 /* terrane-site: src/main.trn:22:9-22:69 */,
+                            5 /* terrane-site: src/main.trn:23:9-23:69 */,
                         )
                     }
                 })
                 .await,
-            5 /* terrane-site: src/main.trn:22:9-22:69 */,
+            5 /* terrane-site: src/main.trn:23:9-23:69 */,
         );
         __terrane_traced(
             __terrane_await({
@@ -698,12 +707,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            6 /* terrane-site: src/main.trn:23:9-23:70 */,
+                            6 /* terrane-site: src/main.trn:24:9-24:70 */,
                         )
                     }
                 })
                 .await,
-            6 /* terrane-site: src/main.trn:23:9-23:70 */,
+            6 /* terrane-site: src/main.trn:24:9-24:70 */,
         );
         let rows: terrane_collection_support::List<SqliteRow> = __terrane_traced(
             __terrane_await({
@@ -749,12 +758,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            7 /* terrane-site: src/main.trn:24:34-24:79 */,
+                            7 /* terrane-site: src/main.trn:25:34-25:79 */,
                         )
                     }
                 })
                 .await,
-            7 /* terrane-site: src/main.trn:24:34-24:79 */,
+            7 /* terrane-site: src/main.trn:25:34-25:79 */,
         );
         println!(
             "{}",
@@ -799,12 +808,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            8 /* terrane-site: src/main.trn:26:25-26:70 */,
+                            8 /* terrane-site: src/main.trn:27:25-27:70 */,
                         )
                     }
                 })
                 .await,
-            8 /* terrane-site: src/main.trn:26:25-26:70 */,
+            8 /* terrane-site: src/main.trn:27:25-27:70 */,
         );
         let body: Vec<u8> = __terrane_raised(
             match std::panic::catch_unwind(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
@@ -833,13 +842,93 @@ fn main() {
                     )
                 }
             },
-            9 /* terrane-site: src/main.trn:27:16-27:36 */,
+            9 /* terrane-site: src/main.trn:28:16-28:36 */,
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&body,
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            10 /* terrane-site: src/main.trn:28:10-28:17 */)), 10 /* terrane-site: src/main.trn:28:10-28:17 */))
+            10 /* terrane-site: src/main.trn:29:10-29:17 */)), 10 /* terrane-site: src/main.trn:29:10-29:17 */))
+        );
+        let second_row: SqliteRow = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = {
+                        let __terrane_call = sqlx_core::query::query(&second_sql)
+                            .fetch_one(&mut connection);
+                        async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
+                                )
+                                .await
+                            {
+                                Ok(Ok(value)) => Ok(value),
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
+                                        ),
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "sqlx_core",
+                                            "sqlx_core::query::Query::fetch_one",
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    };
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            11 /* terrane-site: src/main.trn:30:32-30:77 */,
+                        )
+                    }
+                })
+                .await,
+            11 /* terrane-site: src/main.trn:30:32-30:77 */,
+        );
+        let second_body: Vec<u8> = __terrane_raised(
+            match std::panic::catch_unwind(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
+                &second_row,
+                String::from("body").as_str(),
+            )) {
+                Ok(Ok(value)) => Ok(value),
+                Ok(Err(error)) => {
+                    Err(
+                        crate::TerraneForeignError(
+                            crate::TerraneError::custom_raised(
+                                crate::DescriptorId(2),
+                                error.to_string(),
+                                crate::TERRANE_NO_SITE,
+                            ),
+                        ),
+                    )
+                }
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "sqlx-sqlite",
+                            "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get",
+                        ),
+                    )
+                }
+            },
+            12 /* terrane-site: src/main.trn:31:23-31:50 */,
+        );
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&second_body,
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            13 /* terrane-site: src/main.trn:32:10-32:24 */)), 13 /* terrane-site: src/main.trn:32:10-32:24 */))
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
@@ -853,7 +942,7 @@ fn main() {
                     ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
                     Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
                     "sqlx_core", "sqlx_core::query::Query::execute")) } } }; async move {
-                    __terrane_raised_err(__terrane_future. await, 11 /* terrane-site: src/main.trn:30:11-30:55 */) } }). await, 11 /* terrane-site: src/main.trn:30:11-30:55 */
+                    __terrane_raised_err(__terrane_future. await, 14 /* terrane-site: src/main.trn:34:11-34:55 */) } }). await, 14 /* terrane-site: src/main.trn:34:11-34:55 */
                 );
                 TerraneCompletion::Normal
             }
@@ -899,12 +988,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            12 /* terrane-site: src/main.trn:33:10-33:32 */,
+                            15 /* terrane-site: src/main.trn:37:10-37:32 */,
                         )
                     }
                 })
                 .await,
-            13 /* terrane-site: src/main.trn:33:9-33:33 */,
+            16 /* terrane-site: src/main.trn:37:9-37:33 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&String::from("complete")));
     });

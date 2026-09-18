@@ -446,10 +446,9 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 4] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
-        "/deps/sqlx-sqlite::SqliteAdapterError",
         "/deps/sqlx-core::Error",
     ];
 }
@@ -464,29 +463,25 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 11] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:8:15-8:41) */
-        { Site { function: 0, file: 0, line: 8, column: 15, end_line: 8, end_column: 41 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:15-9:45) */
-        { Site { function: 0, file: 0, line: 9, column: 15, end_line: 9, end_column: 45 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:15-10:46) */
-        { Site { function: 0, file: 0, line: 10, column: 15, end_line: 10, end_column: 46 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:39-11:55) */
-        { Site { function: 0, file: 0, line: 11, column: 39, end_line: 11, end_column: 55 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:12:12-12:73) */
-        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 73 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:12:11-12:74) */
-        { Site { function: 0, file: 0, line: 12, column: 11, end_line: 12, end_column: 74 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:13:12-13:90) */
-        { Site { function: 0, file: 0, line: 13, column: 12, end_line: 13, end_column: 90 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:13:11-13:91) */
-        { Site { function: 0, file: 0, line: 13, column: 11, end_line: 13, end_column: 91 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:14:29-14:85) */
-        { Site { function: 0, file: 0, line: 14, column: 29, end_line: 14, end_column: 85 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:15:12-15:32) */
-        { Site { function: 0, file: 0, line: 15, column: 12, end_line: 15, end_column: 32 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:15:11-15:33) */
-        { Site { function: 0, file: 0, line: 15, column: 11, end_line: 15, end_column: 33 } },
+    pub static SITES: [Site; 9] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:9:15-9:41) */
+        { Site { function: 0, file: 0, line: 9, column: 15, end_line: 9, end_column: 41 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:10:15-10:45) */
+        { Site { function: 0, file: 0, line: 10, column: 15, end_line: 10, end_column: 45 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:11:15-11:46) */
+        { Site { function: 0, file: 0, line: 11, column: 15, end_line: 11, end_column: 46 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:12:39-12:55) */
+        { Site { function: 0, file: 0, line: 12, column: 39, end_line: 12, end_column: 55 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:15:11-15:52) */
+        { Site { function: 0, file: 0, line: 15, column: 11, end_line: 15, end_column: 52 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:16:11-16:69) */
+        { Site { function: 0, file: 0, line: 16, column: 11, end_line: 16, end_column: 69 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:17:29-17:85) */
+        { Site { function: 0, file: 0, line: 17, column: 29, end_line: 17, end_column: 85 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:18:12-18:32) */
+        { Site { function: 0, file: 0, line: 18, column: 12, end_line: 18, end_column: 32 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:18:11-18:33) */
+        { Site { function: 0, file: 0, line: 18, column: 11, end_line: 18, end_column: 33 } },
     ];
     #[cold]
     #[inline(never)]
@@ -506,7 +501,7 @@ fn main() {
     __terrane_run(async move {
         let mut options: SqliteConnectOptions = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
-            0 /* terrane-site: src/main.trn:8:15-8:41 */,
+            0 /* terrane-site: src/main.trn:9:15-9:41 */,
         );
         options = __terrane_raised(
             match std::panic::catch_unwind(
@@ -525,7 +520,7 @@ fn main() {
                     )
                 }
             },
-            1 /* terrane-site: src/main.trn:9:15-9:45 */,
+            1 /* terrane-site: src/main.trn:10:15-10:45 */,
         );
         options = __terrane_raised(
             match std::panic::catch_unwind(
@@ -542,7 +537,7 @@ fn main() {
                     )
                 }
             },
-            2 /* terrane-site: src/main.trn:10:15-10:46 */,
+            2 /* terrane-site: src/main.trn:11:15-11:46 */,
         );
         let mut database: SqliteConnection = __terrane_traced(
             __terrane_await({
@@ -550,45 +545,107 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            3 /* terrane-site: src/main.trn:11:39-11:55 */,
+                            3 /* terrane-site: src/main.trn:12:39-12:55 */,
                         )
                     }
                 })
                 .await,
-            3 /* terrane-site: src/main.trn:11:39-11:55 */,
+            3 /* terrane-site: src/main.trn:12:39-12:55 */,
         );
+        let create_sql: String = String::from(
+            "CREATE TABLE values (body BLOB NOT NULL)",
+        );
+        let insert_sql: String = String::from("INSERT INTO values (body) VALUES (?)");
         __terrane_traced(
             __terrane_await({
-                    let __terrane_future = execute(
-                        &mut database,
-                        String::from("CREATE TABLE values (body BLOB NOT NULL)"),
-                    );
+                    let __terrane_future = {
+                        let __terrane_call = sqlx_core::query::query(&create_sql)
+                            .execute(&mut database);
+                        async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
+                                )
+                                .await
+                            {
+                                Ok(Ok(value)) => Ok(value),
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
+                                        ),
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "sqlx_core",
+                                            "sqlx_core::query::Query::execute",
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    };
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:12:12-12:73 */,
+                            4 /* terrane-site: src/main.trn:15:11-15:52 */,
                         )
                     }
                 })
                 .await,
-            5 /* terrane-site: src/main.trn:12:11-12:74 */,
+            4 /* terrane-site: src/main.trn:15:11-15:52 */,
         );
         __terrane_traced(
             __terrane_await({
-                    let __terrane_future = execute_with_bytes(
-                        &mut database,
-                        String::from("INSERT INTO values (body) VALUES (?)"),
-                        Vec::from([118, 97, 108, 117, 101]),
-                    );
+                    let __terrane_future = {
+                        let __terrane_call = sqlx_core::query::query(&insert_sql)
+                            .bind(Vec::from([118, 97, 108, 117, 101]))
+                            .execute(&mut database);
+                        async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
+                                )
+                                .await
+                            {
+                                Ok(Ok(value)) => Ok(value),
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
+                                        ),
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "sqlx_core",
+                                            "sqlx_core::query::Query::execute",
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    };
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            6 /* terrane-site: src/main.trn:13:12-13:90 */,
+                            5 /* terrane-site: src/main.trn:16:11-16:69 */,
                         )
                     }
                 })
                 .await,
-            7 /* terrane-site: src/main.trn:13:11-13:91 */,
+            5 /* terrane-site: src/main.trn:16:11-16:69 */,
         );
         {
             let _: terrane_collection_support::List<Vec<u8>> = __terrane_traced(
@@ -601,12 +658,12 @@ fn main() {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                8 /* terrane-site: src/main.trn:14:29-14:85 */,
+                                6 /* terrane-site: src/main.trn:17:29-17:85 */,
                             )
                         }
                     })
                     .await,
-                8 /* terrane-site: src/main.trn:14:29-14:85 */,
+                6 /* terrane-site: src/main.trn:17:29-17:85 */,
             );
         }
         __terrane_traced(
@@ -615,17 +672,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            9 /* terrane-site: src/main.trn:15:12-15:32 */,
+                            7 /* terrane-site: src/main.trn:18:12-18:32 */,
                         )
                     }
                 })
                 .await,
-            10 /* terrane-site: src/main.trn:15:11-15:33 */,
+            8 /* terrane-site: src/main.trn:18:11-18:33 */,
         );
     });
 }
-// Source: <terrane>/projected/deps/sqlx-sqlite.trn
-// Namespace: deps/sqlx-sqlite
+// Source: <terrane>/projected/deps/sqlx-core/query.trn
+// Namespace: deps/sqlx-core/query
+pub use sqlx_core::query::Query as Query732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a;
 pub use sqlx_sqlite::SqliteAutoVacuum;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
@@ -635,6 +693,8 @@ pub use sqlx_sqlite::SqliteSynchronous;
 pub use core::time::Duration as TerraneNs4Deps11SqlxSqliteDuration;
 pub use core::cmp::Ordering as TerraneNs4Deps11SqlxSqliteOrdering;
 pub use std::path::Path as TerraneNs4Deps11SqlxSqlitePath;
+// Source: <terrane>/projected/deps/sqlx-sqlite.trn
+// Namespace: deps/sqlx-sqlite
 pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Result<
     SqliteConnectOptions,
     crate::TerraneForeignError,
@@ -649,78 +709,6 @@ pub fn terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new() -> Resu
                     payload,
                     "sqlx-sqlite",
                     "sqlx_sqlite::SqliteConnectOptions",
-                ),
-            )
-        }
-    }
-}
-pub async fn execute(
-    connection: &mut SqliteConnection,
-    statement: String,
-) -> Result<(), crate::TerraneForeignError> {
-    let statement = statement;
-    match crate::__terrane_dependency_await_unwind(
-            terrane_integration_adapters::sqlx_sqlite::execute(connection, statement),
-        )
-        .await
-    {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::DescriptorId(2),
-                        error.to_string(),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "sqlx-sqlite",
-                    "terrane_integration_adapters::sqlx_sqlite::execute",
-                ),
-            )
-        }
-    }
-}
-pub async fn execute_with_bytes(
-    connection: &mut SqliteConnection,
-    statement: String,
-    value: Vec<u8>,
-) -> Result<(), crate::TerraneForeignError> {
-    let statement = statement;
-    let value = value;
-    match crate::__terrane_dependency_await_unwind(
-            terrane_integration_adapters::sqlx_sqlite::execute_with_bytes(
-                connection,
-                statement,
-                value,
-            ),
-        )
-        .await
-    {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::DescriptorId(2),
-                        error.to_string(),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "sqlx-sqlite",
-                    "terrane_integration_adapters::sqlx_sqlite::execute_with_bytes",
                 ),
             )
         }
@@ -783,7 +771,7 @@ pub async fn close(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::DescriptorId(3),
+                        crate::DescriptorId(2),
                         error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -818,7 +806,7 @@ pub async fn connect(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::DescriptorId(3),
+                        crate::DescriptorId(2),
                         error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),

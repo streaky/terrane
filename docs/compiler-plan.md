@@ -2197,11 +2197,26 @@ receiver-position intermediates are legal, while binding, return, capture, and s
 inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
 `rust-dependency-chain-only` retains the independent formatting and concrete-adapter witnesses.
-Projection schema 54 additionally admits open generic/lifetime state for expression-local roots:
+
+The completed native-analysis extraction seam moves the shared Rustdoc decoder/public-path index,
+Cargo process policy, exact bound/call/impl/macro probes, probe cache, and containment into
+`terrane-rust-analysis`. The compiler retains graph resolution, Rustdoc generation, native
+declaration extraction, and every Terrane admission/lowering decision. The minimal standalone
+`terrane-rust-survey` currently consumes an already-generated Rustdoc artifact through that shared
+library. Resolved-package surveying, declaration/signature/discovery reports, the external fixture
+runner, and required/adversarial/popular/Godot corpus population remain open follow-up work rather
+than completed extraction evidence. The crate owns and exports the one pinned Rustdoc/probe
+toolchain constant, and a dependency-boundary test guards against compiler or CLI dependencies.
+Projection schema 55 additionally admits open generic/lifetime state for expression-local roots
+and records the removal of trait-name-based borrowing from unspecialized projected parameters:
 `projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row
-access operations. The query value remains unbindable and non-escaping; terminal executor bounds
-select the mutable borrow, and compilation of the exact emitted call validates the closed Rust
-application. Four focused rejects continue to fix binding, return, capture, and suspension boundaries.
+access operations. The query value remains unbindable and non-escaping. Per-call oracle evidence
+selects direct, shared, or mutable argument representation against the concrete executor type;
+lowering consumes that recorded specialization rather than matching trait names. Compilation of
+the exact emitted call validates the closed Rust application. Four focused rejects continue to fix
+binding, return, capture, and suspension boundaries. Completion and typed-error paths are covered;
+side-effecting-root exactly-once evaluation and cancellation across a chain await remain deferred
+evidence.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
