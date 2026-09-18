@@ -6,15 +6,15 @@ rustdoc-toolchain = "nightly-2026-04-29"
 rustdoc-format = 57
 
 [cost]
-observed-on = "2026-09-17"
+observed-on = "2026-09-18"
 host = "x86_64 Linux, AMD Ryzen 9 3900XT"
 method = "target/debug/terrane check package.toml in the representative fixture; cold removes .trn/dependencies but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust package.toml"
-compiler-revision = "e2787cac8bbfe5bb9eb65858a04b8f51de7bf662"
-compiler-binary-sha256 = "61c93f07c655707bb93498c2ac18a82baf088887cae965dd7e725c82802837a8"
+compiler-revision = "a9efc40911492ddc040d0edcb3b236f74bf6607a"
+compiler-binary-sha256 = "7e61f9384a27805a7326f868e40825dc629bb98cbafae261918578fb00a08483"
 package-manifest-sha256 = "3f60295ea24d94202d07c7285f4c1eaeabc41f5191efbcac8738eb6b46b0cd8c"
 resolved-cargo-lock-sha256 = "53966f2e578a164d919759e7cfc478614cdc224698721304f0ef75482b68c52e"
-cold-wall-seconds = 60.303
-warm-wall-seconds = 0.528
+cold-wall-seconds = 62.917
+warm-wall-seconds = 0.544
 generated-rust-lines = 573
 generated-rust-bytes = 19391
 
