@@ -536,9 +536,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignErr
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `httpdate` member `httpdate::parse_http_date` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

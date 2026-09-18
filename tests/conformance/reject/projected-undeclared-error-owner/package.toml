@@ -1,0 +1,7 @@
+package = "projected-undeclared-error-owner"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-error-api-witness]
+version = "=0.1.0"

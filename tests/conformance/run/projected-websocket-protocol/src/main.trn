@@ -37,7 +37,6 @@ async function socket-session; socket WebSocket
             print; 'pong', value.length
         else if kind == 'Close'
           print; 'close'
-          return
       else
         print; 'end'
         return

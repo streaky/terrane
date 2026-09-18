@@ -1353,9 +1353,7 @@ pub async fn checked_echo(value: String) -> Result<String, crate::TerraneForeign
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `async-witness` member `async_witness::checked_echo` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

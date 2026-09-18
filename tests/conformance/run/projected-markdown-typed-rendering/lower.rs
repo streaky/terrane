@@ -576,9 +576,7 @@ pub fn to_html_with_options(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `markdown` member `markdown::to_html_with_options` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

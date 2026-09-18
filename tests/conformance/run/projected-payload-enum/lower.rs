@@ -462,7 +462,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 8] = [
+    pub static SITES: [Site; 14] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:10-7:30) */
         { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 30 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:8:11-8:29) */
@@ -479,6 +479,18 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 17, column: 10, end_line: 17, end_column: 22 } },
         /* terrane-site-row: site 7: /app::main (src/main.trn:18:11-18:29) */
         { Site { function: 0, file: 0, line: 18, column: 11, end_line: 18, end_column: 29 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:19:49-19:75) */
+        { Site { function: 0, file: 0, line: 19, column: 49, end_line: 19, end_column: 75 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:19:27-19:76) */
+        { Site { function: 0, file: 0, line: 19, column: 27, end_line: 19, end_column: 76 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:21:36-21:62) */
+        { Site { function: 0, file: 0, line: 21, column: 36, end_line: 21, end_column: 62 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:23:15-23:44) */
+        { Site { function: 0, file: 0, line: 23, column: 15, end_line: 23, end_column: 44 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:24:22-24:35) */
+        { Site { function: 0, file: 0, line: 24, column: 22, end_line: 24, end_column: 35 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:25:11-25:31) */
+        { Site { function: 0, file: 0, line: 25, column: 11, end_line: 25, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]
@@ -632,7 +644,136 @@ fn main() {
         ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
         "terrane_payload_enum_witness::Event::variant-name")) }, 7 /* terrane-site: src/main.trn:18:11-18:29 */))
     );
+    let owned: Option<OwnedEvent> = Some(
+        __terrane_raised(
+            match std::panic::catch_unwind(|| terrane_payload_enum_witness::OwnedEvent::Payload(
+                __terrane_raised(
+                    non_clone_payload(String::from("owned")),
+                    8 /* terrane-site: src/main.trn:19:49-19:75 */,
+                ),
+            )) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "terrane_payload_enum_witness",
+                            "terrane_payload_enum_witness::OwnedEvent::Payload",
+                        ),
+                    )
+                }
+            },
+            9 /* terrane-site: src/main.trn:19:27-19:76 */,
+        ),
+    );
+    if owned.is_some() {
+        let payload: Option<NonClonePayload> = __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| match owned
+                    .expect("semantic optional narrowing")
+                {
+                    terrane_payload_enum_witness::OwnedEvent::Payload(value) => {
+                        Some(value)
+                    }
+                    _ => None,
+                }),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "terrane_payload_enum_witness",
+                            "terrane_payload_enum_witness::OwnedEvent::into-Payload",
+                        ),
+                    )
+                }
+            },
+            10 /* terrane-site: src/main.trn:21:36-21:62 */,
+        );
+        if payload.is_some() {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_raised(consume_payload(payload
+                .expect("semantic optional narrowing")), 11 /* terrane-site: src/main.trn:23:15-23:44 */))
+            );
+        }
+    }
+    let future: OpenEvent = __terrane_raised(
+        future_event(),
+        12 /* terrane-site: src/main.trn:24:22-24:35 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | match &future {
+        terrane_payload_enum_witness::OpenEvent::Known { .. } => "Known".to_owned(), _ =>
+        "unknown".to_owned() })) { Ok(value) => Ok(value), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
+        "terrane_payload_enum_witness::OpenEvent::variant-name")) },
+        13 /* terrane-site: src/main.trn:25:11-25:31 */))
+    );
 }
 // Source: <terrane>/projected/deps/terrane-payload-enum-witness.trn
 // Namespace: deps/terrane-payload-enum-witness
 pub use terrane_payload_enum_witness::Event;
+pub use terrane_payload_enum_witness::NonClonePayload;
+pub use terrane_payload_enum_witness::OpenEvent;
+pub use terrane_payload_enum_witness::OwnedEvent;
+pub fn consume_payload(
+    value: NonClonePayload,
+) -> Result<String, crate::TerraneForeignError> {
+    let value = value;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::consume_payload(
+            value,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-payload-enum-witness",
+                    "terrane_payload_enum_witness::consume_payload",
+                ),
+            )
+        }
+    }
+}
+pub fn future_event() -> Result<OpenEvent, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::future_event()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-payload-enum-witness",
+                    "terrane_payload_enum_witness::future_event",
+                ),
+            )
+        }
+    }
+}
+pub fn non_clone_payload(
+    value: String,
+) -> Result<NonClonePayload, crate::TerraneForeignError> {
+    let value = value;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::non_clone_payload(
+            value,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-payload-enum-witness",
+                    "terrane_payload_enum_witness::non_clone_payload",
+                ),
+            )
+        }
+    }
+}

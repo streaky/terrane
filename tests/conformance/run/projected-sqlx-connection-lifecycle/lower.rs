@@ -727,9 +727,7 @@ pub async fn close(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),
@@ -764,9 +762,7 @@ pub async fn connect(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

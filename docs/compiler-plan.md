@@ -756,13 +756,17 @@ text, binary, ping, pong, close, orderly end, and transport/protocol failure. On
 complete behavior is replaced may be removed; Axum serving/callback bridges remain until their
 separate milestone.
 
-Implemented on `dependency-call-specialization` on 2026-09-18. Projection schema 51 records
+Implemented on `dependency-call-specialization` on 2026-09-18. Projection schema 52 records
 constructible/inspectable payload enum variants, native wrapper order for nested outcomes,
 canonical typed projected failures, displayability, cross-dependency payload conversions, and
-native future transfer evidence. The independent payload and nested-outcome witnesses, direct
-Markdown rendering, and peer-driven WebSocket protocol scenario cover the required outcomes.
-The Markdown HTML bridge and Axum message filtering/construction bridges were removed; Axum
-upgrade and serving remain for M6, and SQL query/collection bridges remain for M4.
+native future transfer evidence. Typed failure preservation currently means canonical projected
+identity plus `message`; arbitrary fields and the native Rust error value do not cross the
+throwable boundary. The independent payload and nested-outcome witnesses, direct Markdown
+rendering, and peer-driven WebSocket protocol scenario cover the required outcomes except
+constructing and sending Axum's optional-foreign-payload `Message::Close`, which is deferred to
+M6/S1. The Markdown HTML bridge and Axum text/control filtering and supported message-construction
+bridges were removed; the removed `close_message` capability has not yet moved to direct Terrane.
+Axum upgrade and serving remain for M6, and SQL query/collection bridges remain for M4.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 

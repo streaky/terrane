@@ -3203,7 +3203,7 @@ language-mandated classes, each of which implements it:
 | `integer-conversion-overflow` | An exact-or-throw numeric destination cannot preserve the mathematical source value. | Implicit assignment, argument, return, element, or field conversion across numeric types; throwing `coerce` to a fixed-width integer destination; floating-to-integer conversion for a fractional, NaN, or infinite value. | source value/type, destination type, and failed exactness condition |
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
-| `dependency-error` | A crossed Rust dependency call returned `Result::Err`. | Projected Rust functions and methods returning `Result<T, E>`. | dependency member and rendered Rust error |
+| `dependency-error` | A crossed Rust dependency call returned an error whose external standard-library type has no projectable identity. | Projected Rust functions and methods returning a `std`/`core` error that rustdoc does not expose as a projectable public class. | dependency member and rendered Rust error |
 | `dependency-panic` | A crossed Rust dependency call unwound through a profile that contains dependency panics. | Projected Rust functions and methods that panic under an unwinding profile. | dependency member and crossing context |
 
 Each class has `message`, `cause`, deterministic source context, and the structured information
@@ -4830,10 +4830,11 @@ so inspection neither borrows a value beyond the call nor clones its payload. Na
 multi-field variants, borrowed payloads, open generics, and payloads without one owned
 representation are recorded as per-variant declines; their fields are never erased into an
 apparently complete constructor.
-An owned payload may use a compiler-proven, dependency-declared byte/string wrapper conversion
-when the source and target dependencies are both present in the exact resolved graph. Projection
-records the selected conversion and its owning package rather than treating crate-local spelling
-as a boundary guarantee.
+An owned payload may use a dependency-declared byte/string wrapper conversion selected from
+concrete non-generic conversion implementations in the exact resolved graph. Projection records
+the selected conversion and its owning package, and the generated boundary is accepted only when
+the exact emitted call compiles under `rustc`; rustdoc enumeration is not itself a trait proof and
+crate-local spelling is not treated as a boundary guarantee.
 
 A representable `Result<T, E>` returns `T` and throws the canonical projected `E` class.
 `Option<Result<T, E>>` returns `T|none` and throws the same `E`: `None` returns `none`,
@@ -4841,10 +4842,14 @@ A representable `Result<T, E>` returns `T` and throws the canonical projected `E
 `Result<Option<T>, E>` has the same Terrane signature but projection records the opposite Rust
 wrapper order and lowering preserves it. Result errors never become optional sentinels or implicit
 strings. An admitted `E` is catchable by its imported projected class identity; matching never
-depends on its text. The catch binding uses the ordinary throwable protocol and `error.message`
-is the explicit source operation for display text, populated through Rust `Display`. An error
-without canonical projected identity and `Display` support declines the operation instead of
-collapsing to an undifferentiated dependency error.
+depends on its text. The catch binding uses the ordinary throwable protocol, and `error.message`
+is the explicit source operation for display text, populated through Rust `Display`. A non-standard
+error without canonical projected identity and `Display` support declines the operation instead
+of collapsing to an undifferentiated dependency error. An external `std`/`core` error that rustdoc
+does not expose as a projectable identity retains the established `dependency-error` boundary.
+Typed failure preservation at this boundary means canonical class identity and its `message`
+operation. Version one does not preserve arbitrary fields or the native Rust `E` value after
+constructing the Terrane throwable.
 
 `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected
 contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule.

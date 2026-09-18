@@ -5,6 +5,34 @@
         [
           "/deps/terrane-payload-enum-witness",
           "Event"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "NonClonePayload"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "OpenEvent"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "OwnedEvent"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "consume_payload"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "future_event"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "non_clone_payload"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness/nonclonepayload",
+          "eq"
         ]
       ],
       "name": "terrane-payload-enum-witness",
@@ -12,7 +40,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "51",
+  "projection_schema": "52",
   "removed": [],
   "resolution": {
     "events": [

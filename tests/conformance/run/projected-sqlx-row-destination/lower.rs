@@ -517,9 +517,7 @@ fn main() {
                         crate::TerraneForeignError(
                             crate::TerraneError::custom_raised(
                                 crate::DescriptorId(2),
-                                format!(
-                                    "Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"
-                                ),
+                                error.to_string(),
                                 crate::TERRANE_NO_SITE,
                             ),
                         ),
@@ -553,10 +551,9 @@ fn main() {
                     sqlx_core::row::Row > ::try_get(&row, String::from("missing")
                     .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::DescriptorId(2),
-                    format!("Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
-                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                    ::__terrane_dependency_panic(payload, "sqlx-sqlite",
+                    ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                    "sqlx-sqlite",
                     "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
                     4 /* terrane-site: src/main.trn:13:21-13:44 */
                 );
@@ -607,10 +604,9 @@ fn main() {
                     sqlx_core::row::Row > ::try_get(&row, String::from("count")
                     .as_str())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::DescriptorId(2),
-                    format!("Rust dependency `sqlx-sqlite` member `<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get` failed: {error}"),
-                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                    ::__terrane_dependency_panic(payload, "sqlx-sqlite",
+                    ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                    "sqlx-sqlite",
                     "<sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get")) },
                     5 /* terrane-site: src/main.trn:18:26-18:47 */
                 );
@@ -679,9 +675,7 @@ pub async fn sample_row() -> Result<SqliteRow, crate::TerraneForeignError> {
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `terrane-sqlx-row-producer` member `terrane_sqlx_row_producer::sample_row` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

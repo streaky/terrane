@@ -8,6 +8,11 @@ capabilities = ["build", "filesystem", "threads"]
 [namespaces]
 app = "src"
 
+[rust-dependencies.sqlx]
+version = "=0.8.6"
+features = ["runtime-tokio", "sqlite"]
+effects = ["build", "filesystem", "threads"]
+
 [rust-dependencies.sqlx-core]
 version = "=0.8.6"
 effects = ["build", "filesystem", "threads"]

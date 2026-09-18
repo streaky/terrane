@@ -1958,21 +1958,31 @@ impl Emitter<'_> {
                     .projected_identity_for_rust_path(rust_path)
                     .map(|(namespace, name)| (format!("{namespace}::{name}"), name.to_owned()))
             });
-            let error_kind = projected_error_identity.map_or_else(
-                || "TERRANE_DEPENDENCY_ERROR".to_owned(),
+            let (error_kind, error_message) = projected_error_identity.map_or_else(
+                || {
+                    (
+                        "TERRANE_DEPENDENCY_ERROR".to_owned(),
+                        format!(
+                            "format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\")"
+                        ),
+                    )
+                },
                 |(identity, name)| {
                     let descriptor = self.registry.register_descriptor(&identity, &name);
-                    format!("DescriptorId({descriptor})")
+                    (
+                        format!("DescriptorId({descriptor})"),
+                        "error.to_string()".to_owned(),
+                    )
                 },
             );
             let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error_optional_depth == 1 {
                     format!(
-                        "match {invocation} {{ None => Ok(None), Some(Ok(value)) => Ok(Some({nested_converted})), Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ None => Ok(None), Some(Ok(value)) => Ok(Some({nested_converted})), Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if method.error.is_some() {
                     format!(
-                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
                     format!("{{ let _ = {invocation}; Ok(()) }}")
@@ -1984,11 +1994,11 @@ impl Emitter<'_> {
                 }
             } else if method.error_optional_depth == 1 {
                 format!(
-                    "match {caught} {{ Ok(None) => Ok(None), Ok(Some(Ok(value))) => Ok(Some({nested_converted})), Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(None) => Ok(None), Ok(Some(Ok(value))) => Ok(Some({nested_converted})), Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else if method.error.is_some() {
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 format!(

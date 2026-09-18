@@ -542,9 +542,7 @@ async fn socket_task(mut socket: WebSocket) {
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
                                             crate::DescriptorId(2),
-                                            format!(
-                                                "Rust dependency `axum` member `axum::extract::ws::WebSocket::recv` failed: {error}"
-                                            ),
+                                            error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
                                     ),
@@ -604,9 +602,7 @@ async fn socket_task(mut socket: WebSocket) {
             let received: Option<String> = __terrane_raised(
                 match std::panic::catch_unwind(
                     std::panic::AssertUnwindSafe(|| match message
-                        .as_ref()
                         .expect("semantic optional narrowing")
-                        .clone()
                     {
                         axum::extract::ws::Message::Text(value) => {
                             Some(
@@ -672,9 +668,7 @@ async fn socket_task(mut socket: WebSocket) {
                                                 crate::TerraneForeignError(
                                                     crate::TerraneError::custom_raised(
                                                         crate::DescriptorId(2),
-                                                        format!(
-                                                            "Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"
-                                                        ),
+                                                        error.to_string(),
                                                         crate::TERRANE_NO_SITE,
                                                     ),
                                                 ),
@@ -738,9 +732,7 @@ async fn socket_task(mut socket: WebSocket) {
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
                                             crate::DescriptorId(2),
-                                            format!(
-                                                "Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"
-                                            ),
+                                            error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
                                     ),

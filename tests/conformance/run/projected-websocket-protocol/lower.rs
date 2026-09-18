@@ -499,22 +499,22 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 33, column: 19, end_line: 33, end_column: 56 } },
         /* terrane-site-row: site 14: /app::socket-session (src/main.trn:35:30-35:55) */
         { Site { function: 0, file: 0, line: 35, column: 30, end_line: 35, end_column: 55 } },
-        /* terrane-site-row: site 15: /app::upgrade-handler (src/main.trn:48:10-48:47) */
-        { Site { function: 1, file: 0, line: 48, column: 10, end_line: 48, end_column: 47 } },
-        /* terrane-site-row: site 16: /app::run-server (src/main.trn:51:12-51:24) */
-        { Site { function: 2, file: 0, line: 51, column: 12, end_line: 51, end_column: 24 } },
-        /* terrane-site-row: site 17: /app::run-server (src/main.trn:52:34-52:54) */
-        { Site { function: 2, file: 0, line: 52, column: 34, end_line: 52, end_column: 54 } },
-        /* terrane-site-row: site 18: /app::run-server (src/main.trn:52:12-52:55) */
-        { Site { function: 2, file: 0, line: 52, column: 12, end_line: 52, end_column: 55 } },
-        /* terrane-site-row: site 19: /app::run-server (src/main.trn:53:20-53:56) */
-        { Site { function: 2, file: 0, line: 53, column: 20, end_line: 53, end_column: 56 } },
-        /* terrane-site-row: site 20: /app::run-server (src/main.trn:54:10-54:50) */
-        { Site { function: 2, file: 0, line: 54, column: 10, end_line: 54, end_column: 50 } },
-        /* terrane-site-row: site 21: /app::run-server (src/main.trn:54:9-54:51) */
-        { Site { function: 2, file: 0, line: 54, column: 9, end_line: 54, end_column: 51 } },
-        /* terrane-site-row: site 22: /app::main (src/main.trn:59:9-59:20) */
-        { Site { function: 3, file: 0, line: 59, column: 9, end_line: 59, end_column: 20 } },
+        /* terrane-site-row: site 15: /app::upgrade-handler (src/main.trn:47:10-47:47) */
+        { Site { function: 1, file: 0, line: 47, column: 10, end_line: 47, end_column: 47 } },
+        /* terrane-site-row: site 16: /app::run-server (src/main.trn:50:12-50:24) */
+        { Site { function: 2, file: 0, line: 50, column: 12, end_line: 50, end_column: 24 } },
+        /* terrane-site-row: site 17: /app::run-server (src/main.trn:51:34-51:54) */
+        { Site { function: 2, file: 0, line: 51, column: 34, end_line: 51, end_column: 54 } },
+        /* terrane-site-row: site 18: /app::run-server (src/main.trn:51:12-51:55) */
+        { Site { function: 2, file: 0, line: 51, column: 12, end_line: 51, end_column: 55 } },
+        /* terrane-site-row: site 19: /app::run-server (src/main.trn:52:20-52:56) */
+        { Site { function: 2, file: 0, line: 52, column: 20, end_line: 52, end_column: 56 } },
+        /* terrane-site-row: site 20: /app::run-server (src/main.trn:53:10-53:50) */
+        { Site { function: 2, file: 0, line: 53, column: 10, end_line: 53, end_column: 50 } },
+        /* terrane-site-row: site 21: /app::run-server (src/main.trn:53:9-53:51) */
+        { Site { function: 2, file: 0, line: 53, column: 9, end_line: 53, end_column: 51 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:58:9-58:20) */
+        { Site { function: 3, file: 0, line: 58, column: 9, end_line: 58, end_column: 20 } },
     ];
     #[cold]
     #[inline(never)]
@@ -541,9 +541,8 @@ async fn socket_session(mut socket: WebSocket) {
                     ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(None)
                     => Ok(None), Ok(Some(Ok(value))) => Ok(Some(value)),
                     Ok(Some(Err(error))) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::DescriptorId(2),
-                    format!("Rust dependency `axum` member `axum::extract::ws::WebSocket::recv` failed: {error}"),
-                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "axum",
                     "axum::extract::ws::WebSocket::recv")) } } }; async move {
                     __terrane_raised_err(__terrane_future. await, 0 /* terrane-site: src/main.trn:16:36-16:48 */) } }). await, 0 /* terrane-site: src/main.trn:16:36-16:48 */
@@ -566,8 +565,8 @@ async fn socket_session(mut socket: WebSocket) {
                         let value: Option<String> = __terrane_raised_completion!(
                             match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            match message.as_ref().expect("semantic optional narrowing")
-                            .clone() { axum::extract::ws::Message::Text(value) => Some(<
+                            match message.expect("semantic optional narrowing") {
+                            axum::extract::ws::Message::Text(value) => Some(<
                             axum::extract::ws::Utf8Bytes as std::ops::Deref
                             >::deref(&value).to_owned()), _ => None })) { Ok(value) =>
                             Ok(value), Err(payload) => Err(crate
@@ -597,10 +596,9 @@ async fn socket_session(mut socket: WebSocket) {
                                 ::__terrane_dependency_await_unwind(__terrane_call). await {
                                 Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                                 ::TerraneForeignError(crate
-                                ::TerraneError::custom_raised(crate ::DescriptorId(2),
-                                format!("Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"),
-                                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                                ::__terrane_dependency_panic(payload, "axum",
+                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                                Err(crate ::__terrane_dependency_panic(payload, "axum",
                                 "axum::extract::ws::WebSocket::send")) } } }; async move {
                                 __terrane_raised_err(__terrane_future. await,
                                 4 /* terrane-site: src/main.trn:23:20-23:55 */) } }).
@@ -611,12 +609,11 @@ async fn socket_session(mut socket: WebSocket) {
                         let value: Option<Vec<u8>> = __terrane_raised_completion!(
                             match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            match message.as_ref().expect("semantic optional narrowing")
-                            .clone() { axum::extract::ws::Message::Binary(value) =>
-                            Some(< bytes::Bytes as AsRef < [u8] >>::as_ref(&value)
-                            .to_vec()), _ => None })) { Ok(value) => Ok(value),
-                            Err(payload) => Err(crate
-                            ::__terrane_dependency_panic(payload, "axum",
+                            match message.expect("semantic optional narrowing") {
+                            axum::extract::ws::Message::Binary(value) => Some(<
+                            bytes::Bytes as AsRef < [u8] >>::as_ref(&value).to_vec()), _
+                            => None })) { Ok(value) => Ok(value), Err(payload) =>
+                            Err(crate ::__terrane_dependency_panic(payload, "axum",
                             "axum::extract::ws::Message::into-Binary")) },
                             6 /* terrane-site: src/main.trn:25:30-25:57 */
                         );
@@ -643,10 +640,9 @@ async fn socket_session(mut socket: WebSocket) {
                                 ::__terrane_dependency_await_unwind(__terrane_call). await {
                                 Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                                 ::TerraneForeignError(crate
-                                ::TerraneError::custom_raised(crate ::DescriptorId(2),
-                                format!("Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"),
-                                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                                ::__terrane_dependency_panic(payload, "axum",
+                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                                Err(crate ::__terrane_dependency_panic(payload, "axum",
                                 "axum::extract::ws::WebSocket::send")) } } }; async move {
                                 __terrane_raised_err(__terrane_future. await,
                                 8 /* terrane-site: src/main.trn:28:20-28:57 */) } }).
@@ -657,8 +653,8 @@ async fn socket_session(mut socket: WebSocket) {
                         let value: Option<Vec<u8>> = __terrane_raised_completion!(
                             match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            match message.as_ref().expect("semantic optional narrowing")
-                            .clone() { axum::extract::ws::Message::Ping(value) => Some(<
+                            match message.expect("semantic optional narrowing") {
+                            axum::extract::ws::Message::Ping(value) => Some(<
                             bytes::Bytes as AsRef < [u8] >>::as_ref(&value).to_vec()), _
                             => None })) { Ok(value) => Ok(value), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload, "axum",
@@ -688,10 +684,9 @@ async fn socket_session(mut socket: WebSocket) {
                                 ::__terrane_dependency_await_unwind(__terrane_call). await {
                                 Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                                 ::TerraneForeignError(crate
-                                ::TerraneError::custom_raised(crate ::DescriptorId(2),
-                                format!("Rust dependency `axum` member `axum::extract::ws::WebSocket::send` failed: {error}"),
-                                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                                ::__terrane_dependency_panic(payload, "axum",
+                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                                Err(crate ::__terrane_dependency_panic(payload, "axum",
                                 "axum::extract::ws::WebSocket::send")) } } }; async move {
                                 __terrane_raised_err(__terrane_future. await,
                                 12 /* terrane-site: src/main.trn:33:20-33:55 */) } }).
@@ -702,8 +697,8 @@ async fn socket_session(mut socket: WebSocket) {
                         let value: Option<Vec<u8>> = __terrane_raised_completion!(
                             match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            match message.as_ref().expect("semantic optional narrowing")
-                            .clone() { axum::extract::ws::Message::Pong(value) => Some(<
+                            match message.expect("semantic optional narrowing") {
+                            axum::extract::ws::Message::Pong(value) => Some(<
                             bytes::Bytes as AsRef < [u8] >>::as_ref(&value).to_vec()), _
                             => None })) { Ok(value) => Ok(value), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload, "axum",
@@ -724,7 +719,6 @@ async fn socket_session(mut socket: WebSocket) {
                             "{}",
                             terrane_scalar_support::scalar_text(&String::from("close"))
                         );
-                        return TerraneCompletion::Return(());
                     }
                 } else {
                     println!(
@@ -780,13 +774,13 @@ async fn upgrade_handler(request: WebSocketUpgrade) -> UpgradeResponse {
                 Box::pin(socket_session(argument_0))
             }),
         ),
-        15 /* terrane-site: src/main.trn:48:10-48:47 */,
+        15 /* terrane-site: src/main.trn:47:10-47:47 */,
     );
 }
 async fn run_server() {
     let mut router: Router = __terrane_raised(
         terrane_static_trn_526f75746572_new(),
-        16 /* terrane-site: src/main.trn:51:12-51:24 */,
+        16 /* terrane-site: src/main.trn:50:12-50:24 */,
     );
     router = __terrane_raised(
         match std::panic::catch_unwind(
@@ -840,7 +834,7 @@ async fn run_server() {
                                     )
                                 }
                             },
-                            17 /* terrane-site: src/main.trn:52:34-52:54 */,
+                            17 /* terrane-site: src/main.trn:51:34-51:54 */,
                         ),
                     )
             }),
@@ -856,7 +850,7 @@ async fn run_server() {
                 )
             }
         },
-        18 /* terrane-site: src/main.trn:52:12-52:55 */,
+        18 /* terrane-site: src/main.trn:51:12-51:55 */,
     );
     let listener: TcpListener = __terrane_traced(
         __terrane_await({
@@ -897,12 +891,12 @@ async fn run_server() {
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        19 /* terrane-site: src/main.trn:53:20-53:56 */,
+                        19 /* terrane-site: src/main.trn:52:20-52:56 */,
                     )
                 }
             })
             .await,
-        19 /* terrane-site: src/main.trn:53:20-53:56 */,
+        19 /* terrane-site: src/main.trn:52:20-52:56 */,
     );
     __terrane_traced(
         __terrane_await({
@@ -910,12 +904,12 @@ async fn run_server() {
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        20 /* terrane-site: src/main.trn:54:10-54:50 */,
+                        20 /* terrane-site: src/main.trn:53:10-53:50 */,
                     )
                 }
             })
             .await,
-        21 /* terrane-site: src/main.trn:54:9-54:51 */,
+        21 /* terrane-site: src/main.trn:53:9-53:51 */,
     );
 }
 fn main() {
@@ -946,12 +940,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            22 /* terrane-site: src/main.trn:59:9-59:20 */,
+                            22 /* terrane-site: src/main.trn:58:9-58:20 */,
                         )
                     }
                 })
                 .await,
-            22 /* terrane-site: src/main.trn:59:9-59:20 */,
+            22 /* terrane-site: src/main.trn:58:9-58:20 */,
         );
         scope.cancel();
         {

@@ -430,14 +430,6 @@
           "WebSocket.protocol"
         ],
         [
-          "/deps/axum/extract/ws",
-          "WebSocket.recv"
-        ],
-        [
-          "/deps/axum/extract/ws",
-          "WebSocket.send"
-        ],
-        [
           "/deps/axum/extract/ws/closeframe",
           "clone"
         ],
@@ -764,10 +756,6 @@
         [
           "/deps/axum/response/sse",
           "Event.into_data_writer"
-        ],
-        [
-          "/deps/axum/response/sse",
-          "Event.json_data"
         ],
         [
           "/deps/axum/response/sse",
@@ -5475,14 +5463,6 @@
         [
           "/deps/tokio-tungstenite",
           "Connector"
-        ],
-        [
-          "/deps/tokio-tungstenite",
-          "accept_async"
-        ],
-        [
-          "/deps/tokio-tungstenite",
-          "accept_hdr_async"
         ]
       ]
     },
@@ -6209,10 +6189,6 @@
         [
           "/deps/tracing/span/trait/core/convert/from-tracing/span",
           "from"
-        ],
-        [
-          "/deps/tracing/subscriber",
-          "set_global_default"
         ]
       ]
     },
@@ -6895,14 +6871,6 @@
         [
           "/deps/utoipa/openapi",
           "OpenApi.nest_with_path_composer"
-        ],
-        [
-          "/deps/utoipa/openapi",
-          "OpenApi.to_json"
-        ],
-        [
-          "/deps/utoipa/openapi",
-          "OpenApi.to_pretty_json"
         ],
         [
           "/deps/utoipa/openapi",
@@ -9275,11 +9243,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "1050ba9028e44d49a3f085e24b923ba6304d2722d595df3448a5b46ea7c20565",
+  "cache_identity": "3229c5be09edb12cfb6ea2e0f10ee6e9fa39708c01471170ed21a929e45e5ff4",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "51",
-  "content_hash": "a6fdfe4ce8445b9793e7e41afca29f6cd4593ad2ec06a9850e83972575502378",
+  "projection_schema": "52",
+  "content_hash": "23dd9c19c44e25c34bc7ae0f0d07e13002ac78c14ef7921d94ad8f917539903e",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

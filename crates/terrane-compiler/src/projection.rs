@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "51";
+const PROJECTION_SCHEMA: &str = "52";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1999,9 +1999,10 @@ pub fn resolve(
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
-    enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
-    decline_unrepresentable_error_types(&mut projected);
+    enforce_transitive_reachability(&mut projected, dependencies, &workspace, false)?;
     canonicalize_projected_type_names(&mut projected);
+    enforce_transitive_reachability(&mut projected, dependencies, &workspace, true)?;
+    decline_unrepresentable_error_types(&mut projected);
     let auto_trait_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -2985,6 +2986,7 @@ fn enforce_transitive_reachability(
     projected: &mut [ProjectedDependency],
     dependencies: &[RustDependency],
     workspace: &Path,
+    error_owners_only: bool,
 ) -> Result<(), ProjectionError> {
     let declared = dependencies
         .iter()
@@ -2995,7 +2997,7 @@ fn enforce_transitive_reachability(
     for dependency in &mut *projected {
         let mut retained = Vec::new();
         for mut item in std::mem::take(&mut dependency.items) {
-            if let Some(owner) = item_undeclared_owner(&item, &declared) {
+            if let Some(owner) = item_undeclared_owner(&item, &declared, error_owners_only) {
                 let owner = owner.to_owned();
                 dependency.declined.push(DeclinedItem {
                     rust_path: item.rust_path,
@@ -3018,7 +3020,9 @@ fn enforce_transitive_reachability(
                 for candidates in [methods, static_methods] {
                     let mut retained_methods = Vec::new();
                     for method in std::mem::take(candidates) {
-                        if let Some(owner) = function_undeclared_owner(&method, &declared) {
+                        if let Some(owner) =
+                            function_undeclared_owner(&method, &declared, error_owners_only)
+                        {
                             dependency.declined.push(DeclinedItem {
                                 rust_path: format!("{owner_path}::{}", method.name),
                                 reason: undeclared_owner_reason(owner, &versions),
@@ -3268,10 +3272,13 @@ fn unsupported_projected_error<'a>(
     projected_error_types: &BTreeSet<String>,
     displayable: &BTreeSet<String>,
 ) -> Option<&'a str> {
-    function
-        .error
-        .as_deref()
-        .filter(|error| projected_error_types.contains(*error) && !displayable.contains(*error))
+    function.error.as_deref().filter(|error| {
+        let generic_fallback = error == &"Error"
+            || rust_path_owner(error)
+                .is_some_and(|owner| matches!(owner, "std" | "core" | "alloc"));
+        !generic_fallback
+            && (!projected_error_types.contains(*error) || !displayable.contains(*error))
+    })
 }
 fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
     let names = projected
@@ -3285,6 +3292,48 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
         })
         .map(|item| (item.rust_path.clone(), item.name.clone()))
         .collect::<BTreeMap<_, _>>();
+    let error_paths = projected
+        .iter()
+        .flat_map(|dependency| {
+            let dependency_root = format!("/deps/{}", dependency.name.replace('_', "-"));
+            let rust_crate = dependency.name.replace('-', "_");
+            dependency.items.iter().filter_map(move |item| {
+                if !matches!(
+                    item.kind,
+                    ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+                ) {
+                    return None;
+                }
+                let relative_namespace = item
+                    .namespace
+                    .strip_prefix(&dependency_root)?
+                    .trim_start_matches('/')
+                    .replace('/', "::");
+                let alias = if relative_namespace.is_empty() {
+                    format!("{rust_crate}::{}", item.name)
+                } else {
+                    format!("{rust_crate}::{relative_namespace}::{}", item.name)
+                };
+                Some((alias, item.rust_path.clone()))
+            })
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut unique_error_paths = BTreeMap::<String, Option<String>>::new();
+    for item in projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter(|item| {
+            matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+            )
+        })
+    {
+        unique_error_paths
+            .entry(item.name.clone())
+            .and_modify(|path| *path = None)
+            .or_insert_with(|| Some(item.rust_path.clone()));
+    }
     for item in projected
         .iter_mut()
         .flat_map(|dependency| &mut dependency.items)
@@ -3315,6 +3364,16 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
                 .chain(std::iter::once(&mut function.result))
             {
                 canonicalize_projected_type_name(ty, &names);
+            }
+            if let Some(error) = &mut function.error {
+                let canonical = error_paths.get(error).cloned().or_else(|| {
+                    rust_path_owner(error)?;
+                    let name = error.rsplit("::").next()?;
+                    unique_error_paths.get(name)?.clone()
+                });
+                if let Some(canonical) = canonical {
+                    error.clone_from(&canonical);
+                }
             }
         }
     }
@@ -3655,15 +3714,30 @@ fn write_workspace_with_bound_dependencies(
 fn item_undeclared_owner<'a>(
     item: &'a ProjectedItem,
     declared: &BTreeSet<String>,
+    error_owners_only: bool,
 ) -> Option<&'a str> {
-    rust_path_owner(&item.rust_path)
-        .filter(|owner| !owner_is_reachable(owner, declared))
-        .or_else(|| match &item.kind {
-            ProjectedKind::Function(function) => function_undeclared_owner(function, declared),
+    if error_owners_only {
+        return match &item.kind {
+            ProjectedKind::Function(function) => {
+                function_error_undeclared_owner(function, declared)
+            }
             ProjectedKind::Interface(interface) => interface
                 .methods
                 .iter()
-                .find_map(|method| function_undeclared_owner(&method.function, declared)),
+                .find_map(|method| function_error_undeclared_owner(&method.function, declared)),
+            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => None,
+        };
+    }
+    rust_path_owner(&item.rust_path)
+        .filter(|owner| !owner_is_reachable(owner, declared))
+        .or_else(|| match &item.kind {
+            ProjectedKind::Function(function) => {
+                function_undeclared_owner(function, declared, false)
+            }
+            ProjectedKind::Interface(interface) => interface
+                .methods
+                .iter()
+                .find_map(|method| function_undeclared_owner(&method.function, declared, false)),
             ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => None,
         })
 }
@@ -3671,13 +3745,29 @@ fn item_undeclared_owner<'a>(
 fn function_undeclared_owner<'a>(
     function: &'a ProjectedFunction,
     declared: &BTreeSet<String>,
+    error_owners_only: bool,
 ) -> Option<&'a str> {
+    if error_owners_only {
+        return function_error_undeclared_owner(function, declared);
+    }
     function
         .parameters
         .iter()
         .map(|parameter| &parameter.ty)
         .chain(std::iter::once(&function.result))
         .find_map(|ty| type_undeclared_owner(ty, declared))
+        .or_else(|| function_error_undeclared_owner(function, declared))
+}
+fn function_error_undeclared_owner<'a>(
+    function: &'a ProjectedFunction,
+    declared: &BTreeSet<String>,
+) -> Option<&'a str> {
+    function
+        .error
+        .as_deref()
+        .filter(|error| *error != "Error")
+        .and_then(rust_path_owner)
+        .filter(|owner| !owner_is_reachable(owner, declared))
 }
 
 fn type_undeclared_owner<'a>(
@@ -5933,10 +6023,10 @@ fn project_function_inner(
     {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
     }
-    if effective_output
-        .as_ref()
-        .is_some_and(type_contains_lifetime_argument)
-        && !allow_lifetime_output
+    if !allow_lifetime_output
+        && effective_output
+            .as_ref()
+            .is_some_and(type_contains_lifetime_argument)
     {
         return Err("lifetime-bearing foreign type cannot cross a projected boundary".to_owned());
     }
@@ -5957,15 +6047,15 @@ fn project_function_inner(
             }
             error = arguments
                 .get(1)
-                .and_then(|ty| resolved_name(ty, paths))
+                .and_then(|ty| projected_error_name(ty, output, paths))
                 .or_else(|| Some("Error".to_owned()));
             projected
         } else if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Option") || name == "Option")
         {
-            let value = type_arguments(output)
-                .into_iter()
-                .next()
+            let arguments = type_arguments(output);
+            let value = arguments
+                .first()
                 .ok_or_else(|| "Option has no value type".to_owned())?;
             if resolved_name(value, paths)
                 .is_some_and(|name| name.ends_with("::Result") || name == "Result")
@@ -5984,7 +6074,7 @@ fn project_function_inner(
                 }
                 error = arguments
                     .get(1)
-                    .and_then(|ty| resolved_name(ty, paths))
+                    .and_then(|ty| projected_error_name(ty, value, paths))
                     .or_else(|| Some("Error".to_owned()));
                 error_optional_depth = 1;
                 ProjectedType::Optional(Box::new(projected))
@@ -7724,6 +7814,48 @@ fn immediate_generic_input(ty: &Type, generic: &str) -> bool {
     }
 }
 
+fn resolved_error_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<String> {
+    let Type::ResolvedPath(path) = ty else {
+        return None;
+    };
+    let resolved = resolved_path_name(path, paths);
+    let written = path.path.replace("crate::", "");
+    Some(
+        [resolved, written]
+            .into_iter()
+            .max_by_key(|candidate| candidate.matches("::").count())
+            .expect("two error type spellings are available"),
+    )
+}
+
+fn projected_error_name(
+    error: &Type,
+    result: &Type,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Option<String> {
+    let error = resolved_error_name(error, paths)?;
+    if rust_path_owner(&error).is_some() {
+        return Some(error);
+    }
+    let Type::ResolvedPath(result) = result else {
+        return Some(error);
+    };
+    let resolved = resolved_path_name(result, paths);
+    let written = result.path.replace("crate::", "");
+    let alias = [resolved, written]
+        .into_iter()
+        .max_by_key(|candidate| candidate.matches("::").count())
+        .expect("two result type spellings are available");
+    let Some(owner) = alias.strip_suffix("::Result") else {
+        return Some(error);
+    };
+    if matches!(owner, "std::result" | "core::result") {
+        Some(error)
+    } else {
+        Some(format!("{owner}::Error"))
+    }
+}
+
 fn type_contains_borrowed_ref(ty: &Type) -> bool {
     match ty {
         Type::BorrowedRef { .. } => true,
@@ -8858,8 +8990,13 @@ mod tests {
         };
 
         let mut undeclared = vec![response_status()];
-        enforce_transitive_reachability(&mut undeclared, &[dependency("reqwest")], &directory)
-            .unwrap();
+        enforce_transitive_reachability(
+            &mut undeclared,
+            &[dependency("reqwest")],
+            &directory,
+            false,
+        )
+        .unwrap();
         assert!(undeclared[0].items.is_empty());
         assert!(
             undeclared[0].declined[0]
@@ -8872,6 +9009,7 @@ mod tests {
             &mut declared,
             &[dependency("reqwest"), dependency("http")],
             &directory,
+            false,
         )
         .unwrap();
         assert_eq!(declared[0].items.len(), 1);
@@ -8885,6 +9023,7 @@ mod tests {
             &mut conflicting,
             &[dependency("reqwest"), dependency("http")],
             &directory,
+            false,
         )
         .unwrap_err();
         assert!(error.message.contains("http"));

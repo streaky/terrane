@@ -511,9 +511,7 @@ async fn wait_next(mut sequence: TokioSequence) {
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
                                             crate::DescriptorId(2),
-                                            format!(
-                                                "Rust dependency `terrane_sequence_witness` member `terrane_sequence_witness::TokioSequence::next` failed: {error}"
-                                            ),
+                                            error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
                                     ),

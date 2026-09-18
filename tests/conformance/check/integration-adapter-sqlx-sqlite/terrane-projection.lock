@@ -200,10 +200,6 @@
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_bind"
-        ],
-        [
-          "/deps/sqlx-core/query",
           "query_with"
         ],
         [
@@ -580,7 +576,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "51",
+  "projection_schema": "52",
   "removed": [],
   "resolution": {
     "events": [

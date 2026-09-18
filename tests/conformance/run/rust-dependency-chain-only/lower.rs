@@ -537,9 +537,7 @@ fn main() {
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
                                                 crate::DescriptorId(2),
-                                                format!(
-                                                    "Rust dependency `terrane_chain_witness` member `terrane_chain_witness::ScalarQuery<'_>::fetch_one` failed: {error}"
-                                                ),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -620,9 +618,7 @@ pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
                         crate::DescriptorId(2),
-                        format!(
-                            "Rust dependency `terrane-chain-witness` member `terrane_chain_witness::memory_database` failed: {error}"
-                        ),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

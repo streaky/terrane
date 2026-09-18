@@ -499,10 +499,9 @@ fn inspect_next(mode: i64) {
                 connection.next())) { Ok(None) => Ok(None), Ok(Some(Ok(value))) =>
                 Ok(Some(value)), Ok(Some(Err(error))) => Err(crate
                 ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                ::DescriptorId(2),
-                format!("Rust dependency `terrane_nested_outcome_witness` member `terrane_nested_outcome_witness::Channel::next` failed: {error}"),
-                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_nested_outcome_witness",
+                ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+                Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                "terrane_nested_outcome_witness",
                 "terrane_nested_outcome_witness::Channel::next")) },
                 1 /* terrane-site: src/main.trn:9:25-9:41 */
             );
@@ -563,10 +562,9 @@ fn inspect_outer(mode: i64) {
                 match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                 connection.outer())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
                 Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                ::DescriptorId(2),
-                format!("Rust dependency `terrane_nested_outcome_witness` member `terrane_nested_outcome_witness::Channel::outer` failed: {error}"),
-                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_nested_outcome_witness",
+                ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+                Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                "terrane_nested_outcome_witness",
                 "terrane_nested_outcome_witness::Channel::outer")) },
                 3 /* terrane-site: src/main.trn:20:25-20:42 */
             );
