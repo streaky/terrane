@@ -1168,8 +1168,191 @@ fn tagged_git_library_is_cached_and_loaded_by_hash() {
         "app/src/main.trn",
         "namespace app\nfunction main;\n  none\n",
     );
+    let bogus = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    workspace.write(
+        "app/package.toml",
+        &format!(
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{bogus}\"\n",
+            repository.to_string_lossy()
+        ),
+    );
+    assert!(Package::load(workspace.0.join("app")).is_err());
+    assert!(
+        !workspace
+            .0
+            .join("app/.trn/packages")
+            .join(bogus.trim_start_matches("sha256:"))
+            .exists()
+    );
+    workspace.write(
+        "app/package.toml",
+        &format!(
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
+            repository.to_string_lossy()
+        ),
+    );
 
     let package = Package::load(workspace.0.join("app")).unwrap();
     assert_eq!(package.units.len(), 2);
     assert!(workspace.0.join("app/.trn/packages").is_dir());
+}
+
+#[test]
+fn composed_library_keeps_its_own_prelude_setting() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = true\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nfunction announce;\n  print; >hello\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert!(
+        package
+            .units
+            .iter()
+            .any(|unit| { package.library_source_ids.contains(&unit.source.id()) && unit.prelude })
+    );
+    compile_package(&package).unwrap();
+}
+
+#[test]
+fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nfunction first;\n  none\nfunction second;\n  none\n",
+    );
+    let library = Package::load(workspace.0.join("library")).unwrap();
+    let standalone = compile_package(&library).unwrap();
+    assert!(
+        standalone
+            .warnings
+            .iter()
+            .all(|warning| !matches!(warning.code, "W4001" | "W4005"))
+    );
+
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    let consumer = Package::load(workspace.0.join("app")).unwrap();
+    let compilation = compile_package(&consumer).unwrap();
+    assert!(compilation.warnings.iter().all(|warning| {
+        warning
+            .primary
+            .is_none_or(|span| !consumer.library_source_ids.contains(&span.file))
+    }));
+}
+
+#[test]
+fn duplicate_library_identities_are_manifest_errors() {
+    let workspace = TempPackage::new();
+    for directory in ["first", "second"] {
+        workspace.write(
+            &format!("{directory}/package.toml"),
+            "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+        );
+        workspace.write(
+            &format!("{directory}/src/library.trn"),
+            "namespace acme/lib\nconstant answer = 42\n",
+        );
+    }
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.first]\npath = \"../first\"\n[terrane-dependencies.second]\npath = \"../second\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+
+    let errors = Package::load(workspace.0.join("app")).unwrap_err();
+    assert!(
+        errors[0]
+            .diagnostic
+            .message
+            .contains("library identity `acme/lib` is already loaded")
+    );
+}
+
+#[test]
+fn dependency_errors_highlight_the_dependency_header() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "package.toml",
+        "package = \"acme/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.me]\npath = \"missing\"\n",
+    );
+    workspace.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+
+    let error = Package::load(&workspace.0).unwrap_err().remove(0);
+    let span = error.diagnostic.primary.unwrap();
+    assert_eq!(
+        &error.source.text()[span.start..span.end],
+        "[terrane-dependencies.me]"
+    );
+}
+
+#[test]
+fn source_tree_hash_includes_non_package_files() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"hash-test\"\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+    let before = source_tree_hash(&package.0).unwrap();
+    package.write("README.md", "local notes\n");
+    let after = source_tree_hash(&package.0).unwrap();
+    assert_ne!(before, after);
+}
+
+#[test]
+fn dependency_cycles_report_the_complete_identity_chain() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.b]\npath = \"../b\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    workspace.write(
+        "b/package.toml",
+        "package = \"example/b\"\nartifact = \"library\"\n[namespaces]\n\"example/b\" = \"src\"\n[terrane-dependencies.c]\npath = \"../c\"\n",
+    );
+    workspace.write("b/src/library.trn", "namespace example/b\nconstant b = 1\n");
+    workspace.write(
+        "c/package.toml",
+        "package = \"example/c\"\nartifact = \"library\"\n[namespaces]\n\"example/c\" = \"src\"\n[terrane-dependencies.app]\npath = \"../app\"\n",
+    );
+    workspace.write("c/src/library.trn", "namespace example/c\nconstant c = 1\n");
+
+    let errors = Package::load(workspace.0.join("app")).unwrap_err();
+    assert!(
+        errors[0]
+            .diagnostic
+            .message
+            .contains("example/app -> example/b -> example/c -> example/app")
+    );
 }

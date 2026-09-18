@@ -251,7 +251,7 @@ pub(super) fn parse_units(
                 &unit.source,
                 unit.relative_path_text(),
                 unit.expected_namespace.as_deref(),
-                package.prelude,
+                unit.prelude,
                 false,
                 unit.role,
             )
@@ -784,13 +784,23 @@ pub(super) fn analyze_with_projection(
             return Err(failure(&import.source, "S2029", message, import.span));
         }
     }
-    let prelude_bindings = if package.prelude {
-        bootstrap_prelude()
-    } else {
+    let prelude_namespaces = units
+        .iter()
+        .filter(|unit| unit.prelude)
+        .map(|unit| unit.namespace.clone())
+        .collect::<BTreeSet<_>>();
+    let prelude_bindings = if prelude_namespaces.is_empty() {
         BTreeMap::new()
+    } else {
+        bootstrap_prelude()
     };
-    let mut import_warnings =
-        resolve_imports(imports, &mut namespaces, &globals, &prelude_bindings)?;
+    let mut import_warnings = resolve_imports(
+        imports,
+        &mut namespaces,
+        &globals,
+        &prelude_bindings,
+        &prelude_namespaces,
+    )?;
     for unit in &mut units {
         unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals, &prelude_bindings)?;
         import_warnings.extend(

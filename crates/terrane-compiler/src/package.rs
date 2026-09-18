@@ -25,6 +25,7 @@ pub struct SourceUnit {
     pub relative_path: PathBuf,
     pub source: SourceFile,
     pub expected_namespace: Option<String>,
+    pub prelude: bool,
     pub role: SourceRole,
 }
 
@@ -223,6 +224,7 @@ pub struct Package {
     pub rust_dependencies: Vec<RustDependency>,
     pub authored_rust_modules: Vec<AuthoredRustModule>,
     pub terrane_dependencies: Vec<TerraneDependency>,
+    pub dependency_manifests: Vec<PathBuf>,
     pub library_source_ids: BTreeSet<u32>,
 }
 
@@ -274,11 +276,13 @@ impl Package {
                 relative_path,
                 source: SourceFile::new(0, path, text),
                 expected_namespace: None,
+                prelude: true,
                 role: SourceRole::Production,
             }],
             rust_dependencies: Vec::new(),
             authored_rust_modules: Vec::new(),
             terrane_dependencies: Vec::new(),
+            dependency_manifests: Vec::new(),
             library_source_ids: BTreeSet::new(),
         }
     }
@@ -317,52 +321,34 @@ impl Package {
     pub(crate) fn from_tooling_sources(
         manifest_path: &Path,
         manifest_text: &str,
-        mut units: Vec<SourceUnit>,
+        units: Vec<SourceUnit>,
     ) -> Result<Self, Vec<PackageLoadError>> {
         let manifest = parse_manifest(manifest_path, manifest_text)?;
-        if !manifest.terrane_dependencies.is_empty() {
-            let mut package = load_package_graph(manifest_path)?;
-            let overlays = units
-                .into_iter()
-                .map(|unit| {
-                    let path = unit
-                        .source
-                        .path()
-                        .canonicalize()
-                        .unwrap_or_else(|_| unit.source.path().to_path_buf());
-                    (path, unit.source.text().to_owned())
-                })
-                .collect::<BTreeMap<_, _>>();
-            for unit in &mut package.units {
-                let path = unit
-                    .source
-                    .path()
-                    .canonicalize()
-                    .unwrap_or_else(|_| unit.source.path().to_path_buf());
-                if let Some(text) = overlays.get(&path) {
-                    unit.source = SourceFile::new(
-                        unit.source.id(),
-                        unit.source.path().to_path_buf(),
-                        text.clone(),
-                    );
-                }
-            }
-            return Ok(package);
-        }
         let root = manifest_path
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
+        let (mut units, external_units): (Vec<_>, Vec<_>) = units.into_iter().partition(|unit| {
+            unit.source
+                .path()
+                .strip_prefix(&root)
+                .ok()
+                .and_then(Path::parent)
+                .is_some_and(|parent| {
+                    manifest
+                        .namespace_roots
+                        .iter()
+                        .any(|mapping| parent.starts_with(&mapping.directory))
+                })
+        });
         let mut errors = Vec::new();
         for unit in &mut units {
-            let Ok(relative_path) = unit.source.path().strip_prefix(&root) else {
-                errors.push(PackageLoadError::unreadable(
-                    unit.source.path().to_path_buf(),
-                    "snapshot source is outside the package root",
-                ));
-                continue;
-            };
+            let relative_path = unit
+                .source
+                .path()
+                .strip_prefix(&root)
+                .expect("root package unit was partitioned by path");
             let parent = relative_path.parent().unwrap_or_else(|| Path::new(""));
             let mapping = manifest
                 .namespace_roots
@@ -386,6 +372,7 @@ impl Package {
                     message,
                 )),
             }
+            unit.prelude = manifest.prelude;
             unit.relative_path = relative_path.to_path_buf();
         }
         if !errors.is_empty() {
@@ -393,7 +380,7 @@ impl Package {
         }
         let authored_rust_modules =
             load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
-        Ok(Self {
+        let mut package = Self {
             identity: manifest.identity,
             root,
             prelude: manifest.prelude,
@@ -409,28 +396,77 @@ impl Package {
             authored_rust_modules,
             terrane_dependencies: manifest.terrane_dependencies,
             library_source_ids: BTreeSet::new(),
-        })
+            dependency_manifests: vec![manifest_path.to_path_buf()],
+        };
+        compose_package_dependencies(manifest_path, &mut package)?;
+        overlay_tooling_sources(&mut package, external_units)?;
+        Ok(package)
+    }
+}
+
+fn overlay_tooling_sources(
+    package: &mut Package,
+    overlays: Vec<SourceUnit>,
+) -> Result<(), Vec<PackageLoadError>> {
+    let mut errors = Vec::new();
+    for overlay in overlays {
+        let overlay_path = overlay
+            .source
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| overlay.source.path().to_path_buf());
+        let Some(unit) = package.units.iter_mut().find(|unit| {
+            unit.source
+                .path()
+                .canonicalize()
+                .unwrap_or_else(|_| unit.source.path().to_path_buf())
+                == overlay_path
+        }) else {
+            errors.push(PackageLoadError::unreadable(
+                overlay.source.path().to_path_buf(),
+                "snapshot source is outside the composed package graph",
+            ));
+            continue;
+        };
+        unit.source = SourceFile::new(
+            unit.source.id(),
+            unit.source.path().to_path_buf(),
+            overlay.source.text().to_owned(),
+        );
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
     }
 }
 
 fn load_package_graph(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
     let mut package = load_package_unit(manifest_path)?;
-    let mut loaded = BTreeSet::new();
+    compose_package_dependencies(manifest_path, &mut package)?;
+    Ok(package)
+}
+
+fn compose_package_dependencies(
+    manifest_path: &Path,
+    package: &mut Package,
+) -> Result<(), Vec<PackageLoadError>> {
     let root_key = package
         .root
         .canonicalize()
         .unwrap_or_else(|_| package.root.clone());
-    loaded.insert(root_key.clone());
-    let mut stack = vec![root_key];
+    let mut loaded = BTreeSet::from([root_key.clone()]);
+    let mut identities = BTreeMap::from([(package.identity.clone(), root_key.clone())]);
+    let mut stack = vec![(root_key, package.identity.clone())];
     let cache_owner = package.root.clone();
     compose_dependencies(
         manifest_path,
-        &mut package,
+        package,
         &cache_owner,
         &mut loaded,
+        &mut identities,
         &mut stack,
-    )?;
-    Ok(package)
+    )
 }
 
 fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
@@ -464,7 +500,7 @@ fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadErr
             )]);
         }
     }
-    let units = discover_source_units(&root, &manifest.namespace_roots)?;
+    let units = discover_source_units(&root, &manifest.namespace_roots, manifest.prelude)?;
     let authored_rust_modules =
         load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
     Ok(Package {
@@ -483,6 +519,7 @@ fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadErr
         authored_rust_modules,
         terrane_dependencies: manifest.terrane_dependencies,
         library_source_ids: BTreeSet::new(),
+        dependency_manifests: vec![manifest_path.to_path_buf()],
     })
 }
 
@@ -491,7 +528,8 @@ fn compose_dependencies(
     package: &mut Package,
     cache_owner: &Path,
     loaded: &mut BTreeSet<PathBuf>,
-    stack: &mut Vec<PathBuf>,
+    identities: &mut BTreeMap<String, PathBuf>,
+    stack: &mut Vec<(PathBuf, String)>,
 ) -> Result<(), Vec<PackageLoadError>> {
     let dependencies = package.terrane_dependencies.clone();
     for dependency in dependencies {
@@ -502,11 +540,17 @@ fn compose_dependencies(
         let dependency_key = dependency_root
             .canonicalize()
             .unwrap_or_else(|_| dependency_root.clone());
-        if stack.contains(&dependency_key) {
+        if let Some((_, identity)) = stack.iter().find(|(path, _)| path == &dependency_key) {
+            let chain = stack
+                .iter()
+                .map(|(_, identity)| identity.as_str())
+                .chain(std::iter::once(identity.as_str()))
+                .collect::<Vec<_>>()
+                .join(" -> ");
             return Err(vec![dependency_error(
                 manifest_path,
                 &dependency.name,
-                "Terrane dependency cycle detected",
+                format!("Terrane dependency cycle detected: {chain}"),
             )]);
         }
         if loaded.contains(&dependency_key) {
@@ -524,12 +568,28 @@ fn compose_dependencies(
                 ),
             )]);
         }
-        stack.push(dependency_key.clone());
+        if let Some(existing) = identities.get(&library.identity)
+            && existing != &dependency_key
+        {
+            return Err(vec![dependency_error(
+                manifest_path,
+                &dependency.name,
+                format!(
+                    "library identity `{}` is already loaded from `{}` and cannot also be loaded from `{}`",
+                    library.identity,
+                    existing.display(),
+                    dependency_key.display()
+                ),
+            )]);
+        }
+        identities.insert(library.identity.clone(), dependency_key.clone());
+        stack.push((dependency_key.clone(), library.identity.clone()));
         compose_dependencies(
             &dependency_manifest,
             &mut library,
             cache_owner,
             loaded,
+            identities,
             stack,
         )?;
         stack.pop();
@@ -545,11 +605,19 @@ fn dependency_error(
     message: impl Into<String>,
 ) -> PackageLoadError {
     let text = fs::read_to_string(manifest_path).unwrap_or_default();
-    manifest_error(
-        manifest_path,
-        &text,
+    let headers = [
+        format!("[terrane-dependencies.{dependency}]"),
+        format!("[terrane-dependencies.{dependency:?}]"),
+    ];
+    let span = headers.iter().find_map(|header| {
+        text.find(header)
+            .map(|start| Span::new(0, start, start + header.len()))
+    });
+    PackageLoadError::new(
+        manifest_path.to_path_buf(),
+        text,
         format!("Terrane dependency `{dependency}`: {}", message.into()),
-        Some(dependency),
+        span,
     )
 }
 
@@ -570,6 +638,11 @@ fn resolve_terrane_dependency(
                 .expect("validated dependency hash");
             let cache_root = cache_owner.join(".trn/packages");
             let destination = cache_root.join(digest);
+            if destination.is_dir() && source_tree_hash(&destination)? != hash {
+                fs::remove_dir_all(&destination).map_err(|error| {
+                    format!("cannot remove invalid package cache entry: {error}")
+                })?;
+            }
             if !destination.is_dir() {
                 fs::create_dir_all(&cache_root)
                     .map_err(|error| format!("cannot create package cache: {error}"))?;
@@ -583,8 +656,20 @@ fn resolve_terrane_dependency(
                     let _ = fs::remove_dir_all(&temporary);
                     return Err(error);
                 }
-                fs::rename(&temporary, &destination)
-                    .map_err(|error| format!("cannot publish package cache entry: {error}"))?;
+                let actual = source_tree_hash(&temporary)?;
+                if actual != hash {
+                    let _ = fs::remove_dir_all(&temporary);
+                    return Err(format!(
+                        "source hash mismatch: expected `{hash}`, found `{actual}`"
+                    ));
+                }
+                if let Err(error) = fs::rename(&temporary, &destination) {
+                    if !destination.is_dir() || source_tree_hash(&destination)? != hash {
+                        let _ = fs::remove_dir_all(&temporary);
+                        return Err(format!("cannot publish package cache entry: {error}"));
+                    }
+                    let _ = fs::remove_dir_all(&temporary);
+                }
             }
             destination
         }
@@ -861,6 +946,9 @@ fn merge_library(
         );
         package.authored_rust_modules.push(module);
     }
+    package
+        .dependency_manifests
+        .extend(library.dependency_manifests);
     package
         .rust_dependencies
         .sort_by(|left, right| left.name.cmp(&right.name));
@@ -1669,6 +1757,7 @@ fn manifest_error(
 fn discover_source_units(
     root: &Path,
     namespace_roots: &[NamespaceRoot],
+    prelude: bool,
 ) -> Result<Vec<SourceUnit>, Vec<PackageLoadError>> {
     let mut discovered = BTreeMap::<PathBuf, (usize, String)>::new();
     let mut errors = Vec::new();
@@ -1729,6 +1818,7 @@ fn discover_source_units(
                 relative_path,
                 source: SourceFile::new(source_id, source_path, source_text),
                 expected_namespace: Some(expected_namespace),
+                prelude,
                 role: SourceRole::Production,
             }),
             Err(error) => errors.push(PackageLoadError::unreadable(
@@ -1894,6 +1984,7 @@ mod tests {
             relative_path: ["app", "support", "values.trn"].iter().collect(),
             source: SourceFile::new(0, PathBuf::from("values.trn"), String::new()),
             expected_namespace: None,
+            prelude: true,
             role: SourceRole::Production,
         };
         assert_eq!(unit.relative_path_text(), "app/support/values.trn");
@@ -1910,6 +2001,7 @@ mod tests {
                 relative_path: PathBuf::from(path),
                 source: SourceFile::new(0, PathBuf::from(path), String::new()),
                 expected_namespace: None,
+                prelude: true,
                 role: SourceRole::Production,
             };
             assert_eq!(unit.relative_path_text(), expected);

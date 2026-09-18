@@ -384,7 +384,8 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
     );
     let installed = fs::read_to_string(app.join("package.toml")).unwrap();
     assert!(installed.contains("[terrane-dependencies.local]"));
-    assert!(installed.contains(&format!("hash = \"{expected}\"")));
+    assert!(!installed.contains("\n[terrane-dependencies]\n"));
+    assert!(!installed.contains("hash = "));
     assert_eq!(
         terrane_compiler::Package::load(&app).unwrap().units.len(),
         2

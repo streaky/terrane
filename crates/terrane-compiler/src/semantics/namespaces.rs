@@ -532,6 +532,7 @@ pub(super) fn visible_fallback_symbol<'a>(
     namespaces: &'a BTreeMap<String, Namespace>,
     globals: &'a BTreeMap<String, Symbol>,
     prelude_bindings: &'a BTreeMap<String, Symbol>,
+    prelude: bool,
 ) -> Option<&'a Symbol> {
     namespace_chain(namespace)
         .skip(1)
@@ -550,7 +551,7 @@ pub(super) fn visible_fallback_symbol<'a>(
                 .filter(|symbol| visible_from(symbol, namespace))
         })
         .or_else(|| namespaces.get("/core/types")?.symbols.get(name))
-        .or_else(|| prelude_bindings.get(name))
+        .or_else(|| prelude.then(|| prelude_bindings.get(name)).flatten())
 }
 
 pub(super) fn resolve_imports(
@@ -558,6 +559,7 @@ pub(super) fn resolve_imports(
     namespaces: &mut BTreeMap<String, Namespace>,
     globals: &BTreeMap<String, Symbol>,
     prelude_bindings: &BTreeMap<String, Symbol>,
+    prelude_namespaces: &BTreeSet<String>,
 ) -> Result<Vec<Diagnostic>, SemanticFailure> {
     let mut warnings = Vec::new();
     for import in imports {
@@ -593,6 +595,7 @@ pub(super) fn resolve_imports(
                     namespaces,
                     globals,
                     prelude_bindings,
+                    prelude_namespaces.contains(&import.namespace),
                 )
                 && existing.identity != export.identity
             {

@@ -1834,7 +1834,7 @@ fn parse_package_source(
     }
 }
 
-fn local_library_metadata(path: &Path) -> Result<(String, String), CliFailure> {
+fn local_library_identity(path: &Path) -> Result<String, CliFailure> {
     let package = terrane_compiler::Package::load(path).map_err(|errors| {
         CliFailure::package(
             errors
@@ -1850,8 +1850,7 @@ fn local_library_metadata(path: &Path) -> Result<(String, String), CliFailure> {
             package.identity
         )));
     }
-    let hash = terrane_compiler::source_tree_hash(path).map_err(CliFailure::package)?;
-    Ok((package.identity, hash))
+    Ok(package.identity)
 }
 
 fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
@@ -1870,12 +1869,12 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 "local package installation requires a relative directory path",
             ));
         }
-        let (identity, hash) = local_library_metadata(&path)?;
+        let identity = local_library_identity(&path)?;
         let path = path
             .to_str()
             .ok_or_else(|| CliFailure::package("local package path is not valid UTF-8"))?
             .replace('\\', "/");
-        (identity, hash.clone(), vec![("path", path), ("hash", hash)])
+        (identity, None, vec![("path", path)])
     } else {
         let url = source.git.expect("validated Git package source");
         let tag = source.tag.expect("validated Git package tag");
@@ -1883,7 +1882,7 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             terrane_compiler::git_library_metadata(&url, &tag).map_err(CliFailure::package)?;
         (
             identity,
-            hash.clone(),
+            Some(hash.clone()),
             vec![("git", url), ("tag", tag), ("hash", hash)],
         )
     };
@@ -1894,10 +1893,9 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         .parse::<toml_edit::DocumentMut>()
         .map_err(|error| CliFailure::package(format!("invalid package.toml: {error}")))?;
     if document.get("terrane-dependencies").is_none() {
-        document.insert(
-            "terrane-dependencies",
-            toml_edit::Item::Table(toml_edit::Table::new()),
-        );
+        let mut dependencies = toml_edit::Table::new();
+        dependencies.set_implicit(true);
+        document.insert("terrane-dependencies", toml_edit::Item::Table(dependencies));
     }
     let dependencies = document["terrane-dependencies"]
         .as_table_mut()
@@ -1914,7 +1912,11 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     dependencies.insert(&name, toml_edit::Item::Table(dependency));
     fs::write(&manifest_path, document.to_string())
         .map_err(|error| CliFailure::package(format!("cannot update package.toml: {error}")))?;
-    println!("installed {name} ({hash})");
+    if let Some(hash) = hash {
+        println!("installed {name} ({hash})");
+    } else {
+        println!("installed {name}");
+    }
     Ok(ExitCode::SUCCESS)
 }
 
@@ -2104,6 +2106,7 @@ mod tests {
             relative_path: PathBuf::from("case.trn"),
             source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
+            prelude: true,
             role: terrane_compiler::SourceRole::Production,
         }];
 

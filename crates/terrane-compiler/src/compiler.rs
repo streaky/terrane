@@ -444,10 +444,12 @@ pub fn compile_package_with_options(
     let warnings = semantics::warnings(&semantic, options.lint_name_style)
         .into_iter()
         .filter(|warning| {
-            warning.code != "W4001"
-                || warning
-                    .primary
-                    .is_none_or(|span| !package.library_source_ids.contains(&span.file))
+            let dependency_warning = warning
+                .primary
+                .is_some_and(|span| package.library_source_ids.contains(&span.file));
+            let library_export_warning = package.artifact == crate::package::ArtifactKind::Library
+                && matches!(warning.code, "W4001" | "W4005");
+            !dependency_warning && !library_export_warning
         })
         .collect();
     let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
