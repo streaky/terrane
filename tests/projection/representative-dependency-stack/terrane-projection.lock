@@ -955,7 +955,15 @@
         ],
         [
           "/deps/axum/routing",
+          "any_service"
+        ],
+        [
+          "/deps/axum/routing",
           "connect"
+        ],
+        [
+          "/deps/axum/routing",
+          "connect_service"
         ],
         [
           "/deps/axum/routing",
@@ -963,7 +971,15 @@
         ],
         [
           "/deps/axum/routing",
+          "delete_service"
+        ],
+        [
+          "/deps/axum/routing",
           "get"
+        ],
+        [
+          "/deps/axum/routing",
+          "get_service"
         ],
         [
           "/deps/axum/routing",
@@ -971,7 +987,15 @@
         ],
         [
           "/deps/axum/routing",
+          "head_service"
+        ],
+        [
+          "/deps/axum/routing",
           "on"
+        ],
+        [
+          "/deps/axum/routing",
+          "on_service"
         ],
         [
           "/deps/axum/routing",
@@ -979,7 +1003,15 @@
         ],
         [
           "/deps/axum/routing",
+          "options_service"
+        ],
+        [
+          "/deps/axum/routing",
           "patch"
+        ],
+        [
+          "/deps/axum/routing",
+          "patch_service"
         ],
         [
           "/deps/axum/routing",
@@ -987,11 +1019,23 @@
         ],
         [
           "/deps/axum/routing",
+          "post_service"
+        ],
+        [
+          "/deps/axum/routing",
           "put"
         ],
         [
           "/deps/axum/routing",
+          "put_service"
+        ],
+        [
+          "/deps/axum/routing",
           "trace"
+        ],
+        [
+          "/deps/axum/routing",
+          "trace_service"
         ],
         [
           "/deps/axum/routing/future",
@@ -3359,6 +3403,10 @@
       "version": "1.53.1",
       "members": [
         [
+          "/deps/tokio",
+          "spawn"
+        ],
+        [
           "/deps/tokio/fs",
           "DirBuilder"
         ],
@@ -3621,6 +3669,10 @@
         [
           "/deps/tokio/fs/openoptions",
           "from"
+        ],
+        [
+          "/deps/tokio/future/maybe-done",
+          "maybe_done"
         ],
         [
           "/deps/tokio/io",
@@ -4708,6 +4760,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle.block_on"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Handle.id"
         ],
         [
@@ -4721,6 +4777,10 @@
         [
           "/deps/tokio/runtime",
           "Handle.runtime_flavor"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.spawn"
         ],
         [
           "/deps/tokio/runtime",
@@ -4744,6 +4804,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.block_on"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime.handle"
         ],
         [
@@ -4760,11 +4824,19 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.spawn_local"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime::new"
         ],
         [
           "/deps/tokio/runtime",
           "Runtime"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.block_on"
         ],
         [
           "/deps/tokio/runtime",
@@ -4781,6 +4853,10 @@
         [
           "/deps/tokio/runtime",
           "Runtime.shutdown_timeout"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.spawn"
         ],
         [
           "/deps/tokio/runtime",
@@ -5164,6 +5240,10 @@
         ],
         [
           "/deps/tokio/task",
+          "LocalSet.block_on"
+        ],
+        [
+          "/deps/tokio/task",
           "LocalSet.enter"
         ],
         [
@@ -5172,11 +5252,23 @@
         ],
         [
           "/deps/tokio/task",
+          "LocalSet.run_until"
+        ],
+        [
+          "/deps/tokio/task",
+          "LocalSet.spawn_local"
+        ],
+        [
+          "/deps/tokio/task",
           "LocalSet::new"
         ],
         [
           "/deps/tokio/task",
           "id"
+        ],
+        [
+          "/deps/tokio/task",
+          "spawn_local"
         ],
         [
           "/deps/tokio/task",
@@ -5365,6 +5457,14 @@
         [
           "/deps/tokio/time",
           "sleep_until"
+        ],
+        [
+          "/deps/tokio/time",
+          "timeout"
+        ],
+        [
+          "/deps/tokio/time",
+          "timeout_at"
         ],
         [
           "/deps/tokio/time/error",
@@ -5619,7 +5719,7 @@
           "future_service"
         ],
         [
-          "/deps/tower/util/error/optional",
+          "/deps/tower/util/optional/error",
           "None"
         ],
         [
@@ -5750,6 +5850,10 @@
         ],
         [
           "/deps/tower-http/classify/grpcerrorsasfailures",
+          "classify_response"
+        ],
+        [
+          "/deps/tower-http/classify/grpcerrorsasfailures",
           "clone"
         ],
         [
@@ -5759,6 +5863,10 @@
         [
           "/deps/tower-http/classify/servererrorsasfailures",
           "classify_error"
+        ],
+        [
+          "/deps/tower-http/classify/servererrorsasfailures",
+          "classify_response"
         ],
         [
           "/deps/tower-http/classify/servererrorsasfailures",
@@ -7241,6 +7349,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/allof",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/allof/trait/core/convert/from-utoipa/openapi/allofbuilder",
           "from"
         ],
@@ -7269,6 +7381,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/array",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/array/trait/core/convert/from-utoipa/openapi/arraybuilder",
           "from"
         ],
@@ -7295,6 +7411,10 @@
         [
           "/deps/utoipa/openapi/components",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/components",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/components/trait/core/convert/from-utoipa/openapi/components",
@@ -7333,6 +7453,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/contact",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/contact/trait/core/convert/from-utoipa/openapi/contact",
           "from"
         ],
@@ -7369,6 +7493,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/content",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/content/trait/core/convert/from-utoipa/openapi/content",
           "from"
         ],
@@ -7403,6 +7531,10 @@
         [
           "/deps/utoipa/openapi/discriminator",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/discriminator",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/encoding",
@@ -7463,6 +7595,10 @@
         [
           "/deps/utoipa/openapi/encoding/encoding",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding/encoding",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/encoding/encoding/trait/core/convert/from-utoipa/openapi/encoding/encoding",
@@ -7537,6 +7673,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/example/example",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/example/example/trait/core/convert/from-utoipa/openapi/example/example",
           "from"
         ],
@@ -7595,6 +7735,10 @@
         [
           "/deps/utoipa/openapi/extensions/extensions",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions/extensions",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/extensions/extensions/trait/core/convert/from-utoipa/openapi/extensions/extensionsbuilder",
@@ -7665,6 +7809,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/externaldocs",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/externaldocs/trait/core/convert/from-utoipa/openapi/external-docs/externaldocsbuilder",
           "from"
         ],
@@ -7687,6 +7835,10 @@
         [
           "/deps/utoipa/openapi/header",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/header",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/header/trait/core/convert/from-utoipa/openapi/header",
@@ -7725,6 +7877,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/info",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/info/trait/core/convert/from-utoipa/openapi/info",
           "from"
         ],
@@ -7759,6 +7915,10 @@
         [
           "/deps/utoipa/openapi/license",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/license",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/license/trait/core/convert/from-utoipa/openapi/license",
@@ -7845,6 +8005,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/link/link",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/link/link/trait/core/convert/from-utoipa/openapi/link/link",
           "from"
         ],
@@ -7881,6 +8045,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/object",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/object/trait/core/convert/from-utoipa/openapi/objectbuilder",
           "from"
         ],
@@ -7909,6 +8077,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/oneof",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/oneof/trait/core/convert/from-utoipa/openapi/oneofbuilder",
           "from"
         ],
@@ -7935,6 +8107,10 @@
         [
           "/deps/utoipa/openapi/openapi",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/openapi",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/openapi/trait/core/convert/from-utoipa/openapi/openapi",
@@ -8169,6 +8345,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/path/operation",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/path/operation/trait/core/convert/from-utoipa/openapi/path/operation",
           "from"
         ],
@@ -8203,6 +8383,10 @@
         [
           "/deps/utoipa/openapi/path/parameter",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/path/parameter",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/path/parameter/trait/core/convert/from-utoipa/openapi/path/parameter",
@@ -8253,6 +8437,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/pathitem",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/pathitem/trait/core/convert/from-utoipa/openapi/path/pathitembuilder",
           "from"
         ],
@@ -8275,6 +8463,10 @@
         [
           "/deps/utoipa/openapi/paths",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/paths",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/paths/trait/core/convert/from-utoipa/openapi/paths",
@@ -8311,6 +8503,10 @@
         [
           "/deps/utoipa/openapi/ref",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/ref",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/ref/trait/core/convert/from-utoipa/openapi/schema/refbuilder",
@@ -8373,6 +8569,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/request-body/requestbody",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/request-body/requestbody/trait/core/convert/from-utoipa/openapi/request-body/requestbody",
           "from"
         ],
@@ -8409,6 +8609,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/response",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/response/trait/core/convert/from-utoipa/openapi/response",
           "from"
         ],
@@ -8439,6 +8643,10 @@
         [
           "/deps/utoipa/openapi/responses",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/responses",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/responses/trait/core/convert/from-utoipa/openapi/responsesbuilder",
@@ -8567,6 +8775,10 @@
         [
           "/deps/utoipa/openapi/schema/anyof",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/schema/anyof",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/schema/anyof/trait/core/convert/from-utoipa/openapi/schema/anyofbuilder",
@@ -8749,6 +8961,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/security/apikeyvalue",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/security/authorizationcode",
           "clone"
         ],
@@ -8761,6 +8977,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/security/authorizationcode",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/security/clientcredentials",
           "clone"
         ],
@@ -8771,6 +8991,10 @@
         [
           "/deps/utoipa/openapi/security/clientcredentials",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/clientcredentials",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/security/http",
@@ -8787,6 +9011,10 @@
         [
           "/deps/utoipa/openapi/security/http",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/http",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/security/http/trait/core/convert/from-utoipa/openapi/security/http",
@@ -8821,6 +9049,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/security/implicit",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/security/oauth2",
           "clone"
         ],
@@ -8831,6 +9063,10 @@
         [
           "/deps/utoipa/openapi/security/oauth2",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/oauth2",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/security/openidconnect",
@@ -8845,6 +9081,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/security/openidconnect",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/security/password",
           "clone"
         ],
@@ -8855,6 +9095,10 @@
         [
           "/deps/utoipa/openapi/security/password",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/security/password",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/security/scopes",
@@ -8873,6 +9117,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/security/scopes",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/securityrequirement",
           "clone"
         ],
@@ -8889,6 +9137,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/securityrequirement",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/server",
           "clone"
         ],
@@ -8903,6 +9155,10 @@
         [
           "/deps/utoipa/openapi/server",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/server",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/server/trait/core/convert/from-utoipa/openapi/server",
@@ -8939,6 +9195,10 @@
         [
           "/deps/utoipa/openapi/servervariable",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/servervariable",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/servervariable/trait/core/convert/from-utoipa/openapi/servervariable",
@@ -9003,6 +9263,10 @@
         [
           "/deps/utoipa/openapi/tag",
           "eq"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "serialize"
         ],
         [
           "/deps/utoipa/openapi/tag/tagbuilder",
@@ -9085,6 +9349,10 @@
           "eq"
         ],
         [
+          "/deps/utoipa/openapi/xml/xml",
+          "serialize"
+        ],
+        [
           "/deps/utoipa/openapi/xml/xml/trait/core/convert/from-utoipa/openapi/xml/xml",
           "from"
         ],
@@ -9151,6 +9419,10 @@
           "clone"
         ],
         [
+          "/deps/utoipa-swagger-ui/basicauth",
+          "serialize"
+        ],
+        [
           "/deps/utoipa-swagger-ui/oauth",
           "Config"
         ],
@@ -9203,6 +9475,10 @@
           "default"
         ],
         [
+          "/deps/utoipa-swagger-ui/oauth/config",
+          "serialize"
+        ],
+        [
           "/deps/utoipa-swagger-ui/swaggerui",
           "clone"
         ],
@@ -9221,6 +9497,10 @@
         [
           "/deps/utoipa-swagger-ui/syntaxhighlight",
           "from"
+        ],
+        [
+          "/deps/utoipa-swagger-ui/syntaxhighlight",
+          "serialize"
         ]
       ]
     }
@@ -9243,11 +9523,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "3229c5be09edb12cfb6ea2e0f10ee6e9fa39708c01471170ed21a929e45e5ff4",
+  "cache_identity": "d0c2b60ef6257ad3fd809b7e4ca66739076db26a878f71fbc0745e2497e64917",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "52",
-  "content_hash": "23dd9c19c44e25c34bc7ae0f0d07e13002ac78c14ef7921d94ad8f917539903e",
+  "projection_schema": "54",
+  "content_hash": "d5cce9fd2d24c3b4936b7f449bb1fb108857f849d125156d046f8429126dc03a",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -886,7 +886,7 @@ impl Emitter<'_> {
             return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
         }
         if operand.kind == SyntaxKind::Name {
-            return format!("&{}", self.expression(operand));
+            return format!("&{}", self.raw_storage_name(operand));
         }
         if operand.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = operand.children.as_slice()

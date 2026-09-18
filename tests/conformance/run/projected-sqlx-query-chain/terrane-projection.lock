@@ -3,242 +3,8 @@
     {
       "members": [
         [
-          "/deps/sqlx/any",
-          "install_default_drivers"
-        ]
-      ],
-      "name": "sqlx",
-      "version": "0.8.6"
-    },
-    {
-      "members": [
-        [
           "/deps/sqlx-core",
           "Error"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "Any"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyColumn"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyConnectOptions"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyConnection"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyConnection.backend_name"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyKind"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyQueryResult"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyQueryResult.last_insert_id"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyQueryResult.rows_affected"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyRow"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyTransactionManager"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyTypeInfo"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyTypeInfo.kind"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyTypeInfoKind"
-        ],
-        [
-          "/deps/sqlx-core/any",
-          "AnyValue"
-        ],
-        [
-          "/deps/sqlx-core/any/any",
-          "create_database"
-        ],
-        [
-          "/deps/sqlx-core/any/any",
-          "database_exists"
-        ],
-        [
-          "/deps/sqlx-core/any/any",
-          "drop_database"
-        ],
-        [
-          "/deps/sqlx-core/any/any",
-          "force_drop_database"
-        ],
-        [
-          "/deps/sqlx-core/any/anycolumn",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/any/anycolumn",
-          "name"
-        ],
-        [
-          "/deps/sqlx-core/any/anycolumn",
-          "ordinal"
-        ],
-        [
-          "/deps/sqlx-core/any/anycolumn",
-          "type_info"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "apply"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "cached_statements_size"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "clear_cached_statements"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "close"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "dirty_version"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "ensure_migrations_table"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "list_applied_migrations"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "lock"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "ping"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "revert"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "shrink_buffers"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnection",
-          "unlock"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnectoptions",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnectoptions",
-          "connect"
-        ],
-        [
-          "/deps/sqlx-core/any/anyconnectoptions",
-          "from_str"
-        ],
-        [
-          "/deps/sqlx-core/any/anyqueryresult",
-          "default"
-        ],
-        [
-          "/deps/sqlx-core/any/anyqueryresult",
-          "extend"
-        ],
-        [
-          "/deps/sqlx-core/any/anyrow",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/any/anytypeinfo",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/any/anytypeinfo",
-          "eq"
-        ],
-        [
-          "/deps/sqlx-core/any/anytypeinfo",
-          "is_null"
-        ],
-        [
-          "/deps/sqlx-core/any/anytypeinfo",
-          "name"
-        ],
-        [
-          "/deps/sqlx-core/any/anyvalue",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/any/anyvalue",
-          "is_null"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyDriver"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyDriver.get_migrate_database"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyDriver::with_migrate"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyDriver::without_migrate"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyMigrateDatabase"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyMigrateDatabase.create_database"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyMigrateDatabase.database_exists"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyMigrateDatabase.drop_database"
-        ],
-        [
-          "/deps/sqlx-core/any/driver",
-          "AnyMigrateDatabase.force_drop_database"
         ],
         [
           "/deps/sqlx-core/connection",
@@ -313,62 +79,6 @@
           "parse_query_summary"
         ],
         [
-          "/deps/sqlx-core/migrate",
-          "AppliedMigration"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "MigrateError"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migration"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "MigrationType"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator.run"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator.set_ignore_missing"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator.set_locking"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator.undo"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator.version_exists"
-        ],
-        [
-          "/deps/sqlx-core/migrate",
-          "Migrator::new"
-        ],
-        [
-          "/deps/sqlx-core/migrate/appliedmigration",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migration",
-          "clone"
-        ],
-        [
-          "/deps/sqlx-core/migrate/source",
-          "ResolveError"
-        ],
-        [
           "/deps/sqlx-core/net",
           "SocketIntoBox"
         ],
@@ -397,6 +107,14 @@
           "WriteBuffer.shrink"
         ],
         [
+          "/deps/sqlx-core/net",
+          "connect_tcp"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "connect_uds"
+        ],
+        [
           "/deps/sqlx-core/net/tls",
           "CertificateInput"
         ],
@@ -414,11 +132,43 @@
         ],
         [
           "/deps/sqlx-core/pool",
+          "CloseEvent.do_until"
+        ],
+        [
+          "/deps/sqlx-core/pool",
           "PoolConnectionMetadata"
         ],
         [
           "/deps/sqlx-core/pool/closeevent",
           "is_terminated"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.bind"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.execute"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.persistent"
         ],
         [
           "/deps/sqlx-core/query",
@@ -430,11 +180,95 @@
         ],
         [
           "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.execute"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.map"
+        ],
+        [
+          "/deps/sqlx-core/query",
           "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
         ],
         [
           "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_map"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "query"
+        ],
+        [
+          "/deps/sqlx-core/query",
           "query_with"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "query_as"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "query_scalar"
         ],
         [
           "/deps/sqlx-core/rt",
@@ -446,11 +280,19 @@
         ],
         [
           "/deps/sqlx-core/rt",
-          "yield_now"
+          "spawn"
         ],
         [
-          "/deps/sqlx-core/rt/rt-tokio",
-          "available"
+          "/deps/sqlx-core/rt",
+          "test_block_on"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "timeout"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "yield_now"
         ],
         [
           "/deps/sqlx-core/sync",
@@ -467,34 +309,6 @@
         [
           "/deps/sqlx-core/sync",
           "AsyncSemaphore::new"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestArgs"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestArgs.migrator"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestArgs::new"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestFixture"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestFn"
-        ],
-        [
-          "/deps/sqlx-core/testing",
-          "TestTermination"
-        ],
-        [
-          "/deps/sqlx-core/testing/fixtures",
-          "FixtureError"
         ],
         [
           "/deps/sqlx-core/type-checking",
@@ -664,35 +478,7 @@
         ],
         [
           "/deps/sqlx-sqlite/sqlite",
-          "cleanup_test"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "cleanup_test_dbs"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "create_database"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "database_exists"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "db_name"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "drop_database"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
           "size_hint"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlite",
-          "test_context"
         ],
         [
           "/deps/sqlx-sqlite/sqlitecolumn",
@@ -708,15 +494,7 @@
         ],
         [
           "/deps/sqlx-sqlite/sqlitecolumn",
-          "try_from"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqlitecolumn",
           "type_info"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "apply"
         ],
         [
           "/deps/sqlx-sqlite/sqliteconnection",
@@ -732,66 +510,14 @@
         ],
         [
           "/deps/sqlx-sqlite/sqliteconnection",
-          "commit"
+          "fetch_optional"
         ],
         [
           "/deps/sqlx-sqlite/sqliteconnection",
-          "describe"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "dirty_version"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "ensure_migrations_table"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "get_transaction_depth"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "list_applied_migrations"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "lock"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "name"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "revert"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "rollback"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "start_rollback"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection",
-          "unlock"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/any/anyconnectionbackend",
           "ping"
         ],
         [
-          "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/any/anyconnectionbackend",
-          "shrink_buffers"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/connection/connection",
-          "ping"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/connection/connection",
+          "/deps/sqlx-sqlite/sqliteconnection",
           "shrink_buffers"
         ],
         [
@@ -809,10 +535,6 @@
         [
           "/deps/sqlx-sqlite/sqliteconnectoptions",
           "from_str"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliteconnectoptions",
-          "try_from"
         ],
         [
           "/deps/sqlx-sqlite/sqliteerror",
@@ -835,20 +557,12 @@
           "extend"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitequeryresult",
-          "from"
-        ],
-        [
           "/deps/sqlx-sqlite/sqliterow",
           "get"
         ],
         [
           "/deps/sqlx-sqlite/sqliterow",
           "get_unchecked"
-        ],
-        [
-          "/deps/sqlx-sqlite/sqliterow",
-          "try_from"
         ],
         [
           "/deps/sqlx-sqlite/sqliterow",
@@ -875,10 +589,6 @@
           "name"
         ],
         [
-          "/deps/sqlx-sqlite/sqlitetypeinfo",
-          "try_from"
-        ],
-        [
           "/deps/sqlx-sqlite/sqlitevalue",
           "clone"
         ],
@@ -889,20 +599,10 @@
       ],
       "name": "sqlx-sqlite",
       "version": "0.8.6"
-    },
-    {
-      "members": [
-        [
-          "/deps/terrane-sqlx-row-producer",
-          "sample_row"
-        ]
-      ],
-      "name": "terrane-sqlx-row-producer",
-      "version": "0.1.0"
     }
   ],
   "format": 3,
-  "projection_schema": "52",
+  "projection_schema": "54",
   "removed": [],
   "resolution": {
     "events": [

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "52";
+const PROJECTION_SCHEMA: &str = "54";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -48,11 +48,7 @@ pub struct ProjectedBoundDependency {
     pub version: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum Containment {
-    Enforced,
-    Unavailable,
-}
+pub use terrane_rust_analysis::Containment;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectionSource {
@@ -1738,6 +1734,14 @@ impl std::fmt::Display for ProjectionError {
 
 impl std::error::Error for ProjectionError {}
 
+impl From<terrane_rust_analysis::AnalysisError> for ProjectionError {
+    fn from(error: terrane_rust_analysis::AnalysisError) -> Self {
+        Self {
+            message: error.message,
+        }
+    }
+}
+
 fn decline_unproven_projected_interfaces(
     projected: &mut [ProjectedDependency],
     evidence: &[crate::projection_oracle::ImplProbeEvidence],
@@ -2894,94 +2898,6 @@ fn apply_namespace_overlays(
     Ok(())
 }
 
-fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate: String) {
-    public_paths
-        .entry(id)
-        .and_modify(|existing| {
-            let candidate_is_prelude = candidate.split("::").any(|segment| segment == "prelude");
-            let existing_is_prelude = existing.split("::").any(|segment| segment == "prelude");
-            let candidate_depth = candidate.matches("::").count();
-            let existing_depth = existing.matches("::").count();
-            if (existing_is_prelude && !candidate_is_prelude)
-                || (candidate_is_prelude == existing_is_prelude
-                    && (candidate_depth < existing_depth
-                        || (candidate_depth == existing_depth && candidate < *existing)))
-            {
-                existing.clone_from(&candidate);
-            }
-        })
-        .or_insert(candidate);
-}
-
-fn record_public_module_items(
-    index: &HashMap<Id, Item>,
-    module_id: Id,
-    module_path: &[String],
-    public_paths: &mut BTreeMap<Id, String>,
-    visiting: &mut BTreeSet<Id>,
-) {
-    if !visiting.insert(module_id) {
-        return;
-    }
-    let Some(Item {
-        inner: ItemEnum::Module(module),
-        ..
-    }) = index.get(&module_id)
-    else {
-        visiting.remove(&module_id);
-        return;
-    };
-    for child_id in &module.items {
-        let Some(item) = index
-            .get(child_id)
-            .filter(|item| item.visibility == Visibility::Public)
-        else {
-            continue;
-        };
-        if let ItemEnum::Use(import) = &item.inner {
-            let Some(target_id) = import.id else {
-                continue;
-            };
-            if import.is_glob {
-                record_public_module_items(index, target_id, module_path, public_paths, visiting);
-            } else {
-                let mut candidate_segments = module_path.to_vec();
-                candidate_segments.push(import.name.clone());
-                prefer_public_path(public_paths, target_id, candidate_segments.join("::"));
-                if matches!(
-                    index.get(&target_id).map(|item| &item.inner),
-                    Some(ItemEnum::Module(_))
-                ) {
-                    record_public_module_items(
-                        index,
-                        target_id,
-                        &candidate_segments,
-                        public_paths,
-                        visiting,
-                    );
-                }
-            }
-            continue;
-        }
-        let Some(name) = item.name.as_deref() else {
-            continue;
-        };
-        let mut candidate_segments = module_path.to_vec();
-        candidate_segments.push(name.to_owned());
-        prefer_public_path(public_paths, *child_id, candidate_segments.join("::"));
-        if matches!(item.inner, ItemEnum::Module(_)) {
-            record_public_module_items(
-                index,
-                *child_id,
-                &candidate_segments,
-                public_paths,
-                visiting,
-            );
-        }
-    }
-    visiting.remove(&module_id);
-}
-
 fn enforce_transitive_reachability(
     projected: &mut [ProjectedDependency],
     dependencies: &[RustDependency],
@@ -3901,44 +3817,15 @@ fn parse_rustdoc(
     dependency: &RustDependency,
     bytes: &[u8],
 ) -> Result<RustdocCrate, ProjectionError> {
-    let document: RustdocCrate =
-        serde_json::from_slice(bytes).map_err(|error| ProjectionError {
-            message: format!(
-                "rustdoc JSON schema mismatch for `{}`: {error}; expected rustdoc format {} from `{RUSTDOC_TOOLCHAIN}`",
-                dependency.package,
-                rustdoc_types::FORMAT_VERSION
-            ),
-        })?;
-    if document.format_version != rustdoc_types::FORMAT_VERSION {
-        return Err(ProjectionError {
-            message: format!(
-                "rustdoc JSON schema mismatch for `{}`: format {} is unsupported; expected format {} from `{RUSTDOC_TOOLCHAIN}`",
-                dependency.package,
-                document.format_version,
-                rustdoc_types::FORMAT_VERSION
-            ),
-        });
-    }
-    Ok(document)
+    terrane_rust_analysis::parse_rustdoc(&dependency.package, bytes, RUSTDOC_TOOLCHAIN).map_err(
+        |error| ProjectionError {
+            message: error.message,
+        },
+    )
 }
 
 fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
-    let mut public_paths = BTreeMap::new();
-    let Some(root_path) = document
-        .paths
-        .get(&document.root)
-        .map(|summary| &summary.path)
-    else {
-        return public_paths;
-    };
-    record_public_module_items(
-        &document.index,
-        document.root,
-        root_path,
-        &mut public_paths,
-        &mut BTreeSet::new(),
-    );
-    public_paths
+    terrane_rust_analysis::public_paths(document)
 }
 
 #[expect(
@@ -5777,6 +5664,125 @@ fn project_function(
     )
 }
 
+fn open_chain_generics(
+    function: &Function,
+    index: &HashMap<Id, Item>,
+) -> Option<BTreeMap<String, ProjectedType>> {
+    let output = function.sig.output.as_ref()?;
+    if function
+        .sig
+        .inputs
+        .first()
+        .is_some_and(|(name, _)| name == "self")
+    {
+        return None;
+    }
+    if !matches!(output, Type::ResolvedPath(_)) || !type_contains_lifetime_argument(output) {
+        return None;
+    }
+    if !type_arguments(output).into_iter().any(|argument| {
+        matches!(
+            argument,
+            Type::QualifiedPath { self_type, .. }
+                if matches!(self_type.as_ref(), Type::Generic(_))
+        )
+    }) {
+        return None;
+    }
+    let has_terminal_associated_shape = function.generics.params.iter().any(|parameter| {
+        generic_bounds(parameter, function).iter().any(|bound| {
+            let GenericBound::TraitBound { trait_, .. } = bound else {
+                return false;
+            };
+            let Some(Item {
+                inner: ItemEnum::Trait(declaration),
+                ..
+            }) = index.get(&trait_.id)
+            else {
+                return false;
+            };
+            let associated = declaration
+                .items
+                .iter()
+                .filter_map(|id| index.get(id).and_then(|item| item.name.as_deref()))
+                .collect::<BTreeSet<_>>();
+            ["Arguments", "QueryResult", "Row"]
+                .into_iter()
+                .all(|name| associated.contains(name))
+        })
+    });
+    if !has_terminal_associated_shape {
+        return None;
+    }
+    let generics = function
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .map(|parameter| {
+            (
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    (!generics.is_empty()).then_some(generics)
+}
+
+fn open_chain_result(
+    output: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Option<ProjectedType> {
+    let Type::ResolvedPath(path) = output else {
+        return None;
+    };
+    let Item {
+        inner: ItemEnum::Struct(structure),
+        ..
+    } = index.get(&path.id)?
+    else {
+        return None;
+    };
+    if !structure
+        .generics
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
+    {
+        return None;
+    }
+    let base_rust_path = resolved_path_name(path, paths);
+    let arguments = structure
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match parameter.kind {
+            GenericParamDefKind::Type { .. } => generics.get(&parameter.name).cloned(),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let rust_identity = format!(
+        "{}<{}>",
+        base_rust_path,
+        arguments
+            .iter()
+            .map(ProjectedType::rust_type)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Some(ProjectedType::Foreign {
+        rust_path: base_rust_path.clone(),
+        name: instantiated_type_name(
+            base_rust_path.rsplit("::").next().unwrap_or("chain"),
+            &rust_identity,
+        ),
+        base_rust_path,
+        arguments,
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "function projection keeps generic selection and exact parameter contracts together"
@@ -5792,9 +5798,13 @@ fn project_function_inner(
     if function.header.is_unsafe {
         return Err("unsafe function".to_owned());
     }
-    let (generic_types, destination_result) =
+    let open_chain = open_chain_generics(function, index);
+    let (generic_types, destination_result) = if let Some(types) = open_chain.clone() {
+        (types, None)
+    } else {
         generic_monomorphisations(function, index, paths, supplied_generics)
-            .map_err(|reason| format!("generic selection: {reason}"))?;
+            .map_err(|reason| format!("generic selection: {reason}"))?
+    };
     if destination_result.is_some()
         && function.sig.output.as_ref().is_some_and(|output| {
             render_rust_type(output, index, paths, &generic_types)
@@ -5893,7 +5903,9 @@ fn project_function_inner(
             .or_else(|| {
                 function.generics.params.iter().find_map(|parameter| {
                     generic_types.get(&parameter.name).and_then(|projected| {
-                        (matches!(projected, ProjectedType::Foreign { .. })
+                        ((matches!(projected, ProjectedType::Foreign { .. })
+                            || matches!(projected, ProjectedType::Generic(_))
+                                && matches!(projected_type, ProjectedType::Generic(_)))
                             && type_mentions_generic(ty, &parameter.name))
                         .then(|| parameter.name.clone())
                     })
@@ -5987,7 +5999,11 @@ fn project_function_inner(
         } else {
             None
         };
+        let executor_borrow = rendered_generic_bounds
+            .iter()
+            .any(|bound| bound.contains("Executor"));
         let borrowed = borrowed
+            || executor_borrow
             || (generic_parameter
                 .as_ref()
                 .is_some_and(|name| name.starts_with("TerraneImpl"))
@@ -5997,7 +6013,7 @@ fn project_function_inner(
             name: safe_parameter_name(name),
             ty: projected_type,
             borrowed,
-            mutable_borrow,
+            mutable_borrow: mutable_borrow || executor_borrow,
             generic_parameter,
             generic_interface,
             generic_bounds: rendered_generic_bounds,
@@ -6024,6 +6040,7 @@ fn project_function_inner(
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
     }
     if !allow_lifetime_output
+        && open_chain.is_none()
         && effective_output
             .as_ref()
             .is_some_and(type_contains_lifetime_argument)
@@ -6085,12 +6102,37 @@ fn project_function_inner(
                 ))
             }
         } else {
-            project_type(output, index, paths, &generic_types)
-                .map_err(|reason| format!("projected output: {reason}"))?
+            project_type(output, index, paths, &generic_types).or_else(|reason| {
+                open_chain_result(output, index, paths, &generic_types)
+                    .ok_or_else(|| format!("projected output: {reason}"))
+            })?
         }
     } else {
         ProjectedType::None
     };
+    if open_chain.is_none()
+        && allow_lifetime_output
+        && let Some(Type::ResolvedPath(path)) = effective_output.as_ref()
+        && let Some(Item {
+            inner: ItemEnum::Struct(structure),
+            ..
+        }) = index.get(&path.id)
+        && structure
+            .generics
+            .params
+            .iter()
+            .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
+        && let ProjectedType::Foreign { arguments, .. } = &result
+        && arguments.len()
+            != structure
+                .generics
+                .params
+                .iter()
+                .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+                .count()
+    {
+        return Err("lifetime-bearing chain result has unresolved generic state".to_owned());
+    }
     if matches!(result, ProjectedType::BoxedInterface { .. }) {
         return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
     }
@@ -6980,6 +7022,19 @@ fn project_type(
                 .cloned()
                 .ok_or_else(|| format!("unresolved associated type `Self::{name}`"))
         }
+        Type::QualifiedPath {
+            name,
+            args,
+            self_type,
+            ..
+        } if args.is_none()
+            && matches!(self_type.as_ref(), Type::Generic(owner) if generics.contains_key(owner)) =>
+        {
+            let Type::Generic(owner) = self_type.as_ref() else {
+                unreachable!("qualified generic owner was matched above");
+            };
+            Ok(ProjectedType::Associated(format!("{owner}::{name}")))
+        }
         Type::DynTrait(_) => {
             Err("trait objects require an owning `Box<dyn Trait>` parameter".to_owned())
         }
@@ -7440,6 +7495,19 @@ fn render_rust_type(
                 .get(&format!("Self::{name}"))
                 .map(ProjectedType::rust_type)
                 .ok_or_else(|| format!("unresolved associated type `Self::{name}`"))
+        }
+        Type::QualifiedPath {
+            name,
+            args,
+            self_type,
+            ..
+        } if args.is_none()
+            && matches!(self_type.as_ref(), Type::Generic(owner) if generics.contains_key(owner)) =>
+        {
+            let Type::Generic(owner) = self_type.as_ref() else {
+                unreachable!("qualified generic owner was matched above");
+            };
+            Ok(format!("{owner}::{name}"))
         }
         _ => Err("generic argument has no stable Rust type spelling".to_owned()),
     }
@@ -8166,12 +8234,13 @@ mod tests {
         ProjectionSource, Receiver, ResolutionOutcome, apply_namespace_overlays,
         apply_projection_history, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        has_type_parameters, namespace_overlays_from_metadata, parse_rustdoc, prefer_public_path,
-        project_type, projectable_interface_bound, projection_content_hash, prune_projection_cache,
+        has_type_parameters, namespace_overlays_from_metadata, parse_rustdoc, project_type,
+        projectable_interface_bound, projection_content_hash, prune_projection_cache,
         receiver_kind, resolve, rewrite_rust_bound_root, selected_target,
         validate_projection_artifact,
     };
     use crate::RustDependency;
+    use terrane_rust_analysis::prefer_public_path;
     fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
         RustDependency {
             name: name.to_owned(),

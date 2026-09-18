@@ -21,8 +21,3 @@ effects = ["build", "filesystem", "threads"]
 version = "=0.8.6"
 features = ["bundled"]
 effects = ["build", "filesystem", "threads"]
-
-[rust-dependencies.terrane-sqlx-row-producer]
-version = "=0.1.0"
-features = []
-effects = ["build", "filesystem", "threads"]

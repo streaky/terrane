@@ -1071,16 +1071,38 @@ impl Emitter<'_> {
             "analyzed initialized value binding must have a selected initializer"
         );
         let closure_writes = self.local_binding_closure_writes();
+        let has_projected_mutable_borrow = self
+            .package
+            .projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter_map(|item| match &item.kind {
+                crate::projection::ProjectedKind::Function(function) => Some(function),
+                _ => None,
+            })
+            .flat_map(|function| &function.parameters)
+            .any(|parameter| parameter.mutable_borrow);
+        let reference = format!("ref {name}");
+        let mutably_referenced = has_projected_mutable_borrow
+            && self
+                .unit
+                .source
+                .text()
+                .match_indices(&reference)
+                .any(|(at, _)| {
+                    let prefix = &self.unit.source.text()[..at];
+                    !prefix.trim_end().ends_with("shared")
+                });
         let mutable = !reference_backed
             && binding.is_some_and(|binding| {
-                binding.mutable
-                    && binding_requires_mutable_storage(
-                        self.package,
-                        self.unit,
-                        node.span,
-                        initializer.is_some(),
-                        closure_writes,
-                    )
+                (binding_requires_mutable_storage(
+                    self.package,
+                    self.unit,
+                    node.span,
+                    initializer.is_some(),
+                    closure_writes,
+                ) || mutably_referenced)
                     && !matches!(
                         binding.value_type,
                         ValueType::Reference(_) | ValueType::SharedReference(_)

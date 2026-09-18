@@ -2196,10 +2196,12 @@ receiver-position intermediates are legal, while binding, return, capture, and s
 `T0112`. Lowering leaves roots and continuing calls
 inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
-`rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
-concrete adapter that borrows its database input, plus a structurally dissimilar formatting chain
-that borrows its prefix. Open `sqlx::Query` itself remains honestly declined. Four focused rejects
-fix binding, return, capture, and suspension boundaries.
+`rust-dependency-chain-only` retains the independent formatting and concrete-adapter witnesses.
+Projection schema 54 additionally admits open generic/lifetime state for expression-local roots:
+`projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row
+access operations. The query value remains unbindable and non-escaping; terminal executor bounds
+select the mutable borrow, and compilation of the exact emitted call validates the closed Rust
+application. Four focused rejects continue to fix binding, return, capture, and suspension boundaries.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
@@ -4153,11 +4155,11 @@ Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. 
 authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
 qualifier remains invalid.
 
-Raw SQLx `Query<'q, DB, A>` values are not a promised projection shape: their open database,
-argument, and borrow parameters are intentionally unnameable as free-standing Terrane values.
-Do not special-case them. Preserve the existing chain-only projection route for a concrete adapter
-whose terminal operation owns a projectable result, and use the authored Rust boundary when an
-application needs to package a database-specific adapter locally.
+Raw SQLx `Query<'q, DB, A>` values remain unnameable as free-standing Terrane values. Generic
+projection may nevertheless carry their database, argument, associated-output, and borrow state
+through one expression-local chain. A terminal executor operation closes that state; its written
+Terrane collection or row destination provides contextual associated-output identity, and the exact
+emitted Rust call must compile. No SQLx package-name dispatch participates in this path.
 
 ##### Temporary integration-adapter ledger
 
@@ -4183,12 +4185,12 @@ Retire an operation when its upstream projection creates a collision and generic
 regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
 consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
 
-The initial adapter features are `sqlx-sqlite` and `axum-08`. `sqlx-sqlite` supplies only
-unavailable trait-provided connection operations, lifetime-bearing statement execution and binding,
-and generic bytes-row extraction around the directly projected upstream `SqliteConnection`. Its
-namespace overlay presents those operations beside `SqliteConnection` under `/deps/sqlx-sqlite`,
-while projection provenance continues to name
-`terrane_integration_adapters::sqlx_sqlite` as their Rust implementation.
+The initial adapter features are `sqlx-sqlite` and `axum-08`. Direct SQLx projection now covers
+connection lifecycle, query construction, byte binding, execution, fetch-all, fetch-one, and
+destination-selected row access. The `sqlx-sqlite` adapter remains only for consumers that must
+process every collected non-`Clone` row: Terrane's persistent list iteration cannot yet consume
+those rows without an adapter-owned conversion. Its namespace overlay remains available until that
+last ledger criterion closes.
 
 `axum-08` preserves direct `/deps/axum` routing, handlers, upgrade callbacks, and WebSocket sending.
 It supplies only a concrete upgrade response, nested receive/result and message-constructor bridges,

@@ -182,6 +182,10 @@
           "from_str"
         ],
         [
+          "/deps/serde-json/number",
+          "serialize"
+        ],
+        [
           "/deps/serde-json/number/trait/core/convert/from-i16",
           "from"
         ],
@@ -391,7 +395,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "52",
+  "projection_schema": "54",
   "removed": [],
   "resolution": {
     "events": [

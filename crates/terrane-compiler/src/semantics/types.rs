@@ -1228,7 +1228,8 @@ pub(super) fn value_types_compatible(
         }
         (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
-        | (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
+        | (ValueType::IterationStep(_), ValueType::IterationEnd)
+        | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

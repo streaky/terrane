@@ -2288,6 +2288,12 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 for parameter in &mut specialization.projected_parameters {
                     if parameter.generic_parameter.as_ref() == generic.as_ref() {
                         parameter.borrowed = true;
+                        parameter.mutable_borrow = bounds.iter().any(|bound| {
+                            bound
+                                .borrowed_rust_type
+                                .as_deref()
+                                .is_some_and(|rust_type| rust_type.starts_with("&mut "))
+                        });
                     }
                 }
                 continue;
@@ -2515,7 +2521,7 @@ fn collect_projected_destinations(
                 .unwrap_or(&ValueType::Scalar(ScalarType::None)),
             &value_bindings,
         );
-        let mut value_type = if contract.is_async {
+        let mut value_type = if function.is_async {
             ValueType::Task(ElementType::new(result), contract.task_transferability)
         } else {
             result
@@ -2549,7 +2555,12 @@ fn collect_projected_destinations(
                 ),
                 &expected_projected,
             );
-            value_type = destination.clone();
+            value_type = match value_type {
+                ValueType::Task(_, transferability) => {
+                    ValueType::Task(ElementType::new(destination.clone()), transferability)
+                }
+                _ => destination.clone(),
+            };
         }
         let bounds = function
             .generic_parameters
@@ -2561,6 +2572,9 @@ fn collect_projected_destinations(
                 let borrowed_rust_type = match projected {
                     crate::projection::ProjectedType::String => Some("&str".to_owned()),
                     crate::projection::ProjectedType::Bytes => Some("&[u8]".to_owned()),
+                    crate::projection::ProjectedType::Foreign { .. } => {
+                        Some(format!("&mut {rust_type}"))
+                    }
                     _ => None,
                 };
                 generic

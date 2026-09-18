@@ -2912,6 +2912,7 @@ dependencies = [
  "syn 2.0.119",
  "terrane-collection-support",
  "terrane-int-support",
+ "terrane-rust-analysis",
  "terrane-string-support",
  "toml",
  "ureq",
@@ -2988,6 +2989,16 @@ dependencies = [
  "webpki-roots",
  "zeroize",
  "zstd",
+]
+
+[[package]]
+name = "terrane-rust-analysis"
+version = "0.1.0"
+dependencies = [
+ "rustdoc-types",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]

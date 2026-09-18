@@ -1449,8 +1449,9 @@ impl Emitter<'_> {
             node.span.start,
             node.span.end,
         ));
-        let (projected_parameters, projected_chain_role, projected_error) = self
-            .projected_function_for_call(callee)
+        let projected_function = self.projected_function_for_call(callee).cloned();
+        let (projected_parameters, projected_chain_role, projected_error) = projected_function
+            .as_ref()
             .map_or((None, None, false), |function| {
                 (
                     Some(specialization.map_or_else(
@@ -1520,7 +1521,46 @@ impl Emitter<'_> {
                     .cloned()
                     .flatten()
                     .or_else(|| parameter.element_value_type());
-                let expression = if projected_parameter.is_some_and(|parameter| {
+                let executor_parameter = projected_parameter
+                    .and_then(|parameter| parameter.generic_parameter.as_ref())
+                    .is_some_and(|generic| {
+                        projected_function.as_ref().is_some_and(|function| {
+                            function.generic_parameters.iter().any(|parameter| {
+                                parameter.name == *generic
+                                    && parameter
+                                        .rust_bounds
+                                        .iter()
+                                        .any(|bound| bound.contains("Executor"))
+                            })
+                        })
+                    });
+                let explicit_reference = self.unit.source.text()
+                    [argument.span.start..argument.span.end]
+                    .trim()
+                    .starts_with("ref ")
+                    .then(|| {
+                        if value.kind == SyntaxKind::UnaryExpression {
+                            value.children.last().unwrap_or(value)
+                        } else {
+                            value
+                        }
+                    });
+                let expression = if value.kind == SyntaxKind::Name
+                    && projected_parameter.is_some_and(|parameter| {
+                        parameter.borrowed
+                            && matches!(
+                                parameter.ty,
+                                crate::projection::ProjectedType::String
+                                    | crate::projection::ProjectedType::Bytes
+                            )
+                    }) {
+                    self.raw_storage_name(value)
+                } else if executor_parameter {
+                    let operand = explicit_reference.unwrap_or(value);
+                    format!("&mut {}", self.raw_storage_name(operand))
+                } else if let Some(operand) = explicit_reference {
+                    self.reference_address_expression(operand)
+                } else if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         || parameter.borrowed
                             && matches!(
@@ -1557,6 +1597,7 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         parameter.borrowed
+                            && !executor_parameter
                             && !projected_interface_dispatch
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)

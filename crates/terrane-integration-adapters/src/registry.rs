@@ -35,13 +35,13 @@ pub const INTEGRATION_ADAPTERS: &[IntegrationAdapter] = &[
         tracking_key: "projection/sqlx-query-lifetime-chain",
         dependency: "sqlx",
         supported_versions: "0.8.x with SQLite and Tokio runtime",
-        limitation: "Query<'q, DB, A> cannot cross a free-standing Terrane value boundary, and returned non-Clone rows cannot yet be consumed through Terrane collection iteration",
+        limitation: "Direct expression-local query, bind, execute, fetch-all, fetch-one, and row access now project generically; collected non-Clone rows still cannot be consumed through Terrane list iteration",
         status: AdapterStatus::Package {
             name: "terrane-integration-adapters",
             version: "0.1.x",
             feature: "sqlx-sqlite",
         },
-        removal_criterion: "generic chain-only lowering executes SQLx queries and consuming collection or stream iteration lets Terrane process the resulting rows directly",
+        removal_criterion: "consuming collection or stream iteration lets Terrane process every non-Clone row returned by fetch-all without an adapter-owned conversion",
     },
     IntegrationAdapter {
         id: "axum-closed-response-alias",

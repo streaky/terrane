@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-sqlx-row-producer = { path = "fixture-registry/terrane-sqlx-row-producer-0.1.0" }

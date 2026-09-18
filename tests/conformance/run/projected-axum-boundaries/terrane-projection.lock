@@ -1012,7 +1012,15 @@
         ],
         [
           "/deps/axum/routing",
+          "any_service"
+        ],
+        [
+          "/deps/axum/routing",
           "connect"
+        ],
+        [
+          "/deps/axum/routing",
+          "connect_service"
         ],
         [
           "/deps/axum/routing",
@@ -1020,7 +1028,15 @@
         ],
         [
           "/deps/axum/routing",
+          "delete_service"
+        ],
+        [
+          "/deps/axum/routing",
           "get"
+        ],
+        [
+          "/deps/axum/routing",
+          "get_service"
         ],
         [
           "/deps/axum/routing",
@@ -1028,7 +1044,15 @@
         ],
         [
           "/deps/axum/routing",
+          "head_service"
+        ],
+        [
+          "/deps/axum/routing",
           "on"
+        ],
+        [
+          "/deps/axum/routing",
+          "on_service"
         ],
         [
           "/deps/axum/routing",
@@ -1036,7 +1060,15 @@
         ],
         [
           "/deps/axum/routing",
+          "options_service"
+        ],
+        [
+          "/deps/axum/routing",
           "patch"
+        ],
+        [
+          "/deps/axum/routing",
+          "patch_service"
         ],
         [
           "/deps/axum/routing",
@@ -1044,11 +1076,23 @@
         ],
         [
           "/deps/axum/routing",
+          "post_service"
+        ],
+        [
+          "/deps/axum/routing",
           "put"
         ],
         [
           "/deps/axum/routing",
+          "put_service"
+        ],
+        [
+          "/deps/axum/routing",
           "trace"
+        ],
+        [
+          "/deps/axum/routing",
+          "trace_service"
         ],
         [
           "/deps/axum/routing/future",
@@ -1256,6 +1300,14 @@
     },
     {
       "members": [
+        [
+          "/deps/tokio",
+          "spawn"
+        ],
+        [
+          "/deps/tokio/future/maybe-done",
+          "maybe_done"
+        ],
         [
           "/deps/tokio/io",
           "DuplexStream"
@@ -2338,6 +2390,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle.block_on"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Handle.id"
         ],
         [
@@ -2351,6 +2407,10 @@
         [
           "/deps/tokio/runtime",
           "Handle.runtime_flavor"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.spawn"
         ],
         [
           "/deps/tokio/runtime",
@@ -2374,6 +2434,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.block_on"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime.handle"
         ],
         [
@@ -2390,11 +2454,19 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.spawn_local"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime::new"
         ],
         [
           "/deps/tokio/runtime",
           "Runtime"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.block_on"
         ],
         [
           "/deps/tokio/runtime",
@@ -2411,6 +2483,10 @@
         [
           "/deps/tokio/runtime",
           "Runtime.shutdown_timeout"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.spawn"
         ],
         [
           "/deps/tokio/runtime",
@@ -2702,6 +2778,10 @@
         ],
         [
           "/deps/tokio/task",
+          "LocalSet.block_on"
+        ],
+        [
+          "/deps/tokio/task",
           "LocalSet.enter"
         ],
         [
@@ -2710,11 +2790,23 @@
         ],
         [
           "/deps/tokio/task",
+          "LocalSet.run_until"
+        ],
+        [
+          "/deps/tokio/task",
+          "LocalSet.spawn_local"
+        ],
+        [
+          "/deps/tokio/task",
           "LocalSet::new"
         ],
         [
           "/deps/tokio/task",
           "id"
+        ],
+        [
+          "/deps/tokio/task",
+          "spawn_local"
         ],
         [
           "/deps/tokio/task",
@@ -2905,6 +2997,14 @@
           "sleep_until"
         ],
         [
+          "/deps/tokio/time",
+          "timeout"
+        ],
+        [
+          "/deps/tokio/time",
+          "timeout_at"
+        ],
+        [
           "/deps/tokio/time/error",
           "Elapsed"
         ],
@@ -3003,7 +3103,7 @@
     }
   ],
   "format": 3,
-  "projection_schema": "52",
+  "projection_schema": "54",
   "removed": [],
   "resolution": {
     "events": [

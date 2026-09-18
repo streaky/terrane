@@ -1,0 +1,18 @@
+package = "projected-sqlx-query-chain"
+executor = "threaded"
+
+[profile]
+name = "projected-sqlx-query-chain"
+capabilities = ["build", "filesystem", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.sqlx-core]
+version = "=0.8.6"
+effects = ["build", "filesystem", "threads"]
+
+[rust-dependencies.sqlx-sqlite]
+version = "=0.8.6"
+features = ["bundled"]
+effects = ["build", "filesystem", "threads"]
