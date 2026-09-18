@@ -1,0 +1,6 @@
+package = "example/library"
+artifact = "library"
+prelude = false
+
+[namespaces]
+"example/library" = "src"

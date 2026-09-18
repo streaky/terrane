@@ -1643,6 +1643,8 @@ fn snapshot_package(
         units,
         rust_dependencies: Vec::new(),
         authored_rust_modules: Vec::new(),
+        terrane_dependencies: Vec::new(),
+        library_source_ids: BTreeSet::new(),
     })
 }
 

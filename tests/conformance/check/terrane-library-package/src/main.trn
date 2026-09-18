@@ -1,0 +1,4 @@
+namespace app
+from /example/library import answer
+function main;
+  answer

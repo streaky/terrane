@@ -1311,23 +1311,26 @@ async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::P
             .ancestors()
             .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
             .find(|candidate| candidate.is_file())?;
+        let package = terrane_compiler::Package::load(&manifest).ok()?;
         let modified = manifest.metadata().ok()?.modified().ok()?;
-        if let Some((cached_at, projection)) = PROJECTIONS
-            .lock()
-            .expect("projection cache lock is not poisoned")
-            .get(&manifest)
+        if package.terrane_dependencies.is_empty()
+            && let Some((cached_at, projection)) = PROJECTIONS
+                .lock()
+                .expect("projection cache lock is not poisoned")
+                .get(&manifest)
             && *cached_at == modified
         {
             return Some(projection.clone());
         }
-        let package = terrane_compiler::Package::load(&manifest).ok()?;
         let projection =
             terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies)
                 .ok()?;
-        PROJECTIONS
-            .lock()
-            .expect("projection cache lock is not poisoned")
-            .insert(manifest, (modified, projection.clone()));
+        if package.terrane_dependencies.is_empty() {
+            PROJECTIONS
+                .lock()
+                .expect("projection cache lock is not poisoned")
+                .insert(manifest, (modified, projection.clone()));
+        }
         Some(projection)
     })
     .await
@@ -1633,5 +1636,49 @@ mod tests {
         };
         assert_ne!(definition.uri, child_uri);
         assert!(definition.uri.ends_with("/app/main.trn"));
+    }
+
+    #[test]
+    fn package_snapshots_resolve_definitions_from_terrane_libraries() {
+        let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repository root");
+        let app_path = repository
+            .join("tests/conformance/check/terrane-library-package/src/main.trn")
+            .canonicalize()
+            .expect("library consumer fixture");
+        let app_text = std::fs::read_to_string(&app_path).expect("application source");
+        let app_uri = format!("file://{}", app_path.display());
+        let uri = app_uri.parse::<Uri>().expect("file URI");
+        let (sources, manifest) =
+            package_snapshot_inputs(&uri, &app_text, &HashMap::new()).expect("package inputs");
+        assert!(
+            sources
+                .iter()
+                .any(|source| source.uri.ends_with("/library/src/library.trn"))
+        );
+        assert_eq!(sources.len(), 2);
+
+        let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
+        let snapshot = tooling
+            .open_snapshot(
+                sources,
+                manifest,
+                None,
+                terrane_compiler::tooling::SnapshotOptions {
+                    semantic: true,
+                    ..terrane_compiler::tooling::SnapshotOptions::default()
+                },
+            )
+            .expect("semantic library snapshot");
+        let use_offset = app_text.rfind("answer").expect("library constant use");
+        let terrane_compiler::tooling::Availability::Known(definition) = tooling
+            .definition(&snapshot.snapshot_id, &app_uri, use_offset)
+            .expect("library definition")
+        else {
+            panic!("library definition should be known");
+        };
+        assert_eq!(definition.uri, app_uri);
     }
 }

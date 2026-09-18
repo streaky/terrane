@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::{Diagnostic, SourceFile, Span};
+use sha2::{Digest, Sha256};
 
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
@@ -66,6 +68,7 @@ pub enum BuildToolchain {
 pub enum ArtifactKind {
     Executable,
     DynamicLibrary,
+    Library,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -125,6 +128,19 @@ pub struct RustDependency {
     pub default_features: bool,
     pub target: Option<String>,
     pub effects: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TerraneDependencySource {
+    Path(PathBuf),
+    Git { url: String, tag: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneDependency {
+    pub name: String,
+    pub source: TerraneDependencySource,
+    pub hash: Option<String>,
 }
 
 /// Returns dependency declarations with the required Tokio runtime features merged into any
@@ -206,6 +222,8 @@ pub struct Package {
     pub units: Vec<SourceUnit>,
     pub rust_dependencies: Vec<RustDependency>,
     pub authored_rust_modules: Vec<AuthoredRustModule>,
+    pub terrane_dependencies: Vec<TerraneDependency>,
+    pub library_source_ids: BTreeSet<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -260,6 +278,8 @@ impl Package {
             }],
             rust_dependencies: Vec::new(),
             authored_rust_modules: Vec::new(),
+            terrane_dependencies: Vec::new(),
+            library_source_ids: BTreeSet::new(),
         }
     }
 
@@ -278,11 +298,12 @@ impl Package {
     }
 
     /// The manifest is TOML with required `package` and `namespaces` fields plus
-    /// optional `prelude` and `artifact` fields. Sources are discovered in sorted path order.
+    /// optional package configuration and dependency tables. Sources are discovered in sorted
+    /// path order, and Terrane library dependencies are composed recursively.
     ///
     /// # Errors
     ///
-    /// Returns every manifest validation error, or every source file read error.
+    /// Returns every manifest, dependency, or source file error.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
         let requested = path.as_ref();
         let manifest_path = if requested.is_dir() {
@@ -290,36 +311,7 @@ impl Package {
         } else {
             requested.to_path_buf()
         };
-        let root = manifest_path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."))
-            .to_path_buf();
-        let text = fs::read_to_string(&manifest_path).map_err(|error| {
-            vec![PackageLoadError::unreadable(
-                manifest_path.clone(),
-                format!("cannot read package manifest: {error}"),
-            )]
-        })?;
-        let manifest = parse_manifest(&manifest_path, &text)?;
-        let units = discover_source_units(&root, &manifest.namespace_roots)?;
-        let authored_rust_modules =
-            load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
-        Ok(Self {
-            identity: manifest.identity,
-            root,
-            prelude: manifest.prelude,
-            reflection: manifest.reflection,
-            executor: manifest.executor,
-            artifact: manifest.artifact,
-            profile: manifest.profile,
-            purpose: PackagePurpose::Production,
-            testing: manifest.testing,
-            build_toolchain: manifest.build_toolchain,
-            units,
-            rust_dependencies: manifest.rust_dependencies,
-            authored_rust_modules,
-        })
+        load_package_graph(&manifest_path)
     }
 
     pub(crate) fn from_tooling_sources(
@@ -328,6 +320,35 @@ impl Package {
         mut units: Vec<SourceUnit>,
     ) -> Result<Self, Vec<PackageLoadError>> {
         let manifest = parse_manifest(manifest_path, manifest_text)?;
+        if !manifest.terrane_dependencies.is_empty() {
+            let mut package = load_package_graph(manifest_path)?;
+            let overlays = units
+                .into_iter()
+                .map(|unit| {
+                    let path = unit
+                        .source
+                        .path()
+                        .canonicalize()
+                        .unwrap_or_else(|_| unit.source.path().to_path_buf());
+                    (path, unit.source.text().to_owned())
+                })
+                .collect::<BTreeMap<_, _>>();
+            for unit in &mut package.units {
+                let path = unit
+                    .source
+                    .path()
+                    .canonicalize()
+                    .unwrap_or_else(|_| unit.source.path().to_path_buf());
+                if let Some(text) = overlays.get(&path) {
+                    unit.source = SourceFile::new(
+                        unit.source.id(),
+                        unit.source.path().to_path_buf(),
+                        text.clone(),
+                    );
+                }
+            }
+            return Ok(package);
+        }
         let root = manifest_path
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
@@ -386,8 +407,464 @@ impl Package {
             units,
             rust_dependencies: manifest.rust_dependencies,
             authored_rust_modules,
+            terrane_dependencies: manifest.terrane_dependencies,
+            library_source_ids: BTreeSet::new(),
         })
     }
+}
+
+fn load_package_graph(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
+    let mut package = load_package_unit(manifest_path)?;
+    let mut loaded = BTreeSet::new();
+    let root_key = package
+        .root
+        .canonicalize()
+        .unwrap_or_else(|_| package.root.clone());
+    loaded.insert(root_key.clone());
+    let mut stack = vec![root_key];
+    let cache_owner = package.root.clone();
+    compose_dependencies(
+        manifest_path,
+        &mut package,
+        &cache_owner,
+        &mut loaded,
+        &mut stack,
+    )?;
+    Ok(package)
+}
+
+fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
+    let root = manifest_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    let text = fs::read_to_string(manifest_path).map_err(|error| {
+        vec![PackageLoadError::unreadable(
+            manifest_path.to_path_buf(),
+            format!("cannot read package manifest: {error}"),
+        )]
+    })?;
+    let manifest = parse_manifest(manifest_path, &text)?;
+    if manifest.artifact == ArtifactKind::Library {
+        let namespace_identity = format!("/{}", manifest.identity.trim_start_matches('/'));
+        let prefix = format!("{namespace_identity}/");
+        let invalid = manifest.namespace_roots.iter().find(|mapping| {
+            mapping.namespace != namespace_identity && !mapping.namespace.starts_with(&prefix)
+        });
+        if let Some(mapping) = invalid {
+            return Err(vec![manifest_error(
+                manifest_path,
+                &text,
+                format!(
+                    "library namespace `{}` must equal or descend from package identity `{}`",
+                    mapping.namespace, manifest.identity
+                ),
+                Some(&mapping.namespace),
+            )]);
+        }
+    }
+    let units = discover_source_units(&root, &manifest.namespace_roots)?;
+    let authored_rust_modules =
+        load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
+    Ok(Package {
+        identity: manifest.identity,
+        root,
+        prelude: manifest.prelude,
+        reflection: manifest.reflection,
+        executor: manifest.executor,
+        artifact: manifest.artifact,
+        profile: manifest.profile,
+        purpose: PackagePurpose::Production,
+        testing: manifest.testing,
+        build_toolchain: manifest.build_toolchain,
+        units,
+        rust_dependencies: manifest.rust_dependencies,
+        authored_rust_modules,
+        terrane_dependencies: manifest.terrane_dependencies,
+        library_source_ids: BTreeSet::new(),
+    })
+}
+
+fn compose_dependencies(
+    manifest_path: &Path,
+    package: &mut Package,
+    cache_owner: &Path,
+    loaded: &mut BTreeSet<PathBuf>,
+    stack: &mut Vec<PathBuf>,
+) -> Result<(), Vec<PackageLoadError>> {
+    let dependencies = package.terrane_dependencies.clone();
+    for dependency in dependencies {
+        let dependency_root = resolve_terrane_dependency(&package.root, cache_owner, &dependency)
+            .map_err(|message| {
+            vec![dependency_error(manifest_path, &dependency.name, message)]
+        })?;
+        let dependency_key = dependency_root
+            .canonicalize()
+            .unwrap_or_else(|_| dependency_root.clone());
+        if stack.contains(&dependency_key) {
+            return Err(vec![dependency_error(
+                manifest_path,
+                &dependency.name,
+                "Terrane dependency cycle detected",
+            )]);
+        }
+        if loaded.contains(&dependency_key) {
+            continue;
+        }
+        let dependency_manifest = dependency_root.join(MANIFEST_FILE_NAME);
+        let mut library = load_package_unit(&dependency_manifest)?;
+        if library.artifact != ArtifactKind::Library {
+            return Err(vec![dependency_error(
+                manifest_path,
+                &dependency.name,
+                format!(
+                    "dependency package `{}` must declare `artifact = \"library\"`",
+                    library.identity
+                ),
+            )]);
+        }
+        stack.push(dependency_key.clone());
+        compose_dependencies(
+            &dependency_manifest,
+            &mut library,
+            cache_owner,
+            loaded,
+            stack,
+        )?;
+        stack.pop();
+        loaded.insert(dependency_key);
+        merge_library(package, library, manifest_path, &dependency.name)?;
+    }
+    Ok(())
+}
+
+fn dependency_error(
+    manifest_path: &Path,
+    dependency: &str,
+    message: impl Into<String>,
+) -> PackageLoadError {
+    let text = fs::read_to_string(manifest_path).unwrap_or_default();
+    manifest_error(
+        manifest_path,
+        &text,
+        format!("Terrane dependency `{dependency}`: {}", message.into()),
+        Some(dependency),
+    )
+}
+
+fn resolve_terrane_dependency(
+    root: &Path,
+    cache_owner: &Path,
+    dependency: &TerraneDependency,
+) -> Result<PathBuf, String> {
+    let resolved = match &dependency.source {
+        TerraneDependencySource::Path(path) => root.join(path),
+        TerraneDependencySource::Git { url, tag } => {
+            let hash = dependency
+                .hash
+                .as_deref()
+                .expect("Git dependencies are parsed with a required hash");
+            let digest = hash
+                .strip_prefix("sha256:")
+                .expect("validated dependency hash");
+            let cache_root = cache_owner.join(".trn/packages");
+            let destination = cache_root.join(digest);
+            if !destination.is_dir() {
+                fs::create_dir_all(&cache_root)
+                    .map_err(|error| format!("cannot create package cache: {error}"))?;
+                let temporary = cache_root.join(format!(".{digest}-{}", std::process::id()));
+                if temporary.exists() {
+                    fs::remove_dir_all(&temporary).map_err(|error| {
+                        format!("cannot clear temporary package cache: {error}")
+                    })?;
+                }
+                if let Err(error) = clone_git_tag(url, tag, &temporary) {
+                    let _ = fs::remove_dir_all(&temporary);
+                    return Err(error);
+                }
+                fs::rename(&temporary, &destination)
+                    .map_err(|error| format!("cannot publish package cache entry: {error}"))?;
+            }
+            destination
+        }
+    };
+    if !resolved.is_dir() {
+        return Err(format!(
+            "source directory `{}` does not exist",
+            resolved.display()
+        ));
+    }
+    if let Some(expected) = dependency.hash.as_deref() {
+        let actual = source_tree_hash(&resolved)?;
+        if actual != expected {
+            return Err(format!(
+                "source hash mismatch: expected `{expected}`, found `{actual}`"
+            ));
+        }
+    }
+    Ok(resolved)
+}
+
+fn clone_git_tag(url: &str, tag: &str, destination: &Path) -> Result<(), String> {
+    let output = Command::new("git")
+        .args([
+            "clone",
+            "--depth",
+            "1",
+            "--single-branch",
+            "--branch",
+            tag,
+            "--",
+        ])
+        .arg(url)
+        .arg(destination)
+        .output()
+        .map_err(|error| format!("cannot launch Git: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot clone tag `{tag}` from `{url}`: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let tagged = Command::new("git")
+        .arg("-C")
+        .arg(destination)
+        .args([
+            "rev-parse",
+            "--verify",
+            &format!("refs/tags/{tag}^{{commit}}"),
+        ])
+        .output()
+        .map_err(|error| format!("cannot inspect cloned Git tag: {error}"))?;
+    if !tagged.status.success() {
+        return Err(format!("Git reference `{tag}` is not a tag"));
+    }
+    let head = Command::new("git")
+        .arg("-C")
+        .arg(destination)
+        .args(["rev-parse", "--verify", "HEAD"])
+        .output()
+        .map_err(|error| format!("cannot inspect cloned Git revision: {error}"))?;
+    if !head.status.success() || head.stdout != tagged.stdout {
+        return Err(format!(
+            "Git checkout does not resolve exactly to tag `{tag}`"
+        ));
+    }
+    Ok(())
+}
+
+fn with_git_tag<T>(
+    url: &str,
+    tag: &str,
+    inspect: impl FnOnce(&Path) -> Result<T, String>,
+) -> Result<T, String> {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| format!("system clock is before the Unix epoch: {error}"))?
+        .as_nanos();
+    let temporary = std::env::temp_dir().join(format!(
+        "terrane-package-hash-{}-{nonce}",
+        std::process::id()
+    ));
+    let result = clone_git_tag(url, tag, &temporary).and_then(|()| inspect(&temporary));
+    let cleanup = fs::remove_dir_all(&temporary);
+    if let Err(error) = &result {
+        return Err(error.clone());
+    }
+    if let Err(error) = cleanup
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        return Err(format!("cannot remove temporary Git checkout: {error}"));
+    }
+    result
+}
+
+/// Clones one exact Git tag and computes its deterministic Terrane package source hash.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot clone or verify the tag, or when the checked-out source tree
+/// cannot be hashed.
+pub fn git_source_tree_hash(url: &str, tag: &str) -> Result<String, String> {
+    with_git_tag(url, tag, source_tree_hash)
+}
+
+/// Reads the identity and deterministic source hash of a Terrane library at one exact Git tag.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot clone or verify the tag, or when the checkout is not a valid
+/// Terrane library package.
+pub fn git_library_metadata(url: &str, tag: &str) -> Result<(String, String), String> {
+    with_git_tag(url, tag, |root| {
+        let hash = source_tree_hash(root)?;
+        let package = Package::load(root).map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|error| error.diagnostic.message)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })?;
+        if package.artifact != ArtifactKind::Library {
+            return Err(format!(
+                "package `{}` must declare `artifact = \"library\"`",
+                package.identity
+            ));
+        }
+        Ok((package.identity, hash))
+    })
+}
+
+/// Computes the deterministic content hash used by Terrane package dependency declarations.
+///
+/// # Errors
+///
+/// Returns an error when the tree cannot be read, contains a symbolic link, or has a non-UTF-8
+/// relative path.
+pub fn source_tree_hash(root: &Path) -> Result<String, String> {
+    fn collect(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+        let mut entries = fs::read_dir(directory)
+            .map_err(|error| format!("cannot read source tree: {error}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("cannot read source tree entry: {error}"))?;
+        entries.sort_by_key(std::fs::DirEntry::file_name);
+        for entry in entries {
+            let path = entry.path();
+            let name = entry.file_name();
+            let file_type = entry
+                .file_type()
+                .map_err(|error| format!("cannot inspect source tree entry: {error}"))?;
+            if file_type.is_symlink() {
+                return Err(format!(
+                    "source tree contains unsupported symbolic link `{}`",
+                    path.display()
+                ));
+            }
+            if file_type.is_dir() {
+                if name != ".git" && name != ".trn" {
+                    collect(root, &path, files)?;
+                }
+            } else if file_type.is_file() {
+                files.push(
+                    path.strip_prefix(root)
+                        .expect("walked source path is below root")
+                        .to_path_buf(),
+                );
+            }
+        }
+        Ok(())
+    }
+    let mut files = Vec::new();
+    collect(root, root, &mut files)?;
+    files.sort();
+    let mut hasher = Sha256::new();
+    for relative in files {
+        let path = relative
+            .to_str()
+            .ok_or_else(|| "source tree contains a non-UTF-8 path".to_owned())?
+            .replace('\\', "/");
+        let contents = fs::read(root.join(&relative))
+            .map_err(|error| format!("cannot read source tree file `{path}`: {error}"))?;
+        hasher.update((path.len() as u64).to_le_bytes());
+        hasher.update(path.as_bytes());
+        hasher.update((contents.len() as u64).to_le_bytes());
+        hasher.update(contents);
+    }
+    Ok(format!("sha256:{:x}", hasher.finalize()))
+}
+
+fn merge_library(
+    package: &mut Package,
+    mut library: Package,
+    manifest_path: &Path,
+    dependency_name: &str,
+) -> Result<(), Vec<PackageLoadError>> {
+    for dependency in &library.rust_dependencies {
+        if let Some(existing) = package
+            .rust_dependencies
+            .iter()
+            .find(|existing| existing.name == dependency.name)
+        {
+            if existing != dependency {
+                return Err(vec![dependency_error(
+                    manifest_path,
+                    dependency_name,
+                    format!(
+                        "Rust dependency alias `{}` conflicts with another package",
+                        dependency.name
+                    ),
+                )]);
+            }
+        } else {
+            package.rust_dependencies.push(dependency.clone());
+        }
+        for effect in std::iter::once("build").chain(dependency.effects.iter().map(String::as_str))
+        {
+            if !package.profile.allows(effect) {
+                return Err(vec![dependency_error(
+                    manifest_path,
+                    dependency_name,
+                    format!(
+                        "profile `{}` forbids effect `{effect}` required by Rust dependency `{}`",
+                        package.profile.name, dependency.name
+                    ),
+                )]);
+            }
+        }
+    }
+    for module in &library.authored_rust_modules {
+        if package
+            .authored_rust_modules
+            .iter()
+            .any(|existing| existing.name == module.name)
+        {
+            return Err(vec![dependency_error(
+                manifest_path,
+                dependency_name,
+                format!(
+                    "authored Rust module `{}` conflicts with another package",
+                    module.name
+                ),
+            )]);
+        }
+        if !package.profile.allows("build") {
+            return Err(vec![dependency_error(
+                manifest_path,
+                dependency_name,
+                format!(
+                    "profile `{}` forbids effect `build` required by authored Rust module `{}`",
+                    package.profile.name, module.name
+                ),
+            )]);
+        }
+    }
+    let prefix = Path::new("dependencies").join(&library.identity);
+    for mut unit in library.units.drain(..) {
+        let id = package.next_source_id();
+        unit.relative_path = prefix.join(&unit.relative_path);
+        unit.source = SourceFile::new(
+            id,
+            unit.source.path().to_path_buf(),
+            unit.source.text().to_owned(),
+        );
+        package.library_source_ids.insert(id);
+        package.units.push(unit);
+    }
+    for mut module in library.authored_rust_modules.drain(..) {
+        let id = package.next_source_id();
+        module.relative_path = prefix.join(&module.relative_path);
+        module.source = SourceFile::new(
+            id,
+            module.source.path().to_path_buf(),
+            module.source.text().to_owned(),
+        );
+        package.authored_rust_modules.push(module);
+    }
+    package
+        .rust_dependencies
+        .sort_by(|left, right| left.name.cmp(&right.name));
+    Ok(())
 }
 
 struct ParsedManifest {
@@ -402,6 +879,7 @@ struct ParsedManifest {
     namespace_roots: Vec<NamespaceRoot>,
     rust_dependencies: Vec<RustDependency>,
     authored_rust_modules: Vec<(String, PathBuf)>,
+    terrane_dependencies: Vec<TerraneDependency>,
 }
 
 #[derive(Clone, Debug)]
@@ -442,6 +920,7 @@ fn parse_manifest(
                 | "profile"
                 | "testing"
                 | "namespaces"
+                | "terrane-dependencies"
                 | "rust-dependencies"
                 | "rust-modules"
         ) {
@@ -480,11 +959,12 @@ fn parse_manifest(
         Some(toml::Value::String(value)) if value == "dynamic-library" => {
             ArtifactKind::DynamicLibrary
         }
+        Some(toml::Value::String(value)) if value == "library" => ArtifactKind::Library,
         Some(_) => {
             errors.push(manifest_error(
                 manifest_path,
                 text,
-                "`artifact` must be either `executable` or `dynamic-library`",
+                "`artifact` must be either `executable` or `dynamic-library`, or `library`",
                 Some("artifact"),
             ));
             ArtifactKind::Executable
@@ -548,6 +1028,7 @@ fn parse_manifest(
     let profile = parse_capability_profile(manifest_path, text, &table, &mut errors);
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     let rust_dependencies = parse_rust_dependencies(manifest_path, text, &table, &mut errors);
+    let terrane_dependencies = parse_terrane_dependencies(manifest_path, text, &table, &mut errors);
     let authored_rust_modules =
         parse_authored_rust_modules(manifest_path, text, &table, &mut errors);
     if !authored_rust_modules.is_empty() && !profile.allows("build") {
@@ -596,11 +1077,167 @@ fn parse_manifest(
             namespace_roots,
             rust_dependencies,
             authored_rust_modules,
+            terrane_dependencies,
             testing: testing.expect("validated testing configuration"),
         })
     } else {
         Err(errors)
     }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "linear validation of one dependency declaration table"
+)]
+fn parse_terrane_dependencies(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<TerraneDependency> {
+    let Some(value) = table.get("terrane-dependencies") else {
+        return Vec::new();
+    };
+    let Some(dependencies) = value.as_table() else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`terrane-dependencies` must be a table",
+            Some("terrane-dependencies"),
+        ));
+        return Vec::new();
+    };
+    dependencies
+        .iter()
+        .filter_map(|(name, value)| {
+            let Some(fields) = value.as_table() else {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Terrane dependency `{name}` must be a table"),
+                    Some(name),
+                ));
+                return None;
+            };
+            for field in fields.keys() {
+                if !matches!(field.as_str(), "path" | "git" | "tag" | "hash") {
+                    errors.push(manifest_error(
+                        manifest_path,
+                        text,
+                        format!("unknown field `{field}` in Terrane dependency `{name}`"),
+                        Some(field),
+                    ));
+                }
+            }
+            let path = fields.get("path").and_then(toml::Value::as_str);
+            let git = fields.get("git").and_then(toml::Value::as_str);
+            let tag = fields.get("tag").and_then(toml::Value::as_str);
+            let hash = fields.get("hash").and_then(toml::Value::as_str);
+            if fields.get("path").is_some_and(|value| !value.is_str())
+                || fields.get("git").is_some_and(|value| !value.is_str())
+                || fields.get("tag").is_some_and(|value| !value.is_str())
+                || fields.get("hash").is_some_and(|value| !value.is_str())
+            {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Terrane dependency `{name}` fields must be strings"),
+                    Some(name),
+                ));
+                return None;
+            }
+            let source = match (path, git) {
+                (Some(path), None) => {
+                    let path = Path::new(path);
+                    let Some(path) = (!path.as_os_str().is_empty() && !path.is_absolute())
+                        .then(|| path.to_path_buf())
+                    else {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("Terrane dependency `{name}` path must be relative"),
+                            Some(name),
+                        ));
+                        return None;
+                    };
+                    if tag.is_some() {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("local Terrane dependency `{name}` cannot declare `tag`"),
+                            Some("tag"),
+                        ));
+                        return None;
+                    }
+                    TerraneDependencySource::Path(path)
+                }
+                (None, Some(url)) if !url.is_empty() => {
+                    let Some(tag) = tag.filter(|tag| !tag.is_empty()) else {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("Git Terrane dependency `{name}` requires a non-empty `tag`"),
+                            Some(name),
+                        ));
+                        return None;
+                    };
+                    if hash.is_none() {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("Git Terrane dependency `{name}` requires `hash`"),
+                            Some(name),
+                        ));
+                        return None;
+                    }
+                    TerraneDependencySource::Git {
+                        url: url.to_owned(),
+                        tag: tag.to_owned(),
+                    }
+                }
+                _ => {
+                    errors.push(manifest_error(
+                        manifest_path,
+                        text,
+                        format!(
+                            "Terrane dependency `{name}` must declare exactly one of `path` or `git`"
+                        ),
+                        Some(name),
+                    ));
+                    return None;
+                }
+            };
+            let hash = match hash {
+                Some(hash) if valid_tree_hash(hash) => Some(hash.to_owned()),
+                Some(hash) => {
+                    errors.push(manifest_error(
+                        manifest_path,
+                        text,
+                        format!(
+                            "Terrane dependency `{name}` hash must be `sha256:` followed by 64 lowercase hexadecimal digits"
+                        ),
+                        Some(hash),
+                    ));
+                    return None;
+                }
+                None => None,
+            };
+            Some(TerraneDependency {
+                name: name.clone(),
+                source,
+                hash,
+            })
+        })
+        .collect()
+}
+
+fn valid_tree_hash(hash: &str) -> bool {
+    hash.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    })
 }
 
 fn parse_authored_rust_modules(

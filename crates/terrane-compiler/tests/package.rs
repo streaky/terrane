@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use terrane_compiler::{
     ArtifactKind, BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile,
     RustDependency, analyze, compile_discovered_test_tier, compile_package, compile_test_package,
-    discover_test_package,
+    discover_test_package, source_tree_hash,
     testing::{TestPackage, TestTier},
     with_tokio_runtime,
 };
@@ -1019,4 +1019,157 @@ fn authored_and_generated_sources_have_distinct_ids() {
         .collect::<std::collections::BTreeSet<_>>();
 
     assert_eq!(source_ids.len(), compilation.sources.len());
+}
+
+#[test]
+fn local_terrane_library_lowers_with_the_application() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfrom /acme/lib import answer\nfunction main;\n  answer\n",
+    );
+
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.units.len(), 2);
+    assert_eq!(package.library_source_ids.len(), 1);
+    let compilation = compile_package(&package).unwrap();
+    assert!(compilation.rust.contains("// Namespace: acme/lib"));
+}
+
+#[test]
+fn library_packages_allow_no_main_and_reject_main() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
+    compile_package(&Package::load(&package.0).unwrap()).unwrap();
+
+    package.write(
+        "src/library.trn",
+        "namespace acme/lib\nfunction main;\n  none\n",
+    );
+    let failure = compile_package(&Package::load(&package.0).unwrap()).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2017");
+}
+
+#[test]
+fn library_rust_dependencies_and_modules_merge_into_the_application() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\n[namespaces]\n\"acme/lib\" = \"src\"\n[rust-dependencies.codec]\npackage = \"base64\"\nversion = \"=0.22.1\"\n[rust-modules]\ncodec_adapter = \"rust/codec.rs\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
+    workspace.write("library/rust/codec.rs", "pub fn marker() {}\n");
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.rust_dependencies[0].name, "codec");
+    assert_eq!(package.authored_rust_modules[0].name, "codec_adapter");
+    assert!(
+        package.authored_rust_modules[0]
+            .relative_path
+            .starts_with("dependencies/acme/lib")
+    );
+}
+
+#[test]
+fn local_library_hash_is_verified() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+
+    let errors = Package::load(workspace.0.join("app")).unwrap_err();
+    assert!(
+        errors[0]
+            .diagnostic
+            .message
+            .contains("source hash mismatch")
+    );
+}
+
+#[test]
+fn tagged_git_library_is_cached_and_loaded_by_hash() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "repository/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "repository/src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
+    let repository = workspace.0.join("repository");
+    for args in [
+        vec!["init"],
+        vec!["config", "user.email", "terrane@example.invalid"],
+        vec!["config", "user.name", "Terrane Test"],
+        vec!["add", "."],
+        vec!["commit", "-m", "library"],
+        vec!["tag", "v1.0.0"],
+    ] {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .current_dir(&repository)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let hash = source_tree_hash(&repository).unwrap();
+    workspace.write(
+        "app/package.toml",
+        &format!(
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
+            repository.to_string_lossy()
+        ),
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.units.len(), 2);
+    assert!(workspace.0.join("app/.trn/packages").is_dir());
 }

@@ -1,0 +1,8 @@
+package = "terrane-library-consumer"
+prelude = false
+
+[namespaces]
+app = "src"
+
+[terrane-dependencies.library]
+path = "library"

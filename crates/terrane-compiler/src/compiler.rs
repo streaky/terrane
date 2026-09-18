@@ -335,28 +335,53 @@ fn compilation_rust_dependencies(
     dependencies
 }
 
-/// Compiles every manifest-discovered source unit with explicit
-/// compiler-development options.
-///
-/// # Errors
-///
-/// Returns diagnostics from the first source unit that fails, including
-/// generated-Rust invariant failures requested by `options`.
-pub fn compile_package_with_options(
+fn package_entry<'a>(
+    semantic: &'a semantics::SemanticPackage,
     package: &Package,
-    options: CompilerOptions,
-) -> Result<Compilation, CompilationFailure> {
-    let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
-        source: failure.source,
-        diagnostics: failure.diagnostics,
-    })?;
+) -> Result<(&'a SourceFile, Span), CompilationFailure> {
     let entry_points = semantic
         .namespaces
         .values()
         .filter_map(|namespace| namespace.symbols.get("main"))
         .filter(|symbol| symbol.kind == SymbolKind::Function)
         .collect::<Vec<_>>();
-    let entry = match entry_points.as_slice() {
+    let invalid_library_entry = entry_points.iter().find(|entry| {
+        package.artifact == crate::package::ArtifactKind::Library
+            || entry
+                .declaration_span
+                .is_some_and(|span| package.library_source_ids.contains(&span.file))
+    });
+    if let Some(entry) = invalid_library_entry {
+        let span = entry
+            .declaration_span
+            .unwrap_or_else(|| Span::new(semantic.units[0].source.id(), 0, 0));
+        let source = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == span.file)
+            .map_or(&semantic.units[0].source, |unit| &unit.source);
+        return Err(CompilationFailure {
+            source: source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "S2017",
+                "Terrane library packages cannot declare a `main` function",
+                span,
+            )],
+        });
+    }
+    let application_entries = entry_points
+        .into_iter()
+        .filter(|entry| {
+            entry
+                .declaration_span
+                .is_none_or(|span| !package.library_source_ids.contains(&span.file))
+        })
+        .collect::<Vec<_>>();
+    if package.artifact == crate::package::ArtifactKind::Library {
+        let source = &semantic.units[0].source;
+        return Ok((source, Span::new(source.id(), 0, 0)));
+    }
+    let entry = match application_entries.as_slice() {
         [] => {
             let source = &semantic.units[0].source;
             return Err(CompilationFailure {
@@ -396,9 +421,35 @@ pub fn compile_package_with_options(
         .iter()
         .find(|unit| unit.source.id() == entry_span.file)
         .unwrap_or(&semantic.units[0]);
-    let source = &unit.source;
+    Ok((&unit.source, entry_span))
+}
+
+/// Compiles every manifest-discovered source unit with explicit
+/// compiler-development options.
+///
+/// # Errors
+///
+/// Returns diagnostics from the first source unit that fails, including
+/// generated-Rust invariant failures requested by `options`.
+pub fn compile_package_with_options(
+    package: &Package,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
+    let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
+        source: failure.source,
+        diagnostics: failure.diagnostics,
+    })?;
+    let (source, entry_span) = package_entry(&semantic, package)?;
     let sources = compilation_sources(&semantic, package);
-    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let warnings = semantics::warnings(&semantic, options.lint_name_style)
+        .into_iter()
+        .filter(|warning| {
+            warning.code != "W4001"
+                || warning
+                    .primary
+                    .is_none_or(|span| !package.library_source_ids.contains(&span.file))
+        })
+        .collect();
     let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
