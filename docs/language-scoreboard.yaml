@@ -80,7 +80,7 @@ features:
   completion: 100
   milestone: '1'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/lexical-structure/source-layout.yaml
   notes: UTF-8 validation, exact spans, trivia, NEWLINE/INDENT/DEDENT, and legal empty blocks are implemented.
@@ -108,7 +108,7 @@ features:
   completion: 100
   milestone: '2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/lexical-structure/literals.yaml
   notes: Comments, strings, bytes, booleans, none, and numeric literal forms pass through the lossless syntax pipeline.
@@ -136,7 +136,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/expressions/operators.yaml
   notes: The parser and semantic pipeline implement the version-one precedence and operator families used by the
@@ -151,7 +151,7 @@ features:
   completion: 100
   milestone: '2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/declarations/bindings.yaml
   notes: Typed and inferred bindings, constants, globals, visibility, and structural declaration modifiers are implemented.
@@ -165,7 +165,7 @@ features:
   completion: 100
   milestone: '26.1'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/declarations/modifiers.yaml
   notes: The open `with` modifier protocol is separate from compiler-owned structural keywords.
@@ -179,7 +179,7 @@ features:
   completion: 100
   milestone: '2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/tooling/formatting.yaml
   notes: Lossless syntax supports deterministic canonical formatting and stable parse/format behavior.
@@ -204,7 +204,7 @@ features:
   completion: 100
   milestone: '4.7'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/namespaces/declarations.yaml
   notes: Lowercase slash-separated declarations correspond to source directories.
@@ -218,7 +218,7 @@ features:
   completion: 100
   milestone: '4.8'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/namespaces/name-resolution.yaml
   notes: Ordinary and former object-form lookup are unified; `.` is member selection only.
@@ -232,7 +232,7 @@ features:
   completion: 100
   milestone: '3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/namespaces/imports.yaml
   notes: Absolute, relative, selected, aliased, and namespace-wide imports resolve deterministically.
@@ -246,7 +246,7 @@ features:
   completion: 100
   milestone: '3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/namespaces/prelude.yaml
   notes: The exact version-one default bindings are compiler-owned and may be disabled by package policy.
@@ -260,7 +260,7 @@ features:
   completion: 100
   milestone: '3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/namespaces/scopes.yaml
   notes: Declarations resolve by identity across namespace, function, and lexical scopes with duplicate and unresolved-name
@@ -275,7 +275,7 @@ features:
   completion: 100
   milestone: '3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/packages/terrane-packages.yaml
   notes: Manifest-backed packages enumerate complete source sets, capabilities, profiles, and dependencies.
@@ -289,7 +289,7 @@ features:
   completion: 100
   milestone: '3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/build/conditional-selection.yaml
   notes: Build branches are deterministic, capability-aware, and included in cache identity.
@@ -303,7 +303,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/declarations/globals.yaml
   notes: Global dependencies are explicit and cycles are diagnosed.
@@ -317,7 +317,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/scalars.yaml
   notes: Bool, exact int, fixed integers, floats, string, bytes, and none lower to direct native representations.
@@ -332,7 +332,7 @@ features:
   completion: 100
   milestone: '7'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/descriptors.yaml
   notes: Concrete and abstract category descriptors expose compiler-owned identity and declared conformance.
@@ -347,7 +347,7 @@ features:
   completion: 100
   milestone: '18'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/reflection.yaml
   notes: '`.type` and descriptor metadata reflect semantic type identity while declared members retain precedence.'
@@ -361,7 +361,7 @@ features:
   completion: 100
   milestone: '4.9'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/unions.yaml
   notes: Declared finite alternatives retain identity; exact arm wins and ambiguous constants are rejected.
@@ -389,7 +389,7 @@ features:
   completion: 100
   milestone: '7'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/relations.yaml
   notes: '`is a` and descriptor relations use canonical semantic identity.'
@@ -460,7 +460,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/integers.yaml
   notes: '`int` promotes and normalizes across i64, i128, and arbitrary-precision storage without source overflow.'
@@ -474,7 +474,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/integers.yaml
   notes: Signed and unsigned widths through 128 bits preserve exact bounds and operations.
@@ -488,7 +488,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/arithmetic.yaml
   notes: Arithmetic, comparison, bitwise, shifts, and update statements use defined Terrane contracts.
@@ -502,7 +502,7 @@ features:
   completion: 100
   milestone: '10'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/arithmetic-policies.yaml
   notes: Checked, wrap, saturate, and overflowing children are exposed only where semantically valid.
@@ -516,7 +516,7 @@ features:
   completion: 100
   milestone: '4.9'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/conversion.yaml
   notes: Numeric values arriving at declared destinations preserve exact value or throw.
@@ -530,7 +530,7 @@ features:
   completion: 100
   milestone: '4.5'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/conversion.yaml
   notes: Default, checked, wrap, and saturate conversion policies are descriptor-driven callable families.
@@ -544,7 +544,7 @@ features:
   completion: 100
   milestone: '4.9'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/constants.yaml
   notes: Constants evaluate using destination or typed-operand arithmetic with one final representability check.
@@ -558,7 +558,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/floating-point.yaml
   notes: '`float` aliases float64; both widths preserve IEEE categories and canonical display.'
@@ -674,7 +674,7 @@ features:
   completion: 100
   milestone: '4'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/control-flow/branching-and-loops.yaml
   notes: If/else, while, for, break, continue, and return have checked control-flow semantics.
@@ -688,7 +688,7 @@ features:
   completion: 100
   milestone: '9'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/errors/handling.yaml
   notes: Recoverable failures use compiler-owned result propagation rather than native unwinding.
@@ -702,7 +702,7 @@ features:
   completion: 100
   milestone: '18'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/errors/contracts.yaml
   notes: Escaping throwable sets account for catches and finally replacement and can be constrained on declarations.
@@ -758,7 +758,7 @@ features:
   completion: 100
   milestone: '4.6'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/display.yaml
   notes: Strings, numerics, booleans, and none render canonically; bytes deliberately lack arbitrary display.
@@ -772,7 +772,7 @@ features:
   completion: 100
   milestone: '11'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/bytes.yaml
   notes: Bytes preserve arbitrary values, expose length, iterate as uint8, and support checked indexing and slicing.
@@ -786,7 +786,7 @@ features:
   completion: 100
   milestone: '11'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/unicode.yaml
   notes: Strings expose distinct byte, scalar, and extended-grapheme views.
@@ -800,7 +800,7 @@ features:
   completion: 100
   milestone: '11'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/encodings.yaml
   notes: UTF-8, UTF-16, and UTF-32 objects round-trip bytes and report typed decode offsets.
@@ -814,7 +814,7 @@ features:
   completion: 100
   milestone: '11'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/unicode.yaml
   notes: Compiler/runtime providers report and consistently use one embedded Unicode version.
@@ -827,7 +827,7 @@ features:
   completion: 100
   milestone: '12'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/transformation.yaml
   notes: Trim, case, normalization, split, replace, concat, and join operate on specified grapheme boundaries; split results are iterable read-only lists.
@@ -843,7 +843,7 @@ features:
   completion: 100
   milestone: '12'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/text/search.yaml
   notes: Contains and find families return booleans, ranges, iterable read-only match lists, and counts with empty-pattern rules.
@@ -938,7 +938,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/language/classes/fields.yaml
   notes: Classes implement typed state, methods, explicit construction, independent instances, and semantically shared canonical defaults across own, inherited, and trait-contributed scalar, optional, bytes, and collection fields.
@@ -952,7 +952,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/classes/inheritance.yaml
   notes: Deep single inheritance preserves late-bound dispatch and inherited state.
@@ -966,7 +966,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/classes/interfaces.yaml
   notes: Declared interface identity is nominal while its dispatch contract is checked and lowered statically.
@@ -980,7 +980,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/classes/traits.yaml
   notes: Traits reuse fields and methods with explicit conflicts and no implicit ambiguity.
@@ -994,7 +994,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/classes/lifecycle.yaml
   notes: Lifecycle methods compose across inheritance; copies create fresh lineages and moves preserve one lineage.
@@ -1008,7 +1008,7 @@ features:
   completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/classes/methods.yaml
   notes: Method contracts distinguish receiver mutation and enforce compatibility.
@@ -1040,7 +1040,7 @@ features:
   completion: 100
   milestone: '14'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/ownership/value-semantics.yaml
   notes: Copyable values behave independently even when backing storage is shared internally.
@@ -1054,7 +1054,7 @@ features:
   completion: 100
   milestone: '17'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/ownership/movement.yaml
   notes: Resource values transfer, moved bindings become unavailable, and replacement invalidates prior ownership.
@@ -1242,7 +1242,7 @@ features:
   completion: 100
   milestone: '20'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/streams.yaml
   notes: Linear readers/writers, encoded adapters, and process standard streams preserve cancellation and typed
@@ -1257,7 +1257,7 @@ features:
   completion: 100
   milestone: '25.2'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
   notes: Projected async functions construct futures on first poll and preserve result, panic, and execution contracts.
@@ -1271,7 +1271,7 @@ features:
   completion: 100
   milestone: '25.2'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
   notes: Borrowed-next sequences, sinks, close/flush/split, and cancellation lower without escaping borrows.
@@ -1328,7 +1328,7 @@ features:
   completion: 100
   milestone: '21'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/paths.yaml
   notes: Path values normalize, join, and inspect without implicit host access.
@@ -1342,7 +1342,7 @@ features:
   completion: 100
   milestone: '21'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/filesystem.yaml
   notes: Resource-owning files/directories expose bounded reads, atomic writes, metadata, traversal, and cleanup.
@@ -1356,7 +1356,7 @@ features:
   completion: 100
   milestone: '21'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/process.yaml
   notes: Lossless native strings, snapshots, CLI schemas, host name, and explicit exit status are implemented.
@@ -1412,7 +1412,7 @@ features:
   completion: 100
   milestone: '22'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/urls.yaml
   notes: Validated absolute/relative URLs preserve ordered duplicate query entries.
@@ -1426,7 +1426,7 @@ features:
   completion: 100
   milestone: '23'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/randomness.yaml
   notes: Secure entropy and explicitly seeded ChaCha20 pseudo-random sources have incompatible types.
@@ -1439,7 +1439,7 @@ features:
   completion: 100
   milestone: '23'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/cryptography.yaml
   notes: SHA-256/SHA-512 descriptors select matching digest and HMAC algorithms with opaque secret buffers.
@@ -1453,7 +1453,7 @@ features:
   completion: 100
   milestone: '30.3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/cryptography.yaml
   notes: An explicitly imported legacy namespace exposes SHA-1 and MD5 for compatibility and content identity without presenting either algorithm as suitable for new cryptographic security designs.
@@ -1468,7 +1468,7 @@ features:
   completion: 100
   milestone: '23'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/codecs.yaml
   notes: Strict reusable and direct codecs expose explicit alphabet and padding policy.
@@ -1481,7 +1481,7 @@ features:
   completion: 100
   milestone: '23'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/compression.yaml
   notes: Gzip, zlib, raw deflate, and zstd require explicit codecs and bounded decompression limits.
@@ -1494,7 +1494,7 @@ features:
   completion: 100
   milestone: '23'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/standard-library/uuid.yaml
   notes: Canonical parsing plus random v4 and time-ordered v7 generation require entropy capability.
@@ -1609,7 +1609,7 @@ features:
   completion: 100
   milestone: '5'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/internals/lowering/rust-output.yaml
   notes: One Rust-oriented IR emits readable deterministic modules, items, expressions, types, and source associations.
@@ -1637,7 +1637,7 @@ features:
   completion: 100
   milestone: '6'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/internals/diagnostics/source-projection.yaml
   notes: Cargo/rustc failures map through generated Rust spans to source-oriented diagnostics.
@@ -1689,7 +1689,7 @@ features:
   sources:
   - docs/compiler-plan.md#Milestone 30.3
   - crates/terrane-integration-adapters/src/registry.rs
-  - tests/conformance/run/projected-axum-boundaries/case.toml
+  - tests/conformance/run/projected-websocket-protocol/case.toml
 - id: projected-interface-conformance
   name: Projected Rust trait conformance
   category: interop
@@ -1791,7 +1791,7 @@ features:
   completion: 100
   milestone: '25'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/tooling/editor-support.yaml
   notes: Completion, signature help, hover, definitions, projection declines, semantic highlighting, and diagnostics
@@ -1805,7 +1805,7 @@ features:
   completion: 100
   milestone: '30.3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/packages/rust-interop.yaml
   notes: Capability-gated Rust blocks, Rust expressions, and manifest-declared maintained Rust source files retain explicit safety, deterministic integration, and source mapping.
@@ -1820,7 +1820,7 @@ features:
   completion: 100
   milestone: '26'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/packages/native-interop.yaml
   notes: Concrete capability-gated adapters cross explicit ABI, ownership, failure, and blocking boundaries.
