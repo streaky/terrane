@@ -22,4 +22,6 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 
 .vscode/
 
+# Python bytecode
 *.pyc
+__pycache__/
