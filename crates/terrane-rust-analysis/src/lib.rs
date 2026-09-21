@@ -7,7 +7,7 @@ mod survey;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, Visibility};
+use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, ItemKind, Visibility};
 
 pub use cargo_toolchain::{configure_cargo_command, configure_projection_cargo_command};
 pub use oracle::*;
@@ -111,6 +111,100 @@ pub fn public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
     );
     paths
 }
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ExternalReexport {
+    pub crate_name: String,
+    pub canonical_path: String,
+    pub public_path: String,
+    pub expands_descendants: bool,
+}
+
+#[must_use]
+pub fn external_reexports(document: &RustdocCrate) -> Vec<ExternalReexport> {
+    let Some(root) = document
+        .paths
+        .get(&document.root)
+        .map(|summary| &summary.path)
+    else {
+        return Vec::new();
+    };
+    let mut reexports = Vec::new();
+    visit_external_reexports(
+        document,
+        document.root,
+        root,
+        &mut reexports,
+        &mut BTreeSet::new(),
+    );
+    reexports.sort();
+    reexports.dedup();
+    reexports
+}
+
+fn visit_external_reexports(
+    document: &RustdocCrate,
+    id: Id,
+    prefix: &[String],
+    reexports: &mut Vec<ExternalReexport>,
+    visiting: &mut BTreeSet<Id>,
+) {
+    if !visiting.insert(id) {
+        return;
+    }
+    let Some(Item {
+        inner: ItemEnum::Module(module),
+        ..
+    }) = document.index.get(&id)
+    else {
+        visiting.remove(&id);
+        return;
+    };
+    for child in &module.items {
+        let Some(item) = document
+            .index
+            .get(child)
+            .filter(|item| item.visibility == Visibility::Public && !is_hidden_surface(item))
+        else {
+            continue;
+        };
+        if let ItemEnum::Use(import) = &item.inner {
+            let Some(target) = import.id else {
+                continue;
+            };
+            if let Some(summary) = document
+                .paths
+                .get(&target)
+                .filter(|summary| summary.crate_id != 0)
+            {
+                let mut public_path = prefix.to_vec();
+                if !import.is_glob {
+                    public_path.push(import.name.clone());
+                }
+                if let Some(external) = document.external_crates.get(&summary.crate_id) {
+                    reexports.push(ExternalReexport {
+                        crate_name: external.name.clone(),
+                        canonical_path: summary.path.join("::"),
+                        public_path: public_path.join("::"),
+                        expands_descendants: import.is_glob || summary.kind == ItemKind::Module,
+                    });
+                }
+            } else if import.is_glob {
+                visit_external_reexports(document, target, prefix, reexports, visiting);
+            }
+            continue;
+        }
+        let Some(name) = item.name.as_ref() else {
+            continue;
+        };
+        if matches!(item.inner, ItemEnum::Module(_)) {
+            let mut child_prefix = prefix.to_vec();
+            child_prefix.push(name.clone());
+            visit_external_reexports(document, *child, &child_prefix, reexports, visiting);
+        }
+    }
+    visiting.remove(&id);
+}
+
 
 fn visit(
     index: &HashMap<Id, Item>,
@@ -369,6 +463,105 @@ mod tests {
         );
         assert!(!is_hidden_surface(&document.index[&Id(3)]));
         assert!(is_hidden_surface(&document.index[&Id(5)]));
+    }
+
+    #[test]
+    fn external_module_and_glob_reexports_retain_every_public_prefix() {
+        use std::path::PathBuf;
+
+        use rustdoc_types::{ExternalCrate, ItemSummary, Target};
+
+        let root = Id(0);
+        let prelude = Id(1);
+        let named_use = Id(2);
+        let glob_use = Id(3);
+        let external_module = Id(4);
+        let document = RustdocCrate {
+            root,
+            crate_version: Some("1.0.0".to_owned()),
+            includes_private: false,
+            index: HashMap::from([
+                (
+                    root,
+                    module_item(root, "facade", vec![named_use, prelude], true, false),
+                ),
+                (
+                    prelude,
+                    module_item(prelude, "prelude", vec![glob_use], false, false),
+                ),
+                (
+                    named_use,
+                    use_item(
+                        named_use,
+                        "owner::values",
+                        "values",
+                        external_module,
+                        false,
+                        false,
+                    ),
+                ),
+                (
+                    glob_use,
+                    use_item(
+                        glob_use,
+                        "owner::values",
+                        "values",
+                        external_module,
+                        true,
+                        false,
+                    ),
+                ),
+            ]),
+            paths: HashMap::from([
+                (
+                    root,
+                    ItemSummary {
+                        crate_id: 0,
+                        path: vec!["facade".to_owned()],
+                        kind: ItemKind::Module,
+                    },
+                ),
+                (
+                    external_module,
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["owner".to_owned(), "values".to_owned()],
+                        kind: ItemKind::Module,
+                    },
+                ),
+            ]),
+            external_crates: HashMap::from([(
+                1,
+                ExternalCrate {
+                    name: "owner".to_owned(),
+                    html_root_url: None,
+                    path: PathBuf::from("/owner.rlib"),
+                },
+            )]),
+            target: Target {
+                triple: "x86_64-unknown-linux-gnu".to_owned(),
+                target_features: Vec::new(),
+            },
+            format_version: 57,
+        };
+
+        assert_eq!(
+            external_reexports(&document),
+            vec![
+                ExternalReexport {
+                    crate_name: "owner".to_owned(),
+                    canonical_path: "owner::values".to_owned(),
+                    public_path: "facade::prelude".to_owned(),
+                    expands_descendants: true,
+                },
+                ExternalReexport {
+                    crate_name: "owner".to_owned(),
+                    canonical_path: "owner::values".to_owned(),
+                    public_path: "facade::values".to_owned(),
+                    expands_descendants: true,
+                },
+            ]
+        );
     }
 
     #[test]

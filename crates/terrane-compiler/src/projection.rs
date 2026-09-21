@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "62";
+const PROJECTION_SCHEMA: &str = "63";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
@@ -2105,7 +2105,8 @@ pub fn resolve(
         PublishedProjection::Event(event) => resolution_events.push(event),
     }
 
-    let overlays = resolved_namespace_overlays(&workspace, dependencies)?;
+    let metadata = resolved_dependency_metadata(&workspace)?;
+    let overlays = namespace_overlays_from_metadata(&metadata, dependencies)?;
 
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
@@ -2113,60 +2114,77 @@ pub fn resolve(
             || dependency.package.clone(),
             |version| format!("{}@{version}", dependency.package),
         );
-        let mut rustdoc_args = vec![
-            "rustdoc",
-            "-p",
-            &package_spec,
-            "--lib",
-            "--target-dir",
-            "target/rustdoc-57",
-            "--offline",
-            "--frozen",
-            "--",
-        ];
-        rustdoc_args.extend_from_slice(terrane_rust_analysis::RUSTDOC_JSON_ARGS);
-        run_cargo(
-            &workspace,
-            &rustdoc_args,
-            CargoToolchain::RustdocNightly,
-            if sandbox == Containment::Enforced {
-                CargoExecution::Contained
-            } else {
-                CargoExecution::Host
-            },
-        )?;
         let crate_name = dependency.package.replace('-', "_");
-        let rustdoc_path = workspace
-            .join("target/rustdoc-57/doc")
-            .join(format!("{crate_name}.json"));
-        let bytes = fs::read(&rustdoc_path).map_err(|error| ProjectionError {
-            message: format!(
-                "cannot read rustdoc projection `{}`: {error}",
-                rustdoc_path.display()
-            ),
-        })?;
-        let document = parse_rustdoc(dependency, &bytes)?;
+        let document = generate_rustdoc(
+            &workspace,
+            &package_spec,
+            &crate_name,
+            &dependency.package,
+            sandbox,
+            false,
+        )?;
         let public_paths = rustdoc_public_paths(&document);
         rustdocs.push((dependency, document, public_paths));
     }
+    let reexport_rustdocs =
+        external_reexport_rustdocs(&workspace, &rustdocs, &metadata, sandbox)?;
     let mut canonical_public_paths = BTreeMap::new();
     for (_, document, public_paths) in &rustdocs {
         for (id, public_path) in public_paths {
-            if let Some(summary) = document
-                .paths
-                .get(id)
-                .filter(|summary| summary.crate_id == 0)
-            {
-                canonical_public_paths.insert(summary.path.join("::"), public_path.clone());
+            if let Some(summary) = document.paths.get(id) {
+                canonical_public_paths
+                    .entry(summary.path.join("::"))
+                    .and_modify(|current| prefer_alias(current, public_path))
+                    .or_insert_with(|| public_path.clone());
             }
         }
     }
     let mut projected = rustdocs
         .iter()
         .map(|(dependency, document, public_paths)| {
-            project_rustdoc(dependency, document, public_paths, &canonical_public_paths)
+            project_rustdoc(
+                dependency,
+                document,
+                public_paths,
+                &canonical_public_paths,
+                true,
+            )
         })
         .collect::<Vec<_>>();
+    for reexport in &reexport_rustdocs {
+        for (dependency_index, public_paths) in &reexport.providers {
+            let mut fragment = project_rustdoc(
+                dependencies
+                    .get(*dependency_index)
+                    .expect("reexport provider index came from declared dependencies"),
+                &reexport.document,
+                public_paths,
+                &canonical_public_paths,
+                false,
+            );
+            let dependency = projected
+                .get_mut(*dependency_index)
+                .expect("reexport provider index came from projected dependencies");
+            dependency.items.append(&mut fragment.items);
+            dependency.declined.append(&mut fragment.declined);
+            dependency.items.sort_by(|left, right| {
+                (&left.namespace, &left.name, &left.rust_path).cmp(&(
+                    &right.namespace,
+                    &right.name,
+                    &right.rust_path,
+                ))
+            });
+            dependency.items.dedup_by(|left, right| {
+                left.namespace == right.namespace
+                    && left.name == right.name
+                    && left.rust_path == right.rust_path
+            });
+            dependency.declined.sort_by(|left, right| {
+                (&left.rust_path, &left.reason).cmp(&(&right.rust_path, &right.reason))
+            });
+            dependency.declined.dedup();
+        }
+    }
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
@@ -2743,10 +2761,9 @@ fn run_cargo(
     })
 }
 
-fn resolved_namespace_overlays(
+fn resolved_dependency_metadata(
     workspace: &Path,
-    dependencies: &[RustDependency],
-) -> Result<Vec<NamespaceOverlay>, ProjectionError> {
+) -> Result<serde_json::Value, ProjectionError> {
     let mut command = Command::new("cargo");
     crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
     let output = command
@@ -2764,13 +2781,9 @@ fn resolved_namespace_overlays(
             ),
         });
     }
-    let metadata =
-        serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| {
-            ProjectionError {
-                message: format!("cannot decode Cargo dependency metadata: {error}"),
-            }
-        })?;
-    namespace_overlays_from_metadata(&metadata, dependencies)
+    serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| ProjectionError {
+        message: format!("cannot decode Cargo dependency metadata: {error}"),
+    })
 }
 
 fn namespace_overlays_from_metadata(
@@ -3980,6 +3993,260 @@ fn undeclared_owner_reason(owner: &str, versions: &BTreeMap<String, BTreeSet<Str
     )
 }
 
+struct ReexportRustdoc {
+    document: RustdocCrate,
+    providers: BTreeMap<usize, BTreeMap<Id, String>>,
+}
+
+struct ReexportRequest {
+    package_spec: String,
+    package_name: String,
+    aliases: BTreeMap<usize, BTreeMap<String, String>>,
+    prefixes: BTreeMap<usize, Vec<(String, String)>>,
+}
+
+fn generate_rustdoc(
+    workspace: &Path,
+    package_spec: &str,
+    crate_name: &str,
+    package_name: &str,
+    containment: Containment,
+    retain_hidden_definitions: bool,
+) -> Result<RustdocCrate, ProjectionError> {
+    let mut rustdoc_args = vec![
+        "rustdoc",
+        "-p",
+        package_spec,
+        "--lib",
+        "--target-dir",
+        "target/rustdoc-57",
+        "--offline",
+        "--frozen",
+        "--",
+    ];
+    rustdoc_args.extend_from_slice(terrane_rust_analysis::RUSTDOC_JSON_ARGS);
+    if retain_hidden_definitions {
+        rustdoc_args.push("--document-hidden-items");
+    }
+    run_cargo(
+        workspace,
+        &rustdoc_args,
+        CargoToolchain::RustdocNightly,
+        if containment == Containment::Enforced {
+            CargoExecution::Contained
+        } else {
+            CargoExecution::Host
+        },
+    )?;
+    let rustdoc_path = workspace
+        .join("target/rustdoc-57/doc")
+        .join(format!("{crate_name}.json"));
+    let bytes = fs::read(&rustdoc_path).map_err(|error| ProjectionError {
+        message: format!(
+            "cannot read rustdoc projection `{}`: {error}",
+            rustdoc_path.display()
+        ),
+    })?;
+    terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN).map_err(
+        |error| ProjectionError {
+            message: error.message,
+        },
+    )
+}
+
+fn resolved_library_package(
+    metadata: &serde_json::Value,
+    crate_name: &str,
+) -> Option<(String, String)> {
+    let packages = metadata.get("packages")?.as_array()?;
+    let matches = packages
+        .iter()
+        .filter(|package| {
+            package
+                .get("targets")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|targets| {
+                    targets.iter().any(|target| {
+                        target.get("name").and_then(serde_json::Value::as_str)
+                            == Some(crate_name)
+                            && target
+                                .get("kind")
+                                .and_then(serde_json::Value::as_array)
+                                .is_some_and(|kinds| {
+                                    kinds.iter().any(|kind| {
+                                        kind.as_str().is_some_and(|kind| {
+                                            matches!(
+                                                kind,
+                                                "lib"
+                                                    | "rlib"
+                                                    | "dylib"
+                                                    | "cdylib"
+                                                    | "staticlib"
+                                                    | "proc-macro"
+                                            )
+                                        })
+                                    })
+                                })
+                    })
+                })
+        })
+        .collect::<Vec<_>>();
+    let [package] = matches.as_slice() else {
+        return None;
+    };
+    Some((
+        package.get("name")?.as_str()?.to_owned(),
+        package.get("version")?.as_str()?.to_owned(),
+    ))
+}
+
+fn prefer_alias(current: &mut String, candidate: &str) {
+    let mut paths = BTreeMap::from([(Id(0), current.clone())]);
+    terrane_rust_analysis::prefer_public_path(&mut paths, Id(0), candidate.to_owned());
+    current.clone_from(
+        paths
+            .get(&Id(0))
+            .expect("the seeded public path remains present"),
+    );
+}
+
+fn external_reexport_rustdocs(
+    workspace: &Path,
+    rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
+    metadata: &serde_json::Value,
+    containment: Containment,
+) -> Result<Vec<ReexportRustdoc>, ProjectionError> {
+    let mut requests = BTreeMap::<String, ReexportRequest>::new();
+    for (dependency_index, (_, document, public_paths)) in rustdocs.iter().enumerate() {
+        for (id, public_path) in public_paths {
+            let Some(summary) = document.paths.get(id).filter(|summary| summary.crate_id != 0)
+            else {
+                continue;
+            };
+            let Some(external) = document.external_crates.get(&summary.crate_id) else {
+                continue;
+            };
+            let Some((package_name, version)) =
+                resolved_library_package(metadata, &external.name)
+            else {
+                continue;
+            };
+            let request = requests
+                .entry(external.name.clone())
+                .or_insert_with(|| ReexportRequest {
+                    package_spec: format!("{package_name}@{version}"),
+                    package_name,
+                    aliases: BTreeMap::new(),
+                    prefixes: BTreeMap::new(),
+                });
+            let aliases = request.aliases.entry(dependency_index).or_default();
+            aliases
+                .entry(summary.path.join("::"))
+                .and_modify(|current| prefer_alias(current, public_path))
+                .or_insert_with(|| public_path.clone());
+        }
+        for reexport in terrane_rust_analysis::external_reexports(document) {
+            if !reexport.expands_descendants {
+                continue;
+            }
+            let Some((package_name, version)) =
+                resolved_library_package(metadata, &reexport.crate_name)
+            else {
+                continue;
+            };
+            let request = requests
+                .entry(reexport.crate_name)
+                .or_insert_with(|| ReexportRequest {
+                    package_spec: format!("{package_name}@{version}"),
+                    package_name,
+                    aliases: BTreeMap::new(),
+                    prefixes: BTreeMap::new(),
+                });
+            request
+                .prefixes
+                .entry(dependency_index)
+                .or_default()
+                .push((reexport.canonical_path, reexport.public_path));
+        }
+    }
+
+    requests
+        .into_iter()
+        .map(|(crate_name, request)| {
+            let document = generate_rustdoc(
+                workspace,
+                &request.package_spec,
+                &crate_name,
+                &request.package_name,
+                containment,
+                true,
+            )?;
+            let owner_public_paths = rustdoc_public_paths(&document);
+            let provider_indices = request
+                .aliases
+                .keys()
+                .chain(request.prefixes.keys())
+                .copied()
+                .collect::<BTreeSet<_>>();
+            let providers = provider_indices
+                .into_iter()
+                .map(|dependency_index| {
+                    let aliases = request.aliases.get(&dependency_index);
+                    let prefixes = request.prefixes.get(&dependency_index);
+                    let mut public_paths = BTreeMap::new();
+                    for (id, summary) in document
+                        .paths
+                        .iter()
+                        .filter(|(_, summary)| summary.crate_id == 0)
+                    {
+                        let canonical_path = summary.path.join("::");
+                        let owner_path = owner_public_paths.get(id).unwrap_or(&canonical_path);
+                        if let Some(public_path) = aliases.and_then(|aliases| {
+                            aliases
+                                .get(&canonical_path)
+                                .or_else(|| aliases.get(owner_path))
+                        }) {
+                            terrane_rust_analysis::prefer_public_path(
+                                &mut public_paths,
+                                *id,
+                                public_path.clone(),
+                            );
+                        }
+                        for (canonical_prefix, public_prefix) in
+                            prefixes.into_iter().flatten()
+                        {
+                            let suffix = if owner_path == canonical_prefix {
+                                Some("")
+                            } else {
+                                owner_path.strip_prefix(&format!("{canonical_prefix}::"))
+                            };
+                            if let Some(suffix) = suffix {
+                                let public_path = if suffix.is_empty() {
+                                    public_prefix.clone()
+                                } else {
+                                    format!("{public_prefix}::{suffix}")
+                                };
+                                terrane_rust_analysis::prefer_public_path(
+                                    &mut public_paths,
+                                    *id,
+                                    public_path,
+                                );
+                            }
+                        }
+                    }
+                    (dependency_index, public_paths)
+                })
+                .filter(|(_, public_paths)| !public_paths.is_empty())
+                .collect();
+            Ok(ReexportRustdoc {
+                document,
+                providers,
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
 fn parse_rustdoc(
     dependency: &RustDependency,
     bytes: &[u8],
@@ -4848,6 +5115,7 @@ fn project_rustdoc(
     document: &RustdocCrate,
     public_paths: &BTreeMap<Id, String>,
     canonical_public_paths: &BTreeMap<String, String>,
+    include_canonical_items: bool,
 ) -> ProjectedDependency {
     let index = &document.index;
     let original_paths = &document.paths;
@@ -4859,8 +5127,10 @@ fn project_rustdoc(
     }
     let paths = &canonical_paths;
     let mut candidates = BTreeMap::<Id, Vec<String>>::new();
-    for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
-        candidates.insert(*id, summary.path.clone());
+    if include_canonical_items {
+        for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
+            candidates.insert(*id, summary.path.clone());
+        }
     }
     for (id, public_path) in public_paths {
         candidates.insert(*id, public_path.split("::").map(str::to_owned).collect());
