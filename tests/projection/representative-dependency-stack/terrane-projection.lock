@@ -5707,7 +5707,7 @@
           "future_service"
         ],
         [
-          "/deps/tower/util/optional/error",
+          "/deps/tower/util/error/optional",
           "None"
         ],
         [
@@ -9523,11 +9523,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "be9bc80165f42c7b6982afafb16e3dfec3bb789051b98f4956cc3f674c1b86ca",
+  "cache_identity": "faa813ed988b3ac6584a4fc41ea0600d83a9e7deb1681a922780b1c68a67e35b",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "62",
-  "content_hash": "1a014db6485cf124bdd3a226bacc58144d7aec35abccece6cc998004841a388b",
+  "projection_schema": "63",
+  "content_hash": "1301beaa99b588522931d97c85f038dc0ae3a12dfc649682eca5a657b04fb66d",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [
