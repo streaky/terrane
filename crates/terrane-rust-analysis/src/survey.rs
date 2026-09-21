@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 use crate::{
     AnalysisError, BUILD_TOOLCHAIN, BoundQuestion, CallProbeEvidence, CallQuestion, Containment,
     ImplProbeEvidence, ImplQuestion, ProbeEvidence, ProjectionOracle, RUSTDOC_JSON_ARGS,
-    RUSTDOC_TOOLCHAIN, configure_projection_cargo_command, hidden_public_definitions,
-    is_hidden_surface, parse_rustdoc, public_paths,
+    RUSTDOC_TOOLCHAIN, configure_projection_cargo_command, is_hidden_surface, parse_rustdoc,
+    public_paths,
 };
 
 /// Exact native graph and public API evidence for one selected package.
@@ -237,8 +237,7 @@ pub fn survey_package_with_policy(
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated survey rustdoc"))?;
     let document = parse_rustdoc(&selected.name, &bytes, RUSTDOC_TOOLCHAIN)?;
     let paths = public_paths(&document);
-    let hidden_definitions = hidden_public_definitions(&document);
-    let (declarations, discovery_failures) = declarations(&document, &paths, &hidden_definitions)?;
+    let (declarations, discovery_failures) = declarations(&document, &paths)?;
     let public_paths = paths.into_values().collect::<Vec<_>>();
     let selected_identity = package_identity(selected);
     let oracle_identity = format!("survey-{selected_identity}-{target}");
@@ -296,7 +295,6 @@ pub fn survey_package_with_policy(
 fn declarations(
     document: &rustdoc_types::Crate,
     paths: &BTreeMap<rustdoc_types::Id, String>,
-    hidden_public_definitions: &BTreeSet<rustdoc_types::Id>,
 ) -> Result<(Vec<SurveyDeclaration>, Vec<SurveyDiscoveryFailure>), AnalysisError> {
     let mut declarations = Vec::new();
     let mut failures = Vec::new();
@@ -336,8 +334,7 @@ fn declarations(
         declarations.push(SurveyDeclaration {
             public_path: public_path.clone(),
             canonical_path: canonical.map(|summary| summary.path.clone()),
-            definition_hidden: hidden_public_definitions.contains(id)
-                || is_hidden_surface(item)
+            definition_hidden: is_hidden_surface(item)
                 || canonical.is_some_and(|summary| {
                     hidden_paths
                         .iter()
@@ -980,7 +977,7 @@ mod tests {
             (local, "sample::Local".to_owned()),
             (external, "sample::External".to_owned()),
         ]);
-        let (declarations, failures) = declarations(&document, &paths, &BTreeSet::new()).unwrap();
+        let (declarations, failures) = declarations(&document, &paths).unwrap();
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::Local");
         assert_eq!(failures.len(), 1);
@@ -1025,7 +1022,7 @@ mod tests {
             format_version: 57,
         };
         let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
-        let (declarations, failures) = declarations(&document, &paths, &BTreeSet::new()).unwrap();
+        let (declarations, failures) = declarations(&document, &paths).unwrap();
         assert!(failures.is_empty());
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::reexported_at_root");

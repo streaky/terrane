@@ -2234,12 +2234,14 @@ decoder/public-path index, Cargo process policy, exact bound/call/impl/macro pro
 and enforceable containment live in `terrane-rust-analysis`; Terrane admission and lowering remain
 compiler owned. Compiler projection and surveys share the format-57 JSON arguments and public-path
 index. Compiler projection requests public Rustdoc only; `terrane-rust-survey` additionally retains
-hidden definitions so public reexports from hidden modules keep their signatures. The index still
-rejects hidden bindings and stripped module surfaces, and survey declarations mark recovered
-entries with `definition_hidden` under the report's `public-bindings-with-hidden-definitions`
-policy. The survey reports portable package/source/checksum/feature identities and explicitly
-classified external-crate reexports, and compiles requested exact probes without executing package
-code. Semantic reports exclude timing telemetry.
+hidden definitions so public reexports from hidden modules keep their signatures. The index rejects
+direct `#[doc(hidden)]` bindings. Ordinary private modules that Rustdoc marks `is_stripped` remain
+valid implementation owners for visible glob reexports and do not trigger `definition_hidden`;
+only a declaration or canonical ancestor carrying `#[doc(hidden)]` does. Reports identify this
+survey policy as `public-bindings-with-hidden-definitions`. The survey reports portable
+package/source/checksum/feature identities and explicitly classified external-crate reexports, and
+compiles requested exact probes without executing package code. Semantic reports exclude timing
+telemetry.
 `tools/run-native-survey.py` materializes a versioned, containment-declared corpus profile and
 combines its native reports with a typed named-conformance outcome. Enforced profiles require
 Linux bubblewrap and never silently downgrade; when a dedicated runtime environment is unavailable,
