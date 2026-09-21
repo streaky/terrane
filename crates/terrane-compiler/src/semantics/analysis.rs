@@ -500,14 +500,39 @@ fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), S
 pub(super) fn dependency_projection(
     package: &Package,
 ) -> Result<crate::projection::Projection, SemanticFailure> {
-    crate::projection::resolve(&package.root, &package.rust_dependencies).map_err(|error| {
-        failure(
-            &package.units[0].source,
-            "S2028",
-            error.message,
-            Span::new(package.units[0].source.id(), 0, 0),
-        )
-    })
+    let units = package
+        .units
+        .iter()
+        .map(|unit| {
+            parse_unit(
+                &unit.source,
+                unit.relative_path_text(),
+                unit.expected_namespace.as_deref(),
+                unit.prelude,
+                false,
+                unit.role,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let demands = units
+        .iter()
+        .map(imports_in_tree)
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .filter(|import| import.target.starts_with("/deps/"))
+        .map(|import| (import.target, import.object))
+        .collect::<BTreeSet<_>>();
+    crate::projection::resolve(&package.root, &package.rust_dependencies, Some(&demands)).map_err(
+        |error| {
+            failure(
+                &package.units[0].source,
+                "S2028",
+                error.message,
+                Span::new(package.units[0].source.id(), 0, 0),
+            )
+        },
+    )
 }
 
 /// Builds the complete namespace tree, then resolves declarations and imports.

@@ -1741,16 +1741,36 @@ impl Emitter<'_> {
             && let [receiver, member] = callee.children.as_slice()
         {
             let contract = contract.as_ref().expect("method contract exists");
-            let receiver_expression = self.receiver_expression(receiver);
-            let projected_receiver = self.value_type(receiver).and_then(|value_type| {
-                let ValueType::Object(identity) = value_type else {
-                    return None;
-                };
-                self.package
-                    .projection
-                    .method(&identity.namespace, &identity.name, &contract.name, false)
-                    .and_then(|method| method.receiver)
-            });
+            let projected_receiver = self
+                .value_type(receiver)
+                .and_then(|value_type| match value_type {
+                    ValueType::Object(identity) => Some(identity),
+                    ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                        let ValueType::Object(identity) = item.value_type() else {
+                            return None;
+                        };
+                        Some(identity.clone())
+                    }
+                    _ => None,
+                })
+                .and_then(|identity| {
+                    self.package
+                        .projection
+                        .method(&identity.namespace, &identity.name, &contract.name, false)
+                        .and_then(|method| method.receiver)
+                });
+            let receiver_expression = if !contract.is_async
+                && matches!(
+                    projected_receiver,
+                    Some(
+                        crate::projection::Receiver::Borrow
+                            | crate::projection::Receiver::MutableBorrow
+                    )
+                ) {
+                self.receiver_guard_expression(receiver)
+            } else {
+                self.receiver_expression(receiver)
+            };
             let receiver = if contract.is_async {
                 match projected_receiver {
                     Some(crate::projection::Receiver::MutableBorrow) => {
@@ -1829,11 +1849,15 @@ impl Emitter<'_> {
                 let identity = self
                     .class_designator(receiver)
                     .map(|object| object.identity.clone())
-                    .or_else(|| {
-                        let ValueType::Object(identity) = self.value_type(receiver)? else {
-                            return None;
-                        };
-                        Some(identity)
+                    .or_else(|| match self.value_type(receiver)? {
+                        ValueType::Object(identity) => Some(identity),
+                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                            let ValueType::Object(identity) = item.value_type() else {
+                                return None;
+                            };
+                            Some(identity.clone())
+                        }
+                        _ => None,
                     })?;
                 if projected_interface_dispatch {
                     return None;
@@ -1928,11 +1952,15 @@ impl Emitter<'_> {
                 let identity = self
                     .class_designator(receiver)
                     .map(|object| object.identity.clone())
-                    .or_else(|| {
-                        let ValueType::Object(identity) = self.value_type(receiver)? else {
-                            return None;
-                        };
-                        Some(identity)
+                    .or_else(|| match self.value_type(receiver)? {
+                        ValueType::Object(identity) => Some(identity),
+                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                            let ValueType::Object(identity) = item.value_type() else {
+                                return None;
+                            };
+                            Some(identity.clone())
+                        }
+                        _ => None,
                     })
                     .expect("projected method receiver has an object type");
                 let type_path = self

@@ -1335,7 +1335,7 @@ async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::P
         let package = terrane_compiler::Package::load(&manifest).ok()?;
         let stamp = projection_stamp(&package.dependency_manifests)?;
         let projection =
-            terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies)
+            terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies, None)
                 .ok()?;
         PROJECTIONS
             .lock()

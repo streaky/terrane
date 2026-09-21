@@ -5,7 +5,7 @@ mod cargo_toolchain;
 mod oracle;
 mod survey;
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, ItemKind, Visibility};
 
@@ -92,25 +92,17 @@ pub fn prefer_public_path(paths: &mut BTreeMap<Id, String>, id: Id, candidate: S
         .or_insert(candidate);
 }
 
+#[derive(Default)]
+struct PublicSurface {
+    paths: BTreeMap<Id, String>,
+    external_reexports: Vec<ExternalReexport>,
+}
+
 #[must_use]
 pub fn public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
-    let mut paths = BTreeMap::new();
-    let Some(root) = document
-        .paths
-        .get(&document.root)
-        .map(|summary| &summary.path)
-    else {
-        return paths;
-    };
-    visit(
-        &document.index,
-        document.root,
-        root,
-        &mut paths,
-        &mut BTreeSet::new(),
-    );
-    paths
+    public_surface(document).paths
 }
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExternalReexport {
     pub crate_name: String,
@@ -121,31 +113,35 @@ pub struct ExternalReexport {
 
 #[must_use]
 pub fn external_reexports(document: &RustdocCrate) -> Vec<ExternalReexport> {
+    public_surface(document).external_reexports
+}
+
+fn public_surface(document: &RustdocCrate) -> PublicSurface {
     let Some(root) = document
         .paths
         .get(&document.root)
         .map(|summary| &summary.path)
     else {
-        return Vec::new();
+        return PublicSurface::default();
     };
-    let mut reexports = Vec::new();
-    visit_external_reexports(
+    let mut surface = PublicSurface::default();
+    visit_public_surface(
         document,
         document.root,
         root,
-        &mut reexports,
+        &mut surface,
         &mut BTreeSet::new(),
     );
-    reexports.sort();
-    reexports.dedup();
-    reexports
+    surface.external_reexports.sort();
+    surface.external_reexports.dedup();
+    surface
 }
 
-fn visit_external_reexports(
+fn visit_public_surface(
     document: &RustdocCrate,
     id: Id,
     prefix: &[String],
-    reexports: &mut Vec<ExternalReexport>,
+    surface: &mut PublicSurface,
     visiting: &mut BTreeSet<Id>,
 ) {
     if !visiting.insert(id) {
@@ -171,75 +167,32 @@ fn visit_external_reexports(
             let Some(target) = import.id else {
                 continue;
             };
+            let mut candidate = prefix.to_vec();
+            if !import.is_glob {
+                candidate.push(import.name.clone());
+                prefer_public_path(&mut surface.paths, target, candidate.join("::"));
+            }
             if let Some(summary) = document
                 .paths
                 .get(&target)
                 .filter(|summary| summary.crate_id != 0)
             {
-                let mut public_path = prefix.to_vec();
-                if !import.is_glob {
-                    public_path.push(import.name.clone());
-                }
                 if let Some(external) = document.external_crates.get(&summary.crate_id) {
-                    reexports.push(ExternalReexport {
+                    surface.external_reexports.push(ExternalReexport {
                         crate_name: external.name.clone(),
                         canonical_path: summary.path.join("::"),
-                        public_path: public_path.join("::"),
+                        public_path: candidate.join("::"),
                         expands_descendants: import.is_glob || summary.kind == ItemKind::Module,
                     });
                 }
             } else if import.is_glob {
-                visit_external_reexports(document, target, prefix, reexports, visiting);
-            }
-            continue;
-        }
-        let Some(name) = item.name.as_ref() else {
-            continue;
-        };
-        if matches!(item.inner, ItemEnum::Module(_)) {
-            let mut child_prefix = prefix.to_vec();
-            child_prefix.push(name.clone());
-            visit_external_reexports(document, *child, &child_prefix, reexports, visiting);
-        }
-    }
-    visiting.remove(&id);
-}
-
-fn visit(
-    index: &HashMap<Id, Item>,
-    id: Id,
-    prefix: &[String],
-    paths: &mut BTreeMap<Id, String>,
-    visiting: &mut BTreeSet<Id>,
-) {
-    if !visiting.insert(id) {
-        return;
-    }
-    let Some(Item {
-        inner: ItemEnum::Module(module),
-        ..
-    }) = index.get(&id)
-    else {
-        visiting.remove(&id);
-        return;
-    };
-    for child in &module.items {
-        let Some(item) = index
-            .get(child)
-            .filter(|item| item.visibility == Visibility::Public && !is_hidden_surface(item))
-        else {
-            continue;
-        };
-        if let ItemEnum::Use(import) = &item.inner {
-            let Some(target) = import.id else {
-                continue;
-            };
-            if import.is_glob {
-                visit(index, target, prefix, paths, visiting);
-            } else {
-                let mut candidate = prefix.to_vec();
-                candidate.push(import.name.clone());
-                prefer_public_path(paths, target, candidate.join("::"));
+                visit_public_surface(document, target, prefix, surface, visiting);
+            } else if document
+                .index
+                .get(&target)
+                .is_some_and(|target| matches!(target.inner, ItemEnum::Module(_)))
+            {
+                visit_public_surface(document, target, &candidate, surface, visiting);
             }
             continue;
         }
@@ -248,9 +201,9 @@ fn visit(
         };
         let mut candidate = prefix.to_vec();
         candidate.push(name.clone());
-        prefer_public_path(paths, *child, candidate.join("::"));
+        prefer_public_path(&mut surface.paths, *child, candidate.join("::"));
         if matches!(item.inner, ItemEnum::Module(_)) {
-            visit(index, *child, &candidate, paths, visiting);
+            visit_public_surface(document, *child, &candidate, surface, visiting);
         }
     }
     visiting.remove(&id);
@@ -266,6 +219,8 @@ pub(crate) fn is_hidden_surface(item: &Item) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     fn item(
@@ -462,6 +417,46 @@ mod tests {
         );
         assert!(!is_hidden_surface(&document.index[&Id(3)]));
         assert!(is_hidden_surface(&document.index[&Id(5)]));
+    }
+
+    #[test]
+    fn named_local_module_reexports_traverse_the_reexported_namespace() {
+        let (mut document, _, _, _) = hidden_surface_document();
+        let named_use = Id(20);
+        let module = Id(21);
+        let value = Id(22);
+        let ItemEnum::Module(root) = &mut document.index.get_mut(&document.root).unwrap().inner
+        else {
+            panic!("fixture root is a module");
+        };
+        root.items.push(named_use);
+        document.index.insert(
+            named_use,
+            use_item(named_use, "implementation", "api", module, false, false),
+        );
+        document.index.insert(
+            module,
+            module_item(module, "implementation", vec![value], false, false),
+        );
+        document.index.insert(
+            value,
+            item(
+                value,
+                Some("Value"),
+                Vec::new(),
+                ItemEnum::Primitive(rustdoc_types::Primitive {
+                    name: "value".to_owned(),
+                    impls: Vec::new(),
+                }),
+            ),
+        );
+
+        let paths = public_paths(&document);
+        assert_eq!(paths.get(&module).map(String::as_str), Some("sample::api"));
+        assert_eq!(
+            paths.get(&value).map(String::as_str),
+            Some("sample::api::Value")
+        );
     }
 
     #[test]
