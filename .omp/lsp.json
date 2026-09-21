@@ -1,7 +1,7 @@
 {
   "servers": {
     "terrane-language-server": {
-      "command": "./target/debug/terrane-language-server",
+      "command": "./target/release/terrane-language-server",
       "args": [],
       "fileTypes": [".trn"],
       "languageId": "terrane",
