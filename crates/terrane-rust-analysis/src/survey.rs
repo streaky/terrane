@@ -47,7 +47,7 @@ pub struct SurveyPackage {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SurveyDeclaration {
     pub public_path: String,
-    pub canonical_path: Vec<String>,
+    pub canonical_path: Option<Vec<String>>,
     pub kind: String,
     pub signature: serde_json::Value,
 }
@@ -295,18 +295,11 @@ fn declarations(
     let mut declarations = Vec::new();
     let mut failures = Vec::new();
     for (id, public_path) in paths {
-        let Some(canonical) = document.paths.get(id) else {
-            failures.push(SurveyDiscoveryFailure {
-                public_path: public_path.clone(),
-                reason: "public item has no canonical Rustdoc path".to_owned(),
-            });
-            continue;
-        };
+        let canonical = document.paths.get(id);
         let Some(item) = document.index.get(id) else {
             let reason = missing_declaration_reason(
-                document
-                    .external_crates
-                    .get(&canonical.crate_id)
+                canonical
+                    .and_then(|summary| document.external_crates.get(&summary.crate_id))
                     .map(|external| external.name.as_str()),
             );
             failures.push(SurveyDiscoveryFailure {
@@ -325,7 +318,7 @@ fn declarations(
             .unwrap_or_else(|| "unknown".to_owned());
         declarations.push(SurveyDeclaration {
             public_path: public_path.clone(),
-            canonical_path: canonical.path.clone(),
+            canonical_path: canonical.map(|summary| summary.path.clone()),
             kind,
             signature,
         });
@@ -630,6 +623,7 @@ fn run_rustdoc(
         "unstable-options",
         "--output-format",
         "json",
+        "--document-hidden-items",
     ];
     let output = cargo_output(workspace, &arguments, containment)?;
     if output.status.success() {
@@ -970,5 +964,50 @@ mod tests {
         assert_eq!(declarations[0].public_path, "sample::Local");
         assert_eq!(failures.len(), 1);
         assert!(failures[0].reason.contains("external crate `owner`"));
+    }
+
+    #[test]
+    fn declarations_keep_local_reexports_without_canonical_paths() {
+        use std::collections::HashMap;
+
+        use rustdoc_types::{Crate, Id, Item, ItemEnum, Primitive, Target, Visibility};
+
+        let hidden = Id(1);
+        let document = Crate {
+            root: Id(0),
+            crate_version: Some("1.0.0".to_owned()),
+            includes_private: false,
+            index: HashMap::from([(
+                hidden,
+                Item {
+                    id: hidden,
+                    crate_id: 0,
+                    name: Some("hidden_source".to_owned()),
+                    span: None,
+                    visibility: Visibility::Public,
+                    docs: None,
+                    links: HashMap::new(),
+                    attrs: Vec::new(),
+                    deprecation: None,
+                    inner: ItemEnum::Primitive(Primitive {
+                        name: "hidden_source".to_owned(),
+                        impls: Vec::new(),
+                    }),
+                },
+            )]),
+            paths: HashMap::new(),
+            external_crates: HashMap::new(),
+            target: Target {
+                triple: "x86_64-unknown-linux-gnu".to_owned(),
+                target_features: Vec::new(),
+            },
+            format_version: 57,
+        };
+        let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
+        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        assert!(failures.is_empty());
+        assert_eq!(declarations.len(), 1);
+        assert_eq!(declarations[0].public_path, "sample::reexported_at_root");
+        assert_eq!(declarations[0].canonical_path, None);
     }
 }
