@@ -1,4 +1,4 @@
 phase = "check"
-status = "reject"
+status = "accept"
 entrypoint = "package.toml"
-code = "S2029"
+canonical-rust = true
