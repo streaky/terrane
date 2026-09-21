@@ -205,7 +205,6 @@ fn visit_external_reexports(
     visiting.remove(&id);
 }
 
-
 fn visit(
     index: &HashMap<Id, Item>,
     id: Id,

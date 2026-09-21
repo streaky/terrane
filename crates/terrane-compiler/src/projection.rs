@@ -2126,8 +2126,7 @@ pub fn resolve(
         let public_paths = rustdoc_public_paths(&document);
         rustdocs.push((dependency, document, public_paths));
     }
-    let reexport_rustdocs =
-        external_reexport_rustdocs(&workspace, &rustdocs, &metadata, sandbox)?;
+    let reexport_rustdocs = external_reexport_rustdocs(&workspace, &rustdocs, &metadata, sandbox)?;
     let mut canonical_public_paths = BTreeMap::new();
     for (_, document, public_paths) in &rustdocs {
         for (id, public_path) in public_paths {
@@ -2761,9 +2760,7 @@ fn run_cargo(
     })
 }
 
-fn resolved_dependency_metadata(
-    workspace: &Path,
-) -> Result<serde_json::Value, ProjectionError> {
+fn resolved_dependency_metadata(workspace: &Path) -> Result<serde_json::Value, ProjectionError> {
     let mut command = Command::new("cargo");
     crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
     let output = command
@@ -4047,11 +4044,11 @@ fn generate_rustdoc(
             rustdoc_path.display()
         ),
     })?;
-    terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN).map_err(
-        |error| ProjectionError {
+    terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN).map_err(|error| {
+        ProjectionError {
             message: error.message,
-        },
-    )
+        }
+    })
 }
 
 fn resolved_library_package(
@@ -4067,8 +4064,7 @@ fn resolved_library_package(
                 .and_then(serde_json::Value::as_array)
                 .is_some_and(|targets| {
                     targets.iter().any(|target| {
-                        target.get("name").and_then(serde_json::Value::as_str)
-                            == Some(crate_name)
+                        target.get("name").and_then(serde_json::Value::as_str) == Some(crate_name)
                             && target
                                 .get("kind")
                                 .and_then(serde_json::Value::as_array)
@@ -4119,26 +4115,29 @@ fn external_reexport_rustdocs(
     let mut requests = BTreeMap::<String, ReexportRequest>::new();
     for (dependency_index, (_, document, public_paths)) in rustdocs.iter().enumerate() {
         for (id, public_path) in public_paths {
-            let Some(summary) = document.paths.get(id).filter(|summary| summary.crate_id != 0)
+            let Some(summary) = document
+                .paths
+                .get(id)
+                .filter(|summary| summary.crate_id != 0)
             else {
                 continue;
             };
             let Some(external) = document.external_crates.get(&summary.crate_id) else {
                 continue;
             };
-            let Some((package_name, version)) =
-                resolved_library_package(metadata, &external.name)
+            let Some((package_name, version)) = resolved_library_package(metadata, &external.name)
             else {
                 continue;
             };
-            let request = requests
-                .entry(external.name.clone())
-                .or_insert_with(|| ReexportRequest {
-                    package_spec: format!("{package_name}@{version}"),
-                    package_name,
-                    aliases: BTreeMap::new(),
-                    prefixes: BTreeMap::new(),
-                });
+            let request =
+                requests
+                    .entry(external.name.clone())
+                    .or_insert_with(|| ReexportRequest {
+                        package_spec: format!("{package_name}@{version}"),
+                        package_name,
+                        aliases: BTreeMap::new(),
+                        prefixes: BTreeMap::new(),
+                    });
             let aliases = request.aliases.entry(dependency_index).or_default();
             aliases
                 .entry(summary.path.join("::"))
@@ -4212,9 +4211,7 @@ fn external_reexport_rustdocs(
                                 public_path.clone(),
                             );
                         }
-                        for (canonical_prefix, public_prefix) in
-                            prefixes.into_iter().flatten()
-                        {
+                        for (canonical_prefix, public_prefix) in prefixes.into_iter().flatten() {
                             let suffix = if owner_path == canonical_prefix {
                                 Some("")
                             } else {
