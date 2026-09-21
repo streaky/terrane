@@ -757,7 +757,6 @@ return
 yield reservation (generator implementation may follow v1)
 labels / goto with lifetime and definite-assignment checks
 try / catch / finally / throw
-when build
 function / class / interface / trait declarations
 namespace / import / use declarations
 rust / unsafe rust blocks

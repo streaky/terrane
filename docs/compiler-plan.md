@@ -206,9 +206,25 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
+### Milestone 30.5 — Issues Found in Reference Manual Review
 
+Resolve the implementation defects confirmed during the reference-record review.
 
-### Milestone 30.5 — Allocation and process-memory profiling in the unified profiler
+Deliver:
+
+- program-global initialization dependency analysis, including direct and function-mediated
+  global reads, that rejects cycles deterministically before lowering rather than allowing
+  recursive lazy initialization to hang at runtime; preserve the documented thread-safety
+  boundary for mutable globals; and
+- exact escaping-throwable inference through `try`/`catch`/`finally`, so a `return` or `throw`
+  in `finally` replaces the pending outcome on that path instead of retaining superseded
+  throwables in the callable's inferred contract.
+
+Add focused accepted and rejected conformance cases for each boundary: direct and mediated global
+cycles, plus `finally` replacement in callable effect compatibility and reflection. Update the
+manual provenance and scoreboard only after those cases demonstrate the implemented contract.
+
+### Milestone 30.6 — Allocation and process-memory profiling in the unified profiler
 
 Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
 mapper, or flame-graph implementation. CPU cost, allocation traffic, retained heap, and resident
@@ -342,6 +358,10 @@ Deliver:
 - parser/lexer fuzz targets seeded from conformance cases;
 - performance baselines for cold check, warm check, build, and run;
 - compiler self-diagnostics for unsupported draft features;
+- `when build` compile-time selection over the documented literal, immutable manifest/target/
+  capability, Boolean/comparison, and pure-query inputs; selection occurs before ordinary
+  semantic analysis, inactive branches are excluded from validation and lowering, and every
+  consulted input plus selected result participates in build-cache identity;
 - a release manifest listing the exact implemented language subset;
 - runnable `examples/` that all compile in CI;
 - no test or release command that treats `demos/` as supported source.

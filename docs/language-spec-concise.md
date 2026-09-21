@@ -14,7 +14,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | names/imports | `NAMESPACE`, `IMPORT`, `PRELUDE` | §§7–8 |
 | types/numbers | `TYPE`, `INTEGER`, `OPERATOR`, `COERCION` | §§11, 17 |
 | display/printing | `TEXT DISPLAY` | §9.6 |
-| globals/build selection | `GLOBAL / BUILD` | §§20, 26 |
+| globals | `GLOBAL` | §20 |
 | ownership | `VALUE`, `REF`, `MOVE`, `LIFETIME` | §12 |
 | errors/callable contracts | `ERROR`, `CALLABLE` | §§15, 19 |
 | collections/text | `COLLECTION`, `TEXT` | §16 |
@@ -266,7 +266,6 @@ return, break, continue
 goto/label
 try/catch/finally, throw
 yield
-when build
 rust block
 ```
 
@@ -304,29 +303,6 @@ function connect connection; host string, port int, timeout int = 10
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
 - Default visibility public; strict visibility mode can require explicit qualifiers.
-- Package-supplied declaration modifiers use a `with` clause; core structural words never do.
-
-```yaml
-form: "with per-cpu, aligned global counts unsigned-long = 0"
-clause: 'with' + COMMA-separated modifiers, applied left to right, resolved in ordinary lexical scope
-delimiter: the comma means another modifier follows; the list ends at the first element NOT followed by one, and the declaration begins there
-no_wrapping_parens: the clause needs none; comma delimitation is sufficient
-args: a modifier taking arguments is parenthesised - 'with per-cpu, (aligned; 64) global x int = 0'
-args_rule: needs no special rule; a declaration always follows, so the call is never trailing and ordinary grouping applies
-trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
-scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
-with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/async/throws (closed set, compiler-owned)
-test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
-ordering: with-modifiers precede structural keywords; package layer is outer
-rationale: the protocol already forbids modifiers from touching visibility, ownership, or callable contracts, so the split reports a real boundary; 'with global' would falsely imply global is extensible
-why_exist: a declaration answers two separable questions - WHAT is declared (Terrane owns this) and HOW it is realised on a target or in a domain (modifiers own this)
-why_not_macros: objects abstract what things do; modifiers abstract how declarations exist - which is why an extensibility system survives in a language that deliberately avoids macros
-governing_rule: the modifier protocol is CLOSED IN ITS GUARANTEES, NOT closed in its intended vocabulary
-open_ended: do not define modifiers by a list of purposes; a new domain property must not require a grammar change or a textual macro
-inspectability: an unfamiliar modifier must remain answerable - what supplied it, what contract it accepts, what it adds, how it composed, what lowering resulted
-origin: per-cpu is the motivating example; in C it is attributes plus linker behaviour plus accessors plus convention, in Terrane an ordinary declaration whose realisation has one instance per CPU
-```
 - Source-declared type parameters/generics are unsupported and MUST be rejected. Use concrete types, unions, interfaces, or generated concrete declarations. This does not prevent the dependency projector from selecting one Rust result-only generic from an explicit Terrane destination; Rust angle-bracket arguments never become source syntax.
 
 ## TYPE
@@ -857,13 +833,11 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   `field-count`. Document mapping and redaction consume this same metadata; no facility-specific
   annotation or generated-Rust field name participates.
 
-## GLOBAL / BUILD
+## GLOBAL
 
 - Program globals form explicit initialization graph; cycles diagnosed.
 - Mutable globals used across threads must satisfy shared-thread-safe protocol.
 - Prefer standard thread-local object over second global grammar.
-- `when build` is deterministic compile-time selection over literals, immutable manifest/target/capability descriptors, boolean/comparison operators, compiler-provided pure queries.
-- Inactive branches excluded from current build; all inputs enter cache key.
 
 ## ASYNC
 
@@ -1348,14 +1322,12 @@ Priority: these override examples/lowering sketches/plans. Condensed from full s
 13. Reflection/debugging/performance explanation compiler contracts.
 14. Missing target capabilities diagnose; never silently weaken semantics.
 15. Equality, identity, membership distinct.
-16. Build selection deterministic over declared inputs.
-17. Non-owning reference/shared owner/address/ABI contracts are distinct; never silently convert or weaken.
-18. Package modifiers are `with`-introduced and resolved in ordinary scope; core structural words are bare keywords.
-19. `void` no value; `opaque` hidden representation.
-20. Derived reference provenance never widens.
-21. Source/generated/native names independent.
-22. Destruction is deterministic only for lexical ownership and acyclic final shared-owner release.
-23. `int` exact arbitrary precision with adaptive promotion/normalization; fixed widths expose arithmetic bounds/overflow policy; numeric destination conversion is exact-or-throw.
+16. Non-owning reference/shared owner/address/ABI contracts are distinct; never silently convert or weaken.
+17. `void` no value; `opaque` hidden representation.
+18. Derived reference provenance never widens.
+19. Source/generated/native names independent.
+20. Destruction is deterministic only for lexical ownership and acyclic final shared-owner release.
+21. `int` exact arbitrary precision with adaptive promotion/normalization; fixed widths expose arithmetic bounds/overflow policy; numeric destination conversion is exact-or-throw.
 
 ## OPEN
 
@@ -1384,6 +1356,8 @@ Not version-one; no private incompatible syntax:
 - arbitrary C++ ABI integration;
 - multimethod/generic-function dispatch;
 - foreign-runtime adapters;
+- `when build` compile-time selection; its settled design is documented under future compiler internals and scheduled for Milestone 32;
+- open package-supplied `with` decorative modifiers; version one defers custom declaration modifiers, while its settled design is documented under future compiler internals.
 
 ## AUTHORING CHECKLIST
 
