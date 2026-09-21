@@ -195,7 +195,9 @@ def build_application(profile: dict) -> dict | None:
     if not application_path.is_dir():
         return {
             "application": application,
-            "outcome": "application-checkout-unavailable",
+            "classification": "environment-unavailable",
+            "outcome": "environment-unavailable",
+            "error-markers": [f"application-checkout-unavailable: {application_path}"],
             "exit-code": None,
         }
     completed = subprocess.run(
@@ -224,6 +226,7 @@ def run_runtime(profile: dict) -> dict | None:
     )
     if executable is None:
         return {
+            "classification": "environment-unavailable",
             "outcome": "environment-unavailable",
             "required-environment": profile.get("required-environment", []),
             "exit-code": None,
@@ -239,6 +242,7 @@ def run_runtime(profile: dict) -> dict | None:
     if not version.startswith(runtime["version-prefix"]):
         return {
             "executable": executable,
+            "classification": "environment-unavailable",
             "version": version,
             "outcome": "environment-unavailable",
             "required-environment": profile.get("required-environment", []),
@@ -324,7 +328,11 @@ def main() -> int:
     report_path = arguments.report or WORK_ROOT / "reports" / f"{profile['name']}.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print(report_path.relative_to(ROOT))
+    try:
+        displayed_report_path = report_path.relative_to(ROOT)
+    except ValueError:
+        displayed_report_path = report_path.resolve()
+    print(displayed_report_path)
     exit_codes = [
         result["exit-code"]
         for result in (compiler, application, runtime)
