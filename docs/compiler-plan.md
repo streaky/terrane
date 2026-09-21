@@ -2231,16 +2231,19 @@ at the owned terminal. Language-server projection details expose the non-escapin
 
 The native-analysis extraction and resolved-graph survey are complete. The shared Rustdoc
 decoder/public-path index, Cargo process policy, exact bound/call/impl/macro probes, probe cache,
-and containment live in `terrane-rust-analysis`; Terrane admission and lowering remain compiler
-owned. `terrane-rust-survey` resolves an offline/frozen target-filtered package closure, generates
-pinned format-57 Rustdoc, reports portable package/source/checksum/feature identities, public
-declarations and discovery failures, and compiles requested exact probes without executing package
-code. `tools/run-native-survey.py` materializes a versioned corpus profile and combines its native
-reports with the named public conformance application result. The initial corpus contains required
-Markdown, SQLx, PDF and separately classified Godot compile/runtime profiles, an adversarial path
-package, and selected popular-package evidence; wider top20/top100/deep/domain selection remains
-dedicated-infrastructure expansion rather than an ordinary compiler gate. A dependency-boundary
-test continues to guard the analysis crate against compiler or CLI dependencies.
+and enforceable containment live in `terrane-rust-analysis`; Terrane admission and lowering remain
+compiler owned. `terrane-rust-survey` resolves an offline/frozen target-filtered package closure,
+generates pinned format-57 Rustdoc, reports portable package/source/checksum/feature identities,
+public declarations and explicitly classified external-crate reexports, and compiles requested
+exact probes without executing package code. Semantic reports exclude timing telemetry.
+`tools/run-native-survey.py` materializes a versioned, containment-declared corpus profile and
+combines its native reports with a typed named-conformance outcome. The initial corpus contains
+required Markdown, SQLx and PDF profiles, separately classified Godot compile/runtime profiles,
+one adversarial reexport/path-identity witness, and selected popular-package evidence. Remaining
+generic, lifetime, enum, callback, async and failure-boundary adversarial families and wider
+top20/top100/deep/domain selection remain dedicated-infrastructure expansion rather than ordinary
+compiler gates. A dependency-boundary test continues to guard the analysis crate against compiler
+or CLI dependencies.
 Projection schema 55 additionally admits open generic/lifetime state for expression-local roots
 and records the removal of trait-name-based borrowing from unspecialized projected parameters:
 `projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row

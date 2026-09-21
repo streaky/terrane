@@ -1,11 +1,15 @@
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 
+use terrane_rust_analysis::Containment;
+
+#[derive(Debug, Eq, PartialEq)]
 struct Arguments {
     manifest: PathBuf,
     package: Option<String>,
     target: Option<String>,
     probes: Option<PathBuf>,
+    containment: Containment,
 }
 
 fn main() {
@@ -18,17 +22,20 @@ fn main() {
         .unwrap_or_else(|message| usage(&message))
         .unwrap_or_default();
     let report = match arguments.target {
-        Some(target) => terrane_rust_analysis::survey_package_for_target_with_probes(
+        Some(target) => terrane_rust_analysis::survey_package_with_policy(
             &arguments.manifest,
             arguments.package.as_deref(),
             &target,
             &probes,
+            arguments.containment,
         ),
-        None if probes == terrane_rust_analysis::SurveyProbeRequest::default() => {
+        None if probes == terrane_rust_analysis::SurveyProbeRequest::default()
+            && arguments.containment == Containment::Unavailable =>
+        {
             terrane_rust_analysis::survey_package(&arguments.manifest, arguments.package.as_deref())
         }
         None => Err(terrane_rust_analysis::AnalysisError {
-            message: "--probes requires an explicit --target".to_owned(),
+            message: "--probes or enforced containment requires an explicit --target".to_owned(),
         }),
     }
     .unwrap_or_else(|error| fail(&error.message));
@@ -43,7 +50,11 @@ fn main() {
 }
 
 fn parse_args() -> Result<Arguments, String> {
-    let mut values = std::env::args().skip(1);
+    parse_values(std::env::args().skip(1))
+}
+
+fn parse_values(values: impl IntoIterator<Item = String>) -> Result<Arguments, String> {
+    let mut values = values.into_iter();
     let manifest = values
         .next()
         .map(PathBuf::from)
@@ -51,6 +62,7 @@ fn parse_args() -> Result<Arguments, String> {
     let mut package = None;
     let mut target = None;
     let mut probes = None;
+    let mut containment = None;
     while let Some(flag) = values.next() {
         let value = values
             .next()
@@ -59,6 +71,13 @@ fn parse_args() -> Result<Arguments, String> {
             "--package" if package.is_none() => package = Some(value),
             "--target" if target.is_none() => target = Some(value),
             "--probes" if probes.is_none() => probes = Some(PathBuf::from(value)),
+            "--containment" if containment.is_none() => {
+                containment = Some(match value.as_str() {
+                    "enforced" => Containment::Enforced,
+                    "unavailable" => Containment::Unavailable,
+                    _ => return Err("--containment must be `enforced` or `unavailable`".to_owned()),
+                });
+            }
             _ => return Err(format!("unknown or repeated option `{flag}`")),
         }
     }
@@ -67,6 +86,7 @@ fn parse_args() -> Result<Arguments, String> {
         package,
         target,
         probes,
+        containment: containment.unwrap_or(Containment::Unavailable),
     })
 }
 
@@ -81,7 +101,8 @@ fn usage(message: &str) -> ! {
     eprintln!("terrane-rust-survey: {message}");
     eprintln!(
         "usage: terrane-rust-survey <Cargo.toml> [--package <name[@version]>] \
-         [--target <triple>] [--probes <json>]"
+         [--target <triple>] [--probes <json>] \
+         [--containment <enforced|unavailable>]"
     );
     std::process::exit(2);
 }
@@ -89,4 +110,41 @@ fn usage(message: &str) -> ! {
 fn fail(message: &str) -> ! {
     eprintln!("terrane-rust-survey: {message}");
     std::process::exit(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_options_in_any_order() {
+        let arguments = parse_values(
+            [
+                "Cargo.toml",
+                "--containment",
+                "enforced",
+                "--target",
+                "x86_64-unknown-linux-gnu",
+                "--package",
+                "sample@1.0.0",
+            ]
+            .map(str::to_owned),
+        )
+        .unwrap();
+        assert_eq!(arguments.containment, Containment::Enforced);
+        assert_eq!(arguments.package.as_deref(), Some("sample@1.0.0"));
+        assert_eq!(
+            arguments.target.as_deref(),
+            Some("x86_64-unknown-linux-gnu")
+        );
+    }
+
+    #[test]
+    fn rejects_repeated_and_invalid_options() {
+        assert!(
+            parse_values(["Cargo.toml", "--target", "one", "--target", "two"].map(str::to_owned))
+                .is_err()
+        );
+        assert!(parse_values(["Cargo.toml", "--containment", "maybe"].map(str::to_owned)).is_err());
+    }
 }

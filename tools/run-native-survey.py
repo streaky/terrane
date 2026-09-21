@@ -10,6 +10,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import tomllib
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -31,7 +32,9 @@ def load_profile(name: str) -> dict:
     if len(matches) != 1:
         raise argparse.ArgumentTypeError(f"unknown or duplicate native survey profile: {name}")
     profile = matches[0]
-    required = {"fixture", "packages", "target", "rustdoc-toolchain", "selection"}
+    required = {
+        "fixture", "packages", "target", "rustdoc-toolchain", "containment", "selection"
+    }
     missing = sorted(required - profile.keys())
     if missing:
         raise argparse.ArgumentTypeError(
@@ -39,6 +42,10 @@ def load_profile(name: str) -> dict:
         )
     if profile["rustdoc-toolchain"] != "nightly-2026-04-29":
         raise argparse.ArgumentTypeError(f"profile {name!r} uses an unexpected Rustdoc toolchain")
+    if profile["containment"] not in {"enforced", "unavailable"}:
+        raise argparse.ArgumentTypeError(
+            f"profile {name!r} has an invalid containment tier"
+        )
     profile["fixture"] = validate_fixture(profile["fixture"])
     return profile
 
@@ -121,6 +128,8 @@ def run_surveys(profile: dict, manifest: pathlib.Path) -> list[dict]:
             selector,
             "--target",
             profile["target"],
+            "--containment",
+            profile["containment"],
         ]
         if package.get("probes"):
             probe_path = manifest.parent / f'{package["name"]}-probes.json'
@@ -138,6 +147,7 @@ def run_surveys(profile: dict, manifest: pathlib.Path) -> list[dict]:
 
 
 def run_fixture(profile: dict) -> dict:
+    case = tomllib.loads((CORPUS / profile["fixture"] / "case.toml").read_text())
     environment = os.environ.copy()
     environment["TERRANE_CONFORMANCE_FILTER"] = profile["fixture"]
     command = [
@@ -153,10 +163,34 @@ def run_fixture(profile: dict) -> dict:
         "--nocapture",
     ]
     completed = subprocess.run(command, cwd=ROOT, env=environment, check=False)
+    if completed.returncode != 0:
+        outcome = "failed"
+    elif case["status"] == "reject":
+        outcome = "declined-as-expected"
+    elif case["phase"] == "run":
+        outcome = "admitted-and-ran"
+    else:
+        outcome = "admitted"
+    result = {
+        "fixture": profile["fixture"],
+        "phase": case["phase"],
+        "expected-status": case["status"],
+        "outcome": profile.get("status", outcome),
+        "fixture-outcome": outcome,
+        "exit-code": completed.returncode,
+    }
+    return result
+
+
+def unavailable_environment(profile: dict) -> dict | None:
+    if profile.get("status") != "environment-unavailable":
+        return None
     return {
         "fixture": profile["fixture"],
-        "outcome": "passed" if completed.returncode == 0 else "failed",
-        "exit-code": completed.returncode,
+        "outcome": "environment-unavailable",
+        "fixture-outcome": "not-attempted",
+        "required-environment": profile.get("required-environment", []),
+        "exit-code": None,
     }
 
 
@@ -167,9 +201,14 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         profile = load_profile(arguments.profile)
-        manifest = materialize_profile(profile)
-        surveys = run_surveys(profile, manifest)
-        compiler = run_fixture(profile)
+        unavailable = unavailable_environment(profile)
+        if unavailable is None:
+            manifest = materialize_profile(profile)
+            surveys = run_surveys(profile, manifest)
+            compiler = run_fixture(profile)
+        else:
+            surveys = []
+            compiler = unavailable
     except (argparse.ArgumentTypeError, subprocess.CalledProcessError, OSError, ValueError) as error:
         parser.error(str(error))
     report = {
@@ -182,7 +221,7 @@ def main() -> int:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(report_path.relative_to(ROOT))
-    return 0 if compiler["exit-code"] == 0 else compiler["exit-code"]
+    return 0 if compiler["exit-code"] in {0, None} else compiler["exit-code"]
 
 
 if __name__ == "__main__":

@@ -3,12 +3,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::oracle::cargo_output;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AnalysisError, BoundQuestion, CallProbeReport, CallQuestion, Containment, ImplProbeReport,
-    ImplQuestion, ProbeReport, ProjectionOracle, RUSTDOC_TOOLCHAIN,
+    AnalysisError, BUILD_TOOLCHAIN, BoundQuestion, CallProbeEvidence, CallQuestion, Containment,
+    ImplProbeEvidence, ImplQuestion, ProbeEvidence, ProjectionOracle, RUSTDOC_TOOLCHAIN,
     configure_projection_cargo_command, parse_rustdoc, public_paths,
 };
 
@@ -72,9 +73,16 @@ pub struct SurveyProbeRequest {
 pub struct SurveyProbeExecution {
     pub status: String,
     pub compile_only: bool,
-    pub bounds: ProbeReport,
-    pub calls: CallProbeReport,
-    pub implementations: ImplProbeReport,
+    pub bounds: StableProbeReport<ProbeEvidence>,
+    pub calls: StableProbeReport<CallProbeEvidence>,
+    pub implementations: StableProbeReport<ImplProbeEvidence>,
+}
+
+/// Semantic probe evidence excludes run-to-run timing telemetry.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct StableProbeReport<E> {
+    pub evidence: Vec<E>,
+    pub compiled_probe_count: usize,
 }
 
 #[derive(Deserialize)]
@@ -110,6 +118,14 @@ struct MetadataPackage {
 struct MetadataTarget {
     name: String,
     kind: Vec<String>,
+}
+
+fn is_library_target(target: &MetadataTarget) -> bool {
+    const LIBRARY_KINDS: [&str; 6] = ["lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro"];
+    target
+        .kind
+        .iter()
+        .any(|kind| LIBRARY_KINDS.contains(&kind.as_str()))
 }
 
 #[derive(Deserialize)]
@@ -163,6 +179,21 @@ pub fn survey_package_for_target_with_probes(
     target: &str,
     probes: &SurveyProbeRequest,
 ) -> Result<SurveyReport, AnalysisError> {
+    survey_package_with_policy(manifest, package, target, probes, Containment::Unavailable)
+}
+
+/// Resolves and surveys one package using the requested native-process containment tier.
+///
+/// # Errors
+///
+/// Returns an error when graph discovery, Rustdoc generation, or probe execution cannot complete.
+pub fn survey_package_with_policy(
+    manifest: &Path,
+    package: Option<&str>,
+    target: &str,
+    probes: &SurveyProbeRequest,
+    containment: Containment,
+) -> Result<SurveyReport, AnalysisError> {
     let manifest = manifest
         .canonicalize()
         .map_err(io_error("canonicalize survey manifest"))?;
@@ -177,7 +208,7 @@ pub fn survey_package_for_target_with_probes(
     let target_name = selected
         .targets
         .iter()
-        .find(|candidate| candidate.kind.iter().any(|kind| kind == "lib"))
+        .find(|candidate| is_library_target(candidate))
         .ok_or_else(|| AnalysisError {
             message: format!("selected package `{}` has no library target", selected.name),
         })?
@@ -187,7 +218,7 @@ pub fn survey_package_for_target_with_probes(
     let lock = cargo_lock(workspace)?;
     let packages = package_records(&metadata, &closure, workspace, &lock)?;
     let target_directory = workspace.join(".trn/dependencies/rust-survey/target");
-    run_rustdoc(&manifest, selected, target, &target_directory)?;
+    run_rustdoc(&manifest, selected, target, &target_directory, containment)?;
     let rustdoc_path = target_directory
         .join(target)
         .join("doc")
@@ -207,7 +238,7 @@ pub fn survey_package_for_target_with_probes(
     let public_paths = paths.into_values().collect::<Vec<_>>();
     let selected_identity = package_identity(selected);
     let oracle_identity = format!("survey-{selected_identity}-{target}");
-    let oracle = ProjectionOracle::new(workspace, &oracle_identity, Containment::Unavailable);
+    let oracle = ProjectionOracle::new(workspace, &oracle_identity, containment);
     let bound_report = oracle.prove_bounds(&probes.bounds)?;
     let call_report = oracle.prove_calls(&probes.calls)?;
     let impl_report = oracle.prove_impls(&probes.implementations)?;
@@ -226,10 +257,10 @@ pub fn survey_package_for_target_with_probes(
         declarations,
         discovery_failures,
         target: target.to_owned(),
-        build_toolchain: rustc_version()?,
+        build_toolchain: BUILD_TOOLCHAIN.to_owned(),
         rustdoc_format: document.format_version,
         rustdoc_toolchain: RUSTDOC_TOOLCHAIN.to_owned(),
-        containment: Containment::Unavailable,
+        containment,
         probe_execution: SurveyProbeExecution {
             status: if probes.bounds.is_empty()
                 && probes.calls.is_empty()
@@ -241,9 +272,18 @@ pub fn survey_package_for_target_with_probes(
             }
             .to_owned(),
             compile_only: true,
-            bounds: bound_report,
-            calls: call_report,
-            implementations: impl_report,
+            bounds: StableProbeReport {
+                evidence: bound_report.evidence,
+                compiled_probe_count: bound_report.compiled_probe_count,
+            },
+            calls: StableProbeReport {
+                evidence: call_report.evidence,
+                compiled_probe_count: call_report.compiled_probe_count,
+            },
+            implementations: StableProbeReport {
+                evidence: impl_report.evidence,
+                compiled_probe_count: impl_report.compiled_probe_count,
+            },
         },
     })
 }
@@ -255,17 +295,23 @@ fn declarations(
     let mut declarations = Vec::new();
     let mut failures = Vec::new();
     for (id, public_path) in paths {
-        let Some(item) = document.index.get(id) else {
-            failures.push(SurveyDiscoveryFailure {
-                public_path: public_path.clone(),
-                reason: "public item is absent from the Rustdoc index".to_owned(),
-            });
-            continue;
-        };
         let Some(canonical) = document.paths.get(id) else {
             failures.push(SurveyDiscoveryFailure {
                 public_path: public_path.clone(),
                 reason: "public item has no canonical Rustdoc path".to_owned(),
+            });
+            continue;
+        };
+        let Some(item) = document.index.get(id) else {
+            let reason = missing_declaration_reason(
+                document
+                    .external_crates
+                    .get(&canonical.crate_id)
+                    .map(|external| external.name.as_str()),
+            );
+            failures.push(SurveyDiscoveryFailure {
+                public_path: public_path.clone(),
+                reason,
             });
             continue;
         };
@@ -287,6 +333,17 @@ fn declarations(
     declarations.sort_by(|left, right| left.public_path.cmp(&right.public_path));
     failures.sort_by(|left, right| left.public_path.cmp(&right.public_path));
     Ok((declarations, failures))
+}
+
+fn missing_declaration_reason(external_crate: Option<&str>) -> String {
+    external_crate.map_or_else(
+        || "public item is absent from the Rustdoc index".to_owned(),
+        |external| {
+            format!(
+                "declaration belongs to external crate `{external}`; survey that closure package for its signature"
+            )
+        },
+    )
 }
 
 fn cargo_metadata(manifest: &Path, target: &str) -> Result<Metadata, AnalysisError> {
@@ -416,8 +473,79 @@ fn path_fingerprint(package: &MetadataPackage) -> Result<Option<String>, Analysi
     if package.source.is_some() {
         return Ok(None);
     }
-    let bytes = fs::read(&package.manifest_path).map_err(io_error("read path package manifest"))?;
-    Ok(Some(format!("sha256:{:x}", Sha256::digest(bytes))))
+    let root = package
+        .manifest_path
+        .parent()
+        .ok_or_else(|| AnalysisError {
+            message: format!(
+                "path package manifest `{}` has no package root",
+                package.manifest_path.display()
+            ),
+        })?;
+    let mut files = Vec::new();
+    collect_package_files(root, root, &mut files)?;
+    files.sort();
+    let mut hash = Sha256::new();
+    for path in files {
+        let relative = path.strip_prefix(root).map_err(|error| AnalysisError {
+            message: format!("cannot normalize path package input: {error}"),
+        })?;
+        let metadata =
+            fs::symlink_metadata(&path).map_err(io_error("read path package input metadata"))?;
+        hash.update(relative.to_string_lossy().as_bytes());
+        hash.update([0]);
+        if metadata.file_type().is_symlink() {
+            hash.update(b"symlink");
+            hash.update(
+                fs::read_link(&path)
+                    .map_err(io_error("read path package symlink"))?
+                    .to_string_lossy()
+                    .as_bytes(),
+            );
+        } else {
+            hash.update(b"file");
+            hash.update(fs::read(&path).map_err(io_error("read path package input"))?);
+        }
+        hash.update([0]);
+    }
+    Ok(Some(format!("sha256:{:x}", hash.finalize())))
+}
+
+fn collect_package_files(
+    root: &Path,
+    directory: &Path,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), AnalysisError> {
+    let mut entries = fs::read_dir(directory)
+        .map_err(io_error("read path package directory"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(io_error("read path package entry"))?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let path = entry.path();
+        let relative = path.strip_prefix(root).map_err(|error| AnalysisError {
+            message: format!("cannot normalize path package entry: {error}"),
+        })?;
+        let first = relative
+            .components()
+            .next()
+            .and_then(|component| match component {
+                std::path::Component::Normal(name) => name.to_str(),
+                _ => None,
+            });
+        if matches!(first, Some(".git" | ".trn" | "target")) {
+            continue;
+        }
+        let file_type = entry
+            .file_type()
+            .map_err(io_error("read path package entry type"))?;
+        if file_type.is_dir() {
+            collect_package_files(root, &path, files)?;
+        } else if file_type.is_file() || file_type.is_symlink() {
+            files.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn cargo_lock(workspace: &Path) -> Result<Vec<LockPackage>, AnalysisError> {
@@ -473,29 +601,37 @@ fn run_rustdoc(
     package: &MetadataPackage,
     target: &str,
     target_directory: &Path,
+    containment: Containment,
 ) -> Result<(), AnalysisError> {
-    let mut command = Command::new("cargo");
-    configure_projection_cargo_command(&mut command);
+    let workspace = manifest.parent().ok_or_else(|| AnalysisError {
+        message: format!(
+            "survey manifest `{}` has no parent directory",
+            manifest.display()
+        ),
+    })?;
     let spec = package_identity(package);
-    let output = command
-        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
-        .args([
-            "rustdoc",
-            "-p",
-            &spec,
-            "--lib",
-            "--offline",
-            "--frozen",
-            "--target",
-            target,
-            "--manifest-path",
-        ])
-        .arg(manifest)
-        .arg("--target-dir")
-        .arg(target_directory)
-        .args(["--", "-Z", "unstable-options", "--output-format", "json"])
-        .output()
-        .map_err(io_error("run Cargo rustdoc for survey"))?;
+    let manifest = manifest.to_string_lossy();
+    let target_directory = target_directory.to_string_lossy();
+    let arguments = [
+        "rustdoc",
+        "-p",
+        spec.as_str(),
+        "--lib",
+        "--offline",
+        "--frozen",
+        "--target",
+        target,
+        "--manifest-path",
+        manifest.as_ref(),
+        "--target-dir",
+        target_directory.as_ref(),
+        "--",
+        "-Z",
+        "unstable-options",
+        "--output-format",
+        "json",
+    ];
+    let output = cargo_output(workspace, &arguments, containment)?;
     if output.status.success() {
         Ok(())
     } else {
@@ -507,7 +643,6 @@ fn run_rustdoc(
         })
     }
 }
-
 fn host_target() -> Result<String, AnalysisError> {
     let version = rustc_verbose_version()?;
     version
@@ -519,16 +654,9 @@ fn host_target() -> Result<String, AnalysisError> {
         })
 }
 
-fn rustc_version() -> Result<String, AnalysisError> {
-    Ok(rustc_verbose_version()?
-        .lines()
-        .next()
-        .unwrap_or("rustc unknown")
-        .to_owned())
-}
-
 fn rustc_verbose_version() -> Result<String, AnalysisError> {
     let output = Command::new("rustc")
+        .arg(format!("+{BUILD_TOOLCHAIN}"))
         .arg("-vV")
         .output()
         .map_err(io_error("read Rust toolchain identity"))?;
@@ -569,6 +697,19 @@ mod tests {
                 nodes: Vec::new(),
             },
         }
+    }
+
+    fn temporary_directory(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "terrane-survey-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
     }
 
     #[test]
@@ -638,5 +779,120 @@ mod tests {
             selected_closure(&metadata, "root"),
             BTreeSet::from(["root".to_owned(), "used".to_owned()])
         );
+    }
+
+    #[test]
+    fn cargo_library_target_kinds_include_explicit_crate_types() {
+        for kind in ["lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro"] {
+            assert!(is_library_target(&MetadataTarget {
+                name: "sample".to_owned(),
+                kind: vec![kind.to_owned()],
+            }));
+        }
+        assert!(!is_library_target(&MetadataTarget {
+            name: "sample".to_owned(),
+            kind: vec!["bin".to_owned()],
+        }));
+    }
+
+    #[test]
+    fn external_reexports_name_their_declaring_crate() {
+        assert_eq!(
+            missing_declaration_reason(Some("godot_core")),
+            "declaration belongs to external crate `godot_core`; survey that closure package for its signature"
+        );
+        assert_eq!(
+            missing_declaration_reason(None),
+            "public item is absent from the Rustdoc index"
+        );
+    }
+
+    #[test]
+    fn normalized_manifests_cover_workspace_registry_and_external_paths() {
+        let workspace = Path::new("/work");
+        let mut sample = package("sample", "sample", "1.0.0");
+        sample.manifest_path = PathBuf::from("/work/member/Cargo.toml");
+        assert_eq!(
+            normalized_manifest(&sample, workspace),
+            "workspace/member/Cargo.toml"
+        );
+        sample.manifest_path = PathBuf::from("/cargo/sample/Cargo.toml");
+        assert_eq!(
+            normalized_manifest(&sample, workspace),
+            "registry/sample@1.0.0/Cargo.toml"
+        );
+        sample.source = None;
+        assert_eq!(
+            normalized_manifest(&sample, workspace),
+            "path/sample@1.0.0/Cargo.toml"
+        );
+    }
+
+    #[test]
+    fn path_fingerprint_tracks_sources_but_ignores_build_output() {
+        let root = temporary_directory("fingerprint");
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname='sample'\nversion='1.0.0'\n",
+        )
+        .unwrap();
+        fs::write(root.join("src/lib.rs"), "pub fn value() -> u8 { 1 }\n").unwrap();
+        let mut sample = package("sample", "sample", "1.0.0");
+        sample.source = None;
+        sample.manifest_path = root.join("Cargo.toml");
+        let first = path_fingerprint(&sample).unwrap();
+        fs::write(root.join("src/lib.rs"), "pub fn value() -> u8 { 2 }\n").unwrap();
+        let second = path_fingerprint(&sample).unwrap();
+        assert_ne!(first, second);
+        fs::create_dir_all(root.join("target")).unwrap();
+        fs::write(root.join("target/noise"), "ignored").unwrap();
+        assert_eq!(second, path_fingerprint(&sample).unwrap());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn package_records_retain_checksum_features_and_dependency_identity() {
+        let mut root = package("root-id", "root", "1.0.0");
+        root.targets.push(MetadataTarget {
+            name: "root".to_owned(),
+            kind: vec!["lib".to_owned()],
+        });
+        let dependency = package("dep-id", "dep", "2.0.0");
+        let metadata = Metadata {
+            packages: vec![root, dependency],
+            resolve: MetadataResolve {
+                root: Some("root-id".to_owned()),
+                nodes: vec![
+                    MetadataNode {
+                        id: "root-id".to_owned(),
+                        dependencies: vec!["dep-id".to_owned()],
+                        features: vec!["z".to_owned(), "a".to_owned(), "a".to_owned()],
+                    },
+                    MetadataNode {
+                        id: "dep-id".to_owned(),
+                        dependencies: Vec::new(),
+                        features: Vec::new(),
+                    },
+                ],
+            },
+        };
+        let lock = vec![LockPackage {
+            name: "root".to_owned(),
+            version: "1.0.0".to_owned(),
+            source: Some("registry+test".to_owned()),
+            checksum: Some("checksum".to_owned()),
+        }];
+        let records = package_records(
+            &metadata,
+            &BTreeSet::from(["root-id".to_owned(), "dep-id".to_owned()]),
+            Path::new("/workspace"),
+            &lock,
+        )
+        .unwrap();
+        let root = records.iter().find(|record| record.name == "root").unwrap();
+        assert_eq!(root.checksum.as_deref(), Some("checksum"));
+        assert_eq!(root.features, ["a", "z"]);
+        assert_eq!(root.dependencies, ["dep@2.0.0"]);
     }
 }
