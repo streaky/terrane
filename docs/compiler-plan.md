@@ -2237,9 +2237,12 @@ generates pinned format-57 Rustdoc, reports portable package/source/checksum/fea
 public declarations and explicitly classified external-crate reexports, and compiles requested
 exact probes without executing package code. Semantic reports exclude timing telemetry.
 `tools/run-native-survey.py` materializes a versioned, containment-declared corpus profile and
-combines its native reports with a typed named-conformance outcome. The initial corpus contains
-required Markdown, SQLx and PDF profiles, separately classified Godot compile/runtime profiles,
-one adversarial reexport/path-identity witness, and selected popular-package evidence. Remaining
+combines its native reports with a typed named-conformance outcome. Enforced profiles require
+Linux bubblewrap and never silently downgrade; when a dedicated runtime environment is unavailable,
+the runner still gathers offline native evidence and skips only the runtime fixture. The initial
+corpus contains required Markdown, SQLx and PDF profiles, separately classified Godot
+compile/runtime profiles that survey both `godot` and its `godot-core` reexport owner, one
+adversarial reexport/path-identity witness, and selected popular-package evidence. Remaining
 generic, lifetime, enum, callback, async and failure-boundary adversarial families and wider
 top20/top100/deep/domain selection remain dedicated-infrastructure expansion rather than ordinary
 compiler gates. A dependency-boundary test continues to guard the analysis crate against compiler

@@ -895,4 +895,80 @@ mod tests {
         assert_eq!(root.features, ["a", "z"]);
         assert_eq!(root.dependencies, ["dep@2.0.0"]);
     }
+
+    #[test]
+    fn declarations_separate_local_signatures_from_external_owners() {
+        use std::collections::HashMap;
+
+        use rustdoc_types::{
+            Crate, ExternalCrate, Id, Item, ItemEnum, ItemKind, ItemSummary, Primitive, Target,
+            Visibility,
+        };
+
+        let local = Id(1);
+        let external = Id(2);
+        let document = Crate {
+            root: Id(0),
+            crate_version: Some("1.0.0".to_owned()),
+            includes_private: false,
+            index: HashMap::from([(
+                local,
+                Item {
+                    id: local,
+                    crate_id: 0,
+                    name: Some("Local".to_owned()),
+                    span: None,
+                    visibility: Visibility::Public,
+                    docs: None,
+                    links: HashMap::new(),
+                    attrs: Vec::new(),
+                    deprecation: None,
+                    inner: ItemEnum::Primitive(Primitive {
+                        name: "local".to_owned(),
+                        impls: Vec::new(),
+                    }),
+                },
+            )]),
+            paths: HashMap::from([
+                (
+                    local,
+                    ItemSummary {
+                        crate_id: 0,
+                        path: vec!["sample".to_owned(), "Local".to_owned()],
+                        kind: ItemKind::Primitive,
+                    },
+                ),
+                (
+                    external,
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["owner".to_owned(), "External".to_owned()],
+                        kind: ItemKind::Primitive,
+                    },
+                ),
+            ]),
+            external_crates: HashMap::from([(
+                1,
+                ExternalCrate {
+                    name: "owner".to_owned(),
+                    html_root_url: None,
+                    path: PathBuf::from("/registry/owner.rlib"),
+                },
+            )]),
+            target: Target {
+                triple: "x86_64-unknown-linux-gnu".to_owned(),
+                target_features: Vec::new(),
+            },
+            format_version: 57,
+        };
+        let paths = BTreeMap::from([
+            (local, "sample::Local".to_owned()),
+            (external, "sample::External".to_owned()),
+        ]);
+        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        assert_eq!(declarations.len(), 1);
+        assert_eq!(declarations[0].public_path, "sample::Local");
+        assert_eq!(failures.len(), 1);
+        assert!(failures[0].reason.contains("external crate `owner`"));
+    }
 }

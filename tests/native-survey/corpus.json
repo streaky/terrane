@@ -103,7 +103,10 @@
     {
       "name": "godot-generated-api-compile",
       "fixture": "reject/godot-generated-api-projection-gap",
-      "packages": [{"name": "godot", "version": "=0.5.5", "default-features": true}],
+      "packages": [
+        {"name": "godot", "version": "=0.5.5", "default-features": true},
+        {"name": "godot-core", "version": "=0.5.5", "default-features": true}
+      ],
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",
@@ -122,7 +125,10 @@
     {
       "name": "godot-generated-api-runtime",
       "fixture": "reject/godot-generated-api-projection-gap",
-      "packages": [{"name": "godot", "version": "=0.5.5", "default-features": true}],
+      "packages": [
+        {"name": "godot", "version": "=0.5.5", "default-features": true},
+        {"name": "godot-core", "version": "=0.5.5", "default-features": true}
+      ],
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",

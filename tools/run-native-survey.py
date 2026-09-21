@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Survey and exercise one named public native-integration profile."""
+"""Survey and exercise one named public native-integration profile.
+
+Profiles that declare enforced containment require Linux bubblewrap (`bwrap`);
+the runner never silently downgrades them to an uncontained process. A profile
+whose dedicated runtime environment is unavailable still produces runnable
+offline native-survey evidence and skips only its conformance/runtime fixture.
+"""
 
 from __future__ import annotations
 
@@ -201,14 +207,9 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         profile = load_profile(arguments.profile)
-        unavailable = unavailable_environment(profile)
-        if unavailable is None:
-            manifest = materialize_profile(profile)
-            surveys = run_surveys(profile, manifest)
-            compiler = run_fixture(profile)
-        else:
-            surveys = []
-            compiler = unavailable
+        manifest = materialize_profile(profile)
+        surveys = run_surveys(profile, manifest)
+        compiler = unavailable_environment(profile) or run_fixture(profile)
     except (argparse.ArgumentTypeError, subprocess.CalledProcessError, OSError, ValueError) as error:
         parser.error(str(error))
     report = {

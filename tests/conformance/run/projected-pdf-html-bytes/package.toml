@@ -7,6 +7,7 @@ app = "src"
 package = "pdf_oxide"
 version = "=0.3.78"
 
+# Pin pdf_oxide's semver-compatible IR dependency before the incompatible 0.1.12 release.
 [rust-dependencies.office-oxide]
 package = "office_oxide"
 version = "=0.1.11"
