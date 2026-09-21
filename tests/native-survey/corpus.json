@@ -136,9 +136,9 @@
       "purpose": "required dedicated Godot runtime lane for generated/reexported APIs",
       "status": "admitted-when-environment-available",
       "application": "projects/godot-test",
-      "required-environment": ["Godot 4.7.2.stable.arch_linux.ed1daf0bf runtime", "native runtime inputs"],
+      "required-environment": ["Godot 4.7.2.stable runtime", "native runtime inputs"],
       "runtime": {
-        "version": "4.7.2.stable.arch_linux.ed1daf0bf",
+        "version-prefix": "4.7.2.stable",
         "executables": ["godot", "godot4"],
         "arguments": ["--headless", "--path", "godot", "--quit-after", "120"],
         "timeout-seconds": 180

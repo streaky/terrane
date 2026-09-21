@@ -185,13 +185,19 @@ def run_fixture(profile: dict) -> dict:
         "outcome": outcome,
         "exit-code": completed.returncode,
     }
-    return result
 
 
 def build_application(profile: dict) -> dict | None:
     application = profile.get("application")
     if application is None:
         return None
+    application_path = ROOT / application
+    if not application_path.is_dir():
+        return {
+            "application": application,
+            "outcome": "application-checkout-unavailable",
+            "exit-code": None,
+        }
     completed = subprocess.run(
         ["cargo", "run", "--package", "terrane-cli", "--", "build", application],
         cwd=ROOT,
@@ -222,14 +228,15 @@ def run_runtime(profile: dict) -> dict | None:
             "required-environment": profile.get("required-environment", []),
             "exit-code": None,
         }
-    version = subprocess.run(
+    version_output = subprocess.run(
         [executable, "--version"],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-    ).stdout.strip()
-    if version != runtime["version"]:
+    ).stdout
+    version = next((line.strip() for line in version_output.splitlines() if line.strip()), "")
+    if not version.startswith(runtime["version-prefix"]):
         return {
             "executable": executable,
             "version": version,
@@ -268,6 +275,8 @@ def run_runtime(profile: dict) -> dict | None:
             "exit-code": 124,
             "error-markers": [],
         }
+    # Godot can exit zero after extension-load or script failures. Treat its stable diagnostic
+    # prefixes as runtime failures and retain matching lines as reviewable evidence.
     error_markers = [
         line
         for line in completed.stdout.splitlines()
@@ -280,6 +289,7 @@ def run_runtime(profile: dict) -> dict | None:
         "outcome": "ran" if succeeded else "failed",
         "exit-code": completed.returncode if succeeded else completed.returncode or 1,
         "error-markers": error_markers,
+        "error-marker-contract": ["ERROR:", "SCRIPT ERROR:"],
     }
 
 
