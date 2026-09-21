@@ -10,3 +10,7 @@ app = "src"
 [rust-dependencies.terrane-reexport-facade-witness]
 version = "=0.1.0"
 effects = ["build"]
+
+[rust-dependencies.terrane-reexport-owner-witness]
+version = "=0.1.0"
+effects = ["build"]

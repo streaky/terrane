@@ -463,10 +463,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:38) */
-        { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 38 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:13-8:25) */
-        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 25 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:10:20-10:45) */
+        { Site { function: 0, file: 0, line: 10, column: 20, end_line: 10, end_column: 45 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:11:13-11:32) */
+        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 32 } },
     ];
     #[cold]
     #[inline(never)]
@@ -482,26 +482,33 @@ mod __terrane_trace {
 }
 // Source: src/main.trn
 // Namespace: app
+#[allow(dead_code)]
+fn accepts_direct_owner(
+    value: TerraneNs4Deps30TerraneReexportOwnerWitnessGeneratedValue,
+) {
+    let _ = &value;
+}
 fn main() {
-    let value: GeneratedValue = __terrane_raised(
+    let facade_value: TerraneNs4Deps31TerraneReexportFacadeWitnessGeneratedValue = __terrane_raised(
         terrane_static_trn_47656e65726174656456616c7565_standard(),
-        0 /* terrane-site: src/main.trn:7:13-7:38 */,
+        0 /* terrane-site: src/main.trn:10:20-10:45 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | value.value())) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
-        => Err(crate ::__terrane_dependency_panic(payload,
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | facade_value.value()))
+        { Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
         "terrane_reexport_facade_witness",
         "terrane_reexport_facade_witness::GeneratedValue::value")) },
-        1 /* terrane-site: src/main.trn:8:13-8:25 */))
+        1 /* terrane-site: src/main.trn:11:13-11:32 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-reexport-facade-witness.trn
 // Namespace: deps/terrane-reexport-facade-witness
-pub use terrane_reexport_facade_witness::GeneratedValue;
+pub use terrane_reexport_owner_witness::GeneratedValue as TerraneNs4Deps30TerraneReexportOwnerWitnessGeneratedValue;
+pub use terrane_reexport_facade_witness::GeneratedValue as TerraneNs4Deps31TerraneReexportFacadeWitnessGeneratedValue;
 pub fn terrane_static_trn_47656e65726174656456616c7565_standard() -> Result<
-    GeneratedValue,
+    TerraneNs4Deps31TerraneReexportFacadeWitnessGeneratedValue,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
@@ -519,3 +526,5 @@ pub fn terrane_static_trn_47656e65726174656456616c7565_standard() -> Result<
         }
     }
 }
+// Source: <terrane>/projected/deps/terrane-reexport-owner-witness.trn
+// Namespace: deps/terrane-reexport-owner-witness

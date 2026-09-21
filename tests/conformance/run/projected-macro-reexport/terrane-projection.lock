@@ -17,6 +17,24 @@
       ],
       "name": "terrane-reexport-facade-witness",
       "version": "0.1.0"
+    },
+    {
+      "members": [
+        [
+          "/deps/terrane-reexport-owner-witness",
+          "GeneratedValue"
+        ],
+        [
+          "/deps/terrane-reexport-owner-witness",
+          "GeneratedValue.value"
+        ],
+        [
+          "/deps/terrane-reexport-owner-witness",
+          "GeneratedValue::standard"
+        ]
+      ],
+      "name": "terrane-reexport-owner-witness",
+      "version": "0.1.0"
     }
   ],
   "format": 3,

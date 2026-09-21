@@ -9,5 +9,8 @@ function vector-length float32; x float32, y float32
 
 function accepts-generated-class; node Node2D
 
+function generated-position Vector2; node ref Node2D
+    return node.get_position;
+
 function main;
     length float = vector-length; 3.0, 4.0

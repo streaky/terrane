@@ -461,12 +461,17 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/app::vector-length"];
-    pub static SITES: [Site; 2] = [
+    pub static FUNCTIONS: [&str; 2] = [
+        "/app::vector-length",
+        "/app::generated-position",
+    ];
+    pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /app::vector-length (src/main.trn:7:16-7:34) */
         { Site { function: 0, file: 0, line: 7, column: 16, end_line: 7, end_column: 34 } },
         /* terrane-site-row: site 1: /app::vector-length (src/main.trn:8:12-8:28) */
         { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 28 } },
+        /* terrane-site-row: site 2: /app::generated-position (src/main.trn:13:12-13:30) */
+        { Site { function: 1, file: 0, line: 13, column: 12, end_line: 13, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]
@@ -508,6 +513,26 @@ fn vector_length(x: f32, y: f32) -> f32 {
 #[allow(dead_code)]
 fn accepts_generated_class(node: Node2D) {
     let _ = &node;
+}
+#[allow(dead_code)]
+fn generated_position(node: &Node2D) -> Vector2 {
+    return __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| node.get_position()),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "godot",
+                        "godot::classes::Node2D::get_position",
+                    ),
+                )
+            }
+        },
+        2 /* terrane-site: src/main.trn:13:12-13:30 */,
+    );
 }
 fn main() {
     let length: f64 = vector_length(3.0_f32, 4.0_f32) as f64;
