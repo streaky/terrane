@@ -2229,15 +2229,30 @@ inside one Rust expression and applies conversion, panic/error containment, and 
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
 `rust-dependency-chain-only` retains the independent formatting and concrete-adapter witnesses.
 
-The completed native-analysis extraction seam moves the shared Rustdoc decoder/public-path index,
-Cargo process policy, exact bound/call/impl/macro probes, probe cache, and containment into
-`terrane-rust-analysis`. The compiler retains graph resolution, Rustdoc generation, native
-declaration extraction, and every Terrane admission/lowering decision. The minimal standalone
-`terrane-rust-survey` currently consumes an already-generated Rustdoc artifact through that shared
-library. Resolved-package surveying, declaration/signature/discovery reports, the external fixture
-runner, and required/adversarial/popular/Godot corpus population remain open follow-up work rather
-than completed extraction evidence. The crate owns and exports the one pinned Rustdoc/probe
-toolchain constant, and a dependency-boundary test guards against compiler or CLI dependencies.
+The native-analysis extraction and resolved-graph survey are complete. The shared Rustdoc
+decoder/public-path index, Cargo process policy, exact bound/call/impl/macro probes, probe cache,
+and enforceable containment live in `terrane-rust-analysis`; Terrane admission and lowering remain
+compiler owned. Compiler projection and surveys share the format-57 JSON arguments and public-path
+index. Compiler projection requests public Rustdoc only; `terrane-rust-survey` additionally retains
+hidden definitions so public reexports from hidden modules keep their signatures. The index rejects
+direct `#[doc(hidden)]` bindings. Ordinary private modules that Rustdoc marks `is_stripped` remain
+valid implementation owners for visible glob reexports and do not trigger `definition_hidden`;
+only a declaration or canonical ancestor carrying `#[doc(hidden)]` does. Reports identify this
+survey policy as `public-bindings-with-hidden-definitions`. The survey reports portable
+package/source/checksum/feature identities and explicitly classified external-crate reexports, and
+compiles requested exact probes without executing package code. Semantic reports exclude timing
+telemetry.
+`tools/run-native-survey.py` materializes a versioned, containment-declared corpus profile and
+combines its native reports with a typed named-conformance outcome. Enforced profiles require
+Linux bubblewrap and never silently downgrade; when a dedicated runtime environment is unavailable,
+the runner still gathers offline native evidence and skips only the runtime fixture. The initial
+corpus contains required Markdown, SQLx and PDF profiles, separately classified Godot
+compile/runtime profiles that survey both `godot` and its `godot-core` reexport owner, one
+adversarial reexport/path-identity witness, and selected popular-package evidence. Remaining
+generic, lifetime, enum, callback, async and failure-boundary adversarial families and wider
+top20/top100/deep/domain selection remain dedicated-infrastructure expansion rather than ordinary
+compiler gates. A dependency-boundary test continues to guard the analysis crate against compiler
+or CLI dependencies.
 Projection schema 55 additionally admits open generic/lifetime state for expression-local roots
 and records the removal of trait-name-based borrowing from unspecialized projected parameters:
 `projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row

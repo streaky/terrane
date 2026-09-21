@@ -2113,23 +2113,21 @@ pub fn resolve(
             || dependency.package.clone(),
             |version| format!("{}@{version}", dependency.package),
         );
+        let mut rustdoc_args = vec![
+            "rustdoc",
+            "-p",
+            &package_spec,
+            "--lib",
+            "--target-dir",
+            "target/rustdoc-57",
+            "--offline",
+            "--frozen",
+            "--",
+        ];
+        rustdoc_args.extend_from_slice(terrane_rust_analysis::RUSTDOC_JSON_ARGS);
         run_cargo(
             &workspace,
-            &[
-                "rustdoc",
-                "-p",
-                &package_spec,
-                "--lib",
-                "--target-dir",
-                "target/rustdoc-57",
-                "--offline",
-                "--frozen",
-                "--",
-                "-Z",
-                "unstable-options",
-                "--output-format",
-                "json",
-            ],
+            &rustdoc_args,
             CargoToolchain::RustdocNightly,
             if sandbox == Containment::Enforced {
                 CargoExecution::Contained

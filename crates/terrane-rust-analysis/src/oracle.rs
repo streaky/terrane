@@ -419,7 +419,7 @@ fn call_batch_identity(
     Ok(format!("{:x}", hash.finalize()))
 }
 
-fn cargo_output(
+pub(crate) fn cargo_output(
     directory: &Path,
     arguments: &[&str],
     containment: Containment,
