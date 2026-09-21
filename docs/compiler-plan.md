@@ -2232,11 +2232,14 @@ at the owned terminal. Language-server projection details expose the non-escapin
 The native-analysis extraction and resolved-graph survey are complete. The shared Rustdoc
 decoder/public-path index, Cargo process policy, exact bound/call/impl/macro probes, probe cache,
 and enforceable containment live in `terrane-rust-analysis`; Terrane admission and lowering remain
-compiler owned. `terrane-rust-survey` resolves an offline/frozen target-filtered package closure,
-generates pinned format-57 Rustdoc with hidden definitions retained so public reexports from hidden
-modules keep their signatures, reports portable package/source/checksum/feature identities and
-explicitly classified external-crate reexports, and compiles requested exact probes without
-executing package code. Semantic reports exclude timing telemetry.
+compiler owned. Compiler projection and surveys share the format-57 JSON arguments and public-path
+index. Compiler projection requests public Rustdoc only; `terrane-rust-survey` additionally retains
+hidden definitions so public reexports from hidden modules keep their signatures. The index still
+rejects hidden bindings and stripped module surfaces, and survey declarations mark recovered
+entries with `definition_hidden` under the report's `public-bindings-with-hidden-definitions`
+policy. The survey reports portable package/source/checksum/feature identities and explicitly
+classified external-crate reexports, and compiles requested exact probes without executing package
+code. Semantic reports exclude timing telemetry.
 `tools/run-native-survey.py` materializes a versioned, containment-declared corpus profile and
 combines its native reports with a typed named-conformance outcome. Enforced profiles require
 Linux bubblewrap and never silently downgrade; when a dedicated runtime environment is unavailable,

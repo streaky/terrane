@@ -9,8 +9,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     AnalysisError, BUILD_TOOLCHAIN, BoundQuestion, CallProbeEvidence, CallQuestion, Containment,
-    ImplProbeEvidence, ImplQuestion, ProbeEvidence, ProjectionOracle, RUSTDOC_TOOLCHAIN,
-    configure_projection_cargo_command, parse_rustdoc, public_paths,
+    ImplProbeEvidence, ImplQuestion, ProbeEvidence, ProjectionOracle, RUSTDOC_JSON_ARGS,
+    RUSTDOC_TOOLCHAIN, configure_projection_cargo_command, hidden_public_definitions,
+    is_hidden_surface, parse_rustdoc, public_paths,
 };
 
 /// Exact native graph and public API evidence for one selected package.
@@ -26,6 +27,7 @@ pub struct SurveyReport {
     pub build_toolchain: String,
     pub rustdoc_format: u32,
     pub rustdoc_toolchain: String,
+    pub rustdoc_visibility_policy: String,
     pub containment: Containment,
     pub probe_execution: SurveyProbeExecution,
 }
@@ -48,6 +50,7 @@ pub struct SurveyPackage {
 pub struct SurveyDeclaration {
     pub public_path: String,
     pub canonical_path: Option<Vec<String>>,
+    pub definition_hidden: bool,
     pub kind: String,
     pub signature: serde_json::Value,
 }
@@ -234,7 +237,8 @@ pub fn survey_package_with_policy(
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated survey rustdoc"))?;
     let document = parse_rustdoc(&selected.name, &bytes, RUSTDOC_TOOLCHAIN)?;
     let paths = public_paths(&document);
-    let (declarations, discovery_failures) = declarations(&document, &paths)?;
+    let hidden_definitions = hidden_public_definitions(&document);
+    let (declarations, discovery_failures) = declarations(&document, &paths, &hidden_definitions)?;
     let public_paths = paths.into_values().collect::<Vec<_>>();
     let selected_identity = package_identity(selected);
     let oracle_identity = format!("survey-{selected_identity}-{target}");
@@ -260,6 +264,7 @@ pub fn survey_package_with_policy(
         build_toolchain: BUILD_TOOLCHAIN.to_owned(),
         rustdoc_format: document.format_version,
         rustdoc_toolchain: RUSTDOC_TOOLCHAIN.to_owned(),
+        rustdoc_visibility_policy: "public-bindings-with-hidden-definitions".to_owned(),
         containment,
         probe_execution: SurveyProbeExecution {
             status: if probes.bounds.is_empty()
@@ -291,9 +296,21 @@ pub fn survey_package_with_policy(
 fn declarations(
     document: &rustdoc_types::Crate,
     paths: &BTreeMap<rustdoc_types::Id, String>,
+    hidden_public_definitions: &BTreeSet<rustdoc_types::Id>,
 ) -> Result<(Vec<SurveyDeclaration>, Vec<SurveyDiscoveryFailure>), AnalysisError> {
     let mut declarations = Vec::new();
     let mut failures = Vec::new();
+    let hidden_paths = document
+        .paths
+        .iter()
+        .filter_map(|(id, summary)| {
+            document
+                .index
+                .get(id)
+                .filter(|item| is_hidden_surface(item))
+                .map(|_| &summary.path)
+        })
+        .collect::<Vec<_>>();
     for (id, public_path) in paths {
         let canonical = document.paths.get(id);
         let Some(item) = document.index.get(id) else {
@@ -319,6 +336,13 @@ fn declarations(
         declarations.push(SurveyDeclaration {
             public_path: public_path.clone(),
             canonical_path: canonical.map(|summary| summary.path.clone()),
+            definition_hidden: hidden_public_definitions.contains(id)
+                || is_hidden_surface(item)
+                || canonical.is_some_and(|summary| {
+                    hidden_paths
+                        .iter()
+                        .any(|hidden| summary.path.starts_with(hidden))
+                }),
             kind,
             signature,
         });
@@ -605,7 +629,7 @@ fn run_rustdoc(
     let spec = package_identity(package);
     let manifest = manifest.to_string_lossy();
     let target_directory = target_directory.to_string_lossy();
-    let arguments = [
+    let mut arguments = vec![
         "rustdoc",
         "-p",
         spec.as_str(),
@@ -619,12 +643,9 @@ fn run_rustdoc(
         "--target-dir",
         target_directory.as_ref(),
         "--",
-        "-Z",
-        "unstable-options",
-        "--output-format",
-        "json",
-        "--document-hidden-items",
     ];
+    arguments.extend_from_slice(RUSTDOC_JSON_ARGS);
+    arguments.push("--document-hidden-items");
     let output = cargo_output(workspace, &arguments, containment)?;
     if output.status.success() {
         Ok(())
@@ -959,7 +980,7 @@ mod tests {
             (local, "sample::Local".to_owned()),
             (external, "sample::External".to_owned()),
         ]);
-        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        let (declarations, failures) = declarations(&document, &paths, &BTreeSet::new()).unwrap();
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::Local");
         assert_eq!(failures.len(), 1);
@@ -1004,7 +1025,7 @@ mod tests {
             format_version: 57,
         };
         let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
-        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        let (declarations, failures) = declarations(&document, &paths, &BTreeSet::new()).unwrap();
         assert!(failures.is_empty());
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::reexported_at_root");
