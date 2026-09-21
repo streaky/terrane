@@ -1,0 +1,12 @@
+package = "projected-macro-reexport"
+
+[profile]
+name = "projected-macro-reexport"
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-reexport-facade-witness]
+version = "=0.1.0"
+effects = ["build"]
