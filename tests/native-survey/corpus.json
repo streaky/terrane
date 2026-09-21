@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "name": "markdown-associated-owner",
+      "fixture": "run/projected-associated-self-constructor",
+      "packages": [
+        {
+          "name": "markdown",
+          "version": "=1.0.0",
+          "probes": {
+            "bounds": [
+              {
+                "rust_type": "markdown::Options",
+                "rust_bound": "Clone",
+                "inferred_parameters": []
+              }
+            ],
+            "calls": [],
+            "implementations": []
+          }
+        },
+        {
+          "name": "terrane-owner-witness",
+          "version": "=0.1.0",
+          "path": "tests/conformance/run/projected-associated-self-constructor/fixture-registry/terrane-owner-witness-0.1.0"
+        }
+      ],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "required associated-owner and adversarial public-reexport evidence",
+      "selection": {
+        "kind": "required-and-adversarial",
+        "source": "M0 owner witness and public Markdown application",
+        "date": "2026-09-21",
+        "rank": null,
+        "seed": null,
+        "band": null,
+        "exclusions": []
+      }
+    },
+    {
+      "name": "sqlx-query-chain",
+      "fixture": "run/projected-sqlx-query-chain",
+      "packages": [
+        {"name": "sqlx-core", "version": "=0.8.6"},
+        {"name": "sqlx-sqlite", "version": "=0.8.6", "features": ["bundled"]}
+      ],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "required generic lifetime-bearing query-chain evidence",
+      "selection": {
+        "kind": "required",
+        "source": "M4 SQLx application",
+        "date": "2026-09-21",
+        "rank": null,
+        "seed": null,
+        "band": null,
+        "exclusions": ["streaming remains S1 scope"]
+      }
+    },
+    {
+      "name": "pdf-member-graph",
+      "fixture": "run/projected-pdf-html-bytes",
+      "packages": [{"name": "pdf_oxide", "version": "=0.3.78"}],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "required demand-limited foreign-member evidence",
+      "selection": {
+        "kind": "required",
+        "source": "M5 PDF application",
+        "date": "2026-09-21",
+        "rank": null,
+        "seed": null,
+        "band": null,
+        "exclusions": []
+      }
+    },
+    {
+      "name": "serde-json-popular",
+      "fixture": "run/projected-serde-json-result",
+      "packages": [{"name": "serde_json", "version": "=1.0.145"}],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "selected popular-package typed-result evidence",
+      "selection": {
+        "kind": "popular",
+        "source": "crates.io downloads snapshot",
+        "date": "2026-09-21",
+        "rank": 3,
+        "seed": null,
+        "band": "top20",
+        "exclusions": []
+      }
+    },
+    {
+      "name": "godot-generated-api-compile",
+      "fixture": "reject/godot-generated-api-projection-gap",
+      "packages": [{"name": "godot", "version": "=0.5.5", "default-features": true}],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "required prebuilt-API discovery and compile baseline before M7",
+      "status": "declined-pending-m7",
+      "selection": {
+        "kind": "required",
+        "source": "M7 pinned Godot profile",
+        "date": "2026-09-21",
+        "rank": null,
+        "seed": null,
+        "band": null,
+        "exclusions": ["api-custom", "api-custom-json", "host registration"]
+      }
+    },
+    {
+      "name": "godot-generated-api-runtime",
+      "fixture": "reject/godot-generated-api-projection-gap",
+      "packages": [{"name": "godot", "version": "=0.5.5", "default-features": true}],
+      "target": "x86_64-unknown-linux-gnu",
+      "rustdoc-toolchain": "nightly-2026-04-29",
+      "purpose": "required dedicated-runtime profile reserved for M7 acceptance",
+      "status": "environment-unavailable",
+      "required-environment": ["compatible pinned Godot engine", "native runtime inputs"],
+      "selection": {
+        "kind": "required-runtime",
+        "source": "M7 pinned Godot profile",
+        "date": "2026-09-21",
+        "rank": null,
+        "seed": null,
+        "band": null,
+        "exclusions": ["ordinary CI", "host registration"]
+      }
+    }
+  ],
+  "future-selections": {
+    "top20": {"status": "planned", "source": "crates.io downloads", "seed": null},
+    "top100": {"status": "planned", "source": "crates.io downloads", "seed": 20260921},
+    "deep": {"status": "planned", "source": "crates.io downloads", "seed": 20260922},
+    "domain": {"status": "planned", "source": "curated domain manifests", "seed": null}
+  }
+}

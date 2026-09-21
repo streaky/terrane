@@ -3,6 +3,7 @@
 //! Terrane language admission and lowering remain in `terrane-compiler`.
 mod cargo_toolchain;
 mod oracle;
+mod survey;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -10,6 +11,11 @@ use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, Visibility};
 
 pub use cargo_toolchain::{configure_cargo_command, configure_projection_cargo_command};
 pub use oracle::*;
+pub use survey::{
+    SurveyDeclaration, SurveyDiscoveryFailure, SurveyPackage, SurveyProbeExecution,
+    SurveyProbeRequest, SurveyReport, survey_package, survey_package_for_target,
+    survey_package_for_target_with_probes,
+};
 
 /// Nightly toolchain pinned to the Rustdoc JSON format and native probe cache identity.
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
