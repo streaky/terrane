@@ -206,7 +206,7 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.5 — Issues Found in Reference Manual Review etc
+### Milestone 30.5 — Issues Found in Reference Manual Review
 
 Resolve the implementation defects confirmed during the reference-record review.
 
