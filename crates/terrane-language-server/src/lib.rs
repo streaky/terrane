@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
@@ -420,12 +420,14 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
-        let Some(projection) = projection_for_uri(&uri).await else {
+        let Some(document) = self.documents.read().await.get(&uri).cloned() else {
             return Ok(None);
         };
-        let namespace = self.documents.read().await.get(&uri).and_then(|document| {
-            dependency_import_namespace(&document.text, params.text_document_position.position)
-        });
+        let Some(projection) = projection_for_uri(&uri, &document.text).await else {
+            return Ok(None);
+        };
+        let namespace =
+            dependency_import_namespace(&document.text, params.text_document_position.position);
         let Some(namespace) = namespace else {
             return Ok(None);
         };
@@ -486,7 +488,7 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
         if let Some(name) = word_at(&document.text, position)
             && let Some(namespace) = imported_dependency_namespace(&document.text, name)
-            && let Some(projection) = projection_for_uri(&uri).await
+            && let Some(projection) = projection_for_uri(&uri, &document.text).await
             && let Some(content) =
                 projected_hover_content(&projection, name, Some(namespace.as_str()))
         {
@@ -519,7 +521,7 @@ impl LanguageServer for Backend {
         ) else {
             return Ok(None);
         };
-        let Some(projection) = projection_for_uri(&uri).await else {
+        let Some(projection) = projection_for_uri(&uri, &document.text).await else {
             return Ok(None);
         };
         let namespace = imported_dependency_namespace(&document.text, name);
@@ -542,7 +544,7 @@ impl LanguageServer for Backend {
         ) else {
             return Ok(None);
         };
-        let Some(projection) = projection_for_uri(&uri).await else {
+        let Some(projection) = projection_for_uri(&uri, &document.text).await else {
             return Ok(None);
         };
         let namespace = imported_dependency_namespace(&document.text, name);
@@ -1297,7 +1299,12 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
 }
 
 type ProjectionStamp = Vec<(PathBuf, std::time::SystemTime)>;
-type CachedProjection = (ProjectionStamp, terrane_compiler::projection::Projection);
+type ProjectionDemands = BTreeSet<(String, String)>;
+type CachedProjection = (
+    ProjectionStamp,
+    ProjectionDemands,
+    terrane_compiler::projection::Projection,
+);
 
 static PROJECTIONS: LazyLock<Mutex<HashMap<PathBuf, CachedProjection>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -1309,38 +1316,60 @@ fn projection_stamp(paths: &[PathBuf]) -> Option<ProjectionStamp> {
         .collect()
 }
 
-async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Projection> {
+async fn projection_for_uri(
+    uri: &Uri,
+    document_text: &str,
+) -> Option<terrane_compiler::projection::Projection> {
     let path = uri.to_file_path()?.into_owned();
+    let document_text = document_text.to_owned();
     tokio::task::spawn_blocking(move || {
         let manifest = path
             .ancestors()
             .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
             .find(|candidate| candidate.is_file())?;
-        if let Some((stamp, projection)) = PROJECTIONS
+        let mut package = terrane_compiler::Package::load(&manifest).ok()?;
+        let canonical_path = path.canonicalize().unwrap_or_else(|_| path.clone());
+        let unit = package.units.iter_mut().find(|unit| {
+            unit.source
+                .path()
+                .canonicalize()
+                .unwrap_or_else(|_| unit.source.path().to_path_buf())
+                == canonical_path
+        })?;
+        unit.source = SourceFile::new(
+            unit.source.id(),
+            unit.source.path().to_path_buf(),
+            document_text,
+        );
+        let demands = terrane_compiler::semantics::dependency_projection_demands(&package).ok()?;
+        let mut stamp_paths = package.dependency_manifests.clone();
+        stamp_paths.extend(
+            package
+                .units
+                .iter()
+                .map(|unit| unit.source.path().to_path_buf()),
+        );
+        let stamp = projection_stamp(&stamp_paths)?;
+        if let Some((cached_stamp, cached_demands, projection)) = PROJECTIONS
             .lock()
             .expect("projection cache lock is not poisoned")
             .get(&manifest)
             .cloned()
-            && projection_stamp(
-                &stamp
-                    .iter()
-                    .map(|(path, _)| path.clone())
-                    .collect::<Vec<_>>(),
-            )
-            .as_ref()
-                == Some(&stamp)
+            && cached_stamp == stamp
+            && cached_demands == demands
         {
             return Some(projection);
         }
-        let package = terrane_compiler::Package::load(&manifest).ok()?;
-        let stamp = projection_stamp(&package.dependency_manifests)?;
-        let projection =
-            terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies, None)
-                .ok()?;
+        let projection = terrane_compiler::projection::resolve(
+            &package.root,
+            &package.rust_dependencies,
+            Some(&demands),
+        )
+        .ok()?;
         PROJECTIONS
             .lock()
             .expect("projection cache lock is not poisoned")
-            .insert(manifest, (stamp, projection.clone()));
+            .insert(manifest, (stamp, demands, projection.clone()));
         Some(projection)
     })
     .await

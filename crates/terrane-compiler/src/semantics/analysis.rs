@@ -235,15 +235,8 @@ pub(super) fn parse_unit(
     })
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "unit parsing applies projection removals and destination metadata atomically"
-)]
-pub(super) fn parse_units(
-    package: &Package,
-    projection: &crate::projection::Projection,
-) -> Result<Vec<SemanticUnit>, SemanticFailure> {
-    let mut units = package
+fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
+    package
         .units
         .iter()
         .map(|unit| {
@@ -256,7 +249,18 @@ pub(super) fn parse_units(
                 unit.role,
             )
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect()
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "unit projection applies removals and destination metadata atomically"
+)]
+fn augment_units_with_projection(
+    package: &Package,
+    projection: &crate::projection::Projection,
+    mut units: Vec<SemanticUnit>,
+) -> Result<Vec<SemanticUnit>, SemanticFailure> {
     let mut loaded = units
         .iter()
         .map(|unit| unit.namespace.clone())
@@ -497,24 +501,10 @@ fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), S
     Ok(())
 }
 
-pub(super) fn dependency_projection(
-    package: &Package,
-) -> Result<crate::projection::Projection, SemanticFailure> {
-    let units = package
-        .units
-        .iter()
-        .map(|unit| {
-            parse_unit(
-                &unit.source,
-                unit.relative_path_text(),
-                unit.expected_namespace.as_deref(),
-                unit.prelude,
-                false,
-                unit.role,
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let demands = units
+fn dependency_demands_from_units(
+    units: &[SemanticUnit],
+) -> Result<BTreeSet<(String, String)>, SemanticFailure> {
+    Ok(units
         .iter()
         .map(imports_in_tree)
         .collect::<Result<Vec<_>, _>>()?
@@ -522,8 +512,25 @@ pub(super) fn dependency_projection(
         .flatten()
         .filter(|import| import.target.starts_with("/deps/"))
         .map(|import| (import.target, import.object))
-        .collect::<BTreeSet<_>>();
-    crate::projection::resolve(&package.root, &package.rust_dependencies, Some(&demands)).map_err(
+        .collect())
+}
+
+/// Parses authored package units and returns the exact dependency imports that can demand
+/// generated or externally reexported projection fragments.
+///
+/// # Errors
+/// Returns the first source-oriented lexer, parser, or import discovery failure.
+pub fn dependency_projection_demands(
+    package: &Package,
+) -> Result<BTreeSet<(String, String)>, SemanticFailure> {
+    dependency_demands_from_units(&parse_authored_units(package)?)
+}
+
+fn dependency_projection(
+    package: &Package,
+    demands: &BTreeSet<(String, String)>,
+) -> Result<crate::projection::Projection, SemanticFailure> {
+    crate::projection::resolve(&package.root, &package.rust_dependencies, Some(demands)).map_err(
         |error| {
             failure(
                 &package.units[0].source,
@@ -544,19 +551,31 @@ pub(super) fn dependency_projection(
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
-    let projection = dependency_projection(package)?;
-    analyze_with_projection(package, projection)
+    let units = parse_authored_units(package)?;
+    let demands = dependency_demands_from_units(&units)?;
+    let projection = dependency_projection(package, &demands)?;
+    analyze_parsed_with_projection(package, projection, units)
+}
+
+#[cfg(test)]
+pub(super) fn analyze_with_projection(
+    package: &Package,
+    projection: crate::projection::Projection,
+) -> Result<SemanticPackage, SemanticFailure> {
+    let units = parse_authored_units(package)?;
+    analyze_parsed_with_projection(package, projection, units)
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "semantic phase orchestration remains linear and order-sensitive"
 )]
-pub(super) fn analyze_with_projection(
+fn analyze_parsed_with_projection(
     package: &Package,
     projection: crate::projection::Projection,
+    units: Vec<SemanticUnit>,
 ) -> Result<SemanticPackage, SemanticFailure> {
-    let mut units = parse_units(package, &projection)?;
+    let mut units = augment_units_with_projection(package, &projection, units)?;
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
             .dependencies

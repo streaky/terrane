@@ -2028,7 +2028,7 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
-    let (identity, target) = cache_identity(root, &workspace, dependencies, sandbox)?;
+    let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
         let mut cached =
@@ -2134,6 +2134,7 @@ pub fn resolve(
         &workspace,
         &rustdocs,
         &metadata,
+        &target,
         sandbox,
         demands,
         &mut reexport_declines,
@@ -2174,12 +2175,8 @@ pub fn resolve(
     }
     for reexport in &reexport_rustdocs {
         for provider in &reexport.providers {
-            let mut fragment_public_paths = declared_public_paths.clone();
-            // Fragment aliases override declared-owner paths only when the facade proves a public
-            // binding. Unmapped owner paths remain owner-rooted and are declined later by the
-            // ordinary transitive-reachability check instead of being rewritten to private
-            // facade paths.
-            fragment_public_paths.extend(provider.canonical_public_paths.clone());
+            let fragment_public_paths =
+                provider_fragment_public_paths(&declared_public_paths, provider);
             let mut fragment = project_rustdoc(
                 dependencies
                     .get(provider.dependency_index)
@@ -3998,7 +3995,7 @@ fn undeclared_owner_reason(owner: &str, versions: &BTreeMap<String, BTreeSet<Str
         |versions| versions.iter().cloned().collect::<Vec<_>>().join(", "),
     );
     format!(
-        "type is owned by undeclared crate `{}` at resolved version `{version}`; declare that crate with a unifying version to project its members",
+        "projected signature references unreachable crate `{}` at resolved version `{version}`; the defining trait or helper is not public through a declared dependency",
         owner.replace('_', "-")
     )
 }
@@ -4012,6 +4009,17 @@ struct ReexportProvider {
     dependency_index: usize,
     public_paths: BTreeMap<Id, String>,
     canonical_public_paths: BTreeMap<String, String>,
+}
+
+fn provider_fragment_public_paths(
+    declared_public_paths: &BTreeMap<String, String>,
+    provider: &ReexportProvider,
+) -> BTreeMap<String, String> {
+    let mut public_paths = declared_public_paths.clone();
+    // Provider aliases override declared-owner paths only inside this facade fragment. Unmapped
+    // owner paths remain owner-rooted and are declined by ordinary transitive reachability.
+    public_paths.extend(provider.canonical_public_paths.clone());
+    public_paths
 }
 
 struct ReexportRequest {
@@ -4068,6 +4076,59 @@ fn generate_rustdoc(
             message: error.message,
         }
     })
+}
+
+fn cached_owner_rustdoc(
+    workspace: &Path,
+    package_spec: &str,
+    crate_name: &str,
+    package_name: &str,
+    target: &str,
+    containment: Containment,
+) -> Result<RustdocCrate, ProjectionError> {
+    let mut hash = Sha256::new();
+    let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
+    for (label, value) in [
+        ("package-spec", package_spec),
+        ("crate-name", crate_name),
+        ("package-name", package_name),
+        ("hidden-items", "true"),
+        ("target", target),
+        ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN),
+        ("rustdoc-format", rustdoc_format.as_str()),
+    ] {
+        hash.update(label.len().to_le_bytes());
+        hash.update(label.as_bytes());
+        hash.update(value.len().to_le_bytes());
+        hash.update(value.as_bytes());
+    }
+    hash.update(format!("{containment:?}"));
+    let cache_path = workspace.join(format!("owner-rustdoc-{:x}.json", hash.finalize()));
+    if let Ok(bytes) = fs::read(&cache_path)
+        && let Ok(document) =
+            terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
+    {
+        return Ok(document);
+    }
+    let document = generate_rustdoc(
+        workspace,
+        package_spec,
+        crate_name,
+        package_name,
+        containment,
+        true,
+    )?;
+    let generated_path = workspace
+        .join("target/rustdoc-57/doc")
+        .join(format!("{crate_name}.json"));
+    let bytes = fs::read(&generated_path).map_err(|error| ProjectionError {
+        message: format!(
+            "cannot cache owner rustdoc `{}`: {error}",
+            generated_path.display()
+        ),
+    })?;
+    write_if_changed(&cache_path, &bytes)?;
+    Ok(document)
 }
 
 fn resolved_library_package(
@@ -4184,6 +4245,7 @@ fn external_reexport_rustdocs(
     workspace: &Path,
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
     metadata: &serde_json::Value,
+    target: &str,
     containment: Containment,
     demands: Option<&BTreeSet<(String, String)>>,
     declines: &mut [Vec<DeclinedItem>],
@@ -4285,13 +4347,13 @@ fn external_reexport_rustdocs(
     requests
         .into_iter()
         .map(|(crate_name, request)| {
-            let document = generate_rustdoc(
+            let document = cached_owner_rustdoc(
                 workspace,
                 &request.package_spec,
                 &crate_name,
                 &request.package_name,
+                target,
                 containment,
-                true,
             )?;
             let owner_public_paths = rustdoc_public_paths(&document);
             let mut provider_indices = request
@@ -8801,6 +8863,7 @@ fn cache_identity(
     root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
+    demands: Option<&BTreeSet<(String, String)>>,
     containment: Containment,
 ) -> Result<(String, String), ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
@@ -8818,6 +8881,7 @@ fn cache_identity(
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
+        ("source-demands", format!("{demands:?}").as_bytes()),
         ("build-toolchain", crate::BUILD_TOOLCHAIN.as_bytes()),
         ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN.as_bytes()),
         ("rustdoc-format", rustdoc_format.as_bytes()),
@@ -8973,14 +9037,44 @@ mod tests {
         ProjectedBoundDependency, ProjectedBoundaryCapabilities, ProjectedDependency,
         ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind, ProjectedParameter,
         ProjectedType, Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution,
-        ProjectionSource, Receiver, ResolutionOutcome, apply_namespace_overlays,
+        ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome, apply_namespace_overlays,
         apply_projection_history, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
         has_type_parameters, namespace_overlays_from_metadata, parse_rustdoc, project_type,
-        projectable_interface_bound, projection_content_hash, prune_projection_cache,
-        receiver_kind, resolve, resolved_library_package, rewrite_rust_bound_root, selected_target,
-        validate_projection_artifact,
+        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
+        prune_projection_cache, receiver_kind, resolve, resolved_library_package,
+        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
     };
+
+    #[test]
+    fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
+        let declared = BTreeMap::from([(
+            "std::io::error::Error".to_owned(),
+            "std::io::Error".to_owned(),
+        )]);
+        let facade = ReexportProvider {
+            dependency_index: 0,
+            public_paths: BTreeMap::new(),
+            canonical_public_paths: BTreeMap::from([(
+                "std::io::error::Error".to_owned(),
+                "facade::Error".to_owned(),
+            )]),
+        };
+        let unrelated = ReexportProvider {
+            dependency_index: 1,
+            public_paths: BTreeMap::new(),
+            canonical_public_paths: BTreeMap::new(),
+        };
+
+        assert_eq!(
+            provider_fragment_public_paths(&declared, &facade)["std::io::error::Error"],
+            "facade::Error"
+        );
+        assert_eq!(
+            provider_fragment_public_paths(&declared, &unrelated)["std::io::error::Error"],
+            "std::io::Error"
+        );
+    }
     use crate::RustDependency;
     use terrane_rust_analysis::prefer_public_path;
     fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
@@ -9838,7 +9932,7 @@ mod tests {
         assert!(
             undeclared[0].declined[0]
                 .reason
-                .contains("undeclared crate `http` at resolved version `1.3.1`")
+                .contains("references unreachable crate `http` at resolved version `1.3.1`")
         );
 
         let mut declared = vec![response_status()];
