@@ -1975,6 +1975,10 @@ fn decline_functions_with_missing_generic_interfaces(projected: &mut [ProjectedD
 /// # Errors
 /// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
 /// projection of the resolved metadata fails.
+///
+/// # Panics
+/// Panics only when internally derived reexport-provider indices no longer address the declared
+/// and projected dependency vectors built from the same resolved graph.
 #[expect(
     clippy::too_many_lines,
     reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
@@ -4278,6 +4282,10 @@ fn reexport_is_demanded(
     demands.contains(&(namespace, name.clone()))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass groups demanded facade aliases and prefixes, then materializes each owner"
+)]
 fn external_reexport_rustdocs(
     workspace: &Path,
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
