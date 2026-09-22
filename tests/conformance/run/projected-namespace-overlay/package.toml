@@ -1,0 +1,17 @@
+package = "projected-namespace-overlay"
+
+[profile]
+name = "projected-namespace-overlay"
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-overlay-target]
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-overlay-provider]
+version = "=0.1.0"
+features = ["target-overlay"]
+effects = ["build"]
