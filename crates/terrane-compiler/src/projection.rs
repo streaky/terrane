@@ -4129,6 +4129,7 @@ fn cached_owner_rustdoc(
         && let Ok(document) =
             terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
     {
+        mark_cache_record_used(&cache_path);
         return Ok(document);
     }
     let document = generate_rustdoc(
@@ -4150,6 +4151,17 @@ fn cached_owner_rustdoc(
     })?;
     write_if_changed(&cache_path, &bytes)?;
     Ok(document)
+}
+
+fn mark_cache_record_used(path: &Path) {
+    // Cache recency is best-effort: a usable owner document must not become a projection failure
+    // merely because its timestamp cannot be updated.
+    let _ = fs::OpenOptions::new()
+        .write(true)
+        .open(path)
+        .and_then(|file| {
+            file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()))
+        });
 }
 
 fn resolved_library_package(
@@ -9062,10 +9074,10 @@ mod tests {
         ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome, apply_namespace_overlays,
         apply_projection_history, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        external_reexport_rustdocs, has_type_parameters, namespace_overlays_from_metadata,
-        parse_rustdoc, project_type, projectable_interface_bound, projection_content_hash,
-        provider_fragment_public_paths, prune_projection_cache, receiver_kind, resolve,
-        resolved_library_package, rewrite_rust_bound_root, selected_target,
+        external_reexport_rustdocs, has_type_parameters, mark_cache_record_used,
+        namespace_overlays_from_metadata, parse_rustdoc, project_type, projectable_interface_bound,
+        projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
+        receiver_kind, resolve, resolved_library_package, rewrite_rust_bound_root, selected_target,
         validate_projection_artifact,
     };
 
@@ -10551,12 +10563,21 @@ mod tests {
                 b"previous",
             )
             .unwrap();
-            fs::write(
-                directory.join(format!("owner-rustdoc-previous-{index}.json")),
-                b"owner",
-            )
-            .unwrap();
+            let owner = directory.join(format!("owner-rustdoc-previous-{index}.json"));
+            fs::write(&owner, b"owner").unwrap();
+            fs::OpenOptions::new()
+                .write(true)
+                .open(owner)
+                .unwrap()
+                .set_times(
+                    fs::FileTimes::new().set_modified(
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(index),
+                    ),
+                )
+                .unwrap();
         }
+        let reused_owner = directory.join("owner-rustdoc-previous-0.json");
+        mark_cache_record_used(&reused_owner);
         fs::write(&unrelated, b"lock").unwrap();
 
         prune_projection_cache(&directory, &retained).unwrap();
@@ -10581,6 +10602,9 @@ mod tests {
             family_count("owner-rustdoc-"),
             super::MAX_PROJECTION_CACHE_RECORDS
         );
+        assert!(reused_owner.exists());
+        assert!(!directory.join("owner-rustdoc-previous-1.json").exists());
+        assert!(!directory.join("owner-rustdoc-previous-2.json").exists());
         assert!(retained.exists());
         assert!(unrelated.exists());
         fs::remove_dir_all(directory).unwrap();
