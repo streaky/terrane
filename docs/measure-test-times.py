@@ -59,8 +59,9 @@ def base_scoreboard() -> dict[str, Any]:
                 "compiler-owned nested case timings. Libtest durations are inferred from its "
                 "deterministic alphabetical queue and completion events. Dependency-free "
                 "generated-crate compilation has its own shared timing row instead of being "
-                "estimated per case; durations include small runner and output overhead and are "
-                "intended for relative development feedback."
+                "estimated per case. A successful workspace run prunes rows not observed in that "
+                "run; partial or failed runs preserve them. Durations include small runner and "
+                "output overhead and are intended for relative development feedback."
             ),
             "timing_mode": (
                 "cargo test with bounded --test-threads; scheduler-inferred active durations plus "
@@ -234,6 +235,9 @@ def command_text(command: list[str]) -> str:
     completed = subprocess.run(command, text=True, capture_output=True)
     return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
+def is_complete_workspace_run(command: list[str], exit_code: int) -> bool:
+    return exit_code == 0 and "--workspace" in command
+
 
 def update_scoreboard(
     data: dict[str, Any], measured: list[dict[str, Any]], command: list[str], elapsed: float, exit_code: int
@@ -244,10 +248,13 @@ def update_scoreboard(
     data["metadata"] = metadata
     measured_at = dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     replacing_aggregate = any(result.get("kind") == "nested" for result in measured)
+    measured_ids = {result["id"] for result in measured}
+    replace_all_tests = is_complete_workspace_run(command, exit_code)
     prior = {
         test["id"]: test
         for test in ([] if reset_history else data.get("tests", []))
         if isinstance(test, dict)
+        and (not replace_all_tests or test.get("id") in measured_ids)
         and not (
             replacing_aggregate
             and test.get("name") == "every_manifest_drives_a_conformance_case"
