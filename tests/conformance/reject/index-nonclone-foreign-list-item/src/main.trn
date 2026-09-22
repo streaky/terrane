@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-nonclone-list-witness import Row, rows
+
+function main;
+  values list of Row = rows;
+  first Row = values[0]
+  _ = first

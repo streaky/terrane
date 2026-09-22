@@ -302,6 +302,16 @@ pub(super) fn infer_value_type(
         let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
         let index_type = infer_value_type(unit, index, bindings)?;
         return match receiver_type {
+            Some(ValueType::List(item))
+                if value_type_contains_nonclone_foreign(unit, item.value_type_ref()) =>
+            {
+                Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "persistent list indexing cannot copy an item containing a non-Clone projected foreign value (`collections/consume-non-clone-foreign-items`)",
+                    receiver.span,
+                ))
+            }
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
             Some(ValueType::StringList) => Ok(Some(ValueType::Scalar(ScalarType::String))),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {

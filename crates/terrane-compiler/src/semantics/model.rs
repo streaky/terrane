@@ -124,14 +124,51 @@ pub struct ReferenceProvenance {
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
+
+pub(super) fn value_type_contains_nonclone_foreign(
+    unit: &SemanticUnit,
+    value_type: &ValueType,
+) -> bool {
+    match value_type {
+        ValueType::Object(identity) => unit.nonclone_foreign_objects.contains(identity),
+        ValueType::Optional(inner) => value_type_contains_nonclone_foreign(unit, inner),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            value_type_contains_nonclone_foreign(unit, item.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_nonclone_foreign(unit, key.value_type_ref())
+                || value_type_contains_nonclone_foreign(unit, value.value_type_ref())
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn iterable_item_type(
     unit: &SemanticUnit,
     value_type: ValueType,
-) -> Result<ValueType, (&'static str, Option<Span>)> {
+) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
     if !matches!(value_type, ValueType::Object(_) | ValueType::Reference(_))
         && !descriptor_has_member(unit, &value_type, "iterator")
     {
-        return Err(("collection iteration requires an iterable value", None));
+        return Err((
+            "T0016",
+            "collection iteration requires an iterable value",
+            None,
+        ));
     }
     match value_type {
         ValueType::Scalar(ScalarType::String)
@@ -142,6 +179,15 @@ pub(super) fn iterable_item_type(
         ValueType::TextRangeList => Ok(ValueType::TextRange),
         ValueType::Scalar(ScalarType::Bytes) | ValueType::StringView(TextUnit::Bytes) => {
             Ok(ValueType::Scalar(ScalarType::Uint8))
+        }
+        ValueType::List(item)
+            if value_type_contains_nonclone_foreign(unit, item.value_type_ref()) =>
+        {
+            Err((
+                "T0135",
+                "persistent list iteration cannot consume an item containing a non-Clone projected foreign value (`collections/consume-non-clone-foreign-items`)",
+                None,
+            ))
         }
         ValueType::Iterator(item)
         | ValueType::List(item)
@@ -158,6 +204,7 @@ pub(super) fn iterable_item_type(
             let iterator =
                 super::member_inference::descriptor_protocol_method(unit, &identity, "iterator")
                     .ok_or((
+                        "T0016",
                         "source iterable must define a non-static `iterator` method",
                         None,
                     ))?;
@@ -167,6 +214,7 @@ pub(super) fn iterable_item_type(
                 || !iterator.parameters.is_empty()
             {
                 return Err((
+                    "T0016",
                     "source iterable `iterator` must be synchronous, non-throwing, non-mutating, and parameterless",
                     Some(iterator.span),
                 ));
@@ -180,11 +228,13 @@ pub(super) fn iterable_item_type(
                         "next",
                     )
                     .ok_or((
+                        "T0016",
                         "source iterator must define a non-static `next` method",
                         Some(iterator.span),
                     ))?;
                     if next.is_async || next.throws || !next.parameters.is_empty() {
                         return Err((
+                            "T0016",
                             "source iterator `next` must be synchronous, non-throwing, and parameterless",
                             Some(next.span),
                         ));
@@ -192,18 +242,24 @@ pub(super) fn iterable_item_type(
                     match next.return_type.as_ref() {
                         Some(ValueType::IterationStep(item)) => Ok(item.value_type()),
                         _ => Err((
+                            "T0016",
                             "source iterator `next` must return `iteration-step of T`",
                             Some(next.span),
                         )),
                     }
                 }
                 _ => Err((
+                    "T0016",
                     "source iterable `iterator` must return a built-in iterator or source iterator object",
                     Some(iterator.span),
                 )),
             }
         }
-        _ => Err(("collection iteration requires an iterable value", None)),
+        _ => Err((
+            "T0016",
+            "collection iteration requires an iterable value",
+            None,
+        )),
     }
 }
 
@@ -1359,6 +1415,7 @@ pub struct SemanticUnit {
     pub descriptors: Vec<DescriptorContract>,
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
+    pub(super) nonclone_foreign_objects: BTreeSet<ObjectIdentity>,
     pub(super) projected_interfaces_requiring_application: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,

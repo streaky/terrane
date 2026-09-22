@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0135"
+contains = "collections/consume-non-clone-foreign-items"

@@ -220,6 +220,7 @@ pub(super) fn parse_unit(
         descriptors: Vec::new(),
         builtin_descriptors: builtin_descriptor_contracts(),
         comparable_foreign_objects: BTreeSet::new(),
+        nonclone_foreign_objects: BTreeSet::new(),
         projected_interfaces_requiring_application: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),
@@ -576,6 +577,17 @@ fn analyze_parsed_with_projection(
     units: Vec<SemanticUnit>,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = augment_units_with_projection(package, &projection, units)?;
+    let nonclone_foreign_objects = projection
+        .dependencies
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter_map(|item| match &item.kind {
+            crate::projection::ProjectedKind::ForeignType {
+                cloneable: false, ..
+            } => Some(ObjectIdentity::new(&item.namespace, &item.name)),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
             .dependencies
@@ -593,6 +605,8 @@ fn analyze_parsed_with_projection(
             })
             .map(|item| ObjectIdentity::new(&item.namespace, &item.name))
             .collect();
+        unit.nonclone_foreign_objects
+            .clone_from(&nonclone_foreign_objects);
         unit.projected_interfaces_requiring_application = projection
             .dependencies
             .iter()

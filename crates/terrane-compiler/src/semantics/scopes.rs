@@ -823,15 +823,11 @@ pub(super) fn validate_flow_statement(
                             collection.span,
                         )
                     })?;
-                let item_type =
-                    iterable_item_type(unit, collection_type).map_err(|(message, span)| {
-                        failure(
-                            &unit.source,
-                            "T0016",
-                            message,
-                            span.unwrap_or(collection.span),
-                        )
-                    })?;
+                let item_type = iterable_item_type(unit, collection_type).map_err(
+                    |(code, message, span)| {
+                        failure(&unit.source, code, message, span.unwrap_or(collection.span))
+                    },
+                )?;
                 loop_bindings.extend(iteration_target_bindings(
                     unit,
                     target,
