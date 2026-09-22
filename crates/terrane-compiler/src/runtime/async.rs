@@ -28,3 +28,21 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
 )]
 async fn __terrane_wait_projected_cleanups() {}
+
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}

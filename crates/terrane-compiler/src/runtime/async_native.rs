@@ -245,6 +245,24 @@ async fn __terrane_wait_projected_cleanups() {
     }
 }
 
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}
+
 #[allow(
     dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"

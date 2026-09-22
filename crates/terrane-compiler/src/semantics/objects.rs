@@ -1742,7 +1742,12 @@ pub(super) fn infer_and_validate_invocation_modes(
                         .last()
                         .is_some_and(|target| tracked_receiver(unit, contract, target)) =>
             {
-                InvocationMode::Consuming
+                node.children
+                    .last()
+                    .and_then(|target| infer_value_type(unit, target, &unit.typed_bindings).ok())
+                    .is_some_and(|value_type| matches!(value_type, Some(ValueType::Optional(_))))
+                    .then_some(InvocationMode::Mutable)
+                    .unwrap_or(InvocationMode::Consuming)
             }
             SyntaxKind::CallExpression => call_mode(package, unit, contract, node),
             _ => InvocationMode::Shared,

@@ -477,7 +477,7 @@ pub(super) fn analyze_function_contract(
             thrown_types.push(declared_value_type(unit, type_node, aliases)?);
         }
     }
-    let is_async = node.children.iter().any(|child| {
+    let declared_async = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "async"
     });
     let is_static = node.children.iter().any(|child| {
@@ -488,6 +488,38 @@ pub(super) fn analyze_function_contract(
         "destruct" => Some(InvocationMode::Consuming),
         _ => None,
     });
+    let is_destructor = lifecycle_mode == Some(InvocationMode::Consuming)
+        && name_node.is_some_and(|name| node_text(&unit.source, name) == "destruct");
+    if is_destructor {
+        for qualifier in node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::DeclarationQualifier)
+        {
+            let qualifier_name = node_text(&unit.source, qualifier);
+            if qualifier_name != "consuming" {
+                return Err(failure(
+                    &unit.source,
+                    "T0136",
+                    format!(
+                        "`destruct` is implicitly consuming and cannot declare `{qualifier_name}`"
+                    ),
+                    qualifier.span,
+                ));
+            }
+        }
+    }
+    fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        node.children.iter().any(|child| {
+            (child.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, child).as_deref() == Some("await"))
+                || (!matches!(
+                    child.kind,
+                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+                ) && contains_direct_await(unit, child))
+        })
+    }
+    let is_async = declared_async || (is_destructor && contains_direct_await(unit, node));
     let written_invocation_mode = if node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier
             && node_text(&unit.source, child) == "consuming"

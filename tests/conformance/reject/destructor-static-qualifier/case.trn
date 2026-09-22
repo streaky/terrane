@@ -1,0 +1,5 @@
+namespace destructor-static-qualifier
+
+class resource
+    static function destruct;
+        return
