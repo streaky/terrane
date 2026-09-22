@@ -1742,6 +1742,9 @@ pub(super) fn infer_and_validate_invocation_modes(
                         .last()
                         .is_some_and(|target| tracked_receiver(unit, contract, target)) =>
             {
+                // Moving an optional receiver field is a `mem::take` operation:
+                // it leaves `none` behind, so an ordinary mutable close/reset
+                // method need not consume the enclosing object.
                 node.children
                     .last()
                     .and_then(|target| infer_value_type(unit, target, &unit.typed_bindings).ok())

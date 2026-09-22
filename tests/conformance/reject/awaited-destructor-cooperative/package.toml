@@ -1,0 +1,5 @@
+package = "awaited-destructor-cooperative"
+executor = "cooperative"
+
+[namespaces]
+app = "src"

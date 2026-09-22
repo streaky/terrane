@@ -1597,6 +1597,7 @@ impl<'a> Emitter<'a> {
             }
         } else {
             match contract.written_invocation_mode {
+                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
