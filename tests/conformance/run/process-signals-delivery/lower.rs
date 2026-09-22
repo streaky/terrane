@@ -716,9 +716,10 @@ impl ProcessSignalSubscription {
 }
 impl Drop for ProcessSignalSubscription {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
     }
 }
 pub fn process_signals(
@@ -1186,9 +1187,10 @@ impl Ticker {
 }
 impl Drop for Ticker {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
     }
 }
 #[derive(Clone)]

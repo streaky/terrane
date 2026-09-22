@@ -494,9 +494,10 @@ impl Marker {
 }
 impl Drop for Marker {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
     }
 }
 fn release_order() {
