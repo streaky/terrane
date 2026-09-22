@@ -20,6 +20,7 @@ pub use crate::RUSTDOC_TOOLCHAIN;
 const PROJECTION_SCHEMA: &str = "63";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
+const MAX_OWNER_RUSTDOC_CACHE_RECORDS: usize = 16;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
@@ -2646,12 +2647,14 @@ fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), Proje
         directory,
         "projection-",
         Some(retained),
+        MAX_PROJECTION_CACHE_RECORDS,
         "remove stale dependency projection",
     )?;
     prune_cache_family(
         directory,
         "owner-rustdoc-",
         None,
+        MAX_OWNER_RUSTDOC_CACHE_RECORDS,
         "remove stale owner rustdoc",
     )
 }
@@ -2660,6 +2663,7 @@ fn prune_cache_family(
     directory: &Path,
     prefix: &str,
     retained: Option<&Path>,
+    max_records: usize,
     removal_context: &'static str,
 ) -> Result<(), ProjectionError> {
     let entries = fs::read_dir(directory).map_err(io_error("read dependency projection cache"))?;
@@ -2686,7 +2690,7 @@ fn prune_cache_family(
     let retained_count = usize::from(retained.is_some());
     for (_, path) in previous
         .into_iter()
-        .skip(MAX_PROJECTION_CACHE_RECORDS.saturating_sub(retained_count))
+        .skip(max_records.saturating_sub(retained_count))
     {
         fs::remove_file(&path).map_err(io_error(removal_context))?;
     }
@@ -10557,7 +10561,7 @@ mod tests {
         let unrelated = directory.join("Cargo.lock");
         fs::create_dir_all(&directory).unwrap();
         fs::write(&retained, b"current").unwrap();
-        for index in 0..6 {
+        for index in 0..18 {
             fs::write(
                 directory.join(format!("projection-previous-{index}.json")),
                 b"previous",
@@ -10600,13 +10604,35 @@ mod tests {
         );
         assert_eq!(
             family_count("owner-rustdoc-"),
-            super::MAX_PROJECTION_CACHE_RECORDS
+            super::MAX_OWNER_RUSTDOC_CACHE_RECORDS
         );
         assert!(reused_owner.exists());
         assert!(!directory.join("owner-rustdoc-previous-1.json").exists());
         assert!(!directory.join("owner-rustdoc-previous-2.json").exists());
         assert!(retained.exists());
         assert!(unrelated.exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn five_owner_rustdoc_working_set_survives_pruning() {
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-owner-rustdoc-working-set-{}",
+            std::process::id()
+        ));
+        let retained = directory.join("projection-current.json");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(&retained, b"current").unwrap();
+        let owners = (0..5)
+            .map(|index| directory.join(format!("owner-rustdoc-{index}.json")))
+            .collect::<Vec<_>>();
+        for owner in &owners {
+            fs::write(owner, b"owner").unwrap();
+        }
+
+        prune_projection_cache(&directory, &retained).unwrap();
+
+        assert!(owners.iter().all(|owner| owner.exists()));
         fs::remove_dir_all(directory).unwrap();
     }
     #[test]
