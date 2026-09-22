@@ -1174,7 +1174,6 @@ fn usize_field(manifest: &str, name: &str) -> Option<usize> {
         .find_map(|line| line.strip_prefix(name)?.strip_prefix(" = ")?.parse().ok())
 }
 
-
 #[cfg(unix)]
 #[test]
 fn raw_argument_fixture_preserves_non_utf8_bytes() {
