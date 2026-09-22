@@ -1099,24 +1099,20 @@ value, and tooling marks the root as chain-only and non-escaping. The accepted S
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
 declined rather than being described as directly projected.
 
-For SQLx specifically, keep the representable upstream surface direct and layer only the missing
-operations through the shared adapter. Declare both the concrete upstream owner and the adapter:
+For SQLx specifically, applications declare the concrete upstream owners directly:
 
 ```toml
+[rust-dependencies.sqlx-core]
+version = "=0.8.6"
+effects = ["build", "filesystem", "threads"]
+
 [rust-dependencies.sqlx-sqlite]
-package = "sqlx-sqlite"
 version = "=0.8.6"
 features = ["bundled"]
-effects = ["build", "filesystem"]
-
-[rust-dependencies.terrane-integration-adapters]
-package = "terrane-integration-adapters"
-version = "=0.1.0"
-features = ["sqlx-sqlite"]
-effects = ["build", "filesystem"]
+effects = ["build", "filesystem", "threads"]
 ```
 
-`SqliteConnectOptions` and `SqliteConnection` project directly from `sqlx-sqlite`, while query
+`SqliteConnectOptions`, `SqliteConnection`, and `SqliteRow` project from `sqlx-sqlite`, while query
 construction projects from the application's explicit `sqlx-core` dependency. Query, bind,
 execute, fetch-all, fetch-one, row access, typed errors, and connection lifecycle are direct:
 
@@ -1133,11 +1129,10 @@ await (query; create_sql).execute; ref database
 await (close; move database)
 ```
 
-The adapter package's feature-gated namespace overlay contributes only `query_bytes`. That bridge
-consumes the non-`Clone` rows from a collected persistent list and converts each selected blob into
-ordinary Terrane bytes. It can be removed when S1 provides consuming collection or stream
-iteration. Exact projected Rust owners remain unchanged; the overlay only unifies the Terrane
-presentation namespace.
+No shared SQLx adapter feature remains. Applications can select, fetch, and convert rows through
+the projected operations. Consuming every non-`Clone` row from a collected persistent list remains
+a separate collection/stream limitation tracked by S1; it is not hidden behind an adapter-owned
+conversion.
 
 PDF construction and byte serialization also project directly. The importing package names only
 the operations it uses; unrelated member dependencies remain in the completion catalog but do not
@@ -1175,17 +1170,10 @@ results, health responses, WebSocket protocol policy, and server shutdown remain
 Namespace overlays are a generic Cargo-metadata facility available only to directly declared
 providers targeting another directly declared package. A declaration is active only with its named
 feature. Undeclared, self, ambiguous, empty, overlapping, and colliding overlays are rejected, and
-an adapter never shadows an upstream item. Overlay declarations participate in projection cache
-identity while exact Rust paths preserve provenance for tooling and diagnostics.
-
-All bridges live behind independent features in the one `terrane-integration-adapters` crate.
-`terrane_integration_adapters::registry` accounts separately for each limitation beside its
-implementation, with a stable ID, tracking key, dependency/version range, feature, and removal
-criterion. The accounting module is not part of the projected application surface, and the registry
-never dispatches projection or lowering. When generic projection admits an
-operation, its collision makes the stale
-adapter member explicit; remove that member and its ledger entry. Existing
-`from /deps/sqlx-sqlite` imports remain unchanged while their implementation becomes fully upstream.
+a provider never shadows an upstream item. Overlay declarations participate in projection cache
+identity while exact Rust paths preserve provenance for tooling and diagnostics. The former shared
+integration-adapter crate has been deleted; applications use projected upstream operations or an
+explicit package-local authored Rust module for a remaining host boundary.
 
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;

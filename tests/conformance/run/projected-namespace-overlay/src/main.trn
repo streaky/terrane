@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-overlay-target import upstream_value, overlay_value
+from /core/output import print
+
+function main;
+  print; (upstream_value;)
+  print; (overlay_value;)

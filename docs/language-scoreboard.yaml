@@ -1669,27 +1669,13 @@ features:
     paths:
     - manual/reference/records/internals/projection-namespace-overlays.yaml
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: Explicit feature-gated Cargo metadata may layer temporary adapter operations into a directly declared dependency namespace while preserving the real Rust owner and rejecting undeclared, transitive, ambiguous, or colliding overlays.
+  notes: Explicit feature-gated Cargo metadata may layer a directly declared provider module into
+    a directly declared dependency namespace while preserving the real Rust owner and rejecting
+    undeclared, transitive, ambiguous, or colliding overlays.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 30.3
-  - tests/conformance/check/integration-adapter-sqlx-sqlite/case.toml
-- id: temporary-integration-adapters
-  name: Temporary direct-first integration adapters
-  category: interop
-  status: done
-  completion: 100
-  milestone: '30.3'
-  reference:
-    state: documented
-    paths:
-    - manual/reference/records/internals/integration-adapters.yaml
-    - manual/reference/records/packages/rust-dependencies.yaml
-  notes: One independently feature-gated adapter crate supplies only presently unprojectable dependency operations, records each gap and removal criterion in its Rust-side registry, and shrinks through ordinary namespace collisions as projection improves.
-  sources:
-  - docs/compiler-plan.md#Milestone 30.3
-  - crates/terrane-integration-adapters/src/registry.rs
-  - tests/conformance/run/projected-websocket-protocol/case.toml
+  - tests/conformance/run/projected-namespace-overlay/case.toml
 - id: projected-interface-conformance
   name: Projected Rust trait conformance
   category: interop

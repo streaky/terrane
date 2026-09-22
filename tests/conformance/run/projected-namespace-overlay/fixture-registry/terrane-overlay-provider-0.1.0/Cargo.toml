@@ -1,0 +1,17 @@
+[package]
+name = "terrane-overlay-provider"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+default = []
+target-overlay = []
+
+[[package.metadata.terrane.namespace-overlays]]
+module = "target_overlay"
+target-package = "terrane-overlay-target"
+feature = "target-overlay"
+
+[lib]
+path = "src/lib.rs"

@@ -1,0 +1,8 @@
+package = "consume-nonclone-foreign-list-iteration"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-nonclone-list-witness]
+version = "=0.1.0"
+effects = ["build"]

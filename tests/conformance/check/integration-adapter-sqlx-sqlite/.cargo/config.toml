@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-integration-adapters = { path = "fixture-registry/terrane-integration-adapters-0.1.0" }

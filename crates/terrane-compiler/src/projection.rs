@@ -1975,6 +1975,10 @@ fn decline_functions_with_missing_generic_interfaces(projected: &mut [ProjectedD
 /// # Errors
 /// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
 /// projection of the resolved metadata fails.
+///
+/// # Panics
+/// Panics only when internally derived reexport-provider indices no longer address the declared
+/// and projected dependency vectors built from the same resolved graph.
 #[expect(
     clippy::too_many_lines,
     reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
@@ -4278,6 +4282,10 @@ fn reexport_is_demanded(
     demands.contains(&(namespace, name.clone()))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass groups demanded facade aliases and prefixes, then materializes each owner"
+)]
 fn external_reexport_rustdocs(
     workspace: &Path,
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
@@ -9300,27 +9308,27 @@ mod tests {
     #[test]
     fn dependency_metadata_uses_resolved_default_features_and_renamed_packages_for_overlays() {
         let dependencies = [
-            dependency("db", "sqlx-sqlite", &[]),
-            dependency("bridges", "terrane-integration-adapters", &[]),
+            dependency("storage", "data-engine", &[]),
+            dependency("overlays", "integration-overlays", &[]),
         ];
         let metadata = serde_json::json!({
             "packages": [
                 {
-                    "id": "registry+sqlx-sqlite@1.0.0",
-                    "name": "sqlx-sqlite",
+                    "id": "registry+data-engine@1.0.0",
+                    "name": "data-engine",
                     "version": "1.0.0",
                     "metadata": {}
                 },
                 {
-                    "id": "path+terrane-integration-adapters@1.0.0",
-                    "name": "terrane-integration-adapters",
+                    "id": "path+integration-overlays@1.0.0",
+                    "name": "integration-overlays",
                     "version": "1.0.0",
                     "metadata": {
                         "terrane": {
                             "namespace-overlays": [{
-                                "module": "sqlx_sqlite",
-                                "target-package": "sqlx-sqlite",
-                                "feature": "sqlx-sqlite"
+                                "module": "data_engine",
+                                "target-package": "data-engine",
+                                "feature": "data-engine"
                             }]
                         }
                     }
@@ -9332,17 +9340,17 @@ mod tests {
                     {
                         "id": "path+root@0.1.0",
                         "deps": [
-                            {"name": "db", "pkg": "registry+sqlx-sqlite@1.0.0"},
-                            {"name": "bridges", "pkg": "path+terrane-integration-adapters@1.0.0"}
+                            {"name": "storage", "pkg": "registry+data-engine@1.0.0"},
+                            {"name": "overlays", "pkg": "path+integration-overlays@1.0.0"}
                         ]
                     },
                     {
-                        "id": "registry+sqlx-sqlite@1.0.0",
+                        "id": "registry+data-engine@1.0.0",
                         "features": []
                     },
                     {
-                        "id": "path+terrane-integration-adapters@1.0.0",
-                        "features": ["default", "sqlx-sqlite"]
+                        "id": "path+integration-overlays@1.0.0",
+                        "features": ["default", "data-engine"]
                     }
                 ]
             }
@@ -9350,10 +9358,10 @@ mod tests {
         assert_eq!(
             namespace_overlays_from_metadata(&metadata, &dependencies).unwrap(),
             [NamespaceOverlay {
-                provider_name: "bridges".to_owned(),
-                provider_package: "terrane-integration-adapters".to_owned(),
-                source_namespace: "/deps/bridges/sqlx-sqlite".to_owned(),
-                target_namespace: "/deps/db".to_owned(),
+                provider_name: "overlays".to_owned(),
+                provider_package: "integration-overlays".to_owned(),
+                source_namespace: "/deps/overlays/data-engine".to_owned(),
+                target_namespace: "/deps/storage".to_owned(),
             }]
         );
     }
