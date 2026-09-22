@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 import datetime as dt
-import platform
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -235,12 +236,36 @@ def command_text(command: list[str]) -> str:
     completed = subprocess.run(command, text=True, capture_output=True)
     return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
-def is_complete_workspace_run(command: list[str], exit_code: int) -> bool:
-    return exit_code == 0 and "--workspace" in command
+def is_complete_workspace_run(
+    command: list[str], exit_code: int, environment: Mapping[str, str]
+) -> bool:
+    if exit_code != 0 or environment.get("TERRANE_CONFORMANCE_FILTER", "").strip():
+        return False
+    try:
+        cargo_end = command.index("--")
+    except ValueError:
+        cargo_end = len(command)
+    cargo_args = command[2:cargo_end]
+    if "--workspace" not in cargo_args:
+        return False
+    long_selectors = ("--exclude", "--package")
+    return not any(
+        argument == selector or argument.startswith(f"{selector}=")
+        for argument in cargo_args
+        for selector in long_selectors
+    ) and not any(
+        argument == "-p" or (argument.startswith("-p") and not argument.startswith("--"))
+        for argument in cargo_args
+    )
 
 
 def update_scoreboard(
-    data: dict[str, Any], measured: list[dict[str, Any]], command: list[str], elapsed: float, exit_code: int
+    data: dict[str, Any],
+    measured: list[dict[str, Any]],
+    command: list[str],
+    elapsed: float,
+    exit_code: int,
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     metadata = base_scoreboard()["metadata"]
     previous_mode = data.get("metadata", {}).get("timing_mode")
@@ -249,7 +274,7 @@ def update_scoreboard(
     measured_at = dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     replacing_aggregate = any(result.get("kind") == "nested" for result in measured)
     measured_ids = {result["id"] for result in measured}
-    replace_all_tests = is_complete_workspace_run(command, exit_code)
+    replace_all_tests = is_complete_workspace_run(command, exit_code, environment or os.environ)
     prior = {
         test["id"]: test
         for test in ([] if reset_history else data.get("tests", []))
