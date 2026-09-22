@@ -4,7 +4,6 @@ members = [
     "crates/terrane-compiler",
     "crates/terrane-rust-analysis",
     "crates/terrane-int-support",
-    "crates/terrane-integration-adapters",
     "crates/terrane-collection-support",
     "crates/terrane-scalar-support",
     "crates/terrane-language-server",
