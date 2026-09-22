@@ -2,9 +2,9 @@
 """Survey and exercise one named public native-integration profile.
 
 Profiles that declare enforced containment require Linux bubblewrap (`bwrap`);
-the runner never silently downgrades them to an uncontained process. A profile
-whose dedicated runtime environment is unavailable still produces runnable
-offline native-survey evidence and skips only its conformance/runtime fixture.
+the runner never silently downgrades them to an uncontained process. Dedicated
+runtime profiles still run their offline survey, conformance, and application
+compile gates when the named host runtime is unavailable.
 """
 
 from __future__ import annotations
@@ -177,26 +177,123 @@ def run_fixture(profile: dict) -> dict:
         outcome = "admitted-and-ran"
     else:
         outcome = "admitted"
-    result = {
+    return {
         "fixture": profile["fixture"],
         "phase": case["phase"],
         "expected-status": case["status"],
-        "outcome": profile.get("status", outcome),
-        "fixture-outcome": outcome,
+        "profile-status": profile.get("status"),
+        "outcome": outcome,
         "exit-code": completed.returncode,
     }
-    return result
 
 
-def unavailable_environment(profile: dict) -> dict | None:
-    if profile.get("status") != "environment-unavailable":
+def build_application(profile: dict) -> dict | None:
+    application = profile.get("application")
+    if application is None:
         return None
+    application_path = ROOT / application
+    if not application_path.is_dir():
+        return {
+            "application": application,
+            "classification": "environment-unavailable",
+            "outcome": "environment-unavailable",
+            "error-markers": [f"application-checkout-unavailable: {application_path}"],
+            "exit-code": None,
+        }
+    completed = subprocess.run(
+        ["cargo", "run", "--package", "terrane-cli", "--", "build", application],
+        cwd=ROOT,
+        check=False,
+    )
     return {
-        "fixture": profile["fixture"],
-        "outcome": "environment-unavailable",
-        "fixture-outcome": "not-attempted",
-        "required-environment": profile.get("required-environment", []),
-        "exit-code": None,
+        "application": application,
+        "outcome": "compiled" if completed.returncode == 0 else "failed",
+        "exit-code": completed.returncode,
+    }
+
+
+def run_runtime(profile: dict) -> dict | None:
+    runtime = profile.get("runtime")
+    if runtime is None:
+        return None
+    executable = next(
+        (
+            resolved
+            for candidate in runtime["executables"]
+            if (resolved := shutil.which(candidate)) is not None
+        ),
+        None,
+    )
+    if executable is None:
+        return {
+            "classification": "environment-unavailable",
+            "outcome": "environment-unavailable",
+            "required-environment": profile.get("required-environment", []),
+            "exit-code": None,
+        }
+    version_output = subprocess.run(
+        [executable, "--version"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    ).stdout
+    version = next((line.strip() for line in version_output.splitlines() if line.strip()), "")
+    if not version.startswith(runtime["version-prefix"]):
+        return {
+            "executable": executable,
+            "classification": "environment-unavailable",
+            "version": version,
+            "outcome": "environment-unavailable",
+            "required-environment": profile.get("required-environment", []),
+            "exit-code": None,
+        }
+
+
+    application = ROOT / profile["application"]
+    extension_build = subprocess.run(
+        [str(application / "build-extension.sh")],
+        cwd=application,
+        check=False,
+    )
+    if extension_build.returncode != 0:
+        return {
+            "executable": executable,
+            "outcome": "application-build-failed",
+            "exit-code": extension_build.returncode,
+        }
+    try:
+        completed = subprocess.run(
+            [executable, *runtime["arguments"]],
+            cwd=application,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=runtime.get("timeout-seconds", 180),
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "executable": executable,
+            "outcome": "timed-out",
+            "exit-code": 124,
+            "error-markers": [],
+        }
+    # Godot can exit zero after extension-load or script failures. Treat its stable diagnostic
+    # prefixes as runtime failures and retain matching lines as reviewable evidence.
+    error_markers = [
+        line
+        for line in completed.stdout.splitlines()
+        if "ERROR:" in line or "SCRIPT ERROR:" in line
+    ]
+    succeeded = completed.returncode == 0 and not error_markers
+    return {
+        "executable": executable,
+        "version": version,
+        "outcome": "ran" if succeeded else "failed",
+        "exit-code": completed.returncode if succeeded else completed.returncode or 1,
+        "error-markers": error_markers,
+        "error-marker-contract": ["ERROR:", "SCRIPT ERROR:"],
     }
 
 
@@ -209,20 +306,39 @@ def main() -> int:
         profile = load_profile(arguments.profile)
         manifest = materialize_profile(profile)
         surveys = run_surveys(profile, manifest)
-        compiler = unavailable_environment(profile) or run_fixture(profile)
-    except (argparse.ArgumentTypeError, subprocess.CalledProcessError, OSError, ValueError) as error:
+        compiler = run_fixture(profile)
+        application = build_application(profile)
+        runtime = run_runtime(profile) if application is None or application["exit-code"] == 0 else None
+    except (
+        argparse.ArgumentTypeError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        OSError,
+        ValueError,
+    ) as error:
         parser.error(str(error))
     report = {
-        "schema": 1,
+        "schema": 2,
         "profile": profile,
         "native-surveys": surveys,
         "compiler-application": compiler,
+        "shippable-application": application,
+        "runtime": runtime,
     }
     report_path = arguments.report or WORK_ROOT / "reports" / f"{profile['name']}.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print(report_path.relative_to(ROOT))
-    return 0 if compiler["exit-code"] in {0, None} else compiler["exit-code"]
+    try:
+        displayed_report_path = report_path.relative_to(ROOT)
+    except ValueError:
+        displayed_report_path = report_path.resolve()
+    print(displayed_report_path)
+    exit_codes = [
+        result["exit-code"]
+        for result in (compiler, application, runtime)
+        if result is not None and result["exit-code"] is not None
+    ]
+    return next((code for code in exit_codes if code != 0), 0)
 
 
 if __name__ == "__main__":

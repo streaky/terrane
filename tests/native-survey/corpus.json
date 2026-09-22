@@ -102,7 +102,7 @@
     },
     {
       "name": "godot-generated-api-compile",
-      "fixture": "reject/godot-generated-api-projection-gap",
+      "fixture": "check/godot-generated-api-projection",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
@@ -110,8 +110,9 @@
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",
-      "purpose": "required prebuilt-API discovery and compile baseline before M7",
-      "status": "declined-pending-m7",
+      "purpose": "required generated/reexported API discovery plus shippable application compilation",
+      "status": "admitted",
+      "application": "projects/godot-test",
       "selection": {
         "kind": "required",
         "source": "M7 pinned Godot profile",
@@ -119,12 +120,12 @@
         "rank": null,
         "seed": null,
         "band": null,
-        "exclusions": ["api-custom", "api-custom-json", "host registration"]
+        "exclusions": ["api-custom", "api-custom-json", "host registration", "runtime execution"]
       }
     },
     {
       "name": "godot-generated-api-runtime",
-      "fixture": "reject/godot-generated-api-projection-gap",
+      "fixture": "check/godot-generated-api-projection",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
@@ -132,9 +133,16 @@
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",
-      "purpose": "required dedicated-runtime profile reserved for M7 acceptance",
-      "status": "environment-unavailable",
-      "required-environment": ["compatible pinned Godot engine", "native runtime inputs"],
+      "purpose": "required dedicated Godot runtime lane for generated/reexported APIs",
+      "status": "admitted-when-environment-available",
+      "application": "projects/godot-test",
+      "required-environment": ["Godot 4.7.2.stable runtime", "native runtime inputs"],
+      "runtime": {
+        "version-prefix": "4.7.2.stable",
+        "executables": ["godot", "godot4"],
+        "arguments": ["--headless", "--path", "godot", "--quit-after", "120"],
+        "timeout-seconds": 180
+      },
       "selection": {
         "kind": "required-runtime",
         "source": "M7 pinned Godot profile",
@@ -142,12 +150,12 @@
         "rank": null,
         "seed": null,
         "band": null,
-        "exclusions": ["ordinary CI", "host registration"]
+        "exclusions": ["ordinary CI"]
       }
     }
   ],
   "adversarial-families": {
-    "covered": ["public reexport", "path-package identity"],
+    "covered": ["public reexport", "external module reexport", "generated API", "path-package identity"],
     "pending": ["generic", "lifetime", "enum", "callback", "async", "failure boundary"]
   },
   "future-selections": {

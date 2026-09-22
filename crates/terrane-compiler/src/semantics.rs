@@ -67,7 +67,7 @@ mod prelude {
     pub(super) use super::types::*;
 }
 
-pub use analysis::analyze;
+pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
     binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
     descriptor_binding_is_materialized,

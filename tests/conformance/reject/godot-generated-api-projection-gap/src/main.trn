@@ -1,7 +1,0 @@
-namespace app
-
-from /deps/godot import Vector2, Node2D
-
-function main;
-    position Vector2
-    node Node2D

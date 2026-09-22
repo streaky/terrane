@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-reexport-facade-witness import GeneratedValue
+from /deps/terrane-reexport-owner-witness import GeneratedValue as OwnerGeneratedValue
+from /core/output import print
+
+function accepts-direct-owner; value OwnerGeneratedValue
+
+function main;
+    facade-value = GeneratedValue::standard;
+    print; (facade-value.value;)

@@ -218,11 +218,26 @@ Deliver:
   boundary for mutable globals; and
 - exact escaping-throwable inference through `try`/`catch`/`finally`, so a `return` or `throw`
   in `finally` replaces the pending outcome on that path instead of retaining superseded
-  throwables in the callable's inferred contract.
+  throwables in the callable's inferred contract; and
+- an explicit lossy floating-point narrowing operation, provisionally spelled
+  `value.coerce.lossy; float32`, that is distinct from exact checked `.coerce` and integer-only
+  `.coerce.wrap`. The first admitted direction is `float64` to `float32`; it is infallible and
+  follows IEEE 754 round-to-nearest, ties-to-even behavior, preserves infinities and signed zero,
+  allows normal values to become subnormal or signed zero on underflow, and produces signed
+  infinity on finite overflow. NaN remains NaN, but source payload preservation is not part of the
+  portable Terrane contract. Constant folding and generated Rust must implement the same result;
+  the operation must not silently broaden into lossy integer conversion or a generic unchecked
+  cast.
 
 Add focused accepted and rejected conformance cases for each boundary: direct and mediated global
-cycles, plus `finally` replacement in callable effect compatibility and reflection. Update the
-manual provenance and scoreboard only after those cases demonstrate the implemented contract.
+cycles; `finally` replacement in callable effect compatibility and reflection; and floating-point
+narrowing covering exact values, adjacent representable values, halfway ties, normal-to-subnormal
+and underflow-to-zero transitions, finite overflow, infinities, NaN, and positive/negative zero.
+Reject unsupported source/destination kinds at semantic analysis rather than lowering. Migrate the
+Godot test project's render plan to narrow its `float64` coordinates and radii explicitly in
+Terrane, removing the three application-local Rust `as f32` casts while leaving GDExtension
+registration and host drawing calls in the authored Rust boundary. Update the manual provenance
+and scoreboard only after those cases demonstrate the implemented contract.
 
 ### Milestone 30.6 — Allocation and process-memory profiling in the unified profiler
 

@@ -1,0 +1,4 @@
+[patch.crates-io]
+terrane-reexport-facade-witness = { path = "fixture-registry/terrane-reexport-facade-witness-0.1.0" }
+terrane-reexport-owner-witness = { path = "fixture-registry/terrane-reexport-owner-witness-0.1.0" }
+terrane-generate-api-witness = { path = "fixture-registry/terrane-generate-api-witness-0.1.0" }

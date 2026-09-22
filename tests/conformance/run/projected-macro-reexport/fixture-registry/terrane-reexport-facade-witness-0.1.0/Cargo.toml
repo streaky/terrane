@@ -1,0 +1,7 @@
+[package]
+name = "terrane-reexport-facade-witness"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+terrane-reexport-owner-witness = "=0.1.0"

@@ -1,0 +1,7 @@
+[package]
+name = "terrane-reexport-owner-witness"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+terrane-generate-api-witness = "=0.1.0"
