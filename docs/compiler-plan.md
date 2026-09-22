@@ -4267,14 +4267,22 @@ helpers. The final `query_bytes` operation, its `sqlx-sqlite` feature, the regis
 adapter crate have been deleted. Namespace overlays remain a generic Cargo-metadata facility rather
 than a reason to keep a shared provider.
 
-Deleting the registry does not erase unresolved work. Consuming every non-`Clone` foreign item from
-a persistent collection remains tracked by S1 under
-`collections/consume-non-clone-foreign-items`. Mutually referential projected namespace sources
-remain tracked in this plan and the projection manual under
-`projection/mutually-referential-namespace-sources`. Godot's generated/reexported API gap
-`projection/godot-generated-reexport-surface` closed in the dedicated generated-API milestone, while
-GDExtension entrypoint and class registration remain tracked by milestone 30.5 and the Godot manual
-under `native-interop/rust-proc-macro-extension-entry`.
+Deleting the registry does not erase unresolved work:
+
+- `collections/consume-non-clone-foreign-items` affects SQLx 0.8.x and other projected foreign
+  resources. S1 closes it when consuming collection or stream iteration lets Terrane process every
+  non-`Clone` row returned by fetch-all without adapter-owned conversion. Until then, iteration and
+  indexing that would copy such an item decline as `T0135`.
+- `projection/mutually-referential-namespace-sources` affects every projected Rustdoc graph whose
+  demanded signatures form a namespace cycle. It closes when projected dependency declarations use
+  semantic descriptors or another representation that resolves mutually referential namespaces
+  without cyclic generated-source ordering.
+- `native-interop/rust-proc-macro-extension-entry` affects Godot 0.5.x GDExtension registration. It
+  closes when a generic native-extension contract can generate a `cdylib` entrypoint and registered
+  host class without a maintained Rust module. Milestone 30.5 and the Godot manual own that work.
+
+Godot's former `projection/godot-generated-reexport-surface` gap closed in the dedicated
+generated-API milestone.
 
 #### General variadic call contract
 

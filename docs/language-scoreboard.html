@@ -2269,11 +2269,11 @@
           "manual/reference/records/packages/rust-dependencies.yaml"
         ]
       },
-      "notes": "Explicit feature-gated Cargo metadata may layer temporary adapter operations into a directly declared dependency namespace while preserving the real Rust owner and rejecting undeclared, transitive, ambiguous, or colliding overlays.",
+      "notes": "Explicit feature-gated Cargo metadata may layer a directly declared provider module into a directly declared dependency namespace while preserving the real Rust owner and rejecting undeclared, transitive, ambiguous, or colliding overlays.",
       "sources": [
         "docs/language-spec-concise.md#DEPENDENCY PRINCIPLE",
         "docs/compiler-plan.md#Milestone 30.3",
-        "crates/terrane-compiler/src/projection.rs"
+        "tests/conformance/run/projected-namespace-overlay/case.toml"
       ]
     },
     {
