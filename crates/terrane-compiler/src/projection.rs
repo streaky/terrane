@@ -2642,6 +2642,26 @@ fn apply_projection_history(
 }
 
 fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
+    prune_cache_family(
+        directory,
+        "projection-",
+        Some(retained),
+        "remove stale dependency projection",
+    )?;
+    prune_cache_family(
+        directory,
+        "owner-rustdoc-",
+        None,
+        "remove stale owner rustdoc",
+    )
+}
+
+fn prune_cache_family(
+    directory: &Path,
+    prefix: &str,
+    retained: Option<&Path>,
+    removal_context: &'static str,
+) -> Result<(), ProjectionError> {
     let entries = fs::read_dir(directory).map_err(io_error("read dependency projection cache"))?;
     let mut previous = Vec::new();
     for entry in entries {
@@ -2650,8 +2670,8 @@ fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), Proje
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if path == retained
-            || !name.starts_with("projection-")
+        if retained.is_some_and(|retained| path == retained)
+            || !name.starts_with(prefix)
             || path.extension() != Some(std::ffi::OsStr::new("json"))
         {
             continue;
@@ -2663,11 +2683,12 @@ fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), Proje
         previous.push((modified, path));
     }
     previous.sort_by(|left, right| right.cmp(left));
+    let retained_count = usize::from(retained.is_some());
     for (_, path) in previous
         .into_iter()
-        .skip(MAX_PROJECTION_CACHE_RECORDS.saturating_sub(1))
+        .skip(MAX_PROJECTION_CACHE_RECORDS.saturating_sub(retained_count))
     {
-        fs::remove_file(&path).map_err(io_error("remove stale dependency projection"))?;
+        fs::remove_file(&path).map_err(io_error(removal_context))?;
     }
     Ok(())
 }
@@ -9027,8 +9048,9 @@ mod tests {
     use std::fs;
 
     use rustdoc_types::{
-        GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Id, ItemKind,
-        ItemSummary, Path as RustdocPath, TraitBoundModifier, Type,
+        Crate as RustdocCrate, ExternalCrate, GenericArg, GenericArgs, GenericBound,
+        GenericParamDef, GenericParamDefKind, Id, ItemKind, ItemSummary, Path as RustdocPath,
+        Target, TraitBoundModifier, Type,
     };
     use serde_json::json;
 
@@ -9040,10 +9062,11 @@ mod tests {
         ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome, apply_namespace_overlays,
         apply_projection_history, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        has_type_parameters, namespace_overlays_from_metadata, parse_rustdoc, project_type,
-        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
-        prune_projection_cache, receiver_kind, resolve, resolved_library_package,
-        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
+        external_reexport_rustdocs, has_type_parameters, namespace_overlays_from_metadata,
+        parse_rustdoc, project_type, projectable_interface_bound, projection_content_hash,
+        provider_fragment_public_paths, prune_projection_cache, receiver_kind, resolve,
+        resolved_library_package, rewrite_rust_bound_root, selected_target,
+        validate_projection_artifact,
     };
 
     #[test]
@@ -9074,6 +9097,73 @@ mod tests {
             provider_fragment_public_paths(&declared, &unrelated)["std::io::error::Error"],
             "std::io::Error"
         );
+    }
+
+    #[test]
+    fn builtin_owner_reexports_never_request_supplemental_rustdoc() {
+        let root = Id(0);
+        let external_error = Id(1);
+        let dependency = dependency("facade", "facade", &[]);
+        let document = RustdocCrate {
+            root,
+            crate_version: Some("1.0.0".to_owned()),
+            includes_private: false,
+            index: HashMap::new(),
+            paths: HashMap::from([
+                (
+                    root,
+                    ItemSummary {
+                        crate_id: 0,
+                        path: vec!["facade".to_owned()],
+                        kind: ItemKind::Module,
+                    },
+                ),
+                (
+                    external_error,
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["std".to_owned(), "io".to_owned(), "Error".to_owned()],
+                        kind: ItemKind::Struct,
+                    },
+                ),
+            ]),
+            external_crates: HashMap::from([(
+                1,
+                ExternalCrate {
+                    name: "std".to_owned(),
+                    html_root_url: None,
+                    path: std::path::PathBuf::from("/std.rlib"),
+                },
+            )]),
+            target: Target {
+                triple: "x86_64-unknown-linux-gnu".to_owned(),
+                target_features: Vec::new(),
+            },
+            format_version: rustdoc_types::FORMAT_VERSION,
+        };
+        let rustdocs = vec![(
+            &dependency,
+            document,
+            BTreeMap::from([(external_error, "facade::Error".to_owned())]),
+        )];
+        let mut declines = vec![Vec::new()];
+        let workspace =
+            std::env::temp_dir().join(format!("terrane-builtin-owner-{}", std::process::id()));
+
+        let supplemental = external_reexport_rustdocs(
+            &workspace,
+            &rustdocs,
+            &json!({"packages": []}),
+            "x86_64-unknown-linux-gnu",
+            Containment::Unavailable,
+            None,
+            &mut declines,
+        )
+        .unwrap();
+
+        assert!(supplemental.is_empty());
+        assert!(declines[0].is_empty());
+        assert!(!workspace.exists());
     }
     use crate::RustDependency;
     use terrane_rust_analysis::prefer_public_path;
@@ -10448,7 +10538,7 @@ mod tests {
     }
 
     #[test]
-    fn projection_cache_retains_a_bounded_history_and_unrelated_files() {
+    fn projection_cache_retains_bounded_families_and_unrelated_files() {
         let directory =
             std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
         let retained = directory.join("projection-current.json");
@@ -10461,22 +10551,36 @@ mod tests {
                 b"previous",
             )
             .unwrap();
+            fs::write(
+                directory.join(format!("owner-rustdoc-previous-{index}.json")),
+                b"owner",
+            )
+            .unwrap();
         }
         fs::write(&unrelated, b"lock").unwrap();
 
         prune_projection_cache(&directory, &retained).unwrap();
 
-        let projection_count = fs::read_dir(&directory)
-            .unwrap()
-            .filter_map(Result::ok)
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|name| name.starts_with("projection-"))
-            })
-            .count();
-        assert_eq!(projection_count, super::MAX_PROJECTION_CACHE_RECORDS);
+        let family_count = |prefix: &str| {
+            fs::read_dir(&directory)
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| {
+                    entry
+                        .file_name()
+                        .to_str()
+                        .is_some_and(|name| name.starts_with(prefix))
+                })
+                .count()
+        };
+        assert_eq!(
+            family_count("projection-"),
+            super::MAX_PROJECTION_CACHE_RECORDS
+        );
+        assert_eq!(
+            family_count("owner-rustdoc-"),
+            super::MAX_PROJECTION_CACHE_RECORDS
+        );
         assert!(retained.exists());
         assert!(unrelated.exists());
         fs::remove_dir_all(directory).unwrap();
