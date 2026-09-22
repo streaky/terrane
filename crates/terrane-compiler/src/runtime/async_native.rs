@@ -245,6 +245,28 @@ async fn __terrane_wait_projected_cleanups() {
     }
 }
 
+// An awaited destructor is complete only after this future completes. The future
+// may borrow the object currently being dropped, so it cannot be queued on a
+// reusable `'static` worker without a different ownership-lowering design.
+// Execute it on a scoped thread and join it to preserve destruction-point ordering.
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}
+
 #[allow(
     dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"

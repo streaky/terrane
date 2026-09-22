@@ -1263,34 +1263,53 @@ impl<'a> Emitter<'a> {
                     self.projected_interface_implementation(object, interface_identity);
                 }
                 if has_destructor {
+                    let destructors = object_destructor_chain(self.unit, object);
+                    let destructor_calls = std::iter::once(destructors.last().map_or_else(
+                        String::new,
+                        |destructor| {
+                            format!(
+                                "self.destruct(){}",
+                                if destructor.is_async { ".await" } else { "" }
+                            )
+                        },
+                    ))
+                    .chain(
+                        destructors
+                            .iter()
+                            .take(destructors.len().saturating_sub(1))
+                            .enumerate()
+                            .rev()
+                            .map(|(index, destructor)| {
+                                format!(
+                                    "self.terrane_destruct_{index}(){}",
+                                    if destructor.is_async { ".await" } else { "" }
+                                )
+                            }),
+                    )
+                    .collect::<Vec<_>>();
+                    let awaits_destruction =
+                        destructors.iter().any(|destructor| destructor.is_async);
                     self.line(&format!("impl Drop for {storage_type} {{"));
                     self.indent += 1;
                     self.line("fn drop(&mut self) {");
                     self.indent += 1;
-                    if object.resource_owning {
-                        self.line("self.destruct();");
-                        for index in (0..object_destructor_chain(self.unit, object)
-                            .len()
-                            .saturating_sub(1))
-                            .rev()
-                        {
-                            self.line(&format!("self.terrane_destruct_{index}();"));
-                        }
-                    } else {
+                    if !object.resource_owning {
                         self.line(
-                            "if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {",
+                            "if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 { return; }",
                         );
+                    }
+                    if awaits_destruction {
+                        self.line("__terrane_await_destructor(async {");
                         self.indent += 1;
-                        self.line("self.destruct();");
-                        for index in (0..object_destructor_chain(self.unit, object)
-                            .len()
-                            .saturating_sub(1))
-                            .rev()
-                        {
-                            self.line(&format!("self.terrane_destruct_{index}();"));
+                        for call in &destructor_calls {
+                            self.line(&format!("{call};"));
                         }
                         self.indent -= 1;
-                        self.line("}");
+                        self.line("});");
+                    } else {
+                        for call in &destructor_calls {
+                            self.line(&format!("{call};"));
+                        }
                     }
                     self.indent -= 1;
                     self.line("}");
@@ -1509,6 +1528,23 @@ impl<'a> Emitter<'a> {
         self.emit_function(node, None);
     }
 
+    fn moves_instance_field(&self, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::UnaryExpression
+            && self.unary_operator(node).as_deref() == Some("move")
+            && node.children.last().is_some_and(|operand| {
+                operand.kind == SyntaxKind::MemberExpression
+                    && operand.children.first().is_some_and(|receiver| {
+                        receiver.kind == SyntaxKind::Name && self.text(receiver) == "this"
+                    })
+            })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| self.moves_instance_field(child))
+    }
+
     pub(super) fn object_method(&mut self, node: &SyntaxNode) {
         let contract = self
             .unit
@@ -1517,9 +1553,14 @@ impl<'a> Emitter<'a> {
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
         let receiver = if contract.name == "destruct" {
-            "&mut self"
+            if contract.is_async {
+                "mut self: &mut Self"
+            } else {
+                "&mut self"
+            }
         } else {
             match contract.written_invocation_mode {
+                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
@@ -1549,9 +1590,14 @@ impl<'a> Emitter<'a> {
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
         let receiver = if contract.name == "destruct" {
-            "&mut self"
+            if contract.is_async {
+                "mut self: &mut Self"
+            } else {
+                "&mut self"
+            }
         } else {
             match contract.written_invocation_mode {
+                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
@@ -1627,6 +1673,9 @@ impl<'a> Emitter<'a> {
             && !self.package.function_is_referenced(contract.span)
         {
             self.line("#[allow(dead_code)]");
+        }
+        if contract.name == "destruct" && contract.is_async {
+            self.line("#[allow(unused_mut)]");
         }
         self.line_start();
         let name =

@@ -543,9 +543,10 @@ impl From<Base> for Named {
 }
 impl Drop for BaseStorage {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
     }
 }
 #[derive(Clone)]
@@ -602,10 +603,11 @@ impl From<Child> for Named {
 }
 impl Drop for Child {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
-            self.terrane_destruct_0();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
+        self.terrane_destruct_0();
     }
 }
 fn main() {

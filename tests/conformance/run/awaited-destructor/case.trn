@@ -1,0 +1,12 @@
+namespace awaited-destructor
+
+async function close-native;
+    print; 'closed'
+
+class resource
+    function destruct;
+        await close-native;
+
+async function main;
+    value = instance resource;
+    print; 'body'

@@ -69,9 +69,10 @@ impl From<Counter> for Readable {
 }
 impl Drop for Counter {
     fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
-            self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
         }
+        self.destruct();
     }
 }
 fn main() {

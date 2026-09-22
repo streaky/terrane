@@ -895,6 +895,22 @@ fn analyze_parsed_with_projection(
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    if semantic.execution_strategy == crate::execution::ExecutionStrategy::Local {
+        for unit in &semantic.units {
+            if let Some(destructor) = unit
+                .functions
+                .iter()
+                .find(|contract| contract.name == "destruct" && contract.is_async)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0137",
+                    "awaited destructors require the threaded executor",
+                    destructor.span,
+                ));
+            }
+        }
+    }
     validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;

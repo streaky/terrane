@@ -1676,6 +1676,7 @@ dependencies = [
  "terrane-int-support",
  "terrane-rust-analysis",
  "terrane-string-support",
+ "tokio",
  "toml",
  "ureq",
 ]

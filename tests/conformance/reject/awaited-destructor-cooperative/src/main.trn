@@ -1,0 +1,11 @@
+namespace app
+
+async function finalize;
+    return
+
+class resource
+    function destruct;
+        await finalize;
+
+async function main;
+    value = instance resource;

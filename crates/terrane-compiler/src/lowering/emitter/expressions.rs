@@ -250,6 +250,11 @@ impl Emitter<'_> {
                         storage
                     }
                 }
+                SyntaxKind::MemberExpression
+                    if matches!(self.value_type(operand), Some(ValueType::Optional(_))) =>
+                {
+                    format!("std::mem::take(&mut {})", self.expression(operand))
+                }
                 _ => self.expression(operand),
             };
         }
