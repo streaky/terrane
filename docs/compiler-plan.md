@@ -4247,40 +4247,34 @@ through one expression-local chain. A terminal executor operation closes that st
 Terrane collection or row destination provides contextual associated-output identity, and the exact
 emitted Rust call must compile. No SQLx package-name dispatch participates in this path.
 
-##### Temporary integration-adapter ledger
+##### Direct-first integration cutover
 
-Keep ecosystem-specific bridges out of generic projection and lowering. Every temporary bridge ships
-from the single feature-gated `terrane-integration-adapters` crate and is accounted for beside its
-implementation in `terrane_integration_adapters::registry`. A registry entry has a stable adapter ID
-and tracking key, the affected dependency/version range, the exact unsupported generic shape, its
-feature/package surface when bridged, and an objective removal criterion. Unbridged gaps belong in
-the same ledger so a bug-tracker issue can attach to the stable key before an implementation exists.
+Milestone 30.3 kept ecosystem-specific bridges out of generic projection and lowering by introducing
+one temporary, independently feature-gated `terrane-integration-adapters` crate. Its data-only
+registry gave every bridged or known unbridged gap a stable tracking key and objective removal
+criterion. Generic `package.metadata.terrane.namespace-overlays` let an enabled provider module
+appear beneath another directly declared dependency namespace while retaining the operation's real
+Rust owner. Undeclared, self, ambiguous, empty, overlapping, and colliding overlays were rejected,
+and overlay declarations participated in projection cache identity.
 
-The registry is data and accounting only. Keep it out of Terrane's projected application namespace,
-and never dispatch crate-specific projection, semantics, or lowering from it. Adapter modules are
-ordinary projected Rust dependency surfaces and remain
-independently feature-gated so selecting the crate does not pull unrelated ecosystems into the
-application graph. A generic `package.metadata.terrane.namespace-overlays` declaration attaches an
-enabled adapter module to another directly declared dependency namespace while retaining each
-item's actual Rust path and owning dependency. Reject undeclared, self, ambiguous, empty,
-overlapping, and colliding overlays rather than shadowing an upstream item. Overlay declarations
-participate in projection cache identity.
+Milestone 8 of the dependency-adaptation plan completed that temporary crate's cutover. Direct SQLx
+projection covers connection lifecycle, query construction, byte binding, execution, fetch-all,
+fetch-one, destination-selected row access, and typed errors. PDF construction and serialization,
+plus Axum routing, retained upgrade callbacks, canonical response identity, WebSocket messaging,
+listener binding, and `axum::serve` `IntoFuture` consumption, also project directly. Their
+applications and fixtures use upstream dependency operations without regenerated convenience
+helpers. The final `query_bytes` operation, its `sqlx-sqlite` feature, the registry, and the shared
+adapter crate have been deleted. Namespace overlays remain a generic Cargo-metadata facility rather
+than a reason to keep a shared provider.
 
-Tests require unique adapter IDs and tracking keys and account for every shipped adapter feature.
-Retire an operation when its upstream projection creates a collision and generic non-framework
-regression fixtures satisfy the ledger removal criterion. Removing the adapter operation preserves
-consumer `/deps/<crate>` imports; remove the module and ledger entries after the final gap closes.
-
-The remaining adapter feature is `sqlx-sqlite`. Direct SQLx projection covers connection
-lifecycle, query construction, byte binding, execution, fetch-all, fetch-one, and
-destination-selected row access. The adapter retains only `query_bytes` for consumers that must
-process every collected non-`Clone` row: Terrane's persistent list iteration cannot yet consume
-those rows. S1 owns that removal criterion.
-
-PDF construction/serialization and Axum routing, retained upgrade callbacks, canonical closed
-response identity, WebSocket messaging, listener binding, and `axum::serve` `IntoFuture`
-consumption now project directly. Their former adapter features and registry entries have been
-deleted.
+Deleting the registry does not erase unresolved work. Consuming every non-`Clone` foreign item from
+a persistent collection remains tracked by S1 under
+`collections/consume-non-clone-foreign-items`. Mutually referential projected namespace sources
+remain tracked in this plan and the projection manual under
+`projection/mutually-referential-namespace-sources`. Godot's generated/reexported API gap
+`projection/godot-generated-reexport-surface` closed in the dedicated generated-API milestone, while
+GDExtension entrypoint and class registration remain tracked by milestone 30.5 and the Godot manual
+under `native-interop/rust-proc-macro-extension-entry`.
 
 #### General variadic call contract
 
