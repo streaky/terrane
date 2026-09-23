@@ -1609,6 +1609,9 @@ pub(super) fn validate_initializer_dependencies(
         unit: &SemanticUnit,
         node: &SyntaxNode,
     ) -> Result<(), SemanticFailure> {
+        // A `global name = value` write is represented as a binding without a type annotation.
+        // Its self-read is a normal update, not an initializer dependency; untyped declaration
+        // self-references are still rejected by the top-level dependency graph below.
         if node.kind == SyntaxKind::Binding
             && let Some(initializer) = binding_initializer(node)
             && let Some(declaration) = declaration_from_syntax(unit, node)
