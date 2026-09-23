@@ -1949,7 +1949,9 @@ fn usage() -> String {
      terrane profile record (--cpu|--allocations|--memory-timeline) [--memory-timeline] \
      [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
      terrane profile show <file.trnprof> [--focus <source>:<line>] [--generated] [--native] \
-     [--format <text|json>] [--limit <count>] [--source-root <path>] [--build-root <path>]\n\
+     [--format <text|json>] [--limit <count>] [--compare <baseline.trnprof>] \
+     [--max-allocated-bytes <bytes>] [--max-retained-bytes <bytes>] \
+     [--source-root <path>] [--build-root <path>]\n\
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \

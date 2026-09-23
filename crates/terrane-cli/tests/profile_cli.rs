@@ -378,6 +378,40 @@ fn allocation_capture_separates_churn_from_retained_bytes() {
     assert_eq!(allocated, freed + retained);
     assert!(!allocations["partial"].as_bool().unwrap());
     assert!(evidence["memory_timeline"]["samples"].as_array().is_some());
+    let threshold = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args([
+            "profile",
+            "show",
+            "allocation.trnprof",
+            "--max-retained-bytes",
+            "0",
+        ])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert_eq!(threshold.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&threshold.stdout).contains("retained at exit"));
+
+    let comparison = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args([
+            "profile",
+            "show",
+            "allocation.trnprof",
+            "--compare",
+            "allocation.trnprof",
+            "--format",
+            "json",
+            "--limit",
+            "1",
+        ])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(comparison.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&comparison.stdout).unwrap();
+    assert_eq!(report["comparison"]["allocated_bytes_delta"], 0);
+    assert_eq!(report["comparison"]["retained_bytes_delta"], 0);
+    assert_eq!(report["allocations"]["events"].as_array().unwrap().len(), 1);
 }
 
 #[test]

@@ -1494,6 +1494,9 @@ struct ShowOptions {
     native: bool,
     source_root: Option<PathBuf>,
     build_root: Option<PathBuf>,
+    compare: Option<PathBuf>,
+    max_allocated_bytes: Option<u64>,
+    max_retained_bytes: Option<u64>,
 }
 
 pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
@@ -1594,6 +1597,10 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     Ok(ExitCode::SUCCESS)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "allocation text and JSON policy views share one accounting boundary"
+)]
 fn show_allocations(
     artifact: &ProfileArtifact,
     options: &ShowOptions,
@@ -1602,14 +1609,42 @@ fn show_allocations(
         .allocations
         .as_ref()
         .expect("validated allocation profile includes allocation evidence");
+    let comparison = options
+        .compare
+        .as_ref()
+        .map(|path| {
+            let baseline = read_artifact(path)?;
+            if baseline.evidence_kind != EvidenceKind::Allocations {
+                return Err(CliFailure::usage_with(
+                    "`--compare` requires an allocation profile baseline",
+                ));
+            }
+            let baseline = baseline
+                .allocations
+                .expect("validated allocation baseline includes allocation evidence");
+            Ok(serde_json::json!({
+                "baseline": path,
+                "allocated_bytes_delta": signed_delta(allocations.allocated_bytes, baseline.allocated_bytes),
+                "retained_bytes_delta": signed_delta(allocations.retained_bytes_at_exit, baseline.retained_bytes_at_exit),
+                "peak_live_bytes_delta": signed_delta(allocations.peak_live_bytes, baseline.peak_live_bytes),
+                "allocation_count_delta": signed_delta(allocations.allocation_count, baseline.allocation_count),
+            }))
+        })
+        .transpose()?;
+    let threshold_failed = options
+        .max_allocated_bytes
+        .is_some_and(|limit| allocations.allocated_bytes > limit)
+        || options
+            .max_retained_bytes
+            .is_some_and(|limit| allocations.retained_bytes_at_exit > limit);
     if options.format == "json" {
         let mut output = allocations.clone();
         let event_total = output.events.len();
         let site_total = output.sites.len();
         output.events.truncate(options.limit);
+        output.sites.truncate(options.limit);
         let (memory_timeline, memory_timeline_samples_total) =
             limited_timeline(artifact.memory_timeline.as_ref(), options.limit);
-        output.sites.truncate(options.limit);
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -1623,10 +1658,12 @@ fn show_allocations(
                 "allocation_sites_total": site_total,
                 "memory_timeline": memory_timeline,
                 "memory_timeline_samples_total": memory_timeline_samples_total,
+                "comparison": comparison,
+                "threshold_failed": threshold_failed,
             }))
             .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
         );
-        return Ok(ExitCode::SUCCESS);
+        return Ok(profile_policy_status(threshold_failed));
     }
     println!(
         "allocation traffic: {} allocations, {} allocated, {} freed",
@@ -1640,6 +1677,23 @@ fn show_allocations(
         format_bytes(allocations.retained_bytes_at_exit),
         format_bytes(allocations.peak_live_bytes)
     );
+    if let Some(comparison) = &comparison {
+        println!(
+            "comparison: allocated {:+} B; retained {:+} B; peak live {:+} B; allocations {:+}",
+            comparison["allocated_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["retained_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["peak_live_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["allocation_count_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+        );
+    }
     println!(
         "transition fidelity: {} ({} unmatched)",
         if allocations.partial {
@@ -1661,7 +1715,7 @@ fn show_allocations(
             format_bytes(site.peak_live_bytes)
         );
     }
-    Ok(ExitCode::SUCCESS)
+    Ok(profile_policy_status(threshold_failed))
 }
 fn limited_timeline(
     timeline: Option<&MemoryTimelineEvidence>,
@@ -1673,6 +1727,23 @@ fn limited_timeline(
         timeline.samples.truncate(limit);
     }
     (output, total)
+}
+
+fn signed_delta(current: u64, baseline: u64) -> i64 {
+    let delta = i128::from(current) - i128::from(baseline);
+    i64::try_from(delta).unwrap_or(if delta.is_negative() {
+        i64::MIN
+    } else {
+        i64::MAX
+    })
+}
+
+fn profile_policy_status(failed: bool) -> ExitCode {
+    if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 fn show_memory_timeline(
@@ -1765,6 +1836,10 @@ fn validate_captured_modules(
     report.native_fidelity_reasons.dedup();
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "show options are parsed in one strict command-line grammar"
+)]
 fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
     let path = arguments
         .get(2)
@@ -1779,6 +1854,9 @@ fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
         native: false,
         source_root: None,
         build_root: None,
+        compare: None,
+        max_allocated_bytes: None,
+        max_retained_bytes: None,
     };
     let mut index = 3;
     while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
@@ -1830,6 +1908,35 @@ fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
                     arguments
                         .get(index)
                         .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--compare" => {
+                index += 1;
+                options.compare = Some(
+                    arguments
+                        .get(index)
+                        .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--max-allocated-bytes" => {
+                index += 1;
+                options.max_allocated_bytes = Some(
+                    arguments
+                        .get(index)
+                        .and_then(|value| value.to_str())
+                        .and_then(|value| value.parse().ok())
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--max-retained-bytes" => {
+                index += 1;
+                options.max_retained_bytes = Some(
+                    arguments
+                        .get(index)
+                        .and_then(|value| value.to_str())
+                        .and_then(|value| value.parse().ok())
                         .ok_or_else(CliFailure::usage)?,
                 );
             }
@@ -2404,5 +2511,26 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         assert!(!traffic.partial);
         assert_eq!(traffic.events[0].freed_at, Some(0x14));
         assert_eq!(traffic.events[2].freed_at, None);
+    }
+
+    #[test]
+    fn show_parser_accepts_allocation_comparison_and_thresholds() {
+        let options = parse_show(&[
+            "profile".into(),
+            "show".into(),
+            "current.trnprof".into(),
+            "--compare".into(),
+            "baseline.trnprof".into(),
+            "--max-allocated-bytes".into(),
+            "4096".into(),
+            "--max-retained-bytes".into(),
+            "1024".into(),
+        ])
+        .unwrap();
+        assert_eq!(options.compare, Some(PathBuf::from("baseline.trnprof")));
+        assert_eq!(options.max_allocated_bytes, Some(4_096));
+        assert_eq!(options.max_retained_bytes, Some(1_024));
+        assert_eq!(profile_policy_status(false), ExitCode::SUCCESS);
+        assert_eq!(profile_policy_status(true), ExitCode::from(1));
     }
 }
