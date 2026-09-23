@@ -11,10 +11,11 @@ use std::time::{Duration, Instant};
 
 use terrane_compiler::debugging::DebugInformation;
 use terrane_compiler::profiling::{
-    ATTRIBUTION_SCHEMA_VERSION, ArgumentPolicy, CapturedModule, CollectionConditions,
-    CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, Disclosure, EvidenceKind,
-    EvidenceUnit, MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame,
-    NativeSourceLocation, PrivacyDeclaration, ProfileArtifact, SCHEMA_VERSION,
+    ATTRIBUTION_SCHEMA_VERSION, AllocationEvent, AllocationEvidence, AllocationSite,
+    ArgumentPolicy, CapturedModule, CollectionConditions, CollectionLoss, CollectorIdentity,
+    CpuEvidence, CpuSample, DEFAULT_MEMORY_INTERVAL, Disclosure, EvidenceKind, EvidenceUnit,
+    MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, MemoryTimelineEvidence, NativeFrame,
+    NativeSourceLocation, PrivacyDeclaration, ProcessMemorySample, ProfileArtifact, SCHEMA_VERSION,
 };
 use terrane_compiler::provenance::{BuildIdentity, BuildProvenance, hash_bytes};
 
@@ -23,12 +24,19 @@ use super::CliFailure;
 const DEFAULT_FREQUENCY_HZ: u32 = 999;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "privacy and auxiliary capture switches are independent"
+)]
 pub(super) struct RecordOptions {
     pub input: PathBuf,
     pub output: PathBuf,
     pub program_arguments: Vec<OsString>,
     pub retain_arguments: bool,
     pub embed_sources: bool,
+    pub capture_cpu: bool,
+    pub capture_memory_timeline: bool,
+    pub capture_allocations: bool,
 }
 
 pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliFailure> {
@@ -39,12 +47,16 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
     }
     let mut index = 2;
     let mut cpu = false;
+    let mut memory_timeline = false;
+    let mut allocations = false;
     let mut output = None;
     let mut retain_arguments = false;
     let mut embed_sources = false;
     while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
         match argument {
             "--cpu" => cpu = true,
+            "--memory-timeline" => memory_timeline = true,
+            "--allocations" => allocations = true,
             "--retain-arguments" => retain_arguments = true,
             "--embed-sources" => embed_sources = true,
             "-o" | "--output" if output.is_none() => {
@@ -65,9 +77,14 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
         }
         index += 1;
     }
-    if !cpu {
+    if !cpu && !allocations && !memory_timeline {
         return Err(CliFailure::usage_with(
-            "`terrane profile record` currently requires `--cpu`",
+            "`terrane profile record` requires `--cpu`, `--allocations`, or `--memory-timeline`",
+        ));
+    }
+    if cpu && allocations {
+        return Err(CliFailure::usage_with(
+            "`--cpu` and `--allocations` are separate primary evidence kinds",
         ));
     }
     let input = arguments
@@ -91,6 +108,9 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
         program_arguments,
         retain_arguments,
         embed_sources,
+        capture_cpu: cpu,
+        capture_memory_timeline: memory_timeline,
+        capture_allocations: allocations,
     })
 }
 
@@ -110,6 +130,10 @@ struct CapturedRun {
     evidence: ParsedPerfEvidence,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "capture ownership and cleanup remain visible in one orchestration boundary"
+)]
 pub(super) fn record(
     options: &RecordOptions,
     package: &terrane_compiler::Package,
@@ -119,21 +143,64 @@ pub(super) fn record(
     build_identity: BuildIdentity,
 ) -> Result<ExitCode, CliFailure> {
     require_supported_host(&build_identity.target)?;
-    let perf_version = perf_version()?;
+    let collector_version = if options.capture_cpu {
+        perf_version()?
+    } else if options.capture_allocations {
+        command_version("heaptrack", "--version")?
+    } else {
+        "procfs".to_owned()
+    };
     let provenance = BuildProvenance::create(package, executable, build_root, build_identity)
         .map_err(CliFailure::backend)?;
     let raw_capture = build_root.join(format!("terrane-profile-{}.data", std::process::id()));
     let started = Instant::now();
-    let status = run_perf(executable, &options.program_arguments, &raw_capture)?;
+    let (status, timeline, allocations) = if options.capture_cpu {
+        let (status, timeline) = run_perf(
+            executable,
+            &options.program_arguments,
+            &raw_capture,
+            options.capture_memory_timeline,
+        )?;
+        (status, timeline, None)
+    } else if options.capture_allocations {
+        let allocation_capture = raw_capture.with_extension("heaptrack.zst");
+        let (status, timeline) = run_heaptrack(
+            executable,
+            &options.program_arguments,
+            &allocation_capture,
+            options.capture_memory_timeline,
+        )?;
+        let allocations = parse_heaptrack_capture(&allocation_capture, build_root)?;
+        let _ = fs::remove_file(&allocation_capture);
+        (status, timeline, Some(allocations))
+    } else {
+        let (status, timeline) = run_memory_timeline(executable, &options.program_arguments)?;
+        (status, timeline, None)
+    };
     let elapsed = started.elapsed();
-    let parsed = parse_capture(
-        &raw_capture,
-        executable,
-        &provenance.native_module.content_hash,
-    );
+    let parsed = if options.capture_cpu {
+        parse_capture(
+            &raw_capture,
+            executable,
+            &provenance.native_module.content_hash,
+        )
+    } else {
+        Ok(ParsedPerfEvidence {
+            modules: vec![CapturedModule {
+                path: executable.to_string_lossy().into_owned(),
+                build_id: "not-collected".to_owned(),
+                content_hash: provenance.native_module.content_hash.clone(),
+                is_profiled_executable: true,
+            }],
+            samples: Vec::new(),
+            lost_events: 0,
+            dropped_samples: 0,
+            dropped_frames: 0,
+        })
+    };
     let _ = fs::remove_file(&raw_capture);
     let evidence = parsed?;
-    if evidence.samples.is_empty() && !status.success() {
+    if options.capture_cpu && evidence.samples.is_empty() && !status.success() {
         return Err(CliFailure::backend(format!(
             "perf collection failed with {status} before recording usable CPU samples"
         )));
@@ -149,30 +216,63 @@ pub(super) fn record(
         debug,
         executable,
         provenance,
-        perf_version,
+        collector_version,
         capture,
+        timeline,
+        allocations,
     );
     artifact.fit_encoded_budget().map_err(CliFailure::backend)?;
     artifact.validate().map_err(CliFailure::backend)?;
     write_artifact(&options.output, &artifact)?;
-    eprintln!(
-        "recorded {} CPU samples ({} lost, {} samples dropped, {} frames dropped) in {}",
-        artifact.evidence.samples.len(),
-        artifact.evidence.loss.lost_events,
-        artifact.evidence.loss.dropped_samples,
-        artifact.evidence.loss.dropped_frames,
-        options.output.display()
-    );
+    if options.capture_cpu {
+        eprintln!(
+            "recorded {} CPU samples ({} lost, {} samples dropped, {} frames dropped) in {}",
+            artifact.evidence.samples.len(),
+            artifact.evidence.loss.lost_events,
+            artifact.evidence.loss.dropped_samples,
+            artifact.evidence.loss.dropped_frames,
+            options.output.display()
+        );
+    } else if let Some(allocations) = &artifact.allocations {
+        eprintln!(
+            "recorded {} allocations ({} allocated, {} retained at exit, {} peak live) in {}",
+            allocations.allocation_count,
+            format_bytes(allocations.allocated_bytes),
+            format_bytes(allocations.retained_bytes_at_exit),
+            format_bytes(allocations.peak_live_bytes),
+            options.output.display()
+        );
+    } else {
+        eprintln!(
+            "recorded {} process-memory samples ({} missed intervals) in {}",
+            artifact
+                .memory_timeline
+                .as_ref()
+                .map_or(0, |timeline| timeline.samples.len()),
+            artifact
+                .memory_timeline
+                .as_ref()
+                .map_or(0, |timeline| timeline.missed_intervals),
+            options.output.display()
+        );
+    }
     Ok(ExitCode::from(exit_code))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "artifact assembly records the complete collector contract in one place"
+)]
 fn assemble_artifact(
     options: &RecordOptions,
     debug: DebugInformation,
     executable: &Path,
     provenance: BuildProvenance,
-    perf_version: String,
+    collector_version: String,
     capture: CapturedRun,
+    timeline: Option<MemoryTimelineEvidence>,
+    allocations: Option<AllocationEvidence>,
 ) -> ProfileArtifact {
     let (exit_code, terminating_signal) = status_parts(capture.status);
     let retained_arguments = if options.retain_arguments {
@@ -186,19 +286,48 @@ fn assemble_artifact(
     };
     ProfileArtifact {
         schema_version: SCHEMA_VERSION.to_owned(),
-        evidence_kind: EvidenceKind::CpuSamples,
-        evidence_unit: EvidenceUnit::SampleCount,
+        evidence_kind: if options.capture_cpu {
+            EvidenceKind::CpuSamples
+        } else if options.capture_allocations {
+            EvidenceKind::Allocations
+        } else {
+            EvidenceKind::MemoryTimeline
+        },
+        evidence_unit: if options.capture_cpu {
+            EvidenceUnit::SampleCount
+        } else {
+            EvidenceUnit::Bytes
+        },
         attribution_schema_version: ATTRIBUTION_SCHEMA_VERSION.to_owned(),
         provenance,
         source_attribution: debug,
         collector: CollectorIdentity {
-            name: "linux-perf".to_owned(),
-            version: perf_version,
-            raw_configuration: perf_record_configuration(
-                executable,
-                &options.program_arguments,
-                options.retain_arguments,
-            ),
+            name: if options.capture_cpu {
+                "linux-perf"
+            } else if options.capture_allocations {
+                "heaptrack"
+            } else {
+                "linux-procfs"
+            }
+            .to_owned(),
+            version: collector_version,
+            raw_configuration: if options.capture_cpu {
+                perf_record_configuration(
+                    executable,
+                    &options.program_arguments,
+                    options.retain_arguments,
+                )
+            } else if options.capture_allocations {
+                vec![
+                    "heaptrack --record-only -o <capture> <workload> [arguments omitted by default]"
+                        .to_owned(),
+                ]
+            } else {
+                vec![format!(
+                    "procfs interval={}ns",
+                    duration_nanoseconds(DEFAULT_MEMORY_INTERVAL)
+                )]
+            },
         },
         conditions: CollectionConditions {
             host: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
@@ -215,8 +344,17 @@ fn assemble_artifact(
             },
             included_processes: "launched-process-tree".to_owned(),
             included_threads: "all".to_owned(),
-            sample_frequency_hz: DEFAULT_FREQUENCY_HZ,
-            sample_period: "frequency-derived".to_owned(),
+            sample_frequency_hz: if options.capture_cpu {
+                DEFAULT_FREQUENCY_HZ
+            } else {
+                0
+            },
+            sample_period: if options.capture_cpu {
+                "frequency-derived"
+            } else {
+                "not-applicable"
+            }
+            .to_owned(),
             elapsed_nanoseconds: duration_nanoseconds(capture.elapsed),
             active_nanoseconds: duration_nanoseconds(capture.elapsed),
             warmup_nanoseconds: None,
@@ -251,6 +389,8 @@ fn assemble_artifact(
             modules: capture.evidence.modules,
             samples: capture.evidence.samples,
         },
+        memory_timeline: timeline,
+        allocations,
     }
 }
 
@@ -305,6 +445,28 @@ fn perf_version() -> Result<String, CliFailure> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+fn command_version(program: &str, argument: &str) -> Result<String, CliFailure> {
+    let output = Command::new(program)
+        .arg(argument)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!(
+                "{program} is required for profiling but could not be started: {error}"
+            ))
+        })?;
+    if !output.status.success() {
+        return Err(CliFailure::backend(format!(
+            "{program} did not report a usable version"
+        )));
+    }
+    let text = if output.stdout.is_empty() {
+        &output.stderr
+    } else {
+        &output.stdout
+    };
+    Ok(String::from_utf8_lossy(text).trim().to_owned())
+}
+
 fn perf_record_configuration(
     executable: &Path,
     arguments: &[OsString],
@@ -338,7 +500,8 @@ fn run_perf(
     executable: &Path,
     arguments: &[OsString],
     output: &Path,
-) -> Result<ExitStatus, CliFailure> {
+    capture_memory_timeline: bool,
+) -> Result<(ExitStatus, Option<MemoryTimelineEvidence>), CliFailure> {
     let signals = install_signal_flags()?;
     let mut command = Command::new(perf_program());
     command
@@ -367,12 +530,21 @@ fn run_perf(
     let mut child = command.spawn().map_err(|error| {
         CliFailure::backend(format!("failed to start Linux perf collector: {error}"))
     })?;
+    let started = Instant::now();
+    let mut timeline = capture_memory_timeline.then(|| MemoryTimelineEvidence {
+        sampling_interval_nanoseconds: duration_nanoseconds(DEFAULT_MEMORY_INTERVAL),
+        missed_intervals: 0,
+        samples: Vec::new(),
+    });
     loop {
+        if let Some(timeline) = &mut timeline {
+            sample_process_memory(child.id(), started, timeline, true);
+        }
         if let Some(status) = child
             .try_wait()
             .map_err(|error| CliFailure::backend(format!("failed to wait for perf: {error}")))?
         {
-            return Ok(status);
+            return Ok((status, timeline));
         }
         #[cfg(unix)]
         for entry in &signals.0 {
@@ -393,8 +565,414 @@ fn run_perf(
                 })?;
             }
         }
-        thread::sleep(Duration::from_millis(20));
+        thread::sleep(DEFAULT_MEMORY_INTERVAL);
     }
+}
+
+fn run_heaptrack(
+    executable: &Path,
+    arguments: &[OsString],
+    output: &Path,
+    capture_memory_timeline: bool,
+) -> Result<(ExitStatus, Option<MemoryTimelineEvidence>), CliFailure> {
+    let mut child = Command::new("heaptrack")
+        .arg("--record-only")
+        .arg("--output")
+        .arg(output.with_extension(""))
+        .arg(executable)
+        .args(arguments)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|error| {
+            CliFailure::backend(format!(
+                "heaptrack is required for allocation profiling but could not be started: {error}"
+            ))
+        })?;
+    let started = Instant::now();
+    let mut timeline = capture_memory_timeline.then(|| MemoryTimelineEvidence {
+        sampling_interval_nanoseconds: duration_nanoseconds(DEFAULT_MEMORY_INTERVAL),
+        missed_intervals: 0,
+        samples: Vec::new(),
+    });
+    loop {
+        if let Some(timeline) = &mut timeline {
+            sample_process_memory(child.id(), started, timeline, true);
+        }
+        if let Some(status) = child.try_wait().map_err(|error| {
+            CliFailure::backend(format!("failed to wait for heaptrack: {error}"))
+        })? {
+            if !output.is_file() {
+                return Err(CliFailure::backend(format!(
+                    "heaptrack exited with {status} without producing allocation evidence"
+                )));
+            }
+            return Ok((status, timeline));
+        }
+        thread::sleep(DEFAULT_MEMORY_INTERVAL);
+    }
+}
+
+fn parse_heaptrack_capture(
+    capture: &Path,
+    build_root: &Path,
+) -> Result<AllocationEvidence, CliFailure> {
+    let summary = Command::new("heaptrack_print")
+        .args(["--file"])
+        .arg(capture)
+        .args(["--peak-limit", "1", "--sub-peak-limit", "1"])
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to analyze heaptrack capture: {error}"))
+        })?;
+    if !summary.status.success() {
+        return Err(CliFailure::backend(format!(
+            "heaptrack_print rejected allocation capture: {}",
+            String::from_utf8_lossy(&summary.stderr).trim()
+        )));
+    }
+    let summary = String::from_utf8_lossy(&summary.stdout);
+    let allocation_count = summary_metric(&summary, "calls to allocation functions:")
+        .ok_or_else(|| CliFailure::backend("heaptrack omitted allocation count".to_owned()))?;
+    let temporary_allocation_count =
+        summary_metric(&summary, "temporary memory allocations:").unwrap_or(0);
+    let retained_bytes_at_exit = summary_bytes(&summary, "total memory leaked:").unwrap_or(0);
+    let raw = raw_heaptrack_traffic(capture)?;
+    let mut sites = BTreeMap::<Vec<String>, AllocationSite>::new();
+    for (cost, field) in [
+        ("allocations", "allocation_count"),
+        ("leaked", "retained_bytes"),
+        ("peak", "peak_live_bytes"),
+    ] {
+        let folded = build_root.join(format!("heaptrack-{cost}-{}.folded", std::process::id()));
+        let status = Command::new("heaptrack_print")
+            .args(["--file"])
+            .arg(capture)
+            .args(["--flamegraph-cost-type", cost, "--print-flamegraph"])
+            .arg(&folded)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|error| {
+                CliFailure::backend(format!("failed to render heaptrack {cost} stacks: {error}"))
+            })?;
+        if status.success() {
+            merge_folded_allocation_sites(&folded, field, &mut sites)?;
+        }
+        let _ = fs::remove_file(folded);
+    }
+    let summary_mismatch =
+        allocation_count != raw.allocation_count || retained_bytes_at_exit != raw.retained_bytes;
+    Ok(AllocationEvidence {
+        allocation_count: raw.allocation_count,
+        allocated_bytes: raw.allocated_bytes,
+        freed_bytes: raw.freed_bytes,
+        temporary_allocation_count,
+        retained_bytes_at_exit: raw.retained_bytes,
+        peak_live_bytes: raw.peak_live_bytes,
+        unmatched_transitions: raw.unmatched_transitions,
+        partial: raw.partial || summary_mismatch,
+        collector_data_format: "heaptrack-1.5-normalized-events-v1".to_owned(),
+        sites: sites.into_values().collect(),
+        events: raw.events,
+    })
+}
+
+fn summary_metric(summary: &str, label: &str) -> Option<u64> {
+    summary.lines().find_map(|line| {
+        let value = line.trim().strip_prefix(label)?.trim();
+        value
+            .split_whitespace()
+            .next()?
+            .replace(',', "")
+            .parse()
+            .ok()
+    })
+}
+
+fn summary_bytes(summary: &str, label: &str) -> Option<u64> {
+    let value = summary
+        .lines()
+        .find_map(|line| line.trim().strip_prefix(label).map(str::trim))?;
+    parse_human_bytes(value.split_whitespace().next()?)
+}
+
+fn parse_human_bytes(value: &str) -> Option<u64> {
+    let split = value
+        .find(|character: char| !character.is_ascii_digit() && character != '.')
+        .unwrap_or(value.len());
+    let (whole, fraction) = value[..split]
+        .split_once('.')
+        .unwrap_or((&value[..split], ""));
+    let whole = whole.parse::<u64>().ok()?;
+    let (fraction_value, fraction_scale) = fraction
+        .bytes()
+        .take(3)
+        .filter(u8::is_ascii_digit)
+        .fold((0_u64, 1_u64), |(value, scale), digit| {
+            (value * 10 + u64::from(digit - b'0'), scale * 10)
+        });
+    let multiplier = match &value[split..] {
+        "B" | "" => 1_u64,
+        "K" | "KB" => 1024,
+        "M" | "MB" => 1024 * 1024,
+        "G" | "GB" => 1024 * 1024 * 1024,
+        _ => return None,
+    };
+    whole.checked_mul(multiplier)?.checked_add(
+        fraction_value
+            .checked_mul(multiplier)?
+            .checked_add(fraction_scale / 2)?
+            .checked_div(fraction_scale)?,
+    )
+}
+
+#[derive(Debug)]
+struct RawAllocationTraffic {
+    allocation_count: u64,
+    allocated_bytes: u64,
+    freed_bytes: u64,
+    retained_bytes: u64,
+    peak_live_bytes: u64,
+    unmatched_transitions: u64,
+    partial: bool,
+    events: Vec<AllocationEvent>,
+}
+
+fn raw_heaptrack_traffic(capture: &Path) -> Result<RawAllocationTraffic, CliFailure> {
+    let output = Command::new("zstdcat")
+        .arg(capture)
+        .output()
+        .map_err(|error| {
+            CliFailure::backend(format!(
+                "failed to decode heaptrack allocation events: {error}"
+            ))
+        })?;
+    if !output.status.success() {
+        return Err(CliFailure::backend(
+            "zstdcat rejected heaptrack allocation evidence".to_owned(),
+        ));
+    }
+    Ok(parse_raw_heaptrack_events(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
+
+fn parse_raw_heaptrack_events(raw: &str) -> RawAllocationTraffic {
+    let mut allocation_info = Vec::<(u64, u64)>::new();
+    let mut live = BTreeMap::<u64, Vec<usize>>::new();
+    let mut events = Vec::new();
+    let mut timestamp = 0_u64;
+    let mut live_bytes = 0_u64;
+    let mut peak_live_bytes = 0_u64;
+    let mut allocated_bytes = 0_u64;
+    let mut freed_bytes = 0_u64;
+    let mut unmatched_transitions = 0_u64;
+    let mut partial = false;
+    for line in raw.lines() {
+        let mut fields = line.split_whitespace();
+        match fields.next() {
+            Some("a") => {
+                let Some(size) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(trace_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                allocation_info.push((size, trace_index));
+            }
+            Some("+") => {
+                let Some(info_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(&(size_bytes, trace_index)) = usize::try_from(info_index)
+                    .ok()
+                    .and_then(|index| allocation_info.get(index))
+                else {
+                    unmatched_transitions = unmatched_transitions.saturating_add(1);
+                    partial = true;
+                    continue;
+                };
+                allocated_bytes = allocated_bytes.saturating_add(size_bytes);
+                live_bytes = live_bytes.saturating_add(size_bytes);
+                peak_live_bytes = peak_live_bytes.max(live_bytes);
+                if events.len() == MAX_CAPTURED_SAMPLES {
+                    partial = true;
+                    continue;
+                }
+                let event_index = events.len();
+                events.push(AllocationEvent {
+                    allocation_id: event_index as u64,
+                    size_bytes,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: timestamp,
+                    trace_index,
+                    freed_at: None,
+                });
+                live.entry(info_index).or_default().push(event_index);
+            }
+            Some("-") => {
+                let Some(info_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(event_index) = live.get_mut(&info_index).and_then(Vec::pop) else {
+                    unmatched_transitions = unmatched_transitions.saturating_add(1);
+                    partial = true;
+                    continue;
+                };
+                let event = &mut events[event_index];
+                event.freed_at = Some(timestamp);
+                freed_bytes = freed_bytes.saturating_add(event.size_bytes);
+                live_bytes = live_bytes.saturating_sub(event.size_bytes);
+            }
+            Some("c") => {
+                if let Some(value) = fields.next().and_then(parse_hex) {
+                    timestamp = value;
+                } else {
+                    partial = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    RawAllocationTraffic {
+        allocation_count: events.len() as u64,
+        allocated_bytes,
+        freed_bytes,
+        retained_bytes: live_bytes,
+        peak_live_bytes,
+        unmatched_transitions,
+        partial,
+        events,
+    }
+}
+
+fn parse_hex(value: &str) -> Option<u64> {
+    u64::from_str_radix(value, 16).ok()
+}
+
+fn merge_folded_allocation_sites(
+    path: &Path,
+    field: &str,
+    sites: &mut BTreeMap<Vec<String>, AllocationSite>,
+) -> Result<(), CliFailure> {
+    let folded = fs::read_to_string(path).map_err(|error| {
+        CliFailure::backend(format!(
+            "cannot read heaptrack folded stacks `{}`: {error}",
+            path.display()
+        ))
+    })?;
+    for line in folded.lines() {
+        let Some((stack, value)) = line.rsplit_once(' ') else {
+            continue;
+        };
+        let Ok(value) = value.parse::<u64>() else {
+            continue;
+        };
+        let stack = stack.split(';').map(str::to_owned).collect::<Vec<_>>();
+        let site = sites
+            .entry(stack.clone())
+            .or_insert_with(|| AllocationSite {
+                stack,
+                allocation_count: 0,
+                allocated_bytes: 0,
+                retained_bytes: 0,
+                peak_live_bytes: 0,
+            });
+        match field {
+            "allocation_count" => site.allocation_count = value,
+            "retained_bytes" => site.retained_bytes = value,
+            "peak_live_bytes" => site.peak_live_bytes = value,
+            _ => unreachable!("known heaptrack cost field"),
+        }
+    }
+    Ok(())
+}
+
+fn run_memory_timeline(
+    executable: &Path,
+    arguments: &[OsString],
+) -> Result<(ExitStatus, Option<MemoryTimelineEvidence>), CliFailure> {
+    let mut child = Command::new(executable)
+        .args(arguments)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|error| {
+            CliFailure::backend(format!("failed to start profiled workload: {error}"))
+        })?;
+    let started = Instant::now();
+    let mut timeline = MemoryTimelineEvidence {
+        sampling_interval_nanoseconds: duration_nanoseconds(DEFAULT_MEMORY_INTERVAL),
+        missed_intervals: 0,
+        samples: Vec::new(),
+    };
+    loop {
+        sample_process_memory(child.id(), started, &mut timeline, false);
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| CliFailure::backend(format!("failed to wait for workload: {error}")))?
+        {
+            return Ok((status, Some(timeline)));
+        }
+        thread::sleep(DEFAULT_MEMORY_INTERVAL);
+    }
+}
+
+fn sample_process_memory(
+    process_id: u32,
+    started: Instant,
+    timeline: &mut MemoryTimelineEvidence,
+    require_workload_child: bool,
+) {
+    let Some(sample) = read_process_memory(process_id, started, require_workload_child) else {
+        timeline.missed_intervals = timeline.missed_intervals.saturating_add(1);
+        return;
+    };
+    if timeline.samples.len() == MAX_CAPTURED_SAMPLES {
+        timeline.missed_intervals = timeline.missed_intervals.saturating_add(1);
+    } else {
+        timeline.samples.push(sample);
+    }
+}
+
+fn read_process_memory(
+    process_id: u32,
+    started: Instant,
+    require_workload_child: bool,
+) -> Option<ProcessMemorySample> {
+    let process_id = if require_workload_child {
+        profiled_child_process(process_id)?
+    } else {
+        process_id
+    };
+    let status = fs::read_to_string(format!("/proc/{process_id}/status")).ok()?;
+    let value = |name| {
+        status.lines().find_map(|line| {
+            let value = line.strip_prefix(name)?.split_whitespace().next()?;
+            value.parse::<u64>().ok()?.checked_mul(1024)
+        })
+    };
+    Some(ProcessMemorySample {
+        monotonic_nanoseconds: duration_nanoseconds(started.elapsed()),
+        process_id,
+        rss_bytes: value("VmRSS:"),
+        pss_bytes: None,
+        private_bytes: None,
+        shared_bytes: value("RssFile:"),
+        anonymous_bytes: value("RssAnon:"),
+        file_backed_bytes: value("RssFile:"),
+        minor_faults: None,
+        major_faults: None,
+    })
 }
 
 struct SignalFlag {
@@ -413,6 +991,12 @@ impl Drop for SignalFlags {
             }
         }
     }
+}
+
+fn profiled_child_process(process_id: u32) -> Option<u32> {
+    let children =
+        fs::read_to_string(format!("/proc/{process_id}/task/{process_id}/children")).ok()?;
+    children.split_whitespace().next()?.parse().ok()
 }
 
 fn install_signal_flags() -> Result<SignalFlags, CliFailure> {
@@ -923,11 +1507,21 @@ struct ShowOptions {
     native: bool,
     source_root: Option<PathBuf>,
     build_root: Option<PathBuf>,
+    compare: Option<PathBuf>,
+    max_allocated_bytes: Option<u64>,
+    max_retained_bytes: Option<u64>,
 }
 
 pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let options = parse_show(arguments)?;
     let artifact = read_artifact(&options.path)?;
+    validate_allocation_options(artifact.evidence_kind, &options)?;
+    if artifact.evidence_kind == EvidenceKind::MemoryTimeline {
+        return show_memory_timeline(&artifact, &options);
+    }
+    if artifact.evidence_kind == EvidenceKind::Allocations {
+        return show_allocations(&artifact, &options);
+    }
     let source_root = options
         .source_root
         .clone()
@@ -994,6 +1588,8 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 row.native.clear();
             }
         }
+        let (memory_timeline, memory_timeline_samples_total) =
+            limited_timeline(artifact.memory_timeline.as_ref(), options.limit);
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -1002,6 +1598,8 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 "unit": artifact.evidence_unit,
                 "conditions": artifact.conditions,
                 "privacy": artifact.privacy,
+                "memory_timeline": memory_timeline,
+                "memory_timeline_samples_total": memory_timeline_samples_total,
                 "report": output_report,
                 "generated_expansion": options.generated,
                 "native_expansion": options.native
@@ -1012,6 +1610,251 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         render_text_report(&artifact, &report, &options);
     }
     Ok(ExitCode::SUCCESS)
+}
+fn validate_allocation_options(
+    evidence_kind: EvidenceKind,
+    options: &ShowOptions,
+) -> Result<(), CliFailure> {
+    if evidence_kind != EvidenceKind::Allocations
+        && (options.compare.is_some()
+            || options.max_allocated_bytes.is_some()
+            || options.max_retained_bytes.is_some())
+    {
+        return Err(CliFailure::usage_with(
+            "`--compare`, `--max-allocated-bytes`, and `--max-retained-bytes` require an allocation profile",
+        ));
+    }
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "allocation text and JSON policy views share one accounting boundary"
+)]
+fn show_allocations(
+    artifact: &ProfileArtifact,
+    options: &ShowOptions,
+) -> Result<ExitCode, CliFailure> {
+    let allocations = artifact
+        .allocations
+        .as_ref()
+        .expect("validated allocation profile includes allocation evidence");
+    let comparison = options
+        .compare
+        .as_ref()
+        .map(|path| {
+            let baseline = read_artifact(path)?;
+            if baseline.evidence_kind != EvidenceKind::Allocations {
+                return Err(CliFailure::usage_with(
+                    "`--compare` requires an allocation profile baseline",
+                ));
+            }
+            let baseline = baseline
+                .allocations
+                .expect("validated allocation baseline includes allocation evidence");
+            Ok(serde_json::json!({
+                "baseline": path,
+                "allocated_bytes_delta": signed_delta(allocations.allocated_bytes, baseline.allocated_bytes),
+                "retained_bytes_delta": signed_delta(allocations.retained_bytes_at_exit, baseline.retained_bytes_at_exit),
+                "peak_live_bytes_delta": signed_delta(allocations.peak_live_bytes, baseline.peak_live_bytes),
+                "allocation_count_delta": signed_delta(allocations.allocation_count, baseline.allocation_count),
+            }))
+        })
+        .transpose()?;
+    let threshold_failed = options
+        .max_allocated_bytes
+        .is_some_and(|limit| allocations.allocated_bytes > limit)
+        || options
+            .max_retained_bytes
+            .is_some_and(|limit| allocations.retained_bytes_at_exit > limit);
+    if options.format == "json" {
+        let mut output = allocations.clone();
+        let event_total = output.events.len();
+        let site_total = output.sites.len();
+        output.events.truncate(options.limit);
+        output.sites.truncate(options.limit);
+        let (memory_timeline, memory_timeline_samples_total) =
+            limited_timeline(artifact.memory_timeline.as_ref(), options.limit);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": artifact.schema_version,
+                "evidence_kind": artifact.evidence_kind,
+                "unit": artifact.evidence_unit,
+                "conditions": artifact.conditions,
+                "privacy": artifact.privacy,
+                "allocations": output,
+                "allocation_events_total": event_total,
+                "allocation_sites_total": site_total,
+                "memory_timeline": memory_timeline,
+                "memory_timeline_samples_total": memory_timeline_samples_total,
+                "comparison": comparison,
+                "threshold_failed": threshold_failed,
+            }))
+            .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
+        );
+        return Ok(profile_policy_status(threshold_failed));
+    }
+    println!(
+        "allocation traffic: {} allocations, {} allocated, {} freed",
+        allocations.allocation_count,
+        format_bytes(allocations.allocated_bytes),
+        format_bytes(allocations.freed_bytes)
+    );
+    println!(
+        "lifetime: {} temporary allocations, {} retained at exit, {} peak live",
+        allocations.temporary_allocation_count,
+        format_bytes(allocations.retained_bytes_at_exit),
+        format_bytes(allocations.peak_live_bytes)
+    );
+    if let Some(comparison) = &comparison {
+        println!(
+            "comparison: allocated {:+} B; retained {:+} B; peak live {:+} B; allocations {:+}",
+            comparison["allocated_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["retained_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["peak_live_bytes_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+            comparison["allocation_count_delta"]
+                .as_i64()
+                .unwrap_or_default(),
+        );
+    }
+    println!(
+        "transition fidelity: {} ({} unmatched)",
+        if allocations.partial {
+            "partial"
+        } else {
+            "complete"
+        },
+        allocations.unmatched_transitions
+    );
+    println!("allocation stack                                      count    retained   peak live");
+    let mut sites = allocations.sites.iter().collect::<Vec<_>>();
+    sites.sort_by_key(|site| std::cmp::Reverse(site.allocation_count));
+    for site in sites.into_iter().take(options.limit) {
+        println!(
+            "{:<52} {:>8} {:>11} {:>11}",
+            site.stack.last().map_or("[unknown]", String::as_str),
+            site.allocation_count,
+            format_bytes(site.retained_bytes),
+            format_bytes(site.peak_live_bytes)
+        );
+    }
+    Ok(profile_policy_status(threshold_failed))
+}
+fn limited_timeline(
+    timeline: Option<&MemoryTimelineEvidence>,
+    limit: usize,
+) -> (Option<MemoryTimelineEvidence>, usize) {
+    let total = timeline.map_or(0, |timeline| timeline.samples.len());
+    let mut output = timeline.cloned();
+    if let Some(timeline) = &mut output {
+        timeline.samples.truncate(limit);
+    }
+    (output, total)
+}
+
+fn signed_delta(current: u64, baseline: u64) -> i64 {
+    let delta = i128::from(current) - i128::from(baseline);
+    i64::try_from(delta).unwrap_or(if delta.is_negative() {
+        i64::MIN
+    } else {
+        i64::MAX
+    })
+}
+
+fn profile_policy_status(failed: bool) -> ExitCode {
+    if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn show_memory_timeline(
+    artifact: &ProfileArtifact,
+    options: &ShowOptions,
+) -> Result<ExitCode, CliFailure> {
+    let timeline = artifact
+        .memory_timeline
+        .as_ref()
+        .expect("validated memory profile includes a timeline");
+    if options.format == "json" {
+        let mut output = timeline.clone();
+        let sample_total = output.samples.len();
+        output.samples.truncate(options.limit);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": artifact.schema_version,
+                "evidence_kind": artifact.evidence_kind,
+                "unit": artifact.evidence_unit,
+                "conditions": artifact.conditions,
+                "privacy": artifact.privacy,
+                "timeline": output,
+                "timeline_samples_total": sample_total,
+            }))
+            .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let resident_peak = timeline
+        .samples
+        .iter()
+        .filter_map(|sample| sample.rss_bytes)
+        .max();
+    let proportional_peak = timeline
+        .samples
+        .iter()
+        .filter_map(|sample| sample.pss_bytes)
+        .max();
+    println!(
+        "process-memory timeline: {} samples, {} missed intervals; {} ms interval",
+        timeline.samples.len(),
+        timeline.missed_intervals,
+        timeline.sampling_interval_nanoseconds / 1_000_000
+    );
+    println!(
+        "RSS peak: {}; PSS peak: {}",
+        resident_peak.map_or_else(|| "unavailable".to_owned(), format_bytes),
+        proportional_peak.map_or_else(|| "unavailable".to_owned(), format_bytes)
+    );
+    println!("timestamp (ns)  process  RSS        PSS");
+    for sample in timeline.samples.iter().take(options.limit) {
+        println!(
+            "{:>14}  {:>7}  {:>9}  {:>9}",
+            sample.monotonic_nanoseconds,
+            sample.process_id,
+            sample
+                .rss_bytes
+                .map_or_else(|| "unavailable".to_owned(), format_bytes),
+            sample
+                .pss_bytes
+                .map_or_else(|| "unavailable".to_owned(), format_bytes),
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut divisor = 1_u64;
+    let mut unit = 0;
+    while bytes / divisor >= 1024 && unit + 1 < UNITS.len() {
+        divisor *= 1024;
+        unit += 1;
+    }
+    if unit == 0 {
+        return format!("{bytes} B");
+    }
+    let whole = bytes / divisor;
+    let hundredths = bytes % divisor * 100 / divisor;
+    format!("{whole}.{hundredths:02} {}", UNITS[unit])
 }
 fn validate_captured_modules(
     artifact: &ProfileArtifact,
@@ -1035,6 +1878,10 @@ fn validate_captured_modules(
     report.native_fidelity_reasons.dedup();
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "show options are parsed in one strict command-line grammar"
+)]
 fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
     let path = arguments
         .get(2)
@@ -1049,6 +1896,9 @@ fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
         native: false,
         source_root: None,
         build_root: None,
+        compare: None,
+        max_allocated_bytes: None,
+        max_retained_bytes: None,
     };
     let mut index = 3;
     while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
@@ -1100,6 +1950,35 @@ fn parse_show(arguments: &[OsString]) -> Result<ShowOptions, CliFailure> {
                     arguments
                         .get(index)
                         .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--compare" => {
+                index += 1;
+                options.compare = Some(
+                    arguments
+                        .get(index)
+                        .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--max-allocated-bytes" => {
+                index += 1;
+                options.max_allocated_bytes = Some(
+                    arguments
+                        .get(index)
+                        .and_then(|value| value.to_str())
+                        .and_then(|value| value.parse().ok())
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
+            "--max-retained-bytes" => {
+                index += 1;
+                options.max_retained_bytes = Some(
+                    arguments
+                        .get(index)
+                        .and_then(|value| value.to_str())
+                        .and_then(|value| value.parse().ok())
                         .ok_or_else(CliFailure::usage)?,
                 );
             }
@@ -1390,6 +2269,30 @@ mod tests {
     }
 
     #[test]
+    fn record_parser_allows_memory_timeline_alone_or_alongside_cpu() {
+        let timeline = parse_record(&[
+            "profile".into(),
+            "record".into(),
+            "--memory-timeline".into(),
+            "app".into(),
+        ])
+        .unwrap();
+        assert!(!timeline.capture_cpu);
+        assert!(timeline.capture_memory_timeline);
+
+        let combined = parse_record(&[
+            "profile".into(),
+            "record".into(),
+            "--cpu".into(),
+            "--memory-timeline".into(),
+            "app".into(),
+        ])
+        .unwrap();
+        assert!(combined.capture_cpu);
+        assert!(combined.capture_memory_timeline);
+    }
+
+    #[test]
     fn perf_script_parser_accepts_padded_pids_and_retains_frame_details() {
         let script = " 314007/314007 10.250000000: cpu-clock:u: \n\
 \t    400123 hot+0x3\n\
@@ -1580,5 +2483,125 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             rows[0].native[0].module,
             "artifacts/terrane-profile/program"
         );
+    }
+    #[test]
+    fn record_parser_keeps_allocation_and_cpu_evidence_separate() {
+        let allocations = parse_record(&[
+            "profile".into(),
+            "record".into(),
+            "--allocations".into(),
+            "--memory-timeline".into(),
+            "app".into(),
+        ])
+        .unwrap();
+        assert!(allocations.capture_allocations);
+        assert!(allocations.capture_memory_timeline);
+        assert!(!allocations.capture_cpu);
+
+        let error = parse_record(&[
+            "profile".into(),
+            "record".into(),
+            "--cpu".into(),
+            "--allocations".into(),
+            "app".into(),
+        ])
+        .unwrap_err();
+        assert!(error.message.contains("separate primary evidence kinds"));
+    }
+
+    #[test]
+    fn parses_heaptrack_summary_units() {
+        let summary = "calls to allocation functions: 14 (14000/s)\n\
+                       temporary memory allocations: 2 (2000/s)\n\
+                       peak heap memory consumption: 75.46K\n\
+                       total memory leaked: 544B\n";
+        assert_eq!(
+            summary_metric(summary, "calls to allocation functions:"),
+            Some(14)
+        );
+        assert_eq!(
+            summary_metric(summary, "temporary memory allocations:"),
+            Some(2)
+        );
+        assert_eq!(
+            summary_bytes(summary, "peak heap memory consumption:"),
+            Some(77_271)
+        );
+        assert_eq!(summary_bytes(summary, "total memory leaked:"), Some(544));
+    }
+    #[test]
+    fn normalizes_heaptrack_transitions_and_address_reuse() {
+        let raw = "v 10500 3\n\
+                   a 10 1\n\
+                   a 20 2\n\
+                   c a\n\
+                   + 0\n\
+                   + 1\n\
+                   c 14\n\
+                   - 0\n\
+                   c 1e\n\
+                   + 0\n\
+                   c 28\n\
+                   - 1\n";
+        let traffic = parse_raw_heaptrack_events(raw);
+        assert_eq!(traffic.allocation_count, 3);
+        assert_eq!(traffic.allocated_bytes, 0x40);
+        assert_eq!(traffic.freed_bytes, 0x30);
+        assert_eq!(traffic.retained_bytes, 0x10);
+        assert_eq!(traffic.peak_live_bytes, 0x30);
+        assert_eq!(traffic.unmatched_transitions, 0);
+        assert!(!traffic.partial);
+        assert_eq!(traffic.events[0].freed_at, Some(0x14));
+        assert_eq!(traffic.events[2].freed_at, None);
+    }
+
+    #[test]
+    fn show_parser_accepts_allocation_comparison_and_thresholds() {
+        let options = parse_show(&[
+            "profile".into(),
+            "show".into(),
+            "current.trnprof".into(),
+            "--compare".into(),
+            "baseline.trnprof".into(),
+            "--max-allocated-bytes".into(),
+            "4096".into(),
+            "--max-retained-bytes".into(),
+            "1024".into(),
+        ])
+        .unwrap();
+        assert_eq!(options.compare, Some(PathBuf::from("baseline.trnprof")));
+        assert_eq!(options.max_allocated_bytes, Some(4_096));
+        assert_eq!(options.max_retained_bytes, Some(1_024));
+        assert_eq!(profile_policy_status(false), ExitCode::SUCCESS);
+        assert_eq!(profile_policy_status(true), ExitCode::from(1));
+    }
+
+    #[test]
+    fn allocation_options_reject_cpu_and_timeline_profiles() {
+        let options = parse_show(&[
+            "profile".into(),
+            "show".into(),
+            "current.trnprof".into(),
+            "--max-retained-bytes".into(),
+            "1024".into(),
+        ])
+        .unwrap();
+        assert!(validate_allocation_options(EvidenceKind::Allocations, &options).is_ok());
+        for kind in [EvidenceKind::CpuSamples, EvidenceKind::MemoryTimeline] {
+            let error = validate_allocation_options(kind, &options).unwrap_err();
+            assert!(error.message.contains("require an allocation profile"));
+        }
+    }
+
+    #[test]
+    fn workload_sampler_counts_missing_collector_child() {
+        let mut timeline = MemoryTimelineEvidence {
+            sampling_interval_nanoseconds: 1,
+            missed_intervals: 0,
+            samples: Vec::new(),
+        };
+        sample_process_memory(u32::MAX, Instant::now(), &mut timeline, true);
+        assert!(timeline.samples.is_empty());
+        assert_eq!(timeline.missed_intervals, 1);
     }
 }

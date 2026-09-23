@@ -10,11 +10,12 @@ use crate::debugging::{
 };
 use crate::provenance::{ArtifactProfile, BuildProvenance};
 
-pub const SCHEMA_VERSION: &str = "1.1";
+pub const SCHEMA_VERSION: &str = "1.2";
 pub const ATTRIBUTION_SCHEMA_VERSION: &str = "1.1";
 pub const MAX_CAPTURED_SAMPLES: usize = 100_000;
 pub const MAX_STACK_DEPTH: usize = 4_096;
 pub const MAX_ARTIFACT_BYTES: u64 = 512 * 1024 * 1024;
+pub const DEFAULT_MEMORY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
 
 pub const CPU_ARTIFACT_PROFILE: ArtifactProfile = ArtifactProfile {
     id: "terrane-profile-cpu-v1",
@@ -32,12 +33,14 @@ pub const CPU_ARTIFACT_PROFILE: ArtifactProfile = ArtifactProfile {
 #[serde(rename_all = "kebab-case")]
 pub enum EvidenceKind {
     CpuSamples,
+    MemoryTimeline,
+    Allocations,
 }
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EvidenceUnit {
     SampleCount,
+    Bytes,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -147,6 +150,77 @@ pub struct CpuEvidence {
     pub samples: Vec<CpuSample>,
     pub loss: CollectionLoss,
 }
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProcessMemorySample {
+    pub monotonic_nanoseconds: u64,
+    pub process_id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rss_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pss_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_backed_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minor_faults: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub major_faults: Option<u64>,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct MemoryTimelineEvidence {
+    pub sampling_interval_nanoseconds: u64,
+    pub missed_intervals: u64,
+    pub samples: Vec<ProcessMemorySample>,
+}
+
+/// Aggregate allocation statistics emitted by an allocation-event collector.
+///
+/// The collector owns raw-event parsing; this normalized form deliberately
+/// keeps bytes, counts, and retained bytes independent.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationEvent {
+    pub allocation_id: u64,
+    pub size_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_id: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<u32>,
+    pub monotonic_timestamp: u64,
+    pub trace_index: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub freed_at: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationSite {
+    pub stack: Vec<String>,
+    pub allocation_count: u64,
+    pub allocated_bytes: u64,
+    pub retained_bytes: u64,
+    pub peak_live_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationEvidence {
+    pub allocation_count: u64,
+    pub allocated_bytes: u64,
+    pub freed_bytes: u64,
+    pub temporary_allocation_count: u64,
+    pub retained_bytes_at_exit: u64,
+    pub peak_live_bytes: u64,
+    pub unmatched_transitions: u64,
+    pub partial: bool,
+    pub collector_data_format: String,
+    pub sites: Vec<AllocationSite>,
+    pub events: Vec<AllocationEvent>,
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProfileArtifact {
@@ -160,6 +234,10 @@ pub struct ProfileArtifact {
     pub conditions: CollectionConditions,
     pub privacy: PrivacyDeclaration,
     pub evidence: CpuEvidence,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_timeline: Option<MemoryTimelineEvidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allocations: Option<AllocationEvidence>,
 }
 
 impl ProfileArtifact {
@@ -187,16 +265,40 @@ impl ProfileArtifact {
                 self.attribution_schema_version
             ));
         }
-        if self.evidence_kind != EvidenceKind::CpuSamples
-            || self.evidence_unit != EvidenceUnit::SampleCount
-        {
-            return Err("CPU profile evidence must use sample-count units".to_owned());
+        match (self.evidence_kind, self.evidence_unit) {
+            (EvidenceKind::CpuSamples, EvidenceUnit::SampleCount) => {}
+            (EvidenceKind::MemoryTimeline, EvidenceUnit::Bytes)
+                if self.memory_timeline.is_some() => {}
+            (EvidenceKind::MemoryTimeline, _) => {
+                return Err("process-memory profiles must use byte units and a timeline".to_owned());
+            }
+            (EvidenceKind::Allocations, EvidenceUnit::Bytes) if self.allocations.is_some() => {}
+            (EvidenceKind::Allocations, _) => {
+                return Err(
+                    "allocation profiles must use byte units and allocation evidence".to_owned(),
+                );
+            }
+            _ => return Err("CPU profile evidence must use sample-count units".to_owned()),
         }
         if self.evidence.samples.len() > MAX_CAPTURED_SAMPLES {
             return Err(format!(
                 "profile contains {} samples; limit is {MAX_CAPTURED_SAMPLES}",
                 self.evidence.samples.len()
             ));
+        }
+        if let Some(timeline) = &self.memory_timeline {
+            if timeline.sampling_interval_nanoseconds == 0 {
+                return Err("process-memory timeline has a zero sampling interval".to_owned());
+            }
+            if timeline.samples.len() > MAX_CAPTURED_SAMPLES {
+                return Err(format!(
+                    "profile contains {} process-memory samples; limit is {MAX_CAPTURED_SAMPLES}",
+                    timeline.samples.len()
+                ));
+            }
+        }
+        if let Some(allocations) = &self.allocations {
+            validate_allocation_evidence(allocations)?;
         }
         if let Some(depth) = self
             .evidence
@@ -340,6 +442,37 @@ impl ProfileArtifact {
     fn encoded_json_bytes(&self) -> Result<u64, String> {
         encoded_json_bytes(self)
     }
+}
+
+fn validate_allocation_evidence(allocations: &AllocationEvidence) -> Result<(), String> {
+    if allocations.events.len() > MAX_CAPTURED_SAMPLES {
+        return Err(format!(
+            "profile contains {} allocation events; limit is {MAX_CAPTURED_SAMPLES}",
+            allocations.events.len()
+        ));
+    }
+    if allocations.partial {
+        return Ok(());
+    }
+    let allocated = allocations
+        .events
+        .iter()
+        .map(|event| event.size_bytes)
+        .sum::<u64>();
+    let freed = allocations
+        .events
+        .iter()
+        .filter(|event| event.freed_at.is_some())
+        .map(|event| event.size_bytes)
+        .sum::<u64>();
+    if allocations.allocation_count != allocations.events.len() as u64
+        || allocations.allocated_bytes != allocated
+        || allocations.freed_bytes != freed
+        || allocations.retained_bytes_at_exit != allocated.saturating_sub(freed)
+    {
+        return Err("complete allocation evidence violates count or byte accounting".to_owned());
+    }
+    Ok(())
 }
 
 fn encoded_json_bytes<T: Serialize>(value: &T) -> Result<u64, String> {
@@ -1144,6 +1277,8 @@ mod tests {
                     dropped_frames: 0,
                 },
             },
+            memory_timeline: None,
+            allocations: None,
         }
     }
 
@@ -1157,6 +1292,87 @@ mod tests {
             mismatched.validate().unwrap_err(),
             "captured executable module differs from build provenance"
         );
+    }
+
+    #[test]
+    fn validates_typed_process_memory_timeline_evidence() {
+        let mut artifact = artifact();
+        artifact.evidence_kind = EvidenceKind::MemoryTimeline;
+        artifact.evidence_unit = EvidenceUnit::Bytes;
+        artifact.evidence.samples.clear();
+        artifact.evidence.loss.captured_events = 0;
+        artifact.memory_timeline = Some(MemoryTimelineEvidence {
+            sampling_interval_nanoseconds: 10_000_000,
+            missed_intervals: 1,
+            samples: vec![ProcessMemorySample {
+                monotonic_nanoseconds: 10_000_000,
+                process_id: 1,
+                rss_bytes: Some(4_096),
+                pss_bytes: None,
+                private_bytes: None,
+
+                shared_bytes: Some(1_024),
+                anonymous_bytes: Some(3_072),
+                file_backed_bytes: Some(1_024),
+                minor_faults: None,
+                major_faults: None,
+            }],
+        });
+
+        artifact.validate().unwrap();
+        artifact
+            .memory_timeline
+            .as_mut()
+            .unwrap()
+            .sampling_interval_nanoseconds = 0;
+        assert_eq!(
+            artifact.validate().unwrap_err(),
+            "process-memory timeline has a zero sampling interval"
+        );
+    }
+    #[test]
+    fn validates_typed_allocation_evidence() {
+        let mut artifact = artifact();
+        artifact.evidence_kind = EvidenceKind::Allocations;
+        artifact.evidence_unit = EvidenceUnit::Bytes;
+        artifact.evidence.samples.clear();
+        artifact.evidence.loss.captured_events = 0;
+        artifact.allocations = Some(AllocationEvidence {
+            allocation_count: 2,
+            allocated_bytes: 1_024,
+            freed_bytes: 256,
+            temporary_allocation_count: 1,
+            events: vec![
+                AllocationEvent {
+                    allocation_id: 0,
+                    size_bytes: 256,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: 1,
+                    trace_index: 1,
+                    freed_at: Some(2),
+                },
+                AllocationEvent {
+                    allocation_id: 1,
+                    size_bytes: 768,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: 2,
+                    trace_index: 2,
+                    freed_at: None,
+                },
+            ],
+            retained_bytes_at_exit: 768,
+            peak_live_bytes: 768,
+            unmatched_transitions: 0,
+            partial: false,
+            collector_data_format: "heaptrack-normalized-v1".to_owned(),
+            sites: Vec::new(),
+        });
+
+        artifact.validate().unwrap();
     }
 
     #[test]

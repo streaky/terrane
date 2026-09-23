@@ -1946,10 +1946,12 @@ fn usage() -> String {
      [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
-     terrane profile record --cpu [--embed-sources] [--retain-arguments] \
-     [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
+     terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
+     [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
      terrane profile show <file.trnprof> [--focus <source>:<line>] [--generated] [--native] \
-     [--format <text|json>] [--limit <count>] [--source-root <path>] [--build-root <path>]\n\
+     [--format <text|json>] [--limit <count>] [--compare <baseline.trnprof>] \
+     [--max-allocated-bytes <bytes>] [--max-retained-bytes <bytes>] \
+     [--source-root <path>] [--build-root <path>]\n\
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
@@ -1972,7 +1974,7 @@ fn usage() -> String {
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile the package's native artifact\n  run    compile and execute the program\n  \
      debug  build and launch the LLDB-backed Terrane source debugger\n  \
-     profile  record optimized CPU samples or show source-attributed profile evidence\n  \
+     profile  record optimized CPU, allocation, and process-memory evidence, or show source-attributed reports\n\
      debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
