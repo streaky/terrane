@@ -1118,16 +1118,16 @@ excluded: direct isolated test-runner debugging pending a separate process-owner
 ## PROFILING
 
 ```yaml
-commands: terrane profile record --cpu [--memory-timeline] [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile record --memory-timeline [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile show FILE.trnprof [--focus PATH:LINE] [--generated] [--native] [--format text|json] [--limit N] [--source-root PATH] [--build-root PATH]
-backend: Linux x86-64 perf CPU sampling of the launched process tree and all threads; Linux procfs bounded process-memory timeline sampling. CPU plus memory-timeline retains CPU samples as the primary unit and emits a separate auxiliary byte timeline.
+commands: terrane profile record --cpu [--memory-timeline] [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile record --allocations [--memory-timeline] [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile record --memory-timeline [--embed-sources] [--retain-arguments] [--output FILE] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane profile show FILE.trnprof [--focus PATH:LINE] [--generated] [--native] [--format text|json] [--limit N] [--source-root PATH] [--build-root PATH]
+backend: Linux x86-64 perf CPU sampling; Heaptrack allocation/free interposition with normalized capture-local lifetimes; Linux procfs bounded process-memory sampling. CPU or allocations plus memory-timeline retains one primary unit and emits a separate auxiliary byte timeline.
 build: named terrane-profile-cpu-v1 profile; optimization 3, line tables, no stripping, compiler-default optimized inlining, ThinLTO, one code-generation unit, package panic policy
-artifact: bounded schema 1.2 typed .trnprof evidence; exact compiler/Rust/target/profile/input/executable/module identity; normalized load-relative CPU frames; collector conditions, exit or signal result, loss, independent dropped-sample/dropped-frame counts, and explicit process-memory interval/missed-sample/RSS fields
-attribution: every captured sample enters exactly one exclusive exact-authored|shared-or-ambiguous|runtime-associated|generated-only|native-only|unavailable bucket; inclusive semantic groups deduplicate repeated frames in one stack
-presentation: reconciled bucket totals, hottest source groups, hierarchical source-first call tree, weight-ranked folded stacks, and explicitly requested generated/native constituents; --limit bounds top-level and per-row expansions; each row reports pre-limit totals so JSON consumers can detect clipping, while text reports render omitted counts
+artifact: bounded schema 1.2 typed .trnprof evidence; exact compiler/Rust/target/profile/input/executable/module identity; normalized CPU frames; allocation identities, sizes, collector timestamps, trace identities, matched frees, traffic/live/retained/peak accounting, and explicit process-memory interval/missed-sample/RSS fields
+attribution: CPU samples use exclusive exact-authored|shared-or-ambiguous|runtime-associated|generated-only|native-only|unavailable buckets; allocation stacks preserve Heaptrack native/generated frames and separately weighted allocation-count, retained-byte, and peak-live-byte views
+presentation: CPU source table/call tree/folded stacks; allocation traffic, churn, retained-at-exit and peak-live totals with folded allocation sites; process-memory timeline tables; bounded text and JSON
 relocation: copied-but-identical source and build roots remain attributable; changed, missing, or ambiguous identities preserve native evidence with explicit reduced fidelity
 privacy: generated Rust and compiler-bundled source are retained for exact attribution; other authored source requires --embed-sources; workload arguments require --retain-arguments
-unit: CPU captures use sample count; process-memory timelines use bytes and do not claim allocation ownership, retained heap, or deterministic wall time
-unsupported: allocation/retention evidence, off-CPU and hardware-counter evidence, async metrics, comparisons, continuous-service capture, non-Linux collectors
+unit: CPU captures use sample count; allocation captures use bytes and independent event counts; process-memory timelines use bytes and do not claim allocation ownership or deterministic wall time
+unsupported: garbage-collector reachability, heap dumps, memory-access attribution, off-CPU/hardware counters, continuous-service capture, and non-Linux collectors
 ```
 
 ## CORE LIBRARY PRINCIPLE
