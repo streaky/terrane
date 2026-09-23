@@ -2,16 +2,13 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
   "engines": {
     "vscode": "^1.91.0"
   },
-  "activationEvents": [
-    "onLanguage:terrane"
-  ],
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
     "check": "node --check extension.js && node --check scripts/package-server.js"
