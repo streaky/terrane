@@ -538,7 +538,7 @@ fn run_perf(
     });
     loop {
         if let Some(timeline) = &mut timeline {
-            sample_process_memory(child.id(), started, timeline);
+            sample_process_memory(child.id(), started, timeline, true);
         }
         if let Some(status) = child
             .try_wait()
@@ -598,7 +598,7 @@ fn run_heaptrack(
     });
     loop {
         if let Some(timeline) = &mut timeline {
-            sample_process_memory(child.id(), started, timeline);
+            sample_process_memory(child.id(), started, timeline, true);
         }
         if let Some(status) = child.try_wait().map_err(|error| {
             CliFailure::backend(format!("failed to wait for heaptrack: {error}"))
@@ -916,7 +916,7 @@ fn run_memory_timeline(
         samples: Vec::new(),
     };
     loop {
-        sample_process_memory(child.id(), started, &mut timeline);
+        sample_process_memory(child.id(), started, &mut timeline, false);
         if let Some(status) = child
             .try_wait()
             .map_err(|error| CliFailure::backend(format!("failed to wait for workload: {error}")))?
@@ -927,8 +927,13 @@ fn run_memory_timeline(
     }
 }
 
-fn sample_process_memory(process_id: u32, started: Instant, timeline: &mut MemoryTimelineEvidence) {
-    let Some(sample) = read_process_memory(process_id, started) else {
+fn sample_process_memory(
+    process_id: u32,
+    started: Instant,
+    timeline: &mut MemoryTimelineEvidence,
+    require_workload_child: bool,
+) {
+    let Some(sample) = read_process_memory(process_id, started, require_workload_child) else {
         timeline.missed_intervals = timeline.missed_intervals.saturating_add(1);
         return;
     };
@@ -939,8 +944,16 @@ fn sample_process_memory(process_id: u32, started: Instant, timeline: &mut Memor
     }
 }
 
-fn read_process_memory(process_id: u32, started: Instant) -> Option<ProcessMemorySample> {
-    let process_id = profiled_child_process(process_id).unwrap_or(process_id);
+fn read_process_memory(
+    process_id: u32,
+    started: Instant,
+    require_workload_child: bool,
+) -> Option<ProcessMemorySample> {
+    let process_id = if require_workload_child {
+        profiled_child_process(process_id)?
+    } else {
+        process_id
+    };
     let status = fs::read_to_string(format!("/proc/{process_id}/status")).ok()?;
     let value = |name| {
         status.lines().find_map(|line| {
@@ -1502,6 +1515,7 @@ struct ShowOptions {
 pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let options = parse_show(arguments)?;
     let artifact = read_artifact(&options.path)?;
+    validate_allocation_options(artifact.evidence_kind, &options)?;
     if artifact.evidence_kind == EvidenceKind::MemoryTimeline {
         return show_memory_timeline(&artifact, &options);
     }
@@ -1597,6 +1611,22 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     Ok(ExitCode::SUCCESS)
 }
+fn validate_allocation_options(
+    evidence_kind: EvidenceKind,
+    options: &ShowOptions,
+) -> Result<(), CliFailure> {
+    if evidence_kind != EvidenceKind::Allocations
+        && (options.compare.is_some()
+            || options.max_allocated_bytes.is_some()
+            || options.max_retained_bytes.is_some())
+    {
+        return Err(CliFailure::usage_with(
+            "`--compare`, `--max-allocated-bytes`, and `--max-retained-bytes` require an allocation profile",
+        ));
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "allocation text and JSON policy views share one accounting boundary"
@@ -1812,7 +1842,19 @@ fn show_memory_timeline(
 }
 
 fn format_bytes(bytes: u64) -> String {
-    format!("{bytes} B")
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut divisor = 1_u64;
+    let mut unit = 0;
+    while bytes / divisor >= 1024 && unit + 1 < UNITS.len() {
+        divisor *= 1024;
+        unit += 1;
+    }
+    if unit == 0 {
+        return format!("{bytes} B");
+    }
+    let whole = bytes / divisor;
+    let hundredths = bytes % divisor * 100 / divisor;
+    format!("{whole}.{hundredths:02} {}", UNITS[unit])
 }
 fn validate_captured_modules(
     artifact: &ProfileArtifact,
@@ -2532,5 +2574,34 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
         assert_eq!(options.max_retained_bytes, Some(1_024));
         assert_eq!(profile_policy_status(false), ExitCode::SUCCESS);
         assert_eq!(profile_policy_status(true), ExitCode::from(1));
+    }
+
+    #[test]
+    fn allocation_options_reject_cpu_and_timeline_profiles() {
+        let options = parse_show(&[
+            "profile".into(),
+            "show".into(),
+            "current.trnprof".into(),
+            "--max-retained-bytes".into(),
+            "1024".into(),
+        ])
+        .unwrap();
+        assert!(validate_allocation_options(EvidenceKind::Allocations, &options).is_ok());
+        for kind in [EvidenceKind::CpuSamples, EvidenceKind::MemoryTimeline] {
+            let error = validate_allocation_options(kind, &options).unwrap_err();
+            assert!(error.message.contains("require an allocation profile"));
+        }
+    }
+
+    #[test]
+    fn workload_sampler_counts_missing_collector_child() {
+        let mut timeline = MemoryTimelineEvidence {
+            sampling_interval_nanoseconds: 1,
+            missed_intervals: 0,
+            samples: Vec::new(),
+        };
+        sample_process_memory(u32::MAX, Instant::now(), &mut timeline, true);
+        assert!(timeline.samples.is_empty());
+        assert_eq!(timeline.missed_intervals, 1);
     }
 }

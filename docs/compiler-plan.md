@@ -4542,9 +4542,9 @@ Deliver:
 - `terrane profile record --memory-timeline <source-or-package> [-- arguments]`, with optional
   `--output <profile.trnprof>`, for bounded RSS/PSS and operating-system memory counters over time;
 - exactly one primary evidence kind per version-one capture—`--cpu`, `--allocations`, or
-  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; an allocation
-  capture may include a clearly auxiliary process-memory timeline when the selected backend and
-  sampling policy can do so without changing its primary accounting;
+  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; a CPU or
+  allocation capture may include a clearly auxiliary process-memory timeline when the selected
+  backend and sampling policy can do so without changing its primary accounting;
 - one selected existing Linux x86-64 allocation collector, evaluated with `heaptrack` as the first
   candidate, plus the operating-system process-memory interface selected through a measured spike;
   report backend availability, permissions, interposition/instrumentation, allocator changes,

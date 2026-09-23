@@ -1946,7 +1946,7 @@ fn usage() -> String {
      [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
-     terrane profile record (--cpu|--allocations|--memory-timeline) [--memory-timeline] \
+     terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
      [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
      terrane profile show <file.trnprof> [--focus <source>:<line>] [--generated] [--native] \
      [--format <text|json>] [--limit <count>] [--compare <baseline.trnprof>] \
