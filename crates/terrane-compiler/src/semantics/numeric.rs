@@ -438,6 +438,7 @@ pub(crate) fn bound_method(source: &SourceFile, callee: &SyntaxNode) -> Option<B
         ("coerce", "lossy") => (MemberFamily::Coerce, "lossy"),
         ("coerce", "wrap") => (MemberFamily::Coerce, "wrap"),
         ("coerce", "saturate") => (MemberFamily::Coerce, "saturate"),
+        ("parse", "checked") => (MemberFamily::Parse, "checked"),
         (family, child @ ("checked" | "wrap" | "saturate" | "overflowing")) => {
             let child = match child {
                 "checked" => "checked",

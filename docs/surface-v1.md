@@ -265,6 +265,7 @@ With one typed numeric operand, a numeric constant takes that operand's type; sh
 
 Three distinct operations, deliberately not overlapping.
 
+```text
 source.coerce
 +-- invocation; Destination -> Destination        throws a typed conversion error
 +-- checked; Destination    -> Destination|none   no representability throw
