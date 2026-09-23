@@ -72,6 +72,17 @@ fn perf_available(directory: &Path) -> bool {
     status.is_ok_and(|status| status.success())
 }
 
+fn heaptrack_available() -> bool {
+    Command::new("heaptrack")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+        && Command::new("heaptrack_print")
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success())
+}
+
 fn workload(iterations: u64, exit: Option<i32>) -> String {
     let exit_import = if exit.is_some() {
         "from /core/process import exit, make-exit-status\n\n"
@@ -314,6 +325,59 @@ fn interruption_forwards_to_the_workload_and_finalizes_the_capture() {
             > 0
     );
     assert!(!contains_raw_capture(directory.path()));
+}
+
+#[test]
+fn allocation_capture_separates_churn_from_retained_bytes() {
+    if !heaptrack_available() {
+        return;
+    }
+    let _guard = RealProfilerGuard::acquire();
+    let directory = TemporaryDirectory::new();
+    fs::write(
+        directory.path().join("src/main.trn"),
+        "namespace profile\n\
+         from /core/collections import list\n\
+         function main;\n\
+           index int = 0\n\
+           while index < 10000\n\
+             temporary list of int = list; index, index + 1, index + 2\n\
+             index++\n\
+           retained list of int = list\n\
+           index = 0\n\
+           while index < 10000\n\
+             retained.append; index\n\
+             index++\n",
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args([
+            "profile",
+            "record",
+            "--allocations",
+            "--memory-timeline",
+            "--output",
+        ])
+        .arg(directory.path().join("allocation.trnprof"))
+        .arg(directory.path().join("package.toml"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let evidence = artifact(&directory, "allocation.trnprof");
+    let allocations = &evidence["allocations"];
+    let allocated = allocations["allocated_bytes"].as_u64().unwrap();
+    let freed = allocations["freed_bytes"].as_u64().unwrap();
+    let retained = allocations["retained_bytes_at_exit"].as_u64().unwrap();
+    assert!(allocated > retained);
+    assert!(freed > retained);
+    assert!(retained > 0);
+    assert_eq!(allocated, freed + retained);
+    assert!(!allocations["partial"].as_bool().unwrap());
+    assert!(evidence["memory_timeline"]["samples"].as_array().is_some());
 }
 
 #[test]
