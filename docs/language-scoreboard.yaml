@@ -1597,11 +1597,25 @@ features:
     state: documented
     paths:
     - manual/reference/records/tooling/profiling.yaml
-  notes: Linux x86-64 perf sampling records bounded schema 1.1 exact-build evidence from the optimized terrane-profile-cpu-v1 artifact and presents reconciled source, generated, hierarchical call-tree, folded-stack, and native views with explicit fidelity and privacy.
+  notes: Linux x86-64 perf sampling records bounded schema 1.2 exact-build evidence from the optimized terrane-profile-cpu-v1 artifact and presents reconciled source, generated, hierarchical call-tree, folded-stack, native, and optional auxiliary process-memory views with explicit fidelity and privacy.
   sources:
   - docs/language-spec-concise.md#PROFILING
   - docs/language-spec-and-compiler-architecture-draft.md#26.6-Profiling
   - docs/compiler-plan.md#Milestone 30.4
+- id: allocation-memory-profiling
+  name: Allocation, retention, and process-memory profiling
+  category: interop
+  status: done
+  completion: 100
+  milestone: '30.6'
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/tooling/profiling.yaml
+  notes: Heaptrack allocation/free transitions normalize into bounded capture-local events with reconciled traffic, freed, retained-at-exit, peak-live, and separately weighted stack evidence; bounded Linux procfs timelines work independently or alongside CPU/allocation capture without mixing units.
+  sources:
+  - docs/language-spec-concise.md#PROFILING
+  - docs/compiler-plan.md#Milestone 30.6
 - id: rust-lowering
   name: Deterministic readable Rust lowering
   category: interop

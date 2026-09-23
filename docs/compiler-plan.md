@@ -206,128 +206,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.6 — Allocation and process-memory profiling in the unified profiler
-
-Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
-mapper, or flame-graph implementation. CPU cost, allocation traffic, retained heap, and resident
-process memory answer different questions, so they share identity and presentation machinery while
-retaining distinct collectors, event schemas, units, accounting rules, and fidelity statements.
-
-#### Collection and artifact boundary
-
-Deliver:
-
-- `terrane profile record --allocations <source-or-package> [-- arguments]`, with optional
-  `--output <profile.trnprof>`, for allocation/free evidence and derived allocation, lifetime,
-  live, retained, and peak-live metrics;
-- `terrane profile record --memory-timeline <source-or-package> [-- arguments]`, with optional
-  `--output <profile.trnprof>`, for bounded RSS/PSS and operating-system memory counters over time;
-- exactly one primary evidence kind per version-one capture—`--cpu`, `--allocations`, or
-  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; an allocation
-  capture may include a clearly auxiliary process-memory timeline when the selected backend and
-  sampling policy can do so without changing its primary accounting;
-- one selected existing Linux x86-64 allocation collector, evaluated with `heaptrack` as the first
-  candidate, plus the operating-system process-memory interface selected through a measured spike;
-  report backend availability, permissions, interposition/instrumentation, allocator changes,
-  sampling interval, event loss, stack quality, and workload overhead; and
-- the existing `profile show`, source table, call tree, flame graph, generated/native expansion,
-  filtering, bounded JSON, relocation, stale-artifact fallback, and privacy behavior for the new
-  typed evidence.
-
-Prefer an external collector that observes the representative optimized executable. If the selected
-allocation backend interposes on or replaces the allocator, record that fact and every changed
-module/build/runtime input, measure its effect, and describe the capture as instrumented rather than
-production-identical. Do not add compiler allocator hooks merely to simplify collection. The
-profiler retains the same process-tree, signal, output, unsuccessful-exit, interruption, and cleanup
-ownership established by 30.4.
-
-Extend `.trnprof` with versioned allocation events containing a capture-local allocation identity,
-size, alignment when available, process/thread, monotonic ordering or timestamp, allocation stack,
-and matched reallocation/free transition. Raw addresses are observations, not stable allocation
-identity, because allocators reuse them. Preserve enough normalized transitions to recompute live
-sets and selected snapshots. Process-memory samples record timestamp, process, RSS, PSS where
-available, relevant private/shared/anonymous/file-backed counters, page faults where available,
-sampling interval, missed intervals, and operating-system definitions. Keep unavailable fields
-explicit rather than substituting a nearby metric.
-
-#### Allocation, retention, and process-memory semantics
-
-The allocation profile offers separately labelled metrics:
-
-- **allocation count** and **allocated bytes** for traffic;
-- **freed bytes** and allocation lifetime distributions for churn;
-- **live bytes** at a selected point;
-- **retained bytes** at normal exit or an explicit snapshot;
-- **peak-live bytes** and the allocation sites contributing to the selected peak; and
-- **unmatched/unavailable transitions** when collection loss prevents a valid lifetime.
-
-Allocation-site stacks own allocated and retained bytes; a later reader or mutator does not become
-the allocation owner without separately captured access evidence. Reallocation has one documented
-transition rule and may not count the unchanged portion twice. An allocation still live at exit is
-“retained at exit,” not automatically a leak; leak claims require a separate lifetime/root policy.
-Zero-size allocations, allocator metadata, mappings, stacks, code pages, shared libraries, runtime
-arenas, and fragmentation remain visible in their supported native/runtime/process buckets rather
-than being forced onto authored source.
-
-Apply the 30.4 exact-build join and attribution-quality buckets to allocation stacks. For each
-complete allocation capture:
-
-```text
-tracked live bytes at point T
-= allocated bytes through T
-- freed bytes through T
-+ documented reallocation adjustment
-```
-
-Reconcile allocation count and byte totals independently. Lost or unmatched events sit outside the
-complete-transition invariant and make retained/peak results explicitly partial. Exclusive source
-cost assigns each allocation event once; inclusive call-path and semantic-parent views overlap and
-are labelled. Allocation-count, allocated-byte, live-byte, and retained-byte flame graphs are
-different views with different widths even when they use the same stack topology.
-
-RSS/PSS is a time series, not an allocation stack metric. Present current/peak RSS and PSS with
-timestamps and sampling resolution. When an allocation capture also has a memory timeline, compare
-tracked live bytes with process memory as separate series and expose the unattributed gap; never
-force that gap into allocation sites or claim that a sampled RSS maximum is the exact instantaneous
-peak. A timeline uses charts/tables rather than fabricating stack-shaped ownership, although its
-selected time may choose the live-allocation snapshot rendered by the shared flame-graph viewer.
-
-#### Evidence and exclusions
-
-Use deterministic synthetic event streams for allocation/free/reallocation pairing, address reuse,
-loss, snapshots, peak selection, lifetime buckets, source ambiguity, runtime/native allocations,
-and every byte/count invariant. Real-backend scenarios distinguish:
-
-- a high-allocation, low-retention workload from a low-allocation, high-retention workload;
-- temporary allocation churn from the allocation sites responsible for peak-live memory;
-- allocator-tracked live bytes from RSS/PSS and their honestly unattributed difference;
-- Terrane-authored allocation sites from compiler runtime and external native-library sites; and
-- an exact capture from relocated, stale-source, mismatched-executable, interrupted, unsuccessful,
-  unsupported-host, and backend-unavailable cases.
-
-Exercise multiple threads, nested/recursive allocation stacks, zero-size and reallocation behavior,
-Unicode/relocated paths, bounded large captures, output/argument privacy, sampler loss, and cleanup.
-Measure collector overhead and any allocator/interposition effect against the same optimized
-workload without collection. The report and tutorial must teach which question each metric answers
-and show the same semantic stack rendered under CPU samples, allocated bytes, and retained bytes
-without implying that the widths are comparable.
-
-This milestone does not add garbage-collector reachability, object/reference-graph retention,
-use-after-free or leak diagnosis, memory-access attribution, cache/bandwidth/latency counters, heap
-dump browsing, platform allocator replacement, Windows/macOS collectors, continuous production
-telemetry, or simultaneous multi-backend recording. These remain separate evidence/backends rather
-than hidden meanings of “memory usage.”
-
-Exit criterion: the same `terrane profile` command and `.trnprof` reader can capture and present one
-real optimized allocation workload and one process-memory timeline on Linux x86-64; distinguish
-allocation traffic, churn, live/retained/peak-live bytes, and RSS/PSS; uphold event and byte
-accounting or mark partial evidence; attribute supported allocation stacks through exact Terrane
-provenance; render correctly labelled table, call-tree, timeline, and flame-graph views; retain
-generated/native expansion and raw evidence; and demonstrate high-churn and high-retention programs
-producing meaningfully different reports. Deterministic aggregation tests, real-backend fixtures,
-overhead measurements, strict Clippy, the complete conformance matrix, and the measured workspace
-suite pass.
-
 ### Milestone 32 — First-version hardening and release gate
 
 Deliver:
@@ -4417,7 +4295,7 @@ versioned artifact, and one source-first presentation layer.
 for CPU, allocation, retention, and process-memory evidence. A flame graph is one shared view over
 weighted stacks, not the stored evidence model and not a collector. Milestone 30.4 delivers the
 first vertical slice—optimized CPU sampling on Linux x86-64—and establishes the common contracts;
-milestone 30.5 adds allocation/retention and process-memory evidence without introducing another
+milestone 30.6 adds allocation/retention and process-memory evidence without introducing another
 profiling command, artifact, or attribution implementation. Later off-CPU samples, hardware
 counters, and async runtime events must extend the same typed evidence envelope but are not
 advertised until separately captured and exercised.
@@ -4644,4 +4522,128 @@ Deliver:
 
 Add focused accepted and rejected conformance cases for each boundary: direct and mediated global
 cycles; `finally` replacement in callable effect compatibility and reflection
+
+### Milestone 30.6 — Allocation and process-memory profiling in the unified profiler
+**Status:** completed on `feature/allocation-memory-profiling`.
+
+
+Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
+mapper, or flame-graph implementation. CPU cost, allocation traffic, retained heap, and resident
+process memory answer different questions, so they share identity and presentation machinery while
+retaining distinct collectors, event schemas, units, accounting rules, and fidelity statements.
+
+#### Collection and artifact boundary
+
+Deliver:
+
+- `terrane profile record --allocations <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for allocation/free evidence and derived allocation, lifetime,
+  live, retained, and peak-live metrics;
+- `terrane profile record --memory-timeline <source-or-package> [-- arguments]`, with optional
+  `--output <profile.trnprof>`, for bounded RSS/PSS and operating-system memory counters over time;
+- exactly one primary evidence kind per version-one capture—`--cpu`, `--allocations`, or
+  `--memory-timeline`—so units and collection overhead cannot be mixed accidentally; an allocation
+  capture may include a clearly auxiliary process-memory timeline when the selected backend and
+  sampling policy can do so without changing its primary accounting;
+- one selected existing Linux x86-64 allocation collector, evaluated with `heaptrack` as the first
+  candidate, plus the operating-system process-memory interface selected through a measured spike;
+  report backend availability, permissions, interposition/instrumentation, allocator changes,
+  sampling interval, event loss, stack quality, and workload overhead; and
+- the existing `profile show`, source table, call tree, flame graph, generated/native expansion,
+  filtering, bounded JSON, relocation, stale-artifact fallback, and privacy behavior for the new
+  typed evidence.
+
+Prefer an external collector that observes the representative optimized executable. If the selected
+allocation backend interposes on or replaces the allocator, record that fact and every changed
+module/build/runtime input, measure its effect, and describe the capture as instrumented rather than
+production-identical. Do not add compiler allocator hooks merely to simplify collection. The
+profiler retains the same process-tree, signal, output, unsuccessful-exit, interruption, and cleanup
+ownership established by 30.4.
+
+Extend `.trnprof` with versioned allocation events containing a capture-local allocation identity,
+size, alignment when available, process/thread, monotonic ordering or timestamp, allocation stack,
+and matched reallocation/free transition. Raw addresses are observations, not stable allocation
+identity, because allocators reuse them. Preserve enough normalized transitions to recompute live
+sets and selected snapshots. Process-memory samples record timestamp, process, RSS, PSS where
+available, relevant private/shared/anonymous/file-backed counters, page faults where available,
+sampling interval, missed intervals, and operating-system definitions. Keep unavailable fields
+explicit rather than substituting a nearby metric.
+
+#### Allocation, retention, and process-memory semantics
+
+The allocation profile offers separately labelled metrics:
+
+- **allocation count** and **allocated bytes** for traffic;
+- **freed bytes** and allocation lifetime distributions for churn;
+- **live bytes** at a selected point;
+- **retained bytes** at normal exit or an explicit snapshot;
+- **peak-live bytes** and the allocation sites contributing to the selected peak; and
+- **unmatched/unavailable transitions** when collection loss prevents a valid lifetime.
+
+Allocation-site stacks own allocated and retained bytes; a later reader or mutator does not become
+the allocation owner without separately captured access evidence. Reallocation has one documented
+transition rule and may not count the unchanged portion twice. An allocation still live at exit is
+“retained at exit,” not automatically a leak; leak claims require a separate lifetime/root policy.
+Zero-size allocations, allocator metadata, mappings, stacks, code pages, shared libraries, runtime
+arenas, and fragmentation remain visible in their supported native/runtime/process buckets rather
+than being forced onto authored source.
+
+Apply the 30.4 exact-build join and attribution-quality buckets to allocation stacks. For each
+complete allocation capture:
+
+```text
+tracked live bytes at point T
+= allocated bytes through T
+- freed bytes through T
++ documented reallocation adjustment
+```
+
+Reconcile allocation count and byte totals independently. Lost or unmatched events sit outside the
+complete-transition invariant and make retained/peak results explicitly partial. Exclusive source
+cost assigns each allocation event once; inclusive call-path and semantic-parent views overlap and
+are labelled. Allocation-count, allocated-byte, live-byte, and retained-byte flame graphs are
+different views with different widths even when they use the same stack topology.
+
+RSS/PSS is a time series, not an allocation stack metric. Present current/peak RSS and PSS with
+timestamps and sampling resolution. When an allocation capture also has a memory timeline, compare
+tracked live bytes with process memory as separate series and expose the unattributed gap; never
+force that gap into allocation sites or claim that a sampled RSS maximum is the exact instantaneous
+peak. A timeline uses charts/tables rather than fabricating stack-shaped ownership, although its
+selected time may choose the live-allocation snapshot rendered by the shared flame-graph viewer.
+
+#### Evidence and exclusions
+
+Use deterministic synthetic event streams for allocation/free/reallocation pairing, address reuse,
+loss, snapshots, peak selection, lifetime buckets, source ambiguity, runtime/native allocations,
+and every byte/count invariant. Real-backend scenarios distinguish:
+
+- a high-allocation, low-retention workload from a low-allocation, high-retention workload;
+- temporary allocation churn from the allocation sites responsible for peak-live memory;
+- allocator-tracked live bytes from RSS/PSS and their honestly unattributed difference;
+- Terrane-authored allocation sites from compiler runtime and external native-library sites; and
+- an exact capture from relocated, stale-source, mismatched-executable, interrupted, unsuccessful,
+  unsupported-host, and backend-unavailable cases.
+
+Exercise multiple threads, nested/recursive allocation stacks, zero-size and reallocation behavior,
+Unicode/relocated paths, bounded large captures, output/argument privacy, sampler loss, and cleanup.
+Measure collector overhead and any allocator/interposition effect against the same optimized
+workload without collection. The report and tutorial must teach which question each metric answers
+and show the same semantic stack rendered under CPU samples, allocated bytes, and retained bytes
+without implying that the widths are comparable.
+
+This milestone does not add garbage-collector reachability, object/reference-graph retention,
+use-after-free or leak diagnosis, memory-access attribution, cache/bandwidth/latency counters, heap
+dump browsing, platform allocator replacement, Windows/macOS collectors, continuous production
+telemetry, or simultaneous multi-backend recording. These remain separate evidence/backends rather
+than hidden meanings of “memory usage.”
+
+Exit criterion: the same `terrane profile` command and `.trnprof` reader can capture and present one
+real optimized allocation workload and one process-memory timeline on Linux x86-64; distinguish
+allocation traffic, churn, live/retained/peak-live bytes, and RSS/PSS; uphold event and byte
+accounting or mark partial evidence; attribute supported allocation stacks through exact Terrane
+provenance; render correctly labelled table, call-tree, timeline, and flame-graph views; retain
+generated/native expansion and raw evidence; and demonstrate high-churn and high-retention programs
+producing meaningfully different reports. Deterministic aggregation tests, real-backend fixtures,
+overhead measurements, strict Clippy, the complete conformance matrix, and the measured workspace
+suite pass.
 
