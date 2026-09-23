@@ -178,6 +178,20 @@ pub struct MemoryTimelineEvidence {
     pub samples: Vec<ProcessMemorySample>,
 }
 
+/// Aggregate allocation statistics emitted by an allocation-event collector.
+///
+/// The collector owns raw-event parsing; this normalized form deliberately
+/// keeps bytes, counts, and retained bytes independent.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationEvidence {
+    pub allocation_count: u64,
+    pub allocated_bytes: u64,
+    pub temporary_allocation_count: u64,
+    pub leaked_bytes: u64,
+    pub peak_live_bytes: u64,
+    pub collector_data_format: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProfileArtifact {
     pub schema_version: String,
@@ -192,6 +206,8 @@ pub struct ProfileArtifact {
     pub evidence: CpuEvidence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_timeline: Option<MemoryTimelineEvidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allocations: Option<AllocationEvidence>,
 }
 
 impl ProfileArtifact {
@@ -226,8 +242,9 @@ impl ProfileArtifact {
             (EvidenceKind::MemoryTimeline, _) => {
                 return Err("process-memory profiles must use byte units and a timeline".to_owned());
             }
+            (EvidenceKind::Allocations, EvidenceUnit::Bytes) if self.allocations.is_some() => {}
             (EvidenceKind::Allocations, _) => {
-                return Err("allocation profile evidence is not supported by schema 1.2".to_owned());
+                return Err("allocation profiles must use byte units and allocation evidence".to_owned());
             }
             _ => return Err("CPU profile evidence must use sample-count units".to_owned()),
         }
@@ -1195,6 +1212,7 @@ mod tests {
                 },
             },
             memory_timeline: None,
+            allocations: None,
         }
     }
 
@@ -1226,6 +1244,7 @@ mod tests {
                 rss_bytes: Some(4_096),
                 pss_bytes: None,
                 private_bytes: None,
+
                 shared_bytes: Some(1_024),
                 anonymous_bytes: Some(3_072),
                 file_backed_bytes: Some(1_024),
@@ -1240,6 +1259,24 @@ mod tests {
             artifact.validate().unwrap_err(),
             "process-memory timeline has a zero sampling interval"
         );
+    }
+    #[test]
+    fn validates_typed_allocation_evidence() {
+        let mut artifact = artifact();
+        artifact.evidence_kind = EvidenceKind::Allocations;
+        artifact.evidence_unit = EvidenceUnit::Bytes;
+        artifact.evidence.samples.clear();
+        artifact.evidence.loss.captured_events = 0;
+        artifact.allocations = Some(AllocationEvidence {
+            allocation_count: 3,
+            allocated_bytes: 1_024,
+            temporary_allocation_count: 2,
+            leaked_bytes: 0,
+            peak_live_bytes: 768,
+            collector_data_format: "heaptrack-print-summary-v1".to_owned(),
+        });
+
+        artifact.validate().unwrap();
     }
 
     #[test]

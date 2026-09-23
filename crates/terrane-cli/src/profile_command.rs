@@ -306,6 +306,7 @@ fn assemble_artifact(
             samples: capture.evidence.samples,
         },
         memory_timeline: timeline,
+        allocations: None,
     }
 }
 
