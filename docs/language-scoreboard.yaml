@@ -533,7 +533,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/numerics/conversion.yaml
-  notes: Default, checked, wrap, and saturate conversion policies are descriptor-driven callable families.
+  notes: Default, checked, lossy float64-to-float32, wrap, and saturate conversion policies are descriptor-driven callable families.
   sources:
   - docs/language-spec-concise.md#COERCION
   - docs/compiler-plan.md#Milestone 4.5

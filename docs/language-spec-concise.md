@@ -487,8 +487,8 @@ excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
 ## COERCION
 
 ```yaml
-form: receiver family/policy; 'value.coerce; destination-type' | 'value.coerce.checked; destination-type' | 'value.coerce; destination-type, converter'
-family: invocation is the throwing default | coerce.checked | coerce.wrap | coerce.saturate
+form: receiver family/policy; 'value.coerce; destination-type' | 'value.coerce.checked; destination-type' | 'value.coerce.lossy; destination-type' | 'value.coerce; destination-type, converter'
+family: invocation is the throwing default | coerce.checked | coerce.lossy | coerce.wrap | coerce.saturate
 default_child: 'default' exists in compiler metadata for reflection only; source lookup of 'default' is rejected
 implicit_numeric_destination: assignment/argument/return/element/field accepts exactly or throws; no written coerce required
 exact_widening: source range contained by destination exact values; representation change, no representability check/conversion-error path
@@ -497,11 +497,11 @@ float_to_integer: succeeds only for finite, integral, in-range values; otherwise
 integer_to_float_implicit: succeeds only when this integer is exactly representable; otherwise throws
 integer_to_float_written: 'value.coerce; float-type' requests IEEE round-to-nearest, ties-to-even; inexact result is ordinary
 float_narrowing: exact finite values, signed zero, and signed infinity arrive with sign preserved; rounded finite values and every NaN throw integer-conversion-overflow
-fixed_to_int: exact; int8..int64 and uint8..uint32 fit Small, uint64..int128 fit Wide, uint128 uses Wide below 2^127 or Big otherwise; Big may have an ordinary allocation failure but no conversion error
 float_to_integer_written: NO declared coerce pair - choosing an integer for a fractional value needs a rounding mode and coerce never takes one; 'ratio.coerce; int' is absent while 'count int = ratio' is admitted
 float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each is invoked with ';' and yields an integer before destination conversion
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
 float_nonfinite_written: floating-to-floating coerce preserves signed infinity and NaN category; these are not finite-overflow failures
+lossy_float_narrowing: 'float64.coerce.lossy; float32' is the sole declared lossy pair; it is infallible IEEE round-to-nearest, ties-to-even, preserving signed zero/infinity and NaN category, allowing underflow to signed zero and overflow to signed infinity; NaN payload preservation is not portable
 string_parse: accepts exactly the destination's canonical text-display spelling
 coerce_options: NONE - compiler-declared coerce takes only its destination; the optional second positional argument on bare coerce is the complete caller-supplied converter, never a radix or format option
 parse_family: 'value.parse; callback' - the callback is REQUIRED; there is no built-in destination-owned parse

@@ -427,6 +427,9 @@ impl Emitter<'_> {
                 CoercionPolicy::Checked => "checked_coerce",
                 CoercionPolicy::Wrap => "wrapping_coerce",
                 CoercionPolicy::Saturate => "saturating_coerce",
+                CoercionPolicy::Lossy => {
+                    unreachable!("lossy coercion cannot select an integer destination")
+                }
             };
             let receiver = self.receiver_expression(receiver);
             let source = if receiver_is_borrowed {
@@ -490,7 +493,7 @@ impl Emitter<'_> {
             (ScalarType::Uint128, ScalarType::Float32) => {
                 Some(format!("terrane_int_support::coerce_fixed_to_f32({value})"))
             }
-            (ScalarType::Float64, ScalarType::Float32) => {
+            (ScalarType::Float64, ScalarType::Float32) if policy != CoercionPolicy::Lossy => {
                 Some(format!("terrane_int_support::coerce_f64_to_f32({value})"))
             }
             _ => None,

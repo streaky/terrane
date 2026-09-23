@@ -490,7 +490,8 @@ floating-point value T
 │   └── .truncate; -> int
 ├── coercion family
 │   ├── .coerce; FloatingDestination -> FloatingDestination
-│   └── .coerce.checked; FloatingDestination -> FloatingDestination or none
+│   ├── .coerce.checked; FloatingDestination -> FloatingDestination or none
+│   └── .coerce.lossy; float32 -> float32 (float64 receiver only)
 └── descriptor relation
     └── value is a descriptor T -> bool
 
@@ -503,7 +504,7 @@ floating descriptor T
 
 Computational members lower directly to Rust primitive operations or to the compiler-owned scalar support used for exact decomposition and binary scaling, so they require no scientific library. Classification and `negative-sign` are properties; zero-argument computations remain methods. Floating results preserve receiver precision. The operations follow the specification's IEEE NaN selection, infinity, signed-zero, domain, overflow, underflow, rounding, accuracy, and target-reproducibility contracts. `sine-cosine` evaluates the receiver once; `multiply-add` is fused; `decompose` and `scale-binary` round-trip normal and subnormal values without avoidable intermediate rounding.
 
-Floating values implement bare and checked coercion to floating destinations. Same-width coercion is identity, `float32` to `float64` is exact, and `float64` to `float32` rounds to nearest with ties to even. A finite source that rounds outside the `float32` finite range throws `coercion-error`, while `.coerce.checked` returns `none`. IEEE infinity and NaN retain their categories across written floating conversion. No floating-to-integer pair is declared on `coerce`; use `round`, `floor`, `ceiling`, or `truncate` to choose the fractional policy before an integer destination.
+Floating values implement bare and checked coercion to floating destinations. Same-width coercion is identity, `float32` to `float64` is exact, and `float64` to `float32` rounds to nearest with ties to even. A finite source that rounds outside the `float32` finite range throws `coercion-error`, while `.coerce.checked` returns `none`. `.coerce.lossy; float32` is available only on `float64`: it performs the same IEEE rounding without failure, allowing finite overflow to signed infinity and underflow to signed zero. IEEE infinity and NaN retain their categories across written floating conversion, though NaN payload preservation is not portable. No floating-to-integer pair is declared on `coerce`; use `round`, `floor`, `ceiling`, or `truncate` to choose the fractional policy before an integer destination.
 
 ### `string`
 
@@ -931,6 +932,7 @@ change the generated manifest.
 | any integer | `.coerce.checked; D` | family child | destination value or `none` |
 | fixed-width integer | `.coerce.wrap; D` | family child | destination value with wrapping policy |
 | fixed-width integer | `.coerce.saturate; D` | family child | destination value with saturation policy |
+| `float64` | `.coerce.lossy; float32` | family child | infallible IEEE float32 narrowing |
 | `string` | `.parse; callback` | family default | callback's declared return |
 | `string` | `.parse.checked; callback` | family child | callback's declared return or `none` |
 | `string` | `.radix; base` | method | adaptive `int` interpretation |

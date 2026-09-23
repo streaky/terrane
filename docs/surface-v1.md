@@ -265,10 +265,10 @@ With one typed numeric operand, a numeric constant takes that operand's type; sh
 
 Three distinct operations, deliberately not overlapping.
 
-```text
 source.coerce
 +-- invocation; Destination -> Destination        throws a typed conversion error
 +-- checked; Destination    -> Destination|none   no representability throw
++-- lossy; float32          -> float32            float64-only IEEE narrowing
 +-- wrap; Destination       -> Destination        modulo destination width
 +-- saturate; Destination   -> Destination        clamp to destination bounds
 ```
@@ -279,18 +279,21 @@ The bare invocation *is* the throwing default. `.default` exists in compiler met
 
 Attachment and gating:
 
-| Receiver | invocation destinations | `checked` | `wrap` | `saturate` |
-|---|---|---|---|---|
-| `int` | every integer; floating | fixed integer; floating | fixed integer only | fixed integer only |
-| fixed integer | every integer; floating | fixed integer; floating | fixed integer only | fixed integer only |
-| floating | floating only | floating only | absent | absent |
-| `string` | numeric destinations, from the canonical base-ten text spelling | the same numeric destinations | absent | absent |
-| `bool` | integer destinations: `false` is `0`, `true` is `1`, total and lossless | not applicable; the conversion cannot fail | absent | absent |
-| `bytes` | absent — text and bytes convert only through an explicit encoding object | absent | absent | absent |
-| `none` | absent | absent | absent | absent |
-| collection | declared sequence/map/set contracts with a statically known item conversion | the same declared destinations | absent | absent |
+| Receiver | invocation destinations | `checked` | `lossy` | `wrap` | `saturate` |
+|---|---|---|---|---|---|
+| `int` | every integer; floating | fixed integer; floating | absent | fixed integer only | fixed integer only |
+| fixed integer | every integer; floating | fixed integer; floating | absent | fixed integer only | fixed integer only |
+| `float64` | floating only | floating only | `float32` only | absent | absent |
+| `float32` | floating only | floating only | absent | absent | absent |
+| `string` | numeric destinations, from the canonical base-ten text spelling | the same numeric destinations | absent | absent | absent |
+| `bool` | integer destinations: `false` is `0`, `true` is `1`, total and lossless | not applicable; the conversion cannot fail | absent | absent | absent |
+| `bytes` | absent — text and bytes convert only through an explicit encoding object | absent | absent | absent | absent |
+| `none` | absent | absent | absent | absent | absent |
+| collection | declared sequence/map/set contracts with a statically known item conversion | the same declared destinations | absent | absent | absent |
 
 Written integer-to-floating `coerce` deliberately selects IEEE round-to-nearest, ties to even, and throws when the magnitude falls outside the destination's finite range rather than yielding an infinity. This differs from an unwritten numeric destination, which admits only an exactly representable result. A finite, integral, in-range floating value reaches an integer destination directly under the exact-or-throw rule; a fractional value throws. To choose approximation instead, the author first selects `round`, `floor`, `ceiling`, or `truncate`, and the resulting integer then crosses its destination under the same rule. An out-of-range written floating conversion throws `coercion-error`.
+
+`float64.coerce.lossy; float32` is the one total floating conversion policy. It rounds once to binary32 using IEEE round-to-nearest, ties-to-even, preserves signed zero, signed infinity, and the NaN category, allows underflow to subnormal or signed zero, and produces signed infinity on finite overflow. It is absent from exact widening and all non-floating pairs, so it cannot become a generic unchecked cast.
 
 `wrap` and `saturate` are absent from a floating receiver for the same reason its integer destinations are: every one would have to answer what integer a fractional value becomes, and that mode belongs in a name rather than in a policy child of `coerce`.
 
@@ -1435,7 +1438,7 @@ locale-policy-rich text API until deterministic policy objects are specified
 
 ## 17. Decisions this proposal makes
 
-1. Related operation modes are children of one callable method object: `coerce.checked`, `coerce.wrap`, `coerce.saturate`; likewise bounded arithmetic modes.
+1. Related operation modes are children of one callable method object: `coerce.checked`, `coerce.lossy`, `coerce.wrap`, `coerce.saturate`; likewise bounded arithmetic modes.
 2. Child names are concise because the parent supplies the semantic context.
 3. Receiver and destination types gate the available child set statically.
 4. Numeric reuse is based on an `integer` contract plus implementation traits, not unsound `int` subclassing.

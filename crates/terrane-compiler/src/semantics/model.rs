@@ -1124,6 +1124,7 @@ pub struct BoundMethod {
 pub(crate) enum CoercionPolicy {
     Default,
     Checked,
+    Lossy,
     Wrap,
     Saturate,
 }
@@ -1132,6 +1133,7 @@ impl CoercionPolicy {
     pub(crate) fn from_member(member: &str) -> Option<Self> {
         match member {
             "checked" => Some(Self::Checked),
+            "lossy" => Some(Self::Lossy),
             "wrap" => Some(Self::Wrap),
             "saturate" => Some(Self::Saturate),
             _ => None,
@@ -1142,6 +1144,7 @@ impl CoercionPolicy {
         match self {
             Self::Default => "default",
             Self::Checked => "checked",
+            Self::Lossy => "lossy",
             Self::Wrap => "wrap",
             Self::Saturate => "saturate",
         }
@@ -1151,6 +1154,7 @@ impl CoercionPolicy {
         match self {
             Self::Default => ".coerce",
             Self::Checked => ".coerce.checked",
+            Self::Lossy => ".coerce.lossy",
             Self::Wrap => ".coerce.wrap",
             Self::Saturate => ".coerce.saturate",
         }

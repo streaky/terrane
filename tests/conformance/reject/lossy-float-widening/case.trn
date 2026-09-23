@@ -1,0 +1,5 @@
+namespace lossy-float-widening
+
+function main;
+  value float32 = 4.0
+  widened float64 = value.coerce.lossy; float64
