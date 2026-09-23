@@ -663,9 +663,14 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                         errors.extend(direct_errors(package, unit, block));
                     }
                     clauses_finished = true;
-                } else if child.kind == SyntaxKind::FinallyClause {
-                    if let Some(block) = child.children.last() {
-                        errors.extend(direct_errors(package, unit, block));
+                } else if child.kind == SyntaxKind::FinallyClause
+                    && let Some(block) = child.children.last()
+                {
+                    let finally_errors = direct_errors(package, unit, block);
+                    if super::scopes::block_may_fall_through(block) {
+                        errors.extend(finally_errors);
+                    } else {
+                        errors = finally_errors;
                     }
                 } else if !clauses_finished {
                     errors.extend(direct_errors(package, unit, child));
@@ -1212,9 +1217,14 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                         errors.extend(escaping_errors(package, unit, block, inferred));
                     }
                     clauses_finished = true;
-                } else if child.kind == SyntaxKind::FinallyClause {
-                    if let Some(block) = child.children.last() {
-                        errors.extend(escaping_errors(package, unit, block, inferred));
+                } else if child.kind == SyntaxKind::FinallyClause
+                    && let Some(block) = child.children.last()
+                {
+                    let finally_errors = escaping_errors(package, unit, block, inferred);
+                    if super::scopes::block_may_fall_through(block) {
+                        errors.extend(finally_errors);
+                    } else {
+                        errors = finally_errors;
                     }
                 } else if !clauses_finished {
                     errors.extend(escaping_errors(package, unit, child, inferred));
