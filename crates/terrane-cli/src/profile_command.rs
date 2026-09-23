@@ -1571,6 +1571,8 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 row.native.clear();
             }
         }
+        let (memory_timeline, memory_timeline_samples_total) =
+            limited_timeline(artifact.memory_timeline.as_ref(), options.limit);
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -1579,7 +1581,8 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 "unit": artifact.evidence_unit,
                 "conditions": artifact.conditions,
                 "privacy": artifact.privacy,
-                "memory_timeline": artifact.memory_timeline,
+                "memory_timeline": memory_timeline,
+                "memory_timeline_samples_total": memory_timeline_samples_total,
                 "report": output_report,
                 "generated_expansion": options.generated,
                 "native_expansion": options.native
@@ -1600,6 +1603,13 @@ fn show_allocations(
         .as_ref()
         .expect("validated allocation profile includes allocation evidence");
     if options.format == "json" {
+        let mut output = allocations.clone();
+        let event_total = output.events.len();
+        let site_total = output.sites.len();
+        output.events.truncate(options.limit);
+        let (memory_timeline, memory_timeline_samples_total) =
+            limited_timeline(artifact.memory_timeline.as_ref(), options.limit);
+        output.sites.truncate(options.limit);
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -1608,8 +1618,11 @@ fn show_allocations(
                 "unit": artifact.evidence_unit,
                 "conditions": artifact.conditions,
                 "privacy": artifact.privacy,
-                "allocations": allocations,
-                "memory_timeline": artifact.memory_timeline,
+                "allocations": output,
+                "allocation_events_total": event_total,
+                "allocation_sites_total": site_total,
+                "memory_timeline": memory_timeline,
+                "memory_timeline_samples_total": memory_timeline_samples_total,
             }))
             .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
         );
@@ -1650,6 +1663,17 @@ fn show_allocations(
     }
     Ok(ExitCode::SUCCESS)
 }
+fn limited_timeline(
+    timeline: Option<&MemoryTimelineEvidence>,
+    limit: usize,
+) -> (Option<MemoryTimelineEvidence>, usize) {
+    let total = timeline.map_or(0, |timeline| timeline.samples.len());
+    let mut output = timeline.cloned();
+    if let Some(timeline) = &mut output {
+        timeline.samples.truncate(limit);
+    }
+    (output, total)
+}
 
 fn show_memory_timeline(
     artifact: &ProfileArtifact,
@@ -1660,6 +1684,9 @@ fn show_memory_timeline(
         .as_ref()
         .expect("validated memory profile includes a timeline");
     if options.format == "json" {
+        let mut output = timeline.clone();
+        let sample_total = output.samples.len();
+        output.samples.truncate(options.limit);
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -1668,7 +1695,8 @@ fn show_memory_timeline(
                 "unit": artifact.evidence_unit,
                 "conditions": artifact.conditions,
                 "privacy": artifact.privacy,
-                "timeline": timeline,
+                "timeline": output,
+                "timeline_samples_total": sample_total,
             }))
             .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
         );
