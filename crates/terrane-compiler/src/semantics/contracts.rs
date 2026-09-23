@@ -347,6 +347,16 @@ pub(super) fn analyze_function_contract(
     node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Result<FunctionContract, SemanticFailure> {
+    fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        node.children.iter().any(|child| {
+            (child.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, child).as_deref() == Some("await"))
+                || (!matches!(
+                    child.kind,
+                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+                ) && contains_direct_await(unit, child))
+        })
+    }
     let name_node = node
         .children
         .iter()
@@ -509,16 +519,6 @@ pub(super) fn analyze_function_contract(
             }
         }
     }
-    fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        node.children.iter().any(|child| {
-            (child.kind == SyntaxKind::UnaryExpression
-                && unary_operator_text(unit, child).as_deref() == Some("await"))
-                || (!matches!(
-                    child.kind,
-                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
-                ) && contains_direct_await(unit, child))
-        })
-    }
     let is_async = declared_async || (is_destructor && contains_direct_await(unit, node));
     let written_invocation_mode = if node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier
@@ -663,9 +663,14 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                         errors.extend(direct_errors(package, unit, block));
                     }
                     clauses_finished = true;
-                } else if child.kind == SyntaxKind::FinallyClause {
-                    if let Some(block) = child.children.last() {
-                        errors.extend(direct_errors(package, unit, block));
+                } else if child.kind == SyntaxKind::FinallyClause
+                    && let Some(block) = child.children.last()
+                {
+                    let finally_errors = direct_errors(package, unit, block);
+                    if super::scopes::block_may_fall_through(block) {
+                        errors.extend(finally_errors);
+                    } else {
+                        errors = finally_errors;
                     }
                 } else if !clauses_finished {
                     errors.extend(direct_errors(package, unit, child));
@@ -1212,9 +1217,14 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                         errors.extend(escaping_errors(package, unit, block, inferred));
                     }
                     clauses_finished = true;
-                } else if child.kind == SyntaxKind::FinallyClause {
-                    if let Some(block) = child.children.last() {
-                        errors.extend(escaping_errors(package, unit, block, inferred));
+                } else if child.kind == SyntaxKind::FinallyClause
+                    && let Some(block) = child.children.last()
+                {
+                    let finally_errors = escaping_errors(package, unit, block, inferred);
+                    if super::scopes::block_may_fall_through(block) {
+                        errors.extend(finally_errors);
+                    } else {
+                        errors = finally_errors;
                     }
                 } else if !clauses_finished {
                     errors.extend(escaping_errors(package, unit, child, inferred));

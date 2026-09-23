@@ -287,7 +287,11 @@ fn append_unit_symbols(
                 .collect(),
         });
     }
-    for function in &unit.functions {
+    for function in unit
+        .functions
+        .iter()
+        .filter(|function| function.span.file == unit.source.id())
+    {
         let id = function_id(
             unit,
             function.span,
@@ -610,7 +614,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use crate::rust_ir::RenderedFile;
-    use crate::{CompilerOptions, compile_with_options};
+    use crate::{
+        CompilerOptions, Package, SourceUnit, compile_package_with_options, compile_with_options,
+    };
     use crate::{SourceFile, SourceRole};
 
     use super::{DebugSymbols, marker_associations};
@@ -677,6 +683,46 @@ mod tests {
                 .iter()
                 .all(|file| file.embedded_source.as_deref().is_some())
         );
+    }
+
+    #[test]
+    fn debug_information_keeps_multifile_function_spans_with_their_sources() {
+        let mut package = Package::implicit(
+            "src/main.trn",
+            "namespace multifile-debug\nfunction main;\n  helper;\n".to_owned(),
+        );
+        package.units.push(SourceUnit {
+            relative_path: PathBuf::from("src/helper.trn"),
+            source: SourceFile::new(
+                1,
+                PathBuf::from("src/helper.trn"),
+                "namespace multifile-debug\nfunction helper;\n".to_owned(),
+            ),
+            expected_namespace: None,
+            prelude: true,
+            role: SourceRole::Production,
+        });
+        let compilation = compile_package_with_options(
+            &package,
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let debug = compilation
+            .debug_information(Path::new("src/main.rs"))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(debug.functions.len(), 2);
+        assert!(debug
+            .functions
+            .iter()
+            .any(|function| function.name.ends_with("::main") && function.source.source_id == 0));
+        assert!(debug.functions.iter().any(|function| {
+            function.name.ends_with("::helper") && function.source.source_id == 1
+        }));
     }
 
     #[test]

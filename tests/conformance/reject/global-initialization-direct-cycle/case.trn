@@ -1,0 +1,4 @@
+namespace global-initialization-direct-cycle
+global first = second
+global second = first
+function main;

@@ -1745,12 +1745,16 @@ pub(super) fn infer_and_validate_invocation_modes(
                 // Moving an optional receiver field is a `mem::take` operation:
                 // it leaves `none` behind, so an ordinary mutable close/reset
                 // method need not consume the enclosing object.
-                node.children
+                if node
+                    .children
                     .last()
                     .and_then(|target| infer_value_type(unit, target, &unit.typed_bindings).ok())
                     .is_some_and(|value_type| matches!(value_type, Some(ValueType::Optional(_))))
-                    .then_some(InvocationMode::Mutable)
-                    .unwrap_or(InvocationMode::Consuming)
+                {
+                    InvocationMode::Mutable
+                } else {
+                    InvocationMode::Consuming
+                }
             }
             SyntaxKind::CallExpression => call_mode(package, unit, contract, node),
             _ => InvocationMode::Shared,

@@ -1555,7 +1555,7 @@ pub(super) fn validate_initializer_dependencies(
                 package.resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
                 && let Some(span) = symbol.declaration_span
             {
-                if symbol.kind == SymbolKind::Binding && !symbol.global {
+                if symbol.kind == SymbolKind::Binding {
                     reads.push((key(span), node.span));
                 } else if symbol.kind == SymbolKind::Function && functions.insert(key(span)) {
                     for owner in &package.units {
@@ -1609,11 +1609,18 @@ pub(super) fn validate_initializer_dependencies(
         unit: &SemanticUnit,
         node: &SyntaxNode,
     ) -> Result<(), SemanticFailure> {
+        // A `global name = value` write is represented as a binding without a type annotation.
+        // Its self-read is a normal update, not an initializer dependency; untyped declaration
+        // self-references are still rejected by the top-level dependency graph below.
         if node.kind == SyntaxKind::Binding
             && let Some(initializer) = binding_initializer(node)
+            && let Some(declaration) = declaration_from_syntax(unit, node)
+            && (!declaration.global
+                || node
+                    .children
+                    .iter()
+                    .any(|child| child.kind == SyntaxKind::TypeExpression))
         {
-            let declaration =
-                declaration_from_syntax(unit, node).expect("ordinary binding has a name");
             let mut reads = Vec::new();
             collect_reads(package, unit, initializer, &mut reads, &mut BTreeSet::new());
             let direct_unresolved_self =
@@ -1697,9 +1704,7 @@ pub(super) fn validate_initializer_dependencies(
                     span,
                 ));
             }
-            if !declaration.global {
-                edges.entry(key(node.span)).or_default().extend(reads);
-            }
+            edges.entry(key(node.span)).or_default().extend(reads);
         }
     }
     for unit in &package.units {

@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "S2024"
+contains = "namespace binding initialization has a dependency cycle"

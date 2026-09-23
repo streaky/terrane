@@ -1,0 +1,7 @@
+namespace global-initialization-function-read
+global seed int = 7
+global result int = add-one;
+function add-one int;
+  return seed + 1
+function main;
+  print; result

@@ -1,0 +1,27 @@
+namespace finally-throwable-replacement
+from /core/errors import arithmetic-overflow, coercion-error
+
+function recovered string throws arithmetic-overflow;
+  try
+    throw coercion-error
+  finally
+    return 'recovered'
+
+function replaced string throws arithmetic-overflow;
+  try
+    throw coercion-error
+  finally
+    throw arithmetic-overflow
+
+function main;
+  recovered-operation = recovered
+  replacement-operation = replaced
+  print; recovered-operation.throwable-contract
+  print; recovered-operation.escaping-throwables
+  print; replacement-operation.throwable-contract
+  print; replacement-operation.escaping-throwables
+  print; (recovered-operation;)
+  try
+    replacement-operation;
+  catch arithmetic-overflow
+    print; 'replaced'

@@ -417,17 +417,21 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 3] = [
-        "/finally-error-replacement::error-then-return",
-        "/finally-error-replacement::return-then-error",
-        "/finally-error-replacement::main",
+        "/finally-throwable-replacement::recovered",
+        "/finally-throwable-replacement::replaced",
+        "/finally-throwable-replacement::main",
     ];
-    pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /finally-error-replacement::error-then-return (case.trn:5:5-5:30) */
-        { Site { function: 0, file: 0, line: 5, column: 5, end_line: 5, end_column: 30 } },
-        /* terrane-site-row: site 1: /finally-error-replacement::return-then-error (case.trn:12:5-12:25) */
+    pub static SITES: [Site; 5] = [
+        /* terrane-site-row: site 0: /finally-throwable-replacement::recovered (case.trn:6:5-6:25) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 25 } },
+        /* terrane-site-row: site 1: /finally-throwable-replacement::replaced (case.trn:12:5-12:25) */
         { Site { function: 1, file: 0, line: 12, column: 5, end_line: 12, end_column: 25 } },
-        /* terrane-site-row: site 2: /finally-error-replacement::main (case.trn:17:18-17:36) */
-        { Site { function: 2, file: 0, line: 17, column: 18, end_line: 17, end_column: 36 } },
+        /* terrane-site-row: site 2: /finally-throwable-replacement::replaced (case.trn:14:5-14:30) */
+        { Site { function: 1, file: 0, line: 14, column: 5, end_line: 14, end_column: 30 } },
+        /* terrane-site-row: site 3: /finally-throwable-replacement::main (case.trn:23:11-23:31) */
+        { Site { function: 2, file: 0, line: 23, column: 11, end_line: 23, end_column: 31 } },
+        /* terrane-site-row: site 4: /finally-throwable-replacement::main (case.trn:25:5-25:27) */
+        { Site { function: 2, file: 0, line: 25, column: 5, end_line: 25, end_column: 27 } },
     ];
     #[cold]
     #[inline(never)]
@@ -442,14 +446,14 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: finally-error-replacement
-fn error_then_return() -> terrane_int_support::Int {
-    let mut __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
+// Namespace: finally-throwable-replacement
+fn recovered() -> String {
+    let mut __terrane_completion_0: TerraneCompletion<String> = (|| {
+        let __terrane_try_0: TerraneCompletion<String> = (|| {
             return TerraneCompletion::Error(
                 TerraneError::raised(
-                    TerraneErrorKind::ArithmeticOverflow,
-                    0 /* terrane-site: case.trn:5:5-5:30 */,
+                    TerraneErrorKind::CoercionError,
+                    0 /* terrane-site: case.trn:6:5-6:25 */,
                 ),
             );
         })();
@@ -467,8 +471,8 @@ fn error_then_return() -> terrane_int_support::Int {
         }
         TerraneCompletion::Normal
     })();
-    let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        return TerraneCompletion::Return(terrane_int_support::Int::from(7_i128));
+    let __terrane_finally_0: TerraneCompletion<String> = (|| {
+        return TerraneCompletion::Return(String::from("recovered"));
     })();
     match __terrane_finally_0 {
         TerraneCompletion::Normal => {}
@@ -485,10 +489,15 @@ fn error_then_return() -> terrane_int_support::Int {
         }
     }
 }
-fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
-    let mut __terrane_completion_1: TerraneCompletion<terrane_int_support::Int> = (|| {
-        let __terrane_try_1: TerraneCompletion<terrane_int_support::Int> = (|| {
-            return TerraneCompletion::Return(terrane_int_support::Int::from(8_i128));
+fn replaced() -> Result<String, TerraneError> {
+    let mut __terrane_completion_1: TerraneCompletion<String> = (|| {
+        let __terrane_try_1: TerraneCompletion<String> = (|| {
+            return TerraneCompletion::Error(
+                TerraneError::raised(
+                    TerraneErrorKind::CoercionError,
+                    1 /* terrane-site: case.trn:12:5-12:25 */,
+                ),
+            );
         })();
         match __terrane_try_1 {
             TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
@@ -504,11 +513,11 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
         }
         TerraneCompletion::Normal
     })();
-    let __terrane_finally_1: TerraneCompletion<terrane_int_support::Int> = (|| {
+    let __terrane_finally_1: TerraneCompletion<String> = (|| {
         return TerraneCompletion::Error(
             TerraneError::raised(
-                TerraneErrorKind::CoercionError,
-                1 /* terrane-site: case.trn:12:5-12:25 */,
+                TerraneErrorKind::ArithmeticOverflow,
+                2 /* terrane-site: case.trn:14:5-14:30 */,
             ),
         );
     })();
@@ -528,14 +537,38 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     }
 }
 fn main() {
-    let first: terrane_int_support::Int = error_then_return();
-    println!("{}", terrane_scalar_support::scalar_text(&first));
+    let recovered_operation: std::sync::Arc<
+        dyn Fn() -> Result<String, TerraneError> + Send + Sync,
+    > = std::sync::Arc::new(move || Ok(recovered()));
+    let replacement_operation: std::sync::Arc<
+        dyn Fn() -> Result<String, TerraneError> + Send + Sync,
+    > = std::sync::Arc::new(replaced);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = recovered_operation;
+        "arithmetic-overflow".to_owned() })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = recovered_operation; ""
+        .to_owned() })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = replacement_operation;
+        "arithmetic-overflow".to_owned() })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = replacement_operation;
+        "arithmetic-overflow".to_owned() })
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced(recovered_operation(),
+        3 /* terrane-site: case.trn:23:11-23:31 */))
+    );
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
-            let second: terrane_int_support::Int = __terrane_traced_completion!(
-                return_then_error(), 2 /* terrane-site: case.trn:17:18-17:36 */
+            __terrane_traced_completion!(
+                replacement_operation(), 4 /* terrane-site: case.trn:25:5-25:27 */
             );
-            println!("{}", terrane_scalar_support::scalar_text(&second));
             TerraneCompletion::Normal
         })();
         match __terrane_try_2 {
@@ -546,7 +579,7 @@ fn main() {
             TerraneCompletion::Error(__terrane_error_2) => {
                 let mut __terrane_handled_2 = false;
                 if !__terrane_handled_2
-                    && __terrane_error_2.kind == TerraneErrorKind::CoercionError
+                    && __terrane_error_2.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_2 = true;
                     println!(

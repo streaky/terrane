@@ -206,23 +206,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 30.5 — Issues Found in Reference Manual Review
-
-Resolve the implementation defects confirmed during the reference-record review.
-
-Deliver:
-
-- program-global initialization dependency analysis, including direct and function-mediated
-  global reads, that rejects cycles deterministically before lowering rather than allowing
-  recursive lazy initialization to hang at runtime; preserve the documented thread-safety
-  boundary for mutable globals; and
-- exact escaping-throwable inference through `try`/`catch`/`finally`, so a `return` or `throw`
-  in `finally` replaces the pending outcome on that path instead of retaining superseded
-  throwables in the callable's inferred contract; and
-
-Add focused accepted and rejected conformance cases for each boundary: direct and mediated global
-cycles; `finally` replacement in callable effect compatibility and reflection
-
 ### Milestone 30.6 — Allocation and process-memory profiling in the unified profiler
 
 Extend `terrane profile` and `.trnprof`; do not create a memory-specific command, artifact, source
@@ -4642,3 +4625,23 @@ deferred evidence kinds.
   unsuccessful exit, interruption/finalization, and raw-capture cleanup. Strict Clippy, targeted
   profiler/debugger suites, the complete workspace test suite, and the recorded clean scorecard
   passed at closeout.
+
+### Milestone 30.5 — Issues Found in Reference Manual Review
+**Status:** completed on `fix/global-effect-analysis`.
+
+
+Resolve the implementation defects confirmed during the reference-record review.
+
+Deliver:
+
+- program-global initialization dependency analysis, including direct and function-mediated
+  global reads, that rejects cycles deterministically before lowering rather than allowing
+  recursive lazy initialization to hang at runtime; preserve the documented thread-safety
+  boundary for mutable globals; and
+- exact escaping-throwable inference through `try`/`catch`/`finally`, so a `return` or `throw`
+  in `finally` replaces the pending outcome on that path instead of retaining superseded
+  throwables in the callable's inferred contract; and
+
+Add focused accepted and rejected conformance cases for each boundary: direct and mediated global
+cycles; `finally` replacement in callable effect compatibility and reflection
+

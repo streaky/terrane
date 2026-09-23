@@ -438,17 +438,17 @@
       "category": "names",
       "status": "done",
       "completion": 100,
-      "milestone": "4",
+      "milestone": "30.5",
       "reference": {
         "state": "documented",
         "paths": [
           "manual/reference/records/language/declarations/globals.yaml"
         ]
       },
-      "notes": "Global dependencies are explicit and cycles are diagnosed.",
+      "notes": "Global dependency analysis follows direct and function-mediated reads and rejects cycles before lowering.",
       "sources": [
         "docs/language-spec-concise.md#GLOBAL / BUILD",
-        "docs/compiler-plan.md#Milestone 4"
+        "docs/compiler-plan.md#Milestone 30.5"
       ]
     },
     {
@@ -974,17 +974,17 @@
       "category": "callables",
       "status": "done",
       "completion": 100,
-      "milestone": "18",
+      "milestone": "30.5",
       "reference": {
         "state": "documented",
         "paths": [
           "manual/reference/records/language/errors/contracts.yaml"
         ]
       },
-      "notes": "Escaping throwable sets account for catches and finally replacement and can be constrained on declarations.",
+      "notes": "Escaping throwable sets account for catches plus path-exact finally replacement and can be constrained on declarations.",
       "sources": [
         "docs/language-spec-concise.md#ERROR / CALLABLE",
-        "docs/compiler-plan.md#Milestone 18"
+        "docs/compiler-plan.md#Milestone 30.5"
       ]
     },
     {
