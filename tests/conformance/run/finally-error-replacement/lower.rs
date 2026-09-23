@@ -421,14 +421,12 @@ mod __terrane_trace {
         "/finally-error-replacement::return-then-error",
         "/finally-error-replacement::main",
     ];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /finally-error-replacement::error-then-return (case.trn:5:5-5:30) */
         { Site { function: 0, file: 0, line: 5, column: 5, end_line: 5, end_column: 30 } },
         /* terrane-site-row: site 1: /finally-error-replacement::return-then-error (case.trn:12:5-12:25) */
         { Site { function: 1, file: 0, line: 12, column: 5, end_line: 12, end_column: 25 } },
-        /* terrane-site-row: site 2: /finally-error-replacement::main (case.trn:14:15-14:33) */
-        { Site { function: 2, file: 0, line: 14, column: 15, end_line: 14, end_column: 33 } },
-        /* terrane-site-row: site 3: /finally-error-replacement::main (case.trn:17:18-17:36) */
+        /* terrane-site-row: site 2: /finally-error-replacement::main (case.trn:17:18-17:36) */
         { Site { function: 2, file: 0, line: 17, column: 18, end_line: 17, end_column: 36 } },
     ];
     #[cold]
@@ -445,7 +443,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: finally-error-replacement
-fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
+fn error_then_return() -> terrane_int_support::Int {
     let mut __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
             return TerraneCompletion::Error(
@@ -480,8 +478,8 @@ fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
         TerraneCompletion::Normal => {
             __terrane_generated_defect("non-fallthrough try completed normally")
         }
-        TerraneCompletion::Return(value) => return Ok(value),
-        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
         TerraneCompletion::Break | TerraneCompletion::Continue => {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
@@ -530,15 +528,12 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     }
 }
 fn main() {
-    let first: terrane_int_support::Int = __terrane_traced(
-        error_then_return(),
-        2 /* terrane-site: case.trn:14:15-14:33 */,
-    );
+    let first: terrane_int_support::Int = error_then_return();
     println!("{}", terrane_scalar_support::scalar_text(&first));
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             let second: terrane_int_support::Int = __terrane_traced_completion!(
-                return_then_error(), 3 /* terrane-site: case.trn:17:18-17:36 */
+                return_then_error(), 2 /* terrane-site: case.trn:17:18-17:36 */
             );
             println!("{}", terrane_scalar_support::scalar_text(&second));
             TerraneCompletion::Normal

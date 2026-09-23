@@ -1611,9 +1611,13 @@ pub(super) fn validate_initializer_dependencies(
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::Binding
             && let Some(initializer) = binding_initializer(node)
+            && let Some(declaration) = declaration_from_syntax(unit, node)
+            && (!declaration.global
+                || node
+                    .children
+                    .iter()
+                    .any(|child| child.kind == SyntaxKind::TypeExpression))
         {
-            let declaration =
-                declaration_from_syntax(unit, node).expect("ordinary binding has a name");
             let mut reads = Vec::new();
             collect_reads(package, unit, initializer, &mut reads, &mut BTreeSet::new());
             let direct_unresolved_self =
