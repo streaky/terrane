@@ -12,9 +12,10 @@ use std::time::{Duration, Instant};
 use terrane_compiler::debugging::DebugInformation;
 use terrane_compiler::profiling::{
     ATTRIBUTION_SCHEMA_VERSION, ArgumentPolicy, CapturedModule, CollectionConditions,
-    CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, Disclosure, EvidenceKind,
-    EvidenceUnit, MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, NativeFrame,
-    NativeSourceLocation, PrivacyDeclaration, ProfileArtifact, SCHEMA_VERSION,
+    CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample, DEFAULT_MEMORY_INTERVAL, Disclosure,
+    EvidenceKind, EvidenceUnit, MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH,
+    MemoryTimelineEvidence, NativeFrame, NativeSourceLocation, PrivacyDeclaration,
+    ProcessMemorySample, ProfileArtifact, SCHEMA_VERSION,
 };
 use terrane_compiler::provenance::{BuildIdentity, BuildProvenance, hash_bytes};
 
@@ -29,6 +30,8 @@ pub(super) struct RecordOptions {
     pub program_arguments: Vec<OsString>,
     pub retain_arguments: bool,
     pub embed_sources: bool,
+    pub capture_cpu: bool,
+    pub capture_memory_timeline: bool,
 }
 
 pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliFailure> {
@@ -39,12 +42,14 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
     }
     let mut index = 2;
     let mut cpu = false;
+    let mut memory_timeline = false;
     let mut output = None;
     let mut retain_arguments = false;
     let mut embed_sources = false;
     while let Some(argument) = arguments.get(index).and_then(|value| value.to_str()) {
         match argument {
             "--cpu" => cpu = true,
+            "--memory-timeline" => memory_timeline = true,
             "--retain-arguments" => retain_arguments = true,
             "--embed-sources" => embed_sources = true,
             "-o" | "--output" if output.is_none() => {
@@ -65,9 +70,9 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
         }
         index += 1;
     }
-    if !cpu {
+    if !cpu && !memory_timeline {
         return Err(CliFailure::usage_with(
-            "`terrane profile record` currently requires `--cpu`",
+            "`terrane profile record` requires `--cpu` or `--memory-timeline`",
         ));
     }
     let input = arguments
@@ -91,6 +96,8 @@ pub(super) fn parse_record(arguments: &[OsString]) -> Result<RecordOptions, CliF
         program_arguments,
         retain_arguments,
         embed_sources,
+        capture_cpu: cpu,
+        capture_memory_timeline: memory_timeline,
     })
 }
 
@@ -119,21 +126,49 @@ pub(super) fn record(
     build_identity: BuildIdentity,
 ) -> Result<ExitCode, CliFailure> {
     require_supported_host(&build_identity.target)?;
-    let perf_version = perf_version()?;
+    let perf_version = if options.capture_cpu {
+        perf_version()?
+    } else {
+        "procfs".to_owned()
+    };
     let provenance = BuildProvenance::create(package, executable, build_root, build_identity)
         .map_err(CliFailure::backend)?;
     let raw_capture = build_root.join(format!("terrane-profile-{}.data", std::process::id()));
     let started = Instant::now();
-    let status = run_perf(executable, &options.program_arguments, &raw_capture)?;
+    let (status, timeline) = if options.capture_cpu {
+        run_perf(
+            executable,
+            &options.program_arguments,
+            &raw_capture,
+            options.capture_memory_timeline,
+        )?
+    } else {
+        run_memory_timeline(executable, &options.program_arguments)?
+    };
     let elapsed = started.elapsed();
-    let parsed = parse_capture(
-        &raw_capture,
-        executable,
-        &provenance.native_module.content_hash,
-    );
+    let parsed = if options.capture_cpu {
+        parse_capture(
+            &raw_capture,
+            executable,
+            &provenance.native_module.content_hash,
+        )
+    } else {
+        Ok(ParsedPerfEvidence {
+            modules: vec![CapturedModule {
+                path: executable.to_string_lossy().into_owned(),
+                build_id: "not-collected".to_owned(),
+                content_hash: provenance.native_module.content_hash.clone(),
+                is_profiled_executable: true,
+            }],
+            samples: Vec::new(),
+            lost_events: 0,
+            dropped_samples: 0,
+            dropped_frames: 0,
+        })
+    };
     let _ = fs::remove_file(&raw_capture);
     let evidence = parsed?;
-    if evidence.samples.is_empty() && !status.success() {
+    if options.capture_cpu && evidence.samples.is_empty() && !status.success() {
         return Err(CliFailure::backend(format!(
             "perf collection failed with {status} before recording usable CPU samples"
         )));
@@ -151,18 +186,28 @@ pub(super) fn record(
         provenance,
         perf_version,
         capture,
+        timeline,
     );
     artifact.fit_encoded_budget().map_err(CliFailure::backend)?;
     artifact.validate().map_err(CliFailure::backend)?;
     write_artifact(&options.output, &artifact)?;
-    eprintln!(
-        "recorded {} CPU samples ({} lost, {} samples dropped, {} frames dropped) in {}",
-        artifact.evidence.samples.len(),
-        artifact.evidence.loss.lost_events,
-        artifact.evidence.loss.dropped_samples,
-        artifact.evidence.loss.dropped_frames,
-        options.output.display()
-    );
+    if options.capture_cpu {
+        eprintln!(
+            "recorded {} CPU samples ({} lost, {} samples dropped, {} frames dropped) in {}",
+            artifact.evidence.samples.len(),
+            artifact.evidence.loss.lost_events,
+            artifact.evidence.loss.dropped_samples,
+            artifact.evidence.loss.dropped_frames,
+            options.output.display()
+        );
+    } else {
+        eprintln!(
+            "recorded {} process-memory samples ({} missed intervals) in {}",
+            artifact.memory_timeline.as_ref().map_or(0, |timeline| timeline.samples.len()),
+            artifact.memory_timeline.as_ref().map_or(0, |timeline| timeline.missed_intervals),
+            options.output.display()
+        );
+    }
     Ok(ExitCode::from(exit_code))
 }
 
@@ -173,6 +218,7 @@ fn assemble_artifact(
     provenance: BuildProvenance,
     perf_version: String,
     capture: CapturedRun,
+    timeline: Option<MemoryTimelineEvidence>,
 ) -> ProfileArtifact {
     let (exit_code, terminating_signal) = status_parts(capture.status);
     let retained_arguments = if options.retain_arguments {
@@ -186,8 +232,16 @@ fn assemble_artifact(
     };
     ProfileArtifact {
         schema_version: SCHEMA_VERSION.to_owned(),
-        evidence_kind: EvidenceKind::CpuSamples,
-        evidence_unit: EvidenceUnit::SampleCount,
+        evidence_kind: if options.capture_cpu {
+            EvidenceKind::CpuSamples
+        } else {
+            EvidenceKind::MemoryTimeline
+        },
+        evidence_unit: if options.capture_cpu {
+            EvidenceUnit::SampleCount
+        } else {
+            EvidenceUnit::Bytes
+        },
         attribution_schema_version: ATTRIBUTION_SCHEMA_VERSION.to_owned(),
         provenance,
         source_attribution: debug,
@@ -251,6 +305,7 @@ fn assemble_artifact(
             modules: capture.evidence.modules,
             samples: capture.evidence.samples,
         },
+        memory_timeline: timeline,
     }
 }
 
@@ -338,7 +393,8 @@ fn run_perf(
     executable: &Path,
     arguments: &[OsString],
     output: &Path,
-) -> Result<ExitStatus, CliFailure> {
+    capture_memory_timeline: bool,
+) -> Result<(ExitStatus, Option<MemoryTimelineEvidence>), CliFailure> {
     let signals = install_signal_flags()?;
     let mut command = Command::new(perf_program());
     command
@@ -367,12 +423,21 @@ fn run_perf(
     let mut child = command.spawn().map_err(|error| {
         CliFailure::backend(format!("failed to start Linux perf collector: {error}"))
     })?;
+    let started = Instant::now();
+    let mut timeline = capture_memory_timeline.then(|| MemoryTimelineEvidence {
+        sampling_interval_nanoseconds: duration_nanoseconds(DEFAULT_MEMORY_INTERVAL),
+        missed_intervals: 0,
+        samples: Vec::new(),
+    });
     loop {
+        if let Some(timeline) = &mut timeline {
+            sample_process_memory(child.id(), started, timeline);
+        }
         if let Some(status) = child
             .try_wait()
             .map_err(|error| CliFailure::backend(format!("failed to wait for perf: {error}")))?
         {
-            return Ok(status);
+            return Ok((status, timeline));
         }
         #[cfg(unix)]
         for entry in &signals.0 {
@@ -393,8 +458,71 @@ fn run_perf(
                 })?;
             }
         }
-        thread::sleep(Duration::from_millis(20));
+        thread::sleep(DEFAULT_MEMORY_INTERVAL);
     }
+}
+
+fn run_memory_timeline(
+    executable: &Path,
+    arguments: &[OsString],
+) -> Result<(ExitStatus, Option<MemoryTimelineEvidence>), CliFailure> {
+    let mut child = Command::new(executable)
+        .args(arguments)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|error| CliFailure::backend(format!("failed to start profiled workload: {error}")))?;
+    let started = Instant::now();
+    let mut timeline = MemoryTimelineEvidence {
+        sampling_interval_nanoseconds: duration_nanoseconds(DEFAULT_MEMORY_INTERVAL),
+        missed_intervals: 0,
+        samples: Vec::new(),
+    };
+    loop {
+        sample_process_memory(child.id(), started, &mut timeline);
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| CliFailure::backend(format!("failed to wait for workload: {error}")))?
+        {
+            return Ok((status, Some(timeline)));
+        }
+        thread::sleep(DEFAULT_MEMORY_INTERVAL);
+    }
+}
+
+fn sample_process_memory(process_id: u32, started: Instant, timeline: &mut MemoryTimelineEvidence) {
+    let Some(sample) = read_process_memory(process_id, started) else {
+        timeline.missed_intervals = timeline.missed_intervals.saturating_add(1);
+        return;
+    };
+    if timeline.samples.len() == MAX_CAPTURED_SAMPLES {
+        timeline.missed_intervals = timeline.missed_intervals.saturating_add(1);
+    } else {
+        timeline.samples.push(sample);
+    }
+}
+
+fn read_process_memory(process_id: u32, started: Instant) -> Option<ProcessMemorySample> {
+    let status = fs::read_to_string(format!("/proc/{process_id}/status")).ok()?;
+    let value = |name| {
+        status.lines().find_map(|line| {
+            let value = line.strip_prefix(name)?.trim().split_whitespace().next()?;
+            value.parse::<u64>().ok()?.checked_mul(1024)
+        })
+    };
+    Some(ProcessMemorySample {
+        monotonic_nanoseconds: duration_nanoseconds(started.elapsed()),
+        process_id,
+        rss_bytes: value("VmRSS:"),
+        pss_bytes: None,
+        private_bytes: None,
+        shared_bytes: value("RssFile:"),
+        anonymous_bytes: value("RssAnon:"),
+        file_backed_bytes: value("RssFile:"),
+        minor_faults: None,
+        major_faults: None,
+    })
 }
 
 struct SignalFlag {
@@ -928,6 +1056,9 @@ struct ShowOptions {
 pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let options = parse_show(arguments)?;
     let artifact = read_artifact(&options.path)?;
+    if artifact.evidence_kind == EvidenceKind::MemoryTimeline {
+        return show_memory_timeline(&artifact, &options);
+    }
     let source_root = options
         .source_root
         .clone()
@@ -1013,12 +1144,65 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     Ok(ExitCode::SUCCESS)
 }
+fn show_memory_timeline(
+    artifact: &ProfileArtifact,
+    options: &ShowOptions,
+) -> Result<ExitCode, CliFailure> {
+    let timeline = artifact
+        .memory_timeline
+        .as_ref()
+        .expect("validated memory profile includes a timeline");
+    if options.format == "json" {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": artifact.schema_version,
+                "evidence_kind": artifact.evidence_kind,
+                "unit": artifact.evidence_unit,
+                "conditions": artifact.conditions,
+                "privacy": artifact.privacy,
+                "timeline": timeline,
+            }))
+            .map_err(|error| CliFailure::backend(format!("cannot render profile JSON: {error}")))?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let peak_rss = timeline.samples.iter().filter_map(|sample| sample.rss_bytes).max();
+    let peak_pss = timeline.samples.iter().filter_map(|sample| sample.pss_bytes).max();
+    println!(
+        "process-memory timeline: {} samples, {} missed intervals; {} ms interval",
+        timeline.samples.len(),
+        timeline.missed_intervals,
+        timeline.sampling_interval_nanoseconds / 1_000_000
+    );
+    println!(
+        "RSS peak: {}; PSS peak: {}",
+        peak_rss.map_or_else(|| "unavailable".to_owned(), format_bytes),
+        peak_pss.map_or_else(|| "unavailable".to_owned(), format_bytes)
+    );
+    println!("timestamp (ns)  process  RSS        PSS");
+    for sample in timeline.samples.iter().take(options.limit) {
+        println!(
+            "{:>14}  {:>7}  {:>9}  {:>9}",
+            sample.monotonic_nanoseconds,
+            sample.process_id,
+            sample.rss_bytes.map_or_else(|| "unavailable".to_owned(), format_bytes),
+            sample.pss_bytes.map_or_else(|| "unavailable".to_owned(), format_bytes),
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn format_bytes(bytes: u64) -> String {
+    format!("{bytes} B")
+}
 fn validate_captured_modules(
     artifact: &ProfileArtifact,
     report: &mut terrane_compiler::profiling::AttributionReport,
 ) {
     for module in &artifact.evidence.modules {
         if module.is_profiled_executable || module.content_hash == "unavailable" {
+
             continue;
         }
         let path = Path::new(&module.path);

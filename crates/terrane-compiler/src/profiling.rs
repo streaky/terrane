@@ -10,11 +10,12 @@ use crate::debugging::{
 };
 use crate::provenance::{ArtifactProfile, BuildProvenance};
 
-pub const SCHEMA_VERSION: &str = "1.1";
+pub const SCHEMA_VERSION: &str = "1.2";
 pub const ATTRIBUTION_SCHEMA_VERSION: &str = "1.1";
 pub const MAX_CAPTURED_SAMPLES: usize = 100_000;
 pub const MAX_STACK_DEPTH: usize = 4_096;
 pub const MAX_ARTIFACT_BYTES: u64 = 512 * 1024 * 1024;
+pub const DEFAULT_MEMORY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
 
 pub const CPU_ARTIFACT_PROFILE: ArtifactProfile = ArtifactProfile {
     id: "terrane-profile-cpu-v1",
@@ -32,12 +33,14 @@ pub const CPU_ARTIFACT_PROFILE: ArtifactProfile = ArtifactProfile {
 #[serde(rename_all = "kebab-case")]
 pub enum EvidenceKind {
     CpuSamples,
+    MemoryTimeline,
+    Allocations,
 }
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EvidenceUnit {
     SampleCount,
+    Bytes,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -147,6 +150,33 @@ pub struct CpuEvidence {
     pub samples: Vec<CpuSample>,
     pub loss: CollectionLoss,
 }
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProcessMemorySample {
+    pub monotonic_nanoseconds: u64,
+    pub process_id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rss_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pss_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_backed_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minor_faults: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub major_faults: Option<u64>,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct MemoryTimelineEvidence {
+    pub sampling_interval_nanoseconds: u64,
+    pub missed_intervals: u64,
+    pub samples: Vec<ProcessMemorySample>,
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProfileArtifact {
@@ -160,6 +190,8 @@ pub struct ProfileArtifact {
     pub conditions: CollectionConditions,
     pub privacy: PrivacyDeclaration,
     pub evidence: CpuEvidence,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_timeline: Option<MemoryTimelineEvidence>,
 }
 
 impl ProfileArtifact {
@@ -187,16 +219,34 @@ impl ProfileArtifact {
                 self.attribution_schema_version
             ));
         }
-        if self.evidence_kind != EvidenceKind::CpuSamples
-            || self.evidence_unit != EvidenceUnit::SampleCount
-        {
-            return Err("CPU profile evidence must use sample-count units".to_owned());
+        match (self.evidence_kind, self.evidence_unit) {
+            (EvidenceKind::CpuSamples, EvidenceUnit::SampleCount) => {}
+            (EvidenceKind::MemoryTimeline, EvidenceUnit::Bytes)
+                if self.memory_timeline.is_some() => {}
+            (EvidenceKind::MemoryTimeline, _) => {
+                return Err("process-memory profiles must use byte units and a timeline".to_owned());
+            }
+            (EvidenceKind::Allocations, _) => {
+                return Err("allocation profile evidence is not supported by schema 1.2".to_owned());
+            }
+            _ => return Err("CPU profile evidence must use sample-count units".to_owned()),
         }
         if self.evidence.samples.len() > MAX_CAPTURED_SAMPLES {
             return Err(format!(
                 "profile contains {} samples; limit is {MAX_CAPTURED_SAMPLES}",
                 self.evidence.samples.len()
             ));
+        }
+        if let Some(timeline) = &self.memory_timeline {
+            if timeline.sampling_interval_nanoseconds == 0 {
+                return Err("process-memory timeline has a zero sampling interval".to_owned());
+            }
+            if timeline.samples.len() > MAX_CAPTURED_SAMPLES {
+                return Err(format!(
+                    "profile contains {} process-memory samples; limit is {MAX_CAPTURED_SAMPLES}",
+                    timeline.samples.len()
+                ));
+            }
         }
         if let Some(depth) = self
             .evidence
@@ -1144,6 +1194,7 @@ mod tests {
                     dropped_frames: 0,
                 },
             },
+            memory_timeline: None,
         }
     }
 
