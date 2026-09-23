@@ -130,6 +130,73 @@ fn serves_semantic_tokens_for_an_open_document() {
     assert!(child.wait().unwrap().success());
 }
 
+#[test]
+fn serves_an_open_file_outside_its_package_namespace_roots() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let repository = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repository root");
+    let path = repository.join("projects/godot-test/tests/unit/godot-view.trn");
+    let uri = format!("file://{}", path.display());
+    let text = std::fs::read_to_string(path).expect("Godot unit test source");
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"capabilities": {}}
+        }),
+    );
+    let _ = receive_response(&mut stdout, 1);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}),
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didOpen",
+            "params": {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "terrane",
+                    "version": 1,
+                    "text": text
+                }
+            }
+        }),
+    );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(diagnostics["params"]["version"], 1);
+    assert!(
+        diagnostics["params"]["diagnostics"]
+            .as_array()
+            .is_some_and(|items| items.iter().all(|item| item["code"] != "S2053"))
+    );
+
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "id": 2, "method": "shutdown", "params": null}),
+    );
+    let _ = receive_response(&mut stdout, 2);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc": "2.0", "method": "exit", "params": null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one process-level scenario proves negotiated positions and shared analysis features"

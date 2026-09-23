@@ -104,7 +104,7 @@ impl Backend {
             .map(|(uri, document)| (uri.to_string(), document.text.clone()))
             .collect::<HashMap<_, _>>();
         overlays.insert(uri_text.clone(), text.to_owned());
-        let (sources, manifest) = snapshot_inputs(uri, text, &overlays);
+        let (sources, manifest, testing) = snapshot_inputs(uri, text, &overlays);
         let source_texts = sources
             .iter()
             .map(|source| (source.uri.clone(), source.text.clone()))
@@ -119,6 +119,7 @@ impl Backend {
                     terrane_compiler::tooling::SnapshotOptions {
                         semantic: true,
                         generated: false,
+                        testing,
                         ..terrane_compiler::tooling::SnapshotOptions::default()
                     },
                 )
@@ -239,7 +240,7 @@ impl Backend {
             return Ok(None);
         };
         let uri_text = uri.to_string();
-        let (sources, manifest) = snapshot_inputs(&uri, &document.text, &overlays);
+        let (sources, manifest, testing) = snapshot_inputs(&uri, &document.text, &overlays);
         let mut tooling = self.tooling.lock().expect("tooling engine lock");
         let metadata = tooling
             .open_snapshot(
@@ -249,6 +250,7 @@ impl Backend {
                 terrane_compiler::tooling::SnapshotOptions {
                     semantic: true,
                     generated: true,
+                    testing,
                     ..terrane_compiler::tooling::SnapshotOptions::default()
                 },
             )
@@ -973,6 +975,7 @@ fn semantic_hover(
 type SnapshotInputs = (
     Vec<terrane_compiler::tooling::SourceInput>,
     Option<terrane_compiler::tooling::SourceInput>,
+    bool,
 );
 
 fn snapshot_inputs(
@@ -987,6 +990,7 @@ fn snapshot_inputs(
                 text: current_text.to_owned(),
             }],
             None,
+            false,
         )
     })
 }
@@ -996,7 +1000,10 @@ fn package_snapshot_inputs(
     current_text: &str,
     overlays: &HashMap<String, String>,
 ) -> Option<SnapshotInputs> {
-    let current_path = PathBuf::from(current_uri.to_string().strip_prefix("file://")?);
+    let current_path = std::fs::canonicalize(PathBuf::from(
+        current_uri.to_string().strip_prefix("file://")?,
+    ))
+    .ok()?;
     let manifest_path = current_path
         .parent()?
         .ancestors()
@@ -1017,12 +1024,38 @@ fn package_snapshot_inputs(
         };
         sources.push(terrane_compiler::tooling::SourceInput { uri, text });
     }
-    let manifest_path = std::fs::canonicalize(manifest_path).ok()?;
-    let manifest = terrane_compiler::tooling::SourceInput {
-        uri: format!("file://{}", manifest_path.display()),
-        text: std::fs::read_to_string(manifest_path).ok()?,
-    };
-    Some((sources, Some(manifest)))
+    if sources
+        .iter()
+        .any(|source| source.uri == current_uri.to_string())
+    {
+        let manifest_path = std::fs::canonicalize(manifest_path).ok()?;
+        let manifest = terrane_compiler::tooling::SourceInput {
+            uri: format!("file://{}", manifest_path.display()),
+            text: std::fs::read_to_string(manifest_path).ok()?,
+        };
+        return Some((sources, Some(manifest), false));
+    }
+    let test_package = terrane_compiler::testing::TestPackage::load(&manifest_path).ok()?;
+    let package = test_package.tier_packages.into_values().find(|package| {
+        package.units.iter().any(|unit| {
+            std::fs::canonicalize(unit.source.path()).is_ok_and(|path| path == current_path)
+        })
+    })?;
+    let mut sources = Vec::with_capacity(package.units.len());
+    for unit in package.units {
+        let path = std::fs::canonicalize(unit.source.path()).ok()?;
+        let uri = format!("file://{}", path.display());
+        let text = if path == current_path {
+            current_text.to_owned()
+        } else {
+            overlays
+                .get(&uri)
+                .cloned()
+                .unwrap_or_else(|| unit.source.text().to_owned())
+        };
+        sources.push(terrane_compiler::tooling::SourceInput { uri, text });
+    }
+    Some((sources, None, true))
 }
 
 fn byte_offset(text: &str, position: Position, encoding: &PositionEncodingKind) -> Option<usize> {
@@ -1634,7 +1667,7 @@ mod tests {
         let child_text = format!("{disk_child}\n# unsaved editor overlay\n");
         let child_uri = format!("file://{}", child_path.display());
         let uri = child_uri.parse::<Uri>().expect("file URI");
-        let (sources, manifest) = package_snapshot_inputs(&uri, &child_text, &HashMap::new())
+        let (sources, manifest, _) = package_snapshot_inputs(&uri, &child_text, &HashMap::new())
             .expect("package snapshot inputs");
         assert_eq!(sources.len(), 2);
         assert_eq!(
@@ -1690,7 +1723,7 @@ mod tests {
         let app_text = std::fs::read_to_string(&app_path).expect("application source");
         let app_uri = format!("file://{}", app_path.display());
         let uri = app_uri.parse::<Uri>().expect("file URI");
-        let (sources, manifest) =
+        let (sources, manifest, _) =
             package_snapshot_inputs(&uri, &app_text, &HashMap::new()).expect("package inputs");
         assert!(
             sources
