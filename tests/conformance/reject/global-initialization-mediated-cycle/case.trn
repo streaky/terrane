@@ -1,0 +1,6 @@
+namespace global-initialization-mediated-cycle
+global first int = from-second;
+global second int = first
+function from-second int;
+  return second
+function main;

@@ -1555,7 +1555,7 @@ pub(super) fn validate_initializer_dependencies(
                 package.resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
                 && let Some(span) = symbol.declaration_span
             {
-                if symbol.kind == SymbolKind::Binding && !symbol.global {
+                if symbol.kind == SymbolKind::Binding {
                     reads.push((key(span), node.span));
                 } else if symbol.kind == SymbolKind::Function && functions.insert(key(span)) {
                     for owner in &package.units {
@@ -1697,9 +1697,7 @@ pub(super) fn validate_initializer_dependencies(
                     span,
                 ));
             }
-            if !declaration.global {
-                edges.entry(key(node.span)).or_default().extend(reads);
-            }
+            edges.entry(key(node.span)).or_default().extend(reads);
         }
     }
     for unit in &package.units {
@@ -1764,7 +1762,7 @@ pub(super) fn validate_initializer_dependencies(
             return Err(failure(
                 &source.source,
                 "S2024",
-                "namespace binding initialization has a dependency cycle",
+                "binding initialization has a dependency cycle",
                 span,
             ));
         }
