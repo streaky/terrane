@@ -24,6 +24,10 @@ use super::CliFailure;
 const DEFAULT_FREQUENCY_HZ: u32 = 999;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "privacy and auxiliary capture switches are independent"
+)]
 pub(super) struct RecordOptions {
     pub input: PathBuf,
     pub output: PathBuf,
@@ -126,6 +130,10 @@ struct CapturedRun {
     evidence: ParsedPerfEvidence,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "capture ownership and cleanup remain visible in one orchestration boundary"
+)]
 pub(super) fn record(
     options: &RecordOptions,
     package: &terrane_compiler::Package,
@@ -251,6 +259,11 @@ pub(super) fn record(
     Ok(ExitCode::from(exit_code))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "artifact assembly records the complete collector contract in one place"
+)]
 fn assemble_artifact(
     options: &RecordOptions,
     debug: DebugInformation,
@@ -625,7 +638,6 @@ fn parse_heaptrack_capture(
     let temporary_allocation_count =
         summary_metric(&summary, "temporary memory allocations:").unwrap_or(0);
     let retained_bytes_at_exit = summary_bytes(&summary, "total memory leaked:").unwrap_or(0);
-    let peak_live_bytes = summary_bytes(&summary, "peak heap memory consumption:").unwrap_or(0);
     let raw = raw_heaptrack_traffic(capture)?;
     let mut sites = BTreeMap::<Vec<String>, AllocationSite>::new();
     for (cost, field) in [
@@ -690,15 +702,30 @@ fn parse_human_bytes(value: &str) -> Option<u64> {
     let split = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
         .unwrap_or(value.len());
-    let number = value[..split].parse::<f64>().ok()?;
+    let (whole, fraction) = value[..split]
+        .split_once('.')
+        .unwrap_or((&value[..split], ""));
+    let whole = whole.parse::<u64>().ok()?;
+    let (fraction_value, fraction_scale) = fraction
+        .bytes()
+        .take(3)
+        .filter(u8::is_ascii_digit)
+        .fold((0_u64, 1_u64), |(value, scale), digit| {
+            (value * 10 + u64::from(digit - b'0'), scale * 10)
+        });
     let multiplier = match &value[split..] {
-        "B" | "" => 1.0,
-        "K" | "KB" => 1024.0,
-        "M" | "MB" => 1024.0 * 1024.0,
-        "G" | "GB" => 1024.0 * 1024.0 * 1024.0,
+        "B" | "" => 1_u64,
+        "K" | "KB" => 1024,
+        "M" | "MB" => 1024 * 1024,
+        "G" | "GB" => 1024 * 1024 * 1024,
         _ => return None,
     };
-    Some((number * multiplier).round() as u64)
+    whole.checked_mul(multiplier)?.checked_add(
+        fraction_value
+            .checked_mul(multiplier)?
+            .checked_add(fraction_scale / 2)?
+            .checked_div(fraction_scale)?,
+    )
 }
 
 #[derive(Debug)]
@@ -917,7 +944,7 @@ fn read_process_memory(process_id: u32, started: Instant) -> Option<ProcessMemor
     let status = fs::read_to_string(format!("/proc/{process_id}/status")).ok()?;
     let value = |name| {
         status.lines().find_map(|line| {
-            let value = line.strip_prefix(name)?.trim().split_whitespace().next()?;
+            let value = line.strip_prefix(name)?.split_whitespace().next()?;
             value.parse::<u64>().ok()?.checked_mul(1024)
         })
     };
@@ -1647,12 +1674,12 @@ fn show_memory_timeline(
         );
         return Ok(ExitCode::SUCCESS);
     }
-    let peak_rss = timeline
+    let resident_peak = timeline
         .samples
         .iter()
         .filter_map(|sample| sample.rss_bytes)
         .max();
-    let peak_pss = timeline
+    let proportional_peak = timeline
         .samples
         .iter()
         .filter_map(|sample| sample.pss_bytes)
@@ -1665,8 +1692,8 @@ fn show_memory_timeline(
     );
     println!(
         "RSS peak: {}; PSS peak: {}",
-        peak_rss.map_or_else(|| "unavailable".to_owned(), format_bytes),
-        peak_pss.map_or_else(|| "unavailable".to_owned(), format_bytes)
+        resident_peak.map_or_else(|| "unavailable".to_owned(), format_bytes),
+        proportional_peak.map_or_else(|| "unavailable".to_owned(), format_bytes)
     );
     println!("timestamp (ns)  process  RSS        PSS");
     for sample in timeline.samples.iter().take(options.limit) {

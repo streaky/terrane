@@ -298,34 +298,7 @@ impl ProfileArtifact {
             }
         }
         if let Some(allocations) = &self.allocations {
-            if allocations.events.len() > MAX_CAPTURED_SAMPLES {
-                return Err(format!(
-                    "profile contains {} allocation events; limit is {MAX_CAPTURED_SAMPLES}",
-                    allocations.events.len()
-                ));
-            }
-            if !allocations.partial {
-                let allocated = allocations
-                    .events
-                    .iter()
-                    .map(|event| event.size_bytes)
-                    .sum::<u64>();
-                let freed = allocations
-                    .events
-                    .iter()
-                    .filter(|event| event.freed_at.is_some())
-                    .map(|event| event.size_bytes)
-                    .sum::<u64>();
-                if allocations.allocation_count != allocations.events.len() as u64
-                    || allocations.allocated_bytes != allocated
-                    || allocations.freed_bytes != freed
-                    || allocations.retained_bytes_at_exit != allocated.saturating_sub(freed)
-                {
-                    return Err(
-                        "complete allocation evidence violates count or byte accounting".to_owned(),
-                    );
-                }
-            }
+            validate_allocation_evidence(allocations)?;
         }
         if let Some(depth) = self
             .evidence
@@ -469,6 +442,37 @@ impl ProfileArtifact {
     fn encoded_json_bytes(&self) -> Result<u64, String> {
         encoded_json_bytes(self)
     }
+}
+
+fn validate_allocation_evidence(allocations: &AllocationEvidence) -> Result<(), String> {
+    if allocations.events.len() > MAX_CAPTURED_SAMPLES {
+        return Err(format!(
+            "profile contains {} allocation events; limit is {MAX_CAPTURED_SAMPLES}",
+            allocations.events.len()
+        ));
+    }
+    if allocations.partial {
+        return Ok(());
+    }
+    let allocated = allocations
+        .events
+        .iter()
+        .map(|event| event.size_bytes)
+        .sum::<u64>();
+    let freed = allocations
+        .events
+        .iter()
+        .filter(|event| event.freed_at.is_some())
+        .map(|event| event.size_bytes)
+        .sum::<u64>();
+    if allocations.allocation_count != allocations.events.len() as u64
+        || allocations.allocated_bytes != allocated
+        || allocations.freed_bytes != freed
+        || allocations.retained_bytes_at_exit != allocated.saturating_sub(freed)
+    {
+        return Err("complete allocation evidence violates count or byte accounting".to_owned());
+    }
+    Ok(())
 }
 
 fn encoded_json_bytes<T: Serialize>(value: &T) -> Result<u64, String> {
