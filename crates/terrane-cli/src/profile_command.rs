@@ -1141,6 +1141,7 @@ pub(super) fn show(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 "unit": artifact.evidence_unit,
                 "conditions": artifact.conditions,
                 "privacy": artifact.privacy,
+                "memory_timeline": artifact.memory_timeline,
                 "report": output_report,
                 "generated_expansion": options.generated,
                 "native_expansion": options.native
