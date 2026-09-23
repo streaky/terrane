@@ -59,6 +59,8 @@ pub struct SnapshotOptions {
     pub semantic: bool,
     #[serde(default)]
     pub generated: bool,
+    #[serde(default)]
+    pub testing: bool,
     #[serde(default = "default_target")]
     pub target: String,
     #[serde(default = "default_profile")]
@@ -87,6 +89,7 @@ impl Default for SnapshotOptions {
             semantic: false,
             generated: false,
             target: default_target(),
+            testing: false,
             profile: default_profile(),
             capabilities: Vec::new(),
             generated_entrypoint: default_generated_entrypoint(),
@@ -1638,7 +1641,11 @@ fn snapshot_package(
         executor: ExecutorProfile::Threaded,
         artifact: crate::ArtifactKind::Executable,
         profile: profile.clone(),
-        purpose: crate::PackagePurpose::Production,
+        purpose: if options.testing {
+            crate::PackagePurpose::Testing
+        } else {
+            crate::PackagePurpose::Production
+        },
         testing: crate::testing::TestConfiguration::conventional(profile),
         build_toolchain: BuildToolchain::Pinned,
         units,
