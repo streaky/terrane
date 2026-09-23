@@ -1,0 +1,20 @@
+namespace lossy-float-narrowing
+
+function divide float64; numerator float64, denominator float64
+  return numerator / denominator
+
+function main;
+  rounded float32 = 16_777_217.0.coerce.lossy; float32
+  negative-zero float64 = -0.0
+  narrowed-negative-zero float32 = negative-zero.coerce.lossy; float32
+  overflow-input float64 = (float32.maximum.scale-binary; 1)
+  overflow float32 = overflow-input.coerce.lossy; float32
+  underflow-input float64 = float64.minimum-positive-subnormal
+  underflow float32 = underflow-input.coerce.lossy; float32
+  nan-input = divide; 0.0, 0.0
+  nan float32 = nan-input.coerce.lossy; float32
+  print; rounded
+  print; narrowed-negative-zero.zero, narrowed-negative-zero.negative-sign
+  print; overflow.infinite
+  print; underflow.zero
+  print; nan.not-a-number

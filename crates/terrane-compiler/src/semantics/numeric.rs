@@ -370,6 +370,17 @@ pub(super) fn numeric_coercion_result_type(
             policy.invocation_name()
         ));
     }
+    if policy == CoercionPolicy::Lossy {
+        return match (source, destination) {
+            (ScalarType::Float64, ScalarType::Float32) => {
+                Ok(ValueType::Scalar(ScalarType::Float32))
+            }
+            _ => Err(format!(
+                "`{}` is declared only from `float64` to `float32`",
+                policy.invocation_name()
+            )),
+        };
+    }
     if floating_destination && matches!(policy, CoercionPolicy::Wrap | CoercionPolicy::Saturate) {
         return Err(format!(
             "`{}` from `{source}` requires a fixed-width integer destination",
@@ -390,6 +401,7 @@ pub(super) fn numeric_coercion_result_type(
         (_, CoercionPolicy::Default | CoercionPolicy::Wrap | CoercionPolicy::Saturate) => {
             Ok(ValueType::Scalar(destination))
         }
+        (_, CoercionPolicy::Lossy) => unreachable!("lossy coercions return above"),
     }
 }
 
@@ -423,6 +435,7 @@ pub(crate) fn bound_method(source: &SourceFile, callee: &SyntaxNode) -> Option<B
     };
     let selection = match (node_text(source, family_node), member_name) {
         ("coerce", "checked") => (MemberFamily::Coerce, "checked"),
+        ("coerce", "lossy") => (MemberFamily::Coerce, "lossy"),
         ("coerce", "wrap") => (MemberFamily::Coerce, "wrap"),
         ("coerce", "saturate") => (MemberFamily::Coerce, "saturate"),
         ("parse", "checked") => (MemberFamily::Parse, "checked"),
