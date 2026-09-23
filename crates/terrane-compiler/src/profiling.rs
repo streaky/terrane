@@ -183,6 +183,22 @@ pub struct MemoryTimelineEvidence {
 /// The collector owns raw-event parsing; this normalized form deliberately
 /// keeps bytes, counts, and retained bytes independent.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationEvent {
+    pub allocation_id: u64,
+    pub size_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_id: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<u32>,
+    pub monotonic_timestamp: u64,
+    pub trace_index: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub freed_at: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AllocationSite {
     pub stack: Vec<String>,
     pub allocation_count: u64,
@@ -203,6 +219,7 @@ pub struct AllocationEvidence {
     pub partial: bool,
     pub collector_data_format: String,
     pub sites: Vec<AllocationSite>,
+    pub events: Vec<AllocationEvent>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -278,6 +295,36 @@ impl ProfileArtifact {
                     "profile contains {} process-memory samples; limit is {MAX_CAPTURED_SAMPLES}",
                     timeline.samples.len()
                 ));
+            }
+        }
+        if let Some(allocations) = &self.allocations {
+            if allocations.events.len() > MAX_CAPTURED_SAMPLES {
+                return Err(format!(
+                    "profile contains {} allocation events; limit is {MAX_CAPTURED_SAMPLES}",
+                    allocations.events.len()
+                ));
+            }
+            if !allocations.partial {
+                let allocated = allocations
+                    .events
+                    .iter()
+                    .map(|event| event.size_bytes)
+                    .sum::<u64>();
+                let freed = allocations
+                    .events
+                    .iter()
+                    .filter(|event| event.freed_at.is_some())
+                    .map(|event| event.size_bytes)
+                    .sum::<u64>();
+                if allocations.allocation_count != allocations.events.len() as u64
+                    || allocations.allocated_bytes != allocated
+                    || allocations.freed_bytes != freed
+                    || allocations.retained_bytes_at_exit != allocated.saturating_sub(freed)
+                {
+                    return Err(
+                        "complete allocation evidence violates count or byte accounting".to_owned(),
+                    );
+                }
             }
         }
         if let Some(depth) = self
@@ -1287,10 +1334,32 @@ mod tests {
         artifact.evidence.samples.clear();
         artifact.evidence.loss.captured_events = 0;
         artifact.allocations = Some(AllocationEvidence {
-            allocation_count: 3,
+            allocation_count: 2,
             allocated_bytes: 1_024,
             freed_bytes: 256,
-            temporary_allocation_count: 2,
+            temporary_allocation_count: 1,
+            events: vec![
+                AllocationEvent {
+                    allocation_id: 0,
+                    size_bytes: 256,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: 1,
+                    trace_index: 1,
+                    freed_at: Some(2),
+                },
+                AllocationEvent {
+                    allocation_id: 1,
+                    size_bytes: 768,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: 2,
+                    trace_index: 2,
+                    freed_at: None,
+                },
+            ],
             retained_bytes_at_exit: 768,
             peak_live_bytes: 768,
             unmatched_transitions: 0,

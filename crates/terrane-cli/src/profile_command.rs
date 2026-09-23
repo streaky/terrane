@@ -11,10 +11,10 @@ use std::time::{Duration, Instant};
 
 use terrane_compiler::debugging::DebugInformation;
 use terrane_compiler::profiling::{
-    ATTRIBUTION_SCHEMA_VERSION, AllocationEvidence, AllocationSite, ArgumentPolicy, CapturedModule,
-    CollectionConditions, CollectionLoss, CollectorIdentity, CpuEvidence, CpuSample,
-    DEFAULT_MEMORY_INTERVAL, Disclosure, EvidenceKind, EvidenceUnit, MAX_ARTIFACT_BYTES,
-    MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, MemoryTimelineEvidence, NativeFrame,
+    ATTRIBUTION_SCHEMA_VERSION, AllocationEvent, AllocationEvidence, AllocationSite,
+    ArgumentPolicy, CapturedModule, CollectionConditions, CollectionLoss, CollectorIdentity,
+    CpuEvidence, CpuSample, DEFAULT_MEMORY_INTERVAL, Disclosure, EvidenceKind, EvidenceUnit,
+    MAX_ARTIFACT_BYTES, MAX_CAPTURED_SAMPLES, MAX_STACK_DEPTH, MemoryTimelineEvidence, NativeFrame,
     NativeSourceLocation, PrivacyDeclaration, ProcessMemorySample, ProfileArtifact, SCHEMA_VERSION,
 };
 use terrane_compiler::provenance::{BuildIdentity, BuildProvenance, hash_bytes};
@@ -626,7 +626,7 @@ fn parse_heaptrack_capture(
         summary_metric(&summary, "temporary memory allocations:").unwrap_or(0);
     let retained_bytes_at_exit = summary_bytes(&summary, "total memory leaked:").unwrap_or(0);
     let peak_live_bytes = summary_bytes(&summary, "peak heap memory consumption:").unwrap_or(0);
-    let (raw_allocation_count, allocated_bytes) = raw_heaptrack_traffic(capture)?;
+    let raw = raw_heaptrack_traffic(capture)?;
     let mut sites = BTreeMap::<Vec<String>, AllocationSite>::new();
     for (cost, field) in [
         ("allocations", "allocation_count"),
@@ -650,17 +650,20 @@ fn parse_heaptrack_capture(
         }
         let _ = fs::remove_file(folded);
     }
+    let summary_mismatch =
+        allocation_count != raw.allocation_count || retained_bytes_at_exit != raw.retained_bytes;
     Ok(AllocationEvidence {
-        allocation_count: allocation_count.max(raw_allocation_count),
-        allocated_bytes,
-        freed_bytes: allocated_bytes.saturating_sub(retained_bytes_at_exit),
+        allocation_count: raw.allocation_count,
+        allocated_bytes: raw.allocated_bytes,
+        freed_bytes: raw.freed_bytes,
         temporary_allocation_count,
-        retained_bytes_at_exit,
-        peak_live_bytes,
-        unmatched_transitions: 0,
-        partial: false,
-        collector_data_format: "heaptrack-1.5-normalized-v1".to_owned(),
+        retained_bytes_at_exit: raw.retained_bytes,
+        peak_live_bytes: raw.peak_live_bytes,
+        unmatched_transitions: raw.unmatched_transitions,
+        partial: raw.partial || summary_mismatch,
+        collector_data_format: "heaptrack-1.5-normalized-events-v1".to_owned(),
         sites: sites.into_values().collect(),
+        events: raw.events,
     })
 }
 
@@ -698,7 +701,19 @@ fn parse_human_bytes(value: &str) -> Option<u64> {
     Some((number * multiplier).round() as u64)
 }
 
-fn raw_heaptrack_traffic(capture: &Path) -> Result<(u64, u64), CliFailure> {
+#[derive(Debug)]
+struct RawAllocationTraffic {
+    allocation_count: u64,
+    allocated_bytes: u64,
+    freed_bytes: u64,
+    retained_bytes: u64,
+    peak_live_bytes: u64,
+    unmatched_transitions: u64,
+    partial: bool,
+    events: Vec<AllocationEvent>,
+}
+
+fn raw_heaptrack_traffic(capture: &Path) -> Result<RawAllocationTraffic, CliFailure> {
     let output = Command::new("zstdcat")
         .arg(capture)
         .output()
@@ -712,21 +727,108 @@ fn raw_heaptrack_traffic(capture: &Path) -> Result<(u64, u64), CliFailure> {
             "zstdcat rejected heaptrack allocation evidence".to_owned(),
         ));
     }
-    let mut count = 0_u64;
-    let mut bytes = 0_u64;
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
-        let Some(event) = line.strip_prefix("a ") else {
-            continue;
-        };
-        let Some(size) = event.split_whitespace().next() else {
-            continue;
-        };
-        if let Ok(size) = u64::from_str_radix(size, 16) {
-            count = count.saturating_add(1);
-            bytes = bytes.saturating_add(size);
+    Ok(parse_raw_heaptrack_events(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
+
+fn parse_raw_heaptrack_events(raw: &str) -> RawAllocationTraffic {
+    let mut allocation_info = Vec::<(u64, u64)>::new();
+    let mut live = BTreeMap::<u64, Vec<usize>>::new();
+    let mut events = Vec::new();
+    let mut timestamp = 0_u64;
+    let mut live_bytes = 0_u64;
+    let mut peak_live_bytes = 0_u64;
+    let mut allocated_bytes = 0_u64;
+    let mut freed_bytes = 0_u64;
+    let mut unmatched_transitions = 0_u64;
+    let mut partial = false;
+    for line in raw.lines() {
+        let mut fields = line.split_whitespace();
+        match fields.next() {
+            Some("a") => {
+                let Some(size) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(trace_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                allocation_info.push((size, trace_index));
+            }
+            Some("+") => {
+                let Some(info_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(&(size_bytes, trace_index)) = usize::try_from(info_index)
+                    .ok()
+                    .and_then(|index| allocation_info.get(index))
+                else {
+                    unmatched_transitions = unmatched_transitions.saturating_add(1);
+                    partial = true;
+                    continue;
+                };
+                allocated_bytes = allocated_bytes.saturating_add(size_bytes);
+                live_bytes = live_bytes.saturating_add(size_bytes);
+                peak_live_bytes = peak_live_bytes.max(live_bytes);
+                if events.len() == MAX_CAPTURED_SAMPLES {
+                    partial = true;
+                    continue;
+                }
+                let event_index = events.len();
+                events.push(AllocationEvent {
+                    allocation_id: event_index as u64,
+                    size_bytes,
+                    alignment_bytes: None,
+                    process_id: None,
+                    thread_id: None,
+                    monotonic_timestamp: timestamp,
+                    trace_index,
+                    freed_at: None,
+                });
+                live.entry(info_index).or_default().push(event_index);
+            }
+            Some("-") => {
+                let Some(info_index) = fields.next().and_then(parse_hex) else {
+                    partial = true;
+                    continue;
+                };
+                let Some(event_index) = live.get_mut(&info_index).and_then(Vec::pop) else {
+                    unmatched_transitions = unmatched_transitions.saturating_add(1);
+                    partial = true;
+                    continue;
+                };
+                let event = &mut events[event_index];
+                event.freed_at = Some(timestamp);
+                freed_bytes = freed_bytes.saturating_add(event.size_bytes);
+                live_bytes = live_bytes.saturating_sub(event.size_bytes);
+            }
+            Some("c") => {
+                if let Some(value) = fields.next().and_then(parse_hex) {
+                    timestamp = value;
+                } else {
+                    partial = true;
+                }
+            }
+            _ => {}
         }
     }
-    Ok((count, bytes))
+    RawAllocationTraffic {
+        allocation_count: events.len() as u64,
+        allocated_bytes,
+        freed_bytes,
+        retained_bytes: live_bytes,
+        peak_live_bytes,
+        unmatched_transitions,
+        partial,
+        events,
+    }
+}
+
+fn parse_hex(value: &str) -> Option<u64> {
+    u64::from_str_radix(value, 16).ok()
 }
 
 fn merge_folded_allocation_sites(
@@ -2222,5 +2324,30 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             Some(77_271)
         );
         assert_eq!(summary_bytes(summary, "total memory leaked:"), Some(544));
+    }
+    #[test]
+    fn normalizes_heaptrack_transitions_and_address_reuse() {
+        let raw = "v 10500 3\n\
+                   a 10 1\n\
+                   a 20 2\n\
+                   c a\n\
+                   + 0\n\
+                   + 1\n\
+                   c 14\n\
+                   - 0\n\
+                   c 1e\n\
+                   + 0\n\
+                   c 28\n\
+                   - 1\n";
+        let traffic = parse_raw_heaptrack_events(raw);
+        assert_eq!(traffic.allocation_count, 3);
+        assert_eq!(traffic.allocated_bytes, 0x40);
+        assert_eq!(traffic.freed_bytes, 0x30);
+        assert_eq!(traffic.retained_bytes, 0x10);
+        assert_eq!(traffic.peak_live_bytes, 0x30);
+        assert_eq!(traffic.unmatched_transitions, 0);
+        assert!(!traffic.partial);
+        assert_eq!(traffic.events[0].freed_at, Some(0x14));
+        assert_eq!(traffic.events[2].freed_at, None);
     }
 }
