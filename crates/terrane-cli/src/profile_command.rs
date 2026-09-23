@@ -504,6 +504,7 @@ fn sample_process_memory(process_id: u32, started: Instant, timeline: &mut Memor
 }
 
 fn read_process_memory(process_id: u32, started: Instant) -> Option<ProcessMemorySample> {
+    let process_id = profiled_child_process(process_id).unwrap_or(process_id);
     let status = fs::read_to_string(format!("/proc/{process_id}/status")).ok()?;
     let value = |name| {
         status.lines().find_map(|line| {
@@ -534,6 +535,7 @@ struct SignalFlag {
 struct SignalFlags(Vec<SignalFlag>);
 
 impl Drop for SignalFlags {
+
     fn drop(&mut self) {
         for entry in &mut self.0 {
             if let Some(registration) = entry.registration.take() {
@@ -541,6 +543,12 @@ impl Drop for SignalFlags {
             }
         }
     }
+}
+
+fn profiled_child_process(process_id: u32) -> Option<u32> {
+    let children =
+        fs::read_to_string(format!("/proc/{process_id}/task/{process_id}/children")).ok()?;
+    children.split_whitespace().next()?.parse().ok()
 }
 
 fn install_signal_flags() -> Result<SignalFlags, CliFailure> {
@@ -1572,6 +1580,30 @@ mod tests {
         assert_eq!(options.program_arguments, [OsString::from("secret")]);
         assert!(options.retain_arguments);
     }
+
+#[test]
+fn record_parser_allows_memory_timeline_alone_or_alongside_cpu() {
+    let timeline = parse_record(&[
+        "profile".into(),
+        "record".into(),
+        "--memory-timeline".into(),
+        "app".into(),
+    ])
+    .unwrap();
+    assert!(!timeline.capture_cpu);
+    assert!(timeline.capture_memory_timeline);
+
+    let combined = parse_record(&[
+        "profile".into(),
+        "record".into(),
+        "--cpu".into(),
+        "--memory-timeline".into(),
+        "app".into(),
+    ])
+    .unwrap();
+    assert!(combined.capture_cpu);
+    assert!(combined.capture_memory_timeline);
+}
 
     #[test]
     fn perf_script_parser_accepts_padded_pids_and_retains_frame_details() {

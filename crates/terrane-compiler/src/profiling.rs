@@ -1211,6 +1211,38 @@ mod tests {
     }
 
     #[test]
+    fn validates_typed_process_memory_timeline_evidence() {
+        let mut artifact = artifact();
+        artifact.evidence_kind = EvidenceKind::MemoryTimeline;
+        artifact.evidence_unit = EvidenceUnit::Bytes;
+        artifact.evidence.samples.clear();
+        artifact.evidence.loss.captured_events = 0;
+        artifact.memory_timeline = Some(MemoryTimelineEvidence {
+            sampling_interval_nanoseconds: 10_000_000,
+            missed_intervals: 1,
+            samples: vec![ProcessMemorySample {
+                monotonic_nanoseconds: 10_000_000,
+                process_id: 1,
+                rss_bytes: Some(4_096),
+                pss_bytes: None,
+                private_bytes: None,
+                shared_bytes: Some(1_024),
+                anonymous_bytes: Some(3_072),
+                file_backed_bytes: Some(1_024),
+                minor_faults: None,
+                major_faults: None,
+            }],
+        });
+
+        artifact.validate().unwrap();
+        artifact.memory_timeline.as_mut().unwrap().sampling_interval_nanoseconds = 0;
+        assert_eq!(
+            artifact.validate().unwrap_err(),
+            "process-memory timeline has a zero sampling interval"
+        );
+    }
+
+    #[test]
     fn rejects_unknown_modules_and_inconsistent_capture_accounting() {
         let mut unknown = artifact();
         unknown.evidence.samples[0].stack[0].module = 1;
