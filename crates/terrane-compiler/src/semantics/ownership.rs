@@ -1766,7 +1766,7 @@ pub(super) fn validate_initializer_dependencies(
             return Err(failure(
                 &source.source,
                 "S2024",
-                "binding initialization has a dependency cycle",
+                "namespace binding initialization has a dependency cycle",
                 span,
             ));
         }
