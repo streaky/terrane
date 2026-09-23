@@ -347,6 +347,16 @@ pub(super) fn analyze_function_contract(
     node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Result<FunctionContract, SemanticFailure> {
+    fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        node.children.iter().any(|child| {
+            (child.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, child).as_deref() == Some("await"))
+                || (!matches!(
+                    child.kind,
+                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+                ) && contains_direct_await(unit, child))
+        })
+    }
     let name_node = node
         .children
         .iter()
@@ -508,16 +518,6 @@ pub(super) fn analyze_function_contract(
                 ));
             }
         }
-    }
-    fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        node.children.iter().any(|child| {
-            (child.kind == SyntaxKind::UnaryExpression
-                && unary_operator_text(unit, child).as_deref() == Some("await"))
-                || (!matches!(
-                    child.kind,
-                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
-                ) && contains_direct_await(unit, child))
-        })
     }
     let is_async = declared_async || (is_destructor && contains_direct_await(unit, node));
     let written_invocation_mode = if node.children.iter().any(|child| {
