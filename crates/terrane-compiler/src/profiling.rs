@@ -183,13 +183,26 @@ pub struct MemoryTimelineEvidence {
 /// The collector owns raw-event parsing; this normalized form deliberately
 /// keeps bytes, counts, and retained bytes independent.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AllocationSite {
+    pub stack: Vec<String>,
+    pub allocation_count: u64,
+    pub allocated_bytes: u64,
+    pub retained_bytes: u64,
+    pub peak_live_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AllocationEvidence {
     pub allocation_count: u64,
     pub allocated_bytes: u64,
+    pub freed_bytes: u64,
     pub temporary_allocation_count: u64,
-    pub leaked_bytes: u64,
+    pub retained_bytes_at_exit: u64,
     pub peak_live_bytes: u64,
+    pub unmatched_transitions: u64,
+    pub partial: bool,
     pub collector_data_format: String,
+    pub sites: Vec<AllocationSite>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -244,7 +257,9 @@ impl ProfileArtifact {
             }
             (EvidenceKind::Allocations, EvidenceUnit::Bytes) if self.allocations.is_some() => {}
             (EvidenceKind::Allocations, _) => {
-                return Err("allocation profiles must use byte units and allocation evidence".to_owned());
+                return Err(
+                    "allocation profiles must use byte units and allocation evidence".to_owned(),
+                );
             }
             _ => return Err("CPU profile evidence must use sample-count units".to_owned()),
         }
@@ -1254,7 +1269,11 @@ mod tests {
         });
 
         artifact.validate().unwrap();
-        artifact.memory_timeline.as_mut().unwrap().sampling_interval_nanoseconds = 0;
+        artifact
+            .memory_timeline
+            .as_mut()
+            .unwrap()
+            .sampling_interval_nanoseconds = 0;
         assert_eq!(
             artifact.validate().unwrap_err(),
             "process-memory timeline has a zero sampling interval"
@@ -1270,10 +1289,14 @@ mod tests {
         artifact.allocations = Some(AllocationEvidence {
             allocation_count: 3,
             allocated_bytes: 1_024,
+            freed_bytes: 256,
             temporary_allocation_count: 2,
-            leaked_bytes: 0,
+            retained_bytes_at_exit: 768,
             peak_live_bytes: 768,
-            collector_data_format: "heaptrack-print-summary-v1".to_owned(),
+            unmatched_transitions: 0,
+            partial: false,
+            collector_data_format: "heaptrack-normalized-v1".to_owned(),
+            sites: Vec::new(),
         });
 
         artifact.validate().unwrap();
