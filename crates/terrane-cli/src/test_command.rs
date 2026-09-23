@@ -275,6 +275,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
         Some(build_native_compilation(
             &application_package,
             &application,
+            false,
         )?)
     } else {
         None
@@ -283,7 +284,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     for tier in &compiled_tiers {
         executables.insert(
             tier.tier,
-            build_native_compilation(&tier.package, &tier.compilation)?,
+            build_native_compilation(&tier.package, &tier.compilation, true)?,
         );
     }
     let run_root = test_package.package.root.join(".trn/test/run");
@@ -443,13 +444,14 @@ fn parse_duration(value: &str) -> Option<Duration> {
 fn build_native_compilation(
     package: &Package,
     compilation: &terrane_compiler::Compilation,
+    includes_test_runtime: bool,
 ) -> Result<PathBuf, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let rust_files = compilation
         .rust_files_for(Path::new("src/main.rs"))
         .map_err(CliFailure::rust_artifact)?;
     let uses_platform_support = compilation.requires_platform_support;
-    let uses_async_runtime = compilation.requires_async_runtime;
+    let uses_async_runtime = includes_test_runtime || compilation.requires_async_runtime;
     let uses_tokio_sync = rust_files
         .iter()
         .any(|file| file.contents.contains("tokio::sync::"));
