@@ -1198,13 +1198,30 @@ turbofish, and no dependency receives package-specific handling. Async callback/
 closed together. Conflicting or uninferable types, borrowed escapes, higher-ranked lifetimes, and
 failed or unknown bound proofs remain explicit diagnostics. Foreign receivers borrow,
 use `ref`, or require `move` according to their Rust receiver.
+A package command persists the complete exact resolved Rust graph as
+`terrane-dependencies.lock`. When a projected facade signature names one unique recursive registry
+owner, the compiler injects an exact private generated Cargo edge with empty feature lists, leaving
+the locked transitive edge to retain active features. That owner remains inaccessible as a Terrane
+`/deps` root unless explicitly declared. Multiple locked versions or an unrepresentable source
+remain explicit declines; direct declaration is the explicit unification mechanism.
+
+Package analysis projects the complete discovered dependency surface independently of current
+imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. The
+comment-only Terrane file places currently demanded unavailable declarations first, followed by a
+visible separator and unused unavailable declarations, then renders admitted generated
+declarations. Every unavailable entry retains its exact path and decline. Imports and projected
+member uses add current file/line/column demand locations. An unavailable declaration may be
+imported for inspection without failing; semantic analysis fails at the first actual source demand
+and points to the generated inventory. Each build replaces, rather than accumulates, caller
+annotations.
+
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` format 3 retains machine-independent top-level members, instance members
-as `Type.member`, static members as `Type::member`, exact injected bound-owner dependencies,
-dependency versions, source, rustdoc format, projection schema, exact cache identity, content hash,
-and resolution events. A single admitted
+`terrane-projection.lock` format 3 separately retains machine-independent top-level members,
+instance members as `Type.member`, static members as `Type::member`, exact injected private owner
+dependencies, dependency versions, source, rustdoc format, projection schema, exact cache
+identity, content hash, and resolution events. A single admitted
 concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
 multiple admitted instantiations. `S2031` names removed members and their version change; a changed
 payload under one exact cache identity is rejected as replay drift. Completion, signature help, and
