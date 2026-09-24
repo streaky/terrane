@@ -142,9 +142,14 @@ impl Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
+        let generated_projection = uri.to_file_path().is_some_and(|path| {
+            path.file_name()
+                .is_some_and(|name| name == terrane_compiler::projection::GENERATED_PROJECTION_FILE)
+        });
         let diagnostics = analysis
             .diagnostics
             .iter()
+            .filter(|diagnostic| !(generated_projection && diagnostic.code == "S2002"))
             .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
             .collect();
         let mut documents = self.documents.write().await;
