@@ -23,6 +23,8 @@ pub struct SurveyReport {
     pub public_paths: Vec<String>,
     pub declarations: Vec<SurveyDeclaration>,
     pub discovery_failures: Vec<SurveyDiscoveryFailure>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub complete_public_api: Vec<SurveyPublicApiItem>,
     pub target: String,
     pub build_toolchain: String,
     pub rustdoc_format: u32,
@@ -30,6 +32,13 @@ pub struct SurveyReport {
     pub rustdoc_visibility_policy: String,
     pub containment: Containment,
     pub probe_execution: SurveyProbeExecution,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SurveyPublicApiItem {
+    pub rustdoc_id: String,
+    pub parent_rustdoc_id: Option<String>,
+    pub rendered: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -50,7 +59,17 @@ pub struct SurveyPackage {
 pub struct SurveyDeclaration {
     pub public_path: String,
     pub canonical_path: Option<Vec<String>>,
+    pub source: Option<serde_json::Value>,
     pub definition_hidden: bool,
+    pub kind: String,
+    pub members: Vec<SurveyDeclarationMember>,
+    pub signature: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SurveyDeclarationMember {
+    pub name: String,
+    pub source: Option<serde_json::Value>,
     pub kind: String,
     pub signature: serde_json::Value,
 }
@@ -58,6 +77,9 @@ pub struct SurveyDeclaration {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SurveyDiscoveryFailure {
     pub public_path: String,
+    pub canonical_path: Option<Vec<String>>,
+    pub external_crate: Option<String>,
+    pub native_kind: Option<String>,
     pub reason: String,
 }
 
@@ -197,6 +219,37 @@ pub fn survey_package_with_policy(
     probes: &SurveyProbeRequest,
     containment: Containment,
 ) -> Result<SurveyReport, AnalysisError> {
+    survey_package_surface_with_policy(manifest, package, target, probes, containment, false)
+}
+
+/// Resolves one package and retains the complete rendered Rust public API.
+///
+/// # Errors
+/// Returns an error when graph discovery, Rustdoc generation, public-API extraction, or probe
+/// execution cannot complete.
+pub fn survey_complete_package_for_target(
+    manifest: &Path,
+    package: Option<&str>,
+    target: &str,
+) -> Result<SurveyReport, AnalysisError> {
+    survey_package_surface_with_policy(
+        manifest,
+        package,
+        target,
+        &SurveyProbeRequest::default(),
+        Containment::Unavailable,
+        true,
+    )
+}
+
+fn survey_package_surface_with_policy(
+    manifest: &Path,
+    package: Option<&str>,
+    target: &str,
+    probes: &SurveyProbeRequest,
+    containment: Containment,
+    complete_surface: bool,
+) -> Result<SurveyReport, AnalysisError> {
     let manifest = manifest
         .canonicalize()
         .map_err(io_error("canonicalize survey manifest"))?;
@@ -234,10 +287,13 @@ pub fn survey_package_with_policy(
     } else {
         fallback
     };
+    let complete_public_api = complete_public_api(&rustdoc_path, complete_surface)?;
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated survey rustdoc"))?;
     let document = parse_rustdoc(&selected.name, &bytes, RUSTDOC_TOOLCHAIN)?;
     let paths = public_paths(&document);
-    let (declarations, discovery_failures) = declarations(&document, &paths)?;
+    let source_root = package_source_root(selected)?;
+    let (declarations, discovery_failures) =
+        declarations(&document, &paths, source_root, "package")?;
     let public_paths = paths.into_values().collect::<Vec<_>>();
     let selected_identity = package_identity(selected);
     let oracle_identity = format!("survey-{selected_identity}-{target}");
@@ -259,6 +315,7 @@ pub fn survey_package_with_policy(
         public_paths,
         declarations,
         discovery_failures,
+        complete_public_api,
         target: target.to_owned(),
         build_toolchain: BUILD_TOOLCHAIN.to_owned(),
         rustdoc_format: document.format_version,
@@ -292,9 +349,210 @@ pub fn survey_package_with_policy(
     })
 }
 
+fn complete_public_api(
+    rustdoc_path: &Path,
+    include: bool,
+) -> Result<Vec<SurveyPublicApiItem>, AnalysisError> {
+    if include {
+        extract_complete_public_api(rustdoc_path)
+    } else {
+        Ok(Vec::new())
+    }
+}
+fn extract_complete_public_api(
+    rustdoc_path: &Path,
+) -> Result<Vec<SurveyPublicApiItem>, AnalysisError> {
+    let public_api = public_api::Builder::from_rustdoc_json(rustdoc_path)
+        .sorted(true)
+        .omit_blanket_impls(false)
+        .omit_auto_trait_impls(false)
+        .omit_auto_derived_impls(false)
+        .include_function_parameter_names(true)
+        .build()
+        .map_err(|error| AnalysisError {
+            message: format!(
+                "cannot extract complete public API from `{}`: {error}",
+                rustdoc_path.display()
+            ),
+        })?;
+    Ok(public_api
+        .items()
+        .map(|item| SurveyPublicApiItem {
+            rustdoc_id: format!("{:?}", item.id()),
+            parent_rustdoc_id: item.parent_id().map(|id| format!("{id:?}")),
+            rendered: item.to_string(),
+        })
+        .collect())
+}
+/// Extracts requested declarations from the pinned Rust toolchain's `core` sources.
+///
+/// # Errors
+/// Returns an error when the pinned `rust-src` component is unavailable, Rustdoc generation
+/// fails, or the generated JSON cannot be decoded.
+pub fn survey_core_declarations(
+    output_root: &Path,
+    target: &str,
+    requested_paths: &BTreeSet<String>,
+) -> Result<Vec<SurveyDeclaration>, AnalysisError> {
+    if requested_paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    let sysroot_output = Command::new("rustc")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args(["--print", "sysroot"])
+        .output()
+        .map_err(io_error("run pinned rustc for sysroot discovery"))?;
+    if !sysroot_output.status.success() {
+        return Err(AnalysisError {
+            message: format!(
+                "cannot discover pinned Rust sysroot: {}",
+                String::from_utf8_lossy(&sysroot_output.stderr).trim()
+            ),
+        });
+    }
+    let sysroot = PathBuf::from(String::from_utf8_lossy(&sysroot_output.stdout).trim());
+    let source_root = sysroot.join("lib/rustlib/src/rust/library/core");
+    let source = source_root.join("src/lib.rs");
+    if !source.is_file() {
+        return Err(AnalysisError {
+            message: format!(
+                "pinned Rust sysroot source `{}` is unavailable; install the `rust-src` component for `{RUSTDOC_TOOLCHAIN}`",
+                source.display()
+            ),
+        });
+    }
+    let output_directory = output_root.join("core").join(target);
+    fs::create_dir_all(&output_directory).map_err(io_error("create core survey directory"))?;
+    let rustdoc_path = output_directory.join("core.json");
+    if !rustdoc_path.is_file() {
+        let output = Command::new("rustdoc")
+            .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+            .args([
+                "--crate-name",
+                "core",
+                "--edition",
+                "2024",
+                "-Z",
+                "unstable-options",
+                "--output-format",
+                "json",
+                "--target",
+                target,
+                "--out-dir",
+            ])
+            .arg(&output_directory)
+            .arg(&source)
+            .env_remove("RUSTFLAGS")
+            .env_remove("RUSTDOCFLAGS")
+            .output()
+            .map_err(io_error("run pinned Rustdoc for core survey"))?;
+        if !output.status.success() {
+            return Err(AnalysisError {
+                message: format!(
+                    "cannot generate pinned core Rustdoc: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            });
+        }
+    }
+    let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
+    let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
+    let paths = public_paths(&document)
+        .into_iter()
+        .filter(|(id, public_path)| {
+            requested_paths.contains(public_path)
+                || document
+                    .paths
+                    .get(id)
+                    .is_some_and(|summary| requested_paths.contains(&summary.path.join("::")))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let (declarations, _) = declarations(&document, &paths, &source_root, "sysroot/core")?;
+    Ok(declarations)
+}
+
+fn package_source_root(package: &MetadataPackage) -> Result<&Path, AnalysisError> {
+    package.manifest_path.parent().ok_or_else(|| AnalysisError {
+        message: format!(
+            "selected package manifest `{}` has no parent directory",
+            package.manifest_path.display()
+        ),
+    })
+}
+
+fn source_location(
+    item: &rustdoc_types::Item,
+    source_root: &Path,
+    source_prefix: &str,
+    path: &str,
+) -> Result<Option<serde_json::Value>, AnalysisError> {
+    let mut source = item
+        .span
+        .as_ref()
+        .map(serde_json::to_value)
+        .transpose()
+        .map_err(|error| AnalysisError {
+            message: format!("cannot serialize source location for `{path}`: {error}"),
+        })?;
+    if let Some(filename) = source
+        .as_mut()
+        .and_then(serde_json::Value::as_object_mut)
+        .and_then(|span| span.get_mut("filename"))
+        && let Some(path) = filename.as_str()
+        && let Ok(relative) = Path::new(path).strip_prefix(source_root)
+    {
+        *filename = serde_json::Value::String(format!(
+            "{}/{}",
+            source_prefix,
+            relative.to_string_lossy().replace('\\', "/")
+        ));
+    }
+    Ok(source)
+}
+
+fn serialized_kind(signature: &serde_json::Value) -> String {
+    signature
+        .as_object()
+        .and_then(|object| object.keys().next())
+        .cloned()
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn declaration_members(
+    document: &rustdoc_types::Crate,
+    item: &rustdoc_types::Item,
+    source_root: &Path,
+    source_prefix: &str,
+    public_path: &str,
+) -> Result<Vec<SurveyDeclarationMember>, AnalysisError> {
+    let rustdoc_types::ItemEnum::Enum(enumeration) = &item.inner else {
+        return Ok(Vec::new());
+    };
+    enumeration
+        .variants
+        .iter()
+        .filter_map(|id| document.index.get(id))
+        .filter_map(|member| member.name.as_deref().map(|name| (name, member)))
+        .map(|(name, member)| {
+            let path = format!("{public_path}::{name}");
+            let signature = serde_json::to_value(&member.inner).map_err(|error| AnalysisError {
+                message: format!("cannot serialize native declaration member `{path}`: {error}"),
+            })?;
+            Ok(SurveyDeclarationMember {
+                name: name.to_owned(),
+                source: source_location(member, source_root, source_prefix, &path)?,
+                kind: serialized_kind(&signature),
+                signature,
+            })
+        })
+        .collect()
+}
+
 fn declarations(
     document: &rustdoc_types::Crate,
     paths: &BTreeMap<rustdoc_types::Id, String>,
+    source_root: &Path,
+    source_prefix: &str,
 ) -> Result<(Vec<SurveyDeclaration>, Vec<SurveyDiscoveryFailure>), AnalysisError> {
     let mut declarations = Vec::new();
     let mut failures = Vec::new();
@@ -312,13 +570,24 @@ fn declarations(
     for (id, public_path) in paths {
         let canonical = document.paths.get(id);
         let Some(item) = document.index.get(id) else {
-            let reason = missing_declaration_reason(
-                canonical
-                    .and_then(|summary| document.external_crates.get(&summary.crate_id))
-                    .map(|external| external.name.as_str()),
-            );
+            let external_crate = canonical
+                .and_then(|summary| document.external_crates.get(&summary.crate_id))
+                .map(|external| external.name.clone());
+            let native_kind = canonical
+                .map(|summary| serde_json::to_value(summary.kind))
+                .transpose()
+                .map_err(|error| AnalysisError {
+                    message: format!(
+                        "cannot serialize native declaration kind for `{public_path}`: {error}"
+                    ),
+                })?
+                .and_then(|kind| kind.as_str().map(str::to_owned));
+            let reason = missing_declaration_reason(external_crate.as_deref());
             failures.push(SurveyDiscoveryFailure {
                 public_path: public_path.clone(),
+                canonical_path: canonical.map(|summary| summary.path.clone()),
+                external_crate,
+                native_kind,
                 reason,
             });
             continue;
@@ -326,14 +595,13 @@ fn declarations(
         let signature = serde_json::to_value(&item.inner).map_err(|error| AnalysisError {
             message: format!("cannot serialize native declaration `{public_path}`: {error}"),
         })?;
-        let kind = signature
-            .as_object()
-            .and_then(|object| object.keys().next())
-            .cloned()
-            .unwrap_or_else(|| "unknown".to_owned());
+        let kind = serialized_kind(&signature);
+        let source = source_location(item, source_root, source_prefix, public_path)?;
+        let members = declaration_members(document, item, source_root, source_prefix, public_path)?;
         declarations.push(SurveyDeclaration {
             public_path: public_path.clone(),
             canonical_path: canonical.map(|summary| summary.path.clone()),
+            source,
             definition_hidden: is_hidden_surface(item)
                 || canonical.is_some_and(|summary| {
                     hidden_paths
@@ -341,6 +609,7 @@ fn declarations(
                         .any(|hidden| summary.path.starts_with(hidden))
                 }),
             kind,
+            members,
             signature,
         });
     }
@@ -977,11 +1246,18 @@ mod tests {
             (local, "sample::Local".to_owned()),
             (external, "sample::External".to_owned()),
         ]);
-        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        let (declarations, failures) =
+            declarations(&document, &paths, Path::new("/"), "package").unwrap();
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::Local");
         assert_eq!(failures.len(), 1);
         assert!(failures[0].reason.contains("external crate `owner`"));
+        assert_eq!(failures[0].external_crate.as_deref(), Some("owner"));
+        assert_eq!(
+            failures[0].canonical_path,
+            Some(vec!["owner".to_owned(), "External".to_owned()])
+        );
+        assert_eq!(failures[0].native_kind.as_deref(), Some("primitive"));
     }
 
     #[test]
@@ -1022,7 +1298,8 @@ mod tests {
             format_version: 57,
         };
         let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
-        let (declarations, failures) = declarations(&document, &paths).unwrap();
+        let (declarations, failures) =
+            declarations(&document, &paths, Path::new("/"), "package").unwrap();
         assert!(failures.is_empty());
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::reexported_at_root");

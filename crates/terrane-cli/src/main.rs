@@ -1,3 +1,4 @@
+mod census_command;
 mod debug_command;
 mod profile_command;
 mod test_command;
@@ -91,6 +92,7 @@ enum CliCommand {
     Query,
     Format,
     Package,
+    ProjectionCensus,
     Toolchains,
     Help,
     Version,
@@ -111,6 +113,7 @@ impl CliCommand {
             "query" => Some(Self::Query),
             "fmt" => Some(Self::Format),
             "package" => Some(Self::Package),
+            "projection-census" => Some(Self::ProjectionCensus),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -185,6 +188,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Package => return run_package(arguments),
+        CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
         CliCommand::Profile
@@ -1301,7 +1305,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),
@@ -1964,6 +1968,9 @@ fn usage() -> String {
      terrane package hash --git <url> --tag <tag>\n\
      terrane package install <relative-directory> [--name <dependency-name>]\n\
      terrane package install --git <url> --tag <tag> [--name <dependency-name>]\n\
+     terrane projection-census <package> <version> --target <triple> --root <directory> \
+     [--alias <name>] [--features <comma-list>] [--no-default-features] \
+     [--target-condition <cargo-cfg>]\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1980,6 +1987,7 @@ fn usage() -> String {
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      package  hash or install local and tagged-Git Terrane libraries\n  \
+     projection-census  compare native public surface with real compiler projection admission\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }

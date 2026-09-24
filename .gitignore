@@ -10,6 +10,11 @@ docs/MEMORY.md
 # Rust and Terrane build artifacts
 /target/
 **/.trn/
+**/terrane-projection.generated.trn
+
+# Generated projection-census application surfaces
+/compatibility/projection-census/application-surfaces.yaml
+/compatibility/projection-census/application-surfaces/*.yaml
 benchmarks/sci-maths/problems/*/rust/benchmark
 
 # VS Code extension dependencies and packaged artifacts

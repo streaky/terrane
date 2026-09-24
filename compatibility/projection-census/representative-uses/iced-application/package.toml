@@ -1,0 +1,11 @@
+package = "projection-census-iced-application"
+rust-toolchain = "pinned"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.iced]
+version = "=0.14.0"
+default-features = false
+features = ["wgpu", "tokio", "wayland", "x11"]
+effects = ["build"]

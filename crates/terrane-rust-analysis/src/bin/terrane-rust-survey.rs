@@ -10,6 +10,7 @@ struct Arguments {
     target: Option<String>,
     probes: Option<PathBuf>,
     containment: Containment,
+    complete_surface: bool,
 }
 
 fn main() {
@@ -22,6 +23,13 @@ fn main() {
         .unwrap_or_else(|message| usage(&message))
         .unwrap_or_default();
     let report = match arguments.target {
+        Some(target) if arguments.complete_surface && probes == terrane_rust_analysis::SurveyProbeRequest::default() => {
+            terrane_rust_analysis::survey_complete_package_for_target(
+                &arguments.manifest,
+                arguments.package.as_deref(),
+                &target,
+            )
+        }
         Some(target) => terrane_rust_analysis::survey_package_with_policy(
             &arguments.manifest,
             arguments.package.as_deref(),
@@ -30,12 +38,16 @@ fn main() {
             arguments.containment,
         ),
         None if probes == terrane_rust_analysis::SurveyProbeRequest::default()
-            && arguments.containment == Containment::Unavailable =>
+            && arguments.containment == Containment::Unavailable
+            && !arguments.complete_surface =>
         {
-            terrane_rust_analysis::survey_package(&arguments.manifest, arguments.package.as_deref())
+            terrane_rust_analysis::survey_package(
+                &arguments.manifest,
+                arguments.package.as_deref(),
+            )
         }
         None => Err(terrane_rust_analysis::AnalysisError {
-            message: "--probes or enforced containment requires an explicit --target".to_owned(),
+            message: "--probes, --complete-surface, or enforced containment requires an explicit --target".to_owned(),
         }),
     }
     .unwrap_or_else(|error| fail(&error.message));
@@ -63,6 +75,7 @@ fn parse_values(values: impl IntoIterator<Item = String>) -> Result<Arguments, S
     let mut target = None;
     let mut probes = None;
     let mut containment = None;
+    let mut complete_surface = false;
     while let Some(flag) = values.next() {
         let value = values
             .next()
@@ -78,6 +91,9 @@ fn parse_values(values: impl IntoIterator<Item = String>) -> Result<Arguments, S
                     _ => return Err("--containment must be `enforced` or `unavailable`".to_owned()),
                 });
             }
+            "--complete-surface" if !complete_surface && value == "true" => {
+                complete_surface = true;
+            }
             _ => return Err(format!("unknown or repeated option `{flag}`")),
         }
     }
@@ -87,6 +103,7 @@ fn parse_values(values: impl IntoIterator<Item = String>) -> Result<Arguments, S
         target,
         probes,
         containment: containment.unwrap_or(Containment::Unavailable),
+        complete_surface,
     })
 }
 
@@ -101,7 +118,7 @@ fn usage(message: &str) -> ! {
     eprintln!("terrane-rust-survey: {message}");
     eprintln!(
         "usage: terrane-rust-survey <Cargo.toml> [--package <name[@version]>] \
-         [--target <triple>] [--probes <json>] \
+         [--target <triple>] [--probes <json>] [--complete-surface <true>] \
          [--containment <enforced|unavailable>]"
     );
     std::process::exit(2);
@@ -127,6 +144,8 @@ mod tests {
                 "x86_64-unknown-linux-gnu",
                 "--package",
                 "sample@1.0.0",
+                "--complete-surface",
+                "true",
             ]
             .map(str::to_owned),
         )
@@ -137,6 +156,7 @@ mod tests {
             arguments.target.as_deref(),
             Some("x86_64-unknown-linux-gnu")
         );
+        assert!(arguments.complete_surface);
     }
 
     #[test]

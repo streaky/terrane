@@ -12,6 +12,7 @@ pub mod package;
 pub mod parser;
 pub mod profiling;
 pub mod projection;
+pub mod projection_census;
 pub mod provenance;
 pub mod rust_ir;
 pub mod semantics;

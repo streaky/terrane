@@ -1,0 +1,8 @@
+package = "projection-census-strsim"
+rust-toolchain = "pinned"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.strsim]
+version = "=0.11.1"
