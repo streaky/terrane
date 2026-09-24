@@ -3,3 +3,4 @@ namespace app
 from /deps/terrane-associated-reject-witness import GenericSlot as generic-slot
 
 function main;
+    print; generic-slot

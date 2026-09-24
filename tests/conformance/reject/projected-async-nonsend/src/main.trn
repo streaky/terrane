@@ -3,3 +3,4 @@ namespace app
 from /deps/terrane-boundary-reject-witness import LocalAsync as local-async
 
 function main;
+    print; local-async

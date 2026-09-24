@@ -17,8 +17,10 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "63";
+const PROJECTION_SCHEMA: &str = "67";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
+pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
+pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 const MAX_OWNER_RUSTDOC_CACHE_RECORDS: usize = 16;
 
@@ -669,6 +671,16 @@ pub struct DeclinedItem {
     pub reason: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnavailableProjection {
+    pub rust_path: String,
+    pub namespace: String,
+    pub name: String,
+    pub member: Option<String>,
+    pub reason: String,
+    pub required_by: BTreeSet<String>,
+}
+
 fn collect_nested_projected_types(
     ty: &ProjectedType,
     name: &str,
@@ -902,6 +914,211 @@ impl Projection {
             })
             .collect();
         self.source_for_imports_with_members(imports, &demanded_members)
+    }
+
+    #[must_use]
+    pub fn unavailable_inventory(
+        &self,
+        demand_sites: &ProjectionDemandSites,
+    ) -> Vec<UnavailableProjection> {
+        let mut declines = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| {
+                dependency
+                    .declined
+                    .iter()
+                    .map(move |declined| (dependency, None, declined))
+                    .chain(dependency.items.iter().flat_map(move |item| {
+                        let ProjectedKind::Interface(interface) = &item.kind else {
+                            return Vec::new().into_iter();
+                        };
+                        interface
+                            .declined_methods
+                            .iter()
+                            .map(|declined| (dependency, Some(item), declined))
+                            .collect::<Vec<_>>()
+                            .into_iter()
+                    }))
+            })
+            .collect::<Vec<_>>();
+        declines.sort_by(|left, right| {
+            left.2
+                .rust_path
+                .cmp(&right.2.rust_path)
+                .then_with(|| left.2.reason.cmp(&right.2.reason))
+        });
+        declines
+            .into_iter()
+            .map(|(dependency, interface_owner, declined)| {
+                let (namespace, name, member) = interface_owner.map_or_else(
+                    || {
+                        let member_owner = dependency.items.iter().find(|item| {
+                            declined
+                                .rust_path
+                                .strip_prefix(&item.rust_path)
+                                .is_some_and(|suffix| suffix.starts_with("::"))
+                        });
+                        member_owner.map_or_else(
+                            || {
+                                (
+                                    namespace_for_rust_path(dependency, &declined.rust_path),
+                                    declined
+                                        .rust_path
+                                        .rsplit("::")
+                                        .next()
+                                        .unwrap_or(&declined.rust_path)
+                                        .replace('_', "-"),
+                                    None,
+                                )
+                            },
+                            |owner| {
+                                (
+                                    owner.namespace.clone(),
+                                    owner.name.clone(),
+                                    declined
+                                        .rust_path
+                                        .rsplit("::")
+                                        .next()
+                                        .map(|member| member.replace('_', "-")),
+                                )
+                            },
+                        )
+                    },
+                    |owner| {
+                        (
+                            owner.namespace.clone(),
+                            owner.name.clone(),
+                            declined
+                                .rust_path
+                                .rsplit("::")
+                                .next()
+                                .map(|member| member.replace('_', "-")),
+                        )
+                    },
+                );
+                let required_by = demand_sites
+                    .get(&(namespace.clone(), name.clone(), member.clone()))
+                    .cloned()
+                    .unwrap_or_default();
+                UnavailableProjection {
+                    rust_path: declined.rust_path.clone(),
+                    namespace,
+                    name,
+                    member,
+                    reason: declined.reason.clone(),
+                    required_by,
+                }
+            })
+            .collect()
+    }
+
+    /// Renders a complete, human-readable inventory of projected and unavailable native API.
+    ///
+    /// The result is valid Terrane source consisting entirely of comments. The compiler-owned
+    /// projected declarations remain registered from the same projection data during semantic
+    /// analysis; this file makes that otherwise ephemeral source and every decline inspectable.
+    ///
+    /// Namespace source rendering failures are retained as projection gaps in the document
+    /// rather than preventing unrelated package analysis.
+    #[must_use]
+    pub fn documented_inventory(&self, demand_sites: &ProjectionDemandSites) -> String {
+        let mut output = String::from(
+            "# Generated by Terrane. Do not edit.\n\
+             # Complete native dependency projection inventory.\n",
+        );
+        writeln!(output, "# Projection schema: {PROJECTION_SCHEMA}")
+            .expect("writing to a string cannot fail");
+        writeln!(output, "# Cache identity: {}", self.cache_identity)
+            .expect("writing to a string cannot fail");
+        writeln!(output, "# Content hash: {}\n", self.content_hash)
+            .expect("writing to a string cannot fail");
+
+        let mut counts = BTreeMap::<(String, String), usize>::new();
+        for item in self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+        {
+            *counts
+                .entry((item.namespace.clone(), item.name.clone()))
+                .or_default() += 1;
+        }
+        let imports = counts.iter().filter(|(_, count)| **count == 1).fold(
+            BTreeMap::<String, BTreeSet<String>>::new(),
+            |mut imports, ((namespace, name), _)| {
+                imports
+                    .entry(namespace.clone())
+                    .or_default()
+                    .insert(name.clone());
+                imports
+            },
+        );
+        let (sources, source_rendering_gap) = match self.source_for_imports(&imports) {
+            Ok(sources) => (sources, None),
+            Err(error) => (Vec::new(), Some(error)),
+        };
+
+        let unavailable = self.unavailable_inventory(demand_sites);
+        let (required, unused): (Vec<_>, Vec<_>) = unavailable
+            .iter()
+            .partition(|unavailable| !unavailable.required_by.is_empty());
+        output.push_str("# Required unavailable projected declarations\n");
+        if required.is_empty() {
+            output.push_str("# None\n");
+        } else {
+            for unavailable in required {
+                render_unavailable_projection(&mut output, unavailable);
+            }
+        }
+        output.push_str(
+            "#\n# -----------------------------------------------------------------------------\n\
+             # Unused unavailable projected declarations\n",
+        );
+        if unused.is_empty() {
+            output.push_str("# None\n");
+        } else {
+            for unavailable in unused {
+                render_unavailable_projection(&mut output, unavailable);
+            }
+        }
+        output.push_str(
+            "#\n# -----------------------------------------------------------------------------\n\
+             # Projected Terrane declarations\n",
+        );
+        if let Some(error) = source_rendering_gap {
+            writeln!(output, "# Projected source rendering gap: {error}")
+                .expect("writing to a string cannot fail");
+        }
+
+        for (namespace, source) in sources {
+            writeln!(output, "#\n# Source namespace: {namespace}")
+                .expect("writing to a string cannot fail");
+            for line in source.lines() {
+                writeln!(output, "# {line}").expect("writing to a string cannot fail");
+            }
+        }
+
+        let ambiguous = counts
+            .iter()
+            .filter(|(_, count)| **count > 1)
+            .collect::<Vec<_>>();
+        if !ambiguous.is_empty() {
+            output.push_str("#\n# Ambiguous projected declarations\n");
+            for ((namespace, name), count) in ambiguous {
+                writeln!(
+                    output,
+                    "# - {namespace} {name}: {count} native declarations project to this name"
+                )
+                .expect("writing to a string cannot fail");
+                render_demand_sites(
+                    &mut output,
+                    demand_sites.get(&(namespace.clone(), name.clone(), None)),
+                );
+            }
+        }
+
+        output
     }
 
     fn order_projected_sources(
@@ -1372,6 +1589,43 @@ fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
             .iter()
             .map(|method| &method.function)
             .collect(),
+    }
+}
+fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableProjection) {
+    let status = if unavailable.required_by.is_empty() {
+        "unused"
+    } else {
+        "required"
+    };
+    writeln!(output, "#\n# Native path: {}", unavailable.rust_path)
+        .expect("writing to a string cannot fail");
+    writeln!(output, "# Terrane namespace: {}", unavailable.namespace)
+        .expect("writing to a string cannot fail");
+    writeln!(
+        output,
+        "# Unavailable declaration: {}{}",
+        unavailable.name,
+        unavailable
+            .member
+            .as_ref()
+            .map_or_else(String::new, |member| format!(".{member}"))
+    )
+    .expect("writing to a string cannot fail");
+    writeln!(output, "# Projection status: unavailable ({status})")
+        .expect("writing to a string cannot fail");
+    writeln!(output, "# Projection gap: {}", unavailable.reason)
+        .expect("writing to a string cannot fail");
+    render_demand_sites(output, Some(&unavailable.required_by));
+}
+
+fn render_demand_sites(output: &mut String, sites: Option<&BTreeSet<String>>) {
+    let Some(sites) = sites.filter(|sites| !sites.is_empty()) else {
+        output.push_str("# Required by: none\n");
+        return;
+    };
+    output.push_str("# Required by:\n");
+    for site in sites {
+        writeln!(output, "# - {site}").expect("writing to a string cannot fail");
     }
 }
 
@@ -2017,6 +2271,7 @@ pub fn resolve(
     // projection cache. Namespace-overlay metadata follows that existing invalidation boundary so
     // warm cache hits remain metadata-free.
     let workspace = root.join(".trn/dependencies");
+    seed_dependency_lock(root, &workspace)?;
     write_workspace(&workspace, dependencies)?;
     if workspace.join("Cargo.lock").exists() {
         run_cargo(
@@ -2033,6 +2288,7 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
+    persist_dependency_lock(root, &workspace)?;
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
@@ -2067,6 +2323,7 @@ pub fn resolve(
             dependencies,
             &cached.bound_dependencies,
         )?;
+        persist_dependency_lock(root, &workspace)?;
         apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
@@ -2096,6 +2353,7 @@ pub fn resolve(
                 dependencies,
                 &projection.bound_dependencies,
             )?;
+            persist_dependency_lock(root, &workspace)?;
             let bytes =
                 serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
                     message: format!("cannot serialize published dependency projection: {error}"),
@@ -2202,9 +2460,31 @@ pub fn resolve(
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
-    enforce_transitive_reachability(&mut projected, dependencies, &workspace, false)?;
+    let mut bound_dependencies =
+        recursive_owner_dependencies(&projected, dependencies, &workspace, false)?;
+    for dependency in &bound_dependencies {
+        rewrite_projected_owner_root(
+            &mut projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name,
+        );
+    }
+    enforce_transitive_reachability(
+        &mut projected,
+        dependencies,
+        &bound_dependencies,
+        &workspace,
+        false,
+    )?;
     canonicalize_projected_type_names(&mut projected);
-    enforce_transitive_reachability(&mut projected, dependencies, &workspace, true)?;
+    bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
+    enforce_transitive_reachability(
+        &mut projected,
+        dependencies,
+        &bound_dependencies,
+        &workspace,
+        true,
+    )?;
     decline_unrepresentable_error_types(&mut projected);
     let auto_trait_questions = projected
         .iter()
@@ -2273,7 +2553,17 @@ pub fn resolve(
     });
     decline_unnameable_bound_owners(&mut projected, dependencies, &workspace)?;
     decline_functions_with_missing_generic_interfaces(&mut projected);
-    let bound_dependencies = projected_bound_dependencies(&projected, dependencies, &workspace)?;
+    for dependency in
+        projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &workspace)?
+    {
+        if !bound_dependencies
+            .iter()
+            .any(|existing| existing.name == dependency.name)
+        {
+            bound_dependencies.push(dependency);
+        }
+    }
+    bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
     let mut projection = Projection {
         cache_identity: identity,
         content_hash: String::new(),
@@ -2294,6 +2584,7 @@ pub fn resolve(
         dependencies,
         &projection.bound_dependencies,
     )?;
+    persist_dependency_lock(root, &workspace)?;
     projection.content_hash = projection_content_hash(&projection)?;
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
@@ -3117,14 +3408,20 @@ fn apply_namespace_overlays(
 fn enforce_transitive_reachability(
     projected: &mut [ProjectedDependency],
     dependencies: &[RustDependency],
+    private_dependencies: &[ProjectedBoundDependency],
     workspace: &Path,
     error_owners_only: bool,
 ) -> Result<(), ProjectionError> {
-    let declared = dependencies
+    let mut declared = dependencies
         .iter()
         .flat_map(|dependency| [&dependency.name, &dependency.package])
         .map(|name| name.replace('-', "_"))
         .collect::<BTreeSet<_>>();
+    declared.extend(
+        private_dependencies
+            .iter()
+            .map(|dependency| dependency.name.replace('-', "_")),
+    );
     let versions = resolved_package_versions(workspace)?;
     for dependency in &mut *projected {
         let mut retained = Vec::new();
@@ -3704,12 +4001,18 @@ fn decline_unnameable_bound_owners(
 fn projected_bound_dependencies(
     projected: &[ProjectedDependency],
     declared: &[RustDependency],
+    private_dependencies: &[ProjectedBoundDependency],
     workspace: &Path,
 ) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
-    let declared = declared
+    let mut declared = declared
         .iter()
         .map(|dependency| dependency.name.replace('-', "_"))
         .collect::<BTreeSet<_>>();
+    declared.extend(
+        private_dependencies
+            .iter()
+            .map(|dependency| dependency.name.clone()),
+    );
     let required = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -3739,6 +4042,14 @@ fn projected_bound_dependencies(
         })
         .cloned()
         .collect::<BTreeSet<_>>();
+    resolved_projected_dependencies(required, workspace, true)
+}
+
+fn resolved_projected_dependencies(
+    required: BTreeSet<String>,
+    workspace: &Path,
+    strict: bool,
+) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
     if required.is_empty() {
         return Ok(Vec::new());
     }
@@ -3765,34 +4076,63 @@ fn projected_bound_dependencies(
             ))
         })
         .collect::<Vec<_>>();
-    required
-        .into_iter()
-        .map(|root| {
-            let matches = packages
-                .iter()
-                .filter(|(package, _, _)| package.replace('-', "_") == root)
-                .collect::<Vec<_>>();
-            let [(package, version, source)] = matches.as_slice() else {
+    let mut dependencies = Vec::new();
+    for root in required {
+        let matches = packages
+            .iter()
+            .filter(|(package, _, _)| package.replace('-', "_") == root)
+            .collect::<Vec<_>>();
+        let [(package, version, source)] = matches.as_slice() else {
+            if strict {
                 return Err(ProjectionError {
                     message: format!(
                         "projected result bound root `{root}` is not a unique resolved package"
                     ),
                 });
-            };
-            if !source.as_deref().is_some_and(is_crates_io_lock_source) {
+            }
+            continue;
+        };
+        if !source.as_deref().is_some_and(is_crates_io_lock_source) {
+            if strict {
                 return Err(ProjectionError {
                     message: format!(
                         "projected result bound root `{root}` is not a nameable registry dependency"
                     ),
                 });
             }
-            Ok(ProjectedBoundDependency {
-                name: root,
-                package: package.clone(),
-                version: format!("={version}"),
-            })
-        })
-        .collect()
+            continue;
+        }
+        dependencies.push(ProjectedBoundDependency {
+            name: root,
+            package: package.clone(),
+            version: format!("={version}"),
+        });
+    }
+    Ok(dependencies)
+}
+
+fn recursive_owner_dependencies(
+    projected: &[ProjectedDependency],
+    declared: &[RustDependency],
+    workspace: &Path,
+    _error_owners_only: bool,
+) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
+    let reachable = declared
+        .iter()
+        .flat_map(|dependency| [&dependency.name, &dependency.package])
+        .map(|name| name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
+    let required = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .flat_map(item_foreign_owners)
+        .filter(|owner| !owner_is_reachable(owner, &reachable))
+        .collect::<BTreeSet<_>>();
+    let mut dependencies = resolved_projected_dependencies(required, workspace, false)?;
+    for dependency in &mut dependencies {
+        dependency.name = format!("__terrane_recursive_{}", dependency.name);
+    }
+    Ok(dependencies)
 }
 fn rewrite_rust_bound_root(bound: &str, package_root: &str, dependency_root: &str) -> String {
     let mut rendered = String::with_capacity(bound.len());
@@ -3816,6 +4156,23 @@ fn rewrite_rust_bound_root(bound: &str, package_root: &str, dependency_root: &st
     rendered
 }
 
+const DEPENDENCY_LOCK_FILE: &str = "terrane-dependencies.lock";
+
+fn seed_dependency_lock(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
+    let path = root.join(DEPENDENCY_LOCK_FILE);
+    let Ok(bytes) = fs::read(&path) else {
+        return Ok(());
+    };
+    fs::create_dir_all(workspace).map_err(io_error("create dependency projection workspace"))?;
+    write_if_changed(&workspace.join("Cargo.lock"), &bytes)
+}
+
+fn persist_dependency_lock(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
+    let bytes = fs::read(workspace.join("Cargo.lock"))
+        .map_err(io_error("read complete resolved dependency lock"))?;
+    write_if_changed(&root.join(DEPENDENCY_LOCK_FILE), &bytes)
+}
+
 fn write_workspace_with_bound_dependencies(
     workspace: &Path,
     dependencies: &[RustDependency],
@@ -3825,9 +4182,9 @@ fn write_workspace_with_bound_dependencies(
     dependencies.extend(bound_dependencies.iter().map(|dependency| RustDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
-        // This edge exists only to make an already-resolved bound owner nameable. Leaving both
-        // feature lists empty prevents the injected direct edge from widening the feature set;
-        // the original transitive edges retain every feature active in the resolved lock.
+        // This private edge makes an already-resolved recursive signature or bound owner
+        // nameable to generated Rust. Empty feature lists prevent widening; the original
+        // locked transitive edges retain every active feature.
         version: dependency.version.clone(),
         features: Vec::new(),
         default_features: false,
@@ -3967,6 +4324,9 @@ fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
             .chain(std::iter::once(&function.result))
         {
             collect_type_owners(ty, &mut owners);
+        }
+        if let Some(error) = function.error.as_deref().and_then(rust_path_owner) {
+            owners.insert(error.to_owned());
         }
     }
     owners
@@ -4669,6 +5029,117 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
         | ProjectedType::Associated(_) => {}
+    }
+}
+
+fn rewrite_projected_function_root(
+    function: &mut ProjectedFunction,
+    package_root: &str,
+    dependency_root: &str,
+) {
+    for parameter in &mut function.parameters {
+        rewrite_projected_rust_root(&mut parameter.ty, package_root, dependency_root);
+        if let Some(associated) = &mut parameter.associated_type {
+            rewrite_projected_rust_root(&mut associated.ty, package_root, dependency_root);
+        }
+        if let Some(interface) = &mut parameter.generic_interface {
+            *interface = rewrite_rust_bound_root(interface, package_root, dependency_root);
+        }
+        for bound in &mut parameter.generic_bounds {
+            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+        }
+    }
+    for generic in &mut function.generic_parameters {
+        for bound in &mut generic.rust_bounds {
+            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+        }
+    }
+    rewrite_projected_rust_root(&mut function.result, package_root, dependency_root);
+    if let Some(error) = &mut function.error {
+        *error = rewrite_rust_bound_root(error, package_root, dependency_root);
+    }
+    if let Some(destination) = &mut function.destination_result {
+        for bound in &mut destination.rust_bounds {
+            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+        }
+        for root in &mut destination.bound_roots {
+            if root == package_root {
+                root.clone_from(&dependency_root.to_owned());
+            }
+        }
+    }
+    if let Some(
+        ProjectedEnumOperation::Construct {
+            payload_rust_type, ..
+        }
+        | ProjectedEnumOperation::Extract {
+            payload_rust_type, ..
+        },
+    ) = &mut function.enum_operation
+    {
+        *payload_rust_type =
+            rewrite_rust_bound_root(payload_rust_type, package_root, dependency_root);
+    }
+}
+
+fn rewrite_projected_owner_root(
+    projected: &mut [ProjectedDependency],
+    package_root: &str,
+    dependency_root: &str,
+) {
+    for item in projected
+        .iter_mut()
+        .flat_map(|dependency| &mut dependency.items)
+    {
+        item.rust_path = rewrite_rust_bound_root(&item.rust_path, package_root, dependency_root);
+        match &mut item.kind {
+            ProjectedKind::Function(function) => {
+                rewrite_projected_function_root(function, package_root, dependency_root);
+            }
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+                ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
+            } => {
+                for function in methods.iter_mut().chain(static_methods) {
+                    rewrite_projected_function_root(function, package_root, dependency_root);
+                }
+            }
+            ProjectedKind::Interface(interface) => {
+                for method in &mut interface.methods {
+                    rewrite_projected_function_root(
+                        &mut method.function,
+                        package_root,
+                        dependency_root,
+                    );
+                    if let Some(owner) = &mut method.owner_rust_path {
+                        *owner = rewrite_rust_bound_root(owner, package_root, dependency_root);
+                    }
+                }
+                if let Some(associated) = &mut interface.associated_type {
+                    associated.rust_path = rewrite_rust_bound_root(
+                        &associated.rust_path,
+                        package_root,
+                        dependency_root,
+                    );
+                    for bound in &mut associated.bounds {
+                        *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+                    }
+                }
+                for supertrait in &mut interface.supertraits {
+                    supertrait.rust_path = rewrite_rust_bound_root(
+                        &supertrait.rust_path,
+                        package_root,
+                        dependency_root,
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -9079,18 +9550,20 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, Containment, DeclinedItem, InvocationMode, NamespaceOverlay,
-        ProjectedBoundDependency, ProjectedBoundaryCapabilities, ProjectedDependency,
-        ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind, ProjectedParameter,
-        ProjectedType, Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution,
-        ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome, apply_namespace_overlays,
-        apply_projection_history, decline_functions_with_missing_generic_interfaces,
-        decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        external_reexport_rustdocs, has_type_parameters, mark_cache_record_used,
-        namespace_overlays_from_metadata, parse_rustdoc, project_type, projectable_interface_bound,
+        ArtifactDependency, Containment, DEPENDENCY_LOCK_FILE, DeclinedItem, InvocationMode,
+        NamespaceOverlay, ProjectedBoundDependency, ProjectedBoundaryCapabilities,
+        ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
+        ProjectedParameter, ProjectedType, Projection, ProjectionArtifact, ProjectionDemandSites,
+        ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver, ReexportProvider,
+        ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
+        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
+        enforce_transitive_reachability, external_reexport_rustdocs, has_type_parameters,
+        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+        persist_dependency_lock, project_type, projectable_interface_bound,
         projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
-        receiver_kind, resolve, resolved_library_package, rewrite_rust_bound_root, selected_target,
-        validate_projection_artifact,
+        receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
+        rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
+        selected_target, validate_projection_artifact,
     };
 
     #[test]
@@ -9541,6 +10014,73 @@ mod tests {
     }
 
     #[test]
+    fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
+        let projection = Projection {
+            cache_identity: "inventory".to_owned(),
+            content_hash: "content".to_owned(),
+            dependencies: vec![ProjectedDependency {
+                name: "witness".to_owned(),
+                package: "witness".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_function_item(
+                    "/deps/witness",
+                    "accepted",
+                    "witness::accepted",
+                )],
+                declined: vec![
+                    DeclinedItem {
+                        rust_path: "witness::required_gap".to_owned(),
+                        reason: "requires a borrowed result".to_owned(),
+                    },
+                    DeclinedItem {
+                        rust_path: "witness::unused_gap".to_owned(),
+                        reason: "requires an unsupported generic".to_owned(),
+                    },
+                ],
+            }],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        let demands = ProjectionDemandSites::from([(
+            ("/deps/witness".to_owned(), "required-gap".to_owned(), None),
+            BTreeSet::from(["src/main.trn:7:9".to_owned()]),
+        )]);
+
+        let inventory = projection.unavailable_inventory(&demands);
+
+        assert_eq!(inventory.len(), 2);
+        assert_eq!(inventory[0].rust_path, "witness::required_gap");
+        assert_eq!(
+            inventory[0].required_by,
+            BTreeSet::from(["src/main.trn:7:9".to_owned()])
+        );
+        assert_eq!(inventory[1].rust_path, "witness::unused_gap");
+        assert!(inventory[1].required_by.is_empty());
+
+        let document = projection.documented_inventory(&demands);
+        let required_heading = document
+            .find("# Required unavailable projected declarations")
+            .unwrap();
+        let required_gap = document
+            .find("# Native path: witness::required_gap")
+            .unwrap();
+        let unused_heading = document
+            .find("# Unused unavailable projected declarations")
+            .unwrap();
+        let unused_gap = document.find("# Native path: witness::unused_gap").unwrap();
+        let projected_heading = document.find("# Projected Terrane declarations").unwrap();
+        assert!(required_heading < required_gap);
+        assert!(required_gap < unused_heading);
+        assert!(unused_heading < unused_gap);
+        assert!(unused_gap < projected_heading);
+    }
+
+    #[test]
     fn exact_decline_path_wins_over_conflicting_suffixes() {
         let dependency = |name: &str, rust_path: &str, reason: &str| ProjectedDependency {
             name: name.to_owned(),
@@ -9982,14 +10522,18 @@ mod tests {
             Some(Receiver::MutableBorrow)
         );
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one regression covers decline, private alias admission, facade visibility, and ambiguous-version rejection"
+    )]
     #[test]
-    fn transitive_type_owner_must_be_declared_at_one_version() {
+    fn transitive_type_owner_uses_unique_locked_recursive_package() {
         let directory =
             std::env::temp_dir().join(format!("terrane-transitive-owner-{}", std::process::id()));
         fs::create_dir_all(&directory).unwrap();
         fs::write(
             directory.join("Cargo.lock"),
-            "version = 4\n\n[[package]]\nname = \"reqwest\"\nversion = \"0.12.28\"\n\n[[package]]\nname = \"http\"\nversion = \"1.3.1\"\n",
+            "version = 4\n\n[[package]]\nname = \"reqwest\"\nversion = \"0.12.28\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n\n[[package]]\nname = \"http\"\nversion = \"1.3.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         )
         .unwrap();
         let dependency = |name: &str| RustDependency {
@@ -10038,6 +10582,7 @@ mod tests {
         enforce_transitive_reachability(
             &mut undeclared,
             &[dependency("reqwest")],
+            &[],
             &directory,
             false,
         )
@@ -10049,10 +10594,51 @@ mod tests {
                 .contains("references unreachable crate `http` at resolved version `1.3.1`")
         );
 
+        let private_dependencies = recursive_owner_dependencies(
+            &[response_status()],
+            &[dependency("reqwest")],
+            &directory,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            private_dependencies,
+            vec![ProjectedBoundDependency {
+                name: "__terrane_recursive_http".to_owned(),
+                package: "http".to_owned(),
+                version: "=1.3.1".to_owned(),
+            }]
+        );
+        let mut private = vec![response_status()];
+        rewrite_projected_owner_root(&mut private, "http", "__terrane_recursive_http");
+        enforce_transitive_reachability(
+            &mut private,
+            &[dependency("reqwest")],
+            &private_dependencies,
+            &directory,
+            false,
+        )
+        .unwrap();
+        assert_eq!(private[0].items.len(), 1);
+        let facade_projection = Projection {
+            cache_identity: "recursive-owner".to_owned(),
+            content_hash: String::new(),
+            dependencies: private.clone(),
+            bound_dependencies: private_dependencies.clone(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        assert!(facade_projection.item("/deps/http", "StatusCode").is_none());
+
         let mut declared = vec![response_status()];
         enforce_transitive_reachability(
             &mut declared,
             &[dependency("reqwest"), dependency("http")],
+            &[],
             &directory,
             false,
         )
@@ -10067,6 +10653,7 @@ mod tests {
         let error = enforce_transitive_reachability(
             &mut conflicting,
             &[dependency("reqwest"), dependency("http")],
+            &[],
             &directory,
             false,
         )
@@ -10075,6 +10662,24 @@ mod tests {
         assert!(error.message.contains("0.2.12"));
         assert!(error.message.contains("1.3.1"));
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn durable_dependency_lock_seeds_and_records_the_complete_cargo_graph() {
+        let root = std::env::temp_dir().join(format!(
+            "terrane-durable-dependency-lock-{}",
+            std::process::id()
+        ));
+        let workspace = root.join(".trn/dependencies");
+        fs::create_dir_all(&workspace).unwrap();
+        let resolved = b"version = 4\n\n[[package]]\nname = \"facade\"\nversion = \"1.0.0\"\n\n[[package]]\nname = \"owner\"\nversion = \"2.0.0\"\n";
+        fs::write(workspace.join("Cargo.lock"), resolved).unwrap();
+        persist_dependency_lock(&root, &workspace).unwrap();
+        assert_eq!(fs::read(root.join(DEPENDENCY_LOCK_FILE)).unwrap(), resolved);
+        fs::write(workspace.join("Cargo.lock"), b"stale").unwrap();
+        seed_dependency_lock(&root, &workspace).unwrap();
+        assert_eq!(fs::read(workspace.join("Cargo.lock")).unwrap(), resolved);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -1,7 +1,8 @@
 use super::prelude::*;
+use crate::package::RustDependency;
 use crate::projection::{
-    Containment, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem, ProjectedKind,
-    Projection, ProjectionResolution, ProjectionSource,
+    Containment, DeclinedItem, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem,
+    ProjectedKind, Projection, ProjectionResolution, ProjectionSource,
 };
 
 fn ambiguous_projection() -> Projection {
@@ -76,6 +77,69 @@ fn ambiguous_projected_destination_names_every_rust_identity() {
     assert_eq!(
         error,
         "projected object `/deps/shared::Generic` is ambiguous: projected Rust types `one::Generic<A>`, `two::Generic<B>`"
+    );
+}
+
+fn unavailable_projection() -> Projection {
+    Projection {
+        cache_identity: "unavailable-semantics".to_owned(),
+        content_hash: String::new(),
+        dependencies: vec![ProjectedDependency {
+            name: "shared".to_owned(),
+            package: "shared".to_owned(),
+            version: "1.0.0".to_owned(),
+            items: Vec::new(),
+            declined: vec![DeclinedItem {
+                rust_path: "shared::Missing".to_owned(),
+                reason: "requires a compiler capability".to_owned(),
+            }],
+        }],
+        bound_dependencies: Vec::new(),
+        containment: Containment::Enforced,
+        source: ProjectionSource::default(),
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution::default(),
+        removed: Vec::new(),
+    }
+}
+
+fn package_with_unavailable_import(source: &str) -> Package {
+    let mut package = Package::implicit("main.trn", source.to_owned());
+    package.rust_dependencies.push(RustDependency {
+        name: "shared".to_owned(),
+        package: "shared".to_owned(),
+        version: "=1.0.0".to_owned(),
+        features: Vec::new(),
+        default_features: false,
+        target: None,
+        effects: Vec::new(),
+    });
+    package
+}
+
+#[test]
+fn unused_unavailable_projected_import_does_not_fail_analysis() {
+    let package = package_with_unavailable_import(
+        "namespace app\nfrom /deps/shared import Missing\nfunction main;\n    return\n",
+    );
+
+    analyze_with_projection(&package, unavailable_projection()).unwrap();
+}
+
+#[test]
+fn demanded_unavailable_projected_import_fails_at_the_demand() {
+    let package = package_with_unavailable_import(
+        "namespace app\nfrom /deps/shared import Missing\nfunction main;\n    print; Missing\n",
+    );
+
+    let failure = analyze_with_projection(&package, unavailable_projection()).unwrap_err();
+
+    assert_eq!(failure.diagnostics[0].code, "S2029");
+    let primary = failure.diagnostics[0].primary.unwrap();
+    assert_eq!(
+        &package.units[0].source.text()[primary.start..primary.end],
+        "Missing"
     );
 }
 

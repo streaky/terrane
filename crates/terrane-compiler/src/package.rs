@@ -1853,6 +1853,9 @@ fn discover_trn_files(
     let mut entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
+        if entry.file_name() == crate::projection::GENERATED_PROJECTION_FILE {
+            continue;
+        }
         let path = entry.path();
         let file_type = match entry.file_type() {
             Ok(file_type) if file_type.is_symlink() => match fs::metadata(&path) {
@@ -2006,6 +2009,30 @@ mod tests {
             };
             assert_eq!(unit.relative_path_text(), expected);
         }
+    }
+
+    #[test]
+    fn generated_projection_inventory_is_not_an_authored_source_unit() {
+        let root = std::env::temp_dir().join(format!(
+            "terrane-generated-projection-discovery-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.trn"), "namespace app\n").unwrap();
+        fs::write(
+            root.join(crate::projection::GENERATED_PROJECTION_FILE),
+            "# generated projection inventory\n",
+        )
+        .unwrap();
+        let mut paths = BTreeSet::new();
+        let mut errors = Vec::new();
+
+        discover_trn_files(&root, &root, &mut paths, &mut errors);
+
+        assert!(errors.is_empty());
+        assert_eq!(paths, BTreeSet::from([PathBuf::from("main.trn")]));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

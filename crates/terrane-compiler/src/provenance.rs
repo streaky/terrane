@@ -114,7 +114,11 @@ impl BuildProvenance {
         let executable_bytes = std::fs::read(executable)
             .map_err(|error| format!("cannot read executable {}: {error}", executable.display()))?;
         let mut inputs = Vec::new();
-        for name in [crate::MANIFEST_FILE_NAME, "terrane-projection.lock"] {
+        for name in [
+            crate::MANIFEST_FILE_NAME,
+            "terrane-dependencies.lock",
+            "terrane-projection.lock",
+        ] {
             let path = package.root.join(name);
             if let Ok(bytes) = std::fs::read(path) {
                 inputs.push(InputIdentity {

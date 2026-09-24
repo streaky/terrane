@@ -449,7 +449,7 @@ mod __terrane_error_registry {
     pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
-        "/deps/sqlx-core::Error",
+        "/deps/sqlx::Error",
     ];
 }
 mod __terrane_trace {
