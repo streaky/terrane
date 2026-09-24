@@ -1209,11 +1209,14 @@ Package analysis projects the complete discovered dependency surface independent
 imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. The
 comment-only Terrane file places currently demanded unavailable declarations first, followed by a
 visible separator and unused unavailable declarations, then renders admitted generated
-declarations. Every unavailable entry retains its exact path and decline. Imports and projected
-member uses add current file/line/column demand locations. An unavailable declaration may be
-imported for inspection without failing; semantic analysis fails at the first actual source demand
-and points to the generated inventory. Each build replaces, rather than accumulates, caller
-annotations.
+declarations. Every unavailable entry retains its exact path and decline. A demanded unavailable
+function additionally renders any deterministically recoverable function shape, generic
+constraints, callback parameter contracts, and callback method signatures; a demanded module is
+identified as a namespace container. Partial contracts preserve known structure but remain
+unavailable for lowering. Imports and projected member uses add current file/line/column demand
+locations. An unavailable declaration may be imported for inspection without failing; semantic
+analysis fails at the first actual source demand and points to the generated inventory. Each build
+replaces, rather than accumulates, caller annotations.
 
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate

@@ -335,10 +335,14 @@ next work units before committing to a new core representation.
   admission evidence.
 - `terrane-projection.generated.trn` materializes the otherwise ephemeral complete projection
   beside each package manifest. It renders every admitted Terrane declaration and unavailable
-  native declaration with its exact path and decline. Current source imports and projected
-  member calls annotate demanded gaps with caller locations. Projection is no longer restricted
-  to current imports: unused gaps remain inspectable compiler evidence and do not fail a build;
-  a demanded gap fails at the application source and points back to the generated report.
+  native declaration with its exact path and decline. Demanded unavailable functions now retain a
+  deterministic partial contract containing their native function shape, generic constraints,
+  callback-bearing parameter contracts, and required callback method signatures; demanded modules
+  retain an explicit namespace-container contract. These records preserve understood structure
+  without falsely admitting the declaration or changing its failure. Current source imports and
+  projected member calls annotate demanded gaps with caller locations. Projection is no longer
+  restricted to current imports: unused gaps remain inspectable compiler evidence and do not fail
+  a build; a demanded gap fails at the application source and points back to the generated report.
   Subsequent builds deterministically replace the demand annotations.
 - `compatibility/projection-census/findings.md` records representative traces, confidence limits,
   cohort interpretation and recommended next work. The evidence supports focused investigation of

@@ -26,6 +26,7 @@ fn ambiguous_projection() -> Projection {
             },
         }],
         declined: Vec::new(),
+        partial_declines: Vec::new(),
     };
     Projection {
         cache_identity: "ambiguous-semantics".to_owned(),
@@ -93,6 +94,7 @@ fn unavailable_projection() -> Projection {
                 rust_path: "shared::Missing".to_owned(),
                 reason: "requires a compiler capability".to_owned(),
             }],
+            partial_declines: Vec::new(),
         }],
         bound_dependencies: Vec::new(),
         containment: Containment::Enforced,

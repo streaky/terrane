@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "67";
+const PROJECTION_SCHEMA: &str = "69";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -178,8 +178,34 @@ pub struct ProjectedDependency {
     pub version: String,
     pub items: Vec<ProjectedItem>,
     pub declined: Vec<DeclinedItem>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) partial_declines: Vec<PartialProjectionRecord>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PartialProjectionRecord {
+    rust_path: String,
+    reason: String,
+    projection: PartialProjection,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+enum PartialProjection {
+    Function {
+        signature: String,
+        generic_constraints: Vec<String>,
+        callback_shapes: Vec<PartialCallbackShape>,
+    },
+    Namespace,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct PartialCallbackShape {
+    parameter: String,
+    contract: String,
+    methods: Vec<String>,
+}
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RemovedItem {
     pub namespace: String,
@@ -679,6 +705,7 @@ pub struct UnavailableProjection {
     pub member: Option<String>,
     pub reason: String,
     pub required_by: BTreeSet<String>,
+    partial: Option<PartialProjection>,
 }
 
 fn collect_nested_projected_types(
@@ -1001,10 +1028,18 @@ impl Projection {
                     .get(&(namespace.clone(), name.clone(), member.clone()))
                     .cloned()
                     .unwrap_or_default();
+                let partial = dependency
+                    .partial_declines
+                    .iter()
+                    .find(|partial| {
+                        partial.rust_path == declined.rust_path && partial.reason == declined.reason
+                    })
+                    .map(|partial| partial.projection.clone());
                 UnavailableProjection {
                     rust_path: declined.rust_path.clone(),
                     namespace,
                     name,
+                    partial,
                     member,
                     reason: declined.reason.clone(),
                     required_by,
@@ -1615,6 +1650,41 @@ fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableP
         .expect("writing to a string cannot fail");
     writeln!(output, "# Projection gap: {}", unavailable.reason)
         .expect("writing to a string cannot fail");
+    if !unavailable.required_by.is_empty() {
+        match &unavailable.partial {
+            Some(PartialProjection::Function {
+                signature,
+                generic_constraints,
+                callback_shapes,
+            }) => {
+                output.push_str("# Generated partial contract: function\n");
+                writeln!(output, "# Function shape: {signature}")
+                    .expect("writing to a string cannot fail");
+                for constraint in generic_constraints {
+                    writeln!(output, "# Generic constraint: {constraint}")
+                        .expect("writing to a string cannot fail");
+                }
+                for callback in callback_shapes {
+                    writeln!(
+                        output,
+                        "# Callback parameter `{}`: {}",
+                        callback.parameter, callback.contract
+                    )
+                    .expect("writing to a string cannot fail");
+                    for method in &callback.methods {
+                        writeln!(output, "#   Required callback method: {method}")
+                            .expect("writing to a string cannot fail");
+                    }
+                }
+            }
+            Some(PartialProjection::Namespace) => {
+                output.push_str(
+                    "# Generated partial contract: namespace container; no value declaration\n",
+                );
+            }
+            None => {}
+        }
+    }
     render_demand_sites(output, Some(&unavailable.required_by));
 }
 
@@ -5855,6 +5925,273 @@ fn project_external_provided_trait_methods(
     }
 }
 
+fn partial_projection(
+    item: &Item,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Option<PartialProjection> {
+    match &item.inner {
+        ItemEnum::Function(function) => partial_function_projection(
+            item.name.as_deref().unwrap_or("<anonymous>"),
+            function,
+            index,
+            paths,
+        )
+        .ok(),
+        ItemEnum::Module(_) => Some(PartialProjection::Namespace),
+        _ => None,
+    }
+}
+
+fn partial_function_projection(
+    name: &str,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<PartialProjection, String> {
+    let generics = function
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Type { .. } => Some((
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            )),
+            _ => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+    let signature = render_partial_function_signature(name, function, index, paths, &generics)?;
+    let generic_constraints =
+        render_partial_generic_constraints(function, index, paths, &generics)?;
+    let mut callback_shapes = Vec::new();
+    for (parameter, ty) in &function.sig.inputs {
+        let Type::ImplTrait(bounds) = ty else {
+            continue;
+        };
+        for bound in bounds {
+            let GenericBound::TraitBound { trait_, .. } = bound else {
+                continue;
+            };
+            let contract = render_generic_bound(bound, &[], index, paths, &generics)?;
+            let Some(Item {
+                inner: ItemEnum::Trait(declaration),
+                ..
+            }) = index.get(&trait_.id)
+            else {
+                continue;
+            };
+            let mut trait_generics = declaration
+                .generics
+                .params
+                .iter()
+                .filter_map(|parameter| match &parameter.kind {
+                    GenericParamDefKind::Type { .. } => Some((
+                        parameter.name.clone(),
+                        ProjectedType::Generic(parameter.name.clone()),
+                    )),
+                    _ => None,
+                })
+                .collect::<BTreeMap<_, _>>();
+            trait_generics.insert("Self".to_owned(), ProjectedType::Generic("Self".to_owned()));
+            let methods = declaration
+                .items
+                .iter()
+                .filter_map(|id| {
+                    let method = index.get(id)?;
+                    let ItemEnum::Function(function) = &method.inner else {
+                        return None;
+                    };
+                    render_partial_function_signature(
+                        method.name.as_deref().unwrap_or("<anonymous>"),
+                        function,
+                        index,
+                        paths,
+                        &trait_generics,
+                    )
+                    .ok()
+                })
+                .collect();
+            callback_shapes.push(PartialCallbackShape {
+                parameter: parameter.clone(),
+                contract,
+                methods,
+            });
+        }
+    }
+    Ok(PartialProjection::Function {
+        signature,
+        generic_constraints,
+        callback_shapes,
+    })
+}
+
+fn render_partial_function_signature(
+    name: &str,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    let parameters = function
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Type {
+                is_synthetic: false,
+                ..
+            }
+            | GenericParamDefKind::Lifetime { .. }
+            | GenericParamDefKind::Const { .. } => Some(parameter.name.clone()),
+            GenericParamDefKind::Type {
+                is_synthetic: true, ..
+            } => None,
+        })
+        .collect::<Vec<_>>();
+    let parameters = if parameters.is_empty() {
+        String::new()
+    } else {
+        format!("<{}>", parameters.join(", "))
+    };
+    let inputs = function
+        .sig
+        .inputs
+        .iter()
+        .map(|(name, ty)| {
+            render_partial_type(ty, index, paths, generics).map(|ty| format!("{name}: {ty}"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let output = function
+        .sig
+        .output
+        .as_ref()
+        .map(|ty| render_partial_type(ty, index, paths, generics))
+        .transpose()?
+        .map_or_else(String::new, |ty| format!(" -> {ty}"));
+    Ok(format!(
+        "fn {name}{parameters}({}){output}",
+        inputs.join(", ")
+    ))
+}
+
+fn render_partial_generic_constraints(
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Vec<String>, String> {
+    let mut constraints = Vec::new();
+    for parameter in &function.generics.params {
+        let GenericParamDefKind::Type {
+            bounds,
+            is_synthetic: false,
+            ..
+        } = &parameter.kind
+        else {
+            continue;
+        };
+        if !bounds.is_empty() {
+            let bounds = bounds
+                .iter()
+                .map(|bound| render_generic_bound(bound, &[], index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            constraints.push(format!("{}: {}", parameter.name, bounds.join(" + ")));
+        }
+    }
+    for predicate in &function.generics.where_predicates {
+        let WherePredicate::BoundPredicate {
+            type_,
+            bounds,
+            generic_params,
+        } = predicate
+        else {
+            continue;
+        };
+        let ty = render_partial_type(type_, index, paths, generics)?;
+        let bounds = bounds
+            .iter()
+            .map(|bound| render_generic_bound(bound, generic_params, index, paths, generics))
+            .collect::<Result<Vec<_>, _>>()?;
+        if !bounds.is_empty() {
+            constraints.push(format!("{ty}: {}", bounds.join(" + ")));
+        }
+    }
+    Ok(constraints)
+}
+
+fn render_partial_type(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    match ty {
+        Type::ImplTrait(bounds) => {
+            let bounds = bounds
+                .iter()
+                .map(|bound| render_generic_bound(bound, &[], index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(format!("impl {}", bounds.join(" + ")))
+        }
+        Type::ResolvedPath(path) => {
+            let base = resolved_path_name(path, paths);
+            let Some(arguments) = path.args.as_deref() else {
+                return Ok(base);
+            };
+            match arguments {
+                GenericArgs::AngleBracketed { args, constraints } => {
+                    let mut rendered = args
+                        .iter()
+                        .map(|argument| match argument {
+                            GenericArg::Lifetime(lifetime) => Ok(lifetime.clone()),
+                            GenericArg::Type(ty) => render_partial_type(ty, index, paths, generics),
+                            GenericArg::Const(constant) => Ok(constant.expr.clone()),
+                            GenericArg::Infer => Ok("_".to_owned()),
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    for constraint in constraints {
+                        let binding = match &constraint.binding {
+                            AssocItemConstraintKind::Equality(Term::Type(ty)) => format!(
+                                "{} = {}",
+                                constraint.name,
+                                render_partial_type(ty, index, paths, generics)?
+                            ),
+                            AssocItemConstraintKind::Equality(Term::Constant(constant)) => {
+                                format!("{} = {}", constraint.name, constant.expr)
+                            }
+                            AssocItemConstraintKind::Constraint(bounds) => {
+                                let bounds = bounds
+                                    .iter()
+                                    .map(|bound| {
+                                        render_generic_bound(bound, &[], index, paths, generics)
+                                    })
+                                    .collect::<Result<Vec<_>, _>>()?;
+                                format!("{}: {}", constraint.name, bounds.join(" + "))
+                            }
+                        };
+                        rendered.push(binding);
+                    }
+                    Ok(format!("{base}<{}>", rendered.join(", ")))
+                }
+                GenericArgs::Parenthesized { inputs, output } => {
+                    let inputs = inputs
+                        .iter()
+                        .map(|ty| render_partial_type(ty, index, paths, generics))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let output = output
+                        .as_ref()
+                        .map(|ty| render_partial_type(ty, index, paths, generics))
+                        .transpose()?
+                        .map_or_else(String::new, |ty| format!(" -> {ty}"));
+                    Ok(format!("{base}({}){output}", inputs.join(", ")))
+                }
+                GenericArgs::ReturnTypeNotation => Ok(format!("{base}(..)")),
+            }
+        }
+        _ => render_rust_type(ty, index, paths, generics),
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "one rustdoc item pass records admitted and declined public items together"
@@ -5886,6 +6223,7 @@ fn project_rustdoc(
     }
     let mut items = Vec::new();
     let mut declined = Vec::new();
+    let mut partial_declines = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
     for (id, path) in candidates {
@@ -6355,7 +6693,16 @@ fn project_rustdoc(
                     kind,
                 });
             }
-            Err(reason) => declined.push(DeclinedItem { rust_path, reason }),
+            Err(reason) => {
+                if let Some(projection) = partial_projection(item, index, paths) {
+                    partial_declines.push(PartialProjectionRecord {
+                        rust_path: rust_path.clone(),
+                        reason: reason.clone(),
+                        projection,
+                    });
+                }
+                declined.push(DeclinedItem { rust_path, reason });
+            }
         }
     }
     projected_associated_items.sort_by(|left, right| {
@@ -6512,6 +6859,7 @@ fn project_rustdoc(
     normalize_projected_items(&mut items, &mut declined);
     ProjectedDependency {
         name: dependency.name.clone(),
+        partial_declines,
         package: dependency.package.clone(),
         version: document
             .crate_version
@@ -9551,11 +9899,12 @@ mod tests {
 
     use super::{
         ArtifactDependency, Containment, DEPENDENCY_LOCK_FILE, DeclinedItem, InvocationMode,
-        NamespaceOverlay, ProjectedBoundDependency, ProjectedBoundaryCapabilities,
-        ProjectedDependency, ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
-        ProjectedParameter, ProjectedType, Projection, ProjectionArtifact, ProjectionDemandSites,
-        ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver, ReexportProvider,
-        ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
+        NamespaceOverlay, PartialCallbackShape, PartialProjection, PartialProjectionRecord,
+        ProjectedBoundDependency, ProjectedBoundaryCapabilities, ProjectedDependency,
+        ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind, ProjectedParameter,
+        ProjectedType, Projection, ProjectionArtifact, ProjectionDemandSites, ProjectionHistory,
+        ProjectionResolution, ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome,
+        apply_namespace_overlays, apply_projection_history,
         decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
         enforce_transitive_reachability, external_reexport_rustdocs, has_type_parameters,
         mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
@@ -9728,6 +10077,7 @@ mod tests {
                     version: "1.0.0".to_owned(),
                     items: vec![item("/deps/one", "one::Message")],
                     declined: Vec::new(),
+                    partial_declines: Vec::new(),
                 },
                 ProjectedDependency {
                     name: "two".to_owned(),
@@ -9735,6 +10085,7 @@ mod tests {
                     version: "1.0.0".to_owned(),
                     items: vec![item("/deps/two", "two::Message")],
                     declined: Vec::new(),
+                    partial_declines: Vec::new(),
                 },
             ],
             bound_dependencies: Vec::new(),
@@ -9898,6 +10249,7 @@ mod tests {
                     "upstream::open",
                 )],
                 declined: Vec::new(),
+                partial_declines: Vec::new(),
             },
             ProjectedDependency {
                 name: "adapter".to_owned(),
@@ -9909,6 +10261,7 @@ mod tests {
                     "adapter::upstream::open",
                 )],
                 declined: Vec::new(),
+                partial_declines: Vec::new(),
             },
         ];
         let collision = apply_namespace_overlays(&mut projected, &[overlay]).unwrap_err();
@@ -10037,6 +10390,19 @@ mod tests {
                         reason: "requires an unsupported generic".to_owned(),
                     },
                 ],
+                partial_declines: vec![PartialProjectionRecord {
+                    rust_path: "witness::required_gap".to_owned(),
+                    reason: "requires a borrowed result".to_owned(),
+                    projection: PartialProjection::Function {
+                        signature: "fn required_gap(callback: impl witness::Callback)".to_owned(),
+                        generic_constraints: vec!["State: 'static".to_owned()],
+                        callback_shapes: vec![PartialCallbackShape {
+                            parameter: "callback".to_owned(),
+                            contract: "witness::Callback".to_owned(),
+                            methods: vec!["fn invoke(self: &Self, state: &State)".to_owned()],
+                        }],
+                    },
+                }],
             }],
             bound_dependencies: Vec::new(),
             containment: Containment::Enforced,
@@ -10078,6 +10444,12 @@ mod tests {
         assert!(required_gap < unused_heading);
         assert!(unused_heading < unused_gap);
         assert!(unused_gap < projected_heading);
+        assert!(document.contains(
+            "# Function shape: fn required_gap(callback: impl witness::Callback)\n\
+             # Generic constraint: State: 'static\n\
+             # Callback parameter `callback`: witness::Callback\n\
+             #   Required callback method: fn invoke(self: &Self, state: &State)"
+        ));
     }
 
     #[test]
@@ -10091,6 +10463,7 @@ mod tests {
                 rust_path: rust_path.to_owned(),
                 reason: reason.to_owned(),
             }],
+            partial_declines: Vec::new(),
         };
         let dependencies = vec![
             dependency("one", "one::Type::build", "first reason"),
@@ -10128,6 +10501,7 @@ mod tests {
                 },
             }],
             declined: Vec::new(),
+            partial_declines: Vec::new(),
         };
         let nested_dependency = |dependency_name: &str, rust_path: &str| {
             let mut dependency = dependency(dependency_name, rust_path);
@@ -10292,6 +10666,7 @@ mod tests {
                 },
             ],
             declined: Vec::new(),
+            partial_declines: Vec::new(),
         }];
         let evidence = vec![crate::projection_oracle::ImplProbeEvidence {
             question: crate::projection_oracle::ImplQuestion {
@@ -10576,6 +10951,7 @@ mod tests {
                 }),
             }],
             declined: Vec::new(),
+            partial_declines: Vec::new(),
         };
 
         let mut undeclared = vec![response_status()];
@@ -10986,6 +11362,7 @@ mod tests {
             version: version.to_owned(),
             items,
             declined: Vec::new(),
+            partial_declines: Vec::new(),
         };
         let item = ProjectedItem {
             namespace: "/deps/fixture".to_owned(),

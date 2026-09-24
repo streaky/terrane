@@ -1,9 +1,6 @@
 {
-  "format": 3,
   "dependencies": [
     {
-      "name": "terrane-boundary-reject-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-boundary-reject-witness",
@@ -41,33 +38,33 @@
           "/deps/terrane-boundary-reject-witness/nonsend",
           "clone"
         ]
-      ]
+      ],
+      "name": "terrane-boundary-reject-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 3,
   "removed": [],
-  "cache_identity": "b19f69d22548c8531d31a09c5f7f8316d9418ec33d5b49c61a98fd2312b2731c",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "63",
-  "content_hash": "ecb199954155c42c245acf395f143380d2499eef05d3f2b5b5966f5d2f6bccd8",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }
