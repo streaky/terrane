@@ -1,4 +1,26 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
+      "name": "__terrane_recursive_http_body",
+      "package": "http-body",
+      "version": "=1.1.0"
+    },
+    {
+      "name": "__terrane_recursive_hyper",
+      "package": "hyper",
+      "version": "=1.11.1"
+    },
+    {
+      "name": "__terrane_recursive_url",
+      "package": "url",
+      "version": "=2.5.8"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -1414,6 +1436,18 @@
         ],
         [
           "/deps/reqwest",
+          "Error.url"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.url_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.with_url"
+        ],
+        [
+          "/deps/reqwest",
           "Error.without_url"
         ],
         [
@@ -1510,11 +1544,23 @@
         ],
         [
           "/deps/reqwest",
+          "Request.url"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.url_mut"
+        ],
+        [
+          "/deps/reqwest",
           "Request.version"
         ],
         [
           "/deps/reqwest",
           "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request::new"
         ],
         [
           "/deps/reqwest",
@@ -1574,6 +1620,14 @@
         ],
         [
           "/deps/reqwest",
+          "Response.bytes"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.chunk"
+        ],
+        [
+          "/deps/reqwest",
           "Response.content_length"
         ],
         [
@@ -1615,6 +1669,10 @@
         [
           "/deps/reqwest",
           "Response.upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.url"
         ],
         [
           "/deps/reqwest",
@@ -1926,11 +1984,23 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Request.url"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.url_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request.version"
         ],
         [
           "/deps/reqwest/blocking",
           "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request::new"
         ],
         [
           "/deps/reqwest/blocking",
@@ -1994,6 +2064,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.bytes"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.content_length"
         ],
         [
@@ -2034,11 +2108,19 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.url"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.version"
         ],
         [
           "/deps/reqwest/blocking",
           "get"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-bytes/bytes/bytes",
+          "from"
         ],
         [
           "/deps/reqwest/blocking/body/trait/core/convert/from-static-str",
@@ -2079,6 +2161,14 @@
         [
           "/deps/reqwest/body",
           "is_end_stream"
+        ],
+        [
+          "/deps/reqwest/body",
+          "size_hint"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-bytes/bytes/bytes",
+          "from"
         ],
         [
           "/deps/reqwest/body/trait/core/convert/from-reqwest/response",
@@ -2254,6 +2344,10 @@
         ],
         [
           "/deps/reqwest/upgraded",
+          "from"
+        ],
+        [
+          "/deps/reqwest/upgraded",
           "is_write_vectored"
         ]
       ],
@@ -2262,7 +2356,6 @@
     }
   ],
   "format": 3,
-  "projection_schema": "63",
   "removed": [],
   "resolution": {
     "events": [

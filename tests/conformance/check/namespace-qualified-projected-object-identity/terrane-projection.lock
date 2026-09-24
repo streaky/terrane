@@ -1,4 +1,31 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
+      "name": "__terrane_recursive_http",
+      "package": "http",
+      "version": "=1.5.0"
+    },
+    {
+      "name": "__terrane_recursive_http_body",
+      "package": "http-body",
+      "version": "=1.1.0"
+    },
+    {
+      "name": "__terrane_recursive_hyper",
+      "package": "hyper",
+      "version": "=1.11.1"
+    },
+    {
+      "name": "__terrane_recursive_url",
+      "package": "url",
+      "version": "=2.5.8"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -44,6 +71,10 @@
         ],
         [
           "/deps/reqwest",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest",
           "Client::builder"
         ],
         [
@@ -81,6 +112,10 @@
         [
           "/deps/reqwest",
           "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.default_headers"
         ],
         [
           "/deps/reqwest",
@@ -284,6 +319,22 @@
         ],
         [
           "/deps/reqwest",
+          "Error.status"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.url"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.url_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.with_url"
+        ],
+        [
+          "/deps/reqwest",
           "Error.without_url"
         ],
         [
@@ -309,6 +360,14 @@
         [
           "/deps/reqwest",
           "Proxy.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.custom_http_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.headers"
         ],
         [
           "/deps/reqwest",
@@ -344,6 +403,22 @@
         ],
         [
           "/deps/reqwest",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest",
           "Request.timeout"
         ],
         [
@@ -353,6 +428,26 @@
         [
           "/deps/reqwest",
           "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.url"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.url_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request::new"
         ],
         [
           "/deps/reqwest",
@@ -384,6 +479,10 @@
         ],
         [
           "/deps/reqwest",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder.query"
         ],
         [
@@ -396,11 +495,23 @@
         ],
         [
           "/deps/reqwest",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest",
           "Response"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.bytes"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.chunk"
         ],
         [
           "/deps/reqwest",
@@ -416,7 +527,27 @@
         ],
         [
           "/deps/reqwest",
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
           "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.status"
         ],
         [
           "/deps/reqwest",
@@ -425,6 +556,14 @@
         [
           "/deps/reqwest",
           "Response.upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.url"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.version"
         ],
         [
           "/deps/reqwest",
@@ -484,6 +623,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Client::builder"
         ],
         [
@@ -521,6 +664,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.default_headers"
         ],
         [
           "/deps/reqwest/blocking",
@@ -696,6 +843,22 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request.timeout"
         ],
         [
@@ -705,6 +868,26 @@
         [
           "/deps/reqwest/blocking",
           "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.url"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.url_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request::new"
         ],
         [
           "/deps/reqwest/blocking",
@@ -736,6 +919,10 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder.query"
         ],
         [
@@ -752,11 +939,19 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest/blocking",
           "Response"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.bytes"
         ],
         [
           "/deps/reqwest/blocking",
@@ -772,7 +967,27 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.status"
         ],
         [
           "/deps/reqwest/blocking",
@@ -780,7 +995,19 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Response.url"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "get"
+        ],
+        [
+          "/deps/reqwest/blocking/body/trait/core/convert/from-bytes/bytes/bytes",
+          "from"
         ],
         [
           "/deps/reqwest/blocking/body/trait/core/convert/from-static-str",
@@ -821,6 +1048,14 @@
         [
           "/deps/reqwest/body",
           "is_end_stream"
+        ],
+        [
+          "/deps/reqwest/body",
+          "size_hint"
+        ],
+        [
+          "/deps/reqwest/body/trait/core/convert/from-bytes/bytes/bytes",
+          "from"
         ],
         [
           "/deps/reqwest/body/trait/core/convert/from-reqwest/response",
@@ -996,6 +1231,10 @@
         ],
         [
           "/deps/reqwest/upgraded",
+          "from"
+        ],
+        [
+          "/deps/reqwest/upgraded",
           "is_write_vectored"
         ]
       ],
@@ -1004,7 +1243,6 @@
     }
   ],
   "format": 3,
-  "projection_schema": "63",
   "removed": [],
   "resolution": {
     "events": [

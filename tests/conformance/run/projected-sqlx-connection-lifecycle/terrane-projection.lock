@@ -1,4 +1,26 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_either",
+      "package": "either",
+      "version": "=1.18.0"
+    },
+    {
+      "name": "__terrane_recursive_futures_core",
+      "package": "futures-core",
+      "version": "=0.3.34"
+    },
+    {
+      "name": "__terrane_recursive_log",
+      "package": "log",
+      "version": "=0.4.34"
+    },
+    {
+      "name": "__terrane_recursive_url",
+      "package": "url",
+      "version": "=2.5.8"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -9,6 +31,14 @@
         [
           "/deps/sqlx-core/connection",
           "LogSettings"
+        ],
+        [
+          "/deps/sqlx-core/connection",
+          "LogSettings.log_slow_statements"
+        ],
+        [
+          "/deps/sqlx-core/connection",
+          "LogSettings.log_statements"
         ],
         [
           "/deps/sqlx-core/connection/logsettings",
@@ -156,7 +186,19 @@
         ],
         [
           "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.execute_many"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query",
           "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_many"
         ],
         [
           "/deps/sqlx-core/query",
@@ -184,7 +226,19 @@
         ],
         [
           "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.execute_many"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query",
           "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query",
+          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_many"
         ],
         [
           "/deps/sqlx-core/query",
@@ -224,7 +278,15 @@
         ],
         [
           "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
           "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_many"
         ],
         [
           "/deps/sqlx-core/query-as",
@@ -252,7 +314,15 @@
         ],
         [
           "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
           "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_many"
         ],
         [
           "/deps/sqlx-core/query-scalar",
@@ -545,6 +615,22 @@
           "from_str"
         ],
         [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "from_url"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "log_slow_statements"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "log_statements"
+        ],
+        [
+          "/deps/sqlx-sqlite/sqliteconnectoptions",
+          "to_url_lossy"
+        ],
+        [
           "/deps/sqlx-sqlite/sqliteerror",
           "kind"
         ],
@@ -620,7 +706,6 @@
     }
   ],
   "format": 3,
-  "projection_schema": "63",
   "removed": [],
   "resolution": {
     "events": [

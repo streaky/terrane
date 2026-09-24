@@ -1,4 +1,11 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_http_body",
+      "package": "http-body",
+      "version": "=1.1.0"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -1285,6 +1292,10 @@
           "is_end_stream"
         ],
         [
+          "/deps/axum-core/body/body",
+          "size_hint"
+        ],
+        [
           "/deps/axum-core/body/body/trait/core/convert/from",
           "from"
         ],
@@ -1307,6 +1318,10 @@
         [
           "/deps/axum-core/body/bodydatastream",
           "is_end_stream"
+        ],
+        [
+          "/deps/axum-core/body/bodydatastream",
+          "size_hint"
         ],
         [
           "/deps/axum-core/extract",
@@ -4731,7 +4746,6 @@
     }
   ],
   "format": 3,
-  "projection_schema": "63",
   "removed": [],
   "resolution": {
     "events": [

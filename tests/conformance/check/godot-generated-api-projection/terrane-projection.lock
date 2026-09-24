@@ -1,4 +1,16 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_godot_core",
+      "package": "godot-core",
+      "version": "=0.5.5"
+    },
+    {
+      "name": "__terrane_recursive_godot_ffi",
+      "package": "godot-ffi",
+      "version": "=0.5.5"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -236,11 +248,19 @@
         ],
         [
           "/deps/godot/builtin/vector2",
+          "default_metadata"
+        ],
+        [
+          "/deps/godot/builtin/vector2",
           "eq"
         ],
         [
           "/deps/godot/builtin/vector2",
           "extract_if_safe"
+        ],
+        [
+          "/deps/godot/builtin/vector2",
+          "godot_shape"
         ],
         [
           "/deps/godot/builtin/vector2",
@@ -269,6 +289,10 @@
         [
           "/deps/godot/builtin/vector2",
           "sub_assign"
+        ],
+        [
+          "/deps/godot/builtin/vector2",
+          "sys_mut"
         ],
         [
           "/deps/godot/builtin/vector2",
@@ -325,6 +349,10 @@
         [
           "/deps/godot/classes",
           "Node2D"
+        ],
+        [
+          "/deps/godot/classes",
+          "Node2D.__object_ptr"
         ],
         [
           "/deps/godot/classes",
@@ -456,6 +484,14 @@
         ],
         [
           "/deps/godot/classes/node2d",
+          "__godot_default"
+        ],
+        [
+          "/deps/godot/classes/node2d",
+          "class_id"
+        ],
+        [
+          "/deps/godot/classes/node2d",
           "deref"
         ]
       ],
@@ -464,7 +500,6 @@
     }
   ],
   "format": 3,
-  "projection_schema": "63",
   "removed": [],
   "resolution": {
     "events": [

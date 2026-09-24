@@ -1,0 +1,97 @@
+{
+  "format": 3,
+  "dependencies": [
+    {
+      "name": "strsim",
+      "version": "0.11.1",
+      "members": [
+        [
+          "/deps/strsim",
+          "HammingResult"
+        ],
+        [
+          "/deps/strsim",
+          "StrSimError"
+        ],
+        [
+          "/deps/strsim",
+          "damerau_levenshtein"
+        ],
+        [
+          "/deps/strsim",
+          "generic_hamming"
+        ],
+        [
+          "/deps/strsim",
+          "generic_jaro"
+        ],
+        [
+          "/deps/strsim",
+          "generic_jaro_winkler"
+        ],
+        [
+          "/deps/strsim",
+          "generic_levenshtein"
+        ],
+        [
+          "/deps/strsim",
+          "hamming"
+        ],
+        [
+          "/deps/strsim",
+          "jaro"
+        ],
+        [
+          "/deps/strsim",
+          "jaro_winkler"
+        ],
+        [
+          "/deps/strsim",
+          "levenshtein"
+        ],
+        [
+          "/deps/strsim",
+          "normalized_damerau_levenshtein"
+        ],
+        [
+          "/deps/strsim",
+          "normalized_levenshtein"
+        ],
+        [
+          "/deps/strsim",
+          "osa_distance"
+        ],
+        [
+          "/deps/strsim",
+          "sorensen_dice"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "d942163550e7671dd51f6c8c33f709333cbd157b43f8c531e5b7acaadb0f4c7c",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "63",
+  "content_hash": "ce83220ff42874408bb216988630a554823024d5a24c9d890f06fd211591e1f9",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}
