@@ -54,6 +54,10 @@
         ],
         [
           "/deps/sqlx",
+          "query_scalar_with"
+        ],
+        [
+          "/deps/sqlx",
           "query_with"
         ],
         [
@@ -203,6 +207,70 @@
         [
           "/deps/sqlx/query",
           "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.persistent"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.bind"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_all"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_many"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_one"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_optional"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.persistent"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.bind"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_all"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_many"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_one"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_optional"
+        ],
+        [
+          "/deps/sqlx/query",
+          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.persistent"
         ],
         [
           "/deps/sqlx/query",
@@ -1460,6 +1528,38 @@
         ],
         [
           "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_many"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
           "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040"
         ],
         [
@@ -1493,6 +1593,38 @@
         [
           "/deps/sqlx-core/query-as",
           "query_as"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_many"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.persistent"
         ],
         [
           "/deps/sqlx-core/query-scalar",
@@ -1531,6 +1663,10 @@
           "query_scalar"
         ],
         [
+          "/deps/sqlx-core/query-scalar",
+          "query_scalar_with"
+        ],
+        [
           "/deps/sqlx-core/rt",
           "TimeoutError"
         ],
@@ -1541,6 +1677,10 @@
         [
           "/deps/sqlx-core/rt",
           "spawn"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "spawn_blocking"
         ],
         [
           "/deps/sqlx-core/rt",

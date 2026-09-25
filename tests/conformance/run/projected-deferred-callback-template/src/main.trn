@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/terrane-deferred-callback-witness import produce, transform
+from /core/output import print
+
+function message string;
+    return 'deferred'
+
+function length int; value string
+    return value.length
+
+function main;
+    value string = produce; message
+    size int = transform; value, length
+    print; value, ':', size

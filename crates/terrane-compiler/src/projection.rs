@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "109";
+const PROJECTION_SCHEMA: &str = "111";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -2052,6 +2052,9 @@ fn append_required_nominal_units(
         else {
             continue;
         };
+        if native_kind == "trait" && !generic_parameters.is_empty() {
+            continue;
+        }
         let rendered_generics = if generic_parameters.is_empty() {
             "none".to_owned()
         } else {
@@ -2182,17 +2185,30 @@ fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableP
                 native_kind,
                 generic_parameters,
             }) => {
-                writeln!(output, "# Generated partial contract: {native_kind}")
-                    .expect("writing to a string cannot fail");
-                writeln!(output, "# Terrane nominal declaration: {declaration}")
-                    .expect("writing to a string cannot fail");
-                if !generic_parameters.is_empty() {
+                if native_kind == "trait" && !generic_parameters.is_empty() {
+                    output.push_str(
+                        "# Generated partial contract: parameterized native trait template\n",
+                    );
                     writeln!(
                         output,
-                        "# Residual native generic parameters: {}",
+                        "# Native trait template parameters: {}",
                         generic_parameters.join(", ")
                     )
                     .expect("writing to a string cannot fail");
+                    output.push_str("# Terrane nominal declaration: none\n");
+                } else {
+                    writeln!(output, "# Generated partial contract: {native_kind}")
+                        .expect("writing to a string cannot fail");
+                    writeln!(output, "# Terrane nominal declaration: {declaration}")
+                        .expect("writing to a string cannot fail");
+                    if !generic_parameters.is_empty() {
+                        writeln!(
+                            output,
+                            "# Residual native generic parameters: {}",
+                            generic_parameters.join(", ")
+                        )
+                        .expect("writing to a string cannot fail");
+                    }
                 }
             }
             Some(PartialProjection::Namespace) => {
@@ -9170,7 +9186,8 @@ fn project_function_inner(
                     .sig
                     .inputs
                     .iter()
-                    .any(|(_, ty)| type_mentions_generic(ty, &parameter.name)),
+                    .any(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+                    || input_bound_mentions_generic(function, &parameter.name),
                 rust_bounds: render_generic_bounds(
                     parameter,
                     function,
@@ -9501,14 +9518,11 @@ fn project_callback_generic(
     let bounds = generic_bounds(parameter, function);
     let callback = bounds.iter().find_map(|bound| {
         let (trait_, generic_params) = trait_bound_name(bound)?;
-        let invocation_mode = if trait_.path.ends_with("FnOnce") {
-            InvocationMode::Consuming
-        } else if trait_.path.ends_with("FnMut") {
-            InvocationMode::Mutable
-        } else if trait_.path.ends_with("Fn") {
-            InvocationMode::Shared
-        } else {
-            return None;
+        let invocation_mode = match trait_.path.rsplit("::").next() {
+            Some("FnOnce") => InvocationMode::Consuming,
+            Some("FnMut") => InvocationMode::Mutable,
+            Some("Fn") => InvocationMode::Shared,
+            _ => return None,
         };
         Some((trait_, generic_params, invocation_mode))
     });
@@ -9523,8 +9537,8 @@ fn project_callback_generic(
     }
     let Some(GenericArgs::Parenthesized { inputs, output }) = trait_.args.as_deref() else {
         return Err(format!(
-            "callback generic `{}` has no concrete call signature",
-            parameter.name
+            "callback generic `{}` bound `{}` has no concrete call signature",
+            parameter.name, trait_.path
         ));
     };
     let parameters = inputs
@@ -9723,6 +9737,19 @@ fn generic_bound_mentions(bound: &GenericBound, generic: &str) -> bool {
     )
 }
 
+fn input_bound_mentions_generic(function: &Function, generic: &str) -> bool {
+    function.generics.params.iter().any(|parameter| {
+        function
+            .sig
+            .inputs
+            .iter()
+            .any(|(_, ty)| type_mentions_generic(ty, &parameter.name))
+            && generic_bounds(parameter, function)
+                .iter()
+                .any(|bound| generic_bound_mentions(bound, generic))
+    })
+}
+
 fn render_generic_bounds(
     parameter: &GenericParamDef,
     function: &Function,
@@ -9854,7 +9881,15 @@ fn generic_monomorphisations(
             .iter()
             .filter(|(_, ty)| type_mentions_generic(ty, &parameter.name))
             .collect::<Vec<_>>();
+        let bound_selected = input_bound_mentions_generic(function, &parameter.name);
         if mentioned_inputs.is_empty() {
+            if bound_selected {
+                result.insert(
+                    parameter.name.clone(),
+                    ProjectedType::Generic(parameter.name.clone()),
+                );
+                continue;
+            }
             let output_selected = function
                 .sig
                 .output
@@ -12111,17 +12146,13 @@ mod tests {
              # - witness::required_gap"
         ));
         assert!(document.contains(
-            "# Generated source unit: /deps/witness\n\
-             namespace deps/witness"
+            "# Generated partial contract: parameterized native trait template\n\
+             # Native trait template parameters: State\n\
+             # Terrane nominal declaration: none"
         ));
-        assert!(document.contains(
-            "# Partial native trait: witness::callback_gap\n\
-             # Native generic parameters retained as a residual obligation: State\n\
-             # This nominal class is not registered for lowering until its residual obligations are satisfied.\n\
-             interface callback-gap"
-        ));
+        assert!(!document.contains("interface callback-gap"));
         let units = generated_projection_units(&document).unwrap();
-        assert_eq!(units.len(), 1);
+        assert!(units.is_empty());
     }
 
     #[test]

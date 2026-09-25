@@ -50,6 +50,10 @@
         ],
         [
           "/deps/http",
+          "Extensions.get_or_insert_with"
+        ],
+        [
+          "/deps/http",
           "Extensions.insert"
         ],
         [

@@ -363,23 +363,29 @@ next work units before committing to a new core representation.
   Unsupported public members remain inert comments inside the owning class with native path,
   recoverable signature, and exact decline, while their complete records remain in the unavailable
   section.
-  Recoverable unavailable structs, enums, aliases, and traits additionally receive active class or
-  interface skeletons under their public `/deps/<package>` namespace. Their unexpressed native
-  generics and lifetimes remain adjacent residual obligations, so these skeletons are not registered
-  for lowering and do not turn a decline into success. Successfully admitted named Rust structs
-  with complete public fields expose those fields directly. Owned structs lower construction to
-  native Rust literals. Lifetime-parameterized structs are admitted only with complete owned
-  string, optional-string, slice, optional-slice, and copy-field recipes; lowering stores owned
-  values and reconstructs the exact temporary native view around shared-borrowed or consuming
-  calls. Private, stripped, tuple, non-exhaustive, mutable-borrowed, and borrowed-result shapes
-  remain opaque or unavailable rather than gaining inferred ownership.
-  Representable non-callback `impl Trait` inputs remain caller-selected synthetic generics with
+  Recoverable unavailable non-generic structs, enums, aliases, and traits additionally receive active
+  class or interface skeletons under their public `/deps/<package>` namespace. Parameterized native
+  traits retain their generic/lifetime template only in inventory metadata and emit no misleading
+  parameterless Terrane interface. Unexpressed native obligations do not turn a decline into success.
+  Successfully admitted named Rust structs with complete public fields expose those fields directly.
+  Owned structs lower construction to native Rust literals. Lifetime-parameterized structs are
+  admitted only with complete owned string, optional-string, slice, optional-slice, and copy-field
+  recipes; lowering stores owned values and reconstructs the exact temporary native view around
+  shared-borrowed or consuming calls. Private, stripped, tuple, non-exhaustive, mutable-borrowed,
+  and borrowed-result shapes remain opaque or unavailable rather than gaining inferred ownership.
+  Representable value-style `impl Trait` inputs remain caller-selected synthetic generics with
   their complete canonical Rust bounds. Call analysis infers an exact Rust witness from the written
   Terrane argument, substitutes related generics, and batch-proves the full bound conjunction
   through the existing projection oracle. Successful calls lower directly to the native operation;
   failed or unknown proof is `T0119`. This admits Iced `Border::rounded`, `Border::color`,
   `Border::width`, and the analogous `Radius` methods without selecting one `Into<T>` implementation
   during projection or adding Iced-specific compiler behavior.
+  Direct `Fn`, `FnMut`, and `FnOnce` callback inputs may retain open generic types recursively in
+  callback parameters and exact results. Call analysis binds those templates jointly from the
+  written callable, ordinary arguments, and destination before validation and lowering. Conflicting
+  evidence fails before Rust generation. This closes deferred direct-callback signatures; selecting
+  blanket implementation recipes for adapter traits and higher-ranked callback lifetimes remains a
+  separate boundary.
   Every native declaration referenced by a required partial contract is marked required recursively
   by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
@@ -389,8 +395,9 @@ next work units before committing to a new core representation.
   cohort interpretation and recommended next work. The census selected compiler-owned native
   conversion metadata rather than a second binding engine: source types remain ordinary Terrane
   values while exact Rust identity, specialization, borrowing, and field conversion remain hidden
-  lowering contracts. Generic callbacks, receiver-tied outputs, mutable borrowed descriptors, and
-  consuming collection protocols remain explicit subsequent capability gaps.
+  lowering contracts. Adapter-trait callback recipes, higher-ranked callback lifetimes,
+  receiver-tied outputs, mutable borrowed descriptors, and consuming collection protocols remain
+  explicit subsequent capability gaps.
 
 
 #### Architectural simplification gate
