@@ -393,11 +393,16 @@ next work units before committing to a new core representation.
   witness, emits the producer/member calls directly, and lets Rust infer the hidden concrete type.
   Binding, returning, capturing, collecting, or suspending the intermediate remains unavailable.
   Direct `Fn`, `FnMut`, and `FnOnce` callback inputs may retain open generic types recursively in
-  callback parameters and exact results. Call analysis binds those templates jointly from the
-  written callable, ordinary arguments, and destination before validation and lowering. Conflicting
-  evidence fails before Rust generation. This closes deferred direct-callback signatures; selecting
-  blanket implementation recipes for adapter traits and higher-ranked callback lifetimes remains a
-  separate boundary.
+  callback parameters and exact results. Parameterized native adapter-trait inputs inspect blanket
+  implementations whose generic `Self` has one parenthesized callable bound. Projection substitutes
+  the adapter's trait arguments, retains every implementation-local result bound, and requires one
+  unique recipe. Call analysis jointly infers callback parameters and result from the written
+  callable and ordinary arguments, then proves the complete substituted result-bound conjunction.
+  Lowering passes a fresh concrete Rust closure rather than Terrane's reusable `Arc<dyn Fn...>`
+  representation. This generically admits `Fn`, `FnMut`, and `FnOnce` adapter traits and carries
+  Iced `BootFn`, `UpdateFn`, and `ViewFn` through recipe selection. Iced's remaining boundary is a
+  Terrane source representation for the non-escaping lifetime-bearing `ViewFn` result, not adapter
+  trait selection.
   Every native declaration referenced by a required partial contract is marked required recursively
   by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
@@ -407,9 +412,9 @@ next work units before committing to a new core representation.
   cohort interpretation and recommended next work. The census selected compiler-owned native
   conversion metadata rather than a second binding engine: source types remain ordinary Terrane
   values while exact Rust identity, specialization, borrowing, and field conversion remain hidden
-  lowering contracts. Adapter-trait callback recipes, higher-ranked callback lifetimes,
-  receiver-tied outputs, mutable borrowed descriptors, and consuming collection protocols remain
-  explicit subsequent capability gaps.
+  lowering contracts. Higher-ranked callback result source types, receiver-tied outputs, mutable
+  borrowed descriptors, and consuming collection protocols remain explicit subsequent capability
+  gaps.
 
 
 #### Architectural simplification gate

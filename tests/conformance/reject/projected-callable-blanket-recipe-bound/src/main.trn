@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-callable-recipe-bound-witness import invoke
+from /core/collections import list
+
+function produce list of int;
+    values list of int = list
+    values.append; 1
+    return values
+
+function main;
+    value list of int = invoke; produce

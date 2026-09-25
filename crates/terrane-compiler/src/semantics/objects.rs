@@ -2544,11 +2544,18 @@ fn collect_projected_destinations(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) = projected_function_for_call(package, unit, callee)
-        && function.chain_role.is_none()
         && function
             .generic_parameters
             .iter()
             .any(|generic| generic.input_selected)
+        && (function.chain_role.is_none()
+            || function.parameters.iter().any(|parameter| {
+                parameter.generic_parameter.is_some()
+                    && matches!(
+                        parameter.ty,
+                        crate::projection::ProjectedType::Callback { .. }
+                    )
+            }))
         && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
     {
         let mut value_bindings = BTreeMap::new();
@@ -3178,6 +3185,10 @@ fn projected_types_share_concrete_rust_representation(
             .is_some_and(|(left, right)| left == right)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "recursive projected type matching is clearest as one exhaustive traversal"
+)]
 fn select_projected_generic_destination(
     template: &crate::projection::ProjectedType,
     parameter: &str,
@@ -3225,6 +3236,31 @@ fn select_projected_generic_destination(
                 template.iter().zip(expected).all(|(template, expected)| {
                     collect(template, parameter, expected, destinations)
                 })
+            }
+            (
+                ProjectedType::Callback {
+                    parameters: template_parameters,
+                    result: template_result,
+                    ..
+                },
+                ProjectedType::Callback {
+                    parameters: expected_parameters,
+                    result: expected_result,
+                    ..
+                },
+            ) if template_parameters.len() == expected_parameters.len() => {
+                template_parameters
+                    .iter()
+                    .zip(expected_parameters)
+                    .all(|(template, expected)| {
+                        collect(template, parameter, expected, destinations)
+                    })
+                    && collect(
+                        template_result,
+                        parameter,
+                        expected_result,
+                        destinations,
+                    )
             }
             (
                 ProjectedType::Foreign {

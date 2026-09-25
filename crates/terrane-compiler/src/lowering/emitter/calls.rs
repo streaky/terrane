@@ -1570,7 +1570,11 @@ impl Emitter<'_> {
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
-                        parameter.generic_parameter.is_none()
+                        (parameter.generic_parameter.is_none()
+                            || matches!(
+                                parameter.ty,
+                                crate::projection::ProjectedType::Callback { .. }
+                            ))
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)
                                 || projected_chain_role.is_some()

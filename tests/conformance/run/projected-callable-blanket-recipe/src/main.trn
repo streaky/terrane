@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/terrane-callable-recipe-witness import invoke, mutate, transform
+from /core/output import print
+
+function produce int;
+    return 42
+
+function length int; value string
+    return value.length
+
+function main;
+    print; (invoke; produce)
+    print; (transform; 'one', length)
+    print; (mutate; 'two', length)

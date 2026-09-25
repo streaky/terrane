@@ -9,8 +9,9 @@ use std::time::Duration;
 use quote::ToTokens as _;
 use rustdoc_types::{
     AssocItemConstraintKind, Attribute, Crate as RustdocCrate, Function, GenericArg, GenericArgs,
-    GenericBound, GenericParamDef, GenericParamDefKind, Id, Impl, Item, ItemEnum, ItemKind,
-    ItemSummary, Path as RustdocPath, Struct, Term, Type, VariantKind, Visibility, WherePredicate,
+    GenericBound, GenericParamDef, GenericParamDefKind, Generics, Id, Impl, Item, ItemEnum,
+    ItemKind, ItemSummary, Path as RustdocPath, Struct, Term, Type, VariantKind, Visibility,
+    WherePredicate,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -18,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "117";
+const PROJECTION_SCHEMA: &str = "128";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -743,6 +744,36 @@ impl ProjectedType {
             Self::Callback {
                 parameters, result, ..
             } => parameters.iter().any(Self::contains_opaque) || result.contains_opaque(),
+            _ => false,
+        }
+    }
+    fn contains_generic(&self, generic: &str) -> bool {
+        match self {
+            Self::Generic(name) => name == generic,
+            Self::Sequence { item, .. }
+            | Self::Set { item, .. }
+            | Self::AsyncIterationStep(item)
+            | Self::Optional(item) => item.contains_generic(generic),
+            Self::Mapping { key, value, .. } => {
+                key.contains_generic(generic) || value.contains_generic(generic)
+            }
+            Self::Tuple(items) => items.iter().any(|item| item.contains_generic(generic)),
+            Self::Foreign { arguments, .. } => arguments
+                .iter()
+                .any(|argument| argument.contains_generic(generic)),
+            Self::BoxedInterface {
+                associated_type, ..
+            } => associated_type
+                .as_ref()
+                .is_some_and(|binding| binding.ty.contains_generic(generic)),
+            Self::Callback {
+                parameters, result, ..
+            } => {
+                parameters
+                    .iter()
+                    .any(|parameter| parameter.contains_generic(generic))
+                    || result.contains_generic(generic)
+            }
             _ => false,
         }
     }
@@ -8912,8 +8943,16 @@ fn project_function_inner(
         return Err("unsafe function".to_owned());
     }
     let open_chain = open_chain_generics(function, index);
-    let (generic_types, destination_result) = if let Some(types) = open_chain.clone() {
-        (types, None)
+    let GenericMonomorphisations {
+        types: generic_types,
+        destination_result,
+        adapter_result_bounds,
+    } = if let Some(types) = open_chain.clone() {
+        GenericMonomorphisations {
+            types,
+            destination_result: None,
+            adapter_result_bounds: BTreeMap::new(),
+        }
     } else {
         generic_monomorphisations(function, index, paths, supplied_generics)
             .map_err(|reason| format!("generic selection: {reason}"))?
@@ -8942,9 +8981,16 @@ fn project_function_inner(
                     .to_owned(),
             );
         }
-        let (projected_type, impl_trait_parameter) = if let Some(bounds) = impl_trait_bounds(ty) {
-            if let Some(projected) = structural_impl_trait_input(bounds, paths) {
-                (projected, Some(format!("TerraneImpl{parameter_index}")))
+        let (projected_type, impl_trait_parameter, inline_adapter_bounds) = if let Some(bounds) =
+            impl_trait_bounds(ty)
+        {
+            let generic = format!("TerraneImpl{parameter_index}");
+            if let Some((callback, result_bounds)) =
+                project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
+            {
+                (callback, Some(generic), Some(result_bounds))
+            } else if let Some(projected) = structural_impl_trait_input(bounds, paths) {
+                (projected, Some(generic), None)
             } else if let Ok(projectable) = projectable_interface_bound(bounds, index, paths) {
                 let Some(Item {
                     inner: ItemEnum::Trait(declaration),
@@ -8971,14 +9017,14 @@ fn project_function_inner(
                         rust_path,
                         arguments: Vec::new(),
                     },
-                    Some(format!("TerraneImpl{parameter_index}")),
+                    Some(generic),
+                    None,
                 )
             } else {
-                let generic = format!("TerraneImpl{parameter_index}");
-                (ProjectedType::Generic(generic.clone()), Some(generic))
+                (ProjectedType::Generic(generic.clone()), Some(generic), None)
             }
         } else {
-            (project_type(ty, index, paths, &generic_types)?, None)
+            (project_type(ty, index, paths, &generic_types)?, None, None)
         };
         let (borrowed, mutable_borrow) = match ty {
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
@@ -9014,7 +9060,32 @@ fn project_function_inner(
             }
             _ => None,
         };
-        let generic_parameter = impl_trait_parameter
+        let callable_adapter = inline_adapter_bounds
+            .as_ref()
+            .and_then(|bounds| match &projected_type {
+                ProjectedType::Callback { result, .. } => match result.as_ref() {
+                    ProjectedType::Generic(result) => Some((result.clone(), bounds.clone())),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .or_else(|| match (ty, &projected_type) {
+                (Type::Generic(parameter), ProjectedType::Callback { result, .. }) => {
+                    adapter_result_bounds
+                        .get(parameter)
+                        .and_then(|bounds| match result.as_ref() {
+                            ProjectedType::Generic(result) => {
+                                Some((result.clone(), bounds.clone()))
+                            }
+                            _ => None,
+                        })
+                }
+                _ => None,
+            });
+        let generic_parameter = callable_adapter
+            .as_ref()
+            .map(|(name, _)| name.clone())
+            .or(impl_trait_parameter)
             .or_else(|| boxed_adapter.as_ref().map(|(name, _)| name.clone()))
             .or_else(|| {
                 function.generics.params.iter().find_map(|parameter| {
@@ -9027,7 +9098,9 @@ fn project_function_inner(
                     })
                 })
             });
-        let rendered_generic_bounds = if let Some((_, bounds)) = &boxed_adapter {
+        let rendered_generic_bounds = if let Some((_, bounds)) = &callable_adapter {
+            bounds.clone()
+        } else if let Some((_, bounds)) = &boxed_adapter {
             bounds.clone()
         } else if let Some(name) = &generic_parameter {
             if name.starts_with("TerraneImpl") {
@@ -9285,12 +9358,9 @@ fn project_function_inner(
         .map(|parameter| {
             Ok(ProjectedGenericParameter {
                 name: parameter.name.clone(),
-                input_selected: function
-                    .sig
-                    .inputs
+                input_selected: parameters
                     .iter()
-                    .any(|(_, ty)| type_mentions_generic(ty, &parameter.name))
-                    || input_bound_mentions_generic(function, &parameter.name),
+                    .any(|input| input.ty.contains_generic(&parameter.name)),
                 rust_bounds: render_generic_bounds(
                     parameter,
                     function,
@@ -9302,16 +9372,39 @@ fn project_function_inner(
         })
         .collect::<Result<Vec<_>, String>>()?;
     generic_parameters.extend(parameters.iter().filter_map(|parameter| {
-        let ProjectedType::Generic(name) = &parameter.ty else {
-            return None;
+        let name = match &parameter.ty {
+            ProjectedType::Generic(name) if name.starts_with("TerraneImpl") => name,
+            ProjectedType::Callback { result, .. }
+                if parameter.generic_parameter.as_ref().is_some_and(|name| {
+                    result.as_ref() == &ProjectedType::Generic(name.clone())
+                }) =>
+            {
+                parameter.generic_parameter.as_ref().expect("checked above")
+            }
+            _ => return None,
         };
-        name.starts_with("TerraneImpl")
-            .then(|| ProjectedGenericParameter {
-                name: name.clone(),
-                input_selected: true,
-                rust_bounds: parameter.generic_bounds.clone(),
-            })
+        Some(ProjectedGenericParameter {
+            name: name.clone(),
+            input_selected: true,
+            rust_bounds: parameter.generic_bounds.clone(),
+        })
     }));
+    generic_parameters.sort_by(|left, right| left.name.cmp(&right.name));
+    let mut merged_generic_parameters: Vec<ProjectedGenericParameter> = Vec::new();
+    for generic in generic_parameters {
+        if let Some(existing) = merged_generic_parameters
+            .iter_mut()
+            .find(|existing| existing.name == generic.name)
+        {
+            existing.input_selected |= generic.input_selected;
+            existing.rust_bounds.extend(generic.rust_bounds);
+            existing.rust_bounds.sort();
+            existing.rust_bounds.dedup();
+        } else {
+            merged_generic_parameters.push(generic);
+        }
+    }
+    let generic_parameters = merged_generic_parameters;
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,
@@ -9472,12 +9565,15 @@ fn trait_bound_name(bound: &GenericBound) -> Option<(&RustdocPath, &[GenericPara
     Some((trait_, generic_params))
 }
 
-fn generic_bounds(parameter: &GenericParamDef, function: &Function) -> Vec<GenericBound> {
+fn generic_bounds_from_generics(
+    parameter: &GenericParamDef,
+    generics: &Generics,
+) -> Vec<GenericBound> {
     let mut bounds = match &parameter.kind {
         GenericParamDefKind::Type { bounds, .. } => bounds.clone(),
         _ => Vec::new(),
     };
-    for predicate in &function.generics.where_predicates {
+    for predicate in &generics.where_predicates {
         let WherePredicate::BoundPredicate {
             type_: Type::Generic(name),
             bounds: predicate_bounds,
@@ -9494,6 +9590,10 @@ fn generic_bounds(parameter: &GenericParamDef, function: &Function) -> Vec<Gener
         }
     }
     bounds
+}
+
+fn generic_bounds(parameter: &GenericParamDef, function: &Function) -> Vec<GenericBound> {
+    generic_bounds_from_generics(parameter, &function.generics)
 }
 
 fn concrete_into_future_output(
@@ -9677,6 +9777,200 @@ fn project_callback_generic(
         sync: has_trait("Sync"),
     }))
 }
+
+fn resolved_path_type_arguments(path: &RustdocPath) -> Vec<&Type> {
+    let Some(GenericArgs::AngleBracketed { args, .. }) = path.args.as_deref() else {
+        return Vec::new();
+    };
+    args.iter()
+        .filter_map(|argument| match argument {
+            GenericArg::Type(ty) => Some(ty),
+            _ => None,
+        })
+        .collect()
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "callable blanket recipe selection keeps candidate unification and proof metadata together"
+)]
+fn project_callable_adapter_bounds(
+    parameter_name: &str,
+    bounds: &[GenericBound],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<(ProjectedType, Vec<String>)>, String> {
+    let mut candidates = Vec::new();
+    for bound in bounds {
+        let Some((requested_trait, _)) = trait_bound_name(bound) else {
+            continue;
+        };
+        let Some(Item {
+            inner: ItemEnum::Trait(declaration),
+            ..
+        }) = index.get(&requested_trait.id)
+        else {
+            continue;
+        };
+        for implementation_id in &declaration.implementations {
+            let Some(Item {
+                inner: ItemEnum::Impl(implementation),
+                ..
+            }) = index.get(implementation_id)
+            else {
+                continue;
+            };
+            let Type::Generic(self_name) = &implementation.for_ else {
+                continue;
+            };
+            let Some(implemented_trait) = &implementation.trait_ else {
+                continue;
+            };
+            if implemented_trait.id != requested_trait.id {
+                continue;
+            }
+            let mut implementation_types = known.clone();
+            for impl_parameter in &implementation.generics.params {
+                if matches!(impl_parameter.kind, GenericParamDefKind::Type { .. }) {
+                    implementation_types.insert(
+                        impl_parameter.name.clone(),
+                        ProjectedType::Generic(format!(
+                            "TerraneAdapter{parameter_name}{}",
+                            impl_parameter.name
+                        )),
+                    );
+                }
+            }
+            for (implementation_argument, requested_argument) in
+                resolved_path_type_arguments(implemented_trait)
+                    .into_iter()
+                    .zip(resolved_path_type_arguments(requested_trait))
+            {
+                if let Type::Generic(name) = implementation_argument {
+                    implementation_types.insert(
+                        name.clone(),
+                        project_type(requested_argument, index, paths, known)
+                            .map_err(|reason| format!("callable trait argument: {reason}"))?,
+                    );
+                }
+            }
+            let Some(self_parameter) = implementation
+                .generics
+                .params
+                .iter()
+                .find(|candidate| candidate.name == *self_name)
+            else {
+                continue;
+            };
+            let self_bounds =
+                generic_bounds_from_generics(self_parameter, &implementation.generics);
+            let Some((call_trait, call_higher_ranked, invocation_mode)) =
+                self_bounds.iter().find_map(|candidate| {
+                    let (trait_, generic_params) = trait_bound_name(candidate)?;
+                    let invocation_mode = match trait_.path.rsplit("::").next() {
+                        Some("FnOnce") => InvocationMode::Consuming,
+                        Some("FnMut") => InvocationMode::Mutable,
+                        Some("Fn") => InvocationMode::Shared,
+                        _ => return None,
+                    };
+                    Some((trait_, generic_params, invocation_mode))
+                })
+            else {
+                continue;
+            };
+            if !call_higher_ranked.is_empty() {
+                continue;
+            }
+            let Some(GenericArgs::Parenthesized { inputs, output }) = call_trait.args.as_deref()
+            else {
+                continue;
+            };
+            let parameters = inputs
+                .iter()
+                .map(|input| {
+                    project_type(input, index, paths, &implementation_types)
+                        .map_err(|reason| format!("callable input: {reason}"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let unit = Type::Tuple(Vec::new());
+            let result = project_type(
+                output.as_ref().unwrap_or(&unit),
+                index,
+                paths,
+                &implementation_types,
+            )
+            .map_err(|reason| format!("callable result: {reason}"))?;
+            let ProjectedType::Generic(result_name) = &result else {
+                continue;
+            };
+            let Some(result_parameter) = implementation.generics.params.iter().find(|candidate| {
+                implementation_types.get(&candidate.name)
+                    == Some(&ProjectedType::Generic(result_name.clone()))
+            }) else {
+                continue;
+            };
+            let result_bounds =
+                generic_bounds_from_generics(result_parameter, &implementation.generics)
+                    .iter()
+                    .map(|result_bound| {
+                        render_generic_bound(
+                            result_bound,
+                            &implementation.generics.params,
+                            index,
+                            paths,
+                            &implementation_types,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+            let candidate = (
+                ProjectedType::Callback {
+                    rust_name: parameter_name.to_owned(),
+                    parameters,
+                    result: Box::new(result),
+                    invocation_mode,
+                    is_async: false,
+                    retained: false,
+                    send: self_bounds.iter().any(|candidate| {
+                        trait_bound_name(candidate)
+                            .is_some_and(|(trait_, _)| trait_.path.ends_with("::Send"))
+                    }),
+                    sync: self_bounds.iter().any(|candidate| {
+                        trait_bound_name(candidate)
+                            .is_some_and(|(trait_, _)| trait_.path.ends_with("::Sync"))
+                    }),
+                },
+                result_bounds,
+            );
+            if !candidates.contains(&candidate) {
+                candidates.push(candidate);
+            }
+        }
+    }
+    match candidates.as_slice() {
+        [] => Ok(None),
+        [candidate] => Ok(Some(candidate.clone())),
+        _ => Err(format!(
+            "generic input `{parameter_name}` has multiple callable blanket implementations"
+        )),
+    }
+}
+
+fn project_callable_adapter_generic(
+    parameter: &GenericParamDef,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<(ProjectedType, Vec<String>)>, String> {
+    project_callable_adapter_bounds(
+        &parameter.name,
+        &generic_bounds(parameter, function),
+        index,
+        paths,
+        known,
+    )
+}
 fn is_callback_parameter(parameter: &GenericParamDef, function: &Function) -> bool {
     generic_bounds(parameter, function).iter().any(|bound| {
         trait_bound_name(bound).is_some_and(|(trait_, _)| {
@@ -9850,6 +10144,12 @@ fn input_bound_mentions_generic(function: &Function, generic: &str) -> bool {
             && generic_bounds(parameter, function)
                 .iter()
                 .any(|bound| generic_bound_mentions(bound, generic))
+    }) || function.sig.inputs.iter().any(|(_, ty)| {
+        impl_trait_bounds(ty).is_some_and(|bounds| {
+            bounds
+                .iter()
+                .any(|bound| generic_bound_mentions(bound, generic))
+        })
     })
 }
 
@@ -9950,6 +10250,12 @@ fn render_generic_bound(
     }
 }
 
+struct GenericMonomorphisations {
+    types: BTreeMap<String, ProjectedType>,
+    destination_result: Option<ProjectedDestinationResult>,
+    adapter_result_bounds: BTreeMap<String, Vec<String>>,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "generic selection handles callbacks, destination results, and closed impls in order"
@@ -9959,15 +10265,10 @@ fn generic_monomorphisations(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     supplied: &BTreeMap<String, ProjectedType>,
-) -> Result<
-    (
-        BTreeMap<String, ProjectedType>,
-        Option<ProjectedDestinationResult>,
-    ),
-    String,
-> {
+) -> Result<GenericMonomorphisations, String> {
     let mut result = supplied.clone();
     let mut destination_result = None;
+    let mut adapter_result_bounds = BTreeMap::new();
     // Keep input-selected value generics open until a Terrane call site supplies concrete
     // argument and callback types. Immediate projectable interface inputs retain their
     // established source-class adapter contract.
@@ -10025,6 +10326,17 @@ fn generic_monomorphisations(
             project_callback_generic(parameter, function, index, paths, &result)?
         {
             result.insert(parameter.name.clone(), callback);
+        }
+    }
+    for parameter in &function.generics.params {
+        if !matches!(result.get(&parameter.name), Some(ProjectedType::Generic(_))) {
+            continue;
+        }
+        if let Some((callback, result_bounds)) =
+            project_callable_adapter_generic(parameter, function, index, paths, &result)?
+        {
+            result.insert(parameter.name.clone(), callback);
+            adapter_result_bounds.insert(parameter.name.clone(), result_bounds);
         }
     }
     for parameter in &function.generics.params {
@@ -10188,7 +10500,11 @@ fn generic_monomorphisations(
         };
         result.insert(parameter.name.clone(), chosen.clone());
     }
-    Ok((result, destination_result))
+    Ok(GenericMonomorphisations {
+        types: result,
+        destination_result,
+        adapter_result_bounds,
+    })
 }
 fn rust_bound_roots(bound: &str) -> BTreeSet<String> {
     bound
