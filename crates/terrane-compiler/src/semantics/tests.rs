@@ -26,6 +26,7 @@ fn ambiguous_projection() -> Projection {
                 fields: Vec::new(),
                 borrowed_view: false,
                 native_view_type: None,
+                enum_payload: None,
                 displayable: false,
             },
         }],

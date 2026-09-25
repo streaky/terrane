@@ -1348,9 +1348,11 @@ expression, and generated-module-wide canonical foreign imports.
 
 Projection must preserve enough shape to compose dependency protocols in Terrane rather than in
 dependency-specific Rust helpers. A data-carrying Rust enum projects one nominal class with exact
-unit and supported single-payload constructors, shared `variant-name` inspection, and consuming
-`into-<Variant>` extraction. Extraction moves rather than clones the payload. Unsupported
-multi-field, named-field, borrowed, open-generic, or unrepresentable variants remain visible as
+unit and supported payload constructors, shared `variant-name` inspection, and consuming
+`into-<Variant>` extraction. Single-field tuple payloads cross directly. Representable named-field
+and multi-field tuple variants use synthesized owned payload classes, preserving named fields and
+stable positional fields respectively. Construction and extraction move every field without
+cloning. Stripped, borrowed, open-generic, or otherwise unrepresentable fields remain visible as
 per-variant declines, and non-exhaustive inspection yields `unknown`.
 
 The result projector must distinguish `Option<Result<T, E>>` from `Result<Option<T>, E>` even though

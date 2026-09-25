@@ -317,6 +317,8 @@ pub(super) fn emit_dependency_imports(
         for (rust_name, (_, path, generic_parameters, _)) in import_owners {
             if let Some((native_path, fields)) = package.projection.borrowed_struct_view(path) {
                 write_owned_borrowed_struct(output, rust_name, native_path, fields);
+            } else if let Some((_, fields)) = package.projection.enum_payload(path) {
+                write_enum_payload(output, rust_name, path, fields);
             } else {
                 write_foreign_import(output, path, rust_name, generic_parameters);
             }
@@ -383,7 +385,8 @@ fn write_owned_borrowed_struct(
         let name = rust_name(&field.name);
         let value = match field.conversion {
             ProjectedFieldConversion::SliceBorrow => format!("{name}.into_vec()"),
-            ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
+            ProjectedFieldConversion::OptionalOwned
+            | ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
             ProjectedFieldConversion::OptionalSliceBorrow => {
                 format!("{name}.into().map(|value| value.into_vec())")
             }
@@ -404,7 +407,7 @@ fn write_owned_borrowed_struct(
     for field in fields {
         let source = format!("self.{}", rust_name(&field.name));
         let value = match field.conversion {
-            ProjectedFieldConversion::Identity => source,
+            ProjectedFieldConversion::Identity | ProjectedFieldConversion::OptionalOwned => source,
             ProjectedFieldConversion::StringBorrow => format!("&{source}"),
             ProjectedFieldConversion::SliceBorrow => format!("{source}.as_slice()"),
             ProjectedFieldConversion::OptionalStringBorrow => format!("{source}.as_deref()"),
@@ -415,6 +418,94 @@ fn write_owned_borrowed_struct(
         writeln!(output, "        {}: {value},", field.rust_name).expect("writing cannot fail");
     }
     writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
+}
+
+pub(super) fn enum_payload_constructor_name(path: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut encoded = String::with_capacity(path.len() * 2);
+    for byte in path.as_bytes() {
+        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    format!("__terrane_enum_payload_{encoded}")
+}
+
+fn write_enum_payload(
+    output: &mut String,
+    rust_name_: &str,
+    path: &str,
+    fields: &[crate::projection::ProjectedField],
+) {
+    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    for field in fields {
+        writeln!(
+            output,
+            "    {}: {},",
+            rust_name(&field.name),
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "{}: {}",
+            rust_name(&field.name),
+            projected_field_abi_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    write!(output, ") -> Self {{ Self {{ ").expect("writing cannot fail");
+    for field in fields {
+        let name = rust_name(&field.name);
+        let value = match field.conversion {
+            crate::projection::ProjectedFieldConversion::OptionalOwned => {
+                format!("{name}.into()")
+            }
+            _ => name.clone(),
+        };
+        write!(output, "{name}: {value}, ").expect("writing cannot fail");
+    }
+    writeln!(output, "}} }}").expect("writing cannot fail");
+    write!(output, "    fn terrane_into_fields(self) -> (").expect("writing cannot fail");
+    for field in fields {
+        write!(output, "{},", projected_owned_field_type(&field.ty)).expect("writing cannot fail");
+    }
+    write!(output, ") {{ (").expect("writing cannot fail");
+    for field in fields {
+        write!(output, "self.{},", rust_name(&field.name)).expect("writing cannot fail");
+    }
+    writeln!(output, ") }}\n}}\n").expect("writing cannot fail");
+    let constructor = enum_payload_constructor_name(path);
+    write!(output, "fn {constructor}(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "field_{index}: {}",
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    write!(
+        output,
+        ") -> {rust_name_} {{ {rust_name_}::terrane_construct("
+    )
+    .expect("writing cannot fail");
+    for index in 0..fields.len() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(output, "field_{index}").expect("writing cannot fail");
+    }
+    writeln!(output, ") }}\n").expect("writing cannot fail");
 }
 
 fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String> {

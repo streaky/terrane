@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "128";
+const PROJECTION_SCHEMA: &str = "133";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -341,6 +341,8 @@ pub enum ProjectedKind {
         borrowed_view: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         native_view_type: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        enum_payload: Option<ProjectedEnumPayload>,
         #[serde(default)]
         displayable: bool,
         #[serde(default)]
@@ -394,6 +396,7 @@ pub struct ProjectedField {
 #[serde(rename_all = "kebab-case")]
 pub enum ProjectedFieldConversion {
     Identity,
+    OptionalOwned,
     StringBorrow,
     OptionalStringBorrow,
     SliceBorrow,
@@ -448,12 +451,33 @@ pub enum ChainRole {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedEnumPayload {
+    pub owner_rust_path: String,
+    pub variant: String,
+    pub style: ProjectedEnumPayloadStyle,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectedEnumPayloadStyle {
+    Tuple,
+    Struct,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedEnumPayloadOperation {
+    pub style: ProjectedEnumPayloadStyle,
+    pub fields: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedEnumOperation {
     Construct {
         variant: String,
         unit: bool,
         conversion: ProjectedEnumPayloadConversion,
         payload_rust_type: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        payload: Option<ProjectedEnumPayloadOperation>,
     },
     VariantName {
         variants: Vec<String>,
@@ -463,6 +487,8 @@ pub enum ProjectedEnumOperation {
         variant: String,
         conversion: ProjectedEnumPayloadConversion,
         payload_rust_type: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        payload: Option<ProjectedEnumPayloadOperation>,
     },
 }
 
@@ -1512,6 +1538,25 @@ impl Projection {
                 _ => None,
             })
     }
+    #[must_use]
+    pub(crate) fn enum_payload(
+        &self,
+        rust_path: &str,
+    ) -> Option<(&ProjectedEnumPayload, &[ProjectedField])> {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find_map(|item| match &item.kind {
+                ProjectedKind::ForeignType {
+                    fields,
+                    enum_payload: Some(payload),
+                    ..
+                } if projected_owner_path_matches(&item.rust_path, rust_path) => {
+                    Some((payload, fields.as_slice()))
+                }
+                _ => None,
+            })
+    }
 
     #[must_use]
     pub(crate) fn projected_struct(
@@ -1524,10 +1569,13 @@ impl Projection {
             ProjectedKind::ForeignType {
                 fields,
                 borrowed_view,
+                enum_payload,
                 ..
-            } if !fields.is_empty() => {
-                Some((item.rust_path.as_str(), fields.as_slice(), *borrowed_view))
-            }
+            } if !fields.is_empty() => Some((
+                item.rust_path.as_str(),
+                fields.as_slice(),
+                *borrowed_view || enum_payload.is_some(),
+            )),
             _ => None,
         }
     }
@@ -7228,6 +7276,7 @@ fn project_rustdoc(
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
     let mut source_constants = SourceConstantCache::new();
+    let mut enum_payload_items = Vec::new();
     for (id, path) in candidates {
         let Some(item) = index.get(&id) else {
             if original_paths
@@ -7341,6 +7390,7 @@ fn project_rustdoc(
                     fields: Vec::new(),
                     borrowed_view: false,
                     native_view_type: None,
+                    enum_payload: None,
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -7484,6 +7534,7 @@ fn project_rustdoc(
                         fields,
                         borrowed_view,
                         native_view_type,
+                        enum_payload: None,
                         static_methods,
                         constants: projected_constants,
                         boundary: project_boundary_capabilities(
@@ -7562,7 +7613,20 @@ fn project_rustdoc(
                                     continue;
                                 };
                                 match project_enum_payload(field_type, index, paths) {
-                                    Ok(payload) => Some(payload),
+                                    Ok((
+                                        constructor,
+                                        constructor_conversion,
+                                        extraction,
+                                        extraction_conversion,
+                                        rust_type,
+                                    )) => Some((
+                                        constructor,
+                                        constructor_conversion,
+                                        extraction,
+                                        extraction_conversion,
+                                        rust_type,
+                                        None,
+                                    )),
                                     Err(reason) => {
                                         declined.push(DeclinedItem {
                                             rust_path: format!("{rust_path}::{variant_name}"),
@@ -7572,22 +7636,76 @@ fn project_rustdoc(
                                     }
                                 }
                             }
-                            VariantKind::Tuple(_) => {
+                            VariantKind::Tuple(fields) => {
                                 data_carrying = true;
-                                declined.push(DeclinedItem {
-                                    rust_path: format!("{rust_path}::{variant_name}"),
-                                    reason: "payload enum variant has multiple tuple fields"
-                                        .to_owned(),
-                                });
-                                continue;
+                                match project_multi_enum_payload(
+                                    &namespace,
+                                    &name,
+                                    &rust_path,
+                                    variant_name,
+                                    variant_item.docs.clone(),
+                                    ProjectedEnumPayloadStyle::Tuple,
+                                    fields.iter().enumerate().map(|(index, field)| {
+                                        (format!("item-n{index}"), index.to_string(), *field)
+                                    }),
+                                    index,
+                                    paths,
+                                ) {
+                                    Ok((item, payload)) => {
+                                        enum_payload_items.push(item);
+                                        Some(payload)
+                                    }
+                                    Err(reason) => {
+                                        declined.push(DeclinedItem {
+                                            rust_path: format!("{rust_path}::{variant_name}"),
+                                            reason,
+                                        });
+                                        continue;
+                                    }
+                                }
                             }
-                            VariantKind::Struct { .. } => {
+                            VariantKind::Struct {
+                                fields,
+                                has_stripped_fields,
+                            } => {
                                 data_carrying = true;
-                                declined.push(DeclinedItem {
-                                    rust_path: format!("{rust_path}::{variant_name}"),
-                                    reason: "payload enum variant has named fields".to_owned(),
-                                });
-                                continue;
+                                if *has_stripped_fields {
+                                    declined.push(DeclinedItem {
+                                        rust_path: format!("{rust_path}::{variant_name}"),
+                                        reason: "payload enum variant has stripped named fields"
+                                            .to_owned(),
+                                    });
+                                    continue;
+                                }
+                                match project_multi_enum_payload(
+                                    &namespace,
+                                    &name,
+                                    &rust_path,
+                                    variant_name,
+                                    variant_item.docs.clone(),
+                                    ProjectedEnumPayloadStyle::Struct,
+                                    fields.iter().map(|field| {
+                                        let field_name = index
+                                            .get(field)
+                                            .and_then(|item| item.name.clone())
+                                            .unwrap_or_default();
+                                        (field_name.clone(), field_name, Some(*field))
+                                    }),
+                                    index,
+                                    paths,
+                                ) {
+                                    Ok((item, payload)) => {
+                                        enum_payload_items.push(item);
+                                        Some(payload)
+                                    }
+                                    Err(reason) => {
+                                        declined.push(DeclinedItem {
+                                            rust_path: format!("{rust_path}::{variant_name}"),
+                                            reason,
+                                        });
+                                        continue;
+                                    }
+                                }
                             }
                         };
                         let (
@@ -7596,6 +7714,7 @@ fn project_rustdoc(
                             extraction_type,
                             extraction_conversion,
                             payload_rust_type,
+                            payload,
                         ) = projected_payload.unwrap_or_else(|| {
                             (
                                 ProjectedType::None,
@@ -7603,6 +7722,7 @@ fn project_rustdoc(
                                 ProjectedType::None,
                                 ProjectedEnumPayloadConversion::Identity,
                                 String::new(),
+                                None,
                             )
                         });
                         static_methods.push(ProjectedFunction {
@@ -7630,9 +7750,10 @@ fn project_rustdoc(
                             execution_requirements: None,
                             enum_operation: Some(ProjectedEnumOperation::Construct {
                                 variant: variant_name.to_owned(),
-                                conversion: constructor_conversion,
                                 unit: matches!(variant.kind, VariantKind::Plain),
+                                conversion: constructor_conversion,
                                 payload_rust_type: payload_rust_type.clone(),
+                                payload: payload.clone(),
                             }),
                             error_optional_depth: 0,
                             chain_role: None,
@@ -7656,6 +7777,7 @@ fn project_rustdoc(
                                     variant: variant_name.to_owned(),
                                     conversion: extraction_conversion,
                                     payload_rust_type,
+                                    payload,
                                 }),
                                 error_optional_depth: 0,
                                 chain_role: None,
@@ -7771,6 +7893,7 @@ fn project_rustdoc(
             }
         }
     }
+    items.extend(enum_payload_items);
     projected_associated_items.sort_by(|left, right| {
         (&left.namespace, &left.name, &left.rust_path).cmp(&(
             &right.namespace,
@@ -8696,6 +8819,7 @@ fn project_chain_owner(
             fields: Vec::new(),
             borrowed_view: false,
             native_view_type: None,
+            enum_payload: None,
             displayable: false,
             cloneable: false,
             send: false,
@@ -11249,6 +11373,7 @@ fn project_enum_payload(
         } else if type_implements_deref_target(ty, index, paths, |target| {
             matches!(
                 target,
+
                 Type::Slice(item) if matches!(item.as_ref(), Type::Primitive(name) if name == "u8")
             )
         }) {
@@ -11262,6 +11387,126 @@ fn project_enum_payload(
         extraction_type,
         extraction_conversion,
         rust_type,
+    ))
+}
+fn project_enum_payload_fields(
+    fields: impl Iterator<Item = (String, String, Option<Id>)>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<Vec<ProjectedField>, String> {
+    fields
+        .map(|(name, rust_name, field)| {
+            if name.is_empty() {
+                return Err("payload enum variant field metadata is unavailable".to_owned());
+            }
+            let Some(field) = field.as_ref().and_then(|id| index.get(id)) else {
+                return Err("payload enum variant field is stripped".to_owned());
+            };
+            let ItemEnum::StructField(rustdoc_type) = &field.inner else {
+                return Err("payload enum variant field metadata is unavailable".to_owned());
+            };
+            let ty = project_type(rustdoc_type, index, paths, &BTreeMap::new())?;
+            let conversion = enum_payload_field_conversion(&ty).ok_or_else(|| {
+                format!("payload enum variant field `{rust_name}` has no owned field conversion")
+            })?;
+            Ok(ProjectedField {
+                name: if crate::syntax::is_keyword(&name) {
+                    format!("{name}-value")
+                } else {
+                    name.replace('_', "-")
+                },
+                rust_name,
+                ty,
+                rust_type: render_rust_type(rustdoc_type, index, paths, &BTreeMap::new())?,
+                conversion,
+            })
+        })
+        .collect()
+}
+
+fn enum_payload_field_conversion(ty: &ProjectedType) -> Option<ProjectedFieldConversion> {
+    if ty.is_terrane_scalar() || matches!(ty, ProjectedType::None | ProjectedType::Foreign { .. }) {
+        Some(ProjectedFieldConversion::Identity)
+    } else if matches!(ty, ProjectedType::Optional(inner) if enum_payload_field_conversion(inner) == Some(ProjectedFieldConversion::Identity))
+    {
+        Some(ProjectedFieldConversion::OptionalOwned)
+    } else {
+        None
+    }
+}
+type ProjectedEnumPayloadProjection = (
+    ProjectedType,
+    ProjectedEnumPayloadConversion,
+    ProjectedType,
+    ProjectedEnumPayloadConversion,
+    String,
+    Option<ProjectedEnumPayloadOperation>,
+);
+
+type ProjectedEnumPayloadItem = (ProjectedItem, ProjectedEnumPayloadProjection);
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the payload item preserves its complete enum owner and source identity"
+)]
+fn project_multi_enum_payload(
+    namespace: &str,
+    enum_name: &str,
+    owner_rust_path: &str,
+    variant: &str,
+    docs: Option<String>,
+    style: ProjectedEnumPayloadStyle,
+    fields: impl Iterator<Item = (String, String, Option<Id>)>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<ProjectedEnumPayloadItem, String> {
+    let fields = project_enum_payload_fields(fields, index, paths)?;
+    let payload_name = format!("{enum_name}-{variant}");
+    let payload_rust_path = format!("{owner_rust_path}::{variant}#payload");
+    let payload_type = ProjectedType::Foreign {
+        rust_path: payload_rust_path.clone(),
+        name: payload_name.clone(),
+        base_rust_path: payload_rust_path.clone(),
+        arguments: Vec::new(),
+    };
+    let operation = ProjectedEnumPayloadOperation {
+        style,
+        fields: fields.iter().map(|field| field.rust_name.clone()).collect(),
+    };
+    let item = ProjectedItem {
+        namespace: namespace.to_owned(),
+        name: payload_name,
+        rust_path: payload_rust_path.clone(),
+        docs,
+        kind: ProjectedKind::ForeignType {
+            methods: Vec::new(),
+            static_methods: Vec::new(),
+            constants: Vec::new(),
+            boundary: ProjectedBoundaryCapabilities::default(),
+            fields,
+            borrowed_view: false,
+            native_view_type: None,
+            enum_payload: Some(ProjectedEnumPayload {
+                owner_rust_path: owner_rust_path.to_owned(),
+                variant: variant.to_owned(),
+                style,
+            }),
+            displayable: false,
+            cloneable: false,
+            send: false,
+            sync: false,
+        },
+    };
+    Ok((
+        item,
+        (
+            payload_type.clone(),
+            ProjectedEnumPayloadConversion::Identity,
+            payload_type,
+            ProjectedEnumPayloadConversion::Identity,
+            payload_rust_path,
+            Some(operation),
+        ),
     ))
 }
 
@@ -12016,6 +12261,7 @@ mod tests {
                 fields: Vec::new(),
                 borrowed_view: false,
                 native_view_type: None,
+                enum_payload: None,
                 displayable: false,
                 cloneable: false,
                 send: false,
@@ -12681,6 +12927,7 @@ mod tests {
                     fields: Vec::new(),
                     borrowed_view: false,
                     native_view_type: None,
+                    enum_payload: None,
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -13542,6 +13789,10 @@ mod tests {
         assert!(reason.contains("content hash mismatch"));
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the history regression records a complete two-generation cache transition"
+    )]
     #[test]
     fn projection_history_retains_removed_members_across_checks() {
         let directory =
@@ -13565,6 +13816,7 @@ mod tests {
                 fields: Vec::new(),
                 borrowed_view: false,
                 native_view_type: None,
+                enum_payload: None,
                 displayable: false,
                 methods: vec![ProjectedFunction {
                     native_owner: None,

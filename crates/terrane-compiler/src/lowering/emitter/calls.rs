@@ -2235,6 +2235,10 @@ impl Emitter<'_> {
         }
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "enum construction and extraction keep their mirrored field mapping visible together"
+)]
 fn projected_enum_call(
     operation: &crate::projection::ProjectedEnumOperation,
     owner: &str,
@@ -2246,10 +2250,36 @@ fn projected_enum_call(
             variant,
             unit,
             conversion,
+            payload,
             ..
         } => {
             if *unit {
                 return format!("{owner}::{variant}");
+            }
+            if let Some(payload) = payload {
+                let bindings = (0..payload.fields.len())
+                    .map(|index| format!("field_{index}"))
+                    .collect::<Vec<_>>();
+                let body = match payload.style {
+                    crate::projection::ProjectedEnumPayloadStyle::Tuple => {
+                        format!("{owner}::{variant}({})", bindings.join(", "))
+                    }
+                    crate::projection::ProjectedEnumPayloadStyle::Struct => {
+                        let fields = payload
+                            .fields
+                            .iter()
+                            .zip(&bindings)
+                            .map(|(field, binding)| format!("r#{field}: {binding}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{owner}::{variant} {{ {fields} }}")
+                    }
+                };
+                return format!(
+                    "{{ let ({},) = ({}).terrane_into_fields(); {body} }}",
+                    bindings.join(", "),
+                    values[0]
+                );
             }
             let arguments = values
                 .iter()
@@ -2281,8 +2311,35 @@ fn projected_enum_call(
             variant,
             conversion,
             payload_rust_type,
+            payload,
         } => {
             let receiver = receiver.expect("enum extraction has a receiver");
+            if let Some(payload) = payload {
+                let bindings = (0..payload.fields.len())
+                    .map(|index| format!("field_{index}"))
+                    .collect::<Vec<_>>();
+                let pattern = match payload.style {
+                    crate::projection::ProjectedEnumPayloadStyle::Tuple => {
+                        format!("{owner}::{variant}({})", bindings.join(", "))
+                    }
+                    crate::projection::ProjectedEnumPayloadStyle::Struct => {
+                        let fields = payload
+                            .fields
+                            .iter()
+                            .zip(&bindings)
+                            .map(|(field, binding)| format!("r#{field}: {binding}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{owner}::{variant} {{ {fields} }}")
+                    }
+                };
+                let constructor =
+                    super::super::dependencies::enum_payload_constructor_name(payload_rust_type);
+                return format!(
+                    "match {receiver} {{ {pattern} => Some({constructor}({})), _ => None }}",
+                    bindings.join(", ")
+                );
+            }
             let value = match conversion {
                 crate::projection::ProjectedEnumPayloadConversion::Identity
                 | crate::projection::ProjectedEnumPayloadConversion::Into => "value".to_owned(),

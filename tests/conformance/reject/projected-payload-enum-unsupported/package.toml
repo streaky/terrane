@@ -1,7 +1,0 @@
-package = "projected-payload-enum-unsupported"
-
-[namespaces]
-app = "src"
-
-[rust-dependencies.terrane-payload-enum-witness]
-version = "=0.1.0"

@@ -8,6 +8,18 @@
         ],
         [
           "/deps/terrane-payload-enum-witness",
+          "Event-Named"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "Event-Optional"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
+          "Event-Pair"
+        ],
+        [
+          "/deps/terrane-payload-enum-witness",
           "NonClonePayload"
         ],
         [

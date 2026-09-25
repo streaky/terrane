@@ -1,0 +1,7 @@
+package = "projected-unrepresentable-enum-payload"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-unrepresentable-enum-payload-witness]
+version = "=0.1.0"
