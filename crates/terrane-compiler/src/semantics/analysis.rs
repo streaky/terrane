@@ -330,6 +330,78 @@ fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, Semantic
         })
         .collect()
 }
+fn validate_generated_projection_units(
+    package: &Package,
+    inventory: &str,
+) -> Result<(), SemanticFailure> {
+    let units = crate::projection::generated_projection_units(inventory).map_err(|message| {
+        failure(
+            &package.units[0].source,
+            "S2028",
+            format!("cannot materialize generated projection source units: {message}"),
+            Span::new(package.units[0].source.id(), 0, 0),
+        )
+    })?;
+    let mut source_id = package
+        .units
+        .iter()
+        .map(|unit| unit.source.id())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    for unit in units {
+        let source = SourceFile::new(
+            source_id,
+            package
+                .root
+                .join(crate::projection::GENERATED_PROJECTION_FILE),
+            unit.source,
+        );
+        parse_unit(
+            &source,
+            format!(
+                "{}#{}",
+                crate::projection::GENERATED_PROJECTION_FILE,
+                unit.namespace
+            ),
+            Some(&unit.namespace),
+            package.prelude,
+            false,
+            crate::package::SourceRole::Production,
+        )
+        .map_err(|failure| {
+            let diagnostics = failure
+                .diagnostics
+                .into_iter()
+                .map(|diagnostic| {
+                    let detail = diagnostic.primary.map_or_else(String::new, |span| {
+                        let (line, column) = source.line_column(span.start);
+                        let source_line = source
+                            .text()
+                            .lines()
+                            .nth(line.saturating_sub(1))
+                            .unwrap_or_default();
+                        format!(" at {line}:{column}: `{source_line}`")
+                    });
+                    Diagnostic::error(
+                        "S2028",
+                        format!(
+                            "generated projection source unit `{}` is invalid{detail}: {}",
+                            unit.namespace, diagnostic.message
+                        ),
+                        Span::new(package.units[0].source.id(), 0, 0),
+                    )
+                })
+                .collect();
+            SemanticFailure {
+                source: package.units[0].source.clone(),
+                diagnostics,
+            }
+        })?;
+        source_id = source_id.saturating_add(1);
+    }
+    Ok(())
+}
 
 fn persist_projection_inventory(
     package: &Package,
@@ -337,6 +409,7 @@ fn persist_projection_inventory(
     demand_sites: &crate::projection::ProjectionDemandSites,
 ) -> Result<(), SemanticFailure> {
     let inventory = projection.documented_inventory(demand_sites);
+    validate_generated_projection_units(package, &inventory)?;
     let path = package
         .root
         .join(crate::projection::GENERATED_PROJECTION_FILE);

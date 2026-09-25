@@ -1206,20 +1206,21 @@ the locked transitive edge to retain active features. That owner remains inacces
 remain explicit declines; direct declaration is the explicit unification mechanism.
 
 Package analysis projects the complete discovered dependency surface independently of current
-imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. The
-comment-only Terrane file places currently demanded unavailable declarations first, followed by a
-visible separator and unused unavailable declarations, then renders admitted generated
-declarations. Every unavailable entry retains its exact path and decline. A demanded unavailable
-function additionally renders any deterministically recoverable function shape, generic
-constraints, callback parameter contracts, and callback method signatures; a demanded module is
-identified as a namespace container. Partial contracts preserve known structure but remain
-unavailable for lowering. Their referenced native declarations inherit required status recursively
-by Rustdoc identity, including public reexport aliases. Unavailable dependencies identify the
-requiring contract; admitted dependencies appear in a separate required-admitted index. Imports
-and projected member uses add current file/line/column demand locations. An unreachable unavailable
-declaration may be imported for inspection without failing; semantic analysis fails at the first
-actual source demand and points to the generated inventory. Each build replaces, rather than
-accumulates, caller annotations.
+imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. Report
+comments list demanded unavailable declarations, a required-admitted index, and unreachable
+unavailable declarations with exact paths, declines, and demand locations. Its projected section is
+active compiler-owned Terrane. Each `Generated source unit` marker introduces a separately
+syntax-validated one-namespace virtual unit; the physical file may therefore contain multiple
+`/deps/<package>` namespaces and namespace cycles without changing `S2002` for authored files.
+Admitted nominal types are active declarations. A demanded unavailable struct, enum, alias, or trait
+whose nominal shape is recoverable receives an active class or interface skeleton in its public
+dependency namespace. Adjacent comments preserve native generic and lifetime residual obligations;
+the skeleton remains unregistered for lowering and does not make the native operation available.
+Demanded unavailable functions retain recoverable function shapes, generic constraints, callback
+contracts, and methods as report metadata. Their referenced declarations inherit required status
+recursively by Rustdoc identity and public reexport alias. Semantic analysis still fails at the
+first demanded unresolved operation and points to this artifact. Each build replaces caller
+annotations rather than accumulating them.
 
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate

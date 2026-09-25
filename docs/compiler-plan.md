@@ -333,20 +333,21 @@ next work units before committing to a new core representation.
   reproduces Iced's direct `application` decline at the unresolved `BootFn` callback context.
   The maintained-Rust GUI remains explicitly context-only rather than being counted as direct
   admission evidence.
-- `terrane-projection.generated.trn` materializes the otherwise ephemeral complete projection
-  beside each package manifest. It renders every admitted Terrane declaration and unavailable
-  native declaration with its exact path and decline. Demanded unavailable functions now retain a
-  deterministic partial contract containing their native function shape, generic constraints,
-  callback-bearing parameter contracts, and required callback method signatures; demanded modules
-  retain an explicit namespace-container contract. These records preserve understood structure
-  without falsely admitting the declaration or changing its failure. Every native declaration
-  referenced by a required partial contract is itself marked required, recursively and by stable
-  Rustdoc identity: unavailable dependencies move into the required section with the requiring
-  contract, while admitted dependencies appear in a required-admitted index. Current source imports
-  and projected member calls annotate demanded gaps with caller locations. Projection is no longer
-  restricted to current imports: unreachable gaps remain inspectable compiler evidence and do not
-  fail a build; a demanded gap fails at the application source and points back to the generated
-  report. Subsequent builds deterministically replace the demand annotations.
+- `terrane-projection.generated.trn` materializes the otherwise ephemeral projection beside each
+  package manifest. Report comments retain every unavailable native declaration, exact decline,
+  demand site, partial function/callback contract, and transitive requirement. The projected
+  section is now active compiler-owned Terrane: deterministic `Generated source unit` markers split
+  the one physical artifact into separately syntax-validated one-namespace virtual units, including
+  cyclic namespaces. Authored files retain `S2002`; this is a generated-container rule rather than a
+  general multi-namespace language change. Admitted nominal types are active declarations.
+  Recoverable demanded structs, enums, aliases, and traits additionally receive active class or
+  interface skeletons under their public `/deps/<package>` namespace. Their unexpressed native
+  generics and lifetimes remain adjacent residual obligations, so these skeletons are not registered
+  for lowering and do not turn a decline into success. Every native declaration referenced by a
+  required partial contract is marked required recursively by stable Rustdoc identity: unavailable
+  dependencies move into the required section with the requiring contract, while admitted
+  dependencies appear in a required-admitted index. A demanded residual still fails at application
+  source and points to the generated artifact; subsequent builds replace demand annotations.
 - `compatibility/projection-census/findings.md` records representative traces, confidence limits,
   cohort interpretation and recommended next work. The evidence supports focused investigation of
   lifetime regions, generic interfaces, stable native identity and multiple-version owner

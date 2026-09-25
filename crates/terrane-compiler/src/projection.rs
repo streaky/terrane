@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
@@ -17,10 +17,64 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "72";
+const PROJECTION_SCHEMA: &str = "81";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
+const GENERATED_SOURCE_UNIT_MARKER: &str = "# Generated source unit: ";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedProjectionUnit {
+    pub namespace: String,
+    pub source: String,
+    pub start: usize,
+}
+
+/// Splits the compiler-owned projection artifact into ordinary one-namespace source units.
+///
+/// Text before the first generated-unit marker is report metadata and residual-obligation
+/// documentation. It is intentionally not a source unit.
+///
+/// # Errors
+///
+/// Returns an error when a generated-unit marker has no body or its declared namespace does not
+/// match the first non-comment declaration in that body.
+pub fn generated_projection_units(document: &str) -> Result<Vec<GeneratedProjectionUnit>, String> {
+    let mut units = Vec::new();
+    let mut cursor = 0;
+    while let Some(relative_start) = document[cursor..].find(GENERATED_SOURCE_UNIT_MARKER) {
+        let marker_start = cursor + relative_start;
+        let namespace_start = marker_start + GENERATED_SOURCE_UNIT_MARKER.len();
+        let namespace_end = document[namespace_start..]
+            .find('\n')
+            .map(|offset| namespace_start + offset)
+            .ok_or_else(|| "generated source-unit marker has no source body".to_owned())?;
+        let namespace = document[namespace_start..namespace_end].trim().to_owned();
+        let source_start = namespace_end + 1;
+        let source_end = document[source_start..]
+            .find(GENERATED_SOURCE_UNIT_MARKER)
+            .map_or(document.len(), |offset| source_start + offset);
+        let source = document[source_start..source_end].trim_end().to_owned();
+        let expected = format!("namespace {}", namespace.trim_start_matches('/'));
+        let first_declaration = source
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty() && !line.starts_with('#'));
+        if first_declaration != Some(expected.as_str()) {
+            return Err(format!(
+                "generated source unit `{namespace}` does not begin with `{expected}`",
+            ));
+        }
+        units.push(GeneratedProjectionUnit {
+            namespace,
+            source,
+            start: source_start,
+        });
+        cursor = source_end;
+    }
+    Ok(units)
+}
+
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 const MAX_OWNER_RUSTDOC_CACHE_RECORDS: usize = 16;
 
@@ -198,6 +252,11 @@ enum PartialProjection {
         signature: String,
         generic_constraints: Vec<String>,
         callback_shapes: Vec<PartialCallbackShape>,
+    },
+    NominalType {
+        declaration: String,
+        native_kind: String,
+        generic_parameters: Vec<String>,
     },
     Namespace,
 }
@@ -812,6 +871,15 @@ impl Projection {
         imports: &BTreeMap<String, BTreeSet<String>>,
         demanded_members: &ProjectedMemberDemands,
     ) -> Result<Vec<(String, String)>, String> {
+        self.source_for_imports_with_members_impl(imports, demanded_members, false)
+    }
+
+    fn source_for_imports_with_members_impl(
+        &self,
+        imports: &BTreeMap<String, BTreeSet<String>>,
+        demanded_members: &ProjectedMemberDemands,
+        allow_namespace_cycles: bool,
+    ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
             .iter()
@@ -911,7 +979,21 @@ impl Projection {
             }
             sources.push((namespace.clone(), text, source_dependencies));
         }
-        Self::order_projected_sources(sources)
+        Self::finalize_projected_sources(sources, allow_namespace_cycles)
+    }
+
+    fn finalize_projected_sources(
+        sources: Vec<(String, String, BTreeSet<String>)>,
+        allow_namespace_cycles: bool,
+    ) -> Result<Vec<(String, String)>, String> {
+        if allow_namespace_cycles {
+            Ok(sources
+                .into_iter()
+                .map(|(namespace, source, _)| (namespace, source))
+                .collect())
+        } else {
+            Self::order_projected_sources(sources)
+        }
     }
 
     /// Renders complete projected dependency sources for callers without importing-package syntax.
@@ -1059,14 +1141,17 @@ impl Projection {
         unavailable
     }
 
-    /// Renders a complete, human-readable inventory of projected and unavailable native API.
+    /// Renders a complete human-readable inventory plus compiler-owned Terrane source units.
     ///
-    /// The result is valid Terrane source consisting entirely of comments. The compiler-owned
-    /// projected declarations remain registered from the same projection data during semantic
-    /// analysis; this file makes that otherwise ephemeral source and every decline inspectable.
+    /// Report metadata and residual obligations remain comments. Every `Generated source unit`
+    /// marker introduces an ordinary one-namespace Terrane unit; package analysis splits and
+    /// syntax-validates those units before replacing the artifact. Admitted nominal declarations
+    /// are active source. A demanded unavailable struct, enum, alias, or trait also receives an
+    /// active class/interface skeleton when its nominal shape is recoverable, but remains
+    /// unregistered for lowering until its documented residual obligations are satisfied.
     ///
-    /// Namespace source rendering failures are retained as projection gaps in the document
-    /// rather than preventing unrelated package analysis.
+    /// Namespace cycles are valid between these separate generated units and therefore do not
+    /// suppress unrelated nominal declarations.
     #[must_use]
     pub fn documented_inventory(&self, demand_sites: &ProjectionDemandSites) -> String {
         let mut output = String::from(
@@ -1085,6 +1170,7 @@ impl Projection {
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
+            .filter(|item| !matches!(item.kind, ProjectedKind::Function(_)))
         {
             *counts
                 .entry((item.namespace.clone(), item.name.clone()))
@@ -1100,12 +1186,14 @@ impl Projection {
                 imports
             },
         );
-        let (sources, source_rendering_gap) = match self.source_for_imports(&imports) {
-            Ok(sources) => (sources, None),
-            Err(error) => (Vec::new(), Some(error)),
-        };
-
+        let demanded_members = BTreeMap::new();
+        let (mut sources, source_rendering_gap) =
+            match self.source_for_imports_with_members_impl(&imports, &demanded_members, true) {
+                Ok(sources) => (sources, None),
+                Err(error) => (Vec::new(), Some(error)),
+            };
         let unavailable = self.unavailable_inventory(demand_sites);
+        append_required_nominal_units(&mut sources, self, &unavailable);
         let (required, unused): (Vec<_>, Vec<_>) = unavailable
             .iter()
             .partition(|unavailable| unavailable.is_required());
@@ -1139,11 +1227,11 @@ impl Projection {
         }
 
         for (namespace, source) in sources {
-            writeln!(output, "#\n# Source namespace: {namespace}")
-                .expect("writing to a string cannot fail");
-            for line in source.lines() {
-                writeln!(output, "# {line}").expect("writing to a string cannot fail");
-            }
+            writeln!(
+                output,
+                "{GENERATED_SOURCE_UNIT_MARKER}{namespace}\n{source}"
+            )
+            .expect("writing to a string cannot fail");
         }
 
         let ambiguous = counts
@@ -1683,6 +1771,70 @@ fn propagate_partial_contract_requirements(unavailable: &mut [UnavailableProject
     }
 }
 
+fn append_required_nominal_units(
+    sources: &mut Vec<(String, String)>,
+    projection: &Projection,
+    unavailable: &[UnavailableProjection],
+) {
+    let mut candidates = BTreeMap::<(&str, &str), Vec<&UnavailableProjection>>::new();
+    for entry in unavailable.iter().filter(|entry| entry.is_required()) {
+        if matches!(entry.partial, Some(PartialProjection::NominalType { .. })) {
+            candidates
+                .entry((&entry.namespace, &entry.name))
+                .or_default()
+                .push(entry);
+        }
+    }
+    for ((namespace, name), entries) in candidates {
+        if entries.len() != 1
+            || projection
+                .dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .any(|item| item.namespace == namespace && item.name == name)
+        {
+            continue;
+        }
+        let entry = entries[0];
+        let Some(PartialProjection::NominalType {
+            declaration,
+            native_kind,
+            generic_parameters,
+        }) = &entry.partial
+        else {
+            continue;
+        };
+        let rendered_generics = if generic_parameters.is_empty() {
+            "none".to_owned()
+        } else {
+            generic_parameters.join(", ")
+        };
+        let addition = format!(
+            "# Partial native {native_kind}: {}\n\
+             # Native generic parameters retained as a residual obligation: {rendered_generics}\n\
+             # This nominal class is not registered for lowering until its residual obligations are satisfied.\n\
+             {declaration}\n",
+            entry.rust_path
+        );
+        if let Some((_, source)) = sources
+            .iter_mut()
+            .find(|(source_namespace, _)| source_namespace == namespace)
+        {
+            source.push('\n');
+            source.push_str(&addition);
+        } else {
+            sources.push((
+                namespace.to_owned(),
+                format!(
+                    "namespace {}\n\n{addition}",
+                    namespace.trim_start_matches('/')
+                ),
+            ));
+        }
+    }
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+}
+
 fn render_required_projected_declarations(
     output: &mut String,
     projection: &Projection,
@@ -1775,6 +1927,24 @@ fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableP
                         writeln!(output, "#   Required callback method: {method}")
                             .expect("writing to a string cannot fail");
                     }
+                }
+            }
+            Some(PartialProjection::NominalType {
+                declaration,
+                native_kind,
+                generic_parameters,
+            }) => {
+                writeln!(output, "# Generated partial contract: {native_kind}")
+                    .expect("writing to a string cannot fail");
+                writeln!(output, "# Terrane nominal declaration: {declaration}")
+                    .expect("writing to a string cannot fail");
+                if !generic_parameters.is_empty() {
+                    writeln!(
+                        output,
+                        "# Residual native generic parameters: {}",
+                        generic_parameters.join(", ")
+                    )
+                    .expect("writing to a string cannot fail");
                 }
             }
             Some(PartialProjection::Namespace) => {
@@ -1933,6 +2103,15 @@ fn collect_source_foreign(
             else {
                 continue;
             };
+            if let ProjectedKind::Interface(interface) = &item.kind {
+                for supertrait in &interface.supertraits {
+                    foreign.insert(supertrait.rust_path.clone(), supertrait.name.clone());
+                }
+                for method in &interface.methods {
+                    collect_foreign_function(&method.function, &mut foreign);
+                }
+                continue;
+            }
             let methods = match &item.kind {
                 ProjectedKind::ForeignType {
                     methods,
@@ -1974,10 +2153,13 @@ fn foreign_aliases(foreign: &BTreeMap<String, String>) -> BTreeMap<String, Strin
     foreign
         .iter()
         .map(|(rust_path, name)| {
-            let alias = if counts[name.as_str()] == 1 {
-                name.clone()
+            let duplicate = counts[name.as_str()] != 1;
+            let name = name.replace('_', "-");
+            let alias = if duplicate {
+                let digest = format!("{:x}", Sha256::digest(rust_path.as_bytes()));
+                format!("{name}-{}", &digest[..12])
             } else {
-                rust_path.replace("::", "-").replace('_', "-")
+                name
             };
             (rust_path.clone(), alias)
         })
@@ -6036,17 +6218,87 @@ fn partial_projection(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
 ) -> Option<PartialProjection> {
+    partial_projection_inner(item, index, paths, &mut HashSet::new())
+}
+
+fn partial_projection_inner(
+    item: &Item,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    visited: &mut HashSet<Id>,
+) -> Option<PartialProjection> {
+    if !visited.insert(item.id) {
+        return None;
+    }
+    let name = item.name.as_deref().unwrap_or("<anonymous>");
     match &item.inner {
-        ItemEnum::Function(function) => partial_function_projection(
-            item.name.as_deref().unwrap_or("<anonymous>"),
-            function,
-            index,
-            paths,
-        )
-        .ok(),
+        ItemEnum::Function(function) => {
+            partial_function_projection(name, function, index, paths).ok()
+        }
+        ItemEnum::Struct(struct_) => Some(partial_nominal_type(name, "struct", &struct_.generics)),
+        ItemEnum::Enum(enum_) => Some(partial_nominal_type(name, "enum", &enum_.generics)),
+        ItemEnum::TypeAlias(alias) => {
+            Some(partial_nominal_type(name, "type alias", &alias.generics))
+        }
+        ItemEnum::Trait(trait_) => Some(PartialProjection::NominalType {
+            declaration: format!("interface {}", name.replace('_', "-")),
+            native_kind: "trait".to_owned(),
+            generic_parameters: trait_
+                .generics
+                .params
+                .iter()
+                .map(|parameter| parameter.name.clone())
+                .collect(),
+        }),
+        ItemEnum::Use(import) => import
+            .id
+            .as_ref()
+            .and_then(|id| index.get(id))
+            .and_then(|target| partial_projection_inner(target, index, paths, visited))
+            .or_else(|| partial_nominal_from_summary(name, paths.get(&item.id)?))
+            .map(|mut projection| {
+                if let PartialProjection::NominalType { declaration, .. } = &mut projection {
+                    let kind = declaration
+                        .split_once(' ')
+                        .map_or("class", |(kind, _)| kind);
+                    *declaration = format!("{kind} {}", name.replace('_', "-"));
+                }
+                projection
+            }),
         ItemEnum::Module(_) => Some(PartialProjection::Namespace),
         _ => None,
     }
+}
+
+fn partial_nominal_type(
+    name: &str,
+    native_kind: &str,
+    generics: &rustdoc_types::Generics,
+) -> PartialProjection {
+    PartialProjection::NominalType {
+        declaration: format!("class {}", name.replace('_', "-")),
+        native_kind: native_kind.to_owned(),
+        generic_parameters: generics
+            .params
+            .iter()
+            .map(|parameter| parameter.name.clone())
+            .collect(),
+    }
+}
+
+fn partial_nominal_from_summary(name: &str, summary: &ItemSummary) -> Option<PartialProjection> {
+    let (declaration, native_kind) = match summary.kind {
+        ItemKind::Struct => (format!("class {}", name.replace('_', "-")), "struct"),
+        ItemKind::Enum => (format!("class {}", name.replace('_', "-")), "enum"),
+        ItemKind::TypeAlias => (format!("class {}", name.replace('_', "-")), "type alias"),
+        ItemKind::Trait => (format!("interface {}", name.replace('_', "-")), "trait"),
+        _ => return None,
+    };
+    Some(PartialProjection::NominalType {
+        declaration,
+        native_kind: native_kind.to_owned(),
+        generic_parameters: Vec::new(),
+    })
 }
 
 fn partial_projection_references(
@@ -10066,9 +10318,9 @@ mod tests {
         ProjectionResolution, ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome,
         apply_namespace_overlays, apply_projection_history,
         decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
-        enforce_transitive_reachability, external_reexport_rustdocs, has_type_parameters,
-        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
-        persist_dependency_lock, project_type, projectable_interface_bound,
+        enforce_transitive_reachability, external_reexport_rustdocs, generated_projection_units,
+        has_type_parameters, mark_cache_record_used, namespace_overlays_from_metadata,
+        parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
         projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
         receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
         rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
@@ -10493,6 +10745,40 @@ mod tests {
         );
         assert!(!ProjectedType::Tuple(vec![ProjectedType::String]).is_terrane_scalar());
     }
+    #[test]
+    fn generated_projection_document_splits_into_one_namespace_units() {
+        let document = "# report\n\
+                        # Generated source unit: /deps/iced\n\
+                        # Native path: iced::Element\n\
+                        namespace deps/iced\n\
+                        class Element\n\
+                        \n\
+                        # Generated source unit: /deps/iced/application\n\
+                        namespace deps/iced/application\n\
+                        interface ViewFn\n";
+        let units = generated_projection_units(document).unwrap();
+        assert_eq!(units.len(), 2);
+        assert_eq!(units[0].namespace, "/deps/iced");
+        assert_eq!(
+            units[0].source,
+            "# Native path: iced::Element\nnamespace deps/iced\nclass Element"
+        );
+        assert_eq!(units[1].namespace, "/deps/iced/application");
+        assert_eq!(
+            units[1].source,
+            "namespace deps/iced/application\ninterface ViewFn"
+        );
+        assert_eq!(&document[units[0].start..][..20], "# Native path: iced:");
+    }
+
+    #[test]
+    fn generated_projection_unit_rejects_a_mismatched_namespace() {
+        let error = generated_projection_units(
+            "# Generated source unit: /deps/iced\nnamespace deps/other\nclass Element\n",
+        )
+        .unwrap_err();
+        assert!(error.contains("does not begin with `namespace deps/iced`"));
+    }
 
     #[test]
     fn projected_callback_name_is_the_language_server_signature() {
@@ -10558,23 +10844,36 @@ mod tests {
                         reason: "requires an unsupported generic".to_owned(),
                     },
                 ],
-                partial_declines: vec![PartialProjectionRecord {
-                    rust_path: "witness::required_gap".to_owned(),
-                    reason: "requires a borrowed result".to_owned(),
-                    references: BTreeSet::from([
-                        "witness::accepted".to_owned(),
-                        "witness::callback_gap".to_owned(),
-                    ]),
-                    projection: PartialProjection::Function {
-                        signature: "fn required_gap(callback: impl witness::Callback)".to_owned(),
-                        generic_constraints: vec!["State: 'static".to_owned()],
-                        callback_shapes: vec![PartialCallbackShape {
-                            parameter: "callback".to_owned(),
-                            contract: "witness::Callback".to_owned(),
-                            methods: vec!["fn invoke(self: &Self, state: &State)".to_owned()],
-                        }],
+                partial_declines: vec![
+                    PartialProjectionRecord {
+                        rust_path: "witness::required_gap".to_owned(),
+                        reason: "requires a borrowed result".to_owned(),
+                        references: BTreeSet::from([
+                            "witness::accepted".to_owned(),
+                            "witness::callback_gap".to_owned(),
+                        ]),
+                        projection: PartialProjection::Function {
+                            signature: "fn required_gap(callback: impl witness::Callback)"
+                                .to_owned(),
+                            generic_constraints: vec!["State: 'static".to_owned()],
+                            callback_shapes: vec![PartialCallbackShape {
+                                parameter: "callback".to_owned(),
+                                contract: "witness::Callback".to_owned(),
+                                methods: vec!["fn invoke(self: &Self, state: &State)".to_owned()],
+                            }],
+                        },
                     },
-                }],
+                    PartialProjectionRecord {
+                        rust_path: "witness::callback_gap".to_owned(),
+                        reason: "requires an unsupported callback".to_owned(),
+                        references: BTreeSet::new(),
+                        projection: PartialProjection::NominalType {
+                            declaration: "interface callback-gap".to_owned(),
+                            native_kind: "trait".to_owned(),
+                            generic_parameters: vec!["State".to_owned()],
+                        },
+                    },
+                ],
             }],
             bound_dependencies: Vec::new(),
             containment: Containment::Enforced,
@@ -10650,6 +10949,18 @@ mod tests {
              # Required by projection contracts:\n\
              # - witness::required_gap"
         ));
+        assert!(document.contains(
+            "# Generated source unit: /deps/witness\n\
+             namespace deps/witness"
+        ));
+        assert!(document.contains(
+            "# Partial native trait: witness::callback_gap\n\
+             # Native generic parameters retained as a residual obligation: State\n\
+             # This nominal class is not registered for lowering until its residual obligations are satisfied.\n\
+             interface callback-gap"
+        ));
+        let units = generated_projection_units(&document).unwrap();
+        assert_eq!(units.len(), 1);
     }
 
     #[test]
@@ -11309,11 +11620,11 @@ mod tests {
             projection.foreign_imports("/deps/witness"),
             BTreeMap::from([
                 (
-                    "witness-left-Response".to_owned(),
+                    "Response-20d8feeba582".to_owned(),
                     "witness::left::Response".to_owned()
                 ),
                 (
-                    "witness-right-Response".to_owned(),
+                    "Response-52b4adb0f322".to_owned(),
                     "witness::right::Response".to_owned()
                 )
             ])
@@ -11325,7 +11636,7 @@ mod tests {
             )]))
             .unwrap();
         assert!(sources[0].1.contains(
-            "function cross throws dependency-panic; left witness-left-Response, right witness-right-Response"
+            "function cross throws dependency-panic; left Response-20d8feeba582, right Response-52b4adb0f322"
         ));
     }
 
