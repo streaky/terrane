@@ -1212,12 +1212,16 @@ Terrane source second, and unreachable unavailable declarations last. Report com
 paths, declines, and demand locations. Each `Generated source unit` marker introduces a separately
 syntax-validated one-namespace virtual unit; the physical file may therefore contain multiple
 `/deps/<package>` namespaces and namespace cycles without changing `S2002` for authored files.
-Closed numeric specializations and canonical public re-exports of one Rust type constructor share
-one public Terrane nominal declaration: `Point<f32>`, `Point<u32>`, and the public `iced::Point`
-re-export all appear as `Point`, while exact native arguments and provider paths remain
-compiler-owned semantic metadata used for specialization-specific member selection and generic
-Rust lowering. Other generic shapes retain distinct internal names until equivalent correlation
-is proven. Universal projected-call panic translation is implicit and omitted from generated
+Native identity and Terrane source naming are separate. Canonical public re-exports and repeated
+observations of one exact Rust type share one readable nominal declaration. A unique closed generic
+uses its constructor name; actual collisions first gain deterministic path-derived qualifiers and
+use a short digest only if those qualifiers still collide. Closed numeric specializations of one
+Rust type constructor likewise share one public declaration: `Point<f32>`, `Point<u32>`, and the
+public `iced::Point` re-export all appear as `Point`, while exact native arguments and provider
+paths remain compiler-owned semantic metadata used for specialization-specific member selection
+and generic Rust lowering. Other generic shapes retain distinct internal identities until
+equivalent correlation is proven. Universal projected-call panic translation is implicit and
+omitted from generated
 declarations; projected Rust `Result` errors retain an explicit `throws dependency-error`
 contract. Admitted nominal classes contain the union of members whose rendered declaration is
 syntax-valid Terrane source, independent of current imports. Projection parses each

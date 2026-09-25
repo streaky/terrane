@@ -2301,24 +2301,87 @@ fn collect_source_foreign(
 }
 
 fn foreign_aliases(foreign: &BTreeMap<String, String>) -> BTreeMap<String, String> {
-    let counts = foreign.values().fold(BTreeMap::new(), |mut counts, name| {
-        *counts.entry(name.as_str()).or_insert(0_usize) += 1;
-        counts
-    });
-    foreign
+    let preferred = foreign
         .iter()
         .map(|(rust_path, name)| {
-            let duplicate = counts[name.as_str()] != 1;
-            let name = name.replace('_', "-");
-            let alias = if duplicate {
+            (
+                rust_path.as_str(),
+                preferred_foreign_name(rust_path, name).replace('_', "-"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let counts = preferred
+        .iter()
+        .fold(BTreeMap::new(), |mut counts, (_, name)| {
+            *counts.entry(name.clone()).or_insert(0_usize) += 1;
+            counts
+        });
+    let qualified = preferred
+        .iter()
+        .map(|(rust_path, name)| {
+            (counts[name] != 1)
+                .then(|| readable_generic_foreign_name(rust_path, name))
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    let qualified_counts = qualified
+        .iter()
+        .flatten()
+        .fold(BTreeMap::new(), |mut counts, name| {
+            *counts.entry(name.clone()).or_insert(0_usize) += 1;
+            counts
+        });
+    preferred
+        .into_iter()
+        .zip(qualified)
+        .map(|((rust_path, name), qualified)| {
+            let alias = if counts[&name] == 1 {
+                name
+            } else if let Some(qualified) =
+                qualified.filter(|candidate| qualified_counts[candidate] == 1)
+            {
+                qualified
+            } else {
                 let digest = format!("{:x}", Sha256::digest(rust_path.as_bytes()));
                 format!("{name}-{}", &digest[..12])
-            } else {
-                name
             };
-            (rust_path.clone(), alias)
+            (rust_path.to_owned(), alias)
         })
         .collect()
+}
+
+fn readable_generic_foreign_name(rust_path: &str, name: &str) -> Option<String> {
+    let (_, arguments) = rust_path.split_once('<')?;
+    let arguments = arguments.strip_suffix('>')?;
+    let mut readable = String::with_capacity(name.len() + 4 + arguments.len());
+    readable.push_str(name);
+    readable.push_str("-of-");
+    let mut separator = false;
+    for character in arguments.chars() {
+        if character.is_ascii_alphanumeric() {
+            if separator && !readable.ends_with('-') {
+                readable.push('-');
+            }
+            separator = false;
+            readable.push(character);
+        } else {
+            separator = true;
+        }
+    }
+    (!readable.ends_with("-of-")).then_some(readable)
+}
+
+fn preferred_foreign_name(rust_path: &str, projected_name: &str) -> String {
+    let constructor = rust_path
+        .split_once('<')
+        .map_or(rust_path, |(constructor, _)| constructor);
+    let short = constructor.rsplit("::").next().unwrap_or(constructor);
+    let generated = instantiated_type_name(short, rust_path);
+    if generated == projected_name {
+        short.to_owned()
+    } else {
+        projected_name.to_owned()
+    }
 }
 
 fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap<String, String>) {
@@ -10607,13 +10670,13 @@ mod tests {
         ReexportProvider, ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
         collect_source_foreign, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        external_reexport_rustdocs, generated_projection_units, has_type_parameters,
-        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
-        persist_dependency_lock, project_type, projectable_interface_bound,
-        projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
-        receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
-        rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
-        selected_target, validate_projection_artifact,
+        external_reexport_rustdocs, foreign_aliases, generated_projection_units,
+        has_type_parameters, instantiated_type_name, mark_cache_record_used,
+        namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
+        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
+        prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
+        resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
+        seed_dependency_lock, selected_target, validate_projection_artifact,
     };
 
     #[test]
@@ -10809,6 +10872,29 @@ mod tests {
             foreign.get("iced::Point").map(String::as_str),
             Some("Point")
         );
+    }
+
+    #[test]
+    fn generic_foreign_name_is_disambiguated_only_on_collision() {
+        let arc_custom = "std::sync::Arc<iced::theme::Custom>";
+        let arc_name = instantiated_type_name("Arc", arc_custom);
+        let aliases = foreign_aliases(&BTreeMap::from([(arc_custom.to_owned(), arc_name)]));
+
+        assert_eq!(aliases.get(arc_custom).map(String::as_str), Some("Arc"));
+
+        let arc_other = "std::sync::Arc<witness::Other>";
+        let aliases = foreign_aliases(&BTreeMap::from([
+            (
+                arc_custom.to_owned(),
+                instantiated_type_name("Arc", arc_custom),
+            ),
+            (
+                arc_other.to_owned(),
+                instantiated_type_name("Arc", arc_other),
+            ),
+        ]));
+        assert_eq!(aliases[arc_custom], "Arc-of-iced-theme-Custom");
+        assert_eq!(aliases[arc_other], "Arc-of-witness-Other");
     }
 
     #[test]

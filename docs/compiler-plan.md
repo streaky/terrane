@@ -340,13 +340,16 @@ next work units before committing to a new core representation.
   and transitive requirement. Deterministic `Generated source unit` markers split the physical
   artifact into independently validated units even when projected namespaces are cyclic. Authored
   files retain `S2002`; this is a generated-container rule rather than a
-  general multi-namespace language change. Closed numeric specializations and canonical public
-  re-exports of one Rust type constructor share one public Terrane nominal declaration:
-  `Point<f32>`, `Point<u32>`, and `iced::Point` appear as `Point`, while exact native arguments
-  and provider paths remain compiler-owned semantic metadata used for member selection and generic
-  Rust lowering. Universal panic translation is implicit and omitted from generated declarations;
-  projected `Result` errors retain `throws dependency-error`. Other generic shapes retain distinct
-  internal names until
+  general multi-namespace language change. Native identity and Terrane source naming are separate:
+  canonical public re-exports and repeated observations of one exact Rust type share one readable
+  Terrane nominal declaration. A unique closed generic therefore uses its constructor name, while
+  actual collisions first gain deterministic path-derived qualifiers and use a short digest only
+  when those qualifiers still collide. Closed numeric specializations of one Rust type constructor
+  likewise share one public declaration: `Point<f32>`, `Point<u32>`, and `iced::Point` appear as
+  `Point`, while exact native arguments and provider paths remain compiler-owned semantic metadata
+  used for member selection and generic Rust lowering. Universal panic translation is implicit and
+  omitted from generated declarations; projected `Result` errors retain
+  `throws dependency-error`. Other generic shapes retain distinct internal identities until
   equivalent correlation is proven. Admitted nominal classes contain the union of members whose
   rendered declarations are syntax-valid Terrane source, independently of current imports.
   Projection parses each candidate declaration before admitting it to the generated unit; admitted
