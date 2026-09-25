@@ -1220,6 +1220,10 @@
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.add_crls"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder.add_root_certificate"
         ],
         [
@@ -1397,6 +1401,14 @@
         [
           "/deps/reqwest",
           "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.unix_socket"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.use_preconfigured_tls"
         ],
         [
           "/deps/reqwest",
@@ -1860,6 +1872,10 @@
         ],
         [
           "/deps/reqwest",
+          "Url.socket_addrs"
+        ],
+        [
+          "/deps/reqwest",
           "Url.to_file_path"
         ],
         [
@@ -1949,6 +1965,10 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_crls"
         ],
         [
           "/deps/reqwest/blocking",
@@ -2125,6 +2145,14 @@
         [
           "/deps/reqwest/blocking",
           "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.unix_socket"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.use_preconfigured_tls"
         ],
         [
           "/deps/reqwest/blocking",
@@ -2556,6 +2584,10 @@
         ],
         [
           "/deps/reqwest/retry",
+          "Builder.classify"
+        ],
+        [
+          "/deps/reqwest/retry",
           "Builder.classify_fn"
         ],
         [
@@ -2569,6 +2601,10 @@
         [
           "/deps/reqwest/retry",
           "Builder.no_budget"
+        ],
+        [
+          "/deps/reqwest/retry",
+          "Builder::scoped"
         ],
         [
           "/deps/reqwest/retry",

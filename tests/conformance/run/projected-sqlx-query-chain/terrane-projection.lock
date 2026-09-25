@@ -138,6 +138,10 @@
         ],
         [
           "/deps/sqlx-core",
+          "Url.socket_addrs"
+        ],
+        [
+          "/deps/sqlx-core",
           "Url.to_file_path"
         ],
         [
@@ -182,6 +186,10 @@
         ],
         [
           "/deps/sqlx-core/bytes",
+          "Bytes.slice"
+        ],
+        [
+          "/deps/sqlx-core/bytes",
           "Bytes.split_off"
         ],
         [
@@ -211,6 +219,10 @@
         [
           "/deps/sqlx-core/bytes",
           "BytesMut.clear"
+        ],
+        [
+          "/deps/sqlx-core/bytes",
+          "BytesMut.extend_from_within"
         ],
         [
           "/deps/sqlx-core/bytes",
@@ -643,6 +655,10 @@
         [
           "/deps/sqlx-core/net",
           "WriteBuffer.is_full"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.read_from"
         ],
         [
           "/deps/sqlx-core/net",
@@ -1148,6 +1164,10 @@
         ],
         [
           "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.analysis_limit"
+        ],
+        [
+          "/deps/sqlx-sqlite",
           "SqliteConnectOptions.auto_vacuum"
         ],
         [
@@ -1165,6 +1185,14 @@
         [
           "/deps/sqlx-sqlite",
           "SqliteConnectOptions.create_if_missing"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.extension"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.extension_with_entrypoint"
         ],
         [
           "/deps/sqlx-sqlite",
@@ -1193,6 +1221,10 @@
         [
           "/deps/sqlx-sqlite",
           "SqliteConnectOptions.locking_mode"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.optimize_on_close"
         ],
         [
           "/deps/sqlx-sqlite",
@@ -1225,6 +1257,14 @@
         [
           "/deps/sqlx-sqlite",
           "SqliteConnectOptions.synchronous"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.thread_name"
+        ],
+        [
+          "/deps/sqlx-sqlite",
+          "SqliteConnectOptions.vfs"
         ],
         [
           "/deps/sqlx-sqlite",

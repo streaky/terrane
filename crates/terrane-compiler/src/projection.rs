@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "106";
+const PROJECTION_SCHEMA: &str = "109";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -8837,8 +8837,7 @@ fn project_function_inner(
         let (projected_type, impl_trait_parameter) = if let Some(bounds) = impl_trait_bounds(ty) {
             if let Some(projected) = structural_impl_trait_input(bounds, paths) {
                 (projected, Some(format!("TerraneImpl{parameter_index}")))
-            } else {
-                let projectable = projectable_interface_bound(bounds, index, paths)?;
+            } else if let Ok(projectable) = projectable_interface_bound(bounds, index, paths) {
                 let Some(Item {
                     inner: ItemEnum::Trait(declaration),
                     ..
@@ -8866,6 +8865,9 @@ fn project_function_inner(
                     },
                     Some(format!("TerraneImpl{parameter_index}")),
                 )
+            } else {
+                let generic = format!("TerraneImpl{parameter_index}");
+                (ProjectedType::Generic(generic.clone()), Some(generic))
             }
         } else {
             (project_type(ty, index, paths, &generic_types)?, None)
@@ -9151,7 +9153,7 @@ fn project_function_inner(
     if matches!(result, ProjectedType::BoxedInterface { .. }) {
         return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
     }
-    let generic_parameters = function
+    let mut generic_parameters = function
         .generics
         .params
         .iter()
@@ -9179,6 +9181,17 @@ fn project_function_inner(
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
+    generic_parameters.extend(parameters.iter().filter_map(|parameter| {
+        let ProjectedType::Generic(name) = &parameter.ty else {
+            return None;
+        };
+        name.starts_with("TerraneImpl")
+            .then(|| ProjectedGenericParameter {
+                name: name.clone(),
+                input_selected: true,
+                rust_bounds: parameter.generic_bounds.clone(),
+            })
+    }));
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,

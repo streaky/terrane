@@ -24,6 +24,10 @@
         ],
         [
           "/deps/bytes",
+          "Bytes.slice"
+        ],
+        [
+          "/deps/bytes",
           "Bytes.split_off"
         ],
         [

@@ -373,6 +373,13 @@ next work units before committing to a new core representation.
   values and reconstructs the exact temporary native view around shared-borrowed or consuming
   calls. Private, stripped, tuple, non-exhaustive, mutable-borrowed, and borrowed-result shapes
   remain opaque or unavailable rather than gaining inferred ownership.
+  Representable non-callback `impl Trait` inputs remain caller-selected synthetic generics with
+  their complete canonical Rust bounds. Call analysis infers an exact Rust witness from the written
+  Terrane argument, substitutes related generics, and batch-proves the full bound conjunction
+  through the existing projection oracle. Successful calls lower directly to the native operation;
+  failed or unknown proof is `T0119`. This admits Iced `Border::rounded`, `Border::color`,
+  `Border::width`, and the analogous `Radius` methods without selecting one `Into<T>` implementation
+  during projection or adding Iced-specific compiler behavior.
   Every native declaration referenced by a required partial contract is marked required recursively
   by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
