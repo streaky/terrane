@@ -353,7 +353,7 @@ next work units before committing to a new core representation.
   equivalent correlation is proven. Admitted nominal classes contain the union of methods,
   associated constants, and enum constructors whose rendered declarations are syntax-valid
   Terrane source, independently of current imports. Associated constants render as
-  `static constant` and are selected with `Type::CONSTANT`. Rustdoc determines visibility and
+  `constant` and are selected with `Type::CONSTANT`. Rustdoc determines visibility and
   type; missing value text is recovered from the Cargo-resolved source file through a
   per-projection parsed-file cache. Exactly translatable literal, tuple, array, and arithmetic
   expressions become Terrane initializers. Other constants remain compiler-backed and lower

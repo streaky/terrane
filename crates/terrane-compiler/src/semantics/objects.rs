@@ -326,7 +326,7 @@ pub(super) fn analyze_descriptor_contracts(
                 let field_name = node_text(&unit.source, field_name).to_owned();
                 let is_static = field.children.iter().any(|child| {
                     child.kind == SyntaxKind::DeclarationQualifier
-                        && node_text(&unit.source, child) == "static"
+                        && matches!(node_text(&unit.source, child), "static" | "constant")
                 });
                 let metadata = field_metadata(
                     unit,
@@ -1402,8 +1402,7 @@ pub(super) fn validate_class_field_initializers(
                 }
                 continue;
             }
-            if field.is_static
-                && super::bindings::declaration_is_constant(package, field.span)
+            if super::bindings::declaration_is_constant(package, field.span)
                 && package
                     .projection
                     .constant_for_native(

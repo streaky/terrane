@@ -393,12 +393,10 @@ impl Parser<'_> {
             if qualifier == "static" && self.block_depth != self.class_body_depth {
                 self.error_here("S1029", "`static` bindings are only valid in class bodies");
             }
-            if qualifiers.contains("static") && qualifiers.contains("global") {
-                self.error_here("S1029", "`static` cannot be combined with `global`");
-            } else if qualifiers.contains("global") && qualifiers.contains("constant") {
+            if qualifiers.len() > 1 {
                 self.error_here(
                     "S1029",
-                    "a binding may have only one of `global` or `constant`",
+                    "a binding may have only one of `global`, `constant`, or `static`",
                 );
             }
             children.push(self.leaf(SyntaxKind::DeclarationQualifier));

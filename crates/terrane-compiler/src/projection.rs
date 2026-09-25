@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "90";
+const PROJECTION_SCHEMA: &str = "91";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -2568,7 +2568,7 @@ fn render_projected_constant(
 ) {
     write!(
         output,
-        "    static constant {} {}",
+        "    constant {} {}",
         constant.name,
         projected_type_name(&constant.ty, aliases)
     )
