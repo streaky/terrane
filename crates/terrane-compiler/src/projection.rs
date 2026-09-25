@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "91";
+const PROJECTION_SCHEMA: &str = "93";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -8075,7 +8075,11 @@ fn project_methods(
                             method,
                         ));
                     }
-                    Err(reason) => declined.push((name.to_owned(), reason)),
+                    Err(reason) => {
+                        if !is_internal_rust_protocol_method(&trait_path, name) {
+                            declined.push((name.to_owned(), reason));
+                        }
+                    }
                 }
                 continue;
             }
@@ -8121,6 +8125,11 @@ fn project_methods(
     methods.sort_by(|left, right| left.name.cmp(&right.name));
     constants.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, trait_methods, constants, declined)
+}
+fn is_internal_rust_protocol_method(trait_path: &str, method: &str) -> bool {
+    (method == "fmt"
+        && (trait_path.ends_with("::fmt::Debug") || trait_path.ends_with("::fmt::Display")))
+        || (method == "hash" && trait_path.ends_with("::hash::Hash"))
 }
 fn project_chain_owner(
     dependency: &RustDependency,
@@ -8416,7 +8425,8 @@ fn project_function_inner(
         }
         if type_contains_lifetime_argument(ty) {
             return Err(
-                "lifetime-bearing foreign type cannot cross a projected boundary".to_owned(),
+                "input contains a lifetime-bearing foreign value with no non-escaping Terrane call representation"
+                    .to_owned(),
             );
         }
         let (projected_type, impl_trait_parameter) = if let Some(bounds) = impl_trait_bounds(ty) {
@@ -8642,7 +8652,10 @@ fn project_function_inner(
             .as_ref()
             .is_some_and(type_contains_lifetime_argument)
     {
-        return Err("lifetime-bearing foreign type cannot cross a projected boundary".to_owned());
+        return Err(
+            "result contains a lifetime-bearing foreign value whose ownership cannot cross the projected boundary"
+                .to_owned(),
+        );
     }
     let mut error = None;
     let mut error_optional_depth = 0;
@@ -10930,13 +10943,27 @@ mod tests {
         collect_source_foreign, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
         external_reexport_rustdocs, foreign_aliases, generated_projection_units,
-        has_type_parameters, instantiated_type_name, mark_cache_record_used,
-        namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
-        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
-        prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
-        resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
-        seed_dependency_lock, selected_target, validate_projection_artifact,
+        has_type_parameters, instantiated_type_name, is_internal_rust_protocol_method,
+        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+        persist_dependency_lock, project_type, projectable_interface_bound,
+        projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
+        receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
+        rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
+        selected_target, validate_projection_artifact,
     };
+    #[test]
+    fn rust_protocol_plumbing_is_not_reported_as_a_callable_gap() {
+        assert!(is_internal_rust_protocol_method("core::fmt::Debug", "fmt"));
+        assert!(is_internal_rust_protocol_method(
+            "core::fmt::Display",
+            "fmt"
+        ));
+        assert!(is_internal_rust_protocol_method("core::hash::Hash", "hash"));
+        assert!(!is_internal_rust_protocol_method(
+            "core::convert::From",
+            "from"
+        ));
+    }
 
     #[test]
     fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
