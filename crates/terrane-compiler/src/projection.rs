@@ -1208,17 +1208,6 @@ impl Projection {
         render_required_projected_declarations(&mut output, self, &unavailable);
         output.push_str(
             "#\n# -----------------------------------------------------------------------------\n\
-             # Unused unavailable projected declarations\n",
-        );
-        if unused.is_empty() {
-            output.push_str("# None\n");
-        } else {
-            for unavailable in unused {
-                render_unavailable_projection(&mut output, unavailable);
-            }
-        }
-        output.push_str(
-            "#\n# -----------------------------------------------------------------------------\n\
              # Projected Terrane declarations\n",
         );
         if let Some(error) = source_rendering_gap {
@@ -1232,6 +1221,18 @@ impl Projection {
                 "{GENERATED_SOURCE_UNIT_MARKER}{namespace}\n{source}"
             )
             .expect("writing to a string cannot fail");
+        }
+
+        output.push_str(
+            "#\n# -----------------------------------------------------------------------------\n\
+             # Unused unavailable projected declarations\n",
+        );
+        if unused.is_empty() {
+            output.push_str("# None\n");
+        } else {
+            for unavailable in unused {
+                render_unavailable_projection(&mut output, unavailable);
+            }
         }
 
         let ambiguous = counts
@@ -10922,9 +10923,9 @@ mod tests {
         let projected_heading = document.find("# Projected Terrane declarations").unwrap();
         assert!(required_heading < callback_gap);
         assert!(callback_gap < required_gap);
-        assert!(required_gap < unused_heading);
+        assert!(required_gap < projected_heading);
+        assert!(projected_heading < unused_heading);
         assert!(unused_heading < unused_gap);
-        assert!(unused_gap < projected_heading);
         assert!(document.contains(
             "# Function shape: fn required_gap(callback: impl witness::Callback)\n\
              # Generic constraint: State: 'static\n\

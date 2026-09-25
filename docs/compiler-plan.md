@@ -334,10 +334,10 @@ next work units before committing to a new core representation.
   The maintained-Rust GUI remains explicitly context-only rather than being counted as direct
   admission evidence.
 - `terrane-projection.generated.trn` materializes the otherwise ephemeral projection beside each
-  package manifest. Report comments retain every unavailable native declaration, exact decline,
-  demand site, partial function/callback contract, and transitive requirement. The projected
-  section is now active compiler-owned Terrane: deterministic `Generated source unit` markers split
-  the one physical artifact into separately syntax-validated one-namespace virtual units, including
+  package manifest. It orders currently required unavailable declarations and the required-admitted
+  index first, active projected Terrane source second, and unreachable unavailable declarations
+  last. Report comments retain every exact decline, demand site, partial function/callback contract,
+  and transitive requirement. Deterministic `Generated source unit` markers split
   cyclic namespaces. Authored files retain `S2002`; this is a generated-container rule rather than a
   general multi-namespace language change. Admitted nominal types are active declarations.
   Recoverable demanded structs, enums, aliases, and traits additionally receive active class or

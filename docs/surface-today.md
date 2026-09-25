@@ -1206,10 +1206,10 @@ the locked transitive edge to retain active features. That owner remains inacces
 remain explicit declines; direct declaration is the explicit unification mechanism.
 
 Package analysis projects the complete discovered dependency surface independently of current
-imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. Report
-comments list demanded unavailable declarations, a required-admitted index, and unreachable
-unavailable declarations with exact paths, declines, and demand locations. Its projected section is
-active compiler-owned Terrane. Each `Generated source unit` marker introduces a separately
+imports and refreshes the ignored `terrane-projection.generated.trn` beside `package.toml`. It puts
+currently required unavailable declarations and the required-admitted index first, active projected
+Terrane source second, and unreachable unavailable declarations last. Report comments retain exact
+paths, declines, and demand locations. Each `Generated source unit` marker introduces a separately
 syntax-validated one-namespace virtual unit; the physical file may therefore contain multiple
 `/deps/<package>` namespaces and namespace cycles without changing `S2002` for authored files.
 Admitted nominal types are active declarations. A demanded unavailable struct, enum, alias, or trait

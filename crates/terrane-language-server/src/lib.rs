@@ -149,7 +149,9 @@ impl Backend {
         let diagnostics = analysis
             .diagnostics
             .iter()
-            .filter(|diagnostic| !(generated_projection && diagnostic.code == "S2002"))
+            .filter(|diagnostic| {
+                !(generated_projection && matches!(diagnostic.code.as_str(), "S0005" | "S2002"))
+            })
             .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
             .collect();
         let mut documents = self.documents.write().await;
