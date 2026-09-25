@@ -446,10 +446,9 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 3] = [
+    pub static DESCRIPTORS: [&str; 2] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
-        "/deps/pdf-oxide::Error",
     ];
 }
 mod __terrane_trace {
@@ -463,19 +462,11 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 6] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:9:20-9:82) */
-        { Site { function: 0, file: 0, line: 9, column: 20, end_line: 9, end_column: 82 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:10:18-10:41) */
-        { Site { function: 0, file: 0, line: 10, column: 18, end_line: 10, end_column: 41 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:11:12-11:19) */
-        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 19 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:30-11:37) */
-        { Site { function: 0, file: 0, line: 11, column: 30, end_line: 11, end_column: 37 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:11:48-11:55) */
-        { Site { function: 0, file: 0, line: 11, column: 48, end_line: 11, end_column: 55 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:11:66-11:73) */
-        { Site { function: 0, file: 0, line: 11, column: 66, end_line: 11, end_column: 73 } },
+    pub static SITES: [Site; 2] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:8:13-8:20) */
+        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 20 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:9:13-9:20) */
+        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 20 } },
     ];
     #[cold]
     #[inline(never)]
@@ -492,106 +483,46 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let mut document: Pdf = __terrane_raised_completion!(
-                terrane_static_trn_506466_from_html(String::from("<h1>Terrane PDF</h1><p>direct projection</p>")),
-                0 /* terrane-site: src/main.trn:9:20-9:82 */
-            );
-            let data: Vec<u8> = __terrane_raised_completion!(
-                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | document
-                .save_to_bytes())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
-                Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
-                Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-                "pdf_oxide", "pdf_oxide::api::Pdf::save_to_bytes")) },
-                1 /* terrane-site: src/main.trn:10:18-10:41 */
-            );
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&(__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
-                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                2 /* terrane-site: src/main.trn:11:12-11:19 */)),
-                2 /* terrane-site: src/main.trn:11:12-11:19 */) == 37
-                &&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
-                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-                3 /* terrane-site: src/main.trn:11:30-11:37 */)),
-                3 /* terrane-site: src/main.trn:11:30-11:37 */) == 80
-                &&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
-                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-                4 /* terrane-site: src/main.trn:11:48-11:55 */)),
-                4 /* terrane-site: src/main.trn:11:48-11:55 */) == 68
-                &&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
-                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-                5 /* terrane-site: src/main.trn:11:66-11:73 */)),
-                5 /* terrane-site: src/main.trn:11:66-11:73 */) == 70))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind
-                        == TerraneErrorKind::Custom(DescriptorId(2))
-                {
-                    __terrane_handled_0 = true;
-                    let failure = __terrane_error_0.clone();
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.message()
-                        .to_owned())
-                    );
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(launch(),
+        0 /* terrane-site: src/main.trn:8:13-8:20 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(nested(),
+        1 /* terrane-site: src/main.trn:9:13-9:20 */))
+    );
 }
-// Source: <terrane>/projected/deps/pdf-oxide.trn
-// Namespace: deps/pdf-oxide
-// Source: <terrane>/projected/deps/pdf-oxide/api.trn
-// Namespace: deps/pdf-oxide/api
-pub use pdf_oxide::api::Pdf;
-pub fn terrane_static_trn_506466_from_html(
-    content: String,
-) -> Result<Pdf, crate::TerraneForeignError> {
-    let content = content;
+// Source: <terrane>/projected/deps/terrane-namespace-value-witness.trn
+// Namespace: deps/terrane-namespace-value-witness
+pub fn launch() -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| pdf_oxide::api::Pdf::from_html(&content)),
+        std::panic::AssertUnwindSafe(|| terrane_namespace_value_witness::launch()),
     ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::DescriptorId(2),
-                        error.to_string(),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "pdf-oxide",
-                    "pdf_oxide::api::Pdf",
+                    "terrane-namespace-value-witness",
+                    "terrane_namespace_value_witness::launch",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/terrane-namespace-value-witness/launch.trn
+// Namespace: deps/terrane-namespace-value-witness/launch
+pub fn nested() -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_namespace_value_witness::launch::nested()),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-namespace-value-witness",
+                    "terrane_namespace_value_witness::launch::nested",
                 ),
             )
         }

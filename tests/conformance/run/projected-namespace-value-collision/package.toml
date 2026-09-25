@@ -1,0 +1,7 @@
+package = "projected-namespace-value-collision"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-namespace-value-witness]
+version = "=0.1.0"

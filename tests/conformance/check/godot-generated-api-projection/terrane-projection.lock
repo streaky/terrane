@@ -109072,10 +109072,6 @@
         ],
         [
           "/deps/godot/meta",
-          "ClassId.to_cow_str"
-        ],
-        [
-          "/deps/godot/meta",
           "ClassId.to_gstring"
         ],
         [

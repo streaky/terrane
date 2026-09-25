@@ -3,23 +3,15 @@
     {
       "members": [
         [
-          "/deps/terrane-opaque-result-witness",
-          "Value"
+          "/deps/terrane-namespace-value-witness",
+          "launch"
         ],
         [
-          "/deps/terrane-opaque-result-witness",
-          "Wrapper-7992103338436960346c15af2633ea31c625395f0ae6d01bee692695ed9a40da"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "Wrapper-7992103338436960346c15af2633ea31c625395f0ae6d01bee692695ed9a40da.value"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "make"
+          "/deps/terrane-namespace-value-witness/launch",
+          "nested"
         ]
       ],
-      "name": "terrane-opaque-result-witness",
+      "name": "terrane-namespace-value-witness",
       "version": "0.1.0"
     }
   ],

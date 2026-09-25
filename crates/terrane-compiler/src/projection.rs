@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "116";
+const PROJECTION_SCHEMA: &str = "117";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -1508,7 +1508,7 @@ impl Projection {
         name: &str,
     ) -> Option<(String, String)> {
         let item = self.item(namespace, name)?;
-        let owner_path = match &item.kind {
+        let (owner_path, owner_name) = match &item.kind {
             ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => {
                 return Some((item.namespace.clone(), item.name.clone()));
             }
@@ -1516,14 +1516,16 @@ impl Projection {
                 ProjectedType::Foreign {
                     rust_path,
                     base_rust_path,
+                    name,
                     ..
-                } => {
+                } => (
                     if base_rust_path.is_empty() {
                         rust_path
                     } else {
                         base_rust_path
-                    }
-                }
+                    },
+                    name,
+                ),
                 _ => return None,
             },
             ProjectedKind::Interface(_) => return None,
@@ -1531,7 +1533,10 @@ impl Projection {
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|candidate| projected_owner_path_matches(&candidate.rust_path, owner_path))
+            .find(|candidate| {
+                candidate.name == *owner_name
+                    && projected_owner_path_matches(&candidate.rust_path, owner_path)
+            })
             .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
     }
 
@@ -7226,6 +7231,9 @@ fn project_rustdoc(
             .unwrap_or_else(|| path.join("::"));
         let mut rust_path = extern_rust_path(dependency, &public_rust_path);
         let docs = item.docs.clone();
+        if matches!(item.inner, ItemEnum::Module(_) | ItemEnum::Use(_)) {
+            continue;
+        }
         let projected = match &item.inner {
             ItemEnum::Function(function) => {
                 project_function(function, index, paths, Some(&name), true).and_then(
@@ -8665,6 +8673,43 @@ fn project_chain_owner(
     })
 }
 
+fn expand_output_alias(
+    mut output: Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    mut generics: BTreeMap<String, ProjectedType>,
+) -> Result<(Type, BTreeMap<String, ProjectedType>), String> {
+    let mut visited = BTreeSet::new();
+    loop {
+        let Type::ResolvedPath(path) = &output else {
+            return Ok((output, generics));
+        };
+        if !visited.insert(path.id) {
+            return Err("recursive Rust type alias in projected output".to_owned());
+        }
+        let Some(Item {
+            inner: ItemEnum::TypeAlias(alias),
+            ..
+        }) = index.get(&path.id)
+        else {
+            return Ok((output, generics));
+        };
+        for (parameter, argument) in alias
+            .generics
+            .params
+            .iter()
+            .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+            .zip(type_arguments(&output))
+        {
+            generics.insert(
+                parameter.name.clone(),
+                project_type(argument, index, paths, &generics)?,
+            );
+        }
+        output = alias.type_.clone();
+    }
+}
+
 fn project_function_with_generics(
     function: &Function,
     index: &HashMap<Id, Item>,
@@ -9109,6 +9154,14 @@ fn project_function_inner(
             },
             None => (None, false, false, generic_types.clone()),
         };
+    let (effective_output, output_generic_types) = match effective_output {
+        Some(output) => {
+            let (output, generics) =
+                expand_output_alias(output, index, paths, output_generic_types)?;
+            (Some(output), generics)
+        }
+        None => (None, output_generic_types),
+    };
     if (function.header.is_async || returns_future)
         && effective_output
             .as_ref()
@@ -10728,6 +10781,12 @@ fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[Projecte
             .all(ProjectedType::is_concrete_terrane_numeric)
     {
         short.to_owned()
+    } else if arguments.iter().any(ProjectedType::contains_opaque) {
+        let identity = format!(
+            "{rust_path}|{}",
+            serde_json::to_string(arguments).expect("projected type arguments always serialize")
+        );
+        instantiated_type_name(short, &identity)
     } else {
         instantiated_type_name(short, rust_path)
     }

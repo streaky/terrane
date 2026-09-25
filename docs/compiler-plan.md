@@ -380,6 +380,12 @@ next work units before committing to a new core representation.
   failed or unknown proof is `T0119`. This admits Iced `Border::rounded`, `Border::color`,
   `Border::width`, and the analogous `Radius` methods without selecting one `Into<T>` implementation
   during projection or adding Iced-specific compiler behavior.
+  Rust modules are structural namespace segments rather than projected value declarations or
+  unavailable API members, so a module and value may share one public path segment. Value imports
+  select the value declaration while nested `/deps` traversal retains the module. Opaque chain-owner
+  identity includes retained witness bounds, and generated import closure follows the producer's
+  exact projected owner rather than the first owner sharing a native base path. Output aliases are
+  expanded before `Option`/`Result` classification, including `Result<(), E>` terminal methods.
   Producer-selected return-position `impl Trait` results retain an owned opaque witness recursively
   inside their named outer type, including every canonical trait bound and associated-type equality.
   Such values are expression-local chain state: a terminal member must consume or close the chain in
