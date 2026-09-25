@@ -4,4 +4,4 @@ package = "projected-callable-blanket-recipe"
 app = "src"
 
 [rust-dependencies.terrane-callable-recipe-witness]
-version = "=0.1.0"
+version = "=0.1.4"

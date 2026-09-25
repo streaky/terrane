@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-callable-recipe-witness import invoke, mutate, transform
+from /deps/terrane-callable-recipe-witness import accept, blank, install, invoke, mutate, transform
 from /core/output import print
 
 function produce int;
@@ -9,7 +9,12 @@ function produce int;
 function length int; value string
     return value.length
 
+async function produce-async int;
+    return 42
+
 function main;
     print; (invoke; produce)
     print; (transform; 'one', length)
     print; (mutate; 'two', length)
+    print; (install; produce-async)
+    print; (accept; (blank;))

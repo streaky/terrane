@@ -4,6 +4,22 @@
       "members": [
         [
           "/deps/terrane-callable-recipe-witness",
+          "MethodRouter"
+        ],
+        [
+          "/deps/terrane-callable-recipe-witness",
+          "accept"
+        ],
+        [
+          "/deps/terrane-callable-recipe-witness",
+          "blank"
+        ],
+        [
+          "/deps/terrane-callable-recipe-witness",
+          "install"
+        ],
+        [
+          "/deps/terrane-callable-recipe-witness",
           "invoke"
         ],
         [
@@ -16,11 +32,30 @@
         ]
       ],
       "name": "terrane-callable-recipe-witness",
-      "version": "0.1.0"
+      "version": "0.1.4"
     }
   ],
   "format": 3,
-  "removed": [],
+  "removed": [
+    {
+      "current_version": "0.1.4",
+      "name": "accept_defaulted_router",
+      "namespace": "/deps/terrane-callable-recipe-witness",
+      "previous_version": "0.1.2"
+    },
+    {
+      "current_version": "0.1.2",
+      "name": "install_async_handler",
+      "namespace": "/deps/terrane-callable-recipe-witness",
+      "previous_version": "0.1.1"
+    },
+    {
+      "current_version": "0.1.4",
+      "name": "new_method_router",
+      "namespace": "/deps/terrane-callable-recipe-witness",
+      "previous_version": "0.1.2"
+    }
+  ],
   "resolution": {
     "events": [
       {

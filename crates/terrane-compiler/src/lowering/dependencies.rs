@@ -1250,7 +1250,7 @@ pub(super) fn projected_static_shim_name(owner: &str, method: &str) -> String {
         rust_name(method)
     )
 }
-fn rust_value_path(path: &str) -> String {
+pub(super) fn rust_value_path(path: &str) -> String {
     if path.starts_with('<') {
         return path.to_owned();
     }
@@ -1262,7 +1262,7 @@ fn rust_value_path(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::write_foreign_import;
+    use super::{rust_value_path, write_foreign_import};
 
     #[test]
     fn instantiated_foreign_import_is_a_type_alias() {
@@ -1296,6 +1296,16 @@ mod tests {
         assert_eq!(
             output,
             "pub use std::io::Error;\npub use std::net::SocketAddr;\n"
+        );
+    }
+
+    #[test]
+    fn instantiated_foreign_value_paths_use_turbofish_syntax() {
+        assert_eq!(
+            rust_value_path(
+                "tower_http::services::ServeDir<tower_http::services::fs::DefaultServeDirFallback>"
+            ),
+            "tower_http::services::ServeDir::<tower_http::services::fs::DefaultServeDirFallback>"
         );
     }
 }

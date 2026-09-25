@@ -55,3 +55,38 @@ pub fn mutate<Input, Output>(
 ) -> Output {
     mutator.mutate(input)
 }
+
+pub trait AsyncHandler<T, State> {}
+
+impl<F, Fut, Output, State> AsyncHandler<((),), State> for F
+where
+    F: FnOnce() -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Output> + Send,
+    Output: std::fmt::Display,
+{
+}
+
+pub fn install<H, T>(handler: H) -> u32
+where
+    H: AsyncHandler<T, ()>,
+{
+    let _ = handler;
+    42
+}
+
+pub struct MethodRouter<State = (), Error = std::convert::Infallible> {
+    state: std::marker::PhantomData<State>,
+    error: std::marker::PhantomData<Error>,
+}
+
+pub fn blank() -> MethodRouter<(), std::convert::Infallible> {
+    MethodRouter {
+        state: std::marker::PhantomData,
+        error: std::marker::PhantomData,
+    }
+}
+
+pub fn accept(router: MethodRouter<()>) -> u32 {
+    let _ = router;
+    42
+}

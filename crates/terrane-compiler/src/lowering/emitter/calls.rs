@@ -1703,7 +1703,11 @@ impl Emitter<'_> {
                     .item(&object.identity.namespace, &object.identity.name)
                 && let Some(projected) = self.projected_function_for_call(callee)
             {
-                format!("{}::{}", item.rust_path, rust_name(&projected.name))
+                format!(
+                    "{}::{}",
+                    crate::lowering::dependencies::rust_value_path(&item.rust_path),
+                    rust_name(&projected.name)
+                )
             } else if let Some(owner) = projected_static_owner {
                 crate::lowering::dependencies::projected_static_shim_name(owner, self.text(member))
             } else {

@@ -395,14 +395,17 @@ next work units before committing to a new core representation.
   Direct `Fn`, `FnMut`, and `FnOnce` callback inputs may retain open generic types recursively in
   callback parameters and exact results. Parameterized native adapter-trait inputs inspect blanket
   implementations whose generic `Self` has one parenthesized callable bound. Projection substitutes
-  the adapter's trait arguments, retains every implementation-local result bound, and requires one
-  unique recipe. Call analysis jointly infers callback parameters and result from the written
-  callable and ordinary arguments, then proves the complete substituted result-bound conjunction.
-  Lowering passes a fresh concrete Rust closure rather than Terrane's reusable `Arc<dyn Fn...>`
-  representation. This generically admits `Fn`, `FnMut`, and `FnOnce` adapter traits and carries
-  Iced `BootFn`, `UpdateFn`, and `ViewFn` through recipe selection. Iced's remaining boundary is a
-  Terrane source representation for the non-escaping lifetime-bearing `ViewFn` result, not adapter
-  trait selection.
+  the adapter's trait arguments, rejects recipes whose callable parameters remain open, follows a
+  generic native future to its exact `Output`, retains every implementation-local result bound, and
+  requires one unique recipe. A clone-required `FnOnce` adapter projects a reusable Terrane function
+  so independently cloned native handlers remain callable. Call analysis jointly infers callback
+  parameters and result from the written callable and ordinary arguments, then proves the complete
+  substituted result-bound conjunction. Lowering passes a fresh concrete Rust closure rather than
+  Terrane's reusable `Arc<dyn Fn...>` representation. This generically admits callable adapter
+  traits such as Axum's zero-argument `Handler`, while leaving extractor-bearing recipes open until
+  their input types have an exact Terrane representation. Omitted Rust generic defaults are expanded
+  before projected nominal identity is selected, and static calls on instantiated owners use
+  turbofish syntax.
   Every native declaration referenced by a required partial contract is marked required recursively
   by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
