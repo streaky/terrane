@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "86";
+const PROJECTION_SCHEMA: &str = "87";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -2290,6 +2290,11 @@ fn collect_source_foreign(
             }
         }
         if foreign.len() == previous_len {
+            for item in all_items {
+                if let Some(name) = foreign.get_mut(&item.rust_path) {
+                    name.clone_from(&item.name);
+                }
+            }
             return foreign;
         }
     }
@@ -2641,11 +2646,9 @@ fn render_function(
         )
         .expect("writing to a string cannot fail");
     }
-    output.push_str(if function.error.is_some() {
-        " throws dependency-error"
-    } else {
-        " throws dependency-panic"
-    });
+    if function.error.is_some() {
+        output.push_str(" throws dependency-error");
+    }
     output.push(';');
     if !function.parameters.is_empty() {
         output.push(' ');
@@ -5567,9 +5570,9 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
         }
         ProjectedType::Foreign {
             rust_path,
+            name: _,
             base_rust_path,
             arguments,
-            ..
         } => {
             for argument in arguments.iter_mut() {
                 rewrite_projected_rust_root(argument, package_root, dependency_root);
@@ -9642,7 +9645,16 @@ fn project_resolved_type(
             ordered: resolved.contains("BTree"),
         });
     }
-    let short = resolved.rsplit("::").next().unwrap_or(&resolved).to_owned();
+    let short = resolved
+        .rsplit("::")
+        .next()
+        .unwrap_or(&resolved)
+        .split_once('<')
+        .map_or_else(
+            || resolved.rsplit("::").next().unwrap_or(&resolved),
+            |(name, _)| name,
+        )
+        .to_owned();
     let arguments = arguments
         .into_iter()
         .map(|argument| project_type(argument, index, paths, generics))
@@ -10589,14 +10601,15 @@ mod tests {
         ArtifactDependency, Containment, DEPENDENCY_LOCK_FILE, DeclinedItem, InvocationMode,
         NamespaceOverlay, PartialCallbackShape, PartialProjection, PartialProjectionRecord,
         ProjectedBoundDependency, ProjectedBoundaryCapabilities, ProjectedDependency,
-        ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind, ProjectedParameter,
-        ProjectedType, Projection, ProjectionArtifact, ProjectionDemandSites, ProjectionHistory,
-        ProjectionResolution, ProjectionSource, Receiver, ReexportProvider, ResolutionOutcome,
-        apply_namespace_overlays, apply_projection_history,
-        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
-        enforce_transitive_reachability, external_reexport_rustdocs, generated_projection_units,
-        has_type_parameters, mark_cache_record_used, namespace_overlays_from_metadata,
-        parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
+        ProjectedFunction, ProjectedInterface, ProjectedItem, ProjectedKind,
+        ProjectedMemberDemands, ProjectedParameter, ProjectedType, Projection, ProjectionArtifact,
+        ProjectionDemandSites, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
+        ReexportProvider, ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
+        collect_source_foreign, decline_functions_with_missing_generic_interfaces,
+        decline_unproven_projected_interfaces, enforce_transitive_reachability,
+        external_reexport_rustdocs, generated_projection_units, has_type_parameters,
+        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+        persist_dependency_lock, project_type, projectable_interface_bound,
         projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
         receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
         rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
@@ -10771,6 +10784,31 @@ mod tests {
                 sync: false,
             },
         }
+    }
+
+    #[test]
+    fn canonical_projected_item_name_wins_over_provider_path_hash() {
+        let point = projected_foreign_type_item("/deps/iced", "Point", "iced::Point", "distance");
+        let mut rectangle =
+            projected_foreign_type_item("/deps/iced", "Rectangle", "iced::Rectangle", "center");
+        let ProjectedKind::ForeignType { methods, .. } = &mut rectangle.kind else {
+            unreachable!();
+        };
+        methods[0].result = ProjectedType::Foreign {
+            rust_path: "iced::Point".to_owned(),
+            name: "Point-provider-path-hash".to_owned(),
+            base_rust_path: "iced::Point".to_owned(),
+            arguments: Vec::new(),
+        };
+        let all_items = vec![&point, &rectangle];
+
+        let foreign =
+            collect_source_foreign(&all_items, &all_items, &ProjectedMemberDemands::new());
+
+        assert_eq!(
+            foreign.get("iced::Point").map(String::as_str),
+            Some("Point")
+        );
     }
 
     #[test]
@@ -11333,7 +11371,7 @@ mod tests {
 
         let document = projection.documented_inventory(&ProjectionDemandSites::new());
 
-        assert!(document.contains("class Widget\n    function ready throws dependency-panic;"));
+        assert!(document.contains("class Widget\n    function ready;"));
         assert!(document.contains("  # Unavailable native members retained for structure"));
         assert!(document.contains("  # blocked\n  # Native path: witness::Widget::blocked"));
         assert!(document.contains("  # Native signature: fn blocked(&self) -> &str"));
@@ -12014,9 +12052,11 @@ mod tests {
                 BTreeSet::from(["cross".to_owned()]),
             )]))
             .unwrap();
-        assert!(sources[0].1.contains(
-            "function cross throws dependency-panic; left Response-20d8feeba582, right Response-52b4adb0f322"
-        ));
+        assert!(
+            sources[0].1.contains(
+                "function cross; left Response-20d8feeba582, right Response-52b4adb0f322"
+            )
+        );
     }
 
     #[test]
