@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "81";
+const PROJECTION_SCHEMA: &str = "83";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -770,6 +770,8 @@ pub struct UnavailableProjection {
     references: BTreeSet<String>,
     partial: Option<PartialProjection>,
 }
+
+type UnavailableMemberMap<'a> = BTreeMap<(&'a str, &'a str), Vec<&'a UnavailableProjection>>;
 impl UnavailableProjection {
     fn is_required(&self) -> bool {
         !self.required_by.is_empty() || !self.required_by_contracts.is_empty()
@@ -871,7 +873,7 @@ impl Projection {
         imports: &BTreeMap<String, BTreeSet<String>>,
         demanded_members: &ProjectedMemberDemands,
     ) -> Result<Vec<(String, String)>, String> {
-        self.source_for_imports_with_members_impl(imports, demanded_members, false)
+        self.source_for_imports_with_members_impl(imports, demanded_members, false, None)
     }
 
     fn source_for_imports_with_members_impl(
@@ -879,6 +881,7 @@ impl Projection {
         imports: &BTreeMap<String, BTreeSet<String>>,
         demanded_members: &ProjectedMemberDemands,
         allow_namespace_cycles: bool,
+        unavailable_members: Option<&UnavailableMemberMap<'_>>,
     ) -> Result<Vec<(String, String)>, String> {
         let all_items = self
             .dependencies
@@ -944,14 +947,8 @@ impl Projection {
                     .unwrap_or_default();
                 (!cross_namespace, dependency_count, aliases.get(*rust_path))
             });
-            let source_dependencies = ordered_foreign
-                .iter()
-                .filter_map(|(rust_path, name)| {
-                    projected_item_for_foreign(&all_items, rust_path, name)
-                        .filter(|item| item.namespace != *namespace)
-                        .map(|item| item.namespace.clone())
-                })
-                .collect::<BTreeSet<_>>();
+            let source_dependencies =
+                projected_source_dependencies(&ordered_foreign, &all_items, namespace);
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
             let mut rendered_foreign = BTreeSet::new();
             for (rust_path, _) in ordered_foreign {
@@ -970,6 +967,7 @@ impl Projection {
                     projected_item,
                     &aliases,
                     demanded_members,
+                    unavailable_members,
                 );
             }
             for item in selected {
@@ -1006,8 +1004,12 @@ impl Projection {
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
     ) -> Result<Vec<(String, String)>, String> {
-        let demanded_members = self
-            .dependencies
+        let demanded_members = self.all_projected_member_demands();
+        self.source_for_imports_with_members(imports, &demanded_members)
+    }
+
+    fn all_projected_member_demands(&self) -> ProjectedMemberDemands {
+        self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
             .filter_map(|item| match &item.kind {
@@ -1030,8 +1032,54 @@ impl Projection {
                 )),
                 _ => None,
             })
-            .collect();
-        self.source_for_imports_with_members(imports, &demanded_members)
+            .collect()
+    }
+
+    fn simple_projected_member_demands(&self) -> ProjectedMemberDemands {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter_map(|item| match &item.kind {
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                    ..
+                }
+                | ProjectedKind::Enum {
+                    methods,
+                    static_methods,
+                    ..
+                } => Some((
+                    (item.namespace.clone(), item.name.clone()),
+                    methods
+                        .iter()
+                        .chain(static_methods)
+                        .filter(|function| inventory_member_syntax_gap(function).is_none())
+                        .map(|function| function.name.clone())
+                        .collect(),
+                )),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn documented_sources(
+        &self,
+        imports: &BTreeMap<String, BTreeSet<String>>,
+        unavailable: &[UnavailableProjection],
+    ) -> (Vec<(String, String)>, Option<String>) {
+        let unavailable_members = unavailable_member_map(unavailable);
+        let demanded_members = self.simple_projected_member_demands();
+        let (mut sources, gap) = self
+            .source_for_imports_with_members_impl(
+                imports,
+                &demanded_members,
+                true,
+                Some(&unavailable_members),
+            )
+            .map_or_else(|error| (Vec::new(), Some(error)), |sources| (sources, None));
+        append_required_nominal_units(&mut sources, self, unavailable);
+        (sources, gap)
     }
 
     #[must_use]
@@ -1186,14 +1234,8 @@ impl Projection {
                 imports
             },
         );
-        let demanded_members = BTreeMap::new();
-        let (mut sources, source_rendering_gap) =
-            match self.source_for_imports_with_members_impl(&imports, &demanded_members, true) {
-                Ok(sources) => (sources, None),
-                Err(error) => (Vec::new(), Some(error)),
-            };
         let unavailable = self.unavailable_inventory(demand_sites);
-        append_required_nominal_units(&mut sources, self, &unavailable);
+        let (sources, source_rendering_gap) = self.documented_sources(&imports, &unavailable);
         let (required, unused): (Vec<_>, Vec<_>) = unavailable
             .iter()
             .partition(|unavailable| unavailable.is_required());
@@ -1764,12 +1806,31 @@ fn propagate_partial_contract_requirements(unavailable: &mut [UnavailableProject
             (target.rust_path.clone(), contracts)
         })
         .collect::<BTreeMap<_, _>>();
+
     for target in unavailable {
         target.required_by_contracts = required_by_contracts
             .get(&target.rust_path)
             .cloned()
             .unwrap_or_default();
     }
+}
+fn unavailable_member_map(unavailable: &[UnavailableProjection]) -> UnavailableMemberMap<'_> {
+    let mut members = UnavailableMemberMap::new();
+    for entry in unavailable.iter().filter(|entry| entry.member.is_some()) {
+        members
+            .entry((&entry.namespace, &entry.name))
+            .or_default()
+            .push(entry);
+    }
+    for entries in members.values_mut() {
+        entries.sort_by(|left, right| {
+            left.member
+                .cmp(&right.member)
+                .then_with(|| left.rust_path.cmp(&right.rust_path))
+                .then_with(|| left.reason.cmp(&right.reason))
+        });
+    }
+    members
 }
 
 fn append_required_nominal_units(
@@ -2018,6 +2079,21 @@ fn expanded_source_imports(
     }
 }
 
+fn projected_source_dependencies(
+    ordered_foreign: &[(&String, &String)],
+    all_items: &[&ProjectedItem],
+    namespace: &str,
+) -> BTreeSet<String> {
+    ordered_foreign
+        .iter()
+        .filter_map(|(rust_path, name)| {
+            projected_item_for_foreign(all_items, rust_path, name)
+                .filter(|item| item.namespace != namespace)
+                .map(|item| item.namespace.clone())
+        })
+        .collect()
+}
+
 fn projected_item_for_foreign<'a>(
     all_items: &'a [&ProjectedItem],
     rust_path: &str,
@@ -2234,6 +2310,7 @@ fn render_foreign_declaration(
     projected_item: Option<&ProjectedItem>,
     aliases: &BTreeMap<String, String>,
     demanded_members: &ProjectedMemberDemands,
+    unavailable_members: Option<&UnavailableMemberMap<'_>>,
 ) {
     if let Some(item) = projected_item
         && item.namespace != namespace
@@ -2281,7 +2358,110 @@ fn render_foreign_declaration(
             }
         }
     }
+    if unavailable_members.is_some()
+        && let Some(item) = projected_item.filter(|item| item.namespace == namespace)
+    {
+        render_omitted_admitted_members(output, item, demanded_members);
+    }
+    render_unavailable_members_for_item(output, namespace, projected_item, unavailable_members);
     output.push('\n');
+}
+
+fn render_unavailable_members_for_item(
+    output: &mut String,
+    namespace: &str,
+    item: Option<&ProjectedItem>,
+    unavailable_members: Option<&UnavailableMemberMap<'_>>,
+) {
+    let Some(item) = item.filter(|item| item.namespace == namespace) else {
+        return;
+    };
+    if let Some(unavailable) =
+        unavailable_members.and_then(|members| members.get(&(namespace, item.name.as_str())))
+    {
+        render_unavailable_members(output, unavailable);
+    }
+}
+
+fn inventory_member_syntax_gap(function: &ProjectedFunction) -> Option<String> {
+    let mut text = "namespace projection-inventory\n\nclass Inventory\n".to_owned();
+    render_function(&mut text, function, false, 4, &BTreeMap::new(), None);
+    let source = crate::SourceFile::new(0, PathBuf::from("terrane-projection.generated.trn"), text);
+    let lexed = match crate::lexer::lex(&source) {
+        Ok(lexed) => lexed,
+        Err(diagnostics) => {
+            return diagnostics
+                .first()
+                .map(|diagnostic| diagnostic.message.clone());
+        }
+    };
+    crate::parser::parse(&source, lexed)
+        .diagnostics
+        .first()
+        .map(|diagnostic| diagnostic.message.clone())
+}
+
+fn render_omitted_admitted_members(
+    output: &mut String,
+    item: &ProjectedItem,
+    demanded_members: &ProjectedMemberDemands,
+) {
+    let functions = match &item.kind {
+        ProjectedKind::ForeignType {
+            methods,
+            static_methods,
+            ..
+        }
+        | ProjectedKind::Enum {
+            methods,
+            static_methods,
+            ..
+        } => methods.iter().chain(static_methods),
+        _ => return,
+    };
+    let omitted = functions
+        .filter(|function| {
+            !projected_member_is_demanded(
+                &item.namespace,
+                &item.name,
+                &function.name,
+                demanded_members,
+            )
+        })
+        .collect::<Vec<_>>();
+    if omitted.is_empty() {
+        return;
+    }
+    output.push_str("  #\n  # Admitted native members without syntax-valid generated source\n");
+    for function in omitted {
+        writeln!(output, "  #\n  # {}", function.name).expect("writing to a string cannot fail");
+        writeln!(
+            output,
+            "  # Native path: {}::{}",
+            item.rust_path, function.name
+        )
+        .expect("writing to a string cannot fail");
+        let reason = inventory_member_syntax_gap(function)
+            .unwrap_or_else(|| "not selected for generated inventory source".to_owned());
+        writeln!(output, "  # Inventory omission: {reason}")
+            .expect("writing to a string cannot fail");
+    }
+}
+
+fn render_unavailable_members(output: &mut String, unavailable: &[&UnavailableProjection]) {
+    output.push_str("  #\n  # Unavailable native members retained for structure\n");
+    for entry in unavailable {
+        let member = entry.member.as_deref().unwrap_or(&entry.name);
+        writeln!(output, "  #\n  # {member}").expect("writing to a string cannot fail");
+        writeln!(output, "  # Native path: {}", entry.rust_path)
+            .expect("writing to a string cannot fail");
+        if let Some(PartialProjection::Function { signature, .. }) = &entry.partial {
+            writeln!(output, "  # Native signature: {signature}")
+                .expect("writing to a string cannot fail");
+        }
+        writeln!(output, "  # Projection gap: {}", entry.reason)
+            .expect("writing to a string cannot fail");
+    }
 }
 
 fn render_interface_method(
@@ -10465,6 +10645,58 @@ mod tests {
         }
     }
 
+    fn projected_foreign_type_item(
+        namespace: &str,
+        name: &str,
+        rust_path: &str,
+        method_name: &str,
+    ) -> ProjectedItem {
+        let ProjectedKind::Function(method) = projected_function_item(
+            namespace,
+            method_name,
+            &format!("{rust_path}::{method_name}"),
+        )
+        .kind
+        else {
+            unreachable!();
+        };
+        ProjectedItem {
+            namespace: namespace.to_owned(),
+            name: name.to_owned(),
+            rust_path: rust_path.to_owned(),
+            docs: None,
+            kind: ProjectedKind::ForeignType {
+                methods: vec![method],
+                static_methods: Vec::new(),
+                boundary: ProjectedBoundaryCapabilities::default(),
+                displayable: false,
+                cloneable: false,
+                send: false,
+                sync: false,
+            },
+        }
+    }
+
+    #[test]
+    fn inventory_member_admission_requires_syntax_valid_rendering() {
+        let ProjectedKind::Function(valid) =
+            projected_function_item("/deps/witness", "ready", "witness::ready").kind
+        else {
+            unreachable!();
+        };
+        assert_eq!(super::inventory_member_syntax_gap(&valid), None);
+
+        let ProjectedKind::Function(reserved) =
+            projected_function_item("/deps/witness", "to", "witness::to").kind
+        else {
+            unreachable!();
+        };
+        assert_eq!(
+            super::inventory_member_syntax_gap(&reserved).as_deref(),
+            Some("expected `;` before function parameters")
+        );
+    }
+
     #[test]
     fn projected_type_lookup_is_scoped_to_canonical_namespace() {
         let item = |namespace: &str, rust_path: &str| {
@@ -10962,6 +11194,54 @@ mod tests {
         ));
         let units = generated_projection_units(&document).unwrap();
         assert_eq!(units.len(), 1);
+    }
+
+    #[test]
+    fn documented_inventory_populates_admitted_members_and_comments_declines() {
+        let projection = Projection {
+            cache_identity: "members".to_owned(),
+            content_hash: "content".to_owned(),
+            dependencies: vec![ProjectedDependency {
+                name: "witness".to_owned(),
+                package: "witness".to_owned(),
+                version: "1.0.0".to_owned(),
+                items: vec![projected_foreign_type_item(
+                    "/deps/witness",
+                    "Widget",
+                    "witness::Widget",
+                    "ready",
+                )],
+                declined: vec![DeclinedItem {
+                    rust_path: "witness::Widget::blocked".to_owned(),
+                    reason: "requires an unsupported borrow".to_owned(),
+                }],
+                partial_declines: vec![PartialProjectionRecord {
+                    rust_path: "witness::Widget::blocked".to_owned(),
+                    reason: "requires an unsupported borrow".to_owned(),
+                    references: BTreeSet::new(),
+                    projection: PartialProjection::Function {
+                        signature: "fn blocked(&self) -> &str".to_owned(),
+                        generic_constraints: Vec::new(),
+                        callback_shapes: Vec::new(),
+                    },
+                }],
+            }],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::default(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        let document = projection.documented_inventory(&ProjectionDemandSites::new());
+
+        assert!(document.contains("class Widget\n    function ready throws dependency-panic;"));
+        assert!(document.contains("  # Unavailable native members retained for structure"));
+        assert!(document.contains("  # blocked\n  # Native path: witness::Widget::blocked"));
+        assert!(document.contains("  # Native signature: fn blocked(&self) -> &str"));
+        assert!(document.contains("  # Projection gap: requires an unsupported borrow"));
     }
 
     #[test]

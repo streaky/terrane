@@ -337,14 +337,22 @@ next work units before committing to a new core representation.
   package manifest. It orders currently required unavailable declarations and the required-admitted
   index first, active projected Terrane source second, and unreachable unavailable declarations
   last. Report comments retain every exact decline, demand site, partial function/callback contract,
-  and transitive requirement. Deterministic `Generated source unit` markers split
-  cyclic namespaces. Authored files retain `S2002`; this is a generated-container rule rather than a
-  general multi-namespace language change. Admitted nominal types are active declarations.
+  and transitive requirement. Deterministic `Generated source unit` markers split the physical
+  artifact into independently validated units even when projected namespaces are cyclic. Authored
+  files retain `S2002`; this is a generated-container rule rather than a
+  general multi-namespace language change. Admitted nominal classes contain every member whose
+  rendered declaration is syntax-valid Terrane source, independently of current imports. Projection
+  parses each candidate declaration before admitting it to the generated unit; admitted members
+  whose rendering is not yet syntax-valid remain inert comments with the exact parser rejection.
+  Unsupported public members remain inert comments inside the owning class with native path,
+  recoverable signature, and exact decline, while their complete records remain in the unavailable
+  section.
   Recoverable demanded structs, enums, aliases, and traits additionally receive active class or
   interface skeletons under their public `/deps/<package>` namespace. Their unexpressed native
   generics and lifetimes remain adjacent residual obligations, so these skeletons are not registered
-  for lowering and do not turn a decline into success. Every native declaration referenced by a
-  required partial contract is marked required recursively by stable Rustdoc identity: unavailable
+  for lowering and do not turn a decline into success.
+  Every native declaration referenced by a required partial contract is marked required recursively
+  by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
   dependencies appear in a required-admitted index. A demanded residual still fails at application
   source and points to the generated artifact; subsequent builds replace demand annotations.
