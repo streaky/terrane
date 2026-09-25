@@ -1,0 +1,50 @@
+{
+  "dependencies": [
+    {
+      "members": [
+        [
+          "/deps/terrane-opaque-result-witness",
+          "Value"
+        ],
+        [
+          "/deps/terrane-opaque-result-witness",
+          "Wrapper-31873daced545e90507e33410c27bbe4bd26fe4c01dc014b468e6467c0668ffc"
+        ],
+        [
+          "/deps/terrane-opaque-result-witness",
+          "Wrapper-31873daced545e90507e33410c27bbe4bd26fe4c01dc014b468e6467c0668ffc.value"
+        ],
+        [
+          "/deps/terrane-opaque-result-witness",
+          "make"
+        ]
+      ],
+      "name": "terrane-opaque-result-witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 3,
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

@@ -125,6 +125,12 @@ pub(super) fn index_dependency_import_owners(
             let projected = package
                 .projection
                 .projected_type(&object.identity.namespace, &object.identity.name);
+            if projected
+                .as_ref()
+                .is_some_and(crate::projection::ProjectedType::contains_opaque)
+            {
+                continue;
+            }
             let path = package
                 .projection
                 .foreign_rust_path(&object.identity.namespace, &object.identity.name)
@@ -173,6 +179,12 @@ pub(super) fn index_dependency_import_owners(
                 continue;
             }
             let projected = package.projection.projected_type(&unit.namespace, &name);
+            if projected
+                .as_ref()
+                .is_some_and(crate::projection::ProjectedType::contains_opaque)
+            {
+                continue;
+            }
             let generic_parameters = projected
                 .as_ref()
                 .map(projected_generic_names)

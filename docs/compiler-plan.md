@@ -380,6 +380,12 @@ next work units before committing to a new core representation.
   failed or unknown proof is `T0119`. This admits Iced `Border::rounded`, `Border::color`,
   `Border::width`, and the analogous `Radius` methods without selecting one `Into<T>` implementation
   during projection or adding Iced-specific compiler behavior.
+  Producer-selected return-position `impl Trait` results retain an owned opaque witness recursively
+  inside their named outer type, including every canonical trait bound and associated-type equality.
+  Such values are expression-local chain state: a terminal member must consume or close the chain in
+  the same expression. Lowering omits generated aliases and explicit signatures containing the
+  witness, emits the producer/member calls directly, and lets Rust infer the hidden concrete type.
+  Binding, returning, capturing, collecting, or suspending the intermediate remains unavailable.
   Direct `Fn`, `FnMut`, and `FnOnce` callback inputs may retain open generic types recursively in
   callback parameters and exact results. Call analysis binds those templates jointly from the
   written callable, ordinary arguments, and destination before validation and lowering. Conflicting

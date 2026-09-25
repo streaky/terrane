@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "111";
+const PROJECTION_SCHEMA: &str = "116";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -576,6 +576,10 @@ pub enum ProjectedType {
     None,
     Associated(String),
     Generic(String),
+    Opaque {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        bounds: Vec<String>,
+    },
     Bool,
     Int,
     FixedInt(String),
@@ -667,6 +671,7 @@ impl ProjectedType {
             | Self::Associated(name)
             | Self::FixedInt(name)
             | Self::RustInt(name) => name.clone(),
+            Self::Opaque { .. } => "_".to_owned(),
             Self::Float => "f64".to_owned(),
             Self::Float32 => "f32".to_owned(),
             Self::Char => "char".to_owned(),
@@ -720,6 +725,27 @@ impl ProjectedType {
             _ => {}
         }
     }
+    pub(crate) fn contains_opaque(&self) -> bool {
+        match self {
+            Self::Opaque { .. } => true,
+            Self::Sequence { item, .. }
+            | Self::Set { item, .. }
+            | Self::AsyncIterationStep(item)
+            | Self::Optional(item) => item.contains_opaque(),
+            Self::Mapping { key, value, .. } => key.contains_opaque() || value.contains_opaque(),
+            Self::Tuple(items) => items.iter().any(Self::contains_opaque),
+            Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_opaque),
+            Self::BoxedInterface {
+                associated_type, ..
+            } => associated_type
+                .as_ref()
+                .is_some_and(|binding| binding.ty.contains_opaque()),
+            Self::Callback {
+                parameters, result, ..
+            } => parameters.iter().any(Self::contains_opaque) || result.contains_opaque(),
+            _ => false,
+        }
+    }
 }
 
 impl ProjectedType {
@@ -728,6 +754,7 @@ impl ProjectedType {
         match self {
             Self::Associated(_) => "host-projected-associated".to_owned(),
             Self::Generic(name) => format!("host-projected-generic-{name}"),
+            Self::Opaque { .. } => "host-projected-opaque".to_owned(),
             Self::None => "none".to_owned(),
             Self::Bool => "bool".to_owned(),
             Self::Int | Self::RustInt(_) => "int".to_owned(),
@@ -1612,6 +1639,20 @@ impl Projection {
                     }
                 }
             }
+        }
+        let instantiated = candidates
+            .iter()
+            .filter(|candidate| {
+                matches!(
+                    candidate,
+                    ProjectedType::Foreign { arguments, .. } if !arguments.is_empty()
+                )
+            })
+            .collect::<Vec<_>>();
+        if let Some(first) = instantiated.first()
+            && instantiated.iter().all(|candidate| *candidate == *first)
+        {
+            return Some((*first).clone());
         }
         let first = candidates.first()?;
         let first_owner = projected_type_owner(first)?;
@@ -5884,6 +5925,11 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
         }
+        ProjectedType::Opaque { bounds } => {
+            for bound in bounds {
+                *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+            }
+        }
         ProjectedType::None
         | ProjectedType::Generic(_)
         | ProjectedType::Bool
@@ -8537,14 +8583,6 @@ fn project_chain_owner(
     else {
         return None;
     };
-    if !structure
-        .generics
-        .params
-        .iter()
-        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
-    {
-        return None;
-    }
     let ProjectedType::Foreign {
         rust_path,
         name,
@@ -8554,6 +8592,15 @@ fn project_chain_owner(
     else {
         return None;
     };
+    if !result.contains_opaque()
+        && !structure
+            .generics
+            .params
+            .iter()
+            .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
+    {
+        return None;
+    }
     let mut owner_generics = BTreeMap::new();
     owner_generics.insert("Self".to_owned(), result.clone());
     for (parameter, argument) in structure
@@ -9143,6 +9190,9 @@ fn project_function_inner(
     } else {
         ProjectedType::None
     };
+    if result.contains_opaque() && !matches!(result, ProjectedType::Foreign { .. }) {
+        return Err("producer-selected opaque result requires a named foreign owner".to_owned());
+    }
     if open_chain.is_none()
         && allow_lifetime_output
         && let Some(Type::ResolvedPath(path)) = effective_output.as_ref()
@@ -10170,6 +10220,12 @@ fn project_type(
             };
             Ok(ProjectedType::Associated(format!("{owner}::{name}")))
         }
+        Type::ImplTrait(bounds) => Ok(ProjectedType::Opaque {
+            bounds: bounds
+                .iter()
+                .map(|bound| render_generic_bound(bound, &[], index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?,
+        }),
         Type::DynTrait(_) => {
             Err("trait objects require an owning `Box<dyn Trait>` parameter".to_owned())
         }
@@ -10626,6 +10682,7 @@ fn render_rust_type(
             let projected = project_dyn_interface(dynamic, index, paths, generics)?;
             Ok(projected.rust_type())
         }
+        Type::ImplTrait(_) => Ok("_".to_owned()),
         Type::QualifiedPath {
             name,
             args,
