@@ -295,6 +295,7 @@ pub(super) fn index_dependency_import_owners(
 }
 
 pub(super) fn emit_dependency_imports(
+    package: &SemanticPackage,
     import_owners: &DependencyImportOwners,
     unit: &SemanticUnit,
     output: &mut String,
@@ -302,9 +303,106 @@ pub(super) fn emit_dependency_imports(
     let first_namespace = import_owners.values().map(|(owner, _, _, _)| owner).min();
     if first_namespace.is_some_and(|namespace| namespace == &unit.namespace) {
         for (rust_name, (_, path, generic_parameters, _)) in import_owners {
-            write_foreign_import(output, path, rust_name, generic_parameters);
+            if let Some((native_path, fields)) = package.projection.borrowed_struct_view(path) {
+                write_owned_borrowed_struct(output, rust_name, native_path, fields);
+            } else {
+                write_foreign_import(output, path, rust_name, generic_parameters);
+            }
         }
     }
+}
+
+fn projected_owned_field_type(ty: &crate::projection::ProjectedType) -> String {
+    ty.rust_type()
+}
+
+pub(super) fn projected_field_abi_type(ty: &crate::projection::ProjectedType) -> String {
+    use crate::projection::ProjectedType;
+    match ty {
+        ProjectedType::String => "String".to_owned(),
+        ProjectedType::Bool => "bool".to_owned(),
+        ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
+        ProjectedType::Float => "f64".to_owned(),
+        ProjectedType::Float32 => "f32".to_owned(),
+        ProjectedType::Sequence { item, .. } => format!(
+            "terrane_collection_support::List<{}>",
+            projected_field_abi_type(item)
+        ),
+        ProjectedType::Optional(inner) => {
+            format!("impl Into<Option<{}>>", projected_field_abi_type(inner))
+        }
+        _ => ty.rust_type(),
+    }
+}
+
+fn write_owned_borrowed_struct(
+    output: &mut String,
+    rust_name_: &str,
+    native_path: &str,
+    fields: &[crate::projection::ProjectedField],
+) {
+    use crate::projection::ProjectedFieldConversion;
+    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    for field in fields {
+        writeln!(
+            output,
+            "    {}: {},",
+            rust_name(&field.name),
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "{}: {}",
+            rust_name(&field.name),
+            projected_field_abi_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, ") -> Self {{ Self {{").expect("writing cannot fail");
+    for field in fields {
+        let name = rust_name(&field.name);
+        let value = match field.conversion {
+            ProjectedFieldConversion::SliceBorrow => format!("{name}.into_vec()"),
+            ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
+            ProjectedFieldConversion::OptionalSliceBorrow => {
+                format!("{name}.into().map(|value| value.into_vec())")
+            }
+            _ => name,
+        };
+        writeln!(output, "        {}: {value},", rust_name(&field.name))
+            .expect("writing cannot fail");
+    }
+    writeln!(output, "    }} }}").expect("writing cannot fail");
+    let native_constructor = native_path
+        .split_once('<')
+        .map_or(native_path, |(base, _)| base);
+    writeln!(
+        output,
+        "    fn terrane_native_view(&self) -> {native_path} {{ {native_constructor} {{"
+    )
+    .expect("writing cannot fail");
+    for field in fields {
+        let source = format!("self.{}", rust_name(&field.name));
+        let value = match field.conversion {
+            ProjectedFieldConversion::Identity => source,
+            ProjectedFieldConversion::StringBorrow => format!("&{source}"),
+            ProjectedFieldConversion::SliceBorrow => format!("{source}.as_slice()"),
+            ProjectedFieldConversion::OptionalStringBorrow => format!("{source}.as_deref()"),
+            ProjectedFieldConversion::OptionalSliceBorrow => {
+                format!("{source}.as_deref()")
+            }
+        };
+        writeln!(output, "        {}: {value},", field.rust_name).expect("writing cannot fail");
+    }
+    writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
 }
 
 fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String> {
@@ -720,7 +818,7 @@ pub(super) fn emit_dependency_unit(
     import_owners: &DependencyImportOwners,
 ) -> String {
     let mut output = String::new();
-    emit_dependency_imports(import_owners, unit, &mut output);
+    emit_dependency_imports(package, import_owners, unit, &mut output);
     for contract in &unit.functions {
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
@@ -813,6 +911,17 @@ pub(super) fn emit_dependency_unit(
         let mut arguments = Vec::new();
         for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
             let name = rust_name(&parameter.name);
+            if let crate::projection::ProjectedType::Foreign { rust_path, .. } = &projected.ty
+                && package.projection.borrowed_struct_view(rust_path).is_some()
+            {
+                let view = format!("{name}.terrane_native_view()");
+                arguments.push(if projected.borrowed {
+                    format!("&{view}")
+                } else {
+                    view
+                });
+                continue;
+            }
             if projected.borrowed
                 && matches!(
                     projected.ty,

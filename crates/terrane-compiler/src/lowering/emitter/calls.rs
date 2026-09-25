@@ -1813,20 +1813,97 @@ impl Emitter<'_> {
                     | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
                     _ => None,
                 });
-        let call = if contract.is_none()
-            && matches!(
-                callable_mode,
-                Some(InvocationMode::Mutable | InvocationMode::Consuming)
-            ) {
-            let arguments = match values.as_slice() {
-                [] => "()".to_owned(),
-                [value] => format!("({value},)"),
-                _ => format!("({})", values.join(", ")),
+        let projected_native_construction = (callee.kind == SyntaxKind::ConstructionExpression)
+            .then(|| {
+                callee
+                    .children
+                    .first()
+                    .and_then(|designator| self.class_designator(designator))
+            })
+            .flatten()
+            .and_then(|object| {
+                self.package
+                    .projection
+                    .projected_struct(&object.identity.namespace, &object.identity.name)
+            });
+        let call =
+            if let Some((native_path, fields, borrowed_view)) = projected_native_construction {
+                let value_for =
+                    |field_name: &str| {
+                        contract
+                            .as_ref()
+                            .and_then(|contract| {
+                                contract.parameters.iter().zip(&values).find_map(
+                                    |(parameter, value)| {
+                                        (parameter.name == field_name).then(|| value.clone())
+                                    },
+                                )
+                            })
+                            .or_else(|| {
+                                arguments.children.iter().zip(&values).find_map(
+                                    |(argument, value)| {
+                                        argument
+                                            .children
+                                            .first()
+                                            .filter(|name| {
+                                                name.kind == SyntaxKind::Name
+                                                    && self.text(name) == field_name
+                                            })
+                                            .map(|_| value.clone())
+                                    },
+                                )
+                            })
+                    };
+                let projected_values = fields
+                    .iter()
+                    .map(|field| {
+                        let value = value_for(&field.name);
+                        match (&field.ty, value) {
+                            (crate::projection::ProjectedType::Optional(inner), None) => format!(
+                                "None::<{}>",
+                                super::super::dependencies::projected_field_abi_type(inner)
+                            ),
+                            (_, Some(value)) if borrowed_view => value,
+                            (crate::projection::ProjectedType::Sequence { .. }, Some(value)) => {
+                                format!("{value}.into_vec()")
+                            }
+                            (crate::projection::ProjectedType::Optional(_), Some(value)) => {
+                                format!("{value}.into()")
+                            }
+                            (_, Some(value)) => value,
+                            (_, None) => unreachable!(
+                                "semantics requires projected struct field `{}`",
+                                field.name
+                            ),
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if borrowed_view {
+                    format!("{name}({})", projected_values.join(", "))
+                } else {
+                    let assignments = fields
+                        .iter()
+                        .zip(projected_values)
+                        .map(|(field, value)| format!("{}: {value}", rust_name(&field.rust_name)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{native_path} {{ {assignments} }}")
+                }
+            } else if contract.is_none()
+                && matches!(
+                    callable_mode,
+                    Some(InvocationMode::Mutable | InvocationMode::Consuming)
+                )
+            {
+                let arguments = match values.as_slice() {
+                    [] => "()".to_owned(),
+                    [value] => format!("({value},)"),
+                    _ => format!("({})", values.join(", ")),
+                };
+                format!("{name}.call({arguments})")
+            } else {
+                format!("{name}({})", values.join(", "))
             };
-            format!("{name}.call({arguments})")
-        } else {
-            format!("{name}({})", values.join(", "))
-        };
         let direct_projected_function = specialization
             .is_some_and(|specialization| specialization.direct_projected_call)
             || (callee.kind == SyntaxKind::Name

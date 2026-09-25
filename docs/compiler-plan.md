@@ -363,20 +363,27 @@ next work units before committing to a new core representation.
   Unsupported public members remain inert comments inside the owning class with native path,
   recoverable signature, and exact decline, while their complete records remain in the unavailable
   section.
-  Recoverable demanded structs, enums, aliases, and traits additionally receive active class or
+  Recoverable unavailable structs, enums, aliases, and traits additionally receive active class or
   interface skeletons under their public `/deps/<package>` namespace. Their unexpressed native
   generics and lifetimes remain adjacent residual obligations, so these skeletons are not registered
-  for lowering and do not turn a decline into success.
+  for lowering and do not turn a decline into success. Successfully admitted named Rust structs
+  with complete public fields expose those fields directly. Owned structs lower construction to
+  native Rust literals. Lifetime-parameterized structs are admitted only with complete owned
+  string, optional-string, slice, optional-slice, and copy-field recipes; lowering stores owned
+  values and reconstructs the exact temporary native view around shared-borrowed or consuming
+  calls. Private, stripped, tuple, non-exhaustive, mutable-borrowed, and borrowed-result shapes
+  remain opaque or unavailable rather than gaining inferred ownership.
   Every native declaration referenced by a required partial contract is marked required recursively
   by stable Rustdoc identity: unavailable
   dependencies move into the required section with the requiring contract, while admitted
   dependencies appear in a required-admitted index. A demanded residual still fails at application
   source and points to the generated artifact; subsequent builds replace demand annotations.
 - `compatibility/projection-census/findings.md` records representative traces, confidence limits,
-  cohort interpretation and recommended next work. The evidence supports focused investigation of
-  lifetime regions, generic interfaces, stable native identity and multiple-version owner
-  selection, but is insufficient to choose either piecemeal extension or representation
-  consolidation. That decision remains the next architectural gate.
+  cohort interpretation and recommended next work. The census selected compiler-owned native
+  conversion metadata rather than a second binding engine: source types remain ordinary Terrane
+  values while exact Rust identity, specialization, borrowing, and field conversion remain hidden
+  lowering contracts. Generic callbacks, receiver-tied outputs, mutable borrowed descriptors, and
+  consuming collection protocols remain explicit subsequent capability gaps.
 
 
 #### Architectural simplification gate

@@ -1355,6 +1355,14 @@ pub(super) fn validate_class_field_initializers(
         .flat_map(|unit| &unit.descriptors)
         .filter(|object| object.kind == ObjectKind::Class)
     {
+        if object.identity.native_projection.is_some()
+            || package
+                .projection
+                .projected_struct(&object.identity.namespace, &object.identity.name)
+                .is_some()
+        {
+            continue;
+        }
         for effective in effective_object_fields(package, object) {
             let field = effective.field;
             if let Some(initializer_span) = field.initializer_span {

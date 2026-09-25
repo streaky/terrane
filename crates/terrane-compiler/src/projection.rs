@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "93";
+const PROJECTION_SCHEMA: &str = "106";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -334,6 +334,12 @@ pub enum ProjectedKind {
         constants: Vec<ProjectedConstant>,
         #[serde(default)]
         boundary: ProjectedBoundaryCapabilities,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        fields: Vec<ProjectedField>,
+        #[serde(default)]
+        borrowed_view: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        native_view_type: Option<String>,
         #[serde(default)]
         displayable: bool,
         #[serde(default)]
@@ -372,6 +378,25 @@ pub struct ProjectedConstant {
     pub source_expression: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terrane_value: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedField {
+    pub name: String,
+    pub rust_name: String,
+    pub ty: ProjectedType,
+    pub rust_type: String,
+    pub conversion: ProjectedFieldConversion,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProjectedFieldConversion {
+    Identity,
+    StringBorrow,
+    OptionalStringBorrow,
+    SliceBorrow,
+    OptionalSliceBorrow,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1410,6 +1435,46 @@ impl Projection {
     }
 
     #[must_use]
+    pub(crate) fn borrowed_struct_view(
+        &self,
+        rust_path: &str,
+    ) -> Option<(&str, &[ProjectedField])> {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find_map(|item| match &item.kind {
+                ProjectedKind::ForeignType {
+                    fields,
+                    borrowed_view: true,
+                    native_view_type: Some(native_view_type),
+                    ..
+                } if projected_owner_path_matches(&item.rust_path, rust_path) => {
+                    Some((native_view_type.as_str(), fields.as_slice()))
+                }
+                _ => None,
+            })
+    }
+
+    #[must_use]
+    pub(crate) fn projected_struct(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Option<(&str, &[ProjectedField], bool)> {
+        let item = self.item(namespace, name)?;
+        match &item.kind {
+            ProjectedKind::ForeignType {
+                fields,
+                borrowed_view,
+                ..
+            } if !fields.is_empty() => {
+                Some((item.rust_path.as_str(), fields.as_slice(), *borrowed_view))
+            }
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub(crate) fn projected_owner_for_import(
         &self,
         namespace: &str,
@@ -2246,6 +2311,10 @@ fn projected_item_for_foreign<'a>(
     .then_some(best)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "source dependency closure handles each projected declaration shape together"
+)]
 fn collect_source_foreign(
     all_items: &[&ProjectedItem],
     selected: &[&ProjectedItem],
@@ -2258,11 +2327,27 @@ fn collect_source_foreign(
                 collect_foreign_function(function, &mut foreign);
             }
             ProjectedKind::ForeignType {
+                fields,
                 methods,
                 static_methods,
                 ..
+            } => {
+                foreign.insert(item.rust_path.clone(), item.name.clone());
+                for field in fields {
+                    collect_foreign_type(&field.ty, &mut foreign);
+                }
+                for method in methods.iter().chain(static_methods).filter(|method| {
+                    projected_member_is_demanded(
+                        &item.namespace,
+                        &item.name,
+                        &method.name,
+                        demanded_members,
+                    )
+                }) {
+                    collect_foreign_function(method, &mut foreign);
+                }
             }
-            | ProjectedKind::Enum {
+            ProjectedKind::Enum {
                 methods,
                 static_methods,
                 ..
@@ -2309,6 +2394,11 @@ fn collect_source_foreign(
                     collect_foreign_function(&method.function, &mut foreign);
                 }
                 continue;
+            }
+            if let ProjectedKind::ForeignType { fields, .. } = &item.kind {
+                for field in fields {
+                    collect_foreign_type(&field.ty, &mut foreign);
+                }
             }
             let methods = match &item.kind {
                 ProjectedKind::ForeignType {
@@ -2536,6 +2626,19 @@ fn render_foreign_declaration(
                 },
             ) = projected_kind
             {
+                if let ProjectedKind::ForeignType { fields, .. } =
+                    projected_kind.expect("matched projected kind")
+                {
+                    for field in fields {
+                        writeln!(
+                            output,
+                            "    {} {}",
+                            field.name,
+                            projected_type_name(&field.ty, aliases)
+                        )
+                        .expect("writing to a string cannot fail");
+                    }
+                }
                 for constant in constants {
                     render_projected_constant(output, constant, aliases);
                 }
@@ -7134,6 +7237,9 @@ fn project_rustdoc(
                     static_methods: Vec::new(),
                     constants: Vec::new(),
                     boundary: project_boundary_capabilities(&alias.type_, index, paths),
+                    fields: Vec::new(),
+                    borrowed_view: false,
+                    native_view_type: None,
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -7152,6 +7258,44 @@ fn project_rustdoc(
                             continue;
                         }
                     };
+                let has_lifetime = structure.generics.params.iter().any(|parameter| {
+                    matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
+                });
+                let field_projection = if item
+                    .attrs
+                    .iter()
+                    .any(|attribute| matches!(attribute, rustdoc_types::Attribute::NonExhaustive))
+                {
+                    Err("non-exhaustive struct cannot be constructed outside its crate".to_owned())
+                } else {
+                    project_struct_fields(structure, index, paths, &owner_generics)
+                };
+                let (fields, borrowed_view) = match field_projection {
+                    Ok(projected) => projected,
+                    Err(reason) if has_lifetime => {
+                        declined.push(DeclinedItem {
+                            rust_path: rust_path.clone(),
+                            reason,
+                        });
+                        continue;
+                    }
+                    Err(_) => (Vec::new(), false),
+                };
+                let native_view_type = borrowed_view.then(|| {
+                    let native_arguments = structure
+                        .generics
+                        .params
+                        .iter()
+                        .filter_map(|parameter| match parameter.kind {
+                            GenericParamDefKind::Lifetime { .. } => Some("'_".to_owned()),
+                            GenericParamDefKind::Type { .. } => owner_generics
+                                .get(&parameter.name)
+                                .map(ProjectedType::rust_type),
+                            GenericParamDefKind::Const { .. } => None,
+                        })
+                        .collect::<Vec<_>>();
+                    format!("{rust_path}<{}>", native_arguments.join(", "))
+                });
                 let base_rust_path = rust_path.clone();
                 let arguments = structure
                     .generics
@@ -7179,9 +7323,14 @@ fn project_rustdoc(
                     },
                 );
                 {
+                    let projected_impls = if borrowed_view {
+                        &[][..]
+                    } else {
+                        structure.impls.as_slice()
+                    };
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
                         project_methods(
-                            &structure.impls,
+                            projected_impls,
                             index,
                             paths,
                             public_paths,
@@ -7231,6 +7380,9 @@ fn project_rustdoc(
                     }));
                     Ok(ProjectedKind::ForeignType {
                         methods,
+                        fields,
+                        borrowed_view,
+                        native_view_type,
                         static_methods,
                         constants: projected_constants,
                         boundary: project_boundary_capabilities(
@@ -7624,11 +7776,26 @@ fn project_rustdoc(
         match &mut item.kind {
             ProjectedKind::Function(function) => normalize(function),
             ProjectedKind::ForeignType {
+                fields,
                 methods,
                 static_methods,
+                native_view_type,
                 ..
+            } => {
+                if let Some(native_view_type) = native_view_type {
+                    *native_view_type =
+                        rewrite_rust_bound_root(native_view_type, &package_root, &dependency_root);
+                }
+                for field in fields {
+                    rewrite_projected_rust_root(&mut field.ty, &package_root, &dependency_root);
+                    field.rust_type =
+                        rewrite_rust_bound_root(&field.rust_type, &package_root, &dependency_root);
+                }
+                for method in methods.iter_mut().chain(static_methods) {
+                    normalize(method);
+                }
             }
-            | ProjectedKind::Enum {
+            ProjectedKind::Enum {
                 methods,
                 static_methods,
                 ..
@@ -7701,6 +7868,214 @@ fn normalize_projected_items(items: &mut Vec<ProjectedItem>, declined: &mut Vec<
     declined.dedup();
 }
 
+fn exact_projected_field_type(ty: ProjectedType) -> ProjectedType {
+    match ty {
+        ProjectedType::RustInt(name) => ProjectedType::FixedInt(name),
+        ProjectedType::Sequence { rust_path, item } => ProjectedType::Sequence {
+            rust_path,
+            item: Box::new(exact_projected_field_type(*item)),
+        },
+        ProjectedType::Optional(inner) => {
+            ProjectedType::Optional(Box::new(exact_projected_field_type(*inner)))
+        }
+        other => other,
+    }
+}
+fn project_optional_borrowed_field(
+    field_type: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<(ProjectedType, ProjectedFieldConversion)>, String> {
+    let Type::ResolvedPath(path) = field_type else {
+        return Ok(None);
+    };
+    if resolved_path_name(path, paths) != "Option"
+        && !resolved_path_name(path, paths).ends_with("::Option")
+    {
+        return Ok(None);
+    }
+
+    let arguments = type_arguments(field_type);
+    let [inner] = arguments.as_slice() else {
+        return Ok(None);
+    };
+    match *inner {
+        Type::BorrowedRef {
+            is_mutable: false,
+            type_,
+            ..
+        } if matches!(type_.as_ref(), Type::Primitive(name) if name == "str") => Ok(Some((
+            ProjectedType::Optional(Box::new(ProjectedType::String)),
+            ProjectedFieldConversion::OptionalStringBorrow,
+        ))),
+        Type::BorrowedRef {
+            is_mutable: false,
+            type_,
+            ..
+        } if let Type::Slice(item) = type_.as_ref()
+            && !type_contains_lifetime_argument(item) =>
+        {
+            Ok(Some((
+                ProjectedType::Optional(Box::new(ProjectedType::Sequence {
+                    rust_path: format!("Vec<{}>", render_rust_type(item, index, paths, generics)?),
+                    item: Box::new(project_type(item, index, paths, generics)?),
+                })),
+                ProjectedFieldConversion::OptionalSliceBorrow,
+            )))
+        }
+        _ => Ok(None),
+    }
+}
+fn owned_field_is_directly_constructible(ty: &ProjectedType) -> bool {
+    match ty {
+        ProjectedType::Bool
+        | ProjectedType::Int
+        | ProjectedType::FixedInt(_)
+        | ProjectedType::RustInt(_)
+        | ProjectedType::Float
+        | ProjectedType::Float32
+        | ProjectedType::Char
+        | ProjectedType::String
+        | ProjectedType::Bytes
+        | ProjectedType::Foreign { .. } => true,
+        ProjectedType::Sequence { rust_path, item } => {
+            rust_path.contains("Vec<") && owned_field_is_directly_constructible(item)
+        }
+        ProjectedType::Optional(inner) => {
+            !matches!(inner.as_ref(), ProjectedType::Sequence { .. })
+                && owned_field_is_directly_constructible(inner)
+        }
+        _ => false,
+    }
+}
+
+fn projected_field_name(rust_name: &str) -> String {
+    let unescaped = rust_name.trim_end_matches('_');
+    let projected = projected_constant_name(unescaped);
+    if crate::syntax::is_keyword(unescaped) {
+        format!("native-{projected}")
+    } else {
+        projected
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "struct field projection keeps admissibility and exact conversion recipes together"
+)]
+fn project_struct_fields(
+    structure: &Struct,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<(Vec<ProjectedField>, bool), String> {
+    let fields = match &structure.kind {
+        rustdoc_types::StructKind::Plain {
+            fields,
+            has_stripped_fields: false,
+        } => fields,
+        rustdoc_types::StructKind::Plain {
+            has_stripped_fields: true,
+            ..
+        } => return Err("struct has private or hidden fields".to_owned()),
+        rustdoc_types::StructKind::Unit => return Ok((Vec::new(), false)),
+        rustdoc_types::StructKind::Tuple(_) => {
+            return Err("tuple struct fields have no projected field names".to_owned());
+        }
+    };
+    let borrowed_view = structure
+        .generics
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }));
+    let mut projected = Vec::with_capacity(fields.len());
+    for field_id in fields {
+        let field = index
+            .get(field_id)
+            .ok_or_else(|| "struct field is missing from rustdoc".to_owned())?;
+        let rust_name = field
+            .name
+            .clone()
+            .ok_or_else(|| "struct field has no name".to_owned())?;
+        let ItemEnum::StructField(field_type) = &field.inner else {
+            return Err(format!("`{rust_name}` is not a struct field"));
+        };
+        let (ty, conversion) = if let Some(optional) =
+            project_optional_borrowed_field(field_type, index, paths, generics)?
+        {
+            optional
+        } else {
+            match field_type {
+                Type::BorrowedRef {
+                    is_mutable: false,
+                    type_,
+                    ..
+                } if matches!(type_.as_ref(), Type::Primitive(name) if name == "str") => (
+                    ProjectedType::String,
+                    ProjectedFieldConversion::StringBorrow,
+                ),
+                Type::BorrowedRef {
+                    is_mutable: false,
+                    type_,
+                    ..
+                } if let Type::Slice(item) = type_.as_ref()
+                    && !type_contains_lifetime_argument(item) =>
+                {
+                    (
+                        ProjectedType::Sequence {
+                            rust_path: format!(
+                                "Vec<{}>",
+                                render_rust_type(item, index, paths, generics)?
+                            ),
+                            item: Box::new(project_type(item, index, paths, generics)?),
+                        },
+                        ProjectedFieldConversion::SliceBorrow,
+                    )
+                }
+                _ if !type_contains_lifetime_argument(field_type) => {
+                    let projected = project_type(field_type, index, paths, generics)?;
+                    if borrowed_view
+                        && !matches!(
+                            projected,
+                            ProjectedType::Bool
+                                | ProjectedType::FixedInt(_)
+                                | ProjectedType::RustInt(_)
+                                | ProjectedType::Float
+                                | ProjectedType::Float32
+                        )
+                    {
+                        return Err(format!(
+                            "field `{rust_name}` cannot be reconstructed from a shared owned view"
+                        ));
+                    }
+                    (projected, ProjectedFieldConversion::Identity)
+                }
+                _ => {
+                    return Err(format!(
+                        "field `{rust_name}` has no owned Terrane conversion"
+                    ));
+                }
+            }
+        };
+        let ty = exact_projected_field_type(ty);
+        if !borrowed_view && !owned_field_is_directly_constructible(&ty) {
+            return Err(format!(
+                "field `{rust_name}` requires a non-identity owned conversion"
+            ));
+        }
+        projected.push(ProjectedField {
+            name: projected_field_name(&rust_name),
+            rust_name,
+            ty,
+            rust_type: render_rust_type(field_type, index, paths, generics)?,
+            conversion,
+        });
+    }
+    projected.sort_by_key(|field| matches!(field.ty, ProjectedType::Optional(_)));
+    Ok((projected, borrowed_view))
+}
+
 fn default_generic_instantiation(
     structure: &Struct,
     index: &HashMap<Id, Item>,
@@ -7722,12 +8097,7 @@ fn default_generic_instantiation(
                     parameter.name
                 ));
             }
-            GenericParamDefKind::Lifetime { .. } => {
-                return Err(format!(
-                    "lifetime parameter `{}` requires non-escaping chain projection",
-                    parameter.name
-                ));
-            }
+            GenericParamDefKind::Lifetime { .. } => {}
             GenericParamDefKind::Const { .. } => {
                 return Err(format!(
                     "const parameter `{}` has no projected value identity",
@@ -8221,6 +8591,9 @@ fn project_chain_owner(
             static_methods: Vec::new(),
             constants: Vec::new(),
             boundary: ProjectedBoundaryCapabilities::default(),
+            fields: Vec::new(),
+            borrowed_view: false,
+            native_view_type: None,
             displayable: false,
             cloneable: false,
             send: false,
@@ -8383,6 +8756,38 @@ fn open_chain_result(
     })
 }
 
+fn input_has_owned_borrowed_view(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> bool {
+    let resolved = match ty {
+        Type::BorrowedRef {
+            is_mutable: false,
+            type_,
+            ..
+        } => type_.as_ref(),
+        other => other,
+    };
+    let Type::ResolvedPath(path) = resolved else {
+        return false;
+    };
+    let Some(Item {
+        inner: ItemEnum::Struct(structure),
+        attrs,
+        ..
+    }) = index.get(&path.id)
+    else {
+        return false;
+    };
+    !attrs
+        .iter()
+        .any(|attribute| matches!(attribute, rustdoc_types::Attribute::NonExhaustive))
+        && default_generic_instantiation(structure, index, paths)
+            .and_then(|generics| project_struct_fields(structure, index, paths, &generics))
+            .is_ok_and(|(_, borrowed_view)| borrowed_view)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "function projection keeps generic selection and exact parameter contracts together"
@@ -8423,7 +8828,7 @@ fn project_function_inner(
         if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
             return Err("nested borrowed parameter cannot cross a projected boundary".to_owned());
         }
-        if type_contains_lifetime_argument(ty) {
+        if type_contains_lifetime_argument(ty) && !input_has_owned_borrowed_view(ty, index, paths) {
             return Err(
                 "input contains a lifetime-bearing foreign value with no non-escaping Terrane call representation"
                     .to_owned(),
@@ -11128,6 +11533,9 @@ mod tests {
                 static_methods: Vec::new(),
                 constants: Vec::new(),
                 boundary: ProjectedBoundaryCapabilities::default(),
+                fields: Vec::new(),
+                borrowed_view: false,
+                native_view_type: None,
                 displayable: false,
                 cloneable: false,
                 send: false,
@@ -11794,6 +12202,9 @@ mod tests {
                     static_methods: Vec::new(),
                     constants: Vec::new(),
                     boundary: ProjectedBoundaryCapabilities::default(),
+                    fields: Vec::new(),
+                    borrowed_view: false,
+                    native_view_type: None,
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -12675,6 +13086,9 @@ mod tests {
             docs: None,
             kind: ProjectedKind::ForeignType {
                 boundary: ProjectedBoundaryCapabilities::default(),
+                fields: Vec::new(),
+                borrowed_view: false,
+                native_view_type: None,
                 displayable: false,
                 methods: vec![ProjectedFunction {
                     native_owner: None,

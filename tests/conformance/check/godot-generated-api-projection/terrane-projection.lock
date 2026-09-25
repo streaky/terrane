@@ -100128,6 +100128,10 @@
         ],
         [
           "/deps/godot/global",
+          "PrintSource"
+        ],
+        [
+          "/deps/godot/global",
           "SuppressGuard"
         ],
         [
