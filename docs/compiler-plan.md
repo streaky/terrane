@@ -340,10 +340,15 @@ next work units before committing to a new core representation.
   and transitive requirement. Deterministic `Generated source unit` markers split the physical
   artifact into independently validated units even when projected namespaces are cyclic. Authored
   files retain `S2002`; this is a generated-container rule rather than a
-  general multi-namespace language change. Admitted nominal classes contain every member whose
-  rendered declaration is syntax-valid Terrane source, independently of current imports. Projection
-  parses each candidate declaration before admitting it to the generated unit; admitted members
-  whose rendering is not yet syntax-valid remain inert comments with the exact parser rejection.
+  general multi-namespace language change. Closed numeric specializations of one Rust type
+  constructor share one public Terrane nominal declaration: `Point<f32>` and `Point<u32>` appear as
+  `Point`, while exact native arguments remain compiler-owned semantic metadata used for member
+  selection and generic Rust lowering. Other generic shapes retain distinct internal names until
+  equivalent correlation is proven. Admitted nominal classes contain the union of members whose
+  rendered declarations are syntax-valid Terrane source, independently of current imports.
+  Projection parses each candidate declaration before admitting it to the generated unit; admitted
+  members whose
+  rendering is not yet syntax-valid remain inert comments with the exact parser rejection.
   Unsupported public members remain inert comments inside the owning class with native path,
   recoverable signature, and exact decline, while their complete records remain in the unavailable
   section.

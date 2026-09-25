@@ -1983,6 +1983,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                         name: item.name.clone(),
                         application: interface_identity.application.clone(),
                         application_key: interface_identity.application_key.clone(),
+                        native_projection: interface_identity.native_projection.clone(),
                     };
                     if !object.interfaces.contains(&inherited) {
                         object.interfaces.push(inherited);
@@ -2018,6 +2019,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 name: supertrait.name.clone(),
                 application: identity.application.clone(),
                 application_key: identity.application_key.clone(),
+                native_projection: identity.native_projection.clone(),
             })
             .collect::<Vec<_>>();
         let projectable = package
@@ -2139,6 +2141,8 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     validate_descriptor_value_uses(package)?;
 
     collect_initial_typed_bindings(package)?;
+    populate_projected_call_result_types(package)?;
+    collect_initial_typed_bindings(package)?;
     specialize_projected_results(package)?;
     for unit in &package.units {
         validate_invocation_only_members(unit)?;
@@ -2176,6 +2180,91 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    Ok(())
+}
+fn populate_projected_call_result_types(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    loop {
+        let mut additions = Vec::new();
+        for (unit_index, unit) in package.units.iter().enumerate() {
+            collect_projected_call_result_types(
+                package,
+                unit,
+                &unit.tree.root,
+                unit_index,
+                &mut additions,
+            )?;
+        }
+        let mut changed = false;
+        for (unit_index, key, value_type) in additions {
+            changed |= package.units[unit_index]
+                .projected_call_result_types
+                .insert(key, value_type)
+                .is_none();
+        }
+        if !changed {
+            return Ok(());
+        }
+    }
+}
+
+fn collect_projected_call_result_types(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    unit_index: usize,
+    additions: &mut Vec<(usize, (u32, usize, usize), ValueType)>,
+) -> Result<(), SemanticFailure> {
+    for child in &node.children {
+        collect_projected_call_result_types(package, unit, child, unit_index, additions)?;
+    }
+    if node.kind != SyntaxKind::CallExpression
+        || unit.projected_call_result_types.contains_key(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        ))
+    {
+        return Ok(());
+    }
+    let Some(callee) = node.children.first() else {
+        return Ok(());
+    };
+    let Some(function) = projected_function_for_call(package, unit, callee) else {
+        return Ok(());
+    };
+    let crate::projection::ProjectedType::Foreign {
+        rust_path,
+        name: projected_name,
+        base_rust_path,
+        arguments,
+    } = &function.result
+    else {
+        return Ok(());
+    };
+    if rust_path == base_rust_path
+        || base_rust_path.rsplit("::").next() != Some(projected_name.as_str())
+        || arguments.is_empty()
+        || !arguments
+            .iter()
+            .all(crate::projection::ProjectedType::is_concrete_terrane_numeric)
+    {
+        return Ok(());
+    }
+    let Some((namespace, name)) = package
+        .projection
+        .owner_for_projected_type(&function.result)
+    else {
+        return Ok(());
+    };
+    additions.push((
+        unit_index,
+        (node.span.file, node.span.start, node.span.end),
+        ValueType::Object(
+            ObjectIdentity::new(namespace, name).with_native_projection(rust_path.clone()),
+        ),
+    ));
     Ok(())
 }
 

@@ -382,6 +382,12 @@ pub(super) fn infer_value_type(
         )) {
             return Ok(Some(specialization.value_type.clone()));
         }
+        if let Some(value_type) =
+            unit.projected_call_result_types
+                .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            return Ok(Some(value_type.clone()));
+        }
         if is_destination_directed_projected_call(unit, node, bindings)? {
             return Ok(None);
         }

@@ -217,10 +217,24 @@ pub(super) fn index_dependency_import_owners(
             }
         }
     }
+    let specialized_nominals = source_objects
+        .iter()
+        .filter_map(|identity| {
+            let native = identity.native_projection.as_deref()?;
+            let (base, _) = native.split_once('<')?;
+            (base.rsplit("::").next() == Some(identity.name.as_str()))
+                .then(|| (identity.namespace.clone(), identity.name.clone()))
+        })
+        .collect::<BTreeSet<_>>();
     for identity in source_objects
         .into_iter()
         .filter(|identity| identity.namespace.starts_with("/deps/"))
     {
+        if identity.native_projection.is_some()
+            && specialized_nominals.contains(&(identity.namespace.clone(), identity.name.clone()))
+        {
+            continue;
+        }
         if package.units.iter().any(|unit| {
             unit.descriptors
                 .iter()
@@ -239,6 +253,16 @@ pub(super) fn index_dependency_import_owners(
                 projected
                     .as_ref()
                     .map(crate::projection::ProjectedType::rust_type)
+            })
+            .map(|path| {
+                if specialized_nominals
+                    .contains(&(identity.namespace.clone(), identity.name.clone()))
+                {
+                    path.split_once('<')
+                        .map_or(path.clone(), |(base, _)| base.to_owned())
+                } else {
+                    path
+                }
             });
         let Some(path) = path else {
             continue;
@@ -248,14 +272,24 @@ pub(super) fn index_dependency_import_owners(
             .as_ref()
             .map(projected_generic_names)
             .unwrap_or_default();
-        owners.entry(rust_name).or_insert_with(|| {
-            (
-                emission_namespace.to_owned(),
-                path,
-                generic_parameters,
-                true,
-            )
-        });
+        owners
+            .entry(rust_name)
+            .and_modify(|(_, existing_path, _, from_source)| {
+                if specialized_nominals
+                    .contains(&(identity.namespace.clone(), identity.name.clone()))
+                {
+                    existing_path.clone_from(&path);
+                    *from_source = true;
+                }
+            })
+            .or_insert_with(|| {
+                (
+                    emission_namespace.to_owned(),
+                    path,
+                    generic_parameters,
+                    true,
+                )
+            });
     }
     owners
 }

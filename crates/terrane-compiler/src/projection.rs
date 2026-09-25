@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "83";
+const PROJECTION_SCHEMA: &str = "86";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -318,6 +318,10 @@ pub struct ProjectedItem {
     pub kind: ProjectedKind,
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "projected functions are the common case; boxing every one would add avoidable analysis allocations"
+)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedKind {
     Function(ProjectedFunction),
@@ -441,6 +445,8 @@ pub struct ProjectedBoundaryCapabilities {
 }
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedFunction {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_owner: Option<String>,
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -600,6 +606,13 @@ impl ProjectedType {
                 | Self::Char
                 | Self::String
                 | Self::Bytes
+        )
+    }
+
+    pub(crate) fn is_concrete_terrane_numeric(&self) -> bool {
+        matches!(
+            self,
+            Self::Int | Self::FixedInt(_) | Self::RustInt(_) | Self::Float | Self::Float32
         )
     }
 
@@ -1548,6 +1561,18 @@ impl Projection {
             _ => false,
         }
     }
+    pub(crate) fn owner_for_projected_type(
+        &self,
+        projected: &ProjectedType,
+    ) -> Option<(String, String)> {
+        let owner = projected_type_owner(projected)?;
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| projected_owner_path_matches(&item.rust_path, owner))
+            .map(|item| (item.namespace.clone(), item.name.clone()))
+    }
+
     #[must_use]
     pub fn foreign_rust_path(&self, namespace: &str, name: &str) -> Option<&str> {
         self.item(namespace, name)
@@ -1570,11 +1595,32 @@ impl Projection {
         method_name: &str,
         is_static: bool,
     ) -> Option<&ProjectedFunction> {
-        let rust_path = self.foreign_rust_path(namespace, type_name)?;
+        self.method_for_native(namespace, type_name, None, method_name, is_static)
+    }
+
+    pub(crate) fn method_for_native(
+        &self,
+        namespace: &str,
+        type_name: &str,
+        native_projection: Option<&str>,
+        method_name: &str,
+        is_static: bool,
+    ) -> Option<&ProjectedFunction> {
+        let rust_path =
+            native_projection.or_else(|| self.foreign_rust_path(namespace, type_name))?;
+        let base_rust_path = rust_path
+            .split_once('<')
+            .map_or(rust_path, |(base, _)| base);
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|item| item.rust_path == rust_path)
+            .find(|item| {
+                item.namespace == namespace
+                    && item.name == type_name
+                    && (Self::unqualified_rust_type(&item.rust_path)
+                        == Self::unqualified_rust_type(rust_path)
+                        || projected_owner_path_matches(&item.rust_path, base_rust_path))
+            })
             .and_then(|item| match &item.kind {
                 ProjectedKind::ForeignType {
                     methods,
@@ -1587,7 +1633,15 @@ impl Projection {
                     ..
                 } => {
                     let candidates = if is_static { static_methods } else { methods };
-                    candidates.iter().find(|method| method.name == method_name)
+                    candidates.iter().find(|method| {
+                        method.name == method_name
+                            && native_projection.is_none_or(|owner| {
+                                method.native_owner.as_deref().is_none_or(|native| {
+                                    Self::unqualified_rust_type(native)
+                                        == Self::unqualified_rust_type(owner)
+                                })
+                            })
+                    })
                 }
                 ProjectedKind::Interface(interface) if !is_static => interface
                     .methods
@@ -1596,6 +1650,25 @@ impl Projection {
                     .map(|method| &method.function),
                 _ => None,
             })
+    }
+
+    fn unqualified_rust_type(rust_type: &str) -> String {
+        let mut normalized = String::with_capacity(rust_type.len());
+        let mut token_start = 0;
+        for (index, character) in rust_type.char_indices() {
+            if character.is_alphanumeric() || matches!(character, '_' | ':') {
+                continue;
+            }
+            if token_start < index {
+                normalized.push_str(rust_type[token_start..index].rsplit("::").next().unwrap());
+            }
+            normalized.push(character);
+            token_start = index + character.len_utf8();
+        }
+        if token_start < rust_type.len() {
+            normalized.push_str(rust_type[token_start..].rsplit("::").next().unwrap());
+        }
+        normalized
     }
 
     #[must_use]
@@ -7137,6 +7210,7 @@ fn project_rustdoc(
                             )
                         });
                         static_methods.push(ProjectedFunction {
+                            native_owner: None,
                             name: variant_name.to_owned(),
                             parameters: (constructor_type != ProjectedType::None)
                                 .then(|| ProjectedParameter {
@@ -7172,6 +7246,7 @@ fn project_rustdoc(
                             && !matches!(extraction_type, ProjectedType::Optional(_))
                         {
                             methods.push(ProjectedFunction {
+                                native_owner: None,
                                 name: format!("into-{variant_name}"),
                                 parameters: Vec::new(),
                                 generic_parameters: Vec::new(),
@@ -7194,6 +7269,7 @@ fn project_rustdoc(
                     }
                     if data_carrying {
                         methods.push(ProjectedFunction {
+                            native_owner: None,
                             name: "variant-name".to_owned(),
                             parameters: Vec::new(),
                             generic_parameters: Vec::new(),
@@ -7569,6 +7645,8 @@ fn project_methods(
             continue;
         }
         let inherent = implementation.trait_.is_none();
+        let native_owner = render_rust_type(&implementation.for_, index, paths, owner_generics)
+            .unwrap_or_else(|_| owner_rust_path.to_owned());
         let mut implementation_generics = owner_generics.clone();
         for item_id in &implementation.items {
             let Some(Item {
@@ -7635,6 +7713,7 @@ fn project_methods(
                     allow_lifetime_output,
                 ) {
                     Ok(mut method) => {
+                        method.native_owner = Some(native_owner.clone());
                         if let Some(receiver) = method.receiver.take() {
                             method.parameters.insert(
                                 0,
@@ -7687,7 +7766,10 @@ fn project_methods(
                 &implementation_generics,
                 allow_lifetime_output,
             ) {
-                Ok(method) => candidates.push(method),
+                Ok(mut method) => {
+                    method.native_owner = Some(native_owner.clone());
+                    candidates.push(method);
+                }
                 Err(reason) => declined.push((name.to_owned(), reason)),
             }
         }
@@ -8356,6 +8438,7 @@ fn project_function_inner(
         .collect::<Result<Vec<_>, String>>()?;
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
+        native_owner: None,
         parameters,
         result,
         generic_parameters,
@@ -9564,7 +9647,7 @@ fn project_resolved_type(
         .into_iter()
         .map(|argument| project_type(argument, index, paths, generics))
         .collect::<Result<Vec<_>, _>>()?;
-    let name = instantiated_type_name(&short, &rust_path);
+    let name = instantiated_nominal_name(&short, &rust_path, &arguments);
     let base_rust_path = rust_path
         .split_once('<')
         .map_or_else(|| rust_path.clone(), |(base, _)| base.to_owned());
@@ -9779,6 +9862,18 @@ fn instantiated_type_name(short: &str, rust_path: &str) -> String {
         return short.to_owned();
     }
     format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
+}
+
+fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[ProjectedType]) -> String {
+    if !arguments.is_empty()
+        && arguments
+            .iter()
+            .all(ProjectedType::is_concrete_terrane_numeric)
+    {
+        short.to_owned()
+    } else {
+        instantiated_type_name(short, rust_path)
+    }
 }
 
 fn receiver_kind(ty: &Type) -> Result<Receiver, String> {
@@ -10628,6 +10723,7 @@ mod tests {
             rust_path: rust_path.to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                native_owner: None,
                 name: name.to_owned(),
                 generic_parameters: Vec::new(),
                 parameters: Vec::new(),
@@ -11432,6 +11528,7 @@ mod tests {
                     rust_path: "witness::rejected_total".to_owned(),
                     docs: None,
                     kind: ProjectedKind::Function(ProjectedFunction {
+                        native_owner: None,
                         name: "rejected_total".to_owned(),
                         generic_parameters: Vec::new(),
                         parameters: vec![ProjectedParameter {
@@ -11488,7 +11585,7 @@ mod tests {
     }
 
     #[test]
-    fn instantiated_generic_paths_have_distinct_foreign_identity() {
+    fn instantiated_generic_paths_share_public_name_and_keep_native_identity() {
         let id = Id(1);
         let paths = HashMap::from([(
             id,
@@ -11520,14 +11617,14 @@ mod tests {
             ProjectedType::Foreign {
                 rust_path, name, ..
             }
-                if rust_path == "witness::Wrapper<u8>" && name.starts_with("Wrapper-")
+                if rust_path == "witness::Wrapper<u8>" && name == "Wrapper"
         ));
         assert!(matches!(
             right,
             ProjectedType::Foreign {
                 rust_path, name, ..
             }
-                if rust_path == "witness::Wrapper<u16>" && name.starts_with("Wrapper-")
+                if rust_path == "witness::Wrapper<u16>" && name == "Wrapper"
         ));
     }
     #[test]
@@ -11722,6 +11819,7 @@ mod tests {
                 rust_path: "reqwest::Response::status".to_owned(),
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
+                    native_owner: None,
                     name: "status".to_owned(),
                     generic_parameters: Vec::new(),
                     parameters: Vec::new(),
@@ -12165,6 +12263,7 @@ mod tests {
                 boundary: ProjectedBoundaryCapabilities::default(),
                 displayable: false,
                 methods: vec![ProjectedFunction {
+                    native_owner: None,
                     name: "read".to_owned(),
                     generic_parameters: Vec::new(),
                     parameters: Vec::new(),
@@ -12180,6 +12279,7 @@ mod tests {
                     receiver: Some(Receiver::Borrow),
                 }],
                 static_methods: vec![ProjectedFunction {
+                    native_owner: None,
                     name: "create".to_owned(),
                     generic_parameters: Vec::new(),
                     parameters: Vec::new(),

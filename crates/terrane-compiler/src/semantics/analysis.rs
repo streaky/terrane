@@ -306,6 +306,7 @@ pub(super) fn parse_unit(
         projected_removals: Vec::new(),
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
+        projected_call_result_types: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
         unreachable_spans: Vec::new(),

@@ -14,11 +14,12 @@ pub(super) fn descriptor_contract<'a>(
     unit: &'a SemanticUnit,
     identity: &ObjectIdentity,
 ) -> Option<&'a DescriptorContract> {
-    unit.descriptors
-        .iter()
-        .find(|object| object.identity == *identity)
+    unit.descriptors.iter().find(|object| {
+        object.identity.namespace == identity.namespace
+            && object.identity.name == identity.name
+            && object.identity.application_key == identity.application_key
+    })
 }
-
 /// Resolves one structural protocol member through the canonical descriptor contract.
 pub(super) fn descriptor_protocol_method<'a>(
     unit: &'a SemanticUnit,

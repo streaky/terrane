@@ -321,6 +321,7 @@ pub struct ObjectIdentity {
     pub name: String,
     pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
+    pub(crate) native_projection: Option<String>,
 }
 
 impl ObjectIdentity {
@@ -330,6 +331,7 @@ impl ObjectIdentity {
             name: name.into(),
             application: None,
             application_key: None,
+            native_projection: None,
         }
     }
 
@@ -346,6 +348,11 @@ impl ObjectIdentity {
         self.application = Some(Box::new(application));
         self
     }
+
+    pub(crate) fn with_native_projection(mut self, rust_path: impl Into<String>) -> Self {
+        self.native_projection = Some(rust_path.into());
+        self
+    }
 }
 
 impl std::fmt::Display for ObjectIdentity {
@@ -360,11 +367,18 @@ impl std::fmt::Display for ObjectIdentity {
 
 impl Ord for ObjectIdentity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (&self.namespace, &self.name, self.application_key.as_deref()).cmp(&(
-            &other.namespace,
-            &other.name,
-            other.application_key.as_deref(),
-        ))
+        (
+            &self.namespace,
+            &self.name,
+            self.application_key.as_deref(),
+            self.native_projection.as_deref(),
+        )
+            .cmp(&(
+                &other.namespace,
+                &other.name,
+                other.application_key.as_deref(),
+                other.native_projection.as_deref(),
+            ))
     }
 }
 
@@ -1429,6 +1443,7 @@ pub struct SemanticUnit {
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
+    pub(crate) projected_call_result_types: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
     /// Explicit source spans that cross into unsafe Rust.

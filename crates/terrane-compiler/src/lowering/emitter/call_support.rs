@@ -581,9 +581,10 @@ impl Emitter<'_> {
             };
             (identity, false)
         };
-        self.package.projection.method(
+        self.package.projection.method_for_native(
             &identity.namespace,
             &identity.name,
+            identity.native_projection.as_deref(),
             self.text(member),
             is_static,
         )

@@ -1880,9 +1880,10 @@ pub(super) fn projected_function_for_call<'a>(
         };
         (identity, false)
     };
-    package.projection.method(
+    package.projection.method_for_native(
         &identity.namespace,
         &identity.name,
+        identity.native_projection.as_deref(),
         node_text(&unit.source, member),
         is_static,
     )

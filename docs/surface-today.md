@@ -1212,9 +1212,13 @@ Terrane source second, and unreachable unavailable declarations last. Report com
 paths, declines, and demand locations. Each `Generated source unit` marker introduces a separately
 syntax-validated one-namespace virtual unit; the physical file may therefore contain multiple
 `/deps/<package>` namespaces and namespace cycles without changing `S2002` for authored files.
-Admitted nominal types are active declarations containing every member whose rendered declaration
-is syntax-valid Terrane source, independent of current imports. Projection parses each candidate
-before admitting it; admitted members whose rendering is not syntax-valid remain inert comments
+Closed numeric specializations of one Rust type constructor share one public Terrane nominal
+declaration: `Point<f32>` and `Point<u32>` both appear as `Point`, while exact native arguments
+remain compiler-owned semantic metadata used for specialization-specific member selection and
+generic Rust lowering. Other generic shapes retain distinct internal names until equivalent
+correlation is proven. Admitted nominal classes contain the union of members whose rendered
+declaration is syntax-valid Terrane source, independent of current imports. Projection parses each
+candidate before admitting it; admitted members whose rendering is not syntax-valid remain inert
 with the exact parser rejection. Unsupported public members remain inert comments inside the owning
 class with their native path, recoverable signature, and exact decline; their complete records
 remain in the unavailable report. A demanded unavailable

@@ -826,6 +826,11 @@ pub(super) fn rust_object_type_name(
     } else {
         rust_object_name(&identity.name)
     };
+    if let Some(native_projection) = &identity.native_projection
+        && let Some((_, arguments)) = native_projection.split_once('<')
+    {
+        return format!("{base}<{arguments}");
+    }
     identity
         .application
         .as_deref()

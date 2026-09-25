@@ -1601,6 +1601,7 @@ mod tests {
             rust_path: "witness::wait".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                native_owner: None,
                 name: "wait".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
@@ -1639,6 +1640,7 @@ mod tests {
             rust_path: "witness::builder".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                native_owner: None,
                 name: "builder".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
