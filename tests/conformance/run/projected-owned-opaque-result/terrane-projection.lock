@@ -8,11 +8,11 @@
         ],
         [
           "/deps/terrane-opaque-result-witness",
-          "Wrapper-7992103338436960346c15af2633ea31c625395f0ae6d01bee692695ed9a40da"
+          "Wrapper-of-Value-u32"
         ],
         [
           "/deps/terrane-opaque-result-witness",
-          "Wrapper-7992103338436960346c15af2633ea31c625395f0ae6d01bee692695ed9a40da.value"
+          "Wrapper-of-Value-u32.value"
         ],
         [
           "/deps/terrane-opaque-result-witness",

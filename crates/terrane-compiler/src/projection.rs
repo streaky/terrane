@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "133";
+const PROJECTION_SCHEMA: &str = "135";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -799,6 +799,31 @@ impl ProjectedType {
                     .iter()
                     .any(|parameter| parameter.contains_generic(generic))
                     || result.contains_generic(generic)
+            }
+            _ => false,
+        }
+    }
+    fn contains_open_generic(&self) -> bool {
+        match self {
+            Self::Generic(_) | Self::Associated(_) => true,
+            Self::Sequence { item, .. }
+            | Self::Set { item, .. }
+            | Self::AsyncIterationStep(item)
+            | Self::Optional(item) => item.contains_open_generic(),
+            Self::Mapping { key, value, .. } => {
+                key.contains_open_generic() || value.contains_open_generic()
+            }
+            Self::Tuple(items) => items.iter().any(Self::contains_open_generic),
+            Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_open_generic),
+            Self::BoxedInterface {
+                associated_type, ..
+            } => associated_type
+                .as_ref()
+                .is_some_and(|binding| binding.ty.contains_open_generic()),
+            Self::Callback {
+                parameters, result, ..
+            } => {
+                parameters.iter().any(Self::contains_open_generic) || result.contains_open_generic()
             }
             _ => false,
         }
@@ -9010,9 +9035,10 @@ fn open_chain_result(
     );
     Some(ProjectedType::Foreign {
         rust_path: base_rust_path.clone(),
-        name: instantiated_type_name(
+        name: instantiated_nominal_name(
             base_rust_path.rsplit("::").next().unwrap_or("chain"),
             &rust_identity,
+            &arguments,
         ),
         base_rust_path,
         arguments,
@@ -11211,7 +11237,21 @@ fn instantiated_type_name(short: &str, rust_path: &str) -> String {
     if rust_path.rsplit("::").next() == Some(short) {
         return short.to_owned();
     }
-    format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
+    if let Some(arguments) = outer_generic_arguments(rust_path) {
+        let arguments = split_top_level_arguments(arguments)
+            .into_iter()
+            .map(descriptive_rust_identity)
+            .collect::<Vec<_>>();
+        if !arguments.is_empty() && arguments.iter().all(|argument| !argument.is_empty()) {
+            return format!("{short}-of-{}", arguments.join("-and-"));
+        }
+    }
+    let descriptive = descriptive_rust_identity(rust_path);
+    if descriptive.is_empty() {
+        format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
+    } else {
+        format!("{short}-from-{descriptive}")
+    }
 }
 
 fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[ProjectedType]) -> String {
@@ -11221,15 +11261,109 @@ fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[Projecte
             .all(ProjectedType::is_concrete_terrane_numeric)
     {
         short.to_owned()
-    } else if arguments.iter().any(ProjectedType::contains_opaque) {
-        let identity = format!(
-            "{rust_path}|{}",
-            serde_json::to_string(arguments).expect("projected type arguments always serialize")
-        );
-        instantiated_type_name(short, &identity)
+    } else if !arguments.is_empty() {
+        let descriptive_arguments = arguments
+            .iter()
+            .map(descriptive_projected_argument)
+            .collect::<Option<Vec<_>>>();
+        if let Some(descriptive_arguments) = descriptive_arguments {
+            format!("{short}-of-{}", descriptive_arguments.join("-and-"))
+        } else {
+            let identity = format!(
+                "{rust_path}|{}",
+                serde_json::to_string(arguments)
+                    .expect("projected type arguments always serialize")
+            );
+            format!("{short}-{:x}", Sha256::digest(identity.as_bytes()))
+        }
     } else {
         instantiated_type_name(short, rust_path)
     }
+}
+
+fn descriptive_projected_argument(argument: &ProjectedType) -> Option<String> {
+    match argument {
+        ProjectedType::Generic(_) | ProjectedType::Associated(_) => None,
+        ProjectedType::Opaque { bounds } => descriptive_opaque_bounds(bounds),
+        _ if argument.contains_open_generic() => None,
+        _ => {
+            let name = descriptive_rust_identity(&argument.rust_type());
+            (!name.is_empty()).then_some(name)
+        }
+    }
+}
+
+fn descriptive_opaque_bounds(bounds: &[String]) -> Option<String> {
+    let mut names = Vec::new();
+    for bound in bounds {
+        let (trait_path, arguments) = bound
+            .split_once('<')
+            .map_or((bound.as_str(), None), |(path, arguments)| {
+                (path, arguments.strip_suffix('>'))
+            });
+        let trait_name = trait_path.rsplit("::").next().unwrap_or(trait_path).trim();
+        if !trait_name.is_empty() {
+            names.push(trait_name.to_owned());
+        }
+        for argument in arguments.into_iter().flat_map(split_top_level_arguments) {
+            let Some((_, value)) = argument.split_once('=') else {
+                continue;
+            };
+            let value = descriptive_rust_identity(value);
+            if let Some(short) = value.rsplit('-').next().filter(|short| !short.is_empty()) {
+                names.push(short.to_owned());
+            }
+        }
+    }
+    names.dedup();
+    (!names.is_empty()).then(|| names.join("-"))
+}
+
+fn outer_generic_arguments(path: &str) -> Option<&str> {
+    let start = path.find('<')?;
+    path.ends_with('>')
+        .then(|| &path[start + 1..path.len() - 1])
+}
+
+fn split_top_level_arguments(arguments: &str) -> Vec<&str> {
+    let mut depth = 0usize;
+    let mut start = 0usize;
+    let mut split = Vec::new();
+    for (index, character) in arguments.char_indices() {
+        match character {
+            '<' | '(' | '[' => depth += 1,
+            '>' | ')' | ']' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                split.push(arguments[start..index].trim());
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    split.push(arguments[start..].trim());
+    split
+}
+
+fn descriptive_rust_identity(identity: &str) -> String {
+    let mut words = identity
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty());
+    let Some(first) = words.next() else {
+        return String::new();
+    };
+    let mut result = if first.starts_with(|character: char| character.is_ascii_digit()) {
+        format!("n{first}")
+    } else {
+        first.to_owned()
+    };
+    for word in words {
+        result.push('-');
+        if word.starts_with(|character: char| character.is_ascii_digit()) {
+            result.push('n');
+        }
+        result.push_str(word);
+    }
+    result
 }
 
 fn receiver_kind(ty: &Type) -> Result<Receiver, String> {
@@ -12073,9 +12207,9 @@ mod tests {
         collect_source_foreign, decline_functions_with_missing_generic_interfaces,
         decline_unproven_projected_interfaces, enforce_transitive_reachability,
         external_reexport_rustdocs, foreign_aliases, generated_projection_units,
-        has_type_parameters, instantiated_type_name, is_internal_rust_protocol_method,
-        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
-        persist_dependency_lock, project_type, projectable_interface_bound,
+        has_type_parameters, instantiated_nominal_name, instantiated_type_name,
+        is_internal_rust_protocol_method, mark_cache_record_used, namespace_overlays_from_metadata,
+        parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
         projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
         receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
         rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
@@ -12316,6 +12450,57 @@ mod tests {
         ]));
         assert_eq!(aliases[arc_custom], "Arc-of-iced-theme-Custom");
         assert_eq!(aliases[arc_other], "Arc-of-witness-Other");
+    }
+
+    #[test]
+    fn instantiated_foreign_names_describe_their_canonical_arguments() {
+        assert_eq!(
+            instantiated_type_name(
+                "RangeInclusive",
+                "core::ops::range::RangeInclusive<iced::Degrees>"
+            ),
+            "RangeInclusive-of-iced-Degrees"
+        );
+        let degrees = ProjectedType::Foreign {
+            rust_path: "iced::Degrees".to_owned(),
+            name: "Degrees".to_owned(),
+            base_rust_path: "iced::Degrees".to_owned(),
+            arguments: Vec::new(),
+        };
+        assert_eq!(
+            instantiated_nominal_name(
+                "RangeInclusive",
+                "core::ops::range::RangeInclusive<iced::Degrees>",
+                &[degrees]
+            ),
+            "RangeInclusive-of-iced-Degrees"
+        );
+        let open = instantiated_nominal_name(
+            "Query",
+            "sqlx_core::query::Query<'q, DB, A>",
+            &[
+                ProjectedType::Generic("DB".to_owned()),
+                ProjectedType::Generic("A".to_owned()),
+            ],
+        );
+        assert!(open.starts_with("Query-"));
+        assert!(!open.starts_with("Query-of-"));
+        let application = ProjectedType::Opaque {
+            bounds: vec![
+                "iced_program::Program<State = State, Message = Message, Theme = Theme>".to_owned(),
+            ],
+        };
+        assert_eq!(
+            instantiated_nominal_name("Application", "iced::Application<opaque>", &[application]),
+            "Application-of-Program-State-Message-Theme"
+        );
+        assert_eq!(
+            instantiated_type_name(
+                "Result",
+                "core::result::Result<alloc::vec::Vec<iced::Point>, iced::Error>"
+            ),
+            "Result-of-alloc-vec-Vec-iced-Point-and-iced-Error"
+        );
     }
 
     #[test]
