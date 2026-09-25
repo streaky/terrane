@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "69";
+const PROJECTION_SCHEMA: &str = "72";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -186,6 +186,8 @@ pub struct ProjectedDependency {
 pub(crate) struct PartialProjectionRecord {
     rust_path: String,
     reason: String,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    references: BTreeSet<String>,
     projection: PartialProjection,
 }
 
@@ -705,7 +707,14 @@ pub struct UnavailableProjection {
     pub member: Option<String>,
     pub reason: String,
     pub required_by: BTreeSet<String>,
+    required_by_contracts: BTreeSet<String>,
+    references: BTreeSet<String>,
     partial: Option<PartialProjection>,
+}
+impl UnavailableProjection {
+    fn is_required(&self) -> bool {
+        !self.required_by.is_empty() || !self.required_by_contracts.is_empty()
+    }
 }
 
 fn collect_nested_projected_types(
@@ -975,7 +984,7 @@ impl Projection {
                 .cmp(&right.2.rust_path)
                 .then_with(|| left.2.reason.cmp(&right.2.reason))
         });
-        declines
+        let mut unavailable = declines
             .into_iter()
             .map(|(dependency, interface_owner, declined)| {
                 let (namespace, name, member) = interface_owner.map_or_else(
@@ -1028,24 +1037,26 @@ impl Projection {
                     .get(&(namespace.clone(), name.clone(), member.clone()))
                     .cloned()
                     .unwrap_or_default();
-                let partial = dependency
-                    .partial_declines
-                    .iter()
-                    .find(|partial| {
-                        partial.rust_path == declined.rust_path && partial.reason == declined.reason
-                    })
-                    .map(|partial| partial.projection.clone());
+                let partial = dependency.partial_declines.iter().find(|partial| {
+                    partial.rust_path == declined.rust_path && partial.reason == declined.reason
+                });
                 UnavailableProjection {
                     rust_path: declined.rust_path.clone(),
                     namespace,
                     name,
-                    partial,
                     member,
                     reason: declined.reason.clone(),
                     required_by,
+                    required_by_contracts: BTreeSet::new(),
+                    references: partial
+                        .map(|partial| partial.references.clone())
+                        .unwrap_or_default(),
+                    partial: partial.map(|partial| partial.projection.clone()),
                 }
             })
-            .collect()
+            .collect::<Vec<_>>();
+        propagate_partial_contract_requirements(&mut unavailable);
+        unavailable
     }
 
     /// Renders a complete, human-readable inventory of projected and unavailable native API.
@@ -1097,7 +1108,7 @@ impl Projection {
         let unavailable = self.unavailable_inventory(demand_sites);
         let (required, unused): (Vec<_>, Vec<_>) = unavailable
             .iter()
-            .partition(|unavailable| !unavailable.required_by.is_empty());
+            .partition(|unavailable| unavailable.is_required());
         output.push_str("# Required unavailable projected declarations\n");
         if required.is_empty() {
             output.push_str("# None\n");
@@ -1106,6 +1117,7 @@ impl Projection {
                 render_unavailable_projection(&mut output, unavailable);
             }
         }
+        render_required_projected_declarations(&mut output, self, &unavailable);
         output.push_str(
             "#\n# -----------------------------------------------------------------------------\n\
              # Unused unavailable projected declarations\n",
@@ -1626,11 +1638,99 @@ fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
             .collect(),
     }
 }
+fn propagate_partial_contract_requirements(unavailable: &mut [UnavailableProjection]) {
+    let unavailable_paths = unavailable
+        .iter()
+        .map(|entry| entry.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    let mut required_paths = unavailable
+        .iter()
+        .filter(|entry| !entry.required_by.is_empty())
+        .map(|entry| entry.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    loop {
+        let inherited = unavailable
+            .iter()
+            .filter(|entry| required_paths.contains(&entry.rust_path))
+            .flat_map(|entry| entry.references.intersection(&unavailable_paths).cloned())
+            .collect::<BTreeSet<_>>();
+        let previous_len = required_paths.len();
+        required_paths.extend(inherited);
+        if required_paths.len() == previous_len {
+            break;
+        }
+    }
+    let required_by_contracts = unavailable
+        .iter()
+        .filter(|target| required_paths.contains(&target.rust_path))
+        .map(|target| {
+            let contracts = unavailable
+                .iter()
+                .filter(|source| {
+                    required_paths.contains(&source.rust_path)
+                        && source.references.contains(&target.rust_path)
+                })
+                .map(|source| source.rust_path.clone())
+                .collect();
+            (target.rust_path.clone(), contracts)
+        })
+        .collect::<BTreeMap<_, _>>();
+    for target in unavailable {
+        target.required_by_contracts = required_by_contracts
+            .get(&target.rust_path)
+            .cloned()
+            .unwrap_or_default();
+    }
+}
+
+fn render_required_projected_declarations(
+    output: &mut String,
+    projection: &Projection,
+    unavailable: &[UnavailableProjection],
+) {
+    let mut required_projected = BTreeMap::<&str, (&ProjectedItem, BTreeSet<&str>)>::new();
+    for source in unavailable.iter().filter(|entry| entry.is_required()) {
+        for reference in &source.references {
+            for item in projection
+                .dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .filter(|item| item.rust_path == *reference)
+            {
+                required_projected
+                    .entry(&item.rust_path)
+                    .or_insert_with(|| (item, BTreeSet::new()))
+                    .1
+                    .insert(&source.rust_path);
+            }
+        }
+    }
+    output.push_str("#\n# Required admitted projected declarations\n");
+    if required_projected.is_empty() {
+        output.push_str("# None\n");
+        return;
+    }
+    for (rust_path, (item, contracts)) in required_projected {
+        writeln!(
+            output,
+            "#\n# Native path: {rust_path}\n\
+             # Terrane namespace: {}\n\
+             # Projected declaration: {}\n\
+             # Required by projection contracts:",
+            item.namespace, item.name
+        )
+        .expect("writing to a string cannot fail");
+        for contract in contracts {
+            writeln!(output, "# - {contract}").expect("writing to a string cannot fail");
+        }
+    }
+}
+
 fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableProjection) {
-    let status = if unavailable.required_by.is_empty() {
-        "unused"
-    } else {
+    let status = if unavailable.is_required() {
         "required"
+    } else {
+        "unused"
     };
     writeln!(output, "#\n# Native path: {}", unavailable.rust_path)
         .expect("writing to a string cannot fail");
@@ -1650,7 +1750,7 @@ fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableP
         .expect("writing to a string cannot fail");
     writeln!(output, "# Projection gap: {}", unavailable.reason)
         .expect("writing to a string cannot fail");
-    if !unavailable.required_by.is_empty() {
+    if unavailable.is_required() {
         match &unavailable.partial {
             Some(PartialProjection::Function {
                 signature,
@@ -1686,6 +1786,12 @@ fn render_unavailable_projection(output: &mut String, unavailable: &UnavailableP
         }
     }
     render_demand_sites(output, Some(&unavailable.required_by));
+    if !unavailable.required_by_contracts.is_empty() {
+        output.push_str("# Required by projection contracts:\n");
+        for contract in &unavailable.required_by_contracts {
+            writeln!(output, "# - {contract}").expect("writing to a string cannot fail");
+        }
+    }
 }
 
 fn render_demand_sites(output: &mut String, sites: Option<&BTreeSet<String>>) {
@@ -5943,6 +6049,57 @@ fn partial_projection(
     }
 }
 
+fn partial_projection_references(
+    dependency: &RustDependency,
+    projection: &PartialProjection,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+) -> BTreeSet<String> {
+    let PartialProjection::Function {
+        signature,
+        generic_constraints,
+        callback_shapes,
+    } = projection
+    else {
+        return BTreeSet::new();
+    };
+    let mut contract = signature.clone();
+    for constraint in generic_constraints {
+        contract.push('\n');
+        contract.push_str(constraint);
+    }
+    for callback in callback_shapes {
+        contract.push('\n');
+        contract.push_str(&callback.contract);
+        for method in &callback.methods {
+            contract.push('\n');
+            contract.push_str(method);
+        }
+    }
+    paths
+        .iter()
+        .filter(|(_, summary)| native_path_occurs_in(&contract, &summary.path.join("::")))
+        .map(|(id, summary)| {
+            let public_path = public_paths
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| summary.path.join("::"));
+            extern_rust_path(dependency, &public_path)
+        })
+        .collect()
+}
+
+fn native_path_occurs_in(contract: &str, path: &str) -> bool {
+    contract.match_indices(path).any(|(start, _)| {
+        let before = contract[..start].chars().next_back();
+        let after = contract[start + path.len()..].chars().next();
+        !before.is_some_and(|character| character.is_alphanumeric() || character == '_')
+            && !after.is_some_and(|character| {
+                character.is_alphanumeric() || matches!(character, '_' | ':')
+            })
+    })
+}
+
 fn partial_function_projection(
     name: &str,
     function: &Function,
@@ -6695,9 +6852,12 @@ fn project_rustdoc(
             }
             Err(reason) => {
                 if let Some(projection) = partial_projection(item, index, paths) {
+                    let references =
+                        partial_projection_references(dependency, &projection, paths, public_paths);
                     partial_declines.push(PartialProjectionRecord {
                         rust_path: rust_path.clone(),
                         reason: reason.clone(),
+                        references,
                         projection,
                     });
                 }
@@ -10367,6 +10527,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one inventory scenario verifies direct, inherited, admitted, and unused ordering"
+    )]
     fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
         let projection = Projection {
             cache_identity: "inventory".to_owned(),
@@ -10386,6 +10550,10 @@ mod tests {
                         reason: "requires a borrowed result".to_owned(),
                     },
                     DeclinedItem {
+                        rust_path: "witness::callback_gap".to_owned(),
+                        reason: "requires an unsupported callback".to_owned(),
+                    },
+                    DeclinedItem {
                         rust_path: "witness::unused_gap".to_owned(),
                         reason: "requires an unsupported generic".to_owned(),
                     },
@@ -10393,6 +10561,10 @@ mod tests {
                 partial_declines: vec![PartialProjectionRecord {
                     rust_path: "witness::required_gap".to_owned(),
                     reason: "requires a borrowed result".to_owned(),
+                    references: BTreeSet::from([
+                        "witness::accepted".to_owned(),
+                        "witness::callback_gap".to_owned(),
+                    ]),
                     projection: PartialProjection::Function {
                         signature: "fn required_gap(callback: impl witness::Callback)".to_owned(),
                         generic_constraints: vec!["State: 'static".to_owned()],
@@ -10419,18 +10591,27 @@ mod tests {
 
         let inventory = projection.unavailable_inventory(&demands);
 
-        assert_eq!(inventory.len(), 2);
-        assert_eq!(inventory[0].rust_path, "witness::required_gap");
+        assert_eq!(inventory.len(), 3);
+        assert_eq!(inventory[0].rust_path, "witness::callback_gap");
+        assert!(inventory[0].required_by.is_empty());
         assert_eq!(
-            inventory[0].required_by,
+            inventory[0].required_by_contracts,
+            BTreeSet::from(["witness::required_gap".to_owned()])
+        );
+        assert_eq!(inventory[1].rust_path, "witness::required_gap");
+        assert_eq!(
+            inventory[1].required_by,
             BTreeSet::from(["src/main.trn:7:9".to_owned()])
         );
-        assert_eq!(inventory[1].rust_path, "witness::unused_gap");
-        assert!(inventory[1].required_by.is_empty());
+        assert_eq!(inventory[2].rust_path, "witness::unused_gap");
+        assert!(inventory[2].required_by.is_empty());
 
         let document = projection.documented_inventory(&demands);
         let required_heading = document
             .find("# Required unavailable projected declarations")
+            .unwrap();
+        let callback_gap = document
+            .find("# Native path: witness::callback_gap")
             .unwrap();
         let required_gap = document
             .find("# Native path: witness::required_gap")
@@ -10440,7 +10621,8 @@ mod tests {
             .unwrap();
         let unused_gap = document.find("# Native path: witness::unused_gap").unwrap();
         let projected_heading = document.find("# Projected Terrane declarations").unwrap();
-        assert!(required_heading < required_gap);
+        assert!(required_heading < callback_gap);
+        assert!(callback_gap < required_gap);
         assert!(required_gap < unused_heading);
         assert!(unused_heading < unused_gap);
         assert!(unused_gap < projected_heading);
@@ -10449,6 +10631,24 @@ mod tests {
              # Generic constraint: State: 'static\n\
              # Callback parameter `callback`: witness::Callback\n\
              #   Required callback method: fn invoke(self: &Self, state: &State)"
+        ));
+        assert!(document.contains(
+            "# Native path: witness::callback_gap\n\
+             # Terrane namespace: /deps/witness\n\
+             # Unavailable declaration: callback-gap\n\
+             # Projection status: unavailable (required)"
+        ));
+        assert!(
+            document.contains("# Required by projection contracts:\n# - witness::required_gap")
+        );
+        assert!(document.contains(
+            "# Required admitted projected declarations\n\
+             #\n\
+             # Native path: witness::accepted\n\
+             # Terrane namespace: /deps/witness\n\
+             # Projected declaration: accepted\n\
+             # Required by projection contracts:\n\
+             # - witness::required_gap"
         ));
     }
 

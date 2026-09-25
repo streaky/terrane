@@ -1213,10 +1213,13 @@ declarations. Every unavailable entry retains its exact path and decline. A dema
 function additionally renders any deterministically recoverable function shape, generic
 constraints, callback parameter contracts, and callback method signatures; a demanded module is
 identified as a namespace container. Partial contracts preserve known structure but remain
-unavailable for lowering. Imports and projected member uses add current file/line/column demand
-locations. An unavailable declaration may be imported for inspection without failing; semantic
-analysis fails at the first actual source demand and points to the generated inventory. Each build
-replaces, rather than accumulates, caller annotations.
+unavailable for lowering. Their referenced native declarations inherit required status recursively
+by Rustdoc identity, including public reexport aliases. Unavailable dependencies identify the
+requiring contract; admitted dependencies appear in a separate required-admitted index. Imports
+and projected member uses add current file/line/column demand locations. An unreachable unavailable
+declaration may be imported for inspection without failing; semantic analysis fails at the first
+actual source demand and points to the generated inventory. Each build replaces, rather than
+accumulates, caller annotations.
 
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
