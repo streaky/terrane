@@ -1402,6 +1402,20 @@ pub(super) fn validate_class_field_initializers(
                 }
                 continue;
             }
+            if field.is_static
+                && super::bindings::declaration_is_constant(package, field.span)
+                && package
+                    .projection
+                    .constant_for_native(
+                        &object.identity.namespace,
+                        &object.identity.name,
+                        object.identity.native_projection.as_deref(),
+                        &field.name,
+                    )
+                    .is_some()
+            {
+                continue;
+            }
             if canonical_default(&field.value_type).is_some()
                 || matches!(
                     field.value_type,

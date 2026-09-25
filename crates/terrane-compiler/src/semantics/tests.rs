@@ -18,6 +18,7 @@ fn ambiguous_projection() -> Projection {
             kind: ProjectedKind::ForeignType {
                 methods: Vec::new(),
                 static_methods: Vec::new(),
+                constants: Vec::new(),
                 cloneable: false,
                 send,
                 sync: false,

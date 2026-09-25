@@ -350,10 +350,15 @@ next work units before committing to a new core representation.
   used for member selection and generic Rust lowering. Universal panic translation is implicit and
   omitted from generated declarations; projected `Result` errors retain
   `throws dependency-error`. Other generic shapes retain distinct internal identities until
-  equivalent correlation is proven. Admitted nominal classes contain the union of members whose
-  rendered declarations are syntax-valid Terrane source, independently of current imports.
-  Projection parses each candidate declaration before admitting it to the generated unit; admitted
-  members whose
+  equivalent correlation is proven. Admitted nominal classes contain the union of methods,
+  associated constants, and enum constructors whose rendered declarations are syntax-valid
+  Terrane source, independently of current imports. Associated constants render as
+  `static constant` and are selected with `Type::CONSTANT`. Rustdoc determines visibility and
+  type; missing value text is recovered from the Cargo-resolved source file through a
+  per-projection parsed-file cache. Exactly translatable literal, tuple, array, and arithmetic
+  expressions become Terrane initializers. Other constants remain compiler-backed and lower
+  directly to their canonical Rust associated-constant paths. Projection parses each candidate
+  declaration before admitting it to the generated unit; admitted members whose
   rendering is not yet syntax-valid remain inert comments with the exact parser rejection.
   Unsupported public members remain inert comments inside the owning class with native path,
   recoverable signature, and exact decline, while their complete records remain in the unavailable

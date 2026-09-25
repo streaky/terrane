@@ -6,6 +6,7 @@ use std::process::Command;
 use std::sync::LazyLock;
 use std::time::Duration;
 
+use quote::ToTokens as _;
 use rustdoc_types::{
     AssocItemConstraintKind, Attribute, Crate as RustdocCrate, Function, GenericArg, GenericArgs,
     GenericBound, GenericParamDef, GenericParamDefKind, Id, Impl, Item, ItemEnum, ItemKind,
@@ -17,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "87";
+const PROJECTION_SCHEMA: &str = "90";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -330,6 +331,8 @@ pub enum ProjectedKind {
         #[serde(default)]
         static_methods: Vec<ProjectedFunction>,
         #[serde(default)]
+        constants: Vec<ProjectedConstant>,
+        #[serde(default)]
         boundary: ProjectedBoundaryCapabilities,
         #[serde(default)]
         displayable: bool,
@@ -347,6 +350,8 @@ pub enum ProjectedKind {
         #[serde(default)]
         static_methods: Vec<ProjectedFunction>,
         #[serde(default)]
+        constants: Vec<ProjectedConstant>,
+        #[serde(default)]
         displayable: bool,
         #[serde(default)]
         send: bool,
@@ -355,6 +360,18 @@ pub enum ProjectedKind {
         data_carrying: bool,
         comparable: bool,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedConstant {
+    pub name: String,
+    pub rust_name: String,
+    pub rust_path: String,
+    pub ty: ProjectedType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_expression: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terrane_value: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1652,6 +1669,37 @@ impl Projection {
             })
     }
 
+    pub(crate) fn constant_for_native(
+        &self,
+        namespace: &str,
+        type_name: &str,
+        native_projection: Option<&str>,
+        constant_name: &str,
+    ) -> Option<&ProjectedConstant> {
+        let rust_path =
+            native_projection.or_else(|| self.foreign_rust_path(namespace, type_name))?;
+        let base_rust_path = rust_path
+            .split_once('<')
+            .map_or(rust_path, |(base, _)| base);
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| {
+                item.namespace == namespace
+                    && item.name == type_name
+                    && (Self::unqualified_rust_type(&item.rust_path)
+                        == Self::unqualified_rust_type(rust_path)
+                        || projected_owner_path_matches(&item.rust_path, base_rust_path))
+            })
+            .and_then(|item| match &item.kind {
+                ProjectedKind::ForeignType { constants, .. }
+                | ProjectedKind::Enum { constants, .. } => constants
+                    .iter()
+                    .find(|constant| constant.name == constant_name),
+                _ => None,
+            })
+    }
+
     fn unqualified_rust_type(rust_type: &str) -> String {
         let mut normalized = String::with_capacity(rust_type.len());
         let mut token_start = 0;
@@ -2477,15 +2525,20 @@ fn render_foreign_declaration(
                 ProjectedKind::ForeignType {
                     methods,
                     static_methods,
+                    constants,
                     ..
                 }
                 | ProjectedKind::Enum {
                     methods,
                     static_methods,
+                    constants,
                     ..
                 },
             ) = projected_kind
             {
+                for constant in constants {
+                    render_projected_constant(output, constant, aliases);
+                }
                 for method in methods.iter().filter(|method| {
                     projected_member_is_demanded(namespace, name, &method.name, demanded_members)
                 }) {
@@ -2505,6 +2558,24 @@ fn render_foreign_declaration(
         render_omitted_admitted_members(output, item, demanded_members);
     }
     render_unavailable_members_for_item(output, namespace, projected_item, unavailable_members);
+    output.push('\n');
+}
+
+fn render_projected_constant(
+    output: &mut String,
+    constant: &ProjectedConstant,
+    aliases: &BTreeMap<String, String>,
+) {
+    write!(
+        output,
+        "    static constant {} {}",
+        constant.name,
+        projected_type_name(&constant.ty, aliases)
+    )
+    .expect("writing to a string cannot fail");
+    if let Some(value) = &constant.terrane_value {
+        write!(output, " = {value}").expect("writing to a string cannot fail");
+    }
     output.push('\n');
 }
 
@@ -6955,6 +7026,7 @@ fn project_rustdoc(
     let mut partial_declines = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
+    let mut source_constants = SourceConstantCache::new();
     for (id, path) in candidates {
         let Some(item) = index.get(&id) else {
             if original_paths
@@ -7000,6 +7072,7 @@ fn project_rustdoc(
                             index,
                             paths,
                             public_paths,
+                            &mut source_constants,
                         );
                         if function
                             .sig
@@ -7059,6 +7132,7 @@ fn project_rustdoc(
                 Ok(ProjectedKind::ForeignType {
                     methods: Vec::new(),
                     static_methods: Vec::new(),
+                    constants: Vec::new(),
                     boundary: project_boundary_capabilities(&alias.type_, index, paths),
                     displayable: false,
                     cloneable: false,
@@ -7105,15 +7179,17 @@ fn project_rustdoc(
                     },
                 );
                 {
-                    let (projected_methods, trait_methods, method_declines) = project_methods(
-                        &structure.impls,
-                        index,
-                        paths,
-                        public_paths,
-                        &rust_path,
-                        &owner_generics,
-                        false,
-                    );
+                    let (projected_methods, trait_methods, projected_constants, method_declines) =
+                        project_methods(
+                            &structure.impls,
+                            index,
+                            paths,
+                            public_paths,
+                            &rust_path,
+                            &owner_generics,
+                            false,
+                            &mut source_constants,
+                        );
                     let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
                         .into_iter()
                         .partition(|method| method.receiver.is_some());
@@ -7156,6 +7232,7 @@ fn project_rustdoc(
                     Ok(ProjectedKind::ForeignType {
                         methods,
                         static_methods,
+                        constants: projected_constants,
                         boundary: project_boundary_capabilities(
                             &Type::ResolvedPath(RustdocPath {
                                 path: rust_path.clone(),
@@ -7360,6 +7437,7 @@ fn project_rustdoc(
                     Ok(ProjectedKind::Enum {
                         methods,
                         static_methods,
+                        constants: Vec::new(),
                         send: false,
                         sync: false,
                         displayable: implements_trait(
@@ -7674,15 +7752,152 @@ fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
         .join("::")
 }
 
+fn projected_constant_name(name: &str) -> String {
+    name.split('_')
+        .map(|segment| {
+            if segment.chars().all(|character| character.is_ascii_digit()) {
+                format!("n{segment}")
+            } else {
+                segment.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("-")
+}
+fn project_rust_constant_expression(expression: &str) -> Option<String> {
+    fn translate(expression: &syn::Expr) -> Option<String> {
+        match expression {
+            syn::Expr::Lit(expression) => match &expression.lit {
+                syn::Lit::Bool(value) => Some(value.value.to_string()),
+                syn::Lit::Int(value) => Some(value.base10_digits().to_owned()),
+                syn::Lit::Float(value) => Some(value.base10_digits().to_owned()),
+                syn::Lit::Char(value) => Some(format!("{:?}", value.value())),
+                syn::Lit::Str(value) => Some(format!("{:?}", value.value())),
+                _ => None,
+            },
+            syn::Expr::Group(group) => translate(&group.expr),
+            syn::Expr::Paren(paren) => translate(&paren.expr).map(|value| format!("({value})")),
+            syn::Expr::Unary(unary) => {
+                let operator = match unary.op {
+                    syn::UnOp::Neg(_) => "-",
+                    _ => return None,
+                };
+                translate(&unary.expr).map(|value| format!("{operator}{value}"))
+            }
+            syn::Expr::Binary(binary) => {
+                let operator = match binary.op {
+                    syn::BinOp::Add(_) => "+",
+                    syn::BinOp::Sub(_) => "-",
+                    syn::BinOp::Mul(_) => "*",
+                    syn::BinOp::Div(_) => "/",
+                    syn::BinOp::Rem(_) => "%",
+                    _ => return None,
+                };
+                Some(format!(
+                    "({} {operator} {})",
+                    translate(&binary.left)?,
+                    translate(&binary.right)?
+                ))
+            }
+
+            syn::Expr::Tuple(tuple) => tuple
+                .elems
+                .iter()
+                .map(translate)
+                .collect::<Option<Vec<_>>>()
+                .map(|items| format!("({})", items.join(", "))),
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .map(translate)
+                .collect::<Option<Vec<_>>>()
+                .map(|items| format!("[{}]", items.join(", "))),
+            _ => None,
+        }
+    }
+
+    syn::parse_str::<syn::Expr>(expression)
+        .ok()
+        .and_then(|expression| translate(&expression))
+}
+type SourceConstantCache = BTreeMap<PathBuf, BTreeMap<(String, String), Option<String>>>;
+
+fn source_constant_expression(
+    item: &Item,
+    owner: &str,
+    name: &str,
+    cache: &mut SourceConstantCache,
+) -> Option<String> {
+    fn collect(items: &[syn::Item], constants: &mut BTreeMap<(String, String), Option<String>>) {
+        for item in items {
+            match item {
+                syn::Item::Impl(implementation) => {
+                    let owner = implementation
+                        .self_ty
+                        .to_token_stream()
+                        .to_string()
+                        .split('<')
+                        .next()
+                        .and_then(|path| path.split("::").last())
+                        .map(str::trim)
+                        .unwrap_or_default()
+                        .to_owned();
+                    for member in &implementation.items {
+                        let syn::ImplItem::Const(constant) = member else {
+                            continue;
+                        };
+                        let key = (owner.clone(), constant.ident.to_string());
+                        let expression = constant.expr.to_token_stream().to_string();
+                        constants
+                            .entry(key)
+                            .and_modify(|existing| *existing = None)
+                            .or_insert(Some(expression));
+                    }
+                }
+                syn::Item::Mod(module) => {
+                    if let Some((_, items)) = &module.content {
+                        collect(items, constants);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let filename = PathBuf::from(&item.span.as_ref()?.filename);
+    let constants = cache.entry(filename.clone()).or_insert_with(|| {
+        let mut constants = BTreeMap::new();
+        if let Ok(source) = fs::read_to_string(filename)
+            && let Ok(file) = syn::parse_file(&source)
+        {
+            collect(&file.items, &mut constants);
+        }
+        constants
+    });
+    let owner = owner
+        .split('<')
+        .next()
+        .unwrap_or(owner)
+        .rsplit("::")
+        .next()
+        .unwrap_or(owner);
+    constants
+        .get(&(owner.to_owned(), name.to_owned()))
+        .cloned()
+        .flatten()
+}
+
 type ProjectedMethods = (
     Vec<ProjectedFunction>,
     Vec<(String, String, bool, Option<String>, ProjectedFunction)>,
+    Vec<ProjectedConstant>,
     Vec<(String, String)>,
 );
 
 #[expect(
+    clippy::too_many_arguments,
     clippy::too_many_lines,
-    reason = "rustdoc impl traversal keeps trait and inherent decisions in one deterministic pass"
+    reason = "rustdoc impl traversal keeps one shared context for trait, inherent, and source-backed member decisions"
 )]
 fn project_methods(
     impl_ids: &[Id],
@@ -7692,9 +7907,11 @@ fn project_methods(
     owner_rust_path: &str,
     owner_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
+    source_constants: &mut SourceConstantCache,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
     let mut trait_methods = Vec::new();
+    let mut constants = Vec::new();
     let mut declined = Vec::new();
     for impl_id in impl_ids {
         let Some(Item {
@@ -7740,10 +7957,48 @@ fn project_methods(
             let Some(name) = item.name.as_deref() else {
                 continue;
             };
+            if let ItemEnum::AssocConst { type_, value } = &item.inner {
+                if !inherent {
+                    continue;
+                }
+                match project_type(type_, index, paths, &implementation_generics) {
+                    Ok(ty) => {
+                        let source_expression = value
+                            .as_deref()
+                            .filter(|value| *value != "_")
+                            .map(str::to_owned)
+                            .or_else(|| {
+                                source_constant_expression(
+                                    item,
+                                    &native_owner,
+                                    name,
+                                    source_constants,
+                                )
+                            });
+                        let terrane_value = source_expression
+                            .as_deref()
+                            .and_then(project_rust_constant_expression);
+                        constants.push(ProjectedConstant {
+                            name: projected_constant_name(name),
+                            rust_name: name.to_owned(),
+                            rust_path: if native_owner.contains('<') {
+                                format!("<{native_owner}>::{name}")
+                            } else {
+                                format!("{native_owner}::{name}")
+                            },
+                            ty,
+                            source_expression,
+                            terrane_value,
+                        });
+                    }
+                    Err(reason) => declined.push((name.to_owned(), reason)),
+                }
+                continue;
+            }
             let ItemEnum::Function(function) = &item.inner else {
                 declined.push((
                     name.to_owned(),
-                    "item kind has no Terrane method projection".to_owned(),
+                    "item kind has no Terrane member projection".to_owned(),
                 ));
                 continue;
             };
@@ -7864,7 +8119,8 @@ fn project_methods(
         }));
     }
     methods.sort_by(|left, right| left.name.cmp(&right.name));
-    (methods, trait_methods, declined)
+    constants.sort_by(|left, right| left.name.cmp(&right.name));
+    (methods, trait_methods, constants, declined)
 }
 fn project_chain_owner(
     dependency: &RustDependency,
@@ -7873,6 +8129,7 @@ fn project_chain_owner(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     public_paths: &BTreeMap<Id, String>,
+    source_constants: &mut SourceConstantCache,
 ) -> Option<ProjectedItem> {
     let output = function.sig.output.as_ref()?;
     let Type::ResolvedPath(path) = output else {
@@ -7913,7 +8170,7 @@ fn project_chain_owner(
     {
         owner_generics.insert(parameter.name.clone(), argument.clone());
     }
-    let (mut methods, _, _) = project_methods(
+    let (mut methods, _, _, _) = project_methods(
         &structure.impls,
         index,
         paths,
@@ -7921,6 +8178,7 @@ fn project_chain_owner(
         rust_path,
         &owner_generics,
         true,
+        source_constants,
     );
     methods.retain_mut(|method| {
         if method.receiver.is_none() {
@@ -7952,6 +8210,7 @@ fn project_chain_owner(
         kind: ProjectedKind::ForeignType {
             methods,
             static_methods: Vec::new(),
+            constants: Vec::new(),
             boundary: ProjectedBoundaryCapabilities::default(),
             displayable: false,
             cloneable: false,
@@ -10840,6 +11099,7 @@ mod tests {
             kind: ProjectedKind::ForeignType {
                 methods: vec![method],
                 static_methods: Vec::new(),
+                constants: Vec::new(),
                 boundary: ProjectedBoundaryCapabilities::default(),
                 displayable: false,
                 cloneable: false,
@@ -11505,6 +11765,7 @@ mod tests {
                 kind: ProjectedKind::ForeignType {
                     methods: Vec::new(),
                     static_methods: Vec::new(),
+                    constants: Vec::new(),
                     boundary: ProjectedBoundaryCapabilities::default(),
                     displayable: false,
                     cloneable: false,
@@ -12420,6 +12681,7 @@ mod tests {
                     chain_role: None,
                     receiver: None,
                 }],
+                constants: Vec::new(),
                 cloneable: false,
                 send: false,
                 sync: false,

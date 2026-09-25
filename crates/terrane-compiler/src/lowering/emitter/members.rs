@@ -286,6 +286,14 @@ impl Emitter<'_> {
             return String::new();
         };
         let member_name = self.text(member);
+        if let Some(constant) = self.package.projection.constant_for_native(
+            &object.identity.namespace,
+            &object.identity.name,
+            object.identity.native_projection.as_deref(),
+            member_name,
+        ) {
+            return constant.rust_path.clone();
+        }
         if effective_object_fields(self.package, object)
             .iter()
             .any(|field| field.is_static && field.name == member_name)
