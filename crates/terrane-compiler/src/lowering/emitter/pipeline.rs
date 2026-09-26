@@ -544,7 +544,7 @@ fn lower_with_tests(
             )));
             source_files.push("platform_documents.rs");
         }
-        if uses_json {
+        if uses_json || uses_yaml {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_json.rs"
             )));

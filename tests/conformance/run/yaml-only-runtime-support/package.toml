@@ -1,0 +1,4 @@
+package = "yaml-only-runtime-support"
+
+[namespaces]
+app = "src"
