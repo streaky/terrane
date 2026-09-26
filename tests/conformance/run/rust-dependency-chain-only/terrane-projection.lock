@@ -30,6 +30,14 @@
         ],
         [
           "/deps/sqlx",
+          "Error-ColumnIndexOutOfBounds"
+        ],
+        [
+          "/deps/sqlx",
+          "Error-TypeNotFound"
+        ],
+        [
+          "/deps/sqlx",
           "Sqlite"
         ],
         [
@@ -51,10 +59,6 @@
         [
           "/deps/sqlx",
           "query_scalar"
-        ],
-        [
-          "/deps/sqlx",
-          "query_scalar_with"
         ],
         [
           "/deps/sqlx",
@@ -90,219 +94,155 @@
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.bind"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.bind"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.execute"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.execute"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.execute_many"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.execute_many"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.fetch"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.fetch"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.fetch_all"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.fetch_all"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.fetch_many"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.fetch_many"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.fetch_one"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.fetch_one"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.fetch_optional"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.fetch_optional"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.map"
+          "Query-4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de.persistent"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.persistent"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4"
         ],
         [
           "/deps/sqlx/query",
-          "Query-77956a0e17fe5373e5670037f7d4bafb77ff6d13693649daa699c8b42356cd94.try_map"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.bind"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.execute"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.bind"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.execute_many"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.execute"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.execute_many"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch_all"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.fetch"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch_many"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.fetch_all"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch_one"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.fetch_many"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch_optional"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.fetch_one"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.map"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.fetch_optional"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.persistent"
         ],
         [
           "/deps/sqlx/query",
-          "Query-9b6462a2352afe55b12b4ba4c5e7ec4149e7aaa98a0263052a06e7ad6540aa2a.persistent"
+          "Query-55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.try_map"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.bind"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.bind"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.fetch"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.fetch"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.fetch_all"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.fetch_all"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.fetch_many"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.fetch_many"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.fetch_one"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.fetch_one"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.fetch_optional"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.fetch_optional"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-6f74a819cdf40895c2059fa31c319c6a654122c57b3aa4b3bf76d0faffaaad77.persistent"
+          "QueryAs-ef1951e1d77318b527b805bb5c0c10c3ece61f6a6be0d574637134cab1eb3736.persistent"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.bind"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.bind"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.fetch"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_all"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.fetch_all"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_many"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.fetch_many"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_one"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.fetch_one"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.fetch_optional"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.fetch_optional"
         ],
         [
           "/deps/sqlx/query",
-          "QueryAs-e2aca9bef6d28c2fa3b02af01702fdd557dfdaa4c987fe83754d260903508509.persistent"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.bind"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_all"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_many"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_one"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.fetch_optional"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-0431398a86b4f5147634913318d5a6d7b939641f91a9db27ed33b67d87b26771.persistent"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.bind"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.fetch"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.fetch_all"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.fetch_many"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.fetch_one"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.fetch_optional"
-        ],
-        [
-          "/deps/sqlx/query",
-          "QueryScalar-239bd9971d2521d098ab57f45db8500c336d0779c7572ed699d09f31aec298af.persistent"
+          "QueryScalar-167e2502cd6cb60fa640b2195ec1abca7bb38d5012c42041c6e71fe4b69cf8ba.persistent"
         ],
         [
           "/deps/sqlx/sqlite",
@@ -645,6 +585,14 @@
         [
           "/deps/sqlx-core",
           "Error"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Error-ColumnIndexOutOfBounds"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Error-TypeNotFound"
         ],
         [
           "/deps/sqlx-core",
@@ -1260,6 +1208,18 @@
         ],
         [
           "/deps/sqlx-core/migrate",
+          "MigrateError-ExecuteMigration"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "MigrateError-VersionTooNew"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "MigrateError-VersionTooOld"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
           "Migration"
         ],
         [
@@ -1380,15 +1340,15 @@
         ],
         [
           "/deps/sqlx-core/percent-encoding",
-          "PercentDecode-76c81a61cc2c898343d08e321cbe3f042e5230ebbc9995da0b783354a89e4d14"
+          "PercentDecode"
         ],
         [
           "/deps/sqlx-core/percent-encoding",
-          "PercentDecode-76c81a61cc2c898343d08e321cbe3f042e5230ebbc9995da0b783354a89e4d14.decode_utf8"
+          "PercentDecode.decode_utf8"
         ],
         [
           "/deps/sqlx-core/percent-encoding",
-          "PercentDecode-76c81a61cc2c898343d08e321cbe3f042e5230ebbc9995da0b783354a89e4d14.decode_utf8_lossy"
+          "PercentDecode.decode_utf8_lossy"
         ],
         [
           "/deps/sqlx-core/percent-encoding",
@@ -1432,91 +1392,91 @@
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.bind"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.bind"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.execute"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.execute"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.execute_many"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.execute_many"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_all"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_all"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_many"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_many"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_one"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_one"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.fetch_optional"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_optional"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a.persistent"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.map"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.persistent"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.bind"
+          "Query-66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.try_map"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.execute"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.execute_many"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.bind"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.execute"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_all"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.execute_many"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_many"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.fetch"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_one"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.fetch_all"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.fetch_optional"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.fetch_many"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.map"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.fetch_one"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.persistent"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.fetch_optional"
         ],
         [
           "/deps/sqlx-core/query",
-          "Query-f16a9725c902fbd88cee9dfebe71eae3f33c24424ec312c717cd609e72bd2dac.try_map"
+          "Query-aac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a.persistent"
         ],
         [
           "/deps/sqlx-core/query",
@@ -1528,67 +1488,35 @@
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.bind"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.bind"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.fetch"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_all"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.fetch_all"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_many"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.fetch_many"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_one"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.fetch_one"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.fetch_optional"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.fetch_optional"
         ],
         [
           "/deps/sqlx-core/query-as",
-          "QueryAs-2b6f3c3ee53da3177105c00fbb053170bb2f352f10a88a1ad16cac5be2114c0f.persistent"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.bind"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_all"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_many"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_one"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.fetch_optional"
-        ],
-        [
-          "/deps/sqlx-core/query-as",
-          "QueryAs-74d70826ae3d11eed9195960d169ea8bfe552607904d674ce9559aa8d3884040.persistent"
+          "QueryAs-bb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1.persistent"
         ],
         [
           "/deps/sqlx-core/query-as",
@@ -1596,75 +1524,39 @@
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.bind"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.bind"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.fetch"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_all"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.fetch_all"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_many"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.fetch_many"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_one"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.fetch_one"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.fetch_optional"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.fetch_optional"
         ],
         [
           "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0151226de385e1442aba1997af311eb9a986f2355835a0a47422a0e6c122577a.persistent"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.bind"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_all"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_many"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_one"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.fetch_optional"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "QueryScalar-0df7194b40a0a74e1d0c6a31223e4b8878f977f144b77586baa4f220dd055d41.persistent"
+          "QueryScalar-dc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d.persistent"
         ],
         [
           "/deps/sqlx-core/query-scalar",
           "query_scalar"
-        ],
-        [
-          "/deps/sqlx-core/query-scalar",
-          "query_scalar_with"
         ],
         [
           "/deps/sqlx-core/rt",
@@ -1753,6 +1645,10 @@
         [
           "/deps/sqlx-core/url",
           "Origin"
+        ],
+        [
+          "/deps/sqlx-core/url",
+          "Origin-Tuple"
         ],
         [
           "/deps/sqlx-core/url",
@@ -1930,35 +1826,35 @@
         ],
         [
           "/deps/terrane-chain-witness",
-          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f"
+          "LineBuilder"
         ],
         [
           "/deps/terrane-chain-witness",
-          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.finish"
+          "LineBuilder.finish"
         ],
         [
           "/deps/terrane-chain-witness",
-          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.number"
+          "LineBuilder.number"
         ],
         [
           "/deps/terrane-chain-witness",
-          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.pause"
+          "LineBuilder.pause"
         ],
         [
           "/deps/terrane-chain-witness",
-          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad"
+          "ScalarQuery"
         ],
         [
           "/deps/terrane-chain-witness",
-          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.bind"
+          "ScalarQuery.bind"
         ],
         [
           "/deps/terrane-chain-witness",
-          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.fetch_one"
+          "ScalarQuery.fetch_one"
         ],
         [
           "/deps/terrane-chain-witness",
-          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.pause"
+          "ScalarQuery.pause"
         ],
         [
           "/deps/terrane-chain-witness",

@@ -816,10 +816,12 @@ fn main() {
             8 /* terrane-site: src/main.trn:27:25-27:70 */,
         );
         let body: Vec<u8> = __terrane_raised(
-            match std::panic::catch_unwind(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
-                &row,
-                String::from("body").as_str(),
-            )) {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
+                    &row,
+                    String::from("body").as_str(),
+                )),
+            ) {
                 Ok(Ok(value)) => Ok(value),
                 Ok(Err(error)) => {
                     Err(
@@ -896,10 +898,12 @@ fn main() {
             11 /* terrane-site: src/main.trn:30:32-30:77 */,
         );
         let second_body: Vec<u8> = __terrane_raised(
-            match std::panic::catch_unwind(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
-                &second_row,
-                String::from("body").as_str(),
-            )) {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| <sqlx_sqlite::SqliteRow as sqlx_core::row::Row>::try_get(
+                    &second_row,
+                    String::from("body").as_str(),
+                )),
+            ) {
                 Ok(Ok(value)) => Ok(value),
                 Ok(Err(error)) => {
                     Err(
@@ -1000,7 +1004,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/sqlx-core.trn
 // Namespace: deps/sqlx-core
-pub use sqlx_core::query::Query as Query732e8e840a8786347a71ae9edf7925993cd0ffa16fdb014ebbb37aab66557d8a;
+pub use sqlx_core::query::Query as QueryAac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
 pub use sqlx_sqlite::SqliteRow;

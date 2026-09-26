@@ -2528,6 +2528,41 @@ fn oracle_diagnostic_summary(message: &str) -> String {
     }
 }
 
+fn merge_projected_callback_shape(
+    template: &crate::projection::ProjectedType,
+    actual: &crate::projection::ProjectedType,
+) -> crate::projection::ProjectedType {
+    use crate::projection::ProjectedType;
+    let (
+        ProjectedType::Callback {
+            rust_name,
+            invocation_mode,
+            retained,
+            send,
+            sync,
+            ..
+        },
+        ProjectedType::Callback {
+            parameters,
+            result,
+            is_async,
+            ..
+        },
+    ) = (template, actual)
+    else {
+        return actual.clone();
+    };
+    ProjectedType::Callback {
+        rust_name: rust_name.clone(),
+        parameters: parameters.clone(),
+        result: result.clone(),
+        invocation_mode: *invocation_mode,
+        is_async: *is_async,
+        retained: *retained,
+        send: *send,
+        sync: *sync,
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "one syntax walk makes every permitted destination context explicit"
@@ -2559,12 +2594,47 @@ fn collect_projected_destinations(
         && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
     {
         let mut value_bindings = BTreeMap::new();
-        for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
+        let mut callback_bindings = BTreeMap::new();
+        for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
+            .children
+            .iter()
+            .zip(&contract.parameters)
+            .zip(&function.parameters)
+            .enumerate()
+        {
             let value = argument.children.last().unwrap_or(argument);
-            let Some(expected) = parameter.element_value_type() else {
+            let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
                 continue;
             };
-            let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+            if let (
+                crate::projection::ProjectedType::Callback { .. },
+                Some(generic),
+                ValueType::Function(_, actual_result, _)
+                | ValueType::AsyncFunction(_, actual_result, _, _),
+            ) = (
+                &projected_parameter.ty,
+                projected_parameter.generic_parameter.as_ref(),
+                &actual,
+            ) && function
+                .generic_parameters
+                .iter()
+                .any(|candidate| candidate.input_selected && candidate.name == *generic)
+            {
+                value_bindings.insert(generic.clone(), actual_result.value_type_ref().clone());
+                callback_bindings.insert(
+                    parameter_index,
+                    destination_projected_type(package, &actual).map_err(|reason| {
+                        failure(
+                            &unit.source,
+                            "T0129",
+                            format!("projected callback cannot use `{actual}`: {reason}"),
+                            value.span,
+                        )
+                    })?,
+                );
+                continue;
+            }
+            let Some(expected) = parameter.element_value_type() else {
                 continue;
             };
             super::calls::bind_projected_generics(
@@ -2577,7 +2647,7 @@ fn collect_projected_destinations(
                     &unit.source,
                     "T0129",
                     format!(
-                        "projected generic `{generic}` is inferred as incompatible argument types"
+                        "projected generic `{generic}` is inferred as incompatible argument types: expected `{expected}`, actual `{actual}`"
                     ),
                     value.span,
                 )
@@ -2624,11 +2694,16 @@ fn collect_projected_destinations(
             .parameters
             .iter()
             .cloned()
-            .map(|mut parameter| {
+            .enumerate()
+            .map(|(index, mut parameter)| {
                 if let crate::projection::ProjectedType::Generic(name) = &parameter.ty {
                     parameter.generic_parameter = Some(name.clone());
                 }
-                parameter.ty = specialize(&parameter.ty);
+                parameter.ty = if let Some(actual) = callback_bindings.get(&index) {
+                    merge_projected_callback_shape(&parameter.ty, actual)
+                } else {
+                    specialize(&parameter.ty)
+                };
                 parameter.generic_bounds.clear();
                 parameter
             })
@@ -2643,13 +2718,19 @@ fn collect_projected_destinations(
             })
             .collect();
         let mut projected_result = specialize(&function.result);
-        let result = super::calls::substitute_projected_value_generics(
-            contract
-                .return_type
-                .as_ref()
-                .unwrap_or(&ValueType::Scalar(ScalarType::None)),
-            &value_bindings,
-        );
+        let result = if let crate::projection::ProjectedType::Generic(name) = &function.result
+            && let Some(bound) = value_bindings.get(name)
+        {
+            bound.clone()
+        } else {
+            super::calls::substitute_projected_value_generics(
+                contract
+                    .return_type
+                    .as_ref()
+                    .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+                &value_bindings,
+            )
+        };
         let mut value_type = if function.is_async {
             ValueType::Task(ElementType::new(result), contract.task_transferability)
         } else {
@@ -2663,6 +2744,7 @@ fn collect_projected_destinations(
         let mut specialization_rust_type = String::new();
         if let (Some(destination_result), Some(destination)) =
             (&function.destination_result, expected)
+            && !projected_bindings.contains_key(&destination_result.parameter)
             && let Ok(expected_projected) = destination_projected_type(package, destination)
             && let Ok(Some(projected_destination)) = select_projected_generic_destination(
                 &function.result,

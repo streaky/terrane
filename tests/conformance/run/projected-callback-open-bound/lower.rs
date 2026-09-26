@@ -496,9 +496,9 @@ fn main() {
     __terrane_run(async move {
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(| | terrane_callback_witness::open_callback(match |
-            | -> Result < _, crate ::TerraneForeignError > {
-            Ok(terrane_int_support::coerce:: < i64 >
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_callback_witness::open_callback(match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(1_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
@@ -511,7 +511,7 @@ fn main() {
             crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error)
-            => std::panic::panic_any(error) })) { Ok(value) =>
+            => std::panic::panic_any(error) }))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
             "terrane_callback_witness::open_callback")) }, 0 /* terrane-site: src/main.trn:9:13-9:39 */))
@@ -526,16 +526,17 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(| | terrane_callback_witness::render_many(match | |
-            -> Result < _, crate ::TerraneForeignError > { Ok(values.into_iter().map(|
-            item | -> Result < _, crate ::TerraneForeignError > {
-            Ok(terrane_int_support::coerce:: < i64 > (&item).map_err(| error | crate
-            ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
-            ::TERRANE_NO_SITE))) ?) }).collect:: < Result < std::vec::Vec < i64 >, _ > >
-            () ?) } () { Ok(value) => value, Err(error) => std::panic::panic_any(error)
-            })) { Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "terrane-callback-witness",
-            "terrane_callback_witness::render_many")) }, 1 /* terrane-site: src/main.trn:11:13-11:32 */))
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_callback_witness::render_many(match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok(values.into_iter().map(| item | -> Result < _,
+            crate ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            (&item).map_err(| error | crate ::TerraneForeignError(crate
+            ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) }).collect:: <
+            Result < std::vec::Vec < i64 >, _ > > () ?) } () { Ok(value) => value,
+            Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
+            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+            "terrane-callback-witness", "terrane_callback_witness::render_many")) },
+            1 /* terrane-site: src/main.trn:11:13-11:32 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({

@@ -548,7 +548,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "terrane_chain_witness",
-                                            "terrane_chain_witness::ScalarQuery<'_>::fetch_one",
+                                            "terrane_chain_witness::ScalarQuery::fetch_one",
                                         ),
                                     )
                                 }
@@ -592,7 +592,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "terrane_chain_witness",
-                            "terrane_chain_witness::LineBuilder<'_>::finish",
+                            "terrane_chain_witness::LineBuilder::finish",
                         ),
                     )
                 }
@@ -606,6 +606,8 @@ fn main() {
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn
 // Namespace: deps/terrane-chain-witness
 pub use terrane_chain_witness::Database;
+pub use terrane_chain_witness::LineBuilder;
+pub use terrane_chain_witness::ScalarQuery;
 pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             terrane_chain_witness::memory_database(),

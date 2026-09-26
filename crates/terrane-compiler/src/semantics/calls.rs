@@ -946,6 +946,30 @@ fn resolve_call_parameter<'a>(
     Ok(parameter)
 }
 
+fn bind_destination_selected_callback(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<bool, String> {
+    let (
+        ValueType::Function(_, expected_result, _)
+        | ValueType::AsyncFunction(_, expected_result, _, _),
+        ValueType::Function(_, actual_result, _) | ValueType::AsyncFunction(_, actual_result, _, _),
+    ) = (expected, actual)
+    else {
+        return Ok(false);
+    };
+    if projected_generic_name(expected_result.value_type_ref()).is_none() {
+        return Ok(false);
+    }
+    bind_projected_generics(
+        expected_result.value_type_ref(),
+        actual_result.value_type_ref(),
+        bindings,
+    )?;
+    Ok(true)
+}
+
 pub(super) fn validate_call_arguments(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
@@ -988,6 +1012,23 @@ pub(super) fn validate_call_arguments(
                     bindings,
                 )?;
             } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                if bind_destination_selected_callback(
+                    &expected,
+                    &actual,
+                    &mut generic_bindings,
+                )
+                .map_err(|generic| {
+                    failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "projected generic `{generic}` is inferred as incompatible argument types"
+                        ),
+                        value.span,
+                    )
+                })? {
+                    continue;
+                }
                 if let Err(generic) =
                     bind_projected_generics(&expected, &actual, &mut generic_bindings)
                 {

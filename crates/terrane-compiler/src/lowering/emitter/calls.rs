@@ -1782,7 +1782,7 @@ impl Emitter<'_> {
             let receiver = if contract.is_async {
                 match projected_receiver {
                     Some(crate::projection::Receiver::MutableBorrow) => {
-                        format!("&mut {receiver_expression}")
+                        self.mutable_receiver_expression(receiver)
                     }
                     Some(crate::projection::Receiver::Borrow) => {
                         format!("&{receiver_expression}")
@@ -2081,10 +2081,8 @@ impl Emitter<'_> {
                 "crate::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call)).await".to_owned()
             } else if method.is_async {
                 "crate::__terrane_dependency_await_unwind(__terrane_call).await".to_owned()
-            } else if method.receiver.is_some() {
-                format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
             } else {
-                format!("std::panic::catch_unwind(|| {unwind_call})")
+                format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
             };
             let projected_result = specialization.map_or(&method.result, |specialization| {
                 &specialization.projected_result

@@ -520,9 +520,11 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     let text: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| terrane_payload_enum_witness::Event::Text(
-            String::from("hello"),
-        )) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::Event::Text(
+                String::from("hello"),
+            )),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -576,9 +578,11 @@ fn main() {
         );
     }
     let binary: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| terrane_payload_enum_witness::Event::Binary(
-            Vec::from([65, 66]),
-        )) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::Event::Binary(
+                Vec::from([65, 66]),
+            )),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -632,7 +636,9 @@ fn main() {
         );
     }
     let ping: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| terrane_payload_enum_witness::Event::Ping) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::Event::Ping),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -665,10 +671,12 @@ fn main() {
         pair_payload.item_n1.clone()))
     );
     let pair: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| {
-            let (field_0, field_1) = pair_payload.terrane_into_fields();
-            terrane_payload_enum_witness::Event::Pair(field_0, field_1)
-        }) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| {
+                let (field_0, field_1) = pair_payload.terrane_into_fields();
+                terrane_payload_enum_witness::Event::Pair(field_0, field_1)
+            }),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -715,12 +723,14 @@ fn main() {
     let named_payload: EventNamed = EventNamed::terrane_construct(42);
     println!("{}", terrane_scalar_support::scalar_text(&named_payload.value));
     let named: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| {
-            let (field_0,) = named_payload.terrane_into_fields();
-            terrane_payload_enum_witness::Event::Named {
-                r#value: field_0,
-            }
-        }) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| {
+                let (field_0,) = named_payload.terrane_into_fields();
+                terrane_payload_enum_witness::Event::Named {
+                    r#value: field_0,
+                }
+            }),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -768,13 +778,15 @@ fn main() {
         None::<String>,
     );
     let optional: Event = __terrane_raised(
-        match std::panic::catch_unwind(|| {
-            let (field_0, field_1) = optional_payload.terrane_into_fields();
-            terrane_payload_enum_witness::Event::Optional {
-                r#value: field_0,
-                r#label: field_1,
-            }
-        }) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| {
+                let (field_0, field_1) = optional_payload.terrane_into_fields();
+                terrane_payload_enum_witness::Event::Optional {
+                    r#value: field_0,
+                    r#label: field_1,
+                }
+            }),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -823,12 +835,14 @@ fn main() {
     }
     let owned: Option<OwnedEvent> = Some(
         __terrane_raised(
-            match std::panic::catch_unwind(|| terrane_payload_enum_witness::OwnedEvent::Payload(
-                __terrane_raised(
-                    non_clone_payload(String::from("owned")),
-                    14 /* terrane-site: src/main.trn:36:49-36:75 */,
-                ),
-            )) {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::OwnedEvent::Payload(
+                    __terrane_raised(
+                        non_clone_payload(String::from("owned")),
+                        14 /* terrane-site: src/main.trn:36:49-36:75 */,
+                    ),
+                )),
+            ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
                     Err(

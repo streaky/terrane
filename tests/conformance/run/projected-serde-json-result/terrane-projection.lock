@@ -259,6 +259,10 @@
         ],
         [
           "/deps/serde-json/value/ser",
+          "SerializeMap-Map"
+        ],
+        [
+          "/deps/serde-json/value/ser",
           "SerializeStructVariant"
         ],
         [

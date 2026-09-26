@@ -491,9 +491,11 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     let mut response: Response = __terrane_raised(
-        match std::panic::catch_unwind(|| reqwest::blocking::get(
-            String::from("http://127.0.0.1:38125/"),
-        )) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| reqwest::blocking::get(
+                String::from("http://127.0.0.1:38125/"),
+            )),
+        ) {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(error)) => {
                 Err(

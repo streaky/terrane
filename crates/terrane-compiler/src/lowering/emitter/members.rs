@@ -198,6 +198,16 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn mutable_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
+            return format!(
+                "{}.as_mut().expect(\"semantic optional narrowing\")",
+                self.raw_storage_name(receiver)
+            );
+        }
+        format!("&mut {}", self.receiver_expression(receiver))
+    }
+
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
             Some(ValueType::SharedReference(_)) => format!(

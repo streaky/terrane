@@ -15,6 +15,10 @@
         ],
         [
           "/deps/axum",
+          "Error::new"
+        ],
+        [
+          "/deps/axum",
           "Router"
         ],
         [
@@ -136,6 +140,10 @@
         [
           "/deps/axum/body",
           "Bytes.len"
+        ],
+        [
+          "/deps/axum/body",
+          "Bytes.slice"
         ],
         [
           "/deps/axum/body",
@@ -416,6 +424,34 @@
         [
           "/deps/axum/extract/path",
           "ErrorKind"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-DeserializeError"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-InvalidUtf8InPathParam"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-ParseError"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-ParseErrorAtIndex"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-ParseErrorAtKey"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-UnsupportedType"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "ErrorKind-WrongNumberOfParameters"
         ],
         [
           "/deps/axum/extract/path",
@@ -2696,6 +2732,10 @@
           "Error"
         ],
         [
+          "/deps/axum-core",
+          "Error::new"
+        ],
+        [
           "/deps/axum-core/body",
           "Body"
         ],
@@ -2907,6 +2947,10 @@
         ],
         [
           "/deps/bytes",
+          "Bytes.slice"
+        ],
+        [
+          "/deps/bytes",
           "Bytes.split_off"
         ],
         [
@@ -2936,6 +2980,10 @@
         [
           "/deps/bytes",
           "BytesMut.clear"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.extend_from_within"
         ],
         [
           "/deps/bytes",
@@ -4745,6 +4793,10 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpStream.async_io"
+        ],
+        [
+          "/deps/tokio/net",
           "TcpStream.into_std"
         ],
         [
@@ -4801,6 +4853,10 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpStream.try_io"
+        ],
+        [
+          "/deps/tokio/net",
           "TcpStream.ttl"
         ],
         [
@@ -4818,6 +4874,10 @@
         [
           "/deps/tokio/net",
           "UdpSocket"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.async_io"
         ],
         [
           "/deps/tokio/net",
@@ -4925,6 +4985,10 @@
         ],
         [
           "/deps/tokio/net",
+          "UdpSocket.try_io"
+        ],
+        [
+          "/deps/tokio/net",
           "UdpSocket.try_peek_sender"
         ],
         [
@@ -5001,6 +5065,10 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixStream.async_io"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixStream.into_std"
         ],
         [
@@ -5026,6 +5094,10 @@
         [
           "/deps/tokio/net",
           "UnixStream.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream.try_io"
         ],
         [
           "/deps/tokio/net",
@@ -5305,6 +5377,10 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
+          "Receiver.try_io"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
           "Receiver::from_file"
         ],
         [
@@ -5334,6 +5410,10 @@
         [
           "/deps/tokio/net/unix/pipe",
           "Sender.ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.try_io"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -5465,6 +5545,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Builder.name"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Builder.on_thread_park"
         ],
         [
@@ -5482,6 +5566,10 @@
         [
           "/deps/tokio/runtime",
           "Builder.thread_keep_alive"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.thread_name"
         ],
         [
           "/deps/tokio/runtime",
@@ -5529,6 +5617,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle.spawn_blocking"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Handle::current"
         ],
         [
@@ -5569,6 +5661,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.spawn_blocking"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime.spawn_local"
         ],
         [
@@ -5602,6 +5698,10 @@
         [
           "/deps/tokio/runtime",
           "Runtime.spawn"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.spawn_blocking"
         ],
         [
           "/deps/tokio/runtime",
@@ -5914,6 +6014,10 @@
         [
           "/deps/tokio/task",
           "id"
+        ],
+        [
+          "/deps/tokio/task",
+          "spawn_blocking"
         ],
         [
           "/deps/tokio/task",

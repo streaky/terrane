@@ -292,6 +292,10 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpStream.async_io"
+        ],
+        [
+          "/deps/tokio/net",
           "TcpStream.into_std"
         ],
         [
@@ -348,6 +352,10 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpStream.try_io"
+        ],
+        [
+          "/deps/tokio/net",
           "TcpStream.ttl"
         ],
         [
@@ -365,6 +373,10 @@
         [
           "/deps/tokio/net",
           "UdpSocket"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.async_io"
         ],
         [
           "/deps/tokio/net",
@@ -472,6 +484,10 @@
         ],
         [
           "/deps/tokio/net",
+          "UdpSocket.try_io"
+        ],
+        [
+          "/deps/tokio/net",
           "UdpSocket.try_peek_sender"
         ],
         [
@@ -548,6 +564,10 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixStream.async_io"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixStream.into_std"
         ],
         [
@@ -573,6 +593,10 @@
         [
           "/deps/tokio/net",
           "UnixStream.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream.try_io"
         ],
         [
           "/deps/tokio/net",
@@ -852,6 +876,10 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
+          "Receiver.try_io"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
           "Receiver::from_file"
         ],
         [
@@ -881,6 +909,10 @@
         [
           "/deps/tokio/net/unix/pipe",
           "Sender.ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.try_io"
         ],
         [
           "/deps/tokio/net/unix/pipe",

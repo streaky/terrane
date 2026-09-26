@@ -504,22 +504,23 @@ async fn produce_async() -> terrane_int_support::Int {
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(| | terrane_callable_recipe_witness::invoke(match | | ->
-        Result < _, crate ::TerraneForeignError > { Ok({ let callback =
-        TerraneConsumingCallable::new(move | () : () | produce()); move | | { match | |
-        -> Result < _, crate ::TerraneForeignError > { let callback_value = callback
-        .call(()); Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(|
-        error | crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_callable_recipe_witness::invoke(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok({ let callback = TerraneConsumingCallable::new(move
+        | () : () | produce()); move | | { match | | -> Result < _, crate
+        ::TerraneForeignError > { let callback_value = callback.call(());
+        Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
+        crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
-        std::panic::panic_any(error) })) { Ok(value) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
         "terrane_callable_recipe_witness::invoke")) }, 0 /* terrane-site: src/main.trn:16:13-16:28 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(| |
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_callable_recipe_witness::transform(String::from("one"), match | | ->
         Result < _, crate ::TerraneForeignError > { Ok({ let callback =
         std::sync::Arc::new(length).clone(); move | callback_argument_0 : String | {
@@ -528,14 +529,14 @@ fn main() {
         (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
         ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) })) { Ok(value) => Ok(value),
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
         Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness", "terrane_callable_recipe_witness::transform"))
         }, 1 /* terrane-site: src/main.trn:17:13-17:37 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(| |
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_callable_recipe_witness::mutate(String::from("two"), match | | -> Result
         < _, crate ::TerraneForeignError > { Ok({ let callback =
         std::sync::Arc::new(length).clone(); move | callback_argument_0 : String | {
@@ -544,24 +545,25 @@ fn main() {
         (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
         ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) })) { Ok(value) => Ok(value),
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
         Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness", "terrane_callable_recipe_witness::mutate")) },
         2 /* terrane-site: src/main.trn:18:13-18:34 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(| | terrane_callable_recipe_witness::install(match | |
-        -> Result < _, crate ::TerraneForeignError > { Ok({ let callback =
-        std::sync::Arc::new(move | | -> std::pin::Pin < Box < dyn Future < Output = _ > +
-        Send > > { Box::pin(produce_async()) }).clone(); move | | { let callback =
-        callback.clone(); let callback_future = callback(); Box::pin(async move { match
-        async { let callback_value = callback_future. await; Ok:: < _, crate
-        ::TerraneForeignError > (terrane_int_support::coerce:: < i64 > (&callback_value)
-        .map_err(| error | crate ::TerraneForeignError(crate
-        ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } . await {
-        Ok(value) => value, Err(error) => std::panic::panic_any(error.0) } }) } }) } () {
-        Ok(value) => value, Err(error) => std::panic::panic_any(error) })) { Ok(value) =>
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_callable_recipe_witness::install(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(move | | ->
+        std::pin::Pin < Box < dyn Future < Output = _ > + Send > > {
+        Box::pin(produce_async()) }).clone(); move | | { let callback = callback.clone();
+        let callback_future = callback(); Box::pin(async move { match async { let
+        callback_value = callback_future. await; Ok:: < _, crate ::TerraneForeignError >
+        (terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error | crate
+        ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+        ::TERRANE_NO_SITE))) ?) } . await { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } }) } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
         "terrane_callable_recipe_witness::install")) }, 3 /* terrane-site: src/main.trn:19:13-19:35 */))

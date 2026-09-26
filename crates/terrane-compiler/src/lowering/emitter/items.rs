@@ -1528,21 +1528,40 @@ impl<'a> Emitter<'a> {
         self.emit_function(node, None);
     }
 
-    fn moves_instance_field(&self, node: &SyntaxNode) -> bool {
+    fn consuming_method_needs_mutable_self(&self, node: &SyntaxNode) -> bool {
+        fn rooted_in_this(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
+            if node.kind == SyntaxKind::Name {
+                return emitter.text(node) == "this";
+            }
+            node.kind == SyntaxKind::MemberExpression
+                && node
+                    .children
+                    .first()
+                    .is_some_and(|receiver| rooted_in_this(emitter, receiver))
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && self.unary_operator(node).as_deref() == Some("move")
-            && node.children.last().is_some_and(|operand| {
-                operand.kind == SyntaxKind::MemberExpression
-                    && operand.children.first().is_some_and(|receiver| {
-                        receiver.kind == SyntaxKind::Name && self.text(receiver) == "this"
-                    })
+            && node
+                .children
+                .last()
+                .is_some_and(|operand| rooted_in_this(self, operand))
+        {
+            return true;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::MemberExpression
+                    && callee
+                        .children
+                        .first()
+                        .is_some_and(|receiver| rooted_in_this(self, receiver))
             })
         {
             return true;
         }
         node.children
             .iter()
-            .any(|child| self.moves_instance_field(child))
+            .any(|child| self.consuming_method_needs_mutable_self(child))
     }
 
     pub(super) fn object_method(&mut self, node: &SyntaxNode) {
@@ -1560,7 +1579,9 @@ impl<'a> Emitter<'a> {
             }
         } else {
             match contract.written_invocation_mode {
-                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
+                InvocationMode::Consuming if self.consuming_method_needs_mutable_self(node) => {
+                    "mut self"
+                }
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
@@ -1597,7 +1618,9 @@ impl<'a> Emitter<'a> {
             }
         } else {
             match contract.written_invocation_mode {
-                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
+                InvocationMode::Consuming if self.consuming_method_needs_mutable_self(node) => {
+                    "mut self"
+                }
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",

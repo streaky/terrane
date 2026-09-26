@@ -109224,7 +109224,39 @@
         ],
         [
           "/deps/godot/meta/shape",
+          "GodotElementShape-Builtin"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotElementShape-Class"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotElementShape-Custom"
+        ],
+        [
+          "/deps/godot/meta/shape",
           "GodotShape"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotShape-Builtin"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotShape-Class"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotShape-Custom"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotShape-TypedArray"
+        ],
+        [
+          "/deps/godot/meta/shape",
+          "GodotShape-TypedDictionary"
         ],
         [
           "/deps/godot/meta/shape/enumeratorshape",
