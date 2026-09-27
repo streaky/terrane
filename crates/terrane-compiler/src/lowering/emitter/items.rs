@@ -1539,6 +1539,14 @@ impl<'a> Emitter<'a> {
                     .first()
                     .is_some_and(|receiver| rooted_in_this(emitter, receiver))
         }
+        if node.kind == SyntaxKind::Assignment
+            && node
+                .children
+                .first()
+                .is_some_and(|target| rooted_in_this(self, target))
+        {
+            return true;
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && self.unary_operator(node).as_deref() == Some("move")
             && node

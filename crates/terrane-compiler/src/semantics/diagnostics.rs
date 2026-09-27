@@ -554,6 +554,29 @@ fn projected_call_mutates_binding(
     })
 }
 
+fn object_mutation_root<'a>(unit: &SemanticUnit, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
+    match node.kind {
+        SyntaxKind::Name => Some(node),
+        SyntaxKind::MemberExpression
+            if node.children.first().is_some_and(|receiver| {
+                matches!(
+                    unit.inferred_value_type(receiver),
+                    Some(ValueType::Object(_))
+                )
+            }) =>
+        {
+            node.children
+                .first()
+                .and_then(|receiver| object_mutation_root(unit, receiver))
+        }
+        SyntaxKind::GroupExpression => node
+            .children
+            .first()
+            .and_then(|child| object_mutation_root(unit, child)),
+        _ => None,
+    }
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -573,11 +596,12 @@ pub(crate) fn binding_span_is_mutated(
             return 0;
         }
         let resolves_to_binding = |target: &SyntaxNode| {
-            target.kind == SyntaxKind::Name
-                && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
-                && package
-                    .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
-                    .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+            object_mutation_root(unit, target).is_some_and(|root| {
+                !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, root))
+                    && package
+                        .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                        .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+            })
         };
         let direct_write = matches!(
             node.kind,
