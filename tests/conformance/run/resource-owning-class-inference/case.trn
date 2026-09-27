@@ -4,9 +4,12 @@ from /core/output import print
 
 class stream-owner
     input byte-reader = stdin;
+function finish none; owner stream-owner
+    return none
 
 function main;
     source = instance stream-owner;
     destination stream-owner = source
     result = destination.input.read; 1
     print; result.completed
+    finish; destination

@@ -1,0 +1,13 @@
+namespace resource-owning-call-transfer-use-after
+from /core/streams import byte-reader, stdin
+
+class stream-owner
+    input byte-reader = stdin;
+
+function finish none; owner stream-owner
+    return none
+
+function main;
+    owner = instance stream-owner;
+    finish; owner
+    result = owner.input.read; 1
