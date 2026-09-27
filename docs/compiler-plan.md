@@ -663,6 +663,13 @@ minimum appropriate closure or nominal shim and prove the complete selected cont
 supertraits, associated outputs, invocation authority and coherence constraints. Do not assume
 every one-method trait is callable or forge implementations prohibited by Rust coherence.
 
+Implemented foundation: projected blanket callable recipes may retain correlated open generics.
+Compatible recipe families whose invocation/result obligations agree but whose callback parameter
+shapes differ are represented as destination-selected; the supplied Terrane callable chooses the
+shape. Semantics jointly unifies every callback argument and reports incompatible correlations
+before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are the executable
+ecosystem witness. Higher-ranked lifetime/result families remain in this milestone.
+
 Represent higher-ranked lifetime binders and input/output borrow relationships explicitly.
 For Iced's view contract, prove one callable works for every permitted invocation lifetime;
 specializing a single lifetime or promoting it to `'static` is not sufficient. Support a checked

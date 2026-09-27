@@ -2,4 +2,8 @@
 3
 3
 42
+value
+value
+true
+true
 42

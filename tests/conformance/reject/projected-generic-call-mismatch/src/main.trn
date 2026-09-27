@@ -1,9 +1,15 @@
 namespace app
 
-from /deps/terrane-generic-mismatch-witness import open_callback
+from /deps/terrane-generic-mismatch-witness import compose
 
-function identity_string string; value string
-    return value
+function initial string;
+    return 'state'
+
+function produce-message int;
+    return 1
+
+function incompatible string; state string, message string
+    return state
 
 function main;
-    print; (open_callback; 1, identity_string)
+    compose; initial, produce-message, incompatible

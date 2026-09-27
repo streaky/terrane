@@ -2536,6 +2536,7 @@ fn merge_projected_callback_shape(
     let (
         ProjectedType::Callback {
             rust_name,
+            parameters_destination_selected,
             invocation_mode,
             retained,
             send,
@@ -2554,6 +2555,7 @@ fn merge_projected_callback_shape(
     };
     ProjectedType::Callback {
         rust_name: rust_name.clone(),
+        parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
         result: result.clone(),
         invocation_mode: *invocation_mode,
@@ -2563,6 +2565,63 @@ fn merge_projected_callback_shape(
         sync: *sync,
     }
 }
+
+fn merge_projected_callback_value_shape(expected: &ValueType, actual: &ValueType) -> ValueType {
+    match (expected, actual) {
+        (
+            ValueType::Function(_, _, expected_effects),
+            ValueType::Function(actual_parameters, actual_result, _),
+        ) => ValueType::Function(
+            actual_parameters.clone(),
+            actual_result.clone(),
+            expected_effects.clone(),
+        ),
+        (
+            ValueType::AsyncFunction(_, _, expected_transferability, expected_effects),
+            ValueType::AsyncFunction(actual_parameters, actual_result, _, _),
+        ) => ValueType::AsyncFunction(
+            actual_parameters.clone(),
+            actual_result.clone(),
+            *expected_transferability,
+            expected_effects.clone(),
+        ),
+        _ => actual.clone(),
+    }
+}
+
+fn bind_projected_callback_generics(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+    allow_destination_selected_parameters: bool,
+) -> Result<(), String> {
+    let (
+        ValueType::Function(expected_parameters, expected_result, _)
+        | ValueType::AsyncFunction(expected_parameters, expected_result, _, _),
+        ValueType::Function(actual_parameters, actual_result, _)
+        | ValueType::AsyncFunction(actual_parameters, actual_result, _, _),
+    ) = (expected, actual)
+    else {
+        return super::calls::bind_projected_generics(expected, actual, bindings);
+    };
+    if expected_parameters.len() == actual_parameters.len() {
+        for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
+            super::calls::bind_projected_generics(
+                expected.value_type_ref(),
+                actual.value_type_ref(),
+                bindings,
+            )?;
+        }
+    } else if !allow_destination_selected_parameters {
+        return super::calls::bind_projected_generics(expected, actual, bindings);
+    }
+    super::calls::bind_projected_generics(
+        expected_result.value_type_ref(),
+        actual_result.value_type_ref(),
+        bindings,
+    )
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one syntax walk makes every permitted destination context explicit"
@@ -2595,6 +2654,7 @@ fn collect_projected_destinations(
     {
         let mut value_bindings = BTreeMap::new();
         let mut callback_bindings = BTreeMap::new();
+        let mut callback_value_bindings = BTreeMap::new();
         for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
             .children
             .iter()
@@ -2606,11 +2666,16 @@ fn collect_projected_destinations(
             let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
                 continue;
             };
+            let Some(expected) = parameter.element_value_type() else {
+                continue;
+            };
             if let (
-                crate::projection::ProjectedType::Callback { .. },
+                crate::projection::ProjectedType::Callback {
+                    parameters_destination_selected,
+                    ..
+                },
                 Some(generic),
-                ValueType::Function(_, actual_result, _)
-                | ValueType::AsyncFunction(_, actual_result, _, _),
+                ValueType::Function(..) | ValueType::AsyncFunction(..),
             ) = (
                 &projected_parameter.ty,
                 projected_parameter.generic_parameter.as_ref(),
@@ -2620,7 +2685,23 @@ fn collect_projected_destinations(
                 .iter()
                 .any(|candidate| candidate.input_selected && candidate.name == *generic)
             {
-                value_bindings.insert(generic.clone(), actual_result.value_type_ref().clone());
+                let destination_selected_parameters = *parameters_destination_selected;
+                bind_projected_callback_generics(
+                    &expected,
+                    &actual,
+                    &mut value_bindings,
+                    destination_selected_parameters,
+                )
+                .map_err(|generic| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected generic `{generic}` is inferred as incompatible callback types: expected `{expected}`, actual `{actual}`"
+                        ),
+                        value.span,
+                    )
+                })?;
                 callback_bindings.insert(
                     parameter_index,
                     destination_projected_type(package, &actual).map_err(|reason| {
@@ -2632,11 +2713,12 @@ fn collect_projected_destinations(
                         )
                     })?,
                 );
+                callback_value_bindings.insert(
+                    parameter_index,
+                    merge_projected_callback_value_shape(&expected, &actual),
+                );
                 continue;
             }
-            let Some(expected) = parameter.element_value_type() else {
-                continue;
-            };
             super::calls::bind_projected_generics(
                 &expected,
                 &actual,
@@ -2711,9 +2793,15 @@ fn collect_projected_destinations(
         let value_parameters = contract
             .parameters
             .iter()
-            .map(|parameter| {
-                parameter.element_value_type().map(|value_type| {
-                    super::calls::substitute_projected_value_generics(&value_type, &value_bindings)
+            .enumerate()
+            .map(|(index, parameter)| {
+                callback_value_bindings.get(&index).cloned().or_else(|| {
+                    parameter.element_value_type().map(|value_type| {
+                        super::calls::substitute_projected_value_generics(
+                            &value_type,
+                            &value_bindings,
+                        )
+                    })
                 })
             })
             .collect();
@@ -3238,6 +3326,7 @@ fn destination_projected_callback(
     Ok(crate::projection::ProjectedType::Callback {
         rust_name,
         parameters,
+        parameters_destination_selected: false,
         result: Box::new(result),
         invocation_mode: InvocationMode::Shared,
         is_async,
@@ -3545,6 +3634,7 @@ fn substitute_projected_generic(
         ProjectedType::Callback {
             rust_name,
             parameters,
+            parameters_destination_selected,
             result,
             invocation_mode,
             is_async,
@@ -3553,6 +3643,7 @@ fn substitute_projected_generic(
             sync,
         } => ProjectedType::Callback {
             rust_name: rust_name.clone(),
+            parameters_destination_selected: *parameters_destination_selected,
             parameters: parameters
                 .iter()
                 .map(|item| substitute_projected_generic(item, parameter, destination))

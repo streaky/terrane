@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "145";
+const PROJECTION_SCHEMA: &str = "147";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -654,6 +654,8 @@ pub enum ProjectedType {
     Callback {
         rust_name: String,
         parameters: Vec<ProjectedType>,
+        #[serde(default)]
+        parameters_destination_selected: bool,
         result: Box<ProjectedType>,
         invocation_mode: InvocationMode,
         is_async: bool,
@@ -9929,6 +9931,7 @@ fn project_callback_generic(
         rust_name: parameter.name.clone(),
         parameters,
         result: Box::new(result),
+        parameters_destination_selected: false,
         invocation_mode: kind,
         is_async,
         retained,
@@ -9947,6 +9950,64 @@ fn resolved_path_type_arguments(path: &RustdocPath) -> Vec<&Type> {
             _ => None,
         })
         .collect()
+}
+
+fn merge_destination_selected_callable_candidates(
+    candidates: &[(ProjectedType, Vec<String>)],
+) -> Option<(ProjectedType, Vec<String>)> {
+    let (
+        ProjectedType::Callback {
+            rust_name,
+            result,
+            invocation_mode,
+            is_async,
+            retained,
+            send,
+            sync,
+            ..
+        },
+        result_bounds,
+    ) = candidates.first()?
+    else {
+        return None;
+    };
+    if !candidates.iter().all(|(candidate, candidate_bounds)| {
+        matches!(
+            candidate,
+            ProjectedType::Callback {
+                rust_name: candidate_rust_name,
+                result: candidate_result,
+                invocation_mode: candidate_invocation_mode,
+                is_async: candidate_is_async,
+                retained: candidate_retained,
+                send: candidate_send,
+                sync: candidate_sync,
+                ..
+            } if candidate_rust_name == rust_name
+                && candidate_result == result
+                && candidate_invocation_mode == invocation_mode
+                && candidate_is_async == is_async
+                && candidate_retained == retained
+                && candidate_send == send
+                && candidate_sync == sync
+        ) && candidate_bounds == result_bounds
+    }) {
+        return None;
+    }
+    Some((
+        ProjectedType::Callback {
+            rust_name: rust_name.clone(),
+            parameters: Vec::new(),
+            parameters_destination_selected: true,
+            result: result.clone(),
+            invocation_mode: *invocation_mode,
+            is_async: *is_async,
+            retained: *retained,
+            send: *send,
+            sync: *sync,
+        },
+        result_bounds.clone(),
+    ))
 }
 
 #[expect(
@@ -10010,11 +10071,15 @@ fn project_callable_adapter_bounds(
                     .zip(resolved_path_type_arguments(requested_trait))
             {
                 if let Type::Generic(name) = implementation_argument {
-                    implementation_types.insert(
-                        name.clone(),
-                        project_type(requested_argument, index, paths, known)
+                    let projected = match requested_argument {
+                        Type::Generic(requested) => known
+                            .get(requested)
+                            .cloned()
+                            .unwrap_or_else(|| ProjectedType::Generic(requested.clone())),
+                        _ => project_type(requested_argument, index, paths, known)
                             .map_err(|reason| format!("callable trait argument: {reason}"))?,
-                    );
+                    };
+                    implementation_types.insert(name.clone(), projected);
                 }
             }
             let Some(self_parameter) = implementation
@@ -10063,9 +10128,6 @@ fn project_callable_adapter_bounds(
                         .map_err(|reason| format!("callable input: {reason}"))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            if parameters.iter().any(ProjectedType::contains_open_generic) {
-                continue;
-            }
             let unit = Type::Tuple(Vec::new());
             let direct_output = output.as_ref().unwrap_or(&unit);
             let (result, is_async) = if let Type::Generic(future) = direct_output
@@ -10110,6 +10172,7 @@ fn project_callable_adapter_bounds(
                 ProjectedType::Callback {
                     rust_name: parameter_name.to_owned(),
                     parameters,
+                    parameters_destination_selected: false,
                     result: Box::new(result),
                     invocation_mode,
                     is_async,
@@ -10133,9 +10196,13 @@ fn project_callable_adapter_bounds(
     match candidates.as_slice() {
         [] => Ok(None),
         [candidate] => Ok(Some(candidate.clone())),
-        _ => Err(format!(
-            "generic input `{parameter_name}` has multiple callable blanket implementations"
-        )),
+        _ => merge_destination_selected_callable_candidates(&candidates)
+            .map(Some)
+            .ok_or_else(|| {
+                format!(
+                    "generic input `{parameter_name}` has incompatible callable blanket implementations"
+                )
+            }),
     }
 }
 
@@ -12882,6 +12949,7 @@ mod tests {
         let callback = ProjectedType::Callback {
             rust_name: "F".to_owned(),
             parameters: vec![ProjectedType::String, ProjectedType::Bool],
+            parameters_destination_selected: false,
             result: Box::new(ProjectedType::Int),
             invocation_mode: InvocationMode::Shared,
             is_async: true,

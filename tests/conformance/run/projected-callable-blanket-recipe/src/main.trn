@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-callable-recipe-witness import accept, blank, install, invoke, mutate, transform
+from /deps/terrane-callable-recipe-witness import accept, accepts_handler as accepts-handler, blank, compose, install, invoke, mutate, run_correlated as run-correlated, transform
 from /core/output import print
 
 function produce int;
@@ -12,9 +12,28 @@ function length int; value string
 async function produce-async int;
     return 42
 
+function initial string;
+    return 'value'
+
+function initial-message int;
+    return 7
+
+function combine string; state string, message int
+    return state
+
+function no-argument int;
+    return 0
+
+function one-argument int; value int
+    return value
+
 function main;
     print; (invoke; produce)
     print; (transform; 'one', length)
     print; (mutate; 'two', length)
     print; (install; produce-async)
+    print; (run-correlated; initial, 7, combine)
+    print; (compose; initial, initial-message, combine)
+    print; (accepts-handler; no-argument)
+    print; (accepts-handler; one-argument)
     print; (accept; (blank;))

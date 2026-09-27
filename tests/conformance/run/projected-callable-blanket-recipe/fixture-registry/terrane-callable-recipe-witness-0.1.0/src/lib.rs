@@ -74,6 +74,64 @@ where
     42
 }
 
+pub trait Initializer<State> {
+    fn initialize(self) -> State;
+}
+
+impl<F, State> Initializer<State> for F
+where
+    F: FnOnce() -> State,
+{
+    fn initialize(self) -> State {
+        self()
+    }
+}
+
+pub trait Reducer<State, Message> {
+    fn reduce(self, state: State, message: Message) -> State;
+}
+
+impl<F, State, Message> Reducer<State, Message> for F
+where
+    F: FnOnce(State, Message) -> State,
+{
+    fn reduce(self, state: State, message: Message) -> State {
+        self(state, message)
+    }
+}
+
+pub fn run_correlated<State, Message>(
+    initializer: impl Initializer<State>,
+    message: Message,
+    reducer: impl Reducer<State, Message>,
+) -> State {
+    reducer.reduce(initializer.initialize(), message)
+}
+
+pub fn compose<State, Message>(
+    initializer: impl Initializer<State>,
+    message: impl Initializer<Message>,
+    reducer: impl Reducer<State, Message>,
+) -> State {
+    reducer.reduce(initializer.initialize(), message.initialize())
+}
+
+pub trait Handler<Arguments, Output> {}
+
+impl<F, Output> Handler<(), Output> for F where F: FnOnce() -> Output {}
+
+impl<F, Argument, Output> Handler<(Argument,), Output> for F where
+    F: FnOnce(Argument) -> Output
+{
+}
+
+pub fn accepts_handler<H, Arguments, Output>(_handler: H) -> bool
+where
+    H: Handler<Arguments, Output>,
+{
+    true
+}
+
 pub struct MethodRouter<State = (), Error = std::convert::Infallible> {
     state: std::marker::PhantomData<State>,
     error: std::marker::PhantomData<Error>,
