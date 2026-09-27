@@ -950,6 +950,17 @@ Deliver:
 - parser/lexer fuzz targets seeded from conformance cases;
 - performance baselines for cold check, warm check, build, and run;
 - compiler self-diagnostics for unsupported draft features;
+- make backend-validation failures directly actionable: the ordinary diagnostic identifies the
+  generated artifact and offers an explicit CLI rerun switch such as
+  `--write-bug-report <report.md>`; that opt-in rerun writes a self-contained, human-readable
+  Markdown report containing the exact invocation, compiler/toolchain/target versions, relevant
+  package and dependency metadata, complete raw backend diagnostic, implicated Terrane source
+  with stable file/span context, and the corresponding generated Rust with source mappings.
+  Preserve both complete source forms when minimization would hide the lowering defect, format
+  each with correctly labelled fenced blocks, normalize incidental machine-local paths, and
+  record hashes for separately attached oversized artifacts. Never upload a report, include
+  unrelated environment variables, or collect source without that explicit user action; make
+  redaction and report-size limits visible rather than silently omitting diagnostic material;
 - `when build` compile-time selection over the documented literal, immutable manifest/target/
   capability, Boolean/comparison, and pure-query inputs; selection occurs before ordinary
   semantic analysis, inactive branches are excluded from validation and lowering, and every
@@ -958,7 +969,12 @@ Deliver:
 - runnable `examples/` that all compile in CI;
 - no test or release command that treats `demos/` as supported source.
 
-Exit criterion: the clean-checkout release scenario below passes on supported platforms and the implemented-subset document agrees with executable conformance tests.
+Exit criterion: the clean-checkout release scenario below passes on supported platforms, no
+semantically accepted conformance case emits backend-invalid Rust, and the implemented-subset
+document agrees with executable conformance tests. A fault-injected lowering regression must also
+produce the opt-in Markdown report, and that report plus declared attachments must contain enough
+Terrane and generated Rust context to reproduce and diagnose the failure without access to the
+reporter's build directory.
 
 ### Milestone 32.1 — Finish projection artifact distribution
 
