@@ -494,7 +494,7 @@ pub use terrane_point_witness::Point;
 pub fn terrane_static_trn_506f696e74_new(
     x: f32,
     y: f32,
-) -> Result<Point, crate::TerraneForeignError> {
+) -> Result<terrane_point_witness::Point<f32>, crate::TerraneForeignError> {
     let x = x;
     let y = y;
     match std::panic::catch_unwind(

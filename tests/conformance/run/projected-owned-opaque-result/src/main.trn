@@ -1,7 +1,8 @@
 namespace app
 
-from /deps/terrane-opaque-result-witness import make
+from /deps/terrane-opaque-result-witness import consume, make
 from /core/output import print
 
 function main;
     print; ((make; 42).value;)
+    print; (consume; (make; 43))

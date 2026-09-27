@@ -1845,6 +1845,30 @@ fn collect_chain_receivers(
         }
         receivers.insert(span_key(receiver.span));
     }
+    if node.kind == SyntaxKind::CallExpression
+        && projected_function_for_call(
+            package,
+            unit,
+            node.children.first().expect("call expression has a callee"),
+        )
+        .is_some()
+        && let Some(arguments) = node.children.get(1)
+    {
+        for argument in &arguments.children {
+            let mut value = argument.children.last().unwrap_or(argument);
+            while value.kind == SyntaxKind::GroupExpression
+                && let Some(inner) = value.children.first()
+            {
+                value = inner;
+            }
+            if matches!(
+                projected_chain_role(package, unit, value),
+                Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+            ) {
+                receivers.insert(span_key(value.span));
+            }
+        }
+    }
     for child in &node.children {
         collect_chain_receivers(package, unit, child, receivers);
     }

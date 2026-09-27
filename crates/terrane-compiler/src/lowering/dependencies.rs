@@ -1048,15 +1048,22 @@ pub(super) fn emit_dependency_unit(
             });
         }
         let arguments = arguments.join(", ");
-        let value = projected.destination_result.as_ref().map_or_else(
-            || {
-                contract.return_type.clone().map_or_else(
-                    || "()".to_owned(),
-                    |value_type| rust_value_type(package, value_type),
-                )
-            },
-            |_| projected.result.rust_type(),
-        );
+        let value = if let crate::projection::ProjectedType::Foreign { rust_path, .. } =
+            &projected.result
+            && rust_path.contains('<')
+        {
+            rust_path.clone()
+        } else {
+            projected.destination_result.as_ref().map_or_else(
+                || {
+                    contract.return_type.clone().map_or_else(
+                        || "()".to_owned(),
+                        |value_type| rust_value_type(package, value_type),
+                    )
+                },
+                |_| projected.result.rust_type(),
+            )
+        };
         let result = format!("Result<{value}, crate::TerraneForeignError>");
         let (error_kind, error_message) = projected
             .error

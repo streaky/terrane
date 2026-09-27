@@ -720,7 +720,10 @@ pub fn accept(
         }
     }
 }
-pub fn blank() -> Result<MethodRouter, crate::TerraneForeignError> {
+pub fn blank() -> Result<
+    terrane_callable_recipe_witness::MethodRouter<(), core::convert::Infallible>,
+    crate::TerraneForeignError,
+> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_callable_recipe_witness::blank()),
     ) {

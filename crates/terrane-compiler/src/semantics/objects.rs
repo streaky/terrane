@@ -2622,6 +2622,87 @@ fn bind_projected_callback_generics(
     )
 }
 
+fn projected_call_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut node: &SyntaxNode,
+) -> Option<crate::projection::ProjectedType> {
+    while node.kind == SyntaxKind::GroupExpression {
+        node = node.children.first()?;
+    }
+    if let Some(specialization) =
+        unit.projected_call_specializations
+            .get(&(node.span.file, node.span.start, node.span.end))
+    {
+        return Some(specialization.projected_result.clone());
+    }
+    let [callee, _] = node.children.as_slice() else {
+        return None;
+    };
+    projected_function_for_call(package, unit, callee).map(|function| function.result.clone())
+}
+
+fn bind_projected_native_generics(
+    expected: &crate::projection::ProjectedType,
+    actual: &crate::projection::ProjectedType,
+    bindings: &mut BTreeMap<String, crate::projection::ProjectedType>,
+) -> Result<(), String> {
+    use crate::projection::ProjectedType;
+    if let ProjectedType::Generic(name) = expected {
+        if let Some(previous) = bindings.get(name) {
+            return (previous == actual)
+                .then_some(())
+                .ok_or_else(|| name.clone());
+        }
+        bindings.insert(name.clone(), actual.clone());
+        return Ok(());
+    }
+    match (expected, actual) {
+        (
+            ProjectedType::Foreign {
+                base_rust_path: expected_path,
+                arguments: expected_arguments,
+                ..
+            },
+            ProjectedType::Foreign {
+                base_rust_path: actual_path,
+                arguments: actual_arguments,
+                ..
+            },
+        ) if expected_path == actual_path && expected_arguments.len() == actual_arguments.len() => {
+            for (expected, actual) in expected_arguments.iter().zip(actual_arguments) {
+                bind_projected_native_generics(expected, actual, bindings)?;
+            }
+            Ok(())
+        }
+        (ProjectedType::Optional(expected), ProjectedType::Optional(actual))
+        | (
+            ProjectedType::Sequence { item: expected, .. },
+            ProjectedType::Sequence { item: actual, .. },
+        )
+        | (ProjectedType::Set { item: expected, .. }, ProjectedType::Set { item: actual, .. })
+        | (
+            ProjectedType::AsyncIterationStep(expected),
+            ProjectedType::AsyncIterationStep(actual),
+        ) => bind_projected_native_generics(expected, actual, bindings),
+        (ProjectedType::Tuple(expected), ProjectedType::Tuple(actual))
+            if expected.len() == actual.len() =>
+        {
+            for (expected, actual) in expected.iter().zip(actual) {
+                bind_projected_native_generics(expected, actual, bindings)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn rust_type_text_equal(left: &str, right: &str) -> bool {
+    left.chars()
+        .filter(|character| !character.is_whitespace())
+        .eq(right.chars().filter(|character| !character.is_whitespace()))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one syntax walk makes every permitted destination context explicit"
@@ -2655,6 +2736,9 @@ fn collect_projected_destinations(
         let mut value_bindings = BTreeMap::new();
         let mut callback_bindings = BTreeMap::new();
         let mut callback_value_bindings = BTreeMap::new();
+        let mut native_bindings = BTreeMap::new();
+        let mut native_value_bindings = BTreeMap::new();
+        let mut native_projected_parameters = BTreeMap::new();
         for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
             .children
             .iter()
@@ -2663,9 +2747,31 @@ fn collect_projected_destinations(
             .enumerate()
         {
             let value = argument.children.last().unwrap_or(argument);
+            let actual_projected = projected_call_result(package, unit, value);
+            if let Some(actual_projected) = actual_projected.as_ref() {
+                native_projected_parameters.insert(parameter_index, actual_projected.clone());
+                bind_projected_native_generics(
+                    &projected_parameter.ty,
+                    actual_projected,
+                    &mut native_bindings,
+                )
+                .map_err(|generic| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected generic `{generic}` is inferred as incompatible native argument types"
+                        ),
+                        value.span,
+                    )
+                })?;
+            }
             let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
                 continue;
             };
+            if actual_projected.is_some() {
+                native_value_bindings.insert(parameter_index, actual.clone());
+            }
             let Some(expected) = parameter.element_value_type() else {
                 continue;
             };
@@ -2741,28 +2847,32 @@ fn collect_projected_destinations(
             .iter()
             .filter(|generic| generic.input_selected)
         {
-            let actual = value_bindings.get(&generic.name).ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0129",
-                    format!(
-                        "projected generic `{}` cannot be inferred from this call",
-                        generic.name
-                    ),
-                    node.span,
-                )
-            })?;
-            let projected = destination_projected_type(package, actual).map_err(|reason| {
-                failure(
-                    &unit.source,
-                    "T0129",
-                    format!(
-                        "projected generic `{}` cannot use `{actual}`: {reason}",
-                        generic.name
-                    ),
-                    node.span,
-                )
-            })?;
+            let projected = if let Some(projected) = native_bindings.get(&generic.name) {
+                projected.clone()
+            } else {
+                let actual = value_bindings.get(&generic.name).ok_or_else(|| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected generic `{}` cannot be inferred from this call",
+                            generic.name
+                        ),
+                        node.span,
+                    )
+                })?;
+                destination_projected_type(package, actual).map_err(|reason| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected generic `{}` cannot use `{actual}`: {reason}",
+                            generic.name
+                        ),
+                        node.span,
+                    )
+                })?
+            };
             projected_bindings.insert(generic.name.clone(), projected);
         }
         let specialize = |template: &crate::projection::ProjectedType| {
@@ -2781,7 +2891,9 @@ fn collect_projected_destinations(
                 if let crate::projection::ProjectedType::Generic(name) = &parameter.ty {
                     parameter.generic_parameter = Some(name.clone());
                 }
-                parameter.ty = if let Some(actual) = callback_bindings.get(&index) {
+                parameter.ty = if let Some(actual) = native_projected_parameters.get(&index) {
+                    actual.clone()
+                } else if let Some(actual) = callback_bindings.get(&index) {
                     merge_projected_callback_shape(&parameter.ty, actual)
                 } else {
                     specialize(&parameter.ty)
@@ -2795,14 +2907,18 @@ fn collect_projected_destinations(
             .iter()
             .enumerate()
             .map(|(index, parameter)| {
-                callback_value_bindings.get(&index).cloned().or_else(|| {
-                    parameter.element_value_type().map(|value_type| {
-                        super::calls::substitute_projected_value_generics(
-                            &value_type,
-                            &value_bindings,
-                        )
+                native_value_bindings
+                    .get(&index)
+                    .cloned()
+                    .or_else(|| callback_value_bindings.get(&index).cloned())
+                    .or_else(|| {
+                        parameter.element_value_type().map(|value_type| {
+                            super::calls::substitute_projected_value_generics(
+                                &value_type,
+                                &value_bindings,
+                            )
+                        })
                     })
-                })
             })
             .collect();
         let mut projected_result = specialize(&function.result);
@@ -2879,9 +2995,16 @@ fn collect_projected_destinations(
                 generic
                     .rust_bounds
                     .iter()
-                    .map(|bound| {
+                    .filter_map(|bound| {
                         let rust_bound =
                             crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements);
+                        if let crate::projection::ProjectedType::Opaque { bounds } = projected
+                            && bounds
+                                .iter()
+                                .any(|bound| rust_type_text_equal(bound, &rust_bound))
+                        {
+                            return None;
+                        }
                         let inferred_parameters = function
                             .generic_parameters
                             .iter()
@@ -2895,13 +3018,13 @@ fn collect_projected_destinations(
                             })
                             .map(|candidate| candidate.name.clone())
                             .collect();
-                        PendingProjectedBound {
+                        Some(PendingProjectedBound {
                             generic: Some(generic.name.clone()),
                             direct_rust_type: rust_type.clone(),
                             borrowed_rust_type: borrowed_rust_type.clone(),
                             rust_bound,
                             inferred_parameters,
-                        }
+                        })
                     })
                     .collect::<Vec<_>>()
             })

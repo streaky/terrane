@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "147";
+const PROJECTION_SCHEMA: &str = "148";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -2649,7 +2649,7 @@ fn foreign_aliases(foreign: &BTreeMap<String, String>) -> BTreeMap<String, Strin
                 qualified
             } else {
                 let digest = format!("{:x}", Sha256::digest(rust_path.as_bytes()));
-                format!("{name}-{}", &digest[..12])
+                format!("{name}-hash-h{}", &digest[..12])
             };
             (rust_path.to_owned(), alias)
         })
@@ -11192,6 +11192,10 @@ fn render_resolved_path(
         "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
         "core::task::wake::Context" => "core::task::Context".to_owned(),
         "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
+        "core::net::socket_addr::SocketAddr" => "std::net::SocketAddr".to_owned(),
+        "core::net::ip_addr::IpAddr" => "std::net::IpAddr".to_owned(),
+        "core::net::ip_addr::Ipv4Addr" => "std::net::Ipv4Addr".to_owned(),
+        "core::net::ip_addr::Ipv6Addr" => "std::net::Ipv6Addr".to_owned(),
         path => path
             .strip_prefix("alloc::")
             .map_or_else(|| path.to_owned(), |path| format!("std::{path}")),
@@ -11353,7 +11357,7 @@ fn instantiated_type_name(short: &str, rust_path: &str) -> String {
     }
     let descriptive = descriptive_rust_identity(rust_path);
     if descriptive.is_empty() {
-        format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
+        format!("{short}-hash-h{:x}", Sha256::digest(rust_path.as_bytes()))
     } else {
         format!("{short}-from-{descriptive}")
     }
@@ -11379,7 +11383,7 @@ fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[Projecte
                 serde_json::to_string(arguments)
                     .expect("projected type arguments always serialize")
             );
-            format!("{short}-{:x}", Sha256::digest(identity.as_bytes()))
+            format!("{short}-hash-h{:x}", Sha256::digest(identity.as_bytes()))
         }
     } else {
         instantiated_type_name(short, rust_path)
@@ -13836,11 +13840,11 @@ mod tests {
             projection.foreign_imports("/deps/witness"),
             BTreeMap::from([
                 (
-                    "Response-20d8feeba582".to_owned(),
+                    "Response-hash-h20d8feeba582".to_owned(),
                     "witness::left::Response".to_owned()
                 ),
                 (
-                    "Response-52b4adb0f322".to_owned(),
+                    "Response-hash-h52b4adb0f322".to_owned(),
                     "witness::right::Response".to_owned()
                 )
             ])
@@ -13851,11 +13855,9 @@ mod tests {
                 BTreeSet::from(["cross".to_owned()]),
             )]))
             .unwrap();
-        assert!(
-            sources[0].1.contains(
-                "function cross; left Response-20d8feeba582, right Response-52b4adb0f322"
-            )
-        );
+        assert!(sources[0].1.contains(
+            "function cross; left Response-hash-h20d8feeba582, right Response-hash-h52b4adb0f322"
+        ));
     }
 
     #[test]

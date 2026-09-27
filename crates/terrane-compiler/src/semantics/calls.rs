@@ -250,7 +250,24 @@ pub(super) fn validate_call_nodes<'a>(
             SyntaxKind::ConstructionExpression => construction_contract(package, unit, callee),
             _ => None,
         };
-        if let Some(contract) = contract {
+        let specialized_contract = contract.and_then(|contract| {
+            unit.projected_call_specializations
+                .get(&(node.span.file, node.span.start, node.span.end))
+                .map(|specialization| {
+                    let mut contract = contract.clone();
+                    for (parameter, value_type) in contract
+                        .parameters
+                        .iter_mut()
+                        .zip(&specialization.value_parameters)
+                    {
+                        if let Some(value_type) = value_type {
+                            parameter.value_type = Some(value_type.clone());
+                        }
+                    }
+                    contract
+                })
+        });
+        if let Some(contract) = specialized_contract.as_ref().or(contract) {
             validate_call_arguments(unit, arguments, contract, scoped_bindings)?;
         }
     }

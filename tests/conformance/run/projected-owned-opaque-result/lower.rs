@@ -462,9 +462,11 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 1] = [
+    pub static SITES: [Site; 2] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:30) */
         { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 30 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:13-8:32) */
+        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 32 } },
     ];
     #[cold]
     #[inline(never)]
@@ -494,6 +496,23 @@ fn main() {
         ::__terrane_dependency_panic(payload, "terrane_opaque_result_witness",
         "terrane_opaque_result_witness::Wrapper<_>::value")) }, 0 /* terrane-site: src/main.trn:7:13-7:30 */))
     );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_opaque_result_witness::consume(terrane_opaque_result_witness::make(match
+        | | -> Result < _, crate ::TerraneForeignError > {
+        Ok(terrane_int_support::coerce:: < u32 >
+        (&terrane_int_support::Int::from(43_i128)).map_err(| error | crate
+        ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+        ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) })))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
+        "terrane_opaque_result_witness::consume")) }, 1 /* terrane-site: src/main.trn:8:13-8:32 */))
+    );
 }
 // Source: <terrane>/projected/deps/terrane-opaque-result-witness.trn
 // Namespace: deps/terrane-opaque-result-witness
+pub type WrapperHashH2fa275072a2d8b070e7a47ccd9129b6041bafcaa044b3bc9aaa2a51d8ce0fdf8<
+    T,
+> = terrane_opaque_result_witness::Wrapper<T>;

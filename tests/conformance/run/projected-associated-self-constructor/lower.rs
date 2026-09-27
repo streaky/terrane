@@ -581,7 +581,7 @@ pub fn to_html_with_options(
 // Source: <terrane>/projected/deps/terrane-owner-witness.trn
 // Namespace: deps/terrane-owner-witness
 pub fn terrane_static_trn_44656661756c744f776e6572_standard() -> Result<
-    DefaultOwner,
+    terrane_owner_witness::DefaultOwner<String>,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(

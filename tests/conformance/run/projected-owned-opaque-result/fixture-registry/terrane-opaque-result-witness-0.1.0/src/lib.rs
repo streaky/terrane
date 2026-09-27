@@ -29,3 +29,7 @@ pub fn make(value: u32) -> Wrapper<impl Value<Output = u32>> {
     }
 }
 
+pub fn consume<T: Value<Output = u32>>(wrapper: Wrapper<T>) -> u32 {
+    wrapper.value()
+}
+

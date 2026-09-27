@@ -1004,7 +1004,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/sqlx-core.trn
 // Namespace: deps/sqlx-core
-pub use sqlx_core::query::Query as QueryAac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a;
+pub use sqlx_core::query::Query as QueryHashHaac1dc75ac5dbc11c6489fef82242d62a5910bb35af254462f0207253448147a;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
 pub use sqlx_sqlite::SqliteRow;

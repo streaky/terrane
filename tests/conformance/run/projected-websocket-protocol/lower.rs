@@ -1188,7 +1188,7 @@ pub type WebSocketUpgrade = axum::extract::WebSocketUpgrade<
     axum::extract::ws::DefaultOnFailedUpgrade,
 >;
 pub fn terrane_static_trn_526f75746572_new() -> Result<
-    Router,
+    axum::Router<()>,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
