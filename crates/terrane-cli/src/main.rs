@@ -1,5 +1,7 @@
 mod census_command;
 mod debug_command;
+mod development_fingerprint;
+mod development_provenance;
 mod profile_command;
 mod test_command;
 
@@ -123,6 +125,9 @@ impl CliCommand {
 }
 
 fn main() -> ExitCode {
+    if let Some(warning) = development_provenance::warning() {
+        eprint!("{warning}");
+    }
     match run(&std::env::args_os().skip(1).collect::<Vec<_>>()) {
         Ok(code) => code,
         Err(failure) => {

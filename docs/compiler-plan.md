@@ -944,6 +944,10 @@ Deliver:
 
 - complete CLI help and documented exit codes, including a stable distinct code for uncaught source-language runtime failures;
 - stable build-directory and cache behavior;
+- repository-local binaries under `target/` embed their Git commit and a fast fingerprint of the
+  modification times of dirty Rust and Cargo inputs, then issue a convenience warning when the
+  checkout has changed since that binary was built; copied and installed binaries do not inspect
+  a working tree;
 - interruption and subprocess cleanup;
 - Windows/macOS/Linux path handling where CI is available;
 - deterministic tests and generated artifacts;
