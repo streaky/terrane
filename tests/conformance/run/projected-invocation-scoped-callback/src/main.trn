@@ -1,0 +1,22 @@
+namespace app
+
+from /deps/witness import Label, label, render_scoped
+from /core/output import print
+
+function direct Label; state ref int64
+    return label; state + 1
+
+function helper Label; value int64
+    return label; value
+
+function through-helper Label; state ref int64
+    return helper; state + 1
+
+function main;
+    state int64 = 40
+    print; (render_scoped; state, 'message', true, direct)
+    offset int64 = 2
+    captured = function Label; state ref int64
+        return label; state + offset
+    print; (render_scoped; state, 'message', true, captured)
+    print; (render_scoped; state, 'message', true, through-helper)

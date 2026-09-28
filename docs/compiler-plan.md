@@ -669,8 +669,21 @@ shapes differ are represented as destination-selected; the supplied Terrane call
 shape. Semantics jointly unifies every callback argument and reports incompatible correlations
 before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are the executable
 ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
-and source `ref` parameters receive invocation-local converted values. Lifetime-dependent callback
-result families and scoped native operation graphs remain in this milestone.
+and source `ref` parameters receive invocation-local converted values.
+
+Implemented: a selected blanket callback recipe may retain an invocation-lifetime-dependent
+terminal entirely in its result obligation. Call analysis jointly selects the owned Terrane callback
+result and every correlated native parameter, then the projection oracle proves the complete
+`for<'view> OwnedResult: Into<ScopedTerminal<'view, ...>>` contract. All owner paths inside that
+higher-ranked bound are rewritten to the declared manifest alias before the proof crate is emitted.
+Lowering supplies one fresh concrete closure; the native blanket implementation performs the
+terminal conversion inside the invocation and is therefore the terminal export authority. The
+scoped nominal never enters the Terrane value model, so binding, field storage, return, collection,
+capture, and suspension of that value are impossible rather than temporarily admitted.
+`projected-invocation-scoped-callback` proves direct callback use, an owned capture, an ordinary
+Terrane helper call, three correlated native parameters, execution, and canonical Rust.
+`projected-invocation-scoped-nominal-escape` proves that the underlying lifetime-bearing producer
+remains unavailable outside that authorized callback recipe.
 Implemented: expression-scoped composition also retains destination-selected existential
 parameters that cannot be named independently of their producer call. Semantic bound probes do
 not extract such a producer into a standalone Rust type assertion; lowering emits the complete
@@ -679,17 +692,23 @@ tuple, service, renderer, and comparable parameters. Bare return-position `impl 
 may be anonymous chain roots without a fabricated foreign owner. The Axum
 `from_fn(access_middleware(...)) -> Router::layer` cutover is the ecosystem witness.
 
-Represent higher-ranked lifetime binders and input/output borrow relationships explicitly.
-For Iced's view contract, prove one callable works for every permitted invocation lifetime;
-specializing a single lifetime or promoting it to `'static` is not sufficient. Support a checked
-source callable result family tied to the borrowed state, with contextual analysis of its body.
-Lower callback-scoped result families as compiler-generated monomorphized helpers per projected
-callback use. Each helper reuses the analyzed Terrane body but receives the selected invocation
-lifetime, native parameter types, generic obligations, and destination result from that call site.
-Do not erase the result or inline-copy source bodies into closures: erasure introduces allocation
-and dynamic dispatch, while textual inlining breaks recursion, diagnostics, and stable source
-identity. Emit an ordinary reusable Terrane function only when its complete type is independently
+For native contracts with a callable result generic under a higher-ranked conversion obligation,
+retain the binder and complete input/output relationship in the selected blanket recipe. Prove one
+owned callback result converts for every permitted invocation lifetime; specializing a single
+lifetime or promoting it to `'static` is not sufficient. Prefer the native blanket implementation
+as the terminal authority when it already owns that conversion: this preserves the analyzed
+Terrane callable, recursion, helpers, captures, diagnostics, and static result type without a
+second compiler representation.
+
+An API whose exact callback result itself is lifetime-bearing and has no such result-generic blanket
+recipe remains a distinct future boundary. It requires a compiler-generated monomorphized helper or
+nominal shim per projected callback use, reusing the analyzed Terrane body with the selected
+invocation lifetime, native parameter types, generic obligations, and destination result. Do not
+erase the result or inline-copy source bodies into closures: erasure introduces allocation and
+dynamic dispatch, while textual inlining breaks recursion, diagnostics, and stable source identity.
+Emit an ordinary reusable Terrane function only when its complete type is independently
 representable.
+
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
 `'static` without making each borrowed result `'static`.
@@ -3466,7 +3485,7 @@ explicitly, compiles with warnings denied, and passes canonical validation where
 already does.
 
 Status: implemented on `destination-directed-projected-results` and generalized on
-`feature/projection-gap-census`. Projection schema 156 retains a correlated set of result-only
+`feature/projection-gap-census`. Projection schema 157 retains a correlated set of result-only
 generic parameters, one recursive result template, and complete per-parameter rendered bounds;
 semantic analysis structurally selects the complete substitution only from a written binding,
 argument, field, or return destination and records exact cached oracle evidence.

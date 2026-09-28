@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import scoped_view
+
+function main;
+    value = scoped_view; 'escape'

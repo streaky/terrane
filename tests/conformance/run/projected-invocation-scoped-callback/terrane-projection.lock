@@ -4,7 +4,19 @@
       "members": [
         [
           "/deps/witness",
-          "correlated_values"
+          "Label"
+        ],
+        [
+          "/deps/witness",
+          "label"
+        ],
+        [
+          "/deps/witness",
+          "render_scoped"
+        ],
+        [
+          "/deps/witness/label",
+          "from"
         ]
       ],
       "name": "witness",

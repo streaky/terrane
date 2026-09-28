@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "156";
+const PROJECTION_SCHEMA: &str = "157";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -3501,6 +3501,13 @@ pub fn resolve(
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
+    for dependency in dependencies {
+        rewrite_projected_owner_root(
+            &mut projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name.replace('-', "_"),
+        );
+    }
     let mut bound_dependencies =
         recursive_owner_dependencies(&projected, dependencies, &workspace, false)?;
     for dependency in &bound_dependencies {
