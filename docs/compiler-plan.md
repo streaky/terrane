@@ -676,6 +676,13 @@ Represent higher-ranked lifetime binders and input/output borrow relationships e
 For Iced's view contract, prove one callable works for every permitted invocation lifetime;
 specializing a single lifetime or promoting it to `'static` is not sufficient. Support a checked
 source callable result family tied to the borrowed state, with contextual analysis of its body.
+Lower callback-scoped result families as compiler-generated monomorphized helpers per projected
+callback use. Each helper reuses the analyzed Terrane body but receives the selected invocation
+lifetime, native parameter types, generic obligations, and destination result from that call site.
+Do not erase the result or inline-copy source bodies into closures: erasure introduces allocation
+and dynamic dispatch, while textual inlining breaks recursion, diagnostics, and stable source
+identity. Emit an ordinary reusable Terrane function only when its complete type is independently
+representable.
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
 `'static` without making each borrowed result `'static`.
