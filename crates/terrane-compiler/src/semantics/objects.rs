@@ -2289,6 +2289,63 @@ fn collect_projected_call_result_types(
     Ok(())
 }
 
+fn collect_projected_generic_names(
+    projected: &crate::projection::ProjectedType,
+    names: &mut BTreeSet<String>,
+) {
+    use crate::projection::ProjectedType;
+    match projected {
+        ProjectedType::Generic(name) => {
+            names.insert(name.clone());
+        }
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::AsyncIterationStep(item)
+        | ProjectedType::Optional(item) => collect_projected_generic_names(item, names),
+        ProjectedType::Mapping { key, value, .. } => {
+            collect_projected_generic_names(key, names);
+            collect_projected_generic_names(value, names);
+        }
+        ProjectedType::Tuple(items)
+        | ProjectedType::Foreign {
+            arguments: items, ..
+        } => {
+            for item in items {
+                collect_projected_generic_names(item, names);
+            }
+        }
+        ProjectedType::BoxedInterface {
+            associated_type: Some(binding),
+            ..
+        } => collect_projected_generic_names(&binding.ty, names),
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                collect_projected_generic_names(parameter, names);
+            }
+            collect_projected_generic_names(result, names);
+        }
+        ProjectedType::None
+        | ProjectedType::Associated(_)
+        | ProjectedType::Opaque { .. }
+        | ProjectedType::Bool
+        | ProjectedType::Int
+        | ProjectedType::FixedInt(_)
+        | ProjectedType::RustInt(_)
+        | ProjectedType::Float
+        | ProjectedType::Float32
+        | ProjectedType::Char
+        | ProjectedType::String
+        | ProjectedType::Bytes
+        | ProjectedType::AsyncSinkOutcome
+        | ProjectedType::BoxedInterface {
+            associated_type: None,
+            ..
+        } => {}
+    }
+}
+
 #[derive(Clone)]
 struct PendingProjectedBound {
     generic: Option<String>,
@@ -3023,10 +3080,23 @@ fn collect_projected_destinations(
                 _ => destination.clone(),
             };
         }
+        let deferred_native_generics = function
+            .parameters
+            .iter()
+            .enumerate()
+            .filter_map(|(index, parameter)| {
+                let generic = parameter.generic_parameter.as_ref()?;
+                let projected = native_projected_parameters.get(&index)?;
+                let mut open = BTreeSet::new();
+                collect_projected_generic_names(projected, &mut open);
+                (!open.is_empty()).then(|| generic.clone())
+            })
+            .collect::<BTreeSet<_>>();
         let bounds = function
             .generic_parameters
             .iter()
             .filter(|generic| generic.input_selected)
+            .filter(|generic| !deferred_native_generics.contains(&generic.name))
             .flat_map(|generic| {
                 let projected = &projected_bindings[&generic.name];
                 let rust_type = projected.rust_type();
@@ -3044,14 +3114,14 @@ fn collect_projected_destinations(
                     .filter_map(|bound| {
                         let rust_bound =
                             crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements);
-                        if let crate::projection::ProjectedType::Opaque { bounds } = projected
+                        if let crate::projection::ProjectedType::Opaque { bounds, .. } = projected
                             && bounds
                                 .iter()
                                 .any(|bound| rust_type_text_equal(bound, &rust_bound))
                         {
                             return None;
                         }
-                        let inferred_parameters = function
+                        let mut inferred_parameters = function
                             .generic_parameters
                             .iter()
                             .filter(|candidate| !rust_replacements.contains_key(&candidate.name))
@@ -3063,13 +3133,14 @@ fn collect_projected_destinations(
                                     .any(|token| token == candidate.name)
                             })
                             .map(|candidate| candidate.name.clone())
-                            .collect();
+                            .collect::<BTreeSet<_>>();
+                        collect_projected_generic_names(projected, &mut inferred_parameters);
                         Some(PendingProjectedBound {
                             generic: Some(generic.name.clone()),
                             direct_rust_type: rust_type.clone(),
                             borrowed_rust_type: borrowed_rust_type.clone(),
                             rust_bound,
-                            inferred_parameters,
+                            inferred_parameters: inferred_parameters.into_iter().collect(),
                         })
                     })
                     .collect::<Vec<_>>()

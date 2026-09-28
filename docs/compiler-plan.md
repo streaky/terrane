@@ -671,6 +671,13 @@ before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are t
 ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
 and source `ref` parameters receive invocation-local converted values. Lifetime-dependent callback
 result families and scoped native operation graphs remain in this milestone.
+Implemented: expression-scoped composition also retains destination-selected existential
+parameters that cannot be named independently of their producer call. Semantic bound probes do
+not extract such a producer into a standalone Rust type assertion; lowering emits the complete
+nested producer/consumer expression once and Rust jointly resolves hidden closure, extractor
+tuple, service, renderer, and comparable parameters. Bare return-position `impl Trait` producers
+may be anonymous chain roots without a fabricated foreign owner. The Axum
+`from_fn(access_middleware(...)) -> Router::layer` cutover is the ecosystem witness.
 
 Represent higher-ranked lifetime binders and input/output borrow relationships explicitly.
 For Iced's view contract, prove one callable works for every permitted invocation lifetime;

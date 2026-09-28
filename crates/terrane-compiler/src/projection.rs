@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "150";
+const PROJECTION_SCHEMA: &str = "155";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -606,6 +606,8 @@ pub enum ProjectedType {
     Opaque {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         bounds: Vec<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        anonymous_chain: bool,
     },
     Bool,
     Int,
@@ -3047,7 +3049,17 @@ fn render_function(
         function.name
     )
     .expect("writing to a string cannot fail");
-    if function.result != ProjectedType::None && function.destination_result.is_none() {
+    if function.result != ProjectedType::None
+        && function.destination_result.is_none()
+        && !(function.chain_role == Some(ChainRole::Root)
+            && matches!(
+                function.result,
+                ProjectedType::Opaque {
+                    anonymous_chain: true,
+                    ..
+                }
+            ))
+    {
         write!(
             output,
             " {}",
@@ -6040,7 +6052,7 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
         }
-        ProjectedType::Opaque { bounds } => {
+        ProjectedType::Opaque { bounds, .. } => {
             for bound in bounds {
                 *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
             }
@@ -7373,6 +7385,14 @@ fn project_rustdoc(
                         if let Some(chain_owner) = chain_owner {
                             projected_function.chain_role = Some(ChainRole::Root);
                             projected_associated_items.push(chain_owner);
+                        } else if matches!(
+                            projected_function.result,
+                            ProjectedType::Opaque {
+                                anonymous_chain: true,
+                                ..
+                            }
+                        ) {
+                            projected_function.chain_role = Some(ChainRole::Root);
                         }
                         Ok(ProjectedKind::Function(projected_function))
                     },
@@ -9472,7 +9492,16 @@ fn project_function_inner(
     } else {
         ProjectedType::None
     };
-    if result.contains_opaque() && !matches!(result, ProjectedType::Foreign { .. }) {
+    if result.contains_opaque()
+        && !matches!(result, ProjectedType::Foreign { .. })
+        && !matches!(
+            result,
+            ProjectedType::Opaque {
+                anonymous_chain: true,
+                ..
+            }
+        )
+    {
         return Err("producer-selected opaque result requires a named foreign owner".to_owned());
     }
     if open_chain.is_none()
@@ -10622,6 +10651,16 @@ fn generic_monomorphisations(
             continue;
         };
         if *is_synthetic {
+            result.insert(
+                parameter.name.clone(),
+                ProjectedType::Opaque {
+                    anonymous_chain: false,
+                    bounds: generic_bounds(parameter, function)
+                        .iter()
+                        .map(|bound| render_generic_bound(bound, &[], index, paths, &result))
+                        .collect::<Result<Vec<_>, _>>()?,
+                },
+            );
             continue;
         }
         let caller_chosen_inputs = function
@@ -10818,10 +10857,18 @@ fn project_type(
             Ok(ProjectedType::Associated(format!("{owner}::{name}")))
         }
         Type::ImplTrait(bounds) => Ok(ProjectedType::Opaque {
+            anonymous_chain: bounds.iter().any(|bound| {
+                trait_bound_name(bound).is_some_and(|(path, _)| {
+                    resolved_path_name(path, paths)
+                        .rsplit("::")
+                        .next()
+                        .is_some_and(|name| matches!(name, "Fn" | "FnMut" | "FnOnce"))
+                })
+            }),
             bounds: bounds
                 .iter()
-                .map(|bound| render_generic_bound(bound, &[], index, paths, generics))
-                .collect::<Result<Vec<_>, _>>()?,
+                .filter_map(|bound| render_generic_bound(bound, &[], index, paths, generics).ok())
+                .collect(),
         }),
         Type::DynTrait(_) => {
             Err("trait objects require an owning `Box<dyn Trait>` parameter".to_owned())
@@ -11410,7 +11457,7 @@ fn instantiated_nominal_name(short: &str, rust_path: &str, arguments: &[Projecte
 fn descriptive_projected_argument(argument: &ProjectedType) -> Option<String> {
     match argument {
         ProjectedType::Generic(_) | ProjectedType::Associated(_) => None,
-        ProjectedType::Opaque { bounds } => descriptive_opaque_bounds(bounds),
+        ProjectedType::Opaque { bounds, .. } => descriptive_opaque_bounds(bounds),
         _ if argument.contains_open_generic() => None,
         _ => {
             let name = descriptive_rust_identity(&argument.rust_type());
@@ -12612,6 +12659,7 @@ mod tests {
         assert!(open.starts_with("Query-"));
         assert!(!open.starts_with("Query-of-"));
         let application = ProjectedType::Opaque {
+            anonymous_chain: false,
             bounds: vec![
                 "iced_program::Program<State = State, Message = Message, Theme = Theme>".to_owned(),
             ],

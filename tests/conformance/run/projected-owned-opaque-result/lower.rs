@@ -462,11 +462,15 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:30) */
-        { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 30 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:13-8:32) */
-        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 32 } },
+    pub static SITES: [Site; 4] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:9:13-9:30) */
+        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 30 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:10:13-10:32) */
+        { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:11:21-11:37) */
+        { Site { function: 0, file: 0, line: 11, column: 21, end_line: 11, end_column: 37 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:13-11:38) */
+        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 38 } },
     ];
     #[cold]
     #[inline(never)]
@@ -482,6 +486,9 @@ mod __terrane_trace {
 }
 // Source: src/main.trn
 // Namespace: app
+fn identity(value: terrane_int_support::Int) -> terrane_int_support::Int {
+    return value.clone();
+}
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -494,7 +501,7 @@ fn main() {
         std::panic::panic_any(error) }).value())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_opaque_result_witness",
-        "terrane_opaque_result_witness::Wrapper<_>::value")) }, 0 /* terrane-site: src/main.trn:7:13-7:30 */))
+        "terrane_opaque_result_witness::Wrapper<_>::value")) }, 0 /* terrane-site: src/main.trn:9:13-9:30 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -508,7 +515,28 @@ fn main() {
         std::panic::panic_any(error) })))) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
-        "terrane_opaque_result_witness::consume")) }, 1 /* terrane-site: src/main.trn:8:13-8:32 */))
+        "terrane_opaque_result_witness::consume")) }, 1 /* terrane-site: src/main.trn:10:13-10:32 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_opaque_result_witness::serve(__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_opaque_result_witness::choose(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(identity)
+        .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+        ::TerraneForeignError > { let callback_value =
+        callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
+        Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
+        crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+        ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
+        Err(crate ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
+        "terrane_opaque_result_witness::choose")) }, 2 /* terrane-site: src/main.trn:11:21-11:37 */)))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
+        "terrane_opaque_result_witness::serve")) }, 3 /* terrane-site: src/main.trn:11:13-11:38 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-opaque-result-witness.trn

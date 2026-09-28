@@ -16,15 +16,23 @@
         ],
         [
           "/deps/terrane-opaque-result-witness",
+          "choose"
+        ],
+        [
+          "/deps/terrane-opaque-result-witness",
           "consume"
         ],
         [
           "/deps/terrane-opaque-result-witness",
           "make"
+        ],
+        [
+          "/deps/terrane-opaque-result-witness",
+          "serve"
         ]
       ],
       "name": "terrane-opaque-result-witness",
-      "version": "0.1.1"
+      "version": "0.1.2"
     }
   ],
   "format": 3,
