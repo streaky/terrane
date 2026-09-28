@@ -462,27 +462,29 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 10] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:31:13-31:28) */
-        { Site { function: 0, file: 0, line: 31, column: 13, end_line: 31, end_column: 28 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:32:13-32:37) */
-        { Site { function: 0, file: 0, line: 32, column: 13, end_line: 32, end_column: 37 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:33:13-33:34) */
-        { Site { function: 0, file: 0, line: 33, column: 13, end_line: 33, end_column: 34 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:34:13-34:35) */
-        { Site { function: 0, file: 0, line: 34, column: 13, end_line: 34, end_column: 35 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:35:13-35:48) */
-        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 48 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:36:13-36:55) */
-        { Site { function: 0, file: 0, line: 36, column: 13, end_line: 36, end_column: 55 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:37:13-37:41) */
-        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 41 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:38:13-38:42) */
-        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 42 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:39:22-39:28) */
-        { Site { function: 0, file: 0, line: 39, column: 22, end_line: 39, end_column: 28 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:39:13-39:29) */
-        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 29 } },
+    pub static SITES: [Site; 11] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:34:13-34:28) */
+        { Site { function: 0, file: 0, line: 34, column: 13, end_line: 34, end_column: 28 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:35:13-35:37) */
+        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 37 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:36:13-36:34) */
+        { Site { function: 0, file: 0, line: 36, column: 13, end_line: 36, end_column: 34 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:37:13-37:35) */
+        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 35 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:38:13-38:48) */
+        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 48 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:39:13-39:55) */
+        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 55 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:40:13-40:41) */
+        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 41 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:41:13-41:42) */
+        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 42 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:42:13-42:34) */
+        { Site { function: 0, file: 0, line: 42, column: 13, end_line: 42, end_column: 34 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:43:22-43:28) */
+        { Site { function: 0, file: 0, line: 43, column: 22, end_line: 43, end_column: 28 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:43:13-43:29) */
+        { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 29 } },
     ];
     #[cold]
     #[inline(never)]
@@ -525,6 +527,9 @@ fn no_argument() -> terrane_int_support::Int {
 fn one_argument(value: terrane_int_support::Int) -> terrane_int_support::Int {
     return value.clone();
 }
+fn view_value(state: &terrane_int_support::Int) -> terrane_int_support::Int {
+    return state.clone() + terrane_int_support::Int::from(0_i128);
+}
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -540,7 +545,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::invoke")) }, 0 /* terrane-site: src/main.trn:31:13-31:28 */))
+        "terrane_callable_recipe_witness::invoke")) }, 0 /* terrane-site: src/main.trn:34:13-34:28 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -557,7 +562,7 @@ fn main() {
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::transform")) }, 1 /* terrane-site: src/main.trn:32:13-32:37 */))
+        "terrane_callable_recipe_witness::transform")) }, 1 /* terrane-site: src/main.trn:35:13-35:37 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -574,7 +579,7 @@ fn main() {
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::mutate")) }, 2 /* terrane-site: src/main.trn:33:13-33:34 */))
+        "terrane_callable_recipe_witness::mutate")) }, 2 /* terrane-site: src/main.trn:36:13-36:34 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -592,7 +597,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::install")) }, 3 /* terrane-site: src/main.trn:34:13-34:35 */))
+        "terrane_callable_recipe_witness::install")) }, 3 /* terrane-site: src/main.trn:37:13-37:35 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -621,7 +626,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
         Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::run_correlated")) }, 4 /* terrane-site: src/main.trn:35:13-35:48 */))
+        "terrane_callable_recipe_witness::run_correlated")) }, 4 /* terrane-site: src/main.trn:38:13-38:48 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -653,7 +658,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
         Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness", "terrane_callable_recipe_witness::compose"))
-        }, 5 /* terrane-site: src/main.trn:36:13-36:55 */))
+        }, 5 /* terrane-site: src/main.trn:39:13-39:55 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -669,7 +674,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
         Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::accepts_handler")) }, 6 /* terrane-site: src/main.trn:37:13-37:41 */))
+        "terrane_callable_recipe_witness::accepts_handler")) }, 6 /* terrane-site: src/main.trn:40:13-40:41 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -687,12 +692,29 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
         Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::accepts_handler")) }, 7 /* terrane-site: src/main.trn:38:13-38:42 */))
+        "terrane_callable_recipe_witness::accepts_handler")) }, 7 /* terrane-site: src/main.trn:41:13-41:42 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_callable_recipe_witness::render(&4, match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(view_value)
+        .clone(); move | callback_argument_0 : &'_ i64 | { match | | -> Result < _, crate
+        ::TerraneForeignError > { let callback_value =
+        callback(&terrane_int_support::Int::from(i128::from(* callback_argument_0)));
+        Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
+        crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+        ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
+        "terrane_callable_recipe_witness::render")) }, 8 /* terrane-site: src/main.trn:42:13-42:34 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(accept(__terrane_raised(blank(),
-        8 /* terrane-site: src/main.trn:39:22-39:28 */)), 9 /* terrane-site: src/main.trn:39:13-39:29 */))
+        9 /* terrane-site: src/main.trn:43:22-43:28 */)), 10 /* terrane-site: src/main.trn:43:13-43:29 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-callable-recipe-witness.trn

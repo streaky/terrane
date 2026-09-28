@@ -9,7 +9,7 @@ capabilities = ["build", "threads"]
 app = "src"
 
 [rust-dependencies.terrane-callable-recipe-witness]
-version = "=0.1.8"
+version = "=0.1.9"
 
 [rust-dependencies.tokio]
 version = "=1.53.0"

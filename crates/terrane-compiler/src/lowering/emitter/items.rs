@@ -1226,6 +1226,7 @@ impl<'a> Emitter<'a> {
                             let converted = projected_callback_input_expression(
                                 "__terrane_default",
                                 &projected_method.function.result,
+                                &projected_method.function.result.rust_type(),
                             );
                             let result_type = method.return_type.clone().map_or_else(
                                 || "()".to_owned(),
@@ -1463,6 +1464,7 @@ impl<'a> Emitter<'a> {
                         projected_callback_input_expression(
                             &rust_name(&parameter.name),
                             &parameter.ty,
+                            &parameter.ty.rust_type(),
                         )
                     })
                     .collect::<Vec<_>>()

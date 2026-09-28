@@ -668,7 +668,9 @@ Compatible recipe families whose invocation/result obligations agree but whose c
 shapes differ are represented as destination-selected; the supplied Terrane callable chooses the
 shape. Semantics jointly unifies every callback argument and reports incompatible correlations
 before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are the executable
-ecosystem witness. Higher-ranked lifetime/result families remain in this milestone.
+ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
+and source `ref` parameters receive invocation-local converted values. Lifetime-dependent callback
+result families and scoped native operation graphs remain in this milestone.
 
 Represent higher-ranked lifetime binders and input/output borrow relationships explicitly.
 For Iced's view contract, prove one callable works for every permitted invocation lifetime;

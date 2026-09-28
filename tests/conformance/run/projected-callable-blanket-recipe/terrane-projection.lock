@@ -36,6 +36,10 @@
         ],
         [
           "/deps/terrane-callable-recipe-witness",
+          "render"
+        ],
+        [
+          "/deps/terrane-callable-recipe-witness",
           "run_correlated"
         ],
         [
@@ -44,7 +48,7 @@
         ]
       ],
       "name": "terrane-callable-recipe-witness",
-      "version": "0.1.8"
+      "version": "0.1.9"
     },
     {
       "members": [

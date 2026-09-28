@@ -2092,7 +2092,7 @@ pub async fn apply_async(
     let value = value;
     let callback = {
         let callback = callback.clone();
-        move |callback_argument_0: String| {
+        move |callback_argument_0: std::string::String| {
             let callback = callback.clone();
             let callback_future = callback(callback_argument_0);
             Box::pin(async move {
@@ -2240,7 +2240,7 @@ pub fn apply_once(
     let value = value;
     let callback = {
         let callback = callback;
-        move |callback_argument_0: String| {
+        move |callback_argument_0: std::string::String| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback.call((callback_argument_0,));
                 Ok(callback_value)
@@ -2596,7 +2596,7 @@ pub fn dispatch(
     let enabled = enabled;
     let callback = {
         let callback = callback.clone();
-        move |callback_argument_0: String, callback_argument_1: bool| {
+        move |callback_argument_0: std::string::String, callback_argument_1: bool| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(callback_argument_0, callback_argument_1);
                 Ok(callback_value)

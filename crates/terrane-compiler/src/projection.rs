@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "148";
+const PROJECTION_SCHEMA: &str = "150";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -654,6 +654,10 @@ pub enum ProjectedType {
     Callback {
         rust_name: String,
         parameters: Vec<ProjectedType>,
+        #[serde(default)]
+        parameter_rust_types: Vec<String>,
+        #[serde(default)]
+        parameter_borrows: Vec<bool>,
         #[serde(default)]
         parameters_destination_selected: bool,
         result: Box<ProjectedType>,
@@ -9930,6 +9934,11 @@ fn project_callback_generic(
     Ok(Some(ProjectedType::Callback {
         rust_name: parameter.name.clone(),
         parameters,
+        parameter_rust_types: inputs
+            .iter()
+            .map(|input| render_rust_type(input, index, paths, known))
+            .collect::<Result<Vec<_>, _>>()?,
+        parameter_borrows: vec![false; inputs.len()],
         result: Box::new(result),
         parameters_destination_selected: false,
         invocation_mode: kind,
@@ -9998,6 +10007,8 @@ fn merge_destination_selected_callable_candidates(
         ProjectedType::Callback {
             rust_name: rust_name.clone(),
             parameters: Vec::new(),
+            parameter_borrows: Vec::new(),
+            parameter_rust_types: Vec::new(),
             parameters_destination_selected: true,
             result: result.clone(),
             invocation_mode: *invocation_mode,
@@ -10128,6 +10139,10 @@ fn project_callable_adapter_bounds(
                         .map_err(|reason| format!("callable input: {reason}"))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+            let parameter_rust_types = inputs
+                .iter()
+                .map(|input| render_rust_type(input, index, paths, &implementation_types))
+                .collect::<Result<Vec<_>, _>>()?;
             let unit = Type::Tuple(Vec::new());
             let direct_output = output.as_ref().unwrap_or(&unit);
             let (result, is_async) = if let Type::Generic(future) = direct_output
@@ -10172,6 +10187,8 @@ fn project_callable_adapter_bounds(
                 ProjectedType::Callback {
                     rust_name: parameter_name.to_owned(),
                     parameters,
+                    parameter_rust_types,
+                    parameter_borrows: vec![false; inputs.len()],
                     parameters_destination_selected: false,
                     result: Box::new(result),
                     invocation_mode,
@@ -12953,6 +12970,8 @@ mod tests {
         let callback = ProjectedType::Callback {
             rust_name: "F".to_owned(),
             parameters: vec![ProjectedType::String, ProjectedType::Bool],
+            parameter_rust_types: vec!["String".to_owned(), "bool".to_owned()],
+            parameter_borrows: vec![false, false],
             parameters_destination_selected: false,
             result: Box::new(ProjectedType::Int),
             invocation_mode: InvocationMode::Shared,

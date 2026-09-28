@@ -2536,7 +2536,9 @@ fn merge_projected_callback_shape(
     let (
         ProjectedType::Callback {
             rust_name,
+            parameters: template_parameters,
             parameters_destination_selected,
+            parameter_rust_types,
             invocation_mode,
             retained,
             send,
@@ -2545,6 +2547,7 @@ fn merge_projected_callback_shape(
         },
         ProjectedType::Callback {
             parameters,
+            parameter_borrows,
             result,
             is_async,
             ..
@@ -2553,10 +2556,48 @@ fn merge_projected_callback_shape(
     else {
         return actual.clone();
     };
+    let mut parameter_replacements = template_parameters
+        .iter()
+        .zip(parameters)
+        .filter_map(|(template, actual)| {
+            let ProjectedType::Generic(name) = template else {
+                return None;
+            };
+            Some((name.clone(), actual.rust_type()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    for (native, actual) in parameter_rust_types.iter().zip(parameters) {
+        let mut generic = native.trim();
+        if let Some(rest) = generic.strip_prefix('&') {
+            generic = rest.trim_start();
+            if generic.starts_with('\'') {
+                generic = generic
+                    .split_once(char::is_whitespace)
+                    .map_or(generic, |(_, rest)| rest.trim_start());
+            }
+            generic = generic.strip_prefix("mut ").unwrap_or(generic);
+        }
+        if generic
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+            && generic.chars().next().is_some_and(char::is_uppercase)
+        {
+            parameter_replacements
+                .entry(generic.to_owned())
+                .or_insert_with(|| actual.rust_type());
+        }
+    }
     ProjectedType::Callback {
         rust_name: rust_name.clone(),
         parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
+        parameter_borrows: parameter_borrows.clone(),
+        parameter_rust_types: parameter_rust_types
+            .iter()
+            .map(|rust_type| {
+                crate::rust_ir::instantiate_rust_generics(rust_type, &parameter_replacements)
+            })
+            .collect(),
         result: result.clone(),
         invocation_mode: *invocation_mode,
         is_async: *is_async,
@@ -2606,11 +2647,16 @@ fn bind_projected_callback_generics(
     };
     if expected_parameters.len() == actual_parameters.len() {
         for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
-            super::calls::bind_projected_generics(
-                expected.value_type_ref(),
-                actual.value_type_ref(),
-                bindings,
-            )?;
+            let expected = expected.value_type_ref();
+            let actual = actual.value_type_ref();
+            let actual = match (expected, actual) {
+                (
+                    ValueType::ProjectedGeneric(_),
+                    ValueType::Reference(inner) | ValueType::SharedReference(inner),
+                ) => inner.value_type_ref(),
+                _ => actual,
+            };
+            super::calls::bind_projected_generics(expected, actual, bindings)?;
         }
     } else if !allow_destination_selected_parameters {
         return super::calls::bind_projected_generics(expected, actual, bindings);
@@ -3425,10 +3471,27 @@ fn destination_projected_callback(
     if parameters.iter().any(CallableParameterType::is_variadic) {
         return Err("variadic source callables have no fixed Rust callback representation".into());
     }
+    let parameter_borrows = parameters
+        .iter()
+        .map(|parameter| {
+            matches!(
+                parameter.element_type().value_type_ref(),
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            )
+        })
+        .collect::<Vec<_>>();
     let parameters = parameters
         .iter()
         .map(|parameter| {
-            destination_projected_type(package, parameter.element_type().value_type_ref())
+            let element_type = parameter.element_type();
+            let value_type = element_type.value_type_ref();
+            let value_type = match value_type {
+                ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                    inner.value_type_ref()
+                }
+                _ => value_type,
+            };
+            destination_projected_type(package, value_type)
         })
         .collect::<Result<Vec<_>, _>>()?;
     let result = destination_projected_type(package, result.value_type_ref())?;
@@ -3446,14 +3509,20 @@ fn destination_projected_callback(
     } else {
         format!("fn({parameters_rust}) -> {}", result.rust_type())
     };
+    let parameter_rust_types = parameters
+        .iter()
+        .map(crate::projection::ProjectedType::rust_type)
+        .collect();
     Ok(crate::projection::ProjectedType::Callback {
         rust_name,
         parameters,
+        parameter_rust_types,
         parameters_destination_selected: false,
         result: Box::new(result),
         invocation_mode: InvocationMode::Shared,
         is_async,
         retained: false,
+        parameter_borrows,
         send,
         sync: true,
     })
@@ -3757,6 +3826,8 @@ fn substitute_projected_generic(
         ProjectedType::Callback {
             rust_name,
             parameters,
+            parameter_rust_types,
+            parameter_borrows,
             parameters_destination_selected,
             result,
             invocation_mode,
@@ -3767,6 +3838,16 @@ fn substitute_projected_generic(
         } => ProjectedType::Callback {
             rust_name: rust_name.clone(),
             parameters_destination_selected: *parameters_destination_selected,
+            parameter_rust_types: parameter_rust_types
+                .iter()
+                .map(|rust_type| {
+                    crate::rust_ir::instantiate_rust_generics(
+                        rust_type,
+                        &BTreeMap::from([(parameter.to_owned(), destination.rust_type())]),
+                    )
+                })
+                .collect(),
+            parameter_borrows: parameter_borrows.clone(),
             parameters: parameters
                 .iter()
                 .map(|item| substitute_projected_generic(item, parameter, destination))

@@ -611,13 +611,48 @@ fn projected_sequence_is_vec(path: &str) -> bool {
 pub(super) fn projected_callback_input_expression(
     value: &str,
     ty: &crate::projection::ProjectedType,
+    rust_type: &str,
 ) -> String {
+    let borrowed = rust_type.trim_start().starts_with('&');
     match ty {
         crate::projection::ProjectedType::Int => {
+            let value = if borrowed {
+                format!("*{value}")
+            } else {
+                value.to_owned()
+            };
             format!("terrane_int_support::Int::from(i128::from({value}))")
+        }
+        crate::projection::ProjectedType::String | crate::projection::ProjectedType::Bytes
+            if borrowed =>
+        {
+            format!("(*{value}).clone()")
         }
         _ => projected_result_expression(value, ty),
     }
+}
+fn callback_parameter_rust_type(rust_type: &str) -> String {
+    let mut output = String::with_capacity(rust_type.len());
+    let mut characters = rust_type.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character != '\'' {
+            output.push(character);
+            continue;
+        }
+        let mut lifetime = String::new();
+        while characters
+            .peek()
+            .is_some_and(|character| character.is_ascii_alphanumeric() || *character == '_')
+        {
+            lifetime.push(characters.next().expect("peeked lifetime character"));
+        }
+        if lifetime == "static" {
+            output.push_str("'static");
+        } else {
+            output.push_str("'_");
+        }
+    }
+    output
 }
 
 pub(super) fn projected_callback_output_expression(
@@ -635,6 +670,8 @@ pub(super) fn projected_callback_output_expression(
 fn projected_callback_argument(
     name: &str,
     parameters: &[crate::projection::ProjectedType],
+    parameter_rust_types: &[String],
+    parameter_borrows: &[bool],
     result: &crate::projection::ProjectedType,
     invocation_mode: InvocationMode,
     is_async: bool,
@@ -642,18 +679,44 @@ fn projected_callback_argument(
     let rust_parameters = parameters
         .iter()
         .enumerate()
-        .map(|(index, parameter)| format!("callback_argument_{index}: {}", parameter.rust_type()))
+        .map(|(index, parameter)| {
+            let rust_type = callback_parameter_rust_type(
+                parameter_rust_types
+                    .get(index)
+                    .map_or_else(|| parameter.rust_type(), Clone::clone)
+                    .as_str(),
+            );
+            format!("callback_argument_{index}: {rust_type}")
+        })
         .collect::<Vec<_>>()
         .join(", ");
     let terrane_arguments = parameters
         .iter()
         .enumerate()
         .map(|(index, parameter)| {
-            projected_callback_input_expression(&format!("callback_argument_{index}"), parameter)
+            projected_callback_input_expression(
+                &format!("callback_argument_{index}"),
+                parameter,
+                parameter_rust_types
+                    .get(index)
+                    .map_or_else(|| parameter.rust_type(), Clone::clone)
+                    .as_str(),
+            )
         })
         .collect::<Vec<_>>();
-    let direct_arguments = terrane_arguments.join(", ");
-    let tuple_arguments = match terrane_arguments.as_slice() {
+    let call_arguments = terrane_arguments
+        .iter()
+        .enumerate()
+        .map(|(index, argument)| {
+            if parameter_borrows.get(index) == Some(&true) {
+                format!("&{argument}")
+            } else {
+                argument.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+    let direct_arguments = call_arguments.join(", ");
+    let tuple_arguments = match call_arguments.as_slice() {
         [] => "()".to_owned(),
         [argument] => format!("({argument},)"),
         _ => format!("({direct_arguments})"),
@@ -715,11 +778,21 @@ pub(super) fn projected_argument_expression(
         }
         crate::projection::ProjectedType::Callback {
             parameters,
+            parameter_rust_types,
+            parameter_borrows,
             result,
             invocation_mode,
             is_async,
             ..
-        } => projected_callback_argument(name, parameters, result, *invocation_mode, *is_async),
+        } => projected_callback_argument(
+            name,
+            parameters,
+            parameter_rust_types,
+            parameter_borrows,
+            result,
+            *invocation_mode,
+            *is_async,
+        ),
         crate::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 name.to_owned()

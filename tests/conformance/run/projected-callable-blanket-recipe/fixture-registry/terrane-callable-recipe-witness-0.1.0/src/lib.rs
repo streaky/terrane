@@ -148,3 +148,35 @@ pub fn accept(router: MethodRouter<()>) -> u32 {
     let _ = router;
     42
 }
+
+pub struct View<'a> {
+    value: i64,
+    marker: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> From<i64> for View<'a> {
+    fn from(value: i64) -> Self {
+        Self {
+            value,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+pub trait ViewFn<'a, State> {
+    fn view(&self, state: &'a State) -> View<'a>;
+}
+
+impl<'a, F, State: 'a, Widget> ViewFn<'a, State> for F
+where
+    F: Fn(&'a State) -> Widget,
+    Widget: Into<View<'a>>,
+{
+    fn view(&self, state: &'a State) -> View<'a> {
+        self(state).into()
+    }
+}
+
+pub fn render<State>(state: &State, view: impl for<'a> ViewFn<'a, State>) -> i64 {
+    view.view(state).value
+}
