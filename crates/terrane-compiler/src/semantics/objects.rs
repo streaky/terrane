@@ -2359,8 +2359,8 @@ struct PendingProjectedBound {
 struct PendingProjectedSpecialization {
     unit: usize,
     span: Span,
-    parameter: String,
-    rust_type: String,
+    substitutions: BTreeMap<String, crate::projection::ProjectedType>,
+    generic_arguments: Vec<String>,
     projected_result: crate::projection::ProjectedType,
     projected_parameters: Vec<crate::projection::ProjectedParameter>,
     direct_projected_call: bool,
@@ -2556,8 +2556,12 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             .insert(
                 key,
                 ProjectedCallSpecialization {
-                    parameter: specialization.parameter,
-                    rust_type: specialization.rust_type,
+                    substitutions: specialization
+                        .substitutions
+                        .into_iter()
+                        .map(|(name, projected)| (name, projected.rust_type()))
+                        .collect(),
+                    generic_arguments: specialization.generic_arguments,
                     projected_result: specialization.projected_result,
                     value_type: specialization.value_type,
                     projected_parameters: specialization.projected_parameters,
@@ -3047,38 +3051,43 @@ fn collect_projected_destinations(
             .iter()
             .map(|(name, projected)| (name.clone(), projected.rust_type()))
             .collect::<BTreeMap<_, _>>();
-        let mut specialization_parameter = String::new();
-        let mut specialization_rust_type = String::new();
+        let mut specialization_substitutions = BTreeMap::new();
         if let (Some(destination_result), Some(destination)) =
             (&function.destination_result, expected)
-            && !projected_bindings.contains_key(&destination_result.parameter)
             && let Ok(expected_projected) = destination_projected_type(package, destination)
-            && let Ok(Some(projected_destination)) = select_projected_generic_destination(
-                &function.result,
-                &destination_result.parameter,
-                &expected_projected,
-            )
         {
-            specialization_parameter.clone_from(&destination_result.parameter);
-            specialization_rust_type = projected_destination.rust_type();
-            rust_replacements.insert(
-                destination_result.parameter.clone(),
-                specialization_rust_type.clone(),
-            );
-            projected_result = align_projected_result_representation(
-                &substitute_projected_generic(
+            let parameters = destination_result
+                .parameters
+                .iter()
+                .filter(|parameter| !projected_bindings.contains_key(&parameter.name))
+                .map(|parameter| parameter.name.clone())
+                .collect::<BTreeSet<_>>();
+            if !parameters.is_empty()
+                && let Ok(Some(substitutions)) = select_projected_generic_destinations(
                     &projected_result,
-                    &destination_result.parameter,
-                    &projected_destination,
-                ),
-                &expected_projected,
-            );
-            value_type = match value_type {
-                ValueType::Task(_, transferability) => {
-                    ValueType::Task(ElementType::new(destination.clone()), transferability)
+                    &parameters,
+                    &expected_projected,
+                )
+            {
+                for (name, projected) in &substitutions {
+                    rust_replacements.insert(name.clone(), projected.rust_type());
                 }
-                _ => destination.clone(),
-            };
+                projected_result = align_projected_result_representation(
+                    &substitutions
+                        .iter()
+                        .fold(projected_result, |result, (name, projected)| {
+                            substitute_projected_generic(&result, name, projected)
+                        }),
+                    &expected_projected,
+                );
+                specialization_substitutions = substitutions;
+                value_type = match value_type {
+                    ValueType::Task(_, transferability) => {
+                        ValueType::Task(ElementType::new(destination.clone()), transferability)
+                    }
+                    _ => destination.clone(),
+                };
+            }
         }
         let deferred_native_generics = function
             .parameters
@@ -3092,7 +3101,7 @@ fn collect_projected_destinations(
                 (!open.is_empty()).then(|| generic.clone())
             })
             .collect::<BTreeSet<_>>();
-        let bounds = function
+        let mut bounds = function
             .generic_parameters
             .iter()
             .filter(|generic| generic.input_selected)
@@ -3145,12 +3154,43 @@ fn collect_projected_destinations(
                     })
                     .collect::<Vec<_>>()
             })
-            .collect();
+            .collect::<Vec<_>>();
+        if let Some(destination_result) = &function.destination_result {
+            for parameter in &destination_result.parameters {
+                let Some(projected) = specialization_substitutions.get(&parameter.name) else {
+                    continue;
+                };
+                bounds.extend(
+                    parameter
+                        .rust_bounds
+                        .iter()
+                        .map(|bound| PendingProjectedBound {
+                            generic: None,
+                            direct_rust_type: projected.rust_type(),
+                            borrowed_rust_type: None,
+                            rust_bound: crate::rust_ir::instantiate_rust_generics(
+                                bound,
+                                &rust_replacements,
+                            ),
+                            inferred_parameters: Vec::new(),
+                        }),
+                );
+            }
+        }
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
-            parameter: specialization_parameter,
-            rust_type: specialization_rust_type,
+            generic_arguments: function
+                .destination_result
+                .iter()
+                .flat_map(|destination| &destination.parameters)
+                .filter_map(|parameter| {
+                    specialization_substitutions
+                        .get(&parameter.name)
+                        .map(crate::projection::ProjectedType::rust_type)
+                })
+                .collect(),
+            substitutions: specialization_substitutions,
             projected_result,
             projected_parameters,
             direct_projected_call: true,
@@ -3187,16 +3227,23 @@ fn collect_projected_destinations(
                     node.span,
                 )
             })?;
-        let projected_destination = select_projected_generic_destination(
+        let parameters = destination_result
+            .parameters
+            .iter()
+            .map(|parameter| parameter.name.clone())
+            .collect::<BTreeSet<_>>();
+        let substitutions = select_projected_generic_destinations(
             &function.result,
-            &destination_result.parameter,
+            &parameters,
             &expected_projected,
         )
-        .map_err(|()| {
+        .map_err(|parameter| {
             failure(
                 &unit.source,
                 "T0117",
-                "projected result template repeats its generic parameter with incompatible destination types",
+                format!(
+                    "projected result template repeats its generic parameter with incompatible destination types (`{parameter}`)"
+                ),
                 node.span,
             )
         })?
@@ -3211,33 +3258,51 @@ fn collect_projected_destinations(
                 node.span,
             )
         })?;
+        let rust_replacements = substitutions
+            .iter()
+            .map(|(name, projected)| (name.clone(), projected.rust_type()))
+            .collect::<BTreeMap<_, _>>();
         let projected_result = align_projected_result_representation(
-            &substitute_projected_generic(
-                &function.result,
-                &destination_result.parameter,
-                &projected_destination,
-            ),
+            &substitutions
+                .iter()
+                .fold(function.result.clone(), |result, (name, projected)| {
+                    substitute_projected_generic(&result, name, projected)
+                }),
             &expected_projected,
         );
+        let bounds = destination_result
+            .parameters
+            .iter()
+            .flat_map(|parameter| {
+                let projected = &substitutions[&parameter.name];
+                parameter
+                    .rust_bounds
+                    .iter()
+                    .map(|bound| PendingProjectedBound {
+                        generic: None,
+                        direct_rust_type: projected.rust_type(),
+                        borrowed_rust_type: None,
+                        rust_bound: crate::rust_ir::instantiate_rust_generics(
+                            bound,
+                            &rust_replacements,
+                        ),
+                        inferred_parameters: Vec::new(),
+                    })
+            })
+            .collect();
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
-            parameter: destination_result.parameter.clone(),
-            rust_type: projected_destination.rust_type(),
+            generic_arguments: destination_result
+                .parameters
+                .iter()
+                .map(|parameter| substitutions[&parameter.name].rust_type())
+                .collect(),
+            substitutions,
             projected_result,
             value_type: destination,
             value_parameters: function.parameters.iter().map(|_| None).collect(),
-            bounds: destination_result
-                .rust_bounds
-                .iter()
-                .map(|bound| PendingProjectedBound {
-                    generic: None,
-                    direct_rust_type: projected_destination.rust_type(),
-                    borrowed_rust_type: None,
-                    rust_bound: bound.clone(),
-                    inferred_parameters: Vec::new(),
-                })
-                .collect(),
+            bounds,
             projected_parameters: function.parameters.clone(),
             direct_projected_call: false,
         });
@@ -3623,22 +3688,29 @@ fn projected_types_share_concrete_rust_representation(
     clippy::too_many_lines,
     reason = "recursive projected type matching is clearest as one exhaustive traversal"
 )]
-fn select_projected_generic_destination(
+fn select_projected_generic_destinations(
     template: &crate::projection::ProjectedType,
-    parameter: &str,
+    parameters: &BTreeSet<String>,
     expected: &crate::projection::ProjectedType,
-) -> Result<Option<crate::projection::ProjectedType>, ()> {
+) -> Result<Option<BTreeMap<String, crate::projection::ProjectedType>>, String> {
     fn collect(
         template: &crate::projection::ProjectedType,
-        parameter: &str,
+        parameters: &BTreeSet<String>,
         expected: &crate::projection::ProjectedType,
-        destinations: &mut Vec<crate::projection::ProjectedType>,
-    ) -> bool {
+        destinations: &mut BTreeMap<String, crate::projection::ProjectedType>,
+    ) -> Result<bool, String> {
         use crate::projection::ProjectedType;
         match (template, expected) {
-            (ProjectedType::Generic(name), expected) if name == parameter => {
-                destinations.push(expected.clone());
-                true
+            (ProjectedType::Generic(name), expected) if parameters.contains(name) => {
+                if let Some(previous) = destinations.get(name) {
+                    return if previous == expected {
+                        Ok(true)
+                    } else {
+                        Err(name.clone())
+                    };
+                }
+                destinations.insert(name.clone(), expected.clone());
+                Ok(true)
             }
             (ProjectedType::Optional(template), ProjectedType::Optional(expected))
             | (
@@ -3648,7 +3720,7 @@ fn select_projected_generic_destination(
             | (
                 ProjectedType::Set { item: template, .. },
                 ProjectedType::Set { item: expected, .. },
-            ) => collect(template, parameter, expected, destinations),
+            ) => collect(template, parameters, expected, destinations),
             (
                 ProjectedType::Mapping {
                     key: template_key,
@@ -3660,16 +3732,19 @@ fn select_projected_generic_destination(
                     value: expected_value,
                     ..
                 },
-            ) => {
-                collect(template_key, parameter, expected_key, destinations)
-                    && collect(template_value, parameter, expected_value, destinations)
-            }
+            ) => Ok(
+                collect(template_key, parameters, expected_key, destinations)?
+                    && collect(template_value, parameters, expected_value, destinations)?,
+            ),
             (ProjectedType::Tuple(template), ProjectedType::Tuple(expected))
                 if template.len() == expected.len() =>
             {
-                template.iter().zip(expected).all(|(template, expected)| {
-                    collect(template, parameter, expected, destinations)
-                })
+                for (template, expected) in template.iter().zip(expected) {
+                    if !collect(template, parameters, expected, destinations)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
             }
             (
                 ProjectedType::Callback {
@@ -3683,18 +3758,12 @@ fn select_projected_generic_destination(
                     ..
                 },
             ) if template_parameters.len() == expected_parameters.len() => {
-                template_parameters
-                    .iter()
-                    .zip(expected_parameters)
-                    .all(|(template, expected)| {
-                        collect(template, parameter, expected, destinations)
-                    })
-                    && collect(
-                        template_result,
-                        parameter,
-                        expected_result,
-                        destinations,
-                    )
+                for (template, expected) in template_parameters.iter().zip(expected_parameters) {
+                    if !collect(template, parameters, expected, destinations)? {
+                        return Ok(false);
+                    }
+                }
+                collect(template_result, parameters, expected_result, destinations)
             }
             (
                 ProjectedType::Foreign {
@@ -3710,38 +3779,36 @@ fn select_projected_generic_destination(
             ) if template_base == expected_base
                 && template_arguments.len() >= expected_arguments.len() =>
             {
-                template_arguments
+                for (template, expected) in template_arguments.iter().zip(expected_arguments) {
+                    if !collect(template, parameters, expected, destinations)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(template_arguments[expected_arguments.len()..]
                     .iter()
-                    .zip(expected_arguments)
-                    .all(|(template, expected)| {
-                        collect(template, parameter, expected, destinations)
-                    })
-                    && template_arguments[expected_arguments.len()..]
-                        .iter()
-                        .all(|template| {
-                            !matches!(template, ProjectedType::Generic(name) if name == parameter)
-                        })
+                    .all(|template| {
+                        !matches!(
+                            template,
+                            ProjectedType::Generic(name) if parameters.contains(name)
+                        )
+                    }))
             }
             (template, expected)
                 if projected_types_share_concrete_rust_representation(template, expected) =>
             {
-                true
+                Ok(true)
             }
-            _ => false,
+            _ => Ok(false),
         }
     }
-    let mut destinations = Vec::new();
-    if !collect(template, parameter, expected, &mut destinations) {
+
+    let mut destinations = BTreeMap::new();
+    if !collect(template, parameters, expected, &mut destinations)?
+        || destinations.len() != parameters.len()
+    {
         return Ok(None);
     }
-    let Some(first) = destinations.first().cloned() else {
-        return Ok(None);
-    };
-    if destinations.iter().all(|destination| destination == &first) {
-        Ok(Some(first))
-    } else {
-        Err(())
-    }
+    Ok(Some(destinations))
 }
 
 fn align_projected_result_representation(

@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "155";
+const PROJECTION_SCHEMA: &str = "156";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -549,9 +549,14 @@ pub struct ProjectedGenericParameter {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedDestinationResult {
-    pub parameter: String,
+    pub parameters: Vec<ProjectedDestinationParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bound_roots: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedDestinationParameter {
+    pub name: String,
     pub rust_bounds: Vec<String>,
 }
 
@@ -6100,8 +6105,10 @@ fn rewrite_projected_function_root(
         *error = rewrite_rust_bound_root(error, package_root, dependency_root);
     }
     if let Some(destination) = &mut function.destination_result {
-        for bound in &mut destination.rust_bounds {
-            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+        for parameter in &mut destination.parameters {
+            for bound in &mut parameter.rust_bounds {
+                *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+            }
         }
         for root in &mut destination.bound_roots {
             if root == package_root {
@@ -8027,8 +8034,10 @@ fn project_rustdoc(
             *error = rewrite_rust_bound_root(error, &package_root, &dependency_root);
         }
         if let Some(destination) = &mut function.destination_result {
-            for bound in &mut destination.rust_bounds {
-                *bound = rewrite_rust_bound_root(bound, &package_root, &dependency_root);
+            for parameter in &mut destination.parameters {
+                for bound in &mut parameter.rust_bounds {
+                    *bound = rewrite_rust_bound_root(bound, &package_root, &dependency_root);
+                }
             }
             for root in &mut destination.bound_roots {
                 if root == &package_root {
@@ -10544,7 +10553,8 @@ fn generic_monomorphisations(
     supplied: &BTreeMap<String, ProjectedType>,
 ) -> Result<GenericMonomorphisations, String> {
     let mut result = supplied.clone();
-    let mut destination_result = None;
+    let mut destination_parameters = Vec::new();
+    let mut destination_bound_roots = BTreeSet::new();
     let mut adapter_result_bounds = BTreeMap::new();
     // Keep input-selected value generics open until a Terrane call site supplies concrete
     // argument and callback types. Immediate projectable interface inputs retain their
@@ -10581,19 +10591,12 @@ fn generic_monomorphisations(
                     }
                 )
             {
-                if destination_result.is_some() {
-                    return Err(
-                        "projected result depends on multiple caller-chosen types".to_owned()
-                    );
-                }
                 let rust_bounds =
                     render_generic_bounds(parameter, function, index, paths, &result)?;
-                destination_result = Some(ProjectedDestinationResult {
-                    parameter: parameter.name.clone(),
-                    bound_roots: rust_bounds
-                        .iter()
-                        .flat_map(|bound| rust_bound_roots(bound))
-                        .collect(),
+                destination_bound_roots
+                    .extend(rust_bounds.iter().flat_map(|bound| rust_bound_roots(bound)));
+                destination_parameters.push(ProjectedDestinationParameter {
+                    name: parameter.name.clone(),
                     rust_bounds,
                 });
             }
@@ -10769,7 +10772,12 @@ fn generic_monomorphisations(
     }
     Ok(GenericMonomorphisations {
         types: result,
-        destination_result,
+        destination_result: (!destination_parameters.is_empty()).then(|| {
+            ProjectedDestinationResult {
+                parameters: destination_parameters,
+                bound_roots: destination_bound_roots.into_iter().collect(),
+            }
+        }),
         adapter_result_bounds,
     })
 }

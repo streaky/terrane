@@ -1187,40 +1187,37 @@ pub(super) fn emit_dependency_unit(
             )
             .expect("writing to a string cannot fail");
         }
-        let mut generic_parameters = projected
-            .parameters
-            .iter()
-            .filter_map(|parameter| {
-                parameter.generic_parameter.as_ref().map(|name| {
-                    if parameter.generic_bounds.is_empty() {
-                        name.clone()
-                    } else {
-                        format!("{name}: {}", parameter.generic_bounds.join(" + "))
-                    }
-                })
-            })
-            .collect::<BTreeSet<_>>();
-        if let Some(destination) = &projected.destination_result {
-            generic_parameters.insert(if destination.rust_bounds.is_empty() {
-                destination.parameter.clone()
+        let mut generic_parameters = Vec::new();
+        let mut generic_parameter_names = BTreeSet::new();
+        for parameter in &projected.parameters {
+            let Some(name) = &parameter.generic_parameter else {
+                continue;
+            };
+            if !generic_parameter_names.insert(name.clone()) {
+                continue;
+            }
+            generic_parameters.push(if parameter.generic_bounds.is_empty() {
+                name.clone()
             } else {
-                format!(
-                    "{}: {}",
-                    destination.parameter,
-                    destination.rust_bounds.join(" + ")
-                )
+                format!("{name}: {}", parameter.generic_bounds.join(" + "))
             });
+        }
+        if let Some(destination) = &projected.destination_result {
+            for parameter in &destination.parameters {
+                if !generic_parameter_names.insert(parameter.name.clone()) {
+                    continue;
+                }
+                generic_parameters.push(if parameter.rust_bounds.is_empty() {
+                    parameter.name.clone()
+                } else {
+                    format!("{}: {}", parameter.name, parameter.rust_bounds.join(" + "))
+                });
+            }
         }
         let generic_declaration = if generic_parameters.is_empty() {
             String::new()
         } else {
-            format!(
-                "<{}>",
-                generic_parameters
-                    .into_iter()
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+            format!("<{}>", generic_parameters.join(", "))
         };
         writeln!(
             output,
@@ -1249,12 +1246,21 @@ pub(super) fn emit_dependency_unit(
         let call = if unit_variant {
             value_path
         } else {
-            let generic_arguments = projected
-                .destination_result
-                .as_ref()
-                .map_or_else(String::new, |destination| {
-                    format!("::<{}>", destination.parameter)
-                });
+            let generic_arguments =
+                projected
+                    .destination_result
+                    .as_ref()
+                    .map_or_else(String::new, |destination| {
+                        format!(
+                            "::<{}>",
+                            destination
+                                .parameters
+                                .iter()
+                                .map(|parameter| parameter.name.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    });
             format!("{value_path}{generic_arguments}({arguments})")
         };
         let invocation = if projected.into_future {

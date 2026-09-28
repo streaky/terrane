@@ -1810,7 +1810,7 @@ impl Emitter<'_> {
         let name = if let Some(specialization) =
             specialization.filter(|specialization| !specialization.direct_projected_call)
         {
-            format!("{name}::<{}>", specialization.rust_type)
+            format!("{name}::<{}>", specialization.generic_arguments.join(", "))
         } else {
             name
         };

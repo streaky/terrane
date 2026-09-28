@@ -1,0 +1,8 @@
+package = "projected-correlated-destination-results"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-correlated-result-witness"
+version = "=0.1.0"

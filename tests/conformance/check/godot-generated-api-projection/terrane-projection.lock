@@ -288,6 +288,10 @@
         ],
         [
           "/deps/godot/builtin",
+          "AnyDictionary.cast_dictionary"
+        ],
+        [
+          "/deps/godot/builtin",
           "AnyDictionary.clear"
         ],
         [

@@ -862,6 +862,38 @@
         ],
         [
           "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.fetch_many"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
+          "QueryAs-hash-h5a8cf0014c0e4ff1ef9b282cf29ab00970c914dc58b748c9687f3f5ef2d44aab.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-as",
           "QueryAs-hash-hbb3f043c6bd548bfb2f05eaaaaf5f3e911147675f13f56a7ddaf8e6e660ebea1"
         ],
         [
@@ -898,6 +930,38 @@
         ],
         [
           "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.bind"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.fetch"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.fetch_all"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.fetch_many"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.fetch_one"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.fetch_optional"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "QueryScalar-hash-h890abd7d65a57e3c761acd3c6d771f3d006d0ca737ba36619e31bd48f3d0036c.persistent"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
           "QueryScalar-hash-hdc2572ed054e1bbfaabdffce2feba78550842a0cf0a21ef7af30dc50bd42ce1d"
         ],
         [
@@ -931,6 +995,10 @@
         [
           "/deps/sqlx-core/query-scalar",
           "query_scalar"
+        ],
+        [
+          "/deps/sqlx-core/query-scalar",
+          "query_scalar_with"
         ],
         [
           "/deps/sqlx-core/rt",

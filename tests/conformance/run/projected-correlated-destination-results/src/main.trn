@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import correlated_values
+from /core/output import print
+
+function main;
+  values map of string, list of map of int64, string = correlated_values;
+  print; values.length

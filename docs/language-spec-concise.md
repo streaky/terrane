@@ -303,7 +303,7 @@ function connect connection; host string, port int, timeout int = 10
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
 - Default visibility public; strict visibility mode can require explicit qualifiers.
-- Source-declared type parameters/generics are unsupported and MUST be rejected. Use concrete types, unions, interfaces, or generated concrete declarations. This does not prevent the dependency projector from selecting one Rust result-only generic from an explicit Terrane destination; Rust angle-bracket arguments never become source syntax.
+- Source-declared type parameters/generics are unsupported and MUST be rejected. Use concrete types, unions, interfaces, or generated concrete declarations. This does not prevent the dependency projector from jointly selecting correlated Rust result-only generics from one explicit Terrane destination; Rust angle-bracket arguments never become source syntax.
 
 ## TYPE
 

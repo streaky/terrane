@@ -3465,15 +3465,20 @@ neither crate shape defines the implementation. Generated Rust names every concr
 explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
 already does.
 
-Status: implemented on `destination-directed-projected-results`. Projection schema 25 retains one
-result-only generic template and complete rendered bounds; semantic analysis selects it only from a
-written binding, argument, field, or return destination and records exact cached oracle evidence.
+Status: implemented on `destination-directed-projected-results` and generalized on
+`feature/projection-gap-census`. Projection schema 156 retains a correlated set of result-only
+generic parameters, one recursive result template, and complete per-parameter rendered bounds;
+semantic analysis structurally selects the complete substitution only from a written binding,
+argument, field, or return destination and records exact cached oracle evidence.
 Projection-history format 3 also records any exact, lock-resolved crates.io bound-owner dependency
 added to the generated graph. `projected-serde-json-result` exercises `serde_json::from_str` with an
 argument-bearing `int64` destination and a lock-pinned transitive `serde_core` bound.
 `projected-destination-results` exercises a renamed higher-ranked lifetime-bound owner, a nested
 `BTreeMap<String, T>` template, and nonempty scalar, optional, bytes, list, map, and set conversion
-with canonical generated Rust. `projected-result-without-destination`,
+with canonical generated Rust. `projected-correlated-destination-results` executes a
+three-parameter nested aggregate result and proves that generated wrapper declarations, native
+turbofish arguments, semantic substitutions, and result conversion preserve one jointly selected
+parameter order. `projected-result-without-destination`,
 `projected-result-incompatible-template`, `projected-result-conflicting-destinations`,
 `projected-result-unsatisfied-bound`, `projected-result-unknown-bound`, and
 `projected-result-borrowed` cover the destination, proof, and ownership declines;
