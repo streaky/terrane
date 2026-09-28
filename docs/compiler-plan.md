@@ -713,16 +713,21 @@ Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, re
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
 `'static` without making each borrowed result `'static`.
 
-Extend chain-only state to a scoped composition graph, not just a linear receiver chain:
-widget constructors nested as arguments, collections of child widgets, and callback-returned
-elements must retain every required owner through native use. Define terminals per region:
-an application chain closes at `run`, while a view invocation may export only the result region
-allowed by its higher-ranked contract. That is not permission to bind, store, capture, return
-arbitrary open builders, or suspend across an unproved borrow.
+Implemented for result-generic blanket recipes: the callback constructs an ordinary owned operation
+graph before the native terminal conversion. `projected-invocation-scoped-callback` now exercises
+projected constructors nested as arguments, multiple owned intermediates, branches that converge to
+one owned `Widget`, an ordered child collection, an ordinary Terrane helper, and an owned capture.
+A traced aggregate proves exact-once source-order evaluation. The selected native blanket recipe
+then converts that one owned graph result into the invocation-scoped terminal.
+`projected-invocation-scoped-incompatible-graph` rejects an owned graph result that does not satisfy
+the complete higher-ranked terminal bound before Rust lowering.
 
-Evaluate inputs exactly once in source order; preserve selected direct/shared/mutable
-representations through proof and emission. Reject incompatible aliases, escaped temporaries,
-retained local borrows, illegal suspension and output lifetimes not anchored to permitted inputs.
+This path deliberately reuses ordinary Terrane control flow, collection ownership, move/borrow
+rules, projected generic specialization, and the terminal authority established above. It does not
+introduce a second scoped graph representation: lifetime-bearing nodes never enter the source graph,
+so mixed invocation regions and escaping scoped aggregates are structurally impossible. The exact
+callback-result boundary described above remains responsible for any future API that genuinely
+requires lifetime-bearing intermediate nodes rather than an owned result-generic blanket recipe.
 No lifetime erasure, `transmute`, forced cloning, leaked allocation, or universal boxed value.
 Box only where the native public API requires it or the reviewed representation contract
 explicitly justifies it.

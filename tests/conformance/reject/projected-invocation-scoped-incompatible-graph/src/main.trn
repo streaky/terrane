@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import BadWidget, bad_widget, render_scoped
+
+function incompatible BadWidget; state ref int64
+    return bad_widget; state + 1
+
+function main;
+    state int64 = 40
+    result = render_scoped; state, incompatible

@@ -1,0 +1,39 @@
+{
+  "format": 3,
+  "dependencies": [
+    {
+      "name": "witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/witness",
+          "BadWidget"
+        ],
+        [
+          "/deps/witness",
+          "bad_widget"
+        ],
+        [
+          "/deps/witness",
+          "render_scoped"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "da5a7d303af8516cb688fc71a524a38cd0dea4c2d34122f996f4f35048218dae",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "145",
+  "content_hash": "18efe6f659e85fae6928616724c9e65f470ae2432578480bd71cd702171edfa2",
+  "resolution": {
+    "outcome": "ExactCache",
+    "events": [
+      {
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `da5a7d303af8516cb688fc71a524a38cd0dea4c2d34122f996f4f35048218dae`"
+      }
+    ]
+  }
+}

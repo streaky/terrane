@@ -1,6 +1,7 @@
 namespace app
 
-from /deps/witness import Label, label, render_scoped
+from /deps/witness import Button, Label, Widget, button, into_widget, label, render_scoped, reset_trace, row, traced_label
+from /core/collections import list
 from /core/output import print
 
 function direct Label; state ref int64
@@ -12,6 +13,21 @@ function helper Label; value int64
 function through-helper Label; state ref int64
     return helper; state + 1
 
+function nested Widget; state ref int64
+    return into_widget; (button; state + 1)
+
+function branch Widget; state ref int64
+    if state > 0
+        return into_widget; (label; state + 0)
+    return into_widget; (button; state + 7)
+
+function aggregate Widget; state ref int64
+    children list of Widget = list;
+    children.append; (into_widget; (traced_label; 1))
+    children.append; (into_widget; (traced_label; 2))
+    children.append; (into_widget; (traced_label; 3))
+    return into_widget; (row; children)
+
 function main;
     state int64 = 40
     print; (render_scoped; state, 'message', true, direct)
@@ -20,3 +36,9 @@ function main;
         return label; state + offset
     print; (render_scoped; state, 'message', true, captured)
     print; (render_scoped; state, 'message', true, through-helper)
+    print; (render_scoped; state, 'message', true, nested)
+    print; (render_scoped; state, 'message', true, branch)
+    zero int64 = 0
+    print; (render_scoped; zero, 'message', true, branch)
+    reset_trace;
+    print; (render_scoped; state, 'message', true, aggregate)

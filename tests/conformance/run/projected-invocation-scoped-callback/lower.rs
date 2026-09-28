@@ -461,31 +461,78 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 4] = [
+    pub static FUNCTIONS: [&str; 7] = [
         "/app::direct",
         "/app::helper",
         "/app::through-helper",
+        "/app::nested",
+        "/app::branch",
+        "/app::aggregate",
         "/app::main",
     ];
-    pub static SITES: [Site; 9] = [
-        /* terrane-site-row: site 0: /app::direct (src/main.trn:7:19-7:28) */
-        { Site { function: 0, file: 0, line: 7, column: 19, end_line: 7, end_column: 28 } },
-        /* terrane-site-row: site 1: /app::direct (src/main.trn:7:12-7:28) */
-        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 28 } },
-        /* terrane-site-row: site 2: /app::helper (src/main.trn:10:12-10:24) */
-        { Site { function: 1, file: 0, line: 10, column: 12, end_line: 10, end_column: 24 } },
-        /* terrane-site-row: site 3: /app::through-helper (src/main.trn:13:20-13:29) */
-        { Site { function: 2, file: 0, line: 13, column: 20, end_line: 13, end_column: 29 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:17:13-17:58) */
-        { Site { function: 3, file: 0, line: 17, column: 13, end_line: 17, end_column: 58 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:20:23-20:37) */
-        { Site { function: 3, file: 0, line: 20, column: 23, end_line: 20, end_column: 37 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:20:16-20:37) */
-        { Site { function: 3, file: 0, line: 20, column: 16, end_line: 20, end_column: 37 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:21:13-21:60) */
-        { Site { function: 3, file: 0, line: 21, column: 13, end_line: 21, end_column: 60 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:22:13-22:66) */
-        { Site { function: 3, file: 0, line: 22, column: 13, end_line: 22, end_column: 66 } },
+    pub static SITES: [Site; 31] = [
+        /* terrane-site-row: site 0: /app::direct (src/main.trn:8:19-8:28) */
+        { Site { function: 0, file: 0, line: 8, column: 19, end_line: 8, end_column: 28 } },
+        /* terrane-site-row: site 1: /app::direct (src/main.trn:8:12-8:28) */
+        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 28 } },
+        /* terrane-site-row: site 2: /app::helper (src/main.trn:11:12-11:24) */
+        { Site { function: 1, file: 0, line: 11, column: 12, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 3: /app::through-helper (src/main.trn:14:20-14:29) */
+        { Site { function: 2, file: 0, line: 14, column: 20, end_line: 14, end_column: 29 } },
+        /* terrane-site-row: site 4: /app::nested (src/main.trn:17:34-17:43) */
+        { Site { function: 3, file: 0, line: 17, column: 34, end_line: 17, end_column: 43 } },
+        /* terrane-site-row: site 5: /app::nested (src/main.trn:17:26-17:43) */
+        { Site { function: 3, file: 0, line: 17, column: 26, end_line: 17, end_column: 43 } },
+        /* terrane-site-row: site 6: /app::nested (src/main.trn:17:12-17:44) */
+        { Site { function: 3, file: 0, line: 17, column: 12, end_line: 17, end_column: 44 } },
+        /* terrane-site-row: site 7: /app::branch (src/main.trn:21:37-21:46) */
+        { Site { function: 4, file: 0, line: 21, column: 37, end_line: 21, end_column: 46 } },
+        /* terrane-site-row: site 8: /app::branch (src/main.trn:21:30-21:46) */
+        { Site { function: 4, file: 0, line: 21, column: 30, end_line: 21, end_column: 46 } },
+        /* terrane-site-row: site 9: /app::branch (src/main.trn:21:16-21:47) */
+        { Site { function: 4, file: 0, line: 21, column: 16, end_line: 21, end_column: 47 } },
+        /* terrane-site-row: site 10: /app::branch (src/main.trn:22:34-22:43) */
+        { Site { function: 4, file: 0, line: 22, column: 34, end_line: 22, end_column: 43 } },
+        /* terrane-site-row: site 11: /app::branch (src/main.trn:22:26-22:43) */
+        { Site { function: 4, file: 0, line: 22, column: 26, end_line: 22, end_column: 43 } },
+        /* terrane-site-row: site 12: /app::branch (src/main.trn:22:12-22:44) */
+        { Site { function: 4, file: 0, line: 22, column: 12, end_line: 22, end_column: 44 } },
+        /* terrane-site-row: site 13: /app::aggregate (src/main.trn:26:37-26:52) */
+        { Site { function: 5, file: 0, line: 26, column: 37, end_line: 26, end_column: 52 } },
+        /* terrane-site-row: site 14: /app::aggregate (src/main.trn:26:23-26:53) */
+        { Site { function: 5, file: 0, line: 26, column: 23, end_line: 26, end_column: 53 } },
+        /* terrane-site-row: site 15: /app::aggregate (src/main.trn:27:37-27:52) */
+        { Site { function: 5, file: 0, line: 27, column: 37, end_line: 27, end_column: 52 } },
+        /* terrane-site-row: site 16: /app::aggregate (src/main.trn:27:23-27:53) */
+        { Site { function: 5, file: 0, line: 27, column: 23, end_line: 27, end_column: 53 } },
+        /* terrane-site-row: site 17: /app::aggregate (src/main.trn:28:37-28:52) */
+        { Site { function: 5, file: 0, line: 28, column: 37, end_line: 28, end_column: 52 } },
+        /* terrane-site-row: site 18: /app::aggregate (src/main.trn:28:23-28:53) */
+        { Site { function: 5, file: 0, line: 28, column: 23, end_line: 28, end_column: 53 } },
+        /* terrane-site-row: site 19: /app::aggregate (src/main.trn:29:26-29:39) */
+        { Site { function: 5, file: 0, line: 29, column: 26, end_line: 29, end_column: 39 } },
+        /* terrane-site-row: site 20: /app::aggregate (src/main.trn:29:12-29:40) */
+        { Site { function: 5, file: 0, line: 29, column: 12, end_line: 29, end_column: 40 } },
+        /* terrane-site-row: site 21: /app::main (src/main.trn:33:13-33:58) */
+        { Site { function: 6, file: 0, line: 33, column: 13, end_line: 33, end_column: 58 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:36:23-36:37) */
+        { Site { function: 6, file: 0, line: 36, column: 23, end_line: 36, end_column: 37 } },
+        /* terrane-site-row: site 23: /app::main (src/main.trn:36:16-36:37) */
+        { Site { function: 6, file: 0, line: 36, column: 16, end_line: 36, end_column: 37 } },
+        /* terrane-site-row: site 24: /app::main (src/main.trn:37:13-37:60) */
+        { Site { function: 6, file: 0, line: 37, column: 13, end_line: 37, end_column: 60 } },
+        /* terrane-site-row: site 25: /app::main (src/main.trn:38:13-38:66) */
+        { Site { function: 6, file: 0, line: 38, column: 13, end_line: 38, end_column: 66 } },
+        /* terrane-site-row: site 26: /app::main (src/main.trn:39:13-39:58) */
+        { Site { function: 6, file: 0, line: 39, column: 13, end_line: 39, end_column: 58 } },
+        /* terrane-site-row: site 27: /app::main (src/main.trn:40:13-40:58) */
+        { Site { function: 6, file: 0, line: 40, column: 13, end_line: 40, end_column: 58 } },
+        /* terrane-site-row: site 28: /app::main (src/main.trn:42:13-42:57) */
+        { Site { function: 6, file: 0, line: 42, column: 13, end_line: 42, end_column: 57 } },
+        /* terrane-site-row: site 29: /app::main (src/main.trn:43:5-43:17) */
+        { Site { function: 6, file: 0, line: 43, column: 5, end_line: 43, end_column: 17 } },
+        /* terrane-site-row: site 30: /app::main (src/main.trn:44:13-44:61) */
+        { Site { function: 6, file: 0, line: 44, column: 13, end_line: 44, end_column: 61 } },
     ];
     #[cold]
     #[inline(never)]
@@ -507,25 +554,221 @@ fn direct(state: &i64) -> Label {
             terrane_int_support::Int::from(
                 __terrane_raised(
                     terrane_int_support::fixed_addition(state.clone(), 1),
-                    0 /* terrane-site: src/main.trn:7:19-7:28 */,
+                    0 /* terrane-site: src/main.trn:8:19-8:28 */,
                 ) as i128,
             ),
         ),
-        1 /* terrane-site: src/main.trn:7:12-7:28 */,
+        1 /* terrane-site: src/main.trn:8:12-8:28 */,
     );
 }
 fn helper(value: i64) -> Label {
     return __terrane_raised(
         label(terrane_int_support::Int::from(value as i128)),
-        2 /* terrane-site: src/main.trn:10:12-10:24 */,
+        2 /* terrane-site: src/main.trn:11:12-11:24 */,
     );
 }
 fn through_helper(state: &i64) -> Label {
     return helper(
         __terrane_raised(
             terrane_int_support::fixed_addition(state.clone(), 1),
-            3 /* terrane-site: src/main.trn:13:20-13:29 */,
+            3 /* terrane-site: src/main.trn:14:20-14:29 */,
         ),
+    );
+}
+fn nested(state: &i64) -> Widget {
+    return __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| witness::into_widget(
+                __terrane_raised(
+                    button(
+                        terrane_int_support::Int::from(
+                            __terrane_raised(
+                                terrane_int_support::fixed_addition(state.clone(), 1),
+                                4 /* terrane-site: src/main.trn:17:34-17:43 */,
+                            ) as i128,
+                        ),
+                    ),
+                    5 /* terrane-site: src/main.trn:17:26-17:43 */,
+                ),
+            )),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::into_widget",
+                    ),
+                )
+            }
+        },
+        6 /* terrane-site: src/main.trn:17:12-17:44 */,
+    );
+}
+fn branch(state: &i64) -> Widget {
+    if state.clone() > 0 {
+        return __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| witness::into_widget(
+                    __terrane_raised(
+                        label(
+                            terrane_int_support::Int::from(
+                                __terrane_raised(
+                                    terrane_int_support::fixed_addition(state.clone(), 0),
+                                    7 /* terrane-site: src/main.trn:21:37-21:46 */,
+                                ) as i128,
+                            ),
+                        ),
+                        8 /* terrane-site: src/main.trn:21:30-21:46 */,
+                    ),
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::into_widget",
+                        ),
+                    )
+                }
+            },
+            9 /* terrane-site: src/main.trn:21:16-21:47 */,
+        );
+    }
+    return __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| witness::into_widget(
+                __terrane_raised(
+                    button(
+                        terrane_int_support::Int::from(
+                            __terrane_raised(
+                                terrane_int_support::fixed_addition(state.clone(), 7),
+                                10 /* terrane-site: src/main.trn:22:34-22:43 */,
+                            ) as i128,
+                        ),
+                    ),
+                    11 /* terrane-site: src/main.trn:22:26-22:43 */,
+                ),
+            )),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::into_widget",
+                    ),
+                )
+            }
+        },
+        12 /* terrane-site: src/main.trn:22:12-22:44 */,
+    );
+}
+fn aggregate(state: &i64) -> Widget {
+    let _ = &state;
+    let mut children: terrane_collection_support::List<Widget> = terrane_collection_support::List::<
+        Widget,
+    >::new(vec![]);
+    children
+        .append(
+            __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| witness::into_widget(
+                        __terrane_raised(
+                            traced_label(terrane_int_support::Int::from(1_i128)),
+                            13 /* terrane-site: src/main.trn:26:37-26:52 */,
+                        ),
+                    )),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::into_widget",
+                            ),
+                        )
+                    }
+                },
+                14 /* terrane-site: src/main.trn:26:23-26:53 */,
+            ),
+        );
+    children
+        .append(
+            __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| witness::into_widget(
+                        __terrane_raised(
+                            traced_label(terrane_int_support::Int::from(2_i128)),
+                            15 /* terrane-site: src/main.trn:27:37-27:52 */,
+                        ),
+                    )),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::into_widget",
+                            ),
+                        )
+                    }
+                },
+                16 /* terrane-site: src/main.trn:27:23-27:53 */,
+            ),
+        );
+    children
+        .append(
+            __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| witness::into_widget(
+                        __terrane_raised(
+                            traced_label(terrane_int_support::Int::from(3_i128)),
+                            17 /* terrane-site: src/main.trn:28:37-28:52 */,
+                        ),
+                    )),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::into_widget",
+                            ),
+                        )
+                    }
+                },
+                18 /* terrane-site: src/main.trn:28:23-28:53 */,
+            ),
+        );
+    return __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| witness::into_widget(
+                __terrane_raised(
+                    row(children),
+                    19 /* terrane-site: src/main.trn:29:26-29:39 */,
+                ),
+            )),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::into_widget",
+                    ),
+                )
+            }
+        },
+        20 /* terrane-site: src/main.trn:29:12-29:40 */,
     );
 }
 fn main() {
@@ -542,7 +785,7 @@ fn main() {
         Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
-        4 /* terrane-site: src/main.trn:17:13-17:58 */))
+        21 /* terrane-site: src/main.trn:33:13-33:58 */))
     );
     let offset: i64 = 2;
     let captured: std::sync::Arc<dyn Fn(&i64) -> Label + Send + Sync> = {
@@ -553,11 +796,11 @@ fn main() {
                     terrane_int_support::Int::from(
                         __terrane_raised(
                             terrane_int_support::fixed_addition(state.clone(), offset),
-                            5 /* terrane-site: src/main.trn:20:23-20:37 */,
+                            22 /* terrane-site: src/main.trn:36:23-36:37 */,
                         ) as i128,
                     ),
                 ),
-                6 /* terrane-site: src/main.trn:20:16-20:37 */,
+                23 /* terrane-site: src/main.trn:36:16-36:37 */,
             );
         })
     };
@@ -573,7 +816,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
-        7 /* terrane-site: src/main.trn:21:13-21:60 */))
+        24 /* terrane-site: src/main.trn:37:13-37:60 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -587,12 +830,89 @@ fn main() {
         Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
-        8 /* terrane-site: src/main.trn:22:13-22:66 */))
+        25 /* terrane-site: src/main.trn:38:13-38:66 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        witness::render_scoped(&state, String::from("message"), true, match | | -> Result
+        < _, crate ::TerraneForeignError > { Ok({ let callback =
+        std::sync::Arc::new(nested).clone(); move | callback_argument_0 : &'_ i64 | {
+        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        callback(&callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
+        26 /* terrane-site: src/main.trn:39:13-39:58 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        witness::render_scoped(&state, String::from("message"), true, match | | -> Result
+        < _, crate ::TerraneForeignError > { Ok({ let callback =
+        std::sync::Arc::new(branch).clone(); move | callback_argument_0 : &'_ i64 | {
+        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        callback(&callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
+        27 /* terrane-site: src/main.trn:40:13-40:58 */))
+    );
+    let zero: i64 = 0;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        witness::render_scoped(&zero, String::from("message"), true, match | | -> Result
+        < _, crate ::TerraneForeignError > { Ok({ let callback =
+        std::sync::Arc::new(branch).clone(); move | callback_argument_0 : &'_ i64 | {
+        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        callback(&callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
+        28 /* terrane-site: src/main.trn:42:13-42:57 */))
+    );
+    __terrane_raised(reset_trace(), 29 /* terrane-site: src/main.trn:43:5-43:17 */);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        witness::render_scoped(&state, String::from("message"), true, match | | -> Result
+        < _, crate ::TerraneForeignError > { Ok({ let callback =
+        std::sync::Arc::new(aggregate).clone(); move | callback_argument_0 : &'_ i64 | {
+        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        callback(&callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness", "witness::render_scoped")) },
+        30 /* terrane-site: src/main.trn:44:13-44:61 */))
     );
 }
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
+pub use witness::Button;
 pub use witness::Label;
+pub use witness::Row;
+pub use witness::Widget;
+pub fn button(
+    value: terrane_int_support::Int,
+) -> Result<Button, crate::TerraneForeignError> {
+    let value = terrane_int_support::coerce::<i64>(&value)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::button(value)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::button"))
+        }
+    }
+}
 pub fn label(
     value: terrane_int_support::Int,
 ) -> Result<Label, crate::TerraneForeignError> {
@@ -606,6 +926,57 @@ pub fn label(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(crate::__terrane_dependency_panic(payload, "witness", "witness::label"))
+        }
+    }
+}
+pub fn reset_trace() -> Result<(), crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::reset_trace()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "witness",
+                    "witness::reset_trace",
+                ),
+            )
+        }
+    }
+}
+pub fn row(
+    children: terrane_collection_support::List<Widget>,
+) -> Result<Row, crate::TerraneForeignError> {
+    let children = children.into_vec();
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::row(children)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::row"))
+        }
+    }
+}
+pub fn traced_label(
+    value: terrane_int_support::Int,
+) -> Result<Label, crate::TerraneForeignError> {
+    let value = terrane_int_support::coerce::<i64>(&value)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::traced_label(value)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "witness",
+                    "witness::traced_label",
+                ),
+            )
         }
     }
 }
