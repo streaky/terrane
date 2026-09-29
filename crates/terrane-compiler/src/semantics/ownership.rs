@@ -48,7 +48,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     ) -> bool {
         matches!(
             &unit.typed_bindings[binding].value_type,
-            ValueType::Task(_, _) | ValueType::ScopedTask(_, _) | ValueType::Iterator(_)
+            ValueType::Task(_, _)
+                | ValueType::ScopedTask(_, _)
+                | ValueType::Iterator(_)
+                | ValueType::InvocationScopedNative { .. }
         ) || matches!(
             &unit.typed_bindings[binding].value_type,
             ValueType::Function(_, _, effects)
@@ -389,6 +392,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                     | ValueType::Object(_)
                                     | ValueType::Function(_, _, _)
                                     | ValueType::AsyncFunction(_, _, _, _)
+                                    | ValueType::InvocationScopedNative { .. }
                             )
                         })
                         .and_then(|_| argument.children.last())

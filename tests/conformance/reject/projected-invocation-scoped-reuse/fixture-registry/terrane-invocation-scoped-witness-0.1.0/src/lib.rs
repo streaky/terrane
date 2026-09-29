@@ -18,3 +18,7 @@ impl<'view> From<BorrowedLabel<'view>> for ScopedView<'view> {
 pub fn borrowed_label(value: &str) -> BorrowedLabel<'_> {
     BorrowedLabel { value }
 }
+
+pub fn consume_label(label_value: BorrowedLabel<'_>) -> BorrowedLabel<'_> {
+    label_value
+}

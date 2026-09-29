@@ -527,6 +527,7 @@ pub enum ValueType {
         rust_type: String,
         family: ObjectIdentity,
         lifetimes: Vec<String>,
+        region: Option<(u32, usize, usize)>,
     },
     ChannelPair(ElementType),
     ChannelSender(ElementType),

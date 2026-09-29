@@ -708,14 +708,22 @@ as the terminal authority when it already owns that conversion: this preserves t
 Terrane callable, recursion, helpers, captures, diagnostics, and static result type without a
 second compiler representation.
 
-An API whose exact callback result itself is lifetime-bearing and has no such result-generic blanket
-recipe remains a distinct future boundary. It requires a compiler-generated monomorphized helper or
-nominal shim per projected callback use, reusing the analyzed Terrane body with the selected
-invocation lifetime, native parameter types, generic obligations, and destination result. Do not
-erase the result or inline-copy source bodies into closures: erasure introduces allocation and
-dynamic dispatch, while textual inlining breaks recursion, diagnostics, and stable source identity.
-Emit an ordinary reusable Terrane function only when its complete type is independently
-representable.
+Implemented for exact lifetime-bearing callback results: projection schema 160 recursively retains
+invocation-scoped native inputs and sequence elements when the same projected operation returns a
+lifetime-bearing value authorized by an external terminal conversion. Semantic values carry the
+enclosing scoped-function region. Region-local bindings, nested projected calls, branches that
+converge through one exact terminal family, and scoped child lists are legal; ordinary storage,
+aggregate escape, capture, suspension, incompatible terminal conversion, and cross-region flow are
+rejected before lowering. Scoped values use ordinary move checking and are never implicitly cloned.
+
+Lowering reuses the analyzed function body and emits a monomorphized helper with the selected
+invocation lifetime and exact native local/collection types. Explicit return graphs select the
+helper result, so an earlier intermediate cannot accidentally determine its ABI. The terminal
+adapter performs one external conversion; no callback body copying, erased storage,
+representation-only allocation, dynamic dispatch, `'static` promotion, leak, or `transmute` is
+introduced. `projected-invocation-scoped-callback` executes direct, nested, branching, helper,
+capture, and aggregate paths. Focused rejection fixtures cover nominal and aggregate escape,
+capture, suspension, invalid reuse, and incompatible terminal graphs.
 
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be

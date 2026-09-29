@@ -6,9 +6,20 @@ pub struct Label {
     value: i64,
 }
 
+#[derive(Clone)]
 pub struct BorrowedLabel<'view> {
     value: &'view str,
 }
+
+pub struct BorrowedButton<'view> {
+    value: &'view str,
+}
+
+pub struct BorrowedGroup<'view> {
+    value: i64,
+    marker: std::marker::PhantomData<&'view str>,
+}
+
 
 pub struct Button {
     value: i64,
@@ -66,6 +77,29 @@ impl<'view, Message, Theme> From<BorrowedLabel<'view>>
         }
     }
 }
+
+impl<'view, Message, Theme> From<BorrowedButton<'view>>
+    for ScopedView<'view, Message, Theme>
+{
+    fn from(button: BorrowedButton<'view>) -> Self {
+        Self {
+            value: button.value.len() as i64 + 10,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'view, Message, Theme> From<BorrowedGroup<'view>>
+    for ScopedView<'view, Message, Theme>
+{
+    fn from(group: BorrowedGroup<'view>) -> Self {
+        Self {
+            value: group.value,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
 impl<'view, Message, Theme> From<Widget> for ScopedView<'view, Message, Theme> {
     fn from(widget: Widget) -> Self {
         Self {
@@ -80,6 +114,43 @@ pub fn label(value: i64) -> Label {
 }
 pub fn borrowed_label(value: &String) -> BorrowedLabel<'_> {
     BorrowedLabel { value }
+}
+
+pub fn borrowed_button(value: &String) -> BorrowedButton<'_> {
+    BorrowedButton { value }
+}
+
+pub fn borrowed_group<'view>(
+    label_value: BorrowedLabel<'view>,
+    button_value: BorrowedButton<'view>,
+) -> BorrowedGroup<'view> {
+    BorrowedGroup {
+        value: label_value.value.len() as i64 * 100 + button_value.value.len() as i64,
+        marker: std::marker::PhantomData,
+    }
+}
+
+pub fn borrowed_label_group<'view>(label_value: BorrowedLabel<'view>) -> BorrowedGroup<'view> {
+    BorrowedGroup {
+        value: label_value.value.len() as i64,
+        marker: std::marker::PhantomData,
+    }
+}
+
+pub fn borrowed_button_group<'view>(button_value: BorrowedButton<'view>) -> BorrowedGroup<'view> {
+    BorrowedGroup {
+        value: button_value.value.len() as i64 + 10,
+        marker: std::marker::PhantomData,
+    }
+}
+
+pub fn borrowed_row<'view>(children: Vec<BorrowedLabel<'view>>) -> BorrowedGroup<'view> {
+    BorrowedGroup {
+        value: children
+            .into_iter()
+            .fold(0, |combined, child| combined * 100 + child.value.len() as i64),
+        marker: std::marker::PhantomData,
+    }
 }
 pub fn button(value: i64) -> Button {
     Button { value }

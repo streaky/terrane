@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Button, Label, Widget, borrowed_label, button, into_widget, label, render_exact, render_scoped, reset_trace, row, traced_label
+from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, button, into_widget, label, render_exact, render_scoped, reset_trace, row, traced_label
 from /core/collections import list
 from /core/output import print
 
@@ -9,6 +9,25 @@ function exact-label host-invocation-scoped-native; state ref string
 
 function exact host-invocation-scoped-native; state ref string
     return exact-label; state
+
+function exact-nested host-invocation-scoped-native; state ref string
+    first = borrowed_label; state
+    second = borrowed_button; state
+    return borrowed_group; first, second
+
+function exact-branch host-invocation-scoped-native; state ref string
+    if state.length > 1
+        intermediate = borrowed_label; state
+        return borrowed_label_group; intermediate
+    button-intermediate = borrowed_button; state
+    return borrowed_button_group; button-intermediate
+
+function exact-aggregate host-invocation-scoped-native; state ref string
+    children list of host-invocation-scoped-native = list;
+    children.append; (borrowed_label; state)
+    children.append; (borrowed_label; state)
+    return borrowed_row; children
+
 
 function direct Label; state ref int64
     return label; state + 1
@@ -45,6 +64,9 @@ function main;
     print; (render_scoped; state, 'message', true, direct)
     print; (render_exact; exact-state, 'message', true, exact)
     print; (render_exact; exact-state, 'message', true, captured-exact)
+    print; (render_exact; exact-state, 'message', true, exact-nested)
+    print; (render_exact; exact-state, 'message', true, exact-branch)
+    print; (render_exact; exact-state, 'message', true, exact-aggregate)
     offset int64 = 2
     captured = function Label; state ref int64
         return label; state + offset

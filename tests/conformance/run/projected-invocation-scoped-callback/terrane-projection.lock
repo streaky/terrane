@@ -20,7 +20,27 @@
         ],
         [
           "/deps/witness",
+          "borrowed_button"
+        ],
+        [
+          "/deps/witness",
+          "borrowed_button_group"
+        ],
+        [
+          "/deps/witness",
+          "borrowed_group"
+        ],
+        [
+          "/deps/witness",
           "borrowed_label"
+        ],
+        [
+          "/deps/witness",
+          "borrowed_label_group"
+        ],
+        [
+          "/deps/witness",
+          "borrowed_row"
         ],
         [
           "/deps/witness",

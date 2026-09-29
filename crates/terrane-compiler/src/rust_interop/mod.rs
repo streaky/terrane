@@ -26,7 +26,7 @@
 //! | Expression-scoped native chains | Implemented | Axum/HTTP package conformance |
 //! | Owned callback result converted by a higher-ranked native blanket recipe | Implemented | `projected-invocation-scoped-callback` |
 //! | Exact invocation-scoped lifetime-bearing callback result | Implemented | `projected-invocation-scoped-callback`, `projected-invocation-scoped-nominal-escape` |
-//! | Invocation-scoped native operation graphs | Planned (work unit 4C) | package-independent graph fixture |
+//! | Invocation-scoped native operation graphs | Implemented | `projected-invocation-scoped-callback` and focused graph rejections |
 //! | Real projected Iced view cutover | Planned (work units 4D–4E) | `packages/iced-ui` |
 //!
 //! Projection metadata is canonical. Semantic analysis owns Terrane-region, ownership, and

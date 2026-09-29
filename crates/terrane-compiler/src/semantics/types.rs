@@ -653,6 +653,7 @@ pub(super) fn declared_value_type_with_visible_objects(
                     "invocation-scoped-native".to_owned(),
                 ),
                 lifetimes: Vec::new(),
+                region: None,
             });
         }
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),

@@ -1921,6 +1921,120 @@ pub(super) fn projected_function_for_call<'a>(
     )
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum InvocationScopedRegion {
+    Unbound,
+    Bound((u32, usize, usize)),
+}
+
+fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRegion> {
+    match value_type {
+        ValueType::InvocationScopedNative { region, .. } => Some(region.map_or(
+            InvocationScopedRegion::Unbound,
+            InvocationScopedRegion::Bound,
+        )),
+        ValueType::Optional(inner) => invocation_scoped_region(inner),
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::Reference(inner)
+        | ValueType::SharedReference(inner) => invocation_scoped_region(inner.value_type_ref()),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => invocation_scoped_region(key.value_type_ref())
+            .or_else(|| invocation_scoped_region(value.value_type_ref())),
+        ValueType::Tuple(item, _) => invocation_scoped_region(item.value_type_ref()),
+        _ => None,
+    }
+}
+
+fn validate_invocation_scoped_node(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && let Some(value) = node.children.last()
+        && let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
+        && let Some(region) = invocation_scoped_region(&value_type)
+    {
+        let local_span = unit
+            .enclosing_function_spans
+            .get(&node.span.start)
+            .copied()
+            .flatten();
+        let local_region = local_span.map(|span| (span.file, span.start, span.end));
+        let region_local_function = local_span.is_some_and(|span| {
+            unit.functions.iter().any(|function| {
+                function.span == span
+                    && matches!(
+                        function.return_type,
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+            })
+        });
+        if matches!(region, InvocationScopedRegion::Bound(region) if local_region != Some(region))
+            || (region == InvocationScopedRegion::Unbound && !region_local_function)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0119",
+                "invocation-scoped native value cannot escape into ordinary storage",
+                value.span,
+            ));
+        }
+    }
+    if node.kind == SyntaxKind::AnonymousFunction
+        && let Some(contract) = unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+        && let Some(capture) = contract.captures.iter().find(|capture| {
+            unit.typed_bindings.iter().any(|binding| {
+                binding.name == **capture
+                    && binding.is_visible_at(unit.source.id(), node.span.start)
+                    && invocation_scoped_region(&binding.value_type).is_some()
+            })
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            format!(
+                "invocation-scoped native value `{capture}` cannot be captured outside its invocation region"
+            ),
+            node.span,
+        ));
+    }
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+        && let Some(binding) = unit.typed_bindings.iter().find(|binding| {
+            binding.is_visible_at(unit.source.id(), node.span.start)
+                && invocation_scoped_region(&binding.value_type).is_some()
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            format!(
+                "invocation-scoped native value `{}` cannot remain live across suspension",
+                binding.name
+            ),
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1930,20 +2044,7 @@ fn validate_projected_callback_node(
     immediately_awaited: bool,
     chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
-    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
-        && let Some(value) = node.children.last()
-        && matches!(
-            infer_value_type(unit, value, &unit.typed_bindings)?,
-            Some(ValueType::InvocationScopedNative { .. })
-        )
-    {
-        return Err(failure(
-            &unit.source,
-            "T0119",
-            "invocation-scoped native value cannot escape into ordinary storage",
-            value.span,
-        ));
-    }
+    validate_invocation_scoped_node(unit, node)?;
     if matches!(
         projected_chain_role(package, unit, node),
         Some(

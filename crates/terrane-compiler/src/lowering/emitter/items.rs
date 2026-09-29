@@ -1682,6 +1682,22 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    fn invocation_scoped_explicit_return_type(
+        &self,
+        node: &SyntaxNode,
+        depth: usize,
+    ) -> Option<ValueType> {
+        if node.kind == SyntaxKind::ReturnStatement {
+            return node
+                .children
+                .last()
+                .and_then(|value| self.invocation_scoped_return_type(value, depth + 1));
+        }
+        node.children
+            .iter()
+            .find_map(|child| self.invocation_scoped_explicit_return_type(child, depth + 1))
+    }
+
     pub(super) fn invocation_scoped_return_type(
         &self,
         node: &SyntaxNode,
@@ -1696,6 +1712,11 @@ impl<'a> Emitter<'a> {
             node.span.end,
         )) {
             return Some(value_type.clone());
+        }
+        if node.kind == SyntaxKind::FunctionDeclaration
+            && let Some(result) = self.invocation_scoped_explicit_return_type(node, depth + 1)
+        {
+            return Some(result);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()

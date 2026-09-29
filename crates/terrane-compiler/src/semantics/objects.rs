@@ -2267,6 +2267,21 @@ fn collect_projected_call_result_types(
             lifetimes,
             owned: _,
         } => {
+            let region = package.units[unit_index]
+                .enclosing_function_spans
+                .get(&node.span.start)
+                .copied()
+                .flatten()
+                .filter(|span| {
+                    package.units[unit_index].functions.iter().any(|function| {
+                        function.span == *span
+                            && matches!(
+                                function.return_type,
+                                Some(ValueType::InvocationScopedNative { .. })
+                            )
+                    })
+                })
+                .map(|span| (span.file, span.start, span.end));
             additions.push((
                 unit_index,
                 (node.span.file, node.span.start, node.span.end),
@@ -2277,6 +2292,7 @@ fn collect_projected_call_result_types(
                         name.clone(),
                     ),
                     lifetimes: lifetimes.clone(),
+                    region,
                 },
             ));
         }

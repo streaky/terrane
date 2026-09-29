@@ -2,6 +2,7 @@ pub struct ScopedView<'view> {
     pub marker: std::marker::PhantomData<&'view ()>,
 }
 
+#[derive(Clone)]
 pub struct BorrowedLabel<'view> {
     value: &'view str,
 }

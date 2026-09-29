@@ -1022,6 +1022,24 @@ pub(super) fn index_projected_static_method_references(
     references
 }
 
+fn invocation_scoped_rust_type(
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> Option<String> {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::InvocationScoped {
+            rust_type,
+            lifetimes,
+            ..
+        } => Some(lifetimes.iter().fold(rust_type.clone(), |ty, lifetime| {
+            ty.replace(lifetime, "'view")
+        })),
+        crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
+            invocation_scoped_rust_type(item)
+                .map(|item| format!("terrane_collection_support::List<{item}>"))
+        }
+        _ => None,
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "dependency shim emission keeps each generated branch beside the shared call contract"
@@ -1112,6 +1130,8 @@ pub(super) fn emit_dependency_unit(
                     }
                 ) {
                     "TerraneNativeCallback".to_owned()
+                } else if let Some(value_type) = invocation_scoped_rust_type(&projected.ty) {
+                    value_type
                 } else {
                     projected.generic_parameter.clone().unwrap_or_else(|| {
                         parameter.value_type.clone().map_or_else(

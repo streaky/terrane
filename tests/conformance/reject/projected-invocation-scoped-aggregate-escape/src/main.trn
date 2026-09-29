@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import borrowed_label
+from /core/collections import list
+
+function main;
+    children list of host-invocation-scoped-native = list;
+    children.append; (borrowed_label; 'escape')

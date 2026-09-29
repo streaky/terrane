@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "159";
+const PROJECTION_SCHEMA: &str = "160";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -9337,7 +9337,17 @@ fn project_function_inner(
         if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
             return Err("nested borrowed parameter cannot cross a projected boundary".to_owned());
         }
-        if type_contains_lifetime_argument(ty) && !input_has_owned_borrowed_view(ty, index, paths) {
+        let invocation_scoped_input = allow_lifetime_output
+            && type_contains_lifetime_argument(ty)
+            && function
+                .sig
+                .output
+                .as_ref()
+                .is_some_and(type_contains_lifetime_argument);
+        if type_contains_lifetime_argument(ty)
+            && !input_has_owned_borrowed_view(ty, index, paths)
+            && !invocation_scoped_input
+        {
             return Err(
                 "input contains a lifetime-bearing foreign value with no non-escaping Terrane call representation"
                     .to_owned(),
@@ -9385,6 +9395,12 @@ fn project_function_inner(
             } else {
                 (ProjectedType::Generic(generic.clone()), Some(generic), None)
             }
+        } else if invocation_scoped_input {
+            (
+                project_invocation_scoped_type(ty, index, paths, &generic_types)?,
+                None,
+                None,
+            )
         } else {
             (project_type(ty, index, paths, &generic_types)?, None, None)
         };
@@ -11051,6 +11067,16 @@ fn project_invocation_scoped_type(
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
     let projected = project_type(ty, index, paths, generics)?;
+    if let ProjectedType::Sequence { rust_path, .. } = &projected
+        && let Some(item) = type_arguments(ty).into_iter().next()
+    {
+        return Ok(ProjectedType::Sequence {
+            rust_path: rust_path.clone(),
+            item: Box::new(project_invocation_scoped_type(
+                item, index, paths, generics,
+            )?),
+        });
+    }
     let rust_type = render_rust_type(ty, index, paths, generics)?;
     let lifetimes = rust_lifetimes(&rust_type);
     if lifetimes.is_empty() {
