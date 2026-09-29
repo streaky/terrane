@@ -1866,6 +1866,11 @@ W4006 underscore-prefixed binding marked intentionally unused is read
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
 codes: retired warning codes remain unavailable and are never reassigned.
 
+`W4005` is an explicit higher-noise lint rather than a normal compiler warning. Ordinary
+compilation remains silent for unreferenced authored functions; `--lint-unused-functions` requests
+the package-wide reference inventory when it is useful. This avoids treating public package
+surface, callbacks, or staged functions as routine problems.
+
 ### Milestone 4 — Types, calls, and control-flow semantics
 
 Deliver:

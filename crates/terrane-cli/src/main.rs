@@ -216,6 +216,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         output_path,
         require_canonical_rust,
         lint_name_style,
+        lint_unused_functions,
         release,
         embed_debug_sources,
         embed_generated_sources,
@@ -223,6 +224,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         (
             options.input.clone(),
             None,
+            false,
             false,
             false,
             false,
@@ -272,6 +274,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
+            lint_unused_functions,
             debug_build: match command {
                 CliCommand::Profile if embed_debug_sources => {
                     terrane_compiler::DebugBuild::EmbeddedAllSources
@@ -496,13 +499,14 @@ fn rust_build_identity(
     })
 }
 
-type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool);
+type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool, bool);
 
 fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
+    let mut lint_unused_functions = false;
     let mut release = false;
     let mut embed_debug_sources = false;
     let mut embed_generated_sources = false;
@@ -510,6 +514,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
+            "--lint-unused-functions" => lint_unused_functions = true,
             "--release" => release = true,
             "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
             "--embed-generated-sources" if command == CliCommand::Debug => {
@@ -554,6 +559,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         output_path,
         require_canonical_rust,
         lint_name_style,
+        lint_unused_functions,
         release,
         embed_debug_sources,
         embed_generated_sources,
@@ -1952,7 +1958,7 @@ fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] <file-or-manifest> [-- program arguments]\n\
+     [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
      terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
@@ -1979,6 +1985,7 @@ fn usage() -> String {
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
+     --lint-unused-functions  report authored top-level functions with no resolved references\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
      --embed-sources  include authored source snapshots in debug provenance or profile artifacts\n  \
      --retain-arguments  include profile workload arguments in the artifact (profile record only)\n  \
@@ -2070,9 +2077,10 @@ mod tests {
                 None,
                 false,
                 false,
+                false,
                 true,
                 false,
-                false
+                false,
             )
         );
 

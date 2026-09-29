@@ -175,13 +175,32 @@ fn authored_name_style_is_an_opt_in_warning() {
     );
     let semantic = analyze(&package).unwrap();
 
-    assert!(warnings(&semantic, false).is_empty());
-    let diagnostics = warnings(&semantic, true);
+    assert!(warnings(&semantic, false, false).is_empty());
+    let diagnostics = warnings(&semantic, true, false);
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "S2018"
             && diagnostic.message == "declared name `Answer` is not kebab-case"
             && diagnostic.severity == crate::Severity::Warning
     }));
+}
+
+#[test]
+fn unused_top_level_function_warning_is_opt_in() {
+    let package = Package::implicit(
+        "main.trn",
+        "namespace app\nfunction helper;\n  print; 1\nfunction main;\n  print; 2\n".to_owned(),
+    );
+    let semantic = analyze(&package).unwrap();
+
+    assert!(warnings(&semantic, false, false).is_empty());
+    let diagnostics = warnings(&semantic, false, true);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect::<Vec<_>>(),
+        vec!["W4005"]
+    );
 }
 
 #[test]

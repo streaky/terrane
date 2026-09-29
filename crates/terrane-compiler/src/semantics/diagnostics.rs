@@ -205,7 +205,11 @@ fn collect_unused_top_level_function_warnings(
     }
 }
 
-pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
+pub(crate) fn warnings(
+    package: &SemanticPackage,
+    lint_name_style: bool,
+    lint_unused_functions: bool,
+) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     warnings.extend(package.import_warnings.iter().cloned());
 
@@ -214,7 +218,9 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
             collect_name_style_warnings(unit, &mut warnings);
         }
         collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
-        collect_unused_top_level_function_warnings(package, unit, &mut warnings);
+        if lint_unused_functions {
+            collect_unused_top_level_function_warnings(package, unit, &mut warnings);
+        }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {

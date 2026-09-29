@@ -480,6 +480,7 @@ fn prepare_conformance_case(
     let options = terrane_compiler::CompilerOptions {
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
         lint_name_style: false,
+        lint_unused_functions: boolean_field(&manifest, "lint-unused-functions").unwrap_or(false),
         debug_build: terrane_compiler::DebugBuild::Disabled,
     };
 

@@ -39,6 +39,7 @@ impl DebugBuild {
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
+    pub lint_unused_functions: bool,
     pub debug_build: DebugBuild,
 }
 
@@ -423,6 +424,16 @@ fn package_entry<'a>(
         .unwrap_or(&semantic.units[0]);
     Ok((&unit.source, entry_span))
 }
+fn collect_warnings(
+    semantic: &crate::SemanticPackage,
+    options: CompilerOptions,
+) -> Vec<Diagnostic> {
+    semantics::warnings(
+        semantic,
+        options.lint_name_style,
+        options.lint_unused_functions,
+    )
+}
 
 /// Compiles every manifest-discovered source unit with explicit
 /// compiler-development options.
@@ -441,17 +452,21 @@ pub fn compile_package_with_options(
     })?;
     let (source, entry_span) = package_entry(&semantic, package)?;
     let sources = compilation_sources(&semantic, package);
-    let warnings = semantics::warnings(&semantic, options.lint_name_style)
-        .into_iter()
-        .filter(|warning| {
-            let dependency_warning = warning
-                .primary
-                .is_some_and(|span| package.library_source_ids.contains(&span.file));
-            let library_export_warning = package.artifact == crate::package::ArtifactKind::Library
-                && matches!(warning.code, "W4001" | "W4005");
-            !dependency_warning && !library_export_warning
-        })
-        .collect();
+    let warnings = semantics::warnings(
+        &semantic,
+        options.lint_name_style,
+        options.lint_unused_functions,
+    )
+    .into_iter()
+    .filter(|warning| {
+        let dependency_warning = warning
+            .primary
+            .is_some_and(|span| package.library_source_ids.contains(&span.file));
+        let library_export_warning =
+            package.artifact == crate::package::ArtifactKind::Library && warning.code == "W4001";
+        !dependency_warning && !library_export_warning
+    })
+    .collect();
     let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
@@ -681,7 +696,7 @@ fn discover_test_tier(
         .iter()
         .map(|unit| unit.source.clone())
         .collect();
-    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let warnings = collect_warnings(&semantic, options);
     Ok(TestTierDiscovery {
         tier,
         cases,
@@ -735,7 +750,11 @@ pub fn compile_discovered_test_tier(
             || semantic.units[0].source.clone(),
             |unit| unit.source.clone(),
         );
-    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let warnings = semantics::warnings(
+        &semantic,
+        options.lint_name_style,
+        options.lint_unused_functions,
+    );
     let rust_ir =
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;
