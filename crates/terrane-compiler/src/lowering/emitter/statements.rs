@@ -1058,6 +1058,20 @@ impl Emitter<'_> {
                 )
             });
         let initializer = binding_initializer(node, name_index);
+        if initializer.is_some_and(|initializer| initializer.kind == SyntaxKind::AnonymousFunction)
+            && binding.is_some_and(|binding| {
+                matches!(
+                    &binding.value_type,
+                    ValueType::Function(_, result, _)
+                        if matches!(
+                            result.value_type_ref(),
+                            ValueType::InvocationScopedNative { .. }
+                        )
+                )
+            })
+        {
+            return;
+        }
         let ty = binding
             .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
             .filter(|_| {

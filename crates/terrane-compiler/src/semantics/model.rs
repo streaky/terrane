@@ -523,6 +523,11 @@ pub enum ValueType {
     AsyncSinkOutcome,
     ProjectedGeneric(String),
     InlineRust,
+    InvocationScopedNative {
+        rust_type: String,
+        family: ObjectIdentity,
+        lifetimes: Vec<String>,
+    },
     ChannelPair(ElementType),
     ChannelSender(ElementType),
     ChannelReceiver(ElementType),
@@ -657,6 +662,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformUrlResult
         | ValueType::ProjectedAssociated
         | ValueType::ProjectedGeneric(_)
+        | ValueType::InvocationScopedNative { .. }
         | ValueType::InlineRust
         | ValueType::PlatformCapability
         | ValueType::PlatformResourceHandle
@@ -786,6 +792,7 @@ impl std::fmt::Display for ValueType {
                     item.value_type()
                 )
             }
+            Self::InvocationScopedNative { family, .. } => family.fmt(formatter),
             Self::ProjectedAssociated => formatter.write_str("host-projected-associated"),
             Self::InlineRust => formatter.write_str("inline Rust value"),
             Self::ProjectedGeneric(name) => write!(formatter, "projected generic `{name}`"),

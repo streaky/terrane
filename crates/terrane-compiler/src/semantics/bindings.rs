@@ -1930,6 +1930,20 @@ fn validate_projected_callback_node(
     immediately_awaited: bool,
     chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && let Some(value) = node.children.last()
+        && matches!(
+            infer_value_type(unit, value, &unit.typed_bindings)?,
+            Some(ValueType::InvocationScopedNative { .. })
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "invocation-scoped native value cannot escape into ordinary storage",
+            value.span,
+        ));
+    }
     if matches!(
         projected_chain_role(package, unit, node),
         Some(

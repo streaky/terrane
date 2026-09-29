@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "157";
+const PROJECTION_SCHEMA: &str = "159";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -649,6 +649,12 @@ pub enum ProjectedType {
         #[serde(default)]
         arguments: Vec<ProjectedType>,
     },
+    InvocationScoped {
+        rust_type: String,
+        name: String,
+        lifetimes: Vec<String>,
+        owned: Box<ProjectedType>,
+    },
     BoxedInterface {
         rust_path: String,
         trait_path: String,
@@ -661,6 +667,12 @@ pub enum ProjectedType {
     Callback {
         rust_name: String,
         parameters: Vec<ProjectedType>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        native_bound: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        native_method: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        native_result: Option<String>,
         #[serde(default)]
         parameter_rust_types: Vec<String>,
         #[serde(default)]
@@ -722,6 +734,7 @@ impl ProjectedType {
             | Self::Set { rust_path, .. }
             | Self::Foreign { rust_path, .. }
             | Self::BoxedInterface { rust_path, .. } => rust_path.clone(),
+            Self::InvocationScoped { rust_type, .. } => rust_type.clone(),
             Self::AsyncIterationStep(item) => {
                 format!("Option<{}>", item.rust_type())
             }
@@ -758,6 +771,7 @@ impl ProjectedType {
                     argument.bind_associated(replacement);
                 }
             }
+            Self::InvocationScoped { owned, .. } => owned.bind_associated(replacement),
             Self::BoxedInterface {
                 associated_type: Some(associated),
                 ..
@@ -775,6 +789,7 @@ impl ProjectedType {
             Self::Mapping { key, value, .. } => key.contains_opaque() || value.contains_opaque(),
             Self::Tuple(items) => items.iter().any(Self::contains_opaque),
             Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_opaque),
+            Self::InvocationScoped { owned, .. } => owned.contains_opaque(),
             Self::BoxedInterface {
                 associated_type, ..
             } => associated_type
@@ -800,6 +815,7 @@ impl ProjectedType {
             Self::Foreign { arguments, .. } => arguments
                 .iter()
                 .any(|argument| argument.contains_generic(generic)),
+            Self::InvocationScoped { owned, .. } => owned.contains_generic(generic),
             Self::BoxedInterface {
                 associated_type, ..
             } => associated_type
@@ -828,6 +844,7 @@ impl ProjectedType {
             }
             Self::Tuple(items) => items.iter().any(Self::contains_open_generic),
             Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_open_generic),
+            Self::InvocationScoped { owned, .. } => owned.contains_open_generic(),
             Self::BoxedInterface {
                 associated_type, ..
             } => associated_type
@@ -871,7 +888,9 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
-            Self::BoxedInterface { name, .. } | Self::Foreign { name, .. } => name.clone(),
+            Self::BoxedInterface { name, .. }
+            | Self::Foreign { name, .. }
+            | Self::InvocationScoped { name, .. } => name.clone(),
             Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
             Self::Mapping {
                 key,
@@ -991,6 +1010,9 @@ fn collect_nested_projected_types(
                 collect_nested_projected_types(item, name, candidates);
             }
         }
+        ProjectedType::InvocationScoped { owned, .. } => {
+            collect_nested_projected_types(owned, name, candidates);
+        }
         ProjectedType::BoxedInterface {
             associated_type: Some(associated),
             ..
@@ -1019,15 +1041,20 @@ fn collect_function_projected_types(
 }
 
 fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
-    let path = match ty {
-        ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
-        ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
-        _ => return None,
-    };
-    Some(
-        path.split_once('<')
-            .map_or(path, |(constructor, _)| constructor),
-    )
+    match ty {
+        ProjectedType::InvocationScoped { owned, .. } => projected_type_owner(owned),
+        ProjectedType::Foreign { base_rust_path, .. } => Some(
+            base_rust_path
+                .split_once('<')
+                .map_or(base_rust_path, |(constructor, _)| constructor),
+        ),
+        ProjectedType::BoxedInterface { trait_path, .. } => Some(
+            trait_path
+                .split_once('<')
+                .map_or(trait_path, |(constructor, _)| constructor),
+        ),
+        _ => None,
+    }
 }
 
 fn projected_owner_path_matches(candidate: &str, owner: &str) -> bool {
@@ -3084,8 +3111,15 @@ fn render_function(
             }
             write!(
                 output,
-                "{} {}",
+                "{} {}{}",
                 parameter.name,
+                if parameter.borrowed
+                    && matches!(function.result, ProjectedType::InvocationScoped { .. })
+                {
+                    "ref "
+                } else {
+                    ""
+                },
                 projected_type_name(&parameter.ty, foreign_aliases)
             )
             .expect("writing to a string cannot fail");
@@ -3094,6 +3128,10 @@ fn render_function(
     output.push('\n');
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected source type rendering exhaustively covers one closed type model"
+)]
 fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
     match ty {
         ProjectedType::Foreign {
@@ -3102,6 +3140,7 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             .get(rust_path)
             .cloned()
             .unwrap_or_else(|| name.clone()),
+        ProjectedType::InvocationScoped { .. } => "host-invocation-scoped-native".to_owned(),
         ProjectedType::BoxedInterface {
             trait_path,
             name,
@@ -3153,6 +3192,7 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
         ),
         ProjectedType::Callback {
             parameters,
+            parameter_borrows,
             result,
             invocation_mode,
             is_async,
@@ -3169,7 +3209,16 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
                     " from {}",
                     parameters
                         .iter()
-                        .map(|parameter| projected_type_name(parameter, foreign_aliases))
+                        .enumerate()
+                        .map(|(index, parameter)| format!(
+                            "{}{}",
+                            if parameter_borrows.get(index) == Some(&true) {
+                                "ref "
+                            } else {
+                                ""
+                            },
+                            projected_type_name(parameter, foreign_aliases)
+                        ))
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -4869,6 +4918,10 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
                 canonicalize_projected_type_name(argument, names);
             }
         }
+        ProjectedType::InvocationScoped { name, owned, .. } => {
+            canonicalize_projected_type_name(owned, names);
+            *name = owned.terrane_name();
+        }
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
@@ -6022,6 +6075,12 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
                 )
             };
         }
+        ProjectedType::InvocationScoped {
+            rust_type, owned, ..
+        } => {
+            rewrite_projected_rust_root(owned, package_root, dependency_root);
+            *rust_type = rewrite_rust_bound_root(rust_type, package_root, dependency_root);
+        }
         ProjectedType::BoxedInterface {
             rust_path,
             trait_path,
@@ -6055,12 +6114,24 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
             );
         }
         ProjectedType::Callback {
-            parameters, result, ..
+            parameters,
+            result,
+            native_bound,
+            native_result,
+            ..
         } => {
             for parameter in parameters {
                 rewrite_projected_rust_root(parameter, package_root, dependency_root);
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
+            if let Some(native_bound) = native_bound {
+                *native_bound =
+                    rewrite_rust_bound_root(native_bound, package_root, dependency_root);
+            }
+            if let Some(native_result) = native_result {
+                *native_result =
+                    rewrite_rust_bound_root(native_result, package_root, dependency_root);
+            }
         }
         ProjectedType::Opaque { bounds, .. } => {
             for bound in bounds {
@@ -7370,46 +7441,147 @@ fn project_rustdoc(
             continue;
         }
         let projected = match &item.inner {
-            ItemEnum::Function(function) => {
-                project_function(function, index, paths, Some(&name), true).and_then(
-                    |mut projected_function| {
-                        let chain_owner = project_chain_owner(
-                            dependency,
-                            function,
-                            &projected_function.result,
-                            index,
-                            paths,
-                            public_paths,
-                            &mut source_constants,
+            ItemEnum::Function(function) => project_function(
+                function,
+                index,
+                paths,
+                Some(&name),
+                true,
+            )
+            .and_then(|mut projected_function| {
+                let candidate_result = projected_function.result.clone();
+                let chain_owner = project_chain_owner(
+                    dependency,
+                    function,
+                    &candidate_result,
+                    index,
+                    paths,
+                    public_paths,
+                    &mut source_constants,
+                );
+                let has_external_terminal_conversion =
+                    function.sig.output.as_ref().is_some_and(|output| {
+                        let Type::ResolvedPath(output) = output else {
+                            return false;
+                        };
+                        let output_id = output.id;
+                        let Some(output_item) = index.get(&output_id) else {
+                            return false;
+                        };
+                        let implementations = match &output_item.inner {
+                            ItemEnum::Struct(output) => &output.impls,
+                            ItemEnum::Enum(output) => &output.impls,
+                            ItemEnum::Union(output) => &output.impls,
+                            _ => return false,
+                        };
+                        let explicit_into = implementations
+                            .iter()
+                            .filter_map(|implementation| index.get(implementation))
+                            .any(|implementation| {
+                                let ItemEnum::Impl(implementation) = &implementation.inner else {
+                                    return false;
+                                };
+                                implementation.blanket_impl.is_none()
+                                    && implementation.trait_.as_ref().is_some_and(|interface| {
+                                        let name = resolved_path_name(interface, paths);
+                                        (name.ends_with("::Into") || name == "Into")
+                                            && resolved_path_type_arguments(interface)
+                                                .first()
+                                                .is_some_and(|destination| {
+                                                    !matches!(destination, Type::Generic(_))
+                                                })
+                                    })
+                            });
+                        explicit_into
+                            || index.values().any(|item| {
+                                let ItemEnum::Impl(implementation) = &item.inner else {
+                                    return false;
+                                };
+                                implementation.blanket_impl.is_none()
+                                    && implementation.trait_.as_ref().is_some_and(|interface| {
+                                        let name = resolved_path_name(interface, paths);
+                                        (name.ends_with("::From") || name == "From")
+                                            && resolved_path_type_arguments(interface)
+                                                .first()
+                                                .is_some_and(|source| {
+                                                    matches!(
+                                                        source,
+                                                        Type::ResolvedPath(source)
+                                                            if source.id == output_id
+                                                    )
+                                                })
+                                    })
+                            })
+                    });
+                let receiver_tied =
+                    projected_function
+                        .parameters
+                        .first()
+                        .is_some_and(|parameter| {
+                            parameter.borrowed
+                                && matches!(parameter.ty, ProjectedType::Foreign { .. })
+                        });
+                let lifetime_bearing = function
+                    .sig
+                    .output
+                    .as_ref()
+                    .is_some_and(type_contains_lifetime_argument);
+                if lifetime_bearing
+                    && has_external_terminal_conversion
+                    && !receiver_tied
+                    && chain_owner.is_none()
+                {
+                    let output_generics = function
+                        .generics
+                        .params
+                        .iter()
+                        .filter(|parameter| {
+                            matches!(parameter.kind, GenericParamDefKind::Type { .. })
+                        })
+                        .map(|parameter| {
+                            (
+                                parameter.name.clone(),
+                                ProjectedType::Generic(parameter.name.clone()),
+                            )
+                        })
+                        .collect();
+                    let rust_type = function
+                        .sig
+                        .output
+                        .as_ref()
+                        .and_then(|output| {
+                            render_rust_type(output, index, paths, &output_generics).ok()
+                        })
+                        .unwrap_or_else(|| candidate_result.rust_type());
+                    let lifetimes = rust_lifetimes(&rust_type);
+                    if lifetimes.is_empty() {
+                        return Err(
+                            "lifetime-bearing foreign type cannot cross a projected boundary"
+                                .to_owned(),
                         );
-                        if function
-                            .sig
-                            .output
-                            .as_ref()
-                            .is_some_and(type_contains_lifetime_argument)
-                            && chain_owner.is_none()
-                        {
-                            return Err(
-                                "lifetime-bearing foreign type cannot cross a projected boundary"
-                                    .to_owned(),
-                            );
-                        }
-                        if let Some(chain_owner) = chain_owner {
-                            projected_function.chain_role = Some(ChainRole::Root);
-                            projected_associated_items.push(chain_owner);
-                        } else if matches!(
-                            projected_function.result,
-                            ProjectedType::Opaque {
-                                anonymous_chain: true,
-                                ..
-                            }
-                        ) {
-                            projected_function.chain_role = Some(ChainRole::Root);
-                        }
-                        Ok(ProjectedKind::Function(projected_function))
-                    },
-                )
-            }
+                    }
+                    projected_function.result = ProjectedType::InvocationScoped {
+                        rust_type,
+                        name: candidate_result.terrane_name(),
+                        lifetimes,
+                        owned: Box::new(candidate_result.clone()),
+                    };
+                }
+                if let Some(chain_owner) = chain_owner {
+                    projected_function.result = candidate_result;
+                    projected_function.chain_role = Some(ChainRole::Root);
+                    projected_associated_items.push(chain_owner);
+                } else if matches!(
+                    projected_function.result,
+                    ProjectedType::Opaque {
+                        anonymous_chain: true,
+                        ..
+                    }
+                ) {
+                    projected_function.chain_role = Some(ChainRole::Root);
+                }
+                Ok(ProjectedKind::Function(projected_function))
+            }),
             ItemEnum::TypeAlias(alias) => (|| {
                 let mut alias_generics = BTreeMap::new();
                 for parameter in &alias.generics.params {
@@ -9432,17 +9604,6 @@ fn project_function_inner(
     {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
     }
-    if !allow_lifetime_output
-        && open_chain.is_none()
-        && effective_output
-            .as_ref()
-            .is_some_and(type_contains_lifetime_argument)
-    {
-        return Err(
-            "result contains a lifetime-bearing foreign value whose ownership cannot cross the projected boundary"
-                .to_owned(),
-        );
-    }
     let mut error = None;
     let mut error_optional_depth = 0;
     let result = if let Some(output) = effective_output.as_ref() {
@@ -9976,6 +10137,9 @@ fn project_callback_generic(
         .any(|bound| matches!(bound, GenericBound::Outlives(name) if name == "'static" || name == "static"));
     Ok(Some(ProjectedType::Callback {
         rust_name: parameter.name.clone(),
+        native_bound: None,
+        native_method: None,
+        native_result: None,
         parameters,
         parameter_rust_types: inputs
             .iter()
@@ -10011,6 +10175,9 @@ fn merge_destination_selected_callable_candidates(
         ProjectedType::Callback {
             rust_name,
             result,
+            native_bound,
+            native_method,
+            native_result,
             invocation_mode,
             is_async,
             retained,
@@ -10049,6 +10216,9 @@ fn merge_destination_selected_callable_candidates(
     Some((
         ProjectedType::Callback {
             rust_name: rust_name.clone(),
+            native_bound: native_bound.clone(),
+            native_method: native_method.clone(),
+            native_result: native_result.clone(),
             parameters: Vec::new(),
             parameter_borrows: Vec::new(),
             parameter_rust_types: Vec::new(),
@@ -10077,7 +10247,7 @@ fn project_callable_adapter_bounds(
 ) -> Result<Option<(ProjectedType, Vec<String>)>, String> {
     let mut candidates = Vec::new();
     for bound in bounds {
-        let Some((requested_trait, _)) = trait_bound_name(bound) else {
+        let Some((requested_trait, requested_higher_ranked)) = trait_bound_name(bound) else {
             continue;
         };
         let Some(Item {
@@ -10086,6 +10256,30 @@ fn project_callable_adapter_bounds(
         }) = index.get(&requested_trait.id)
         else {
             continue;
+        };
+        let native_function = declaration.items.iter().find_map(|item_id| {
+            let item = index.get(item_id)?;
+            let ItemEnum::Function(function) = &item.inner else {
+                return None;
+            };
+            Some((item.name.clone()?, function))
+        });
+        let native_method = native_function.as_ref().map(|(name, _)| name.clone());
+        let native_result = native_function
+            .and_then(|(_, function)| function.sig.output.as_ref())
+            .and_then(|output| render_rust_type(output, index, paths, known).ok());
+        let native_trait = render_resolved_path(requested_trait, index, paths, known)?;
+        let native_bound = if requested_higher_ranked.is_empty() {
+            native_trait
+        } else {
+            format!(
+                "for<{}> {native_trait}",
+                requested_higher_ranked
+                    .iter()
+                    .map(|parameter| parameter.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         };
         for implementation_id in &declaration.implementations {
             let Some(Item {
@@ -10199,21 +10393,25 @@ fn project_callable_adapter_bounds(
                 (output, true)
             } else {
                 (
-                    project_type(direct_output, index, paths, &implementation_types)
-                        .map_err(|reason| format!("callable result: {reason}"))?,
+                    project_invocation_scoped_type(
+                        direct_output,
+                        index,
+                        paths,
+                        &implementation_types,
+                    )
+                    .map_err(|reason| format!("callable result: {reason}"))?,
                     false,
                 )
             };
-            let ProjectedType::Generic(result_name) = &result else {
-                continue;
-            };
-            let Some(result_parameter) = implementation.generics.params.iter().find(|candidate| {
-                implementation_types.get(&candidate.name)
-                    == Some(&ProjectedType::Generic(result_name.clone()))
-            }) else {
-                continue;
-            };
-            let result_bounds =
+            let result_bounds = if let ProjectedType::Generic(result_name) = &result {
+                let Some(result_parameter) =
+                    implementation.generics.params.iter().find(|candidate| {
+                        implementation_types.get(&candidate.name)
+                            == Some(&ProjectedType::Generic(result_name.clone()))
+                    })
+                else {
+                    continue;
+                };
                 generic_bounds_from_generics(result_parameter, &implementation.generics)
                     .iter()
                     .map(|result_bound| {
@@ -10225,13 +10423,33 @@ fn project_callable_adapter_bounds(
                             &implementation_types,
                         )
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<Result<Vec<_>, _>>()?
+            } else if matches!(result, ProjectedType::InvocationScoped { .. }) {
+                Vec::new()
+            } else {
+                continue;
+            };
+            let exact_invocation_result = matches!(result, ProjectedType::InvocationScoped { .. });
             let candidate = (
                 ProjectedType::Callback {
                     rust_name: parameter_name.to_owned(),
+                    native_bound: exact_invocation_result.then(|| native_bound.clone()),
+                    native_method: exact_invocation_result
+                        .then(|| native_method.clone())
+                        .flatten(),
+                    native_result: exact_invocation_result
+                        .then(|| native_result.clone())
+                        .flatten(),
                     parameters,
                     parameter_rust_types,
-                    parameter_borrows: vec![false; inputs.len()],
+                    parameter_borrows: if exact_invocation_result {
+                        inputs
+                            .iter()
+                            .map(|input| matches!(input, Type::BorrowedRef { .. }))
+                            .collect()
+                    } else {
+                        vec![false; inputs.len()]
+                    },
                     parameters_destination_selected: false,
                     result: Box::new(result),
                     invocation_mode,
@@ -10347,6 +10565,31 @@ fn type_mentions_generic(ty: &Type, generic: &str) -> bool {
             .any(|item| type_mentions_generic(item, generic)),
         _ => false,
     }
+}
+
+fn rust_lifetimes(rust_type: &str) -> Vec<String> {
+    let mut lifetimes = Vec::new();
+    let bytes = rust_type.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'\'' {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        while index < bytes.len() && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_')
+        {
+            index += 1;
+        }
+        if index > start + 1 {
+            let lifetime = rust_type[start..index].to_owned();
+            if lifetime != "'static" && !lifetimes.contains(&lifetime) {
+                lifetimes.push(lifetime);
+            }
+        }
+    }
+    lifetimes
 }
 
 fn type_contains_lifetime_argument(ty: &Type) -> bool {
@@ -10799,6 +11042,26 @@ fn rust_bound_roots(bound: &str) -> BTreeSet<String> {
             (!root.starts_with('\'') && !root.is_empty()).then(|| root.to_owned())
         })
         .collect()
+}
+
+fn project_invocation_scoped_type(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    let projected = project_type(ty, index, paths, generics)?;
+    let rust_type = render_rust_type(ty, index, paths, generics)?;
+    let lifetimes = rust_lifetimes(&rust_type);
+    if lifetimes.is_empty() {
+        return Ok(projected);
+    }
+    Ok(ProjectedType::InvocationScoped {
+        name: projected.terrane_name(),
+        rust_type,
+        lifetimes,
+        owned: Box::new(projected),
+    })
 }
 
 fn project_type(
@@ -13030,6 +13293,9 @@ mod tests {
     fn projected_callback_name_is_the_language_server_signature() {
         let callback = ProjectedType::Callback {
             rust_name: "F".to_owned(),
+            native_bound: None,
+            native_method: None,
+            native_result: None,
             parameters: vec![ProjectedType::String, ProjectedType::Bool],
             parameter_rust_types: vec!["String".to_owned(), "bool".to_owned()],
             parameter_borrows: vec![false, false],

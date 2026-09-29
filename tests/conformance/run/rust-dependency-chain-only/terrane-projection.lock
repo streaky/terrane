@@ -6,6 +6,11 @@
       "version": "=1.18.0"
     },
     {
+      "name": "__terrane_recursive_form_urlencoded",
+      "package": "form_urlencoded",
+      "version": "=1.2.2"
+    },
+    {
       "name": "__terrane_recursive_futures_core",
       "package": "futures-core",
       "version": "=0.3.34"
@@ -46,6 +51,10 @@
         ],
         [
           "/deps/sqlx",
+          "SqliteConnection.lock_handle"
+        ],
+        [
+          "/deps/sqlx",
           "SqlitePool"
         ],
         [
@@ -67,6 +76,10 @@
         [
           "/deps/sqlx",
           "query_with"
+        ],
+        [
+          "/deps/sqlx",
+          "raw_sql"
         ],
         [
           "/deps/sqlx/encode",
@@ -542,6 +555,10 @@
         ],
         [
           "/deps/sqlx/sqlite/sqliteerror",
+          "code"
+        ],
+        [
+          "/deps/sqlx/sqlite/sqliteerror",
           "kind"
         ],
         [
@@ -559,6 +576,10 @@
         [
           "/deps/sqlx/sqlite/sqlitequeryresult",
           "extend"
+        ],
+        [
+          "/deps/sqlx/sqlite/sqliterow",
+          "try_get_raw"
         ],
         [
           "/deps/sqlx/sqlite/sqlitetransactionmanager",
@@ -598,11 +619,23 @@
         ],
         [
           "/deps/sqlx/sqlite/sqlitevalue",
+          "as_ref"
+        ],
+        [
+          "/deps/sqlx/sqlite/sqlitevalue",
           "clone"
         ],
         [
           "/deps/sqlx/sqlite/sqlitevalue",
           "is_null"
+        ],
+        [
+          "/deps/sqlx/sqlite/sqlitevalue",
+          "type_info"
+        ],
+        [
+          "/deps/sqlx/sqliteconnection",
+          "begin_with"
         ],
         [
           "/deps/sqlx/sqliteconnection",
@@ -626,6 +659,10 @@
         ],
         [
           "/deps/sqlx/sqliteconnection",
+          "fetch_many"
+        ],
+        [
+          "/deps/sqlx/sqliteconnection",
           "fetch_optional"
         ],
         [
@@ -643,6 +680,14 @@
         [
           "/deps/sqlx/sqliteconnection",
           "shrink_buffers"
+        ],
+        [
+          "/deps/sqlx/sqliteconnection/trait/sqlx-core/acquire/acquire-c",
+          "begin"
+        ],
+        [
+          "/deps/sqlx/sqliteconnection/trait/sqlx-core/connection/connection",
+          "begin"
         ]
       ],
       "name": "sqlx",
@@ -736,6 +781,14 @@
         ],
         [
           "/deps/sqlx-core",
+          "Url.path_segments"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Url.path_segments_mut"
+        ],
+        [
+          "/deps/sqlx-core",
           "Url.port"
         ],
         [
@@ -745,6 +798,14 @@
         [
           "/deps/sqlx-core",
           "Url.query"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Url.query_pairs"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Url.query_pairs_mut"
         ],
         [
           "/deps/sqlx-core",
@@ -789,6 +850,10 @@
         [
           "/deps/sqlx-core",
           "Url::from_file_path"
+        ],
+        [
+          "/deps/sqlx-core",
+          "Url::options"
         ],
         [
           "/deps/sqlx-core",
@@ -1300,6 +1365,10 @@
         ],
         [
           "/deps/sqlx-core/migrate",
+          "Migrator.iter"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
           "Migrator.run"
         ],
         [
@@ -1425,6 +1494,10 @@
         [
           "/deps/sqlx-core/percent-encoding",
           "percent_encode_byte"
+        ],
+        [
+          "/deps/sqlx-core/percent-encoding",
+          "utf8_percent_encode"
         ],
         [
           "/deps/sqlx-core/percent-encoding/asciiset",
@@ -1695,6 +1768,10 @@
           "query_scalar_with"
         ],
         [
+          "/deps/sqlx-core/raw-sql",
+          "raw_sql"
+        ],
+        [
           "/deps/sqlx-core/rt",
           "TimeoutError"
         ],
@@ -1732,11 +1809,19 @@
         ],
         [
           "/deps/sqlx-core/sync",
+          "AsyncSemaphore.acquire"
+        ],
+        [
+          "/deps/sqlx-core/sync",
           "AsyncSemaphore.permits"
         ],
         [
           "/deps/sqlx-core/sync",
           "AsyncSemaphore.release"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.try_acquire"
         ],
         [
           "/deps/sqlx-core/sync",
@@ -1769,6 +1854,18 @@
         [
           "/deps/sqlx-core/testing/fixtures",
           "FixtureError"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "begin_ansi_transaction_sql"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "commit_ansi_transaction_sql"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "rollback_ansi_transaction_sql"
         ],
         [
           "/deps/sqlx-core/type-checking",

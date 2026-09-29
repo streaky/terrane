@@ -20,6 +20,10 @@
         ],
         [
           "/deps/witness",
+          "borrowed_label"
+        ],
+        [
+          "/deps/witness",
           "button"
         ],
         [
@@ -29,6 +33,10 @@
         [
           "/deps/witness",
           "label"
+        ],
+        [
+          "/deps/witness",
+          "render_exact"
         ],
         [
           "/deps/witness",

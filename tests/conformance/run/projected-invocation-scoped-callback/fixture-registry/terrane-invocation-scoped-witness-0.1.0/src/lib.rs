@@ -6,6 +6,10 @@ pub struct Label {
     value: i64,
 }
 
+pub struct BorrowedLabel<'view> {
+    value: &'view str,
+}
+
 pub struct Button {
     value: i64,
 }
@@ -52,7 +56,16 @@ impl<'view, Message, Theme> From<Label> for ScopedView<'view, Message, Theme> {
         }
     }
 }
-
+impl<'view, Message, Theme> From<BorrowedLabel<'view>>
+    for ScopedView<'view, Message, Theme>
+{
+    fn from(label: BorrowedLabel<'view>) -> Self {
+        Self {
+            value: label.value.len() as i64,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
 impl<'view, Message, Theme> From<Widget> for ScopedView<'view, Message, Theme> {
     fn from(widget: Widget) -> Self {
         Self {
@@ -65,7 +78,9 @@ impl<'view, Message, Theme> From<Widget> for ScopedView<'view, Message, Theme> {
 pub fn label(value: i64) -> Label {
     Label { value }
 }
-
+pub fn borrowed_label(value: &String) -> BorrowedLabel<'_> {
+    BorrowedLabel { value }
+}
 pub fn button(value: i64) -> Button {
     Button { value }
 }
@@ -111,11 +126,34 @@ where
     }
 }
 
+pub trait ExactViewFn<'view, Message, Theme> {
+    fn view(&self, state: &'view String) -> ScopedView<'view, Message, Theme>;
+}
+
+impl<'view, F, Message, Theme> ExactViewFn<'view, Message, Theme> for F
+where
+    F: Fn(&'view String) -> BorrowedLabel<'view>,
+{
+    fn view(&self, state: &'view String) -> ScopedView<'view, Message, Theme> {
+        self(state).into()
+    }
+}
+
 pub fn render_scoped<State, Message, Theme>(
     state: &State,
     message: Message,
     theme: Theme,
     view: impl for<'view> ViewFn<'view, State, Message, Theme>,
+) -> i64 {
+    let _ = (message, theme);
+    view.view(state).value
+}
+
+pub fn render_exact<Message, Theme>(
+    state: &String,
+    message: Message,
+    theme: Theme,
+    view: impl for<'view> ExactViewFn<'view, Message, Theme>,
 ) -> i64 {
     let _ = (message, theme);
     view.view(state).value

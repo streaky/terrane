@@ -645,6 +645,16 @@ pub(super) fn declared_value_type_with_visible_objects(
     }
     match type_name {
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
+        "host-invocation-scoped-native" => {
+            return Ok(ValueType::InvocationScopedNative {
+                rust_type: "_".to_owned(),
+                family: ObjectIdentity::new(
+                    "/deps".to_owned(),
+                    "invocation-scoped-native".to_owned(),
+                ),
+                lifetimes: Vec::new(),
+            });
+        }
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
         "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
         "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
@@ -1199,6 +1209,10 @@ pub(super) fn object_types_compatible(
         })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "compatibility exhaustively covers the recursive semantic value type model"
+)]
 pub(super) fn value_types_compatible(
     objects: &[DescriptorContract],
     expected: &ValueType,
@@ -1226,6 +1240,10 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
+        (
+            ValueType::InvocationScopedNative { rust_type, .. },
+            ValueType::InvocationScopedNative { .. },
+        ) if rust_type == "_" => true,
         (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
         | (ValueType::IterationStep(_), ValueType::IterationEnd)

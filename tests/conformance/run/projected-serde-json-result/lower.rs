@@ -493,7 +493,6 @@ fn main() {
 pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
     s: String,
 ) -> Result<T, crate::TerraneForeignError> {
-    let s = s;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| serde_json::from_str::<T>(&s)),
     ) {

@@ -566,7 +566,6 @@ pub fn to_html_with_options(
     value: String,
     options: &Options,
 ) -> Result<String, crate::TerraneForeignError> {
-    let value = value;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| markdown::to_html_with_options(&value, options)),
     ) {

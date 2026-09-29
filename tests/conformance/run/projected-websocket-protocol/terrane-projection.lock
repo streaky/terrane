@@ -23,6 +23,10 @@
         ],
         [
           "/deps/axum",
+          "Router.as_service"
+        ],
+        [
+          "/deps/axum",
           "Router.fallback"
         ],
         [
@@ -344,6 +348,10 @@
         [
           "/deps/axum/extract",
           "RawPathParams"
+        ],
+        [
+          "/deps/axum/extract",
+          "RawPathParams.iter"
         ],
         [
           "/deps/axum/extract",
@@ -1179,7 +1187,19 @@
         ],
         [
           "/deps/axum/http",
+          "HeaderMap.drain"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.entry"
+        ],
+        [
+          "/deps/axum/http",
           "HeaderMap.get"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.get_all"
         ],
         [
           "/deps/axum/http",
@@ -1192,6 +1212,18 @@
         [
           "/deps/axum/http",
           "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.iter"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.iter_mut"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.keys"
         ],
         [
           "/deps/axum/http",
@@ -1215,11 +1247,23 @@
         ],
         [
           "/deps/axum/http",
+          "HeaderMap.try_entry"
+        ],
+        [
+          "/deps/axum/http",
           "HeaderMap.try_insert"
         ],
         [
           "/deps/axum/http",
           "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.values"
+        ],
+        [
+          "/deps/axum/http",
+          "HeaderMap.values_mut"
         ],
         [
           "/deps/axum/http",
@@ -1492,10 +1536,6 @@
         [
           "/deps/axum/http/headermap",
           "from_iter"
-        ],
-        [
-          "/deps/axum/http/headermap",
-          "into_iter"
         ],
         [
           "/deps/axum/http/headermap/trait/core/iter/traits/collect/extend-axum/http/headername-axum/http/headervalue",
@@ -3385,7 +3425,19 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.drain"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.entry"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.get"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get_all"
         ],
         [
           "/deps/http",
@@ -3398,6 +3450,18 @@
         [
           "/deps/http",
           "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys"
         ],
         [
           "/deps/http",
@@ -3421,11 +3485,23 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.try_entry"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.try_insert"
         ],
         [
           "/deps/http",
           "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values_mut"
         ],
         [
           "/deps/http",
@@ -3698,10 +3774,6 @@
         [
           "/deps/http/headermap",
           "from_iter"
-        ],
-        [
-          "/deps/http/headermap",
-          "into_iter"
         ],
         [
           "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue",
@@ -5197,6 +5269,10 @@
         ],
         [
           "/deps/tokio/net/tcplistener",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
           "as_raw_fd"
         ],
         [
@@ -5205,11 +5281,19 @@
         ],
         [
           "/deps/tokio/net/tcpsocket",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
           "as_raw_fd"
         ],
         [
           "/deps/tokio/net/tcpsocket",
           "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/tcpstream",
@@ -5222,6 +5306,10 @@
         [
           "/deps/tokio/net/tcpstream",
           "try_from"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/udpsocket",
@@ -5445,7 +5533,15 @@
         ],
         [
           "/deps/tokio/net/unix/pipe/receiver",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/receiver",
           "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/sender",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/unix/pipe/sender",
@@ -5477,6 +5573,10 @@
         ],
         [
           "/deps/tokio/net/unixlistener",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
           "as_raw_fd"
         ],
         [
@@ -5485,11 +5585,19 @@
         ],
         [
           "/deps/tokio/net/unixsocket",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
           "as_raw_fd"
         ],
         [
           "/deps/tokio/net/unixsocket",
           "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/unixstream",
@@ -5597,6 +5705,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Handle.enter"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Handle.id"
         ],
         [
@@ -5645,6 +5757,10 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.enter"
+        ],
+        [
+          "/deps/tokio/runtime",
           "LocalRuntime.handle"
         ],
         [
@@ -5678,6 +5794,10 @@
         [
           "/deps/tokio/runtime",
           "Runtime.block_on"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.enter"
         ],
         [
           "/deps/tokio/runtime",
@@ -5857,6 +5977,14 @@
         ],
         [
           "/deps/tokio/sync",
+          "Semaphore.acquire"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.acquire_many"
+        ],
+        [
+          "/deps/tokio/sync",
           "Semaphore.add_permits"
         ],
         [
@@ -5874,6 +6002,14 @@
         [
           "/deps/tokio/sync",
           "Semaphore.is_closed"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire_many"
         ],
         [
           "/deps/tokio/sync",

@@ -670,14 +670,21 @@ pub(super) fn bind_projected_generics(
         return Ok(());
     }
     match (expected, actual) {
-        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
-            bind_projected_generics(expected, actual, bindings)
-        }
-        (ValueType::List(expected), ValueType::List(actual))
+        (
+            ValueType::Reference(expected) | ValueType::SharedReference(expected),
+            ValueType::Reference(actual) | ValueType::SharedReference(actual),
+        )
+        | (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual)) => {
             bind_projected_generics(expected.value_type_ref(), actual.value_type_ref(), bindings)
+        }
+        (ValueType::Reference(expected) | ValueType::SharedReference(expected), actual) => {
+            bind_projected_generics(expected.value_type_ref(), actual, bindings)
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            bind_projected_generics(expected, actual, bindings)
         }
         (
             ValueType::Map(expected_key, expected_value),
@@ -774,6 +781,12 @@ pub(super) fn substitute_projected_value_generics(
             .get(name)
             .cloned()
             .unwrap_or_else(|| value_type.clone()),
+        ValueType::Reference(inner) => ValueType::Reference(ElementType::new(
+            substitute_projected_value_generics(inner.value_type_ref(), bindings),
+        )),
+        ValueType::SharedReference(inner) => ValueType::SharedReference(ElementType::new(
+            substitute_projected_value_generics(inner.value_type_ref(), bindings),
+        )),
         ValueType::Optional(inner) => ValueType::Optional(Box::new(
             substitute_projected_value_generics(inner, bindings),
         )),
@@ -1063,11 +1076,21 @@ pub(super) fn validate_call_arguments(
                         value.span,
                     ));
                 }
+                let validation_expected = match (&expected, &actual) {
+                    (
+                        ValueType::Reference(_) | ValueType::SharedReference(_),
+                        ValueType::Reference(_) | ValueType::SharedReference(_),
+                    ) => expected.clone(),
+                    (ValueType::Reference(inner) | ValueType::SharedReference(inner), _) => {
+                        inner.value_type()
+                    }
+                    _ => expected.clone(),
+                };
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,
                     &parameter.name,
-                    expected,
+                    validation_expected,
                     actual,
                     value,
                     "T0012",

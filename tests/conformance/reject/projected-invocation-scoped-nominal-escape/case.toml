@@ -1,5 +1,5 @@
 phase = "check"
 status = "reject"
 entrypoint = "package.toml"
-code = "S2029"
-contains = "lifetime-bearing foreign type"
+code = "T0119"
+contains = "invocation-scoped native value cannot escape into ordinary storage"

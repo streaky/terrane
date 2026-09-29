@@ -25,7 +25,7 @@
 //! | Ordinary owned projected values | Implemented | `projected-owned-opaque-result` |
 //! | Expression-scoped native chains | Implemented | Axum/HTTP package conformance |
 //! | Owned callback result converted by a higher-ranked native blanket recipe | Implemented | `projected-invocation-scoped-callback` |
-//! | Invocation-scoped lifetime-bearing intermediate values | Planned (work unit 4B) | package-independent exact-result fixture |
+//! | Exact invocation-scoped lifetime-bearing callback result | Implemented | `projected-invocation-scoped-callback`, `projected-invocation-scoped-nominal-escape` |
 //! | Invocation-scoped native operation graphs | Planned (work unit 4C) | package-independent graph fixture |
 //! | Real projected Iced view cutover | Planned (work units 4D–4E) | `packages/iced-ui` |
 //!

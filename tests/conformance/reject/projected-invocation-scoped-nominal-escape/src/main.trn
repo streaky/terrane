@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import scoped_view
+from /deps/witness import borrowed_label
 
 function main;
-    value = scoped_view; 'escape'
+    value = borrowed_label; 'escape'

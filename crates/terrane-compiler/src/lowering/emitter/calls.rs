@@ -21,6 +21,196 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
 }
 
 impl Emitter<'_> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "callback specialization, capture layout, and adapter emission form one path"
+    )]
+    fn invocation_scoped_callback_adapter(
+        &mut self,
+        value: &SyntaxNode,
+        projected: &crate::rust_interop::projection::ProjectedType,
+    ) -> Option<String> {
+        let crate::rust_interop::projection::ProjectedType::Callback {
+            native_bound: Some(native_bound),
+            native_method: Some(native_method),
+            native_result: Some(native_result),
+            parameters,
+            parameter_rust_types,
+            result,
+            invocation_mode: InvocationMode::Shared,
+            ..
+        } = projected
+        else {
+            return None;
+        };
+        let crate::rust_interop::projection::ProjectedType::InvocationScoped { .. } =
+            result.as_ref()
+        else {
+            return None;
+        };
+        let mut producer_value = match self.value_type(value)? {
+            ValueType::Function(_, result, _) => match result.value_type() {
+                value @ ValueType::InvocationScopedNative { .. } => value,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        if matches!(
+            producer_value,
+            ValueType::InvocationScopedNative { ref rust_type, .. } if rust_type == "_"
+        ) && value.kind == SyntaxKind::Name
+        {
+            let name = self.text(value);
+            let source_node = self
+                .unit
+                .functions
+                .iter()
+                .find(|function| function.name == name)
+                .and_then(|function| {
+                    find_node(
+                        &self.unit.tree.root,
+                        SyntaxKind::FunctionDeclaration,
+                        function.span,
+                    )
+                })
+                .or_else(|| {
+                    self.unit
+                        .typed_bindings
+                        .iter()
+                        .find(|binding| {
+                            binding.name == name
+                                && binding.is_visible_at(self.unit.source.id(), value.span.start)
+                        })
+                        .and_then(|binding| find_node_by_span(&self.unit.tree.root, binding.span))
+                });
+            producer_value = source_node
+                .and_then(|node| self.invocation_scoped_return_type(node, 0))
+                .unwrap_or(producer_value);
+        }
+        let trimmed_bound = native_bound.trim();
+        let trait_path = if trimmed_bound.starts_with("for") {
+            trimmed_bound
+                .split_once('>')
+                .map_or(trimmed_bound, |(_, trait_path)| trait_path.trim())
+        } else {
+            trimmed_bound
+        };
+        let inputs = parameter_rust_types
+            .iter()
+            .map(|input| input.replace("'_", "'view"))
+            .collect::<Vec<_>>();
+        let method_parameters = inputs
+            .iter()
+            .enumerate()
+            .map(|(index, input)| format!("callback_argument_{index}: {input}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let arguments = (0..parameters.len())
+            .map(|index| format!("callback_argument_{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let output = native_result.replace("'_", "'view");
+        let producer = match &producer_value {
+            ValueType::InvocationScopedNative { rust_type, .. } => rust_type.replace("'_", "'view"),
+            _ => return None,
+        };
+        let raw_callback = if value.kind == SyntaxKind::Name {
+            let name = self.text(value);
+            self.unit
+                .typed_bindings
+                .iter()
+                .find(|binding| {
+                    binding.name == name
+                        && binding.is_visible_at(self.unit.source.id(), value.span.start)
+                })
+                .and_then(|binding| find_node_by_span(&self.unit.tree.root, binding.span))
+                .and_then(|binding| {
+                    binding
+                        .children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::AnonymousFunction)
+                })
+                .cloned()
+        } else {
+            None
+        };
+        let raw_contract = raw_callback.as_ref().and_then(|callback| {
+            self.unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == callback.span)
+                .cloned()
+        });
+        let callback = if let Some(callback) = raw_callback {
+            self.invocation_scoped_anonymous_function(&callback, producer_value.clone())
+        } else {
+            self.expression(value)
+        };
+        if let Some(contract) = raw_contract {
+            let captures = contract
+                .captures
+                .iter()
+                .filter_map(|capture| {
+                    self.unit
+                        .typed_bindings
+                        .iter()
+                        .filter(|binding| {
+                            binding.name == *capture
+                                && binding.is_visible_at(self.unit.source.id(), value.span.start)
+                        })
+                        .max_by_key(|binding| binding.visible_from)
+                        .map(|binding| {
+                            (
+                                rust_name(capture),
+                                rust_value_type(self.package, binding.value_type.clone()),
+                            )
+                        })
+                })
+                .collect::<Vec<_>>();
+            let fields = captures
+                .iter()
+                .enumerate()
+                .map(|(index, (_, ty))| format!("capture_{index}: {ty}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let initializers = captures
+                .iter()
+                .enumerate()
+                .map(|(index, (name, _))| format!("capture_{index}: {name}.clone()"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let captured_arguments = captures
+                .iter()
+                .enumerate()
+                .map(|(index, _)| format!("self.capture_{index}.clone()"))
+                .chain((!arguments.is_empty()).then_some(arguments.clone()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let callback_inputs = captures
+                .iter()
+                .map(|(_, ty)| ty.clone())
+                .chain(
+                    inputs
+                        .iter()
+                        .map(|input| input.replace("'view", "'callback")),
+                )
+                .collect::<Vec<_>>()
+                .join(", ");
+            let callback_type = format!(
+                "for<'callback> fn({callback_inputs}) -> {}",
+                producer.replace("'view", "'callback")
+            );
+            let separator = if fields.is_empty() { "" } else { ", " };
+            return Some(format!(
+                "{{ struct TerraneInvocationScopedCallback {{ callback: {callback_type}{separator}{fields} }} impl<'view> {trait_path} for TerraneInvocationScopedCallback {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ (self.callback)({captured_arguments}).into() }} }} TerraneInvocationScopedCallback {{ callback: {callback}{separator}{initializers} }} }}"
+            ));
+        }
+        Some(format!(
+            "{{ struct TerraneInvocationScopedCallback<F>(F); impl<'view, F> {trait_path} for TerraneInvocationScopedCallback<F> where F: Fn({}) -> {producer} {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ (self.0)({arguments}).into() }} }} TerraneInvocationScopedCallback({callback}) }}",
+            inputs.join(", ")
+        ))
+    }
+
     fn typed_document_decode_call(
         &mut self,
         node: &SyntaxNode,
@@ -1528,7 +1718,15 @@ impl Emitter<'_> {
                     .then(|| candidate.children.last())
                     .flatten()
                 });
-                let expression = if value.kind == SyntaxKind::Name
+                let invocation_callback = projected_parameter
+                    .map(|parameter| parameter.ty.clone())
+                    .and_then(|projected| {
+                        self.invocation_scoped_callback_adapter(value, &projected)
+                    });
+                let has_invocation_callback = invocation_callback.is_some();
+                let expression = if let Some(expression) = invocation_callback {
+                    expression
+                } else if value.kind == SyntaxKind::Name
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed
                             && matches!(
@@ -1536,7 +1734,8 @@ impl Emitter<'_> {
                                 crate::rust_interop::projection::ProjectedType::String
                                     | crate::rust_interop::projection::ProjectedType::Bytes
                             )
-                    }) {
+                    })
+                {
                     self.raw_storage_name(value)
                 } else if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
@@ -1571,11 +1770,12 @@ impl Emitter<'_> {
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
-                        (parameter.generic_parameter.is_none()
-                            || matches!(
-                                parameter.ty,
-                                crate::rust_interop::projection::ProjectedType::Callback { .. }
-                            ))
+                        !has_invocation_callback
+                            && (parameter.generic_parameter.is_none()
+                                || matches!(
+                                    parameter.ty,
+                                    crate::rust_interop::projection::ProjectedType::Callback { .. }
+                                ))
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)
                                 || projected_chain_role.is_some()

@@ -570,7 +570,6 @@ pub use pdf_oxide::api::Pdf;
 pub fn terrane_static_trn_506466_from_html(
     content: String,
 ) -> Result<Pdf, crate::TerraneForeignError> {
-    let content = content;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| pdf_oxide::api::Pdf::from_html(&content)),
     ) {

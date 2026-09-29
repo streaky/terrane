@@ -1682,6 +1682,46 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    pub(super) fn invocation_scoped_return_type(
+        &self,
+        node: &SyntaxNode,
+        depth: usize,
+    ) -> Option<ValueType> {
+        if depth > self.unit.functions.len() {
+            return None;
+        }
+        if let Some(value_type) = self.unit.projected_call_result_types.get(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        )) {
+            return Some(value_type.clone());
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+        {
+            let name = &self.unit.source.text()[callee.span.start..callee.span.end];
+            if let Some(contract) = self.unit.functions.iter().find(|contract| {
+                contract.name == name
+                    && matches!(
+                        contract.return_type,
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+            }) && let Some(source) = find_node(
+                &self.unit.tree.root,
+                SyntaxKind::FunctionDeclaration,
+                contract.span,
+            ) && source.span != node.span
+                && let Some(result) = self.invocation_scoped_return_type(source, depth + 1)
+            {
+                return Some(result);
+            }
+        }
+        node.children
+            .iter()
+            .find_map(|child| self.invocation_scoped_return_type(child, depth))
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
@@ -1693,13 +1733,14 @@ impl<'a> Emitter<'a> {
         name_override: Option<&str>,
     ) {
         self.fresh_empty_lists.clear();
+
         let contract = self
             .unit
             .functions
             .iter()
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
-        let return_type = contract.return_type.clone().map(|return_type| {
+        let mut return_type = contract.return_type.clone().map(|return_type| {
             if contract.is_static
                 && let ValueType::Object(returned) = &return_type
                 && contract.owner.as_deref() == Some(returned.name.as_str())
@@ -1710,6 +1751,25 @@ impl<'a> Emitter<'a> {
                 return_type
             }
         });
+        if matches!(
+            return_type,
+            Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+        ) {
+            return_type = self.invocation_scoped_return_type(node, 0);
+        }
+        let scoped_lifetime = if let Some(ValueType::InvocationScopedNative {
+            rust_type,
+            lifetimes,
+            ..
+        }) = &mut return_type
+        {
+            for lifetime in lifetimes.iter() {
+                *rust_type = rust_type.replace(lifetime, "'view");
+            }
+            Some("'view")
+        } else {
+            None
+        };
         let reference_lender = self
             .unit
             .reference_return_lenders
@@ -1746,6 +1806,8 @@ impl<'a> Emitter<'a> {
             },
             if reference_lender.is_some() {
                 "<'a>"
+            } else if let Some(lifetime) = scoped_lifetime {
+                if lifetime == "'view" { "<'view>" } else { "" }
             } else {
                 ""
             },
@@ -1762,6 +1824,9 @@ impl<'a> Emitter<'a> {
             let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), true) => {
                     format!("&'a {}", rust_element_type(self.package, item.clone()))
+                }
+                (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
+                    format!("&'view {}", rust_element_type(self.package, item.clone()))
                 }
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),
@@ -1883,11 +1948,28 @@ impl<'a> Emitter<'a> {
         self.line("}");
     }
 
+    pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
+        self.anonymous_function_as(node, false, None)
+    }
+
+    pub(super) fn invocation_scoped_anonymous_function(
+        &mut self,
+        node: &SyntaxNode,
+        result: ValueType,
+    ) -> String {
+        self.anonymous_function_as(node, true, Some(result))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "closure ownership, contracts, captures, and body lowering form one emission path"
     )]
-    pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
+    fn anonymous_function_as(
+        &mut self,
+        node: &SyntaxNode,
+        raw: bool,
+        result_override: Option<ValueType>,
+    ) -> String {
         let contract = self
             .unit
             .functions
@@ -1932,10 +2014,12 @@ impl<'a> Emitter<'a> {
             _ => format!("({})", parameter_types.join(", ")),
         };
         let stateful_parameters = format!("{tuple_pattern}: {tuple_type}");
-        let result = contract
-            .return_type
-            .clone()
-            .unwrap_or(ValueType::Scalar(ScalarType::None));
+        let result = result_override.unwrap_or_else(|| {
+            contract
+                .return_type
+                .clone()
+                .unwrap_or(ValueType::Scalar(ScalarType::None))
+        });
         let result_type = if contract.throws {
             format!(
                 "Result<{}, TerraneError>",
@@ -2000,12 +2084,44 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             };
+        let raw_capture_parameters = if raw {
+            contract
+                .captures
+                .iter()
+                .filter_map(|capture| {
+                    self.unit
+                        .typed_bindings
+                        .iter()
+                        .filter(|binding| {
+                            binding.name == *capture
+                                && binding.is_visible_at(self.unit.source.id(), node.span.start)
+                        })
+                        .max_by_key(|binding| binding.visible_from)
+                        .map(|binding| {
+                            format!(
+                                "{}: {}",
+                                rust_name(capture),
+                                rust_value_type(self.package, binding.value_type.clone())
+                            )
+                        })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         let constructor = match contract.written_invocation_mode {
             InvocationMode::Shared => "std::sync::Arc::new",
             InvocationMode::Mutable => "TerraneMutableCallable::new",
             InvocationMode::Consuming => "TerraneConsumingCallable::new",
         };
-        let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
+        let closure_parameters = if raw {
+            raw_capture_parameters
+                .iter()
+                .cloned()
+                .chain((!parameters.is_empty()).then_some(parameters.clone()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else if contract.written_invocation_mode == InvocationMode::Shared {
             parameters
         } else {
             stateful_parameters
@@ -2013,6 +2129,11 @@ impl<'a> Emitter<'a> {
         if contract.is_async {
             format!(
                 "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
+                "    ".repeat(outer_indent)
+            )
+        } else if raw {
+            format!(
+                "{{ move |{closure_parameters}| -> {result_type} {{\n{body}{}}} }}",
                 "    ".repeat(outer_indent)
             )
         } else {

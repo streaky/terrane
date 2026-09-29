@@ -6,6 +6,11 @@
       "version": "=1.12.1"
     },
     {
+      "name": "__terrane_recursive_form_urlencoded",
+      "package": "form_urlencoded",
+      "version": "=1.2.2"
+    },
+    {
       "name": "__terrane_recursive_http_body",
       "package": "http-body",
       "version": "=1.1.0"
@@ -90,7 +95,19 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.drain"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.entry"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.get"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.get_all"
         ],
         [
           "/deps/http",
@@ -103,6 +120,18 @@
         [
           "/deps/http",
           "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys"
         ],
         [
           "/deps/http",
@@ -126,11 +155,23 @@
         ],
         [
           "/deps/http",
+          "HeaderMap.try_entry"
+        ],
+        [
+          "/deps/http",
           "HeaderMap.try_insert"
         ],
         [
           "/deps/http",
           "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values_mut"
         ],
         [
           "/deps/http",
@@ -403,10 +444,6 @@
         [
           "/deps/http/headermap",
           "from_iter"
-        ],
-        [
-          "/deps/http/headermap",
-          "into_iter"
         ],
         [
           "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue",
@@ -1836,6 +1873,14 @@
         ],
         [
           "/deps/reqwest",
+          "Url.path_segments"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.path_segments_mut"
+        ],
+        [
+          "/deps/reqwest",
           "Url.port"
         ],
         [
@@ -1845,6 +1890,14 @@
         [
           "/deps/reqwest",
           "Url.query"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.query_pairs"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.query_pairs_mut"
         ],
         [
           "/deps/reqwest",
@@ -1889,6 +1942,10 @@
         [
           "/deps/reqwest",
           "Url::from_file_path"
+        ],
+        [
+          "/deps/reqwest",
+          "Url::options"
         ],
         [
           "/deps/reqwest",

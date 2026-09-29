@@ -2260,37 +2260,57 @@ fn collect_projected_call_result_types(
     let Some(function) = projected_function_for_call(package, unit, callee) else {
         return Ok(());
     };
-    let crate::rust_interop::projection::ProjectedType::Foreign {
-        rust_path,
-        name: projected_name,
-        base_rust_path,
-        arguments,
-    } = &function.result
-    else {
-        return Ok(());
-    };
-    if rust_path == base_rust_path
-        || base_rust_path.rsplit("::").next() != Some(projected_name.as_str())
-        || arguments.is_empty()
-        || !arguments
-            .iter()
-            .all(crate::rust_interop::projection::ProjectedType::is_concrete_terrane_numeric)
-    {
-        return Ok(());
+    match &function.result {
+        crate::rust_interop::projection::ProjectedType::InvocationScoped {
+            rust_type,
+            name,
+            lifetimes,
+            owned: _,
+        } => {
+            additions.push((
+                unit_index,
+                (node.span.file, node.span.start, node.span.end),
+                ValueType::InvocationScopedNative {
+                    rust_type: rust_type.clone(),
+                    family: ObjectIdentity::new(
+                        package.units[unit_index].namespace.clone(),
+                        name.clone(),
+                    ),
+                    lifetimes: lifetimes.clone(),
+                },
+            ));
+        }
+        crate::rust_interop::projection::ProjectedType::Foreign {
+            rust_path,
+            name: projected_name,
+            base_rust_path,
+            arguments,
+        } => {
+            if rust_path == base_rust_path
+                || base_rust_path.rsplit("::").next() != Some(projected_name.as_str())
+                || arguments.is_empty()
+                || !arguments.iter().all(
+                    crate::rust_interop::projection::ProjectedType::is_concrete_terrane_numeric,
+                )
+            {
+                return Ok(());
+            }
+            let Some((namespace, name)) = package
+                .projection
+                .owner_for_projected_type(&function.result)
+            else {
+                return Ok(());
+            };
+            additions.push((
+                unit_index,
+                (node.span.file, node.span.start, node.span.end),
+                ValueType::Object(
+                    ObjectIdentity::new(namespace, name).with_native_projection(rust_path.clone()),
+                ),
+            ));
+        }
+        _ => {}
     }
-    let Some((namespace, name)) = package
-        .projection
-        .owner_for_projected_type(&function.result)
-    else {
-        return Ok(());
-    };
-    additions.push((
-        unit_index,
-        (node.span.file, node.span.start, node.span.end),
-        ValueType::Object(
-            ObjectIdentity::new(namespace, name).with_native_projection(rust_path.clone()),
-        ),
-    ));
     Ok(())
 }
 
@@ -2318,6 +2338,9 @@ fn collect_projected_generic_names(
             for item in items {
                 collect_projected_generic_names(item, names);
             }
+        }
+        ProjectedType::InvocationScoped { owned, .. } => {
+            collect_projected_generic_names(owned, names);
         }
         ProjectedType::BoxedInterface {
             associated_type: Some(binding),
@@ -2604,7 +2627,11 @@ fn merge_projected_callback_shape(
     let (
         ProjectedType::Callback {
             rust_name,
+            native_bound,
+            native_method,
+            native_result,
             parameters: template_parameters,
+            result: template_result,
             parameters_destination_selected,
             parameter_rust_types,
             invocation_mode,
@@ -2657,6 +2684,13 @@ fn merge_projected_callback_shape(
     }
     ProjectedType::Callback {
         rust_name: rust_name.clone(),
+        native_bound: native_bound
+            .as_ref()
+            .map(|bound| crate::rust_ir::instantiate_rust_generics(bound, &parameter_replacements)),
+        native_method: native_method.clone(),
+        native_result: native_result.as_ref().map(|result| {
+            crate::rust_ir::instantiate_rust_generics(result, &parameter_replacements)
+        }),
         parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
         parameter_borrows: parameter_borrows.clone(),
@@ -2666,7 +2700,14 @@ fn merge_projected_callback_shape(
                 crate::rust_ir::instantiate_rust_generics(rust_type, &parameter_replacements)
             })
             .collect(),
-        result: result.clone(),
+        result: if matches!(
+            template_result.as_ref(),
+            ProjectedType::InvocationScoped { .. }
+        ) {
+            template_result.clone()
+        } else {
+            result.clone()
+        },
         invocation_mode: *invocation_mode,
         is_async: *is_async,
         retained: *retained,
@@ -3666,6 +3707,9 @@ fn destination_projected_callback(
         .collect();
     Ok(crate::rust_interop::projection::ProjectedType::Callback {
         rust_name,
+        native_bound: None,
+        native_method: None,
+        native_result: None,
         parameters,
         parameter_rust_types,
         parameters_destination_selected: false,
@@ -3978,6 +4022,9 @@ fn substitute_projected_generic(
         )),
         ProjectedType::Callback {
             rust_name,
+            native_bound,
+            native_method,
+            native_result,
             parameters,
             parameter_rust_types,
             parameter_borrows,
@@ -3990,6 +4037,19 @@ fn substitute_projected_generic(
             sync,
         } => ProjectedType::Callback {
             rust_name: rust_name.clone(),
+            native_bound: native_bound.as_ref().map(|bound| {
+                crate::rust_ir::instantiate_rust_generics(
+                    bound,
+                    &BTreeMap::from([(parameter.to_owned(), destination.rust_type())]),
+                )
+            }),
+            native_method: native_method.clone(),
+            native_result: native_result.as_ref().map(|result| {
+                crate::rust_ir::instantiate_rust_generics(
+                    result,
+                    &BTreeMap::from([(parameter.to_owned(), destination.rust_type())]),
+                )
+            }),
             parameters_destination_selected: *parameters_destination_selected,
             parameter_rust_types: parameter_rust_types
                 .iter()

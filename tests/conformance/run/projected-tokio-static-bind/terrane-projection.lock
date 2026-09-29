@@ -696,6 +696,10 @@
         ],
         [
           "/deps/tokio/net/tcplistener",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/tcplistener",
           "as_raw_fd"
         ],
         [
@@ -704,11 +708,19 @@
         ],
         [
           "/deps/tokio/net/tcpsocket",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpsocket",
           "as_raw_fd"
         ],
         [
           "/deps/tokio/net/tcpsocket",
           "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/tcpstream",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/tcpstream",
@@ -721,6 +733,10 @@
         [
           "/deps/tokio/net/tcpstream",
           "try_from"
+        ],
+        [
+          "/deps/tokio/net/udpsocket",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/udpsocket",
@@ -944,7 +960,15 @@
         ],
         [
           "/deps/tokio/net/unix/pipe/receiver",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/receiver",
           "as_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe/sender",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/unix/pipe/sender",
@@ -976,6 +1000,10 @@
         ],
         [
           "/deps/tokio/net/unixlistener",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unixlistener",
           "as_raw_fd"
         ],
         [
@@ -984,11 +1012,19 @@
         ],
         [
           "/deps/tokio/net/unixsocket",
+          "as_fd"
+        ],
+        [
+          "/deps/tokio/net/unixsocket",
           "as_raw_fd"
         ],
         [
           "/deps/tokio/net/unixsocket",
           "into_raw_fd"
+        ],
+        [
+          "/deps/tokio/net/unixstream",
+          "as_fd"
         ],
         [
           "/deps/tokio/net/unixstream",

@@ -6,6 +6,11 @@
       "version": "=1.12.1"
     },
     {
+      "name": "__terrane_recursive_form_urlencoded",
+      "package": "form_urlencoded",
+      "version": "=1.2.2"
+    },
+    {
       "name": "__terrane_recursive_http",
       "package": "http",
       "version": "=1.5.0"
@@ -703,6 +708,14 @@
         ],
         [
           "/deps/reqwest",
+          "Url.path_segments"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.path_segments_mut"
+        ],
+        [
+          "/deps/reqwest",
           "Url.port"
         ],
         [
@@ -712,6 +725,14 @@
         [
           "/deps/reqwest",
           "Url.query"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.query_pairs"
+        ],
+        [
+          "/deps/reqwest",
+          "Url.query_pairs_mut"
         ],
         [
           "/deps/reqwest",
@@ -756,6 +777,10 @@
         [
           "/deps/reqwest",
           "Url::from_file_path"
+        ],
+        [
+          "/deps/reqwest",
+          "Url::options"
         ],
         [
           "/deps/reqwest",

@@ -606,6 +606,7 @@ fn projected_type_is_identity(ty: &crate::rust_interop::projection::ProjectedTyp
         | crate::rust_interop::projection::ProjectedType::Float32
         | crate::rust_interop::projection::ProjectedType::String
         | crate::rust_interop::projection::ProjectedType::Bytes
+        | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
         | crate::rust_interop::projection::ProjectedType::Foreign { .. } => true,
         _ => false,
     }
@@ -671,10 +672,17 @@ pub(super) fn projected_callback_output_expression(
         crate::rust_interop::projection::ProjectedType::Int => format!(
             "terrane_int_support::coerce::<i64>(&{value}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
+        crate::rust_interop::projection::ProjectedType::InvocationScoped { .. } => {
+            format!("{value}.into()")
+        }
         _ => projected_argument_expression(value, ty),
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "callback ABI conversion and invocation-mode lowering form one emission path"
+)]
 fn projected_callback_argument(
     name: &str,
     parameters: &[crate::rust_interop::projection::ProjectedType],
@@ -702,14 +710,28 @@ fn projected_callback_argument(
         .iter()
         .enumerate()
         .map(|(index, parameter)| {
-            projected_callback_input_expression(
-                &format!("callback_argument_{index}"),
-                parameter,
-                parameter_rust_types
-                    .get(index)
-                    .map_or_else(|| parameter.rust_type(), Clone::clone)
-                    .as_str(),
-            )
+            let rust_type = parameter_rust_types
+                .get(index)
+                .map_or_else(|| parameter.rust_type(), Clone::clone);
+            if parameter_borrows.get(index) == Some(&true)
+                && rust_type.trim_start().starts_with('&')
+                && matches!(
+                    parameter,
+                    crate::rust_interop::projection::ProjectedType::String
+                        | crate::rust_interop::projection::ProjectedType::Bytes
+                        | crate::rust_interop::projection::ProjectedType::Bool
+                        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+                        | crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                )
+            {
+                format!("*callback_argument_{index}")
+            } else {
+                projected_callback_input_expression(
+                    &format!("callback_argument_{index}"),
+                    parameter,
+                    &rust_type,
+                )
+            }
         })
         .collect::<Vec<_>>();
     let call_arguments = terrane_arguments
@@ -735,18 +757,26 @@ fn projected_callback_argument(
     } else {
         format!("callback.call({tuple_arguments})")
     };
-    let fallible_body = if is_async {
-        format!(
-            "async {{ let callback_value = callback_future.await; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
-        )
+    let body = if !is_async
+        && matches!(
+            result,
+            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+        ) {
+        format!("let callback_value = {invoke}; callback_value.into()")
     } else {
+        let fallible_body = if is_async {
+            format!(
+                "async {{ let callback_value = callback_future.await; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
+            )
+        } else {
+            format!(
+                "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}; Ok({converted_result}) }})()"
+            )
+        };
         format!(
-            "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}; Ok({converted_result}) }})()"
+            "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
         )
     };
-    let body = format!(
-        "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
-    );
     let capture = if invocation_mode == InvocationMode::Consuming {
         name.to_owned()
     } else {
@@ -1060,6 +1090,10 @@ pub(super) fn emit_dependency_unit(
         if projected.chain_role == Some(crate::rust_interop::projection::ChainRole::Root) {
             continue;
         }
+        let invocation_scoped = matches!(
+            projected.result,
+            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+        );
         let dependency_name = unit
             .namespace
             .strip_prefix("/deps/")
@@ -1070,12 +1104,30 @@ pub(super) fn emit_dependency_unit(
             .iter()
             .zip(&projected.parameters)
             .map(|(parameter, projected)| {
-                let value_type = projected.generic_parameter.clone().unwrap_or_else(|| {
-                    parameter.value_type.clone().map_or_else(
-                        || "()".to_owned(),
-                        |value_type| rust_value_type(package, value_type),
-                    )
-                });
+                let value_type = if matches!(
+                    &projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_bound: Some(_),
+                        ..
+                    }
+                ) {
+                    "TerraneNativeCallback".to_owned()
+                } else {
+                    projected.generic_parameter.clone().unwrap_or_else(|| {
+                        parameter.value_type.clone().map_or_else(
+                            || "()".to_owned(),
+                            |value_type| rust_value_type(package, value_type),
+                        )
+                    })
+                };
+                let value_type = if invocation_scoped
+                    && projected.borrowed
+                    && let Some(rest) = value_type.strip_prefix('&')
+                {
+                    format!("&'view {}", rest.trim_start())
+                } else {
+                    value_type
+                };
                 let preserves_identity = projected.borrowed
                     && matches!(
                         projected.ty,
@@ -1100,6 +1152,16 @@ pub(super) fn emit_dependency_unit(
         let mut arguments = Vec::new();
         for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
             let name = rust_name(&parameter.name);
+            if matches!(
+                &projected.ty,
+                crate::rust_interop::projection::ProjectedType::Callback {
+                    native_bound: Some(_),
+                    ..
+                }
+            ) {
+                arguments.push(name);
+                continue;
+            }
             if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
                 &projected.ty
                 && package.projection.borrowed_struct_view(rust_path).is_some()
@@ -1121,7 +1183,32 @@ pub(super) fn emit_dependency_unit(
                 arguments.push(name);
                 continue;
             }
-            let value = projected_argument_expression(&name, &projected.ty);
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::String
+                        | crate::rust_interop::projection::ProjectedType::Bytes
+                        | crate::rust_interop::projection::ProjectedType::Bool
+                        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+                )
+            {
+                arguments.push(if invocation_scoped {
+                    name
+                } else {
+                    format!("&{name}")
+                });
+                continue;
+            }
+            let source = if projected.borrowed
+                && matches!(
+                    parameter.binding_value_type(),
+                    Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                ) {
+                format!("*{name}")
+            } else {
+                name.clone()
+            };
+            let value = projected_argument_expression(&source, &projected.ty);
             argument_conversions.push(format!(
                 "    let {}{name} = {value};",
                 if projected.mutable_borrow { "mut " } else { "" }
@@ -1135,23 +1222,29 @@ pub(super) fn emit_dependency_unit(
             });
         }
         let arguments = arguments.join(", ");
-        let value =
-            if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
-                &projected.result
-                && rust_path.contains('<')
+        let value = match &projected.result {
+            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                rust_type,
+                lifetimes,
+                ..
+            } => lifetimes.iter().fold(rust_type.clone(), |ty, lifetime| {
+                ty.replace(lifetime, "'view")
+            }),
+            crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. }
+                if rust_path.contains('<') =>
             {
                 rust_path.clone()
-            } else {
-                projected.destination_result.as_ref().map_or_else(
-                    || {
-                        contract.return_type.clone().map_or_else(
-                            || "()".to_owned(),
-                            |value_type| rust_value_type(package, value_type),
-                        )
-                    },
-                    |_| projected.result.rust_type(),
-                )
-            };
+            }
+            _ => projected.destination_result.as_ref().map_or_else(
+                || {
+                    contract.return_type.clone().map_or_else(
+                        || "()".to_owned(),
+                        |value_type| rust_value_type(package, value_type),
+                    )
+                },
+                |_| projected.result.rust_type(),
+            ),
+        };
         let result = format!("Result<{value}, crate::TerraneForeignError>");
         let (error_kind, error_message) = projected
             .error
@@ -1204,6 +1297,9 @@ pub(super) fn emit_dependency_unit(
         }
         let mut generic_parameters = Vec::new();
         let mut generic_parameter_names = BTreeSet::new();
+        if invocation_scoped {
+            generic_parameters.push("'view".to_owned());
+        }
         for parameter in &projected.parameters {
             let Some(name) = &parameter.generic_parameter else {
                 continue;
@@ -1216,6 +1312,18 @@ pub(super) fn emit_dependency_unit(
             } else {
                 format!("{name}: {}", parameter.generic_bounds.join(" + "))
             });
+        }
+        if let Some(native_bound) = projected.parameters.iter().find_map(|parameter| {
+            let crate::rust_interop::projection::ProjectedType::Callback {
+                native_bound: Some(native_bound),
+                ..
+            } = &parameter.ty
+            else {
+                return None;
+            };
+            Some(native_bound)
+        }) {
+            generic_parameters.push(format!("TerraneNativeCallback: {native_bound}"));
         }
         if let Some(destination) = &projected.destination_result {
             for parameter in &destination.parameters {

@@ -1,7 +1,12 @@
 {
   "dependencies": [
     {
-      "members": [],
+      "members": [
+        [
+          "/deps/witness",
+          "borrowed_label"
+        ]
+      ],
       "name": "witness",
       "version": "0.1.0"
     }

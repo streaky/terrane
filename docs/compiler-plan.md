@@ -415,9 +415,17 @@ next work units before committing to a new core representation.
   cohort interpretation and recommended next work. The census selected compiler-owned native
   conversion metadata rather than a second binding engine: source types remain ordinary Terrane
   values while exact Rust identity, specialization, borrowing, and field conversion remain hidden
-  lowering contracts. Higher-ranked callback result source types, receiver-tied outputs, mutable
-  borrowed descriptors, and consuming collection protocols remain explicit subsequent capability
-  gaps.
+  lowering contracts.
+- Higher-ranked callback recipes now retain two terminal paths. The preferred owned-result path
+  proves one external `for<'a> Owned: Into<Terminal<'a, ...>>` conversion. When the callback
+  itself must return a lifetime-bearing producer result, projection admits that producer only as
+  an invocation-scoped semantic value selected by the exact callback use; semantics rejects
+  ordinary storage, and lowering emits a statically typed callback adapter carrying the invocation
+  lifetime, correlated native parameters, owned captures, and external terminal conversion.
+  Package-independent executable evidence covers direct and captured exact callbacks without
+  source lifetime syntax, erased result storage, dynamic dispatch, or `'static` promotion.
+  Receiver-tied outputs, mutable borrowed descriptors, and consuming collection protocols remain
+  explicit subsequent capability gaps.
 
 
 #### Architectural simplification gate
