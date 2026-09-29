@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "160";
+const PROJECTION_SCHEMA: &str = "176";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -520,6 +520,8 @@ pub struct ProjectedFunction {
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_parameters: Vec<ProjectedGenericParameter>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rust_generic_arguments: Vec<ProjectedType>,
     pub result: ProjectedType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination_result: Option<ProjectedDestinationResult>,
@@ -673,6 +675,8 @@ pub enum ProjectedType {
         native_method: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         native_result: Option<String>,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        native_substitutions: BTreeMap<String, ProjectedType>,
         #[serde(default)]
         parameter_rust_types: Vec<String>,
         #[serde(default)]
@@ -3082,7 +3086,8 @@ fn render_function(
     )
     .expect("writing to a string cannot fail");
     if function.result != ProjectedType::None
-        && function.destination_result.is_none()
+        && (function.destination_result.is_none()
+            || matches!(function.result, ProjectedType::InvocationScoped { .. }))
         && !(function.chain_role == Some(ChainRole::Root)
             && matches!(
                 function.result,
@@ -3646,7 +3651,12 @@ pub fn resolve(
         status: ResolutionStatus::Generated,
         reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
     });
-    decline_unnameable_bound_owners(&mut projected, dependencies, &workspace)?;
+    decline_unnameable_bound_owners(
+        &mut projected,
+        dependencies,
+        &bound_dependencies,
+        &workspace,
+    )?;
     decline_functions_with_missing_generic_interfaces(&mut projected);
     for dependency in
         projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &workspace)?
@@ -4982,11 +4992,17 @@ fn is_crates_io_lock_source(source: &str) -> bool {
 fn decline_unnameable_bound_owners(
     projected: &mut [ProjectedDependency],
     declared: &[RustDependency],
+    bound_dependencies: &[ProjectedBoundDependency],
     workspace: &Path,
 ) -> Result<(), ProjectionError> {
     let declared = declared
         .iter()
         .map(|dependency| dependency.name.replace('-', "_"))
+        .chain(
+            bound_dependencies
+                .iter()
+                .map(|dependency| dependency.name.clone()),
+        )
         .collect::<BTreeSet<_>>();
     let text = fs::read_to_string(workspace.join("Cargo.lock"))
         .map_err(io_error("read dependency projection lockfile"))?;
@@ -5133,15 +5149,33 @@ fn projected_bound_dependencies(
                 .map(|method| &method.function)
                 .collect(),
         })
-        .filter_map(|function| function.destination_result.as_ref())
-        .flat_map(|destination| &destination.bound_roots)
-        .filter(|root| {
-            !declared.contains(*root)
-                && !matches!(root.as_str(), "std" | "core" | "alloc" | "self" | "crate")
+        .flat_map(|function| {
+            let mut roots = function
+                .destination_result
+                .iter()
+                .flat_map(|destination| destination.bound_roots.iter().cloned())
+                .collect::<BTreeSet<_>>();
+            roots.extend(
+                function
+                    .generic_parameters
+                    .iter()
+                    .flat_map(|parameter| &parameter.rust_bounds)
+                    .flat_map(|bound| rust_bound_roots(bound)),
+            );
+            for parameter in &function.generic_parameters {
+                roots.remove(&parameter.name);
+            }
+            roots
         })
-        .cloned()
+        .filter(|root| {
+            !declared.contains(root)
+                && !matches!(
+                    root.as_str(),
+                    "std" | "core" | "alloc" | "self" | "crate" | "Self"
+                )
+        })
         .collect::<BTreeSet<_>>();
-    resolved_projected_dependencies(required, workspace, true)
+    resolved_projected_dependencies(required, workspace, false)
 }
 
 fn resolved_projected_dependencies(
@@ -6118,12 +6152,16 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
             result,
             native_bound,
             native_result,
+            native_substitutions,
             ..
         } => {
             for parameter in parameters {
                 rewrite_projected_rust_root(parameter, package_root, dependency_root);
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
+            for substitution in native_substitutions.values_mut() {
+                rewrite_projected_rust_root(substitution, package_root, dependency_root);
+            }
             if let Some(native_bound) = native_bound {
                 *native_bound =
                     rewrite_rust_bound_root(native_bound, package_root, dependency_root);
@@ -6175,6 +6213,9 @@ fn rewrite_projected_function_root(
         for bound in &mut generic.rust_bounds {
             *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
         }
+    }
+    for argument in &mut function.rust_generic_arguments {
+        rewrite_projected_rust_root(argument, package_root, dependency_root);
     }
     rewrite_projected_rust_root(&mut function.result, package_root, dependency_root);
     if let Some(error) = &mut function.error {
@@ -7449,7 +7490,10 @@ fn project_rustdoc(
                 true,
             )
             .and_then(|mut projected_function| {
-                let candidate_result = projected_function.result.clone();
+                let candidate_result = match &projected_function.result {
+                    ProjectedType::InvocationScoped { owned, .. } => owned.as_ref().clone(),
+                    result => result.clone(),
+                };
                 let chain_owner = project_chain_owner(
                     dependency,
                     function,
@@ -7461,10 +7505,9 @@ fn project_rustdoc(
                 );
                 let has_external_terminal_conversion =
                     function.sig.output.as_ref().is_some_and(|output| {
-                        let Type::ResolvedPath(output) = output else {
+                        let Some(output_id) = resolved_nominal_id(output, index) else {
                             return false;
                         };
-                        let output_id = output.id;
                         let Some(output_item) = index.get(&output_id) else {
                             return false;
                         };
@@ -7977,6 +8020,7 @@ fn project_rustdoc(
                                 .into_iter()
                                 .collect(),
                             generic_parameters: Vec::new(),
+                            rust_generic_arguments: Vec::new(),
                             result: enum_type.clone(),
                             destination_result: None,
                             error: None,
@@ -8002,6 +8046,7 @@ fn project_rustdoc(
                                 name: format!("into-{variant_name}"),
                                 parameters: Vec::new(),
                                 generic_parameters: Vec::new(),
+                                rust_generic_arguments: Vec::new(),
                                 result: ProjectedType::Optional(Box::new(extraction_type)),
                                 destination_result: None,
                                 error: None,
@@ -8026,6 +8071,7 @@ fn project_rustdoc(
                             name: "variant-name".to_owned(),
                             parameters: Vec::new(),
                             generic_parameters: Vec::new(),
+                            rust_generic_arguments: Vec::new(),
                             result: ProjectedType::String,
                             destination_result: None,
                             error: None,
@@ -8205,6 +8251,9 @@ fn project_rustdoc(
             if let Some(interface) = &mut parameter.generic_interface {
                 *interface = rewrite_rust_bound_root(interface, &package_root, &dependency_root);
             }
+        }
+        for argument in &mut function.rust_generic_arguments {
+            rewrite_projected_rust_root(argument, &package_root, &dependency_root);
         }
         rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
         if let Some(error) = &mut function.error {
@@ -9065,6 +9114,17 @@ fn project_chain_owner(
     })
 }
 
+fn resolved_nominal_id(ty: &Type, index: &HashMap<Id, Item>) -> Option<Id> {
+    let Type::ResolvedPath(path) = ty else {
+        return None;
+    };
+    match index.get(&path.id).map(|item| &item.inner) {
+        Some(ItemEnum::TypeAlias(alias)) => resolved_nominal_id(&alias.type_, index),
+        Some(_) => Some(path.id),
+        None => None,
+    }
+}
+
 fn expand_output_alias(
     mut output: Type,
     index: &HashMap<Id, Item>,
@@ -9327,7 +9387,7 @@ fn project_function_inner(
     {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
     }
-    let mut parameters = Vec::new();
+    let mut parameters: Vec<ProjectedParameter> = Vec::new();
     let mut receiver = None;
     for (parameter_index, (name, ty)) in function.sig.inputs.iter().enumerate() {
         if name == "self" {
@@ -9357,7 +9417,7 @@ fn project_function_inner(
             impl_trait_bounds(ty)
         {
             let generic = format!("TerraneImpl{parameter_index}");
-            if let Some((callback, result_bounds)) =
+            if let Some((callback, result_bounds, _)) =
                 project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
             {
                 (callback, Some(generic), Some(result_bounds))
@@ -9572,8 +9632,16 @@ fn project_function_inner(
                 .is_some_and(|name| name.starts_with("TerraneImpl"))
                 && generic_interface.is_none()
                 && matches!(projected_type, ProjectedType::String | ProjectedType::Bytes));
+        let mut parameter_name = safe_parameter_name(name);
+        if method_name.is_some_and(|function_name| function_name == parameter_name)
+            || parameters
+                .iter()
+                .any(|parameter| parameter.name == parameter_name)
+        {
+            parameter_name = format!("{parameter_name}-value");
+        }
         parameters.push(ProjectedParameter {
-            name: safe_parameter_name(name),
+            name: parameter_name,
             ty: projected_type,
             borrowed,
             mutable_borrow,
@@ -9622,6 +9690,13 @@ fn project_function_inner(
     }
     let mut error = None;
     let mut error_optional_depth = 0;
+    let project_output = |ty: &Type| {
+        if allow_lifetime_output && type_contains_lifetime_argument(ty) {
+            project_invocation_scoped_type(ty, index, paths, &output_generic_types)
+        } else {
+            project_type(ty, index, paths, &output_generic_types)
+        }
+    };
     let result = if let Some(output) = effective_output.as_ref() {
         if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Result") || name == "Result")
@@ -9630,7 +9705,7 @@ fn project_function_inner(
             let value = arguments
                 .first()
                 .ok_or_else(|| "Result has no value type".to_owned())?;
-            let projected = project_type(value, index, paths, &output_generic_types)
+            let projected = project_output(value)
                 .map_err(|reason| format!("projected result value: {reason}"))?;
             if projected.rust_type().contains('&') {
                 return Err("borrowed result values cannot cross a projected boundary".to_owned());
@@ -9654,7 +9729,7 @@ fn project_function_inner(
                 let success = arguments
                     .first()
                     .ok_or_else(|| "nested Result has no value type".to_owned())?;
-                let projected = project_type(success, index, paths, &output_generic_types)
+                let projected = project_output(success)
                     .map_err(|reason| format!("projected nested result value: {reason}"))?;
                 if projected.rust_type().contains('&') {
                     return Err(
@@ -9670,12 +9745,12 @@ fn project_function_inner(
                 ProjectedType::Optional(Box::new(projected))
             } else {
                 ProjectedType::Optional(Box::new(
-                    project_type(value, index, paths, &output_generic_types)
+                    project_output(value)
                         .map_err(|reason| format!("projected optional value: {reason}"))?,
                 ))
             }
         } else {
-            project_type(output, index, paths, &output_generic_types).or_else(|reason| {
+            project_output(output).or_else(|reason| {
                 open_chain_result(output, index, paths, &output_generic_types)
                     .ok_or_else(|| format!("projected output: {reason}"))
             })?
@@ -9781,12 +9856,30 @@ fn project_function_inner(
         }
     }
     let generic_parameters = merged_generic_parameters;
+    let rust_generic_arguments = function
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Type {
+                is_synthetic: false,
+                ..
+            } => Some(
+                generic_types
+                    .get(&parameter.name)
+                    .cloned()
+                    .unwrap_or_else(|| ProjectedType::Generic(parameter.name.clone())),
+            ),
+            _ => None,
+        })
+        .collect();
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,
         parameters,
         result,
         generic_parameters,
+        rust_generic_arguments,
         destination_result,
         error,
         is_async: function.header.is_async || returns_future,
@@ -10156,6 +10249,7 @@ fn project_callback_generic(
         native_bound: None,
         native_method: None,
         native_result: None,
+        native_substitutions: BTreeMap::new(),
         parameters,
         parameter_rust_types: inputs
             .iter()
@@ -10184,9 +10278,11 @@ fn resolved_path_type_arguments(path: &RustdocPath) -> Vec<&Type> {
         .collect()
 }
 
+type CallableAdapterCandidate = (ProjectedType, Vec<String>, BTreeMap<String, ProjectedType>);
+
 fn merge_destination_selected_callable_candidates(
-    candidates: &[(ProjectedType, Vec<String>)],
-) -> Option<(ProjectedType, Vec<String>)> {
+    candidates: &[CallableAdapterCandidate],
+) -> Option<CallableAdapterCandidate> {
     let (
         ProjectedType::Callback {
             rust_name,
@@ -10202,31 +10298,36 @@ fn merge_destination_selected_callable_candidates(
             ..
         },
         result_bounds,
+        defaults,
     ) = candidates.first()?
     else {
         return None;
     };
-    if !candidates.iter().all(|(candidate, candidate_bounds)| {
-        matches!(
-            candidate,
-            ProjectedType::Callback {
-                rust_name: candidate_rust_name,
-                result: candidate_result,
-                invocation_mode: candidate_invocation_mode,
-                is_async: candidate_is_async,
-                retained: candidate_retained,
-                send: candidate_send,
-                sync: candidate_sync,
-                ..
-            } if candidate_rust_name == rust_name
-                && candidate_result == result
-                && candidate_invocation_mode == invocation_mode
-                && candidate_is_async == is_async
-                && candidate_retained == retained
-                && candidate_send == send
-                && candidate_sync == sync
-        ) && candidate_bounds == result_bounds
-    }) {
+    if !candidates
+        .iter()
+        .all(|(candidate, candidate_bounds, candidate_defaults)| {
+            matches!(
+                candidate,
+                ProjectedType::Callback {
+                    rust_name: candidate_rust_name,
+                    result: candidate_result,
+                    invocation_mode: candidate_invocation_mode,
+                    is_async: candidate_is_async,
+                    retained: candidate_retained,
+                    send: candidate_send,
+                    sync: candidate_sync,
+                    ..
+                } if candidate_rust_name == rust_name
+                    && candidate_result == result
+                    && candidate_invocation_mode == invocation_mode
+                    && candidate_is_async == is_async
+                    && candidate_retained == retained
+                    && candidate_send == send
+                    && candidate_sync == sync
+            ) && candidate_bounds == result_bounds
+                && candidate_defaults == defaults
+        })
+    {
         return None;
     }
     Some((
@@ -10235,6 +10336,7 @@ fn merge_destination_selected_callable_candidates(
             native_bound: native_bound.clone(),
             native_method: native_method.clone(),
             native_result: native_result.clone(),
+            native_substitutions: defaults.clone(),
             parameters: Vec::new(),
             parameter_borrows: Vec::new(),
             parameter_rust_types: Vec::new(),
@@ -10247,7 +10349,63 @@ fn merge_destination_selected_callable_candidates(
             sync: *sync,
         },
         result_bounds.clone(),
+        defaults.clone(),
     ))
+}
+
+fn apply_terminal_alias_defaults(
+    output: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> (
+    BTreeMap<String, ProjectedType>,
+    BTreeMap<String, ProjectedType>,
+) {
+    let Type::ResolvedPath(path) = output else {
+        return (known.clone(), BTreeMap::new());
+    };
+    let Some(Item {
+        inner: ItemEnum::TypeAlias(alias),
+        ..
+    }) = index.get(&path.id)
+    else {
+        return (known.clone(), BTreeMap::new());
+    };
+    let arguments = resolved_path_type_arguments(path);
+    let parameters = alias.generics.params.iter().filter(|parameter| {
+        matches!(
+            parameter.kind,
+            GenericParamDefKind::Type {
+                is_synthetic: false,
+                ..
+            }
+        )
+    });
+    let mut selected = known.clone();
+    let mut defaults = BTreeMap::new();
+    for (parameter, argument) in parameters.zip(arguments) {
+        let GenericParamDefKind::Type {
+            default: Some(default),
+            ..
+        } = &parameter.kind
+        else {
+            continue;
+        };
+        let Type::Generic(argument_name) = argument else {
+            continue;
+        };
+        if let Ok(projected) = project_type(default, index, paths, &selected) {
+            defaults.insert(argument_name.clone(), projected.clone());
+            if matches!(
+                selected.get(argument_name),
+                None | Some(ProjectedType::Generic(_))
+            ) {
+                selected.insert(argument_name.clone(), projected);
+            }
+        }
+    }
+    (selected, defaults)
 }
 
 #[expect(
@@ -10260,7 +10418,7 @@ fn project_callable_adapter_bounds(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     known: &BTreeMap<String, ProjectedType>,
-) -> Result<Option<(ProjectedType, Vec<String>)>, String> {
+) -> Result<Option<CallableAdapterCandidate>, String> {
     let mut candidates = Vec::new();
     for bound in bounds {
         let Some((requested_trait, requested_higher_ranked)) = trait_bound_name(bound) else {
@@ -10280,11 +10438,18 @@ fn project_callable_adapter_bounds(
             };
             Some((item.name.clone()?, function))
         });
+        let (callback_known, terminal_defaults) = native_function
+            .as_ref()
+            .and_then(|(_, function)| function.sig.output.as_ref())
+            .map_or_else(
+                || (known.clone(), BTreeMap::new()),
+                |output| apply_terminal_alias_defaults(output, index, paths, known),
+            );
         let native_method = native_function.as_ref().map(|(name, _)| name.clone());
         let native_result = native_function
             .and_then(|(_, function)| function.sig.output.as_ref())
-            .and_then(|output| render_rust_type(output, index, paths, known).ok());
-        let native_trait = render_resolved_path(requested_trait, index, paths, known)?;
+            .and_then(|output| render_rust_type(output, index, paths, &callback_known).ok());
+        let native_trait = render_resolved_path(requested_trait, index, paths, &callback_known)?;
         let native_bound = if requested_higher_ranked.is_empty() {
             native_trait
         } else {
@@ -10317,7 +10482,7 @@ fn project_callable_adapter_bounds(
             {
                 continue;
             }
-            let mut implementation_types = known.clone();
+            let mut implementation_types = callback_known.clone();
             for impl_parameter in &implementation.generics.params {
                 if matches!(impl_parameter.kind, GenericParamDefKind::Type { .. }) {
                     implementation_types.insert(
@@ -10445,7 +10610,14 @@ fn project_callable_adapter_bounds(
             } else {
                 continue;
             };
-            let exact_invocation_result = matches!(result, ProjectedType::InvocationScoped { .. });
+            let exact_invocation_result = matches!(result, ProjectedType::InvocationScoped { .. })
+                || (matches!(result, ProjectedType::Generic(_))
+                    && !requested_higher_ranked.is_empty()
+                    && native_result.as_ref().is_some_and(|result| {
+                        requested_higher_ranked
+                            .iter()
+                            .any(|parameter| result.contains(&parameter.name))
+                    }));
             let candidate = (
                 ProjectedType::Callback {
                     rust_name: parameter_name.to_owned(),
@@ -10456,6 +10628,7 @@ fn project_callable_adapter_bounds(
                     native_result: exact_invocation_result
                         .then(|| native_result.clone())
                         .flatten(),
+                    native_substitutions: terminal_defaults.clone(),
                     parameters,
                     parameter_rust_types,
                     parameter_borrows: if exact_invocation_result {
@@ -10481,6 +10654,7 @@ fn project_callable_adapter_bounds(
                     }),
                 },
                 result_bounds,
+                terminal_defaults.clone(),
             );
             if !candidates.contains(&candidate) {
                 candidates.push(candidate);
@@ -10506,7 +10680,7 @@ fn project_callable_adapter_generic(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     known: &BTreeMap<String, ProjectedType>,
-) -> Result<Option<(ProjectedType, Vec<String>)>, String> {
+) -> Result<Option<CallableAdapterCandidate>, String> {
     project_callable_adapter_bounds(
         &parameter.name,
         &generic_bounds(parameter, function),
@@ -10888,12 +11062,27 @@ fn generic_monomorphisations(
         }
     }
     for parameter in &function.generics.params {
-        if !matches!(result.get(&parameter.name), Some(ProjectedType::Generic(_))) {
+        let refinable = matches!(
+            result.get(&parameter.name),
+            Some(
+                ProjectedType::Generic(_)
+                    | ProjectedType::Callback {
+                        native_bound: None,
+                        ..
+                    }
+            )
+        );
+        if !refinable {
             continue;
         }
-        if let Some((callback, result_bounds)) =
+        if let Some((callback, result_bounds, defaults)) =
             project_callable_adapter_generic(parameter, function, index, paths, &result)?
         {
+            for (name, default) in defaults {
+                if matches!(result.get(&name), None | Some(ProjectedType::Generic(_))) {
+                    result.insert(name, default);
+                }
+            }
             result.insert(parameter.name.clone(), callback);
             adapter_result_bounds.insert(parameter.name.clone(), result_bounds);
         }
@@ -11055,7 +11244,12 @@ fn rust_bound_roots(bound: &str) -> BTreeSet<String> {
                 .trim_start_matches("~const ");
             let (root, _) = fragment.split_once("::")?;
             let root = root.split_whitespace().last().unwrap_or(root);
-            (!root.starts_with('\'') && !root.is_empty()).then(|| root.to_owned())
+            (!root.starts_with('\'')
+                && !root.is_empty()
+                && root
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+            .then(|| root.to_owned())
         })
         .collect()
 }
@@ -12827,6 +13021,7 @@ mod tests {
                 native_owner: None,
                 name: name.to_owned(),
                 generic_parameters: Vec::new(),
+                rust_generic_arguments: Vec::new(),
                 parameters: Vec::new(),
                 result: ProjectedType::None,
                 destination_result: None,
@@ -13322,6 +13517,7 @@ mod tests {
             native_bound: None,
             native_method: None,
             native_result: None,
+            native_substitutions: BTreeMap::new(),
             parameters: vec![ProjectedType::String, ProjectedType::Bool],
             parameter_rust_types: vec!["String".to_owned(), "bool".to_owned()],
             parameter_borrows: vec![false, false],
@@ -13744,6 +13940,7 @@ mod tests {
                         native_owner: None,
                         name: "rejected_total".to_owned(),
                         generic_parameters: Vec::new(),
+                        rust_generic_arguments: Vec::new(),
                         parameters: vec![ProjectedParameter {
                             name: "value".to_owned(),
                             ty: ProjectedType::Generic("T".to_owned()),
@@ -14035,6 +14232,7 @@ mod tests {
                     native_owner: None,
                     name: "status".to_owned(),
                     generic_parameters: Vec::new(),
+                    rust_generic_arguments: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::Foreign {
                         rust_path: "http::StatusCode".to_owned(),
@@ -14487,6 +14685,7 @@ mod tests {
                     native_owner: None,
                     name: "read".to_owned(),
                     generic_parameters: Vec::new(),
+                    rust_generic_arguments: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,
@@ -14503,6 +14702,7 @@ mod tests {
                     native_owner: None,
                     name: "create".to_owned(),
                     generic_parameters: Vec::new(),
+                    rust_generic_arguments: Vec::new(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
                     destination_result: None,

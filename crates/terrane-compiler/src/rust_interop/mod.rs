@@ -27,7 +27,7 @@
 //! | Owned callback result converted by a higher-ranked native blanket recipe | Implemented | `projected-invocation-scoped-callback` |
 //! | Exact invocation-scoped lifetime-bearing callback result | Implemented | `projected-invocation-scoped-callback`, `projected-invocation-scoped-nominal-escape` |
 //! | Invocation-scoped native operation graphs | Implemented | `projected-invocation-scoped-callback` and focused graph rejections |
-//! | Real projected Iced view cutover | Planned (work units 4D–4E) | `packages/iced-ui` |
+//! | Real projected Iced minimal application | Implemented (work unit 4D) | `packages/iced-ui` (`application` → `text` → `Into<Element>` → `run`) |
 //!
 //! Projection metadata is canonical. Semantic analysis owns Terrane-region, ownership, and
 //! control-flow validity. Lowering owns Rust spelling and emission only. These ownership boundaries

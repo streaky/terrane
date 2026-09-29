@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, button, into_widget, label, render_exact, render_scoped, reset_trace, row, traced_label
+from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, button, into_widget, label, render_default, render_exact, render_scoped, reset_trace, row, traced_label
 from /core/collections import list
 from /core/output import print
 
@@ -9,7 +9,6 @@ function exact-label host-invocation-scoped-native; state ref string
 
 function exact host-invocation-scoped-native; state ref string
     return exact-label; state
-
 function exact-nested host-invocation-scoped-native; state ref string
     first = borrowed_label; state
     second = borrowed_button; state
@@ -63,6 +62,7 @@ function main;
         return borrowed_label; value
     print; (render_scoped; state, 'message', true, direct)
     print; (render_exact; exact-state, 'message', true, exact)
+    print; (render_default; state, direct)
     print; (render_exact; exact-state, 'message', true, captured-exact)
     print; (render_exact; exact-state, 'message', true, exact-nested)
     print; (render_exact; exact-state, 'message', true, exact-branch)

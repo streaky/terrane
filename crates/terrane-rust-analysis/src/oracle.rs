@@ -127,16 +127,19 @@ impl<'a> ProjectionOracle<'a> {
         for (index, question) in questions.iter().enumerate() {
             let name = format!("terrane_probe_{index}");
             names.insert(name.clone(), index);
-            let generic_parameters = if question.inferred_parameters.is_empty() {
-                "Value".to_owned()
+            let source = if question.inferred_parameters.is_empty() {
+                format!(
+                    "fn assert_bound<Value>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}>(); }}\n",
+                    question.rust_bound, question.rust_type
+                )
             } else {
-                format!("Value, {}", question.inferred_parameters.join(", "))
+                format!(
+                    "fn assert_bound<{}>() where {}: {} {{}}\nfn main() {{}}\n",
+                    question.inferred_parameters.join(", "),
+                    question.rust_type,
+                    question.rust_bound
+                )
             };
-            let inferred_arguments = ", _".repeat(question.inferred_parameters.len());
-            let source = format!(
-                "fn assert_bound<{generic_parameters}>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}{inferred_arguments}>(); }}\n",
-                question.rust_bound, question.rust_type
-            );
             write_if_changed(&bin_directory.join(format!("{name}.rs")), source.as_bytes())?;
         }
 

@@ -1245,6 +1245,15 @@ pub(super) fn value_types_compatible(
             ValueType::InvocationScopedNative { rust_type, .. },
             ValueType::InvocationScopedNative { .. },
         ) if rust_type == "_" => true,
+        (
+            ValueType::InvocationScopedNative { .. },
+            ValueType::InvocationScopedNative { rust_type, .. },
+        ) if rust_type == "_" => true,
+        (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
+            if expected.name == actual.name =>
+        {
+            true
+        }
         (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
         | (ValueType::IterationStep(_), ValueType::IterationEnd)

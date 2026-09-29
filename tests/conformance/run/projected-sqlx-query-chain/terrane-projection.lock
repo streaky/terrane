@@ -24,6 +24,11 @@
       "name": "__terrane_recursive_url",
       "package": "url",
       "version": "=2.5.8"
+    },
+    {
+      "name": "futures_io",
+      "package": "futures-io",
+      "version": "=0.3.34"
     }
   ],
   "dependencies": [
@@ -828,10 +833,6 @@
         [
           "/deps/sqlx-core/query",
           "Query-hash-h66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_optional"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "Query-hash-h66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.map"
         ],
         [
           "/deps/sqlx-core/query",

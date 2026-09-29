@@ -708,7 +708,7 @@ as the terminal authority when it already owns that conversion: this preserves t
 Terrane callable, recursion, helpers, captures, diagnostics, and static result type without a
 second compiler representation.
 
-Implemented for exact lifetime-bearing callback results: projection schema 160 recursively retains
+Implemented for exact lifetime-bearing callback results: projection schema 176 recursively retains
 invocation-scoped native inputs and sequence elements when the same projected operation returns a
 lifetime-bearing value authorized by an external terminal conversion. Semantic values carry the
 enclosing scoped-function region. Region-local bindings, nested projected calls, branches that
@@ -721,9 +721,16 @@ invocation lifetime and exact native local/collection types. Explicit return gra
 helper result, so an earlier intermediate cannot accidentally determine its ABI. The terminal
 adapter performs one external conversion; no callback body copying, erased storage,
 representation-only allocation, dynamic dispatch, `'static` promotion, leak, or `transmute` is
-introduced. `projected-invocation-scoped-callback` executes direct, nested, branching, helper,
-capture, and aggregate paths. Focused rejection fixtures cover nominal and aggregate escape,
-capture, suspension, invalid reuse, and incompatible terminal graphs.
+introduced. Defaulted generic arguments on the selected native terminal alias remain correlated
+with the callback contract and are emitted at the projected call and helper use rather than guessed
+from package or operation names.
+
+`projected-invocation-scoped-callback` executes direct, nested, branching, helper, capture,
+aggregate, and defaulted-terminal paths. Focused rejection fixtures cover nominal and aggregate
+escape, capture, suspension, invalid reuse, and incompatible terminal graphs. The minimal
+`packages/iced-ui` application now executes projected `iced::application`, `iced::widget::text`,
+the selected `Into<Element<'a, ...>>` terminal conversion, and `.run()` with no Iced-specific
+compiler branch.
 
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be

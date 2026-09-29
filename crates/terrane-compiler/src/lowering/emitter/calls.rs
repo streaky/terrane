@@ -29,11 +29,13 @@ impl Emitter<'_> {
         &mut self,
         value: &SyntaxNode,
         projected: &crate::rust_interop::projection::ProjectedType,
+        substitutions: Option<&std::collections::BTreeMap<String, String>>,
     ) -> Option<String> {
         let crate::rust_interop::projection::ProjectedType::Callback {
             native_bound: Some(native_bound),
             native_method: Some(native_method),
             native_result: Some(native_result),
+            native_substitutions,
             parameters,
             parameter_rust_types,
             result,
@@ -43,7 +45,7 @@ impl Emitter<'_> {
         else {
             return None;
         };
-        let crate::rust_interop::projection::ProjectedType::InvocationScoped { .. } =
+        let crate::rust_interop::projection::ProjectedType::InvocationScoped { lifetimes, .. } =
             result.as_ref()
         else {
             return None;
@@ -87,17 +89,24 @@ impl Emitter<'_> {
                 .and_then(|node| self.invocation_scoped_return_type(node, 0))
                 .unwrap_or(producer_value);
         }
+        let scoped_type = |rust_type: &str| {
+            lifetimes
+                .iter()
+                .fold(rust_type.replace("'_", "'view"), |rust_type, lifetime| {
+                    rust_type.replace(lifetime, "'view")
+                })
+        };
         let trimmed_bound = native_bound.trim();
-        let trait_path = if trimmed_bound.starts_with("for") {
+        let trait_path = scoped_type(if trimmed_bound.starts_with("for") {
             trimmed_bound
                 .split_once('>')
                 .map_or(trimmed_bound, |(_, trait_path)| trait_path.trim())
         } else {
             trimmed_bound
-        };
+        });
         let inputs = parameter_rust_types
             .iter()
-            .map(|input| input.replace("'_", "'view"))
+            .map(|input| scoped_type(input))
             .collect::<Vec<_>>();
         let method_parameters = inputs
             .iter()
@@ -109,11 +118,24 @@ impl Emitter<'_> {
             .map(|index| format!("callback_argument_{index}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let output = native_result.replace("'_", "'view");
-        let producer = match &producer_value {
-            ValueType::InvocationScopedNative { rust_type, .. } => rust_type.replace("'_", "'view"),
-            _ => return None,
+        let output = scoped_type(native_result);
+        let ValueType::InvocationScopedNative {
+            rust_type: producer_template,
+            ..
+        } = &producer_value
+        else {
+            return None;
         };
+        let mut selected = substitutions.cloned().unwrap_or_default();
+        selected.extend(
+            native_substitutions
+                .iter()
+                .map(|(name, ty)| (name.clone(), ty.rust_type())),
+        );
+        let producer = scoped_type(&crate::rust_ir::instantiate_rust_generics(
+            producer_template,
+            &selected,
+        ));
         let raw_callback = if value.kind == SyntaxKind::Name {
             let name = self.text(value);
             self.unit
@@ -144,7 +166,45 @@ impl Emitter<'_> {
         let callback = if let Some(callback) = raw_callback {
             self.invocation_scoped_anonymous_function(&callback, producer_value.clone())
         } else {
-            self.expression(value)
+            let callback = self.expression(value);
+            if value.kind == SyntaxKind::Name {
+                let name = self.text(value);
+                let source_node = self
+                    .unit
+                    .functions
+                    .iter()
+                    .find(|function| function.name == name)
+                    .and_then(|function| {
+                        find_node(
+                            &self.unit.tree.root,
+                            SyntaxKind::FunctionDeclaration,
+                            function.span,
+                        )
+                    });
+                let generic_arguments = source_node
+                    .map(|source| {
+                        self.invocation_scoped_type_generics(source, producer_template, lifetimes)
+                            .into_iter()
+                            .filter_map(|declaration| {
+                                let name = declaration
+                                    .split_once(':')
+                                    .map_or(declaration.as_str(), |(name, _)| name)
+                                    .trim();
+                                native_substitutions
+                                    .get(name)
+                                    .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                if generic_arguments.is_empty() {
+                    callback
+                } else {
+                    format!("{callback}::<{}>", generic_arguments.join(", "))
+                }
+            } else {
+                callback
+            }
         };
         if let Some(contract) = raw_contract {
             let captures = contract
@@ -203,6 +263,11 @@ impl Emitter<'_> {
             let separator = if fields.is_empty() { "" } else { ", " };
             return Some(format!(
                 "{{ struct TerraneInvocationScopedCallback {{ callback: {callback_type}{separator}{fields} }} impl<'view> {trait_path} for TerraneInvocationScopedCallback {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ (self.callback)({captured_arguments}).into() }} }} TerraneInvocationScopedCallback {{ callback: {callback}{separator}{initializers} }} }}"
+            ));
+        }
+        if value.kind == SyntaxKind::Name {
+            return Some(format!(
+                "{{ struct TerraneInvocationScopedCallback; impl<'view> {trait_path} for TerraneInvocationScopedCallback {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ {callback}({arguments}).into() }} }} TerraneInvocationScopedCallback }}"
             ));
         }
         Some(format!(
@@ -1721,7 +1786,11 @@ impl Emitter<'_> {
                 let invocation_callback = projected_parameter
                     .map(|parameter| parameter.ty.clone())
                     .and_then(|projected| {
-                        self.invocation_scoped_callback_adapter(value, &projected)
+                        self.invocation_scoped_callback_adapter(
+                            value,
+                            &projected,
+                            specialization.map(|specialization| &specialization.substitutions),
+                        )
                     });
                 let has_invocation_callback = invocation_callback.is_some();
                 let expression = if let Some(expression) = invocation_callback {
@@ -2004,12 +2073,12 @@ impl Emitter<'_> {
         } else {
             self.expression(callee)
         };
-        // Destination specializations only attach to projected free/static paths or projected
+        // Projected specialization records attach only to free/static paths or projected
         // member access. Each branch above ends in a callable Rust path/member segment, so an
         // explicit turbofish is syntactically valid here; arbitrary callee expressions never
         // receive a specialization record.
         let name = if let Some(specialization) =
-            specialization.filter(|specialization| !specialization.direct_projected_call)
+            specialization.filter(|specialization| !specialization.generic_arguments.is_empty())
         {
             format!("{name}::<{}>", specialization.generic_arguments.join(", "))
         } else {

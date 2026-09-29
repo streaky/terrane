@@ -38,6 +38,8 @@ pub struct ScopedView<'view, Message, Theme> {
     value: i64,
     marker: std::marker::PhantomData<(&'view (), Message, Theme)>,
 }
+pub type TerminalView<'view, Message = String, Theme = bool> =
+    ScopedView<'view, Message, Theme>;
 
 impl From<Label> for Widget {
     fn from(label: Label) -> Self {
@@ -183,16 +185,16 @@ pub fn row(children: Vec<Widget>) -> Row {
 }
 
 pub trait ViewFn<'view, State, Message, Theme> {
-    fn view(&self, state: &'view State) -> ScopedView<'view, Message, Theme>;
+    fn view(&self, state: &'view State) -> TerminalView<'view, Message, Theme>;
 }
 
 impl<'view, F, State: 'view, Message, Theme, WidgetValue>
     ViewFn<'view, State, Message, Theme> for F
 where
     F: Fn(&'view State) -> WidgetValue,
-    WidgetValue: Into<ScopedView<'view, Message, Theme>>,
+    WidgetValue: Into<TerminalView<'view, Message, Theme>>,
 {
-    fn view(&self, state: &'view State) -> ScopedView<'view, Message, Theme> {
+    fn view(&self, state: &'view State) -> TerminalView<'view, Message, Theme> {
         self(state).into()
     }
 }
@@ -217,6 +219,13 @@ pub fn render_scoped<State, Message, Theme>(
     view: impl for<'view> ViewFn<'view, State, Message, Theme>,
 ) -> i64 {
     let _ = (message, theme);
+    view.view(state).value
+}
+
+pub fn render_default<State, Message, Theme>(
+    state: &State,
+    view: impl for<'view> ViewFn<'view, State, Message, Theme>,
+) -> i64 {
     view.view(state).value
 }
 

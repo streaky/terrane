@@ -24,6 +24,11 @@
       "name": "__terrane_recursive_url",
       "package": "url",
       "version": "=2.5.8"
+    },
+    {
+      "name": "tokio",
+      "package": "tokio",
+      "version": "=1.53.1"
     }
   ],
   "dependencies": [
@@ -184,10 +189,6 @@
         [
           "/deps/sqlx/query",
           "Query-hash-h55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.fetch_optional"
-        ],
-        [
-          "/deps/sqlx/query",
-          "Query-hash-h55943f19a75acd29414195d6c2387a9e4a68d505cea7625f5f4cb55204ab25c4.map"
         ],
         [
           "/deps/sqlx/query",
@@ -1566,10 +1567,6 @@
         [
           "/deps/sqlx-core/query",
           "Query-hash-h66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.fetch_optional"
-        ],
-        [
-          "/deps/sqlx-core/query",
-          "Query-hash-h66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f.map"
         ],
         [
           "/deps/sqlx-core/query",

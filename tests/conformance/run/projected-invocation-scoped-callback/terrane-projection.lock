@@ -56,6 +56,10 @@
         ],
         [
           "/deps/witness",
+          "render_default"
+        ],
+        [
+          "/deps/witness",
           "render_exact"
         ],
         [

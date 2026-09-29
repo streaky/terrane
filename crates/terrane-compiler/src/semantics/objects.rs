@@ -2646,6 +2646,7 @@ fn merge_projected_callback_shape(
             native_bound,
             native_method,
             native_result,
+            native_substitutions,
             parameters: template_parameters,
             result: template_result,
             parameters_destination_selected,
@@ -2707,6 +2708,7 @@ fn merge_projected_callback_shape(
         native_result: native_result.as_ref().map(|result| {
             crate::rust_ir::instantiate_rust_generics(result, &parameter_replacements)
         }),
+        native_substitutions: native_substitutions.clone(),
         parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
         parameter_borrows: parameter_borrows.clone(),
@@ -2732,14 +2734,34 @@ fn merge_projected_callback_shape(
     }
 }
 
-fn merge_projected_callback_value_shape(expected: &ValueType, actual: &ValueType) -> ValueType {
+fn merge_projected_callback_value_shape(
+    expected: &ValueType,
+    actual: &ValueType,
+    projected_result: Option<&crate::rust_interop::projection::ProjectedType>,
+    namespace: &str,
+    region: Option<(u32, usize, usize)>,
+) -> ValueType {
+    let result = match projected_result {
+        Some(crate::rust_interop::projection::ProjectedType::InvocationScoped {
+            rust_type,
+            name,
+            lifetimes,
+            ..
+        }) => Some(ElementType::new(ValueType::InvocationScopedNative {
+            rust_type: rust_type.clone(),
+            family: ObjectIdentity::new(namespace.to_owned(), name.clone()),
+            lifetimes: lifetimes.clone(),
+            region,
+        })),
+        _ => None,
+    };
     match (expected, actual) {
         (
             ValueType::Function(_, _, expected_effects),
             ValueType::Function(actual_parameters, actual_result, _),
         ) => ValueType::Function(
             actual_parameters.clone(),
-            actual_result.clone(),
+            result.unwrap_or_else(|| actual_result.clone()),
             expected_effects.clone(),
         ),
         (
@@ -2747,7 +2769,7 @@ fn merge_projected_callback_value_shape(expected: &ValueType, actual: &ValueType
             ValueType::AsyncFunction(actual_parameters, actual_result, _, _),
         ) => ValueType::AsyncFunction(
             actual_parameters.clone(),
-            actual_result.clone(),
+            result.unwrap_or_else(|| actual_result.clone()),
             *expected_transferability,
             expected_effects.clone(),
         ),
@@ -2756,9 +2778,12 @@ fn merge_projected_callback_value_shape(expected: &ValueType, actual: &ValueType
 }
 
 fn bind_projected_callback_generics(
+    package: &SemanticPackage,
     expected: &ValueType,
     actual: &ValueType,
+    actual_projected_result: Option<&crate::rust_interop::projection::ProjectedType>,
     bindings: &mut BTreeMap<String, ValueType>,
+    projected_bindings: &mut BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     allow_destination_selected_parameters: bool,
 ) -> Result<(), String> {
     let (
@@ -2786,6 +2811,15 @@ fn bind_projected_callback_generics(
     } else if !allow_destination_selected_parameters {
         return super::calls::bind_projected_generics(expected, actual, bindings);
     }
+    if let Some(actual_projected_result) = actual_projected_result {
+        let expected_projected_result =
+            destination_projected_type(package, expected_result.value_type_ref())?;
+        return bind_projected_native_generics(
+            &expected_projected_result,
+            actual_projected_result,
+            projected_bindings,
+        );
+    }
     super::calls::bind_projected_generics(
         expected_result.value_type_ref(),
         actual_result.value_type_ref(),
@@ -2811,6 +2845,46 @@ fn projected_call_result(
         return None;
     };
     projected_function_for_call(package, unit, callee).map(|function| function.result.clone())
+}
+
+fn projected_callback_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    depth: usize,
+) -> Option<crate::rust_interop::projection::ProjectedType> {
+    if depth > unit.functions.len() {
+        return None;
+    }
+    if node.kind == SyntaxKind::CallExpression {
+        if let Some(result) = projected_call_result(package, unit, node) {
+            return Some(result);
+        }
+        let callee = node.children.first()?;
+        let contract = unit
+            .functions
+            .iter()
+            .find(|contract| contract.name == node_text(&unit.source, callee))?;
+        let function = find_node_by_span(&unit.tree.root, contract.span)?;
+        return projected_callback_result(package, unit, function, depth + 1);
+    }
+    node.children
+        .iter()
+        .find_map(|child| projected_callback_result(package, unit, child, depth))
+}
+
+fn projected_callback_function_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Option<crate::rust_interop::projection::ProjectedType> {
+    let name = node_text(&unit.source, value);
+    let contract = unit
+        .functions
+        .iter()
+        .find(|contract| contract.name == name)?;
+    let function = find_node_by_span(&unit.tree.root, contract.span)?;
+    projected_callback_result(package, unit, function, 0)
 }
 
 fn bind_projected_native_generics(
@@ -2963,10 +3037,15 @@ fn collect_projected_destinations(
                 .any(|candidate| candidate.input_selected && candidate.name == *generic)
             {
                 let destination_selected_parameters = *parameters_destination_selected;
+                let actual_projected_result =
+                    projected_callback_function_result(package, unit, value);
                 bind_projected_callback_generics(
+                    package,
                     &expected,
                     &actual,
+                    actual_projected_result.as_ref(),
                     &mut value_bindings,
+                    &mut native_bindings,
                     destination_selected_parameters,
                 )
                 .map_err(|generic| {
@@ -2979,20 +3058,72 @@ fn collect_projected_destinations(
                         value.span,
                     )
                 })?;
-                callback_bindings.insert(
-                    parameter_index,
-                    destination_projected_type(package, &actual).map_err(|reason| {
-                        failure(
-                            &unit.source,
-                            "T0129",
-                            format!("projected callback cannot use `{actual}`: {reason}"),
-                            value.span,
+                let mut callback = match &actual {
+                    ValueType::Function(parameters, result, _) => destination_projected_callback(
+                        package,
+                        parameters,
+                        result,
+                        false,
+                        true,
+                        actual_projected_result.clone(),
+                    ),
+                    ValueType::AsyncFunction(parameters, result, transferability, _) => {
+                        destination_projected_callback(
+                            package,
+                            parameters,
+                            result,
+                            true,
+                            *transferability != TaskTransferability::Local,
+                            actual_projected_result.clone(),
                         )
-                    })?,
-                );
+                    }
+                    _ => unreachable!("callback pattern checked above"),
+                }
+                .map_err(|reason| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!("projected callback cannot use `{actual}`: {reason}"),
+                        value.span,
+                    )
+                })?;
+                if let (
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_bound: template_bound,
+                        native_method: template_method,
+                        native_result: template_result,
+                        native_substitutions: template_substitutions,
+                        ..
+                    },
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_bound,
+                        native_method,
+                        native_result,
+                        native_substitutions,
+                        ..
+                    },
+                ) = (&projected_parameter.ty, &mut callback)
+                {
+                    native_bound.clone_from(template_bound);
+                    native_method.clone_from(template_method);
+                    native_result.clone_from(template_result);
+                    native_substitutions.clone_from(template_substitutions);
+                }
+                callback_bindings.insert(parameter_index, callback);
+                let callback_region = unit
+                    .functions
+                    .iter()
+                    .find(|contract| contract.name == node_text(&unit.source, value))
+                    .map(|contract| (contract.span.file, contract.span.start, contract.span.end));
                 callback_value_bindings.insert(
                     parameter_index,
-                    merge_projected_callback_value_shape(&expected, &actual),
+                    merge_projected_callback_value_shape(
+                        &expected,
+                        &actual,
+                        actual_projected_result.as_ref(),
+                        &unit.namespace,
+                        callback_region,
+                    ),
                 );
                 continue;
             }
@@ -3063,10 +3194,10 @@ fn collect_projected_destinations(
                 {
                     parameter.generic_parameter = Some(name.clone());
                 }
-                parameter.ty = if let Some(actual) = native_projected_parameters.get(&index) {
+                parameter.ty = if let Some(actual) = callback_bindings.get(&index) {
+                    specialize(&merge_projected_callback_shape(&parameter.ty, actual))
+                } else if let Some(actual) = native_projected_parameters.get(&index) {
                     actual.clone()
-                } else if let Some(actual) = callback_bindings.get(&index) {
-                    merge_projected_callback_shape(&parameter.ty, actual)
                 } else {
                     specialize(&parameter.ty)
                 };
@@ -3079,10 +3210,10 @@ fn collect_projected_destinations(
             .iter()
             .enumerate()
             .map(|(index, parameter)| {
-                native_value_bindings
+                callback_value_bindings
                     .get(&index)
                     .cloned()
-                    .or_else(|| callback_value_bindings.get(&index).cloned())
+                    .or_else(|| native_value_bindings.get(&index).cloned())
                     .or_else(|| {
                         parameter.element_value_type().map(|value_type| {
                             super::calls::substitute_projected_value_generics(
@@ -3174,6 +3305,12 @@ fn collect_projected_destinations(
             .filter(|generic| !deferred_native_generics.contains(&generic.name))
             .flat_map(|generic| {
                 let projected = &projected_bindings[&generic.name];
+                if matches!(
+                    projected,
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                ) {
+                    return Vec::new();
+                }
                 let rust_type = projected.rust_type();
                 let borrowed_rust_type = match projected {
                     crate::rust_interop::projection::ProjectedType::String => {
@@ -3216,12 +3353,40 @@ fn collect_projected_destinations(
                             .map(|candidate| candidate.name.clone())
                             .collect::<BTreeSet<_>>();
                         collect_projected_generic_names(projected, &mut inferred_parameters);
+                        let inferred_declarations = inferred_parameters
+                            .iter()
+                            .map(|name| {
+                                let Some(parameter) = function
+                                    .generic_parameters
+                                    .iter()
+                                    .find(|parameter| parameter.name == *name)
+                                else {
+                                    return name.clone();
+                                };
+                                if parameter.rust_bounds.is_empty() {
+                                    name.clone()
+                                } else {
+                                    format!(
+                                        "{name}: {}",
+                                        parameter
+                                            .rust_bounds
+                                            .iter()
+                                            .map(|bound| crate::rust_ir::instantiate_rust_generics(
+                                                bound,
+                                                &rust_replacements,
+                                            ))
+                                            .collect::<Vec<_>>()
+                                            .join(" + ")
+                                    )
+                                }
+                            })
+                            .collect();
                         Some(PendingProjectedBound {
                             generic: Some(generic.name.clone()),
                             direct_rust_type: rust_type.clone(),
                             borrowed_rust_type: borrowed_rust_type.clone(),
                             rust_bound,
-                            inferred_parameters: inferred_parameters.into_iter().collect(),
+                            inferred_parameters: inferred_declarations,
                         })
                     })
                     .collect::<Vec<_>>()
@@ -3252,16 +3417,28 @@ fn collect_projected_destinations(
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
-            generic_arguments: function
-                .destination_result
-                .iter()
-                .flat_map(|destination| &destination.parameters)
-                .filter_map(|parameter| {
-                    specialization_substitutions
-                        .get(&parameter.name)
-                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
-                })
-                .collect(),
+            generic_arguments: if function.rust_generic_arguments.is_empty()
+                || !function.parameters.iter().any(|parameter| {
+                    matches!(
+                        &parameter.ty,
+                        crate::rust_interop::projection::ProjectedType::Callback {
+                            result,
+                            native_result,
+                            ..
+                        } if matches!(
+                            result.as_ref(),
+                            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                        ) || native_result.is_some()
+                    )
+                }) {
+                Vec::new()
+            } else {
+                function
+                    .rust_generic_arguments
+                    .iter()
+                    .map(|argument| specialize(argument).rust_type())
+                    .collect()
+            },
             substitutions: specialization_substitutions,
             projected_result,
             projected_parameters,
@@ -3557,6 +3734,7 @@ pub(crate) fn destination_projected_type(
         ValueType::Scalar(ScalarType::Float64) => ProjectedType::Float,
         ValueType::Scalar(ScalarType::String) => ProjectedType::String,
         ValueType::Scalar(ScalarType::Bytes) => ProjectedType::Bytes,
+        ValueType::ProjectedGeneric(name) => ProjectedType::Generic(name.clone()),
         ValueType::Optional(inner) => {
             ProjectedType::Optional(Box::new(destination_projected_type(package, inner)?))
         }
@@ -3589,7 +3767,7 @@ pub(crate) fn destination_projected_type(
             ProjectedType::Tuple(vec![item; *length])
         }
         ValueType::Function(parameters, result, _) => {
-            destination_projected_callback(package, parameters, result, false, true)?
+            destination_projected_callback(package, parameters, result, false, true, None)?
         }
         ValueType::AsyncFunction(parameters, result, transferability, _) => {
             destination_projected_callback(
@@ -3598,8 +3776,27 @@ pub(crate) fn destination_projected_type(
                 result,
                 true,
                 *transferability != TaskTransferability::Local,
+                None,
             )?
         }
+        ValueType::InvocationScopedNative {
+            rust_type,
+            family,
+            lifetimes,
+            ..
+        } => ProjectedType::InvocationScoped {
+            rust_type: rust_type.clone(),
+            name: family.name.clone(),
+            lifetimes: lifetimes.clone(),
+            owned: Box::new(ProjectedType::Foreign {
+                rust_path: rust_type.clone(),
+                name: family.name.clone(),
+                base_rust_path: rust_type
+                    .split_once('<')
+                    .map_or_else(|| rust_type.clone(), |(base, _)| base.to_owned()),
+                arguments: Vec::new(),
+            }),
+        },
         ValueType::Object(identity) => destination_projected_object(package, identity)?,
         ValueType::Reference(_) | ValueType::SharedReference(_) => {
             return Err("borrowed results cannot escape a projected call".into());
@@ -3675,6 +3872,7 @@ fn destination_projected_callback(
     result: &ElementType,
     is_async: bool,
     send: bool,
+    projected_result: Option<crate::rust_interop::projection::ProjectedType>,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     if parameters.iter().any(CallableParameterType::is_variadic) {
         return Err("variadic source callables have no fixed Rust callback representation".into());
@@ -3702,7 +3900,11 @@ fn destination_projected_callback(
             destination_projected_type(package, value_type)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let result = destination_projected_type(package, result.value_type_ref())?;
+    let result = if let Some(projected_result) = projected_result {
+        projected_result
+    } else {
+        destination_projected_type(package, result.value_type_ref())?
+    };
     let parameters_rust = parameters
         .iter()
         .map(crate::rust_interop::projection::ProjectedType::rust_type)
@@ -3726,6 +3928,7 @@ fn destination_projected_callback(
         native_bound: None,
         native_method: None,
         native_result: None,
+        native_substitutions: BTreeMap::new(),
         parameters,
         parameter_rust_types,
         parameters_destination_selected: false,
@@ -4041,6 +4244,7 @@ fn substitute_projected_generic(
             native_bound,
             native_method,
             native_result,
+            native_substitutions,
             parameters,
             parameter_rust_types,
             parameter_borrows,
@@ -4066,6 +4270,15 @@ fn substitute_projected_generic(
                     &BTreeMap::from([(parameter.to_owned(), destination.rust_type())]),
                 )
             }),
+            native_substitutions: native_substitutions
+                .iter()
+                .map(|(name, ty)| {
+                    (
+                        name.clone(),
+                        substitute_projected_generic(ty, parameter, destination),
+                    )
+                })
+                .collect(),
             parameters_destination_selected: *parameters_destination_selected,
             parameter_rust_types: parameter_rust_types
                 .iter()

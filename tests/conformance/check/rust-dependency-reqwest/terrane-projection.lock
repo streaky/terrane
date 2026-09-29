@@ -24,6 +24,11 @@
       "name": "__terrane_recursive_url",
       "package": "url",
       "version": "=2.5.8"
+    },
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
     }
   ],
   "dependencies": [

@@ -1743,6 +1743,75 @@ impl<'a> Emitter<'a> {
             .iter()
             .find_map(|child| self.invocation_scoped_return_type(child, depth))
     }
+    pub(super) fn invocation_scoped_type_generics(
+        &self,
+        node: &SyntaxNode,
+        rust_type: &str,
+        lifetimes: &[String],
+    ) -> Vec<String> {
+        if node.kind == SyntaxKind::CallExpression
+            && self.unit.projected_call_result_types.contains_key(&(
+                node.span.file,
+                node.span.start,
+                node.span.end,
+            ))
+            && let Some(callee) = node.children.first()
+            && let Some(symbol) = self.package.resolve_name_at(
+                self.unit,
+                callee.span.start,
+                &self.unit.source.text()[callee.span.start..callee.span.end],
+            )
+            && let Some(item) = self
+                .package
+                .projection
+                .item(&symbol.namespace, &symbol.name)
+            && let crate::rust_interop::projection::ProjectedKind::Function(function) = &item.kind
+        {
+            return function
+                .generic_parameters
+                .iter()
+                .filter(|parameter| {
+                    rust_type
+                        .split(|character: char| {
+                            !character.is_ascii_alphanumeric() && character != '_'
+                        })
+                        .any(|token| token == parameter.name)
+                })
+                .map(|parameter| {
+                    if parameter.rust_bounds.is_empty() {
+                        parameter.name.clone()
+                    } else {
+                        let bounds = parameter
+                            .rust_bounds
+                            .iter()
+                            .map(|bound| {
+                                lifetimes.iter().enumerate().fold(
+                                    bound.clone(),
+                                    |bound, (index, lifetime)| {
+                                        let binder = format!("for<{lifetime}>");
+                                        let marker = format!("__terrane_lifetime_binder_{index}");
+                                        bound
+                                            .replace(&binder, &marker)
+                                            .replace(lifetime, "'view")
+                                            .replace(&marker, &binder)
+                                    },
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" + ");
+                        format!("{}: {bounds}", parameter.name)
+                    }
+                })
+                .collect();
+        }
+        node.children
+            .iter()
+            .find_map(|child| {
+                let generics = self.invocation_scoped_type_generics(child, rust_type, lifetimes);
+                (!generics.is_empty()).then_some(generics)
+            })
+            .unwrap_or_default()
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
@@ -1796,6 +1865,31 @@ impl<'a> Emitter<'a> {
             .reference_return_lenders
             .get(&(contract.span.file, contract.span.start, contract.span.end))
             .copied();
+        let scoped_type_generics = return_type
+            .as_ref()
+            .and_then(|return_type| match return_type {
+                ValueType::InvocationScopedNative {
+                    rust_type,
+                    lifetimes,
+                    ..
+                } => Some(self.invocation_scoped_type_generics(node, rust_type, lifetimes)),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let function_generics = if reference_lender.is_some() {
+            "<'a>".to_owned()
+        } else {
+            let mut generics = Vec::new();
+            if scoped_lifetime == Some("'view") {
+                generics.push("'view".to_owned());
+            }
+            generics.extend(scoped_type_generics);
+            if generics.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", generics.join(", "))
+            }
+        };
         if receiver.is_none()
             && contract.owner.is_none()
             && (contract.name != "main"
@@ -1825,13 +1919,7 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             },
-            if reference_lender.is_some() {
-                "<'a>"
-            } else if let Some(lifetime) = scoped_lifetime {
-                if lifetime == "'view" { "<'view>" } else { "" }
-            } else {
-                ""
-            },
+            function_generics,
         )
         .unwrap();
         if let Some(receiver) = receiver {
