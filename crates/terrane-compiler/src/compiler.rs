@@ -60,7 +60,7 @@ pub struct Compilation {
     pub requires_async_runtime: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
-    pub dependency_containment: crate::projection::Containment,
+    pub dependency_containment: crate::rust_interop::projection::Containment,
     debug_symbols: Option<crate::debugging::DebugSymbols>,
     authored_rust_modules: Vec<AuthoredRustModule>,
 }
@@ -301,7 +301,7 @@ fn lowering_failure(
 
 fn compilation_rust_dependencies(
     package: &Package,
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
 ) -> Vec<RustDependency> {
     let mut dependencies = package
         .rust_dependencies

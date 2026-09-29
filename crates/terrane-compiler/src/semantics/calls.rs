@@ -364,7 +364,7 @@ fn validate_projected_generic_arguments(
             || (parameter.generic_interface.is_none()
                 && !matches!(
                     parameter.ty,
-                    crate::projection::ProjectedType::BoxedInterface { .. }
+                    crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
                 ))
         {
             continue;
@@ -393,9 +393,9 @@ fn validate_projected_generic_arguments(
             ));
         };
         let expected_rust_path = match &parameter.ty {
-            crate::projection::ProjectedType::BoxedInterface { trait_path, .. } => {
-                trait_path.clone()
-            }
+            crate::rust_interop::projection::ProjectedType::BoxedInterface {
+                trait_path, ..
+            } => trait_path.clone(),
             _ => parameter.ty.rust_type(),
         };
         let expected_base = expected_rust_path
@@ -408,12 +408,15 @@ fn validate_projected_generic_arguments(
             .flat_map(|dependency| &dependency.items)
             .find(|item| {
                 item.rust_path == expected_base
-                    && matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                    && matches!(
+                        item.kind,
+                        crate::rust_interop::projection::ProjectedKind::Interface(_)
+                    )
             });
         let required = required_item.map(|item| ObjectIdentity::new(&item.namespace, &item.name));
         let boxed_interface = matches!(
             parameter.ty,
-            crate::projection::ProjectedType::BoxedInterface { .. }
+            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
         );
         let interface_matches_required = required.as_ref().is_some_and(|required| {
             boxed_interface
@@ -439,7 +442,7 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         }
-        if let Some(crate::projection::ProjectedKind::Interface(interface)) =
+        if let Some(crate::rust_interop::projection::ProjectedKind::Interface(interface)) =
             required_item.map(|item| &item.kind)
             && let Some(associated) = &interface.associated_type
             && let Some(expected) = parameter.associated_type.as_ref()
@@ -485,8 +488,10 @@ fn validate_projected_generic_arguments(
             ));
         }
         if implementor.kind == ObjectKind::Interface
-            && let crate::projection::ProjectedType::BoxedInterface { auto_traits, .. } =
-                &parameter.ty
+            && let crate::rust_interop::projection::ProjectedType::BoxedInterface {
+                auto_traits,
+                ..
+            } = &parameter.ty
             && let Some((send, sync)) = package
                 .projection
                 .foreign_auto_traits(&implementor.identity.namespace, &implementor.identity.name)

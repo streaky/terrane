@@ -75,7 +75,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 false,
             )
             .is_some_and(|method| {
-                matches!(method.receiver, Some(crate::projection::Receiver::Move))
+                matches!(
+                    method.receiver,
+                    Some(crate::rust_interop::projection::Receiver::Move)
+                )
             })
             || method_contract(package, object_identity, method_name, false)
                 .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)

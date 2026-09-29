@@ -67,7 +67,7 @@ pub struct SemanticPackage {
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
     pub profile: crate::package::CapabilityProfile,
     pub(crate) root: std::path::PathBuf,
-    pub projection: crate::projection::Projection,
+    pub projection: crate::rust_interop::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -1406,10 +1406,10 @@ pub(crate) enum ContextualConstant {
 pub(crate) struct ProjectedCallSpecialization {
     pub substitutions: BTreeMap<String, String>,
     pub generic_arguments: Vec<String>,
-    pub projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     pub direct_projected_call: bool,
     pub value_parameters: Vec<Option<ValueType>>,
-    pub projected_result: crate::projection::ProjectedType,
+    pub projected_result: crate::rust_interop::projection::ProjectedType,
     pub value_type: ValueType,
 }
 
@@ -1439,7 +1439,7 @@ pub struct SemanticUnit {
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
-    pub(super) projected_removals: Vec<crate::projection::RemovedItem>,
+    pub(super) projected_removals: Vec<crate::rust_interop::projection::RemovedItem>,
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
@@ -1485,7 +1485,7 @@ impl SemanticUnit {
         identity: &ObjectIdentity,
         member: &str,
         is_static: bool,
-    ) -> Option<&crate::projection::RemovedItem> {
+    ) -> Option<&crate::rust_interop::projection::RemovedItem> {
         let separator = if is_static { "::" } else { "." };
         let name = format!("{}{separator}{member}", identity.name);
         self.projected_removals

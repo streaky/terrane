@@ -143,8 +143,9 @@ impl Backend {
             .expect("position encoding lock")
             .clone();
         let generated_projection = uri.to_file_path().is_some_and(|path| {
-            path.file_name()
-                .is_some_and(|name| name == terrane_compiler::projection::GENERATED_PROJECTION_FILE)
+            path.file_name().is_some_and(|name| {
+                name == terrane_compiler::rust_interop::projection::GENERATED_PROJECTION_FILE
+            })
         });
         let diagnostics = analysis
             .diagnostics
@@ -448,7 +449,7 @@ impl LanguageServer for Backend {
             .map(|item| CompletionItem {
                 label: item.name.clone(),
                 kind: Some(match item.kind {
-                    terrane_compiler::projection::ProjectedKind::Function(_) => {
+                    terrane_compiler::rust_interop::projection::ProjectedKind::Function(_) => {
                         CompletionItemKind::FUNCTION
                     }
                     _ => CompletionItemKind::CLASS,
@@ -569,11 +570,9 @@ impl LanguageServer for Backend {
                     return None;
                 }
                 match &item.kind {
-                    terrane_compiler::projection::ProjectedKind::Function(function)
-                        if function.name == name =>
-                    {
-                        Some(function)
-                    }
+                    terrane_compiler::rust_interop::projection::ProjectedKind::Function(
+                        function,
+                    ) if function.name == name => Some(function),
                     _ => None,
                 }
             });
@@ -917,7 +916,7 @@ impl LanguageServer for Backend {
 }
 
 fn projected_hover_content(
-    projection: &terrane_compiler::projection::Projection,
+    projection: &terrane_compiler::rust_interop::projection::Projection,
     name: &str,
     namespace: Option<&str>,
 ) -> Option<String> {
@@ -1205,15 +1204,17 @@ fn collect_document_symbols(
     }
 }
 
-fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> String {
+fn projected_item_detail(
+    item: &terrane_compiler::rust_interop::projection::ProjectedItem,
+) -> String {
     let mut details = vec![item.rust_path.clone()];
     if matches!(
         &item.kind,
-        terrane_compiler::projection::ProjectedKind::Function(function)
+        terrane_compiler::rust_interop::projection::ProjectedKind::Function(function)
             if function.chain_role.is_some()
     ) || matches!(
         &item.kind,
-        terrane_compiler::projection::ProjectedKind::ForeignType { methods, .. }
+        terrane_compiler::rust_interop::projection::ProjectedKind::ForeignType { methods, .. }
             if methods.iter().any(|method| method.chain_role.is_some())
     ) {
         details.push("chain-only; must terminate within one expression".to_owned());
@@ -1225,9 +1226,10 @@ fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> 
 }
 
 fn projected_execution_requirements(
-    item: &terrane_compiler::projection::ProjectedItem,
+    item: &terrane_compiler::rust_interop::projection::ProjectedItem,
 ) -> Option<String> {
-    let terrane_compiler::projection::ProjectedKind::Function(function) = &item.kind else {
+    let terrane_compiler::rust_interop::projection::ProjectedKind::Function(function) = &item.kind
+    else {
         return None;
     };
     let requirements = function.execution_requirements?;
@@ -1240,12 +1242,14 @@ fn projected_execution_requirements(
 }
 
 fn requirement_knowledge(
-    knowledge: terrane_compiler::projection::RequirementKnowledge,
+    knowledge: terrane_compiler::rust_interop::projection::RequirementKnowledge,
 ) -> &'static str {
     match knowledge {
-        terrane_compiler::projection::RequirementKnowledge::Required => "required",
-        terrane_compiler::projection::RequirementKnowledge::NotRequired => "not required",
-        terrane_compiler::projection::RequirementKnowledge::Unknown => "unknown",
+        terrane_compiler::rust_interop::projection::RequirementKnowledge::Required => "required",
+        terrane_compiler::rust_interop::projection::RequirementKnowledge::NotRequired => {
+            "not required"
+        }
+        terrane_compiler::rust_interop::projection::RequirementKnowledge::Unknown => "unknown",
     }
 }
 
@@ -1343,7 +1347,7 @@ type ProjectionDemands = BTreeSet<(String, String)>;
 type CachedProjection = (
     ProjectionStamp,
     ProjectionDemands,
-    terrane_compiler::projection::Projection,
+    terrane_compiler::rust_interop::projection::Projection,
 );
 
 static PROJECTIONS: LazyLock<Mutex<HashMap<PathBuf, CachedProjection>>> =
@@ -1359,7 +1363,7 @@ fn projection_stamp(paths: &[PathBuf]) -> Option<ProjectionStamp> {
 async fn projection_for_uri(
     uri: &Uri,
     document_text: &str,
-) -> Option<terrane_compiler::projection::Projection> {
+) -> Option<terrane_compiler::rust_interop::projection::Projection> {
     let path = uri.to_file_path()?.into_owned();
     let document_text = document_text.to_owned();
     tokio::task::spawn_blocking(move || {
@@ -1400,7 +1404,7 @@ async fn projection_for_uri(
         {
             return Some(projection);
         }
-        let projection = terrane_compiler::projection::resolve(
+        let projection = terrane_compiler::rust_interop::projection::resolve(
             &package.root,
             &package.rust_dependencies,
             Some(&demands),
@@ -1418,10 +1422,10 @@ async fn projection_for_uri(
 }
 
 fn declined_namespace(
-    dependency: &terrane_compiler::projection::ProjectedDependency,
+    dependency: &terrane_compiler::rust_interop::projection::ProjectedDependency,
     rust_path: &str,
 ) -> String {
-    terrane_compiler::projection::namespace_for_rust_path(dependency, rust_path)
+    terrane_compiler::rust_interop::projection::namespace_for_rust_path(dependency, rust_path)
 }
 
 fn dependency_import_namespace(text: &str, position: Position) -> Option<String> {
@@ -1590,7 +1594,7 @@ mod tests {
 
     #[test]
     fn projected_async_completion_describes_execution_requirements() {
-        use terrane_compiler::projection::{
+        use terrane_compiler::rust_interop::projection::{
             ProjectedExecutionRequirements, ProjectedFunction, ProjectedItem, ProjectedKind,
             ProjectedType, RequirementKnowledge,
         };
@@ -1630,7 +1634,7 @@ mod tests {
 
     #[test]
     fn projected_chain_completion_exposes_non_escaping_constraint() {
-        use terrane_compiler::projection::{
+        use terrane_compiler::rust_interop::projection::{
             ChainRole, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
         };
 

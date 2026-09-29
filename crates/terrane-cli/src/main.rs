@@ -615,7 +615,7 @@ fn prepare_artifact(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
-    containment: terrane_compiler::projection::Containment,
+    containment: terrane_compiler::rust_interop::projection::Containment,
     artifact_kind: terrane_compiler::ArtifactKind,
     profile: CargoProfile,
 ) -> Result<Option<PathBuf>, CliFailure> {
@@ -751,15 +751,15 @@ fn run_cargo(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
-    containment: terrane_compiler::projection::Containment,
+    containment: terrane_compiler::rust_interop::projection::Containment,
     profile: CargoProfile,
 ) -> Result<(), CliFailure> {
     let rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
-    let contained =
-        has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
+    let contained = has_rust_dependencies
+        && containment == terrane_compiler::rust_interop::projection::Containment::Enforced;
     if has_rust_dependencies {
         let mut fetch = Command::new("cargo");
-        terrane_compiler::cargo_toolchain::configure_cargo_command(&mut fetch);
+        terrane_compiler::rust_interop::configure_cargo_command(&mut fetch);
         configure_generated_toolchain(&mut fetch, crate_dir);
         let fetch = fetch
             .args(["fetch", "--manifest-path"])
@@ -819,7 +819,7 @@ fn run_cargo(
     } else {
         Command::new("cargo")
     };
-    terrane_compiler::cargo_toolchain::configure_cargo_command(&mut cargo);
+    terrane_compiler::rust_interop::configure_cargo_command(&mut cargo);
     configure_generated_toolchain(&mut cargo, crate_dir);
     cargo.args([
         command,
@@ -2132,7 +2132,7 @@ mod tests {
             &rust_files,
             &units,
             false,
-            terrane_compiler::projection::Containment::Unavailable,
+            terrane_compiler::rust_interop::projection::Containment::Unavailable,
             CargoProfile::Debug,
         )
         .unwrap_err();

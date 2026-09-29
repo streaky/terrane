@@ -3230,7 +3230,7 @@ Three small items are carried out of milestone 25 rather than blocking it. None 
 contract, and each is cheap to take whenever its file is next open:
 
 - **`cargo_manifest_table` is a stringly-typed discriminator.** It returns a `String`, and six call
-  sites in `terrane-cli/src/main.rs`, `terrane-compiler/src/projection.rs`, and
+  sites in `terrane-cli/src/main.rs`, `terrane-compiler/src/rust_interop/projection.rs`, and
   `terrane-compiler/tests/conformance.rs` compare it against the literal `"dependencies"` to decide
   whether an entry belongs in the default Cargo table — over information `RustDependency::target`
   already carries as an `Option`. Returning `Option<String>`, with `None` meaning the default table,

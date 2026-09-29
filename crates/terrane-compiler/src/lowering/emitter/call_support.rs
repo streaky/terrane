@@ -556,7 +556,7 @@ impl Emitter<'_> {
     pub(super) fn projected_function_for_call(
         &self,
         callee: &SyntaxNode,
-    ) -> Option<&crate::projection::ProjectedFunction> {
+    ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
         if callee.kind == SyntaxKind::Name {
             let symbol =
                 self.package
@@ -566,7 +566,9 @@ impl Emitter<'_> {
                 .projection
                 .item(&symbol.namespace, &symbol.name)
                 .and_then(|item| match &item.kind {
-                    crate::projection::ProjectedKind::Function(function) => Some(function),
+                    crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                        Some(function)
+                    }
                     _ => None,
                 });
         }

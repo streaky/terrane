@@ -3,6 +3,7 @@
 mod emitter;
 
 // Generated dependencies, runtime support, and backend-independent rendering helpers.
+#[path = "rust_interop/lowering.rs"]
 mod dependencies;
 mod helpers;
 mod runtime_support;

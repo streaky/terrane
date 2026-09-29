@@ -1,6 +1,6 @@
 use super::prelude::*;
 use crate::package::RustDependency;
-use crate::projection::{
+use crate::rust_interop::projection::{
     Containment, DeclinedItem, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem,
     ProjectedKind, Projection, ProjectionResolution, ProjectionSource,
 };

@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::package::RustDependency;
-use crate::projection::{DeclinedItem, ProjectedKind, Projection};
+use crate::rust_interop::projection::{DeclinedItem, ProjectedKind, Projection};
 
 /// Compiler and native-surface evidence for one exactly pinned Rust package.
 #[derive(Clone, Debug, Serialize)]
@@ -86,8 +86,9 @@ pub fn assess_projection_gap(
     dependency: &RustDependency,
     survey_target: &str,
 ) -> Result<ProjectionCensusReport, String> {
-    let projection = crate::projection::resolve(root, std::slice::from_ref(dependency), None)
-        .map_err(|error| error.message)?;
+    let projection =
+        crate::rust_interop::projection::resolve(root, std::slice::from_ref(dependency), None)
+            .map_err(|error| error.message)?;
     let manifest = root.join(".trn/dependencies/Cargo.toml");
     let selector = format!(
         "{}@{}",

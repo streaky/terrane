@@ -548,7 +548,7 @@ pub(super) fn refresh_source_descriptor_members(units: &mut [SemanticUnit]) {
 }
 
 fn value_type_contains_nonclone_foreign(
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
     value_type: &ValueType,
 ) -> bool {
     match value_type {
@@ -659,7 +659,10 @@ pub(super) fn propagate_resource_ownership(
                         .projection
                         .item(&interface.namespace, &interface.name)
                         .is_some_and(|item| {
-                            matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                            matches!(
+                                item.kind,
+                                crate::rust_interop::projection::ProjectedKind::Interface(_)
+                            )
                         })
                 });
             if object.resource_owning && has_copyable_object_contract {
@@ -909,7 +912,7 @@ pub(super) fn validate_object_conformance(
                         object.span,
                     ));
                 };
-                if let Some(crate::projection::ProjectedKind::Interface(projected)) =
+                if let Some(crate::rust_interop::projection::ProjectedKind::Interface(projected)) =
                     resolved_interface
                         .identity
                         .rsplit_once("::")
@@ -988,7 +991,7 @@ pub(super) fn validate_object_conformance(
                                                 item.rust_path == *bound
                                                     && matches!(
                                                         &item.kind,
-                                                        crate::projection::ProjectedKind::Interface(
+                                                        crate::rust_interop::projection::ProjectedKind::Interface(
                                                             interface
                                                         ) if interface.associated_type.is_none()
                                                     )
@@ -1060,7 +1063,7 @@ pub(super) fn validate_object_conformance(
                     .projection
                     .item(&resolved_interface.namespace, &resolved_interface.name)
                     .and_then(|item| match &item.kind {
-                        crate::projection::ProjectedKind::Interface(projected) => {
+                        crate::rust_interop::projection::ProjectedKind::Interface(projected) => {
                             Some(projected.requires_drop)
                         }
                         _ => None,
@@ -1083,13 +1086,13 @@ pub(super) fn validate_object_conformance(
                         .projection
                         .item(&resolved_interface.namespace, &resolved_interface.name)
                         .and_then(|item| match &item.kind {
-                            crate::projection::ProjectedKind::Interface(projected) => {
-                                projected.methods.iter().find(|method| {
-                                    method.function.is_async
-                                        && method.function.receiver
-                                            != Some(crate::projection::Receiver::Move)
-                                })
-                            }
+                            crate::rust_interop::projection::ProjectedKind::Interface(
+                                projected,
+                            ) => projected.methods.iter().find(|method| {
+                                method.function.is_async
+                                    && method.function.receiver
+                                        != Some(crate::rust_interop::projection::Receiver::Move)
+                            }),
                             _ => None,
                         })
                         .is_some()
@@ -1110,7 +1113,7 @@ pub(super) fn validate_object_conformance(
                     .is_some_and(|item| {
                         matches!(
                             &item.kind,
-                            crate::projection::ProjectedKind::Interface(projected)
+                            crate::rust_interop::projection::ProjectedKind::Interface(projected)
                                 if projected.methods.iter().any(|method| method.function.is_async)
                         )
                     });
@@ -1859,16 +1862,16 @@ pub(super) fn infer_and_validate_invocation_modes(
 }
 
 fn open_projected_interface<'a>(
-    projection: &'a crate::projection::Projection,
+    projection: &'a crate::rust_interop::projection::Projection,
     value_type: &ValueType,
-) -> Option<&'a crate::projection::ProjectedItem> {
+) -> Option<&'a crate::rust_interop::projection::ProjectedItem> {
     match value_type {
         ValueType::Object(identity) if identity.application.is_none() => projection
             .item(&identity.namespace, &identity.name)
             .filter(|item| {
                 matches!(
                     &item.kind,
-                    crate::projection::ProjectedKind::Interface(interface)
+                    crate::rust_interop::projection::ProjectedKind::Interface(interface)
                         if interface.associated_type.is_some()
                 )
             }),
@@ -1983,7 +1986,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                     .projection
                     .item(&interface_identity.namespace, &interface_identity.name)
                     .and_then(|item| match &item.kind {
-                        crate::projection::ProjectedKind::Interface(interface) => {
+                        crate::rust_interop::projection::ProjectedKind::Interface(interface) => {
                             Some(interface.supertraits.clone())
                         }
                         _ => None,
@@ -2030,7 +2033,9 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
             .projection
             .item(&identity.namespace, &identity.name)
             .and_then(|item| match &item.kind {
-                crate::projection::ProjectedKind::Interface(interface) => Some(interface),
+                crate::rust_interop::projection::ProjectedKind::Interface(interface) => {
+                    Some(interface)
+                }
                 _ => None,
             })
             .into_iter()
@@ -2049,7 +2054,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
             .is_some_and(|item| {
                 matches!(
                     &item.kind,
-                    crate::projection::ProjectedKind::Interface(interface)
+                    crate::rust_interop::projection::ProjectedKind::Interface(interface)
                         if interface.associated_type.is_some()
                 )
             });
@@ -2255,7 +2260,7 @@ fn collect_projected_call_result_types(
     let Some(function) = projected_function_for_call(package, unit, callee) else {
         return Ok(());
     };
-    let crate::projection::ProjectedType::Foreign {
+    let crate::rust_interop::projection::ProjectedType::Foreign {
         rust_path,
         name: projected_name,
         base_rust_path,
@@ -2269,7 +2274,7 @@ fn collect_projected_call_result_types(
         || arguments.is_empty()
         || !arguments
             .iter()
-            .all(crate::projection::ProjectedType::is_concrete_terrane_numeric)
+            .all(crate::rust_interop::projection::ProjectedType::is_concrete_terrane_numeric)
     {
         return Ok(());
     }
@@ -2290,10 +2295,10 @@ fn collect_projected_call_result_types(
 }
 
 fn collect_projected_generic_names(
-    projected: &crate::projection::ProjectedType,
+    projected: &crate::rust_interop::projection::ProjectedType,
     names: &mut BTreeSet<String>,
 ) {
-    use crate::projection::ProjectedType;
+    use crate::rust_interop::projection::ProjectedType;
     match projected {
         ProjectedType::Generic(name) => {
             names.insert(name.clone());
@@ -2359,10 +2364,10 @@ struct PendingProjectedBound {
 struct PendingProjectedSpecialization {
     unit: usize,
     span: Span,
-    substitutions: BTreeMap<String, crate::projection::ProjectedType>,
+    substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     generic_arguments: Vec<String>,
-    projected_result: crate::projection::ProjectedType,
-    projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    projected_result: crate::rust_interop::projection::ProjectedType,
+    projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     direct_projected_call: bool,
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
@@ -2392,7 +2397,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .flat_map(|bound| {
             std::iter::once(&bound.direct_rust_type)
                 .chain(bound.borrowed_rust_type.as_ref())
-                .map(|rust_type| crate::BoundQuestion {
+                .map(|rust_type| crate::rust_interop::BoundQuestion {
                     rust_type: rust_type.clone(),
                     rust_bound: bound.rust_bound.clone(),
                     inferred_parameters: bound.inferred_parameters.clone(),
@@ -2400,7 +2405,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         })
         .collect::<Vec<_>>();
     let workspace = package.root.join(".trn/dependencies");
-    let report = crate::ProjectionOracle::new(
+    let report = crate::rust_interop::ProjectionOracle::new(
         &workspace,
         &package.projection.cache_identity,
         package.projection.containment,
@@ -2453,11 +2458,11 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                     } else {
                         &bound.direct_rust_type
                     };
-                    answers.get(&crate::BoundQuestion {
+                    answers.get(&crate::rust_interop::BoundQuestion {
                         rust_type: rust_type.clone(),
                         rust_bound: bound.rust_bound.clone(),
                         inferred_parameters: bound.inferred_parameters.clone(),
-                    }) == Some(&crate::ProbeAnswer::Yes)
+                    }) == Some(&crate::rust_interop::ProbeAnswer::Yes)
                 })
             };
             if candidate_works(false) {
@@ -2480,15 +2485,15 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             let bound = bounds
                 .iter()
                 .find(|bound| {
-                    answers.get(&crate::BoundQuestion {
+                    answers.get(&crate::rust_interop::BoundQuestion {
                         rust_type: bound.direct_rust_type.clone(),
                         rust_bound: bound.rust_bound.clone(),
                         inferred_parameters: bound.inferred_parameters.clone(),
-                    }) != Some(&crate::ProbeAnswer::Yes)
+                    }) != Some(&crate::rust_interop::ProbeAnswer::Yes)
                 })
                 .copied()
                 .expect("a failed direct candidate has a failed bound");
-            let question = crate::BoundQuestion {
+            let question = crate::rust_interop::BoundQuestion {
                 rust_type: bound.direct_rust_type.clone(),
                 rust_bound: bound.rust_bound.clone(),
                 inferred_parameters: bound.inferred_parameters.clone(),
@@ -2508,7 +2513,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 },
             );
             match answers.get(&question) {
-                Some(crate::ProbeAnswer::Unknown { reason }) => {
+                Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
                         "T0119",
@@ -2520,7 +2525,9 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                         specialization.span,
                     ));
                 }
-                Some(crate::ProbeAnswer::No | crate::ProbeAnswer::Yes) => {
+                Some(
+                    crate::rust_interop::ProbeAnswer::No | crate::rust_interop::ProbeAnswer::Yes,
+                ) => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
                         "T0119",
@@ -2590,10 +2597,10 @@ fn oracle_diagnostic_summary(message: &str) -> String {
 }
 
 fn merge_projected_callback_shape(
-    template: &crate::projection::ProjectedType,
-    actual: &crate::projection::ProjectedType,
-) -> crate::projection::ProjectedType {
-    use crate::projection::ProjectedType;
+    template: &crate::rust_interop::projection::ProjectedType,
+    actual: &crate::rust_interop::projection::ProjectedType,
+) -> crate::rust_interop::projection::ProjectedType {
+    use crate::rust_interop::projection::ProjectedType;
     let (
         ProjectedType::Callback {
             rust_name,
@@ -2733,7 +2740,7 @@ fn projected_call_result(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     mut node: &SyntaxNode,
-) -> Option<crate::projection::ProjectedType> {
+) -> Option<crate::rust_interop::projection::ProjectedType> {
     while node.kind == SyntaxKind::GroupExpression {
         node = node.children.first()?;
     }
@@ -2750,11 +2757,11 @@ fn projected_call_result(
 }
 
 fn bind_projected_native_generics(
-    expected: &crate::projection::ProjectedType,
-    actual: &crate::projection::ProjectedType,
-    bindings: &mut BTreeMap<String, crate::projection::ProjectedType>,
+    expected: &crate::rust_interop::projection::ProjectedType,
+    actual: &crate::rust_interop::projection::ProjectedType,
+    bindings: &mut BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
 ) -> Result<(), String> {
-    use crate::projection::ProjectedType;
+    use crate::rust_interop::projection::ProjectedType;
     if let ProjectedType::Generic(name) = expected {
         if let Some(previous) = bindings.get(name) {
             return (previous == actual)
@@ -2835,7 +2842,7 @@ fn collect_projected_destinations(
                 parameter.generic_parameter.is_some()
                     && matches!(
                         parameter.ty,
-                        crate::projection::ProjectedType::Callback { .. }
+                        crate::rust_interop::projection::ProjectedType::Callback { .. }
                     )
             }))
         && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
@@ -2883,7 +2890,7 @@ fn collect_projected_destinations(
                 continue;
             };
             if let (
-                crate::projection::ProjectedType::Callback {
+                crate::rust_interop::projection::ProjectedType::Callback {
                     parameters_destination_selected,
                     ..
                 },
@@ -2982,7 +2989,7 @@ fn collect_projected_destinations(
             };
             projected_bindings.insert(generic.name.clone(), projected);
         }
-        let specialize = |template: &crate::projection::ProjectedType| {
+        let specialize = |template: &crate::rust_interop::projection::ProjectedType| {
             projected_bindings
                 .iter()
                 .fold(template.clone(), |specialized, (generic, projected)| {
@@ -2995,7 +3002,8 @@ fn collect_projected_destinations(
             .cloned()
             .enumerate()
             .map(|(index, mut parameter)| {
-                if let crate::projection::ProjectedType::Generic(name) = &parameter.ty {
+                if let crate::rust_interop::projection::ProjectedType::Generic(name) = &parameter.ty
+                {
                     parameter.generic_parameter = Some(name.clone());
                 }
                 parameter.ty = if let Some(actual) = native_projected_parameters.get(&index) {
@@ -3029,7 +3037,8 @@ fn collect_projected_destinations(
             })
             .collect();
         let mut projected_result = specialize(&function.result);
-        let result = if let crate::projection::ProjectedType::Generic(name) = &function.result
+        let result = if let crate::rust_interop::projection::ProjectedType::Generic(name) =
+            &function.result
             && let Some(bound) = value_bindings.get(name)
         {
             bound.clone()
@@ -3110,9 +3119,13 @@ fn collect_projected_destinations(
                 let projected = &projected_bindings[&generic.name];
                 let rust_type = projected.rust_type();
                 let borrowed_rust_type = match projected {
-                    crate::projection::ProjectedType::String => Some("&str".to_owned()),
-                    crate::projection::ProjectedType::Bytes => Some("&[u8]".to_owned()),
-                    crate::projection::ProjectedType::Foreign { .. } => {
+                    crate::rust_interop::projection::ProjectedType::String => {
+                        Some("&str".to_owned())
+                    }
+                    crate::rust_interop::projection::ProjectedType::Bytes => {
+                        Some("&[u8]".to_owned())
+                    }
+                    crate::rust_interop::projection::ProjectedType::Foreign { .. } => {
                         Some(format!("&mut {rust_type}"))
                     }
                     _ => None,
@@ -3123,7 +3136,9 @@ fn collect_projected_destinations(
                     .filter_map(|bound| {
                         let rust_bound =
                             crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements);
-                        if let crate::projection::ProjectedType::Opaque { bounds, .. } = projected
+                        if let crate::rust_interop::projection::ProjectedType::Opaque {
+                            bounds, ..
+                        } = projected
                             && bounds
                                 .iter()
                                 .any(|bound| rust_type_text_equal(bound, &rust_bound))
@@ -3187,7 +3202,7 @@ fn collect_projected_destinations(
                 .filter_map(|parameter| {
                     specialization_substitutions
                         .get(&parameter.name)
-                        .map(crate::projection::ProjectedType::rust_type)
+                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 })
                 .collect(),
             substitutions: specialization_substitutions,
@@ -3458,8 +3473,8 @@ type DestinationProjectionError = std::borrow::Cow<'static, str>;
 pub(crate) fn destination_projected_type(
     package: &SemanticPackage,
     value_type: &ValueType,
-) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
-    use crate::projection::ProjectedType;
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    use crate::rust_interop::projection::ProjectedType;
     Ok(match value_type {
         ValueType::Scalar(ScalarType::None) => ProjectedType::None,
         ValueType::Scalar(ScalarType::Bool) => ProjectedType::Bool,
@@ -3539,7 +3554,7 @@ pub(crate) fn destination_projected_type(
 fn destination_projected_object(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
-) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     if let Some(projected) = package
         .projection
         .projected_type(&identity.namespace, &identity.name)
@@ -3562,13 +3577,13 @@ fn destination_projected_object(
         .filter(|item| {
             matches!(
                 item.kind,
-                crate::projection::ProjectedKind::ForeignType { .. }
-                    | crate::projection::ProjectedKind::Interface(_)
-                    | crate::projection::ProjectedKind::Enum { .. }
+                crate::rust_interop::projection::ProjectedKind::ForeignType { .. }
+                    | crate::rust_interop::projection::ProjectedKind::Interface(_)
+                    | crate::rust_interop::projection::ProjectedKind::Enum { .. }
             )
         })
         .ok_or("source-declared object destinations have no dependency conversion contract")?;
-    Ok(crate::projection::ProjectedType::Foreign {
+    Ok(crate::rust_interop::projection::ProjectedType::Foreign {
         rust_path: item.rust_path.clone(),
         name: item.name.clone(),
         base_rust_path: item.rust_path.clone(),
@@ -3581,10 +3596,10 @@ fn destination_projected_mapping(
     key: &ElementType,
     value: &ElementType,
     ordered: bool,
-) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     let key = destination_projected_type(package, key.value_type_ref())?;
     let value = destination_projected_type(package, value.value_type_ref())?;
-    Ok(crate::projection::ProjectedType::Mapping {
+    Ok(crate::rust_interop::projection::ProjectedType::Mapping {
         rust_path: format!(
             "std::collections::{}<{}, {}>",
             if ordered { "BTreeMap" } else { "HashMap" },
@@ -3603,7 +3618,7 @@ fn destination_projected_callback(
     result: &ElementType,
     is_async: bool,
     send: bool,
-) -> Result<crate::projection::ProjectedType, DestinationProjectionError> {
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     if parameters.iter().any(CallableParameterType::is_variadic) {
         return Err("variadic source callables have no fixed Rust callback representation".into());
     }
@@ -3633,7 +3648,7 @@ fn destination_projected_callback(
     let result = destination_projected_type(package, result.value_type_ref())?;
     let parameters_rust = parameters
         .iter()
-        .map(crate::projection::ProjectedType::rust_type)
+        .map(crate::rust_interop::projection::ProjectedType::rust_type)
         .collect::<Vec<_>>()
         .join(", ");
     let rust_name = if is_async {
@@ -3647,9 +3662,9 @@ fn destination_projected_callback(
     };
     let parameter_rust_types = parameters
         .iter()
-        .map(crate::projection::ProjectedType::rust_type)
+        .map(crate::rust_interop::projection::ProjectedType::rust_type)
         .collect();
-    Ok(crate::projection::ProjectedType::Callback {
+    Ok(crate::rust_interop::projection::ProjectedType::Callback {
         rust_name,
         parameters,
         parameter_rust_types,
@@ -3665,10 +3680,10 @@ fn destination_projected_callback(
 }
 
 fn projected_types_share_concrete_rust_representation(
-    left: &crate::projection::ProjectedType,
-    right: &crate::projection::ProjectedType,
+    left: &crate::rust_interop::projection::ProjectedType,
+    right: &crate::rust_interop::projection::ProjectedType,
 ) -> bool {
-    use crate::projection::ProjectedType;
+    use crate::rust_interop::projection::ProjectedType;
 
     fn integer_rust_type(projected: &ProjectedType) -> Option<&str> {
         match projected {
@@ -3689,17 +3704,17 @@ fn projected_types_share_concrete_rust_representation(
     reason = "recursive projected type matching is clearest as one exhaustive traversal"
 )]
 fn select_projected_generic_destinations(
-    template: &crate::projection::ProjectedType,
+    template: &crate::rust_interop::projection::ProjectedType,
     parameters: &BTreeSet<String>,
-    expected: &crate::projection::ProjectedType,
-) -> Result<Option<BTreeMap<String, crate::projection::ProjectedType>>, String> {
+    expected: &crate::rust_interop::projection::ProjectedType,
+) -> Result<Option<BTreeMap<String, crate::rust_interop::projection::ProjectedType>>, String> {
     fn collect(
-        template: &crate::projection::ProjectedType,
+        template: &crate::rust_interop::projection::ProjectedType,
         parameters: &BTreeSet<String>,
-        expected: &crate::projection::ProjectedType,
-        destinations: &mut BTreeMap<String, crate::projection::ProjectedType>,
+        expected: &crate::rust_interop::projection::ProjectedType,
+        destinations: &mut BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     ) -> Result<bool, String> {
-        use crate::projection::ProjectedType;
+        use crate::rust_interop::projection::ProjectedType;
         match (template, expected) {
             (ProjectedType::Generic(name), expected) if parameters.contains(name) => {
                 if let Some(previous) = destinations.get(name) {
@@ -3812,10 +3827,10 @@ fn select_projected_generic_destinations(
 }
 
 fn align_projected_result_representation(
-    projected: &crate::projection::ProjectedType,
-    expected: &crate::projection::ProjectedType,
-) -> crate::projection::ProjectedType {
-    use crate::projection::ProjectedType;
+    projected: &crate::rust_interop::projection::ProjectedType,
+    expected: &crate::rust_interop::projection::ProjectedType,
+) -> crate::rust_interop::projection::ProjectedType {
+    use crate::rust_interop::projection::ProjectedType;
 
     match (projected, expected) {
         (
@@ -3905,11 +3920,11 @@ fn align_projected_result_representation(
     reason = "recursive projected type substitution is clearest as one exhaustive match"
 )]
 fn substitute_projected_generic(
-    template: &crate::projection::ProjectedType,
+    template: &crate::rust_interop::projection::ProjectedType,
     parameter: &str,
-    destination: &crate::projection::ProjectedType,
-) -> crate::projection::ProjectedType {
-    use crate::projection::ProjectedType;
+    destination: &crate::rust_interop::projection::ProjectedType,
+) -> crate::rust_interop::projection::ProjectedType {
+    use crate::rust_interop::projection::ProjectedType;
     match template {
         ProjectedType::Generic(name) if name == parameter => destination.clone(),
         ProjectedType::Sequence { rust_path, item } => {

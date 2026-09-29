@@ -270,7 +270,7 @@ fn lower_with_tests(
         dependency.items.iter().any(|item| {
             matches!(
                 &item.kind,
-                crate::projection::ProjectedKind::Interface(interface)
+                crate::rust_interop::projection::ProjectedKind::Interface(interface)
                     if interface.send
                         && interface.methods.iter().any(|method| method.function.is_async)
             )

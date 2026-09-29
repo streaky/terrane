@@ -92,7 +92,7 @@ pub struct Projection {
     #[serde(default)]
     pub source: ProjectionSource,
     #[serde(default)]
-    pub probes: Vec<crate::ProbeEvidence>,
+    pub probes: Vec<crate::rust_interop::ProbeEvidence>,
     #[serde(default)]
     pub probe_wall_time_ms: u128,
     #[serde(default)]
@@ -3209,11 +3209,11 @@ impl From<terrane_rust_analysis::AnalysisError> for ProjectionError {
 
 fn decline_unproven_projected_interfaces(
     projected: &mut [ProjectedDependency],
-    evidence: &[crate::projection_oracle::ImplProbeEvidence],
+    evidence: &[crate::rust_interop::ImplProbeEvidence],
 ) {
     for evidence in evidence
         .iter()
-        .filter(|evidence| evidence.answer != crate::ProbeAnswer::Yes)
+        .filter(|evidence| evidence.answer != crate::rust_interop::ProbeAnswer::Yes)
     {
         for dependency in &mut *projected {
             let Some(index) = dependency
@@ -3546,7 +3546,7 @@ pub fn resolve(
         .flat_map(|item| {
             ["Send", "Sync"]
                 .into_iter()
-                .map(|rust_bound| crate::projection_oracle::BoundQuestion {
+                .map(|rust_bound| crate::rust_interop::BoundQuestion {
                     rust_type: item.rust_path.clone(),
                     rust_bound: rust_bound.to_owned(),
                     inferred_parameters: Vec::new(),
@@ -3554,11 +3554,10 @@ pub fn resolve(
         })
         .collect::<Vec<_>>();
     if !auto_trait_questions.is_empty() {
-        let report =
-            crate::projection_oracle::ProjectionOracle::new(&workspace, &identity, sandbox)
-                .prove_bounds(&auto_trait_questions)?;
+        let report = crate::rust_interop::ProjectionOracle::new(&workspace, &identity, sandbox)
+            .prove_bounds(&auto_trait_questions)?;
         for evidence in report.evidence {
-            let satisfied = evidence.answer == crate::projection_oracle::ProbeAnswer::Yes;
+            let satisfied = evidence.answer == crate::rust_interop::ProbeAnswer::Yes;
             for item in projected
                 .iter_mut()
                 .flat_map(|dependency| &mut dependency.items)
@@ -3589,9 +3588,8 @@ pub fn resolve(
         })
         .collect::<Vec<_>>();
     if !impl_questions.is_empty() {
-        let report =
-            crate::projection_oracle::ProjectionOracle::new(&workspace, &identity, sandbox)
-                .prove_impls(&impl_questions)?;
+        let report = crate::rust_interop::ProjectionOracle::new(&workspace, &identity, sandbox)
+            .prove_impls(&impl_questions)?;
         decline_unproven_projected_interfaces(&mut projected, &report.evidence);
     }
     resolution_events.push(ResolutionEvent {
@@ -4116,7 +4114,7 @@ fn run_cargo(
     } else {
         Command::new("cargo")
     };
-    crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
+    crate::rust_interop::configure_projection_cargo_command(&mut command);
     if matches!(toolchain, CargoToolchain::RustdocNightly) {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
     }
@@ -4140,7 +4138,7 @@ fn run_cargo(
 
 fn resolved_dependency_metadata(workspace: &Path) -> Result<serde_json::Value, ProjectionError> {
     let mut command = Command::new("cargo");
-    crate::cargo_toolchain::configure_projection_cargo_command(&mut command);
+    crate::rust_interop::configure_projection_cargo_command(&mut command);
     let output = command
         .args(["metadata", "--format-version", "1", "--offline", "--frozen"])
         .current_dir(workspace)
@@ -6444,7 +6442,7 @@ fn project_interface_inner(
 fn projected_interface_impl_question(
     item: &ProjectedItem,
     interface: &ProjectedInterface,
-) -> crate::projection_oracle::ImplQuestion {
+) -> crate::rust_interop::ImplQuestion {
     let associated_bounds = interface.associated_type.as_ref().map(|associated| {
         let bounds = associated.bounds.join(" + ");
         if bounds.is_empty() {
@@ -6532,7 +6530,7 @@ fn projected_interface_impl_question(
         source.push_str("}\n");
     }
     source.push_str("fn main() {}\n");
-    crate::projection_oracle::ImplQuestion {
+    crate::rust_interop::ImplQuestion {
         label: item.rust_path.clone(),
         source,
     }
@@ -13480,12 +13478,12 @@ mod tests {
             declined: Vec::new(),
             partial_declines: Vec::new(),
         }];
-        let evidence = vec![crate::projection_oracle::ImplProbeEvidence {
-            question: crate::projection_oracle::ImplQuestion {
+        let evidence = vec![crate::rust_interop::ImplProbeEvidence {
+            question: crate::rust_interop::ImplQuestion {
                 label: "witness::Rejected".to_owned(),
                 source: "compile_error!(\"witness failure\");".to_owned(),
             },
-            answer: crate::ProbeAnswer::No,
+            answer: crate::rust_interop::ProbeAnswer::No,
         }];
 
         decline_unproven_projected_interfaces(&mut dependencies, &evidence);

@@ -347,7 +347,7 @@ pub(super) fn object_method_mutates(
         .is_some_and(|method| {
             matches!(
                 method.receiver,
-                Some(crate::projection::Receiver::MutableBorrow)
+                Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             )
         })
 }
@@ -464,7 +464,10 @@ pub(crate) fn member_invocation_mode(
                 .projection
                 .method(&identity.namespace, &identity.name, member_name, false)
                 .is_some_and(|method| {
-                    matches!(method.receiver, Some(crate::projection::Receiver::Move))
+                    matches!(
+                        method.receiver,
+                        Some(crate::rust_interop::projection::Receiver::Move)
+                    )
                 })
         {
             return InvocationMode::Consuming;

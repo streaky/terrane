@@ -67,7 +67,7 @@ pub(crate) fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         effects: Vec::new(),
     };
     let report =
-        terrane_compiler::projection_census::assess_projection_gap(&root, &dependency, &target)
+        terrane_compiler::rust_interop::census::assess_projection_gap(&root, &dependency, &target)
             .map_err(CliFailure::package)?;
     let json = serde_json::to_string_pretty(&report)
         .map_err(|error| CliFailure::package(format!("cannot encode census report: {error}")))?;

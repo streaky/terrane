@@ -1644,10 +1644,10 @@ fn validate_projected_callback_contract(
     unit: &SemanticUnit,
     value: &SyntaxNode,
     contract: &FunctionContract,
-    callback: &crate::projection::ProjectedType,
+    callback: &crate::rust_interop::projection::ProjectedType,
     consumed_once: &mut BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
-    let crate::projection::ProjectedType::Callback {
+    let crate::rust_interop::projection::ProjectedType::Callback {
         invocation_mode,
         retained,
         send,
@@ -1769,7 +1769,10 @@ fn validate_projected_borrowed_async_call(
         && method.is_async
         && matches!(
             method.receiver,
-            Some(crate::projection::Receiver::Borrow | crate::projection::Receiver::MutableBorrow)
+            Some(
+                crate::rust_interop::projection::Receiver::Borrow
+                    | crate::rust_interop::projection::Receiver::MutableBorrow
+            )
         )
     {
         return Err(failure(
@@ -1786,7 +1789,7 @@ fn projected_chain_role(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-) -> Option<crate::projection::ChainRole> {
+) -> Option<crate::rust_interop::projection::ChainRole> {
     if node.kind != SyntaxKind::CallExpression {
         return None;
     }
@@ -1796,7 +1799,7 @@ fn projected_chain_role(
     if callee.kind == SyntaxKind::Name {
         let symbol =
             package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
-        let crate::projection::ProjectedKind::Function(function) = &package
+        let crate::rust_interop::projection::ProjectedKind::Function(function) = &package
             .projection
             .item(&symbol.namespace, &symbol.name)?
             .kind
@@ -1863,7 +1866,10 @@ fn collect_chain_receivers(
             }
             if matches!(
                 projected_chain_role(package, unit, value),
-                Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+                Some(
+                    crate::rust_interop::projection::ChainRole::Root
+                        | crate::rust_interop::projection::ChainRole::Continue
+                )
             ) {
                 receivers.insert(span_key(value.span));
             }
@@ -1878,7 +1884,7 @@ pub(super) fn projected_function_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &SemanticUnit,
     callee: &SyntaxNode,
-) -> Option<&'a crate::projection::ProjectedFunction> {
+) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
     if callee.kind == SyntaxKind::Name {
         let symbol =
             package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
@@ -1886,7 +1892,9 @@ pub(super) fn projected_function_for_call<'a>(
             .projection
             .item(&symbol.namespace, &symbol.name)
             .and_then(|item| match &item.kind {
-                crate::projection::ProjectedKind::Function(function) => Some(function),
+                crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                    Some(function)
+                }
                 _ => None,
             });
     }
@@ -1924,7 +1932,10 @@ fn validate_projected_callback_node(
 ) -> Result<(), SemanticFailure> {
     if matches!(
         projected_chain_role(package, unit, node),
-        Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+        Some(
+            crate::rust_interop::projection::ChainRole::Root
+                | crate::rust_interop::projection::ChainRole::Continue
+        )
     ) && !chain_receivers.contains(&span_key(node.span))
     {
         return Err(failure(
@@ -1941,7 +1952,8 @@ fn validate_projected_callback_node(
         && let Some(function) = projected_function_for_call(package, unit, callee)
     {
         for (index, parameter) in function.parameters.iter().enumerate() {
-            let crate::projection::ProjectedType::Callback { .. } = &parameter.ty else {
+            let crate::rust_interop::projection::ProjectedType::Callback { .. } = &parameter.ty
+            else {
                 continue;
             };
             let value = {

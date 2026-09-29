@@ -117,7 +117,10 @@ pub(super) fn index_dependency_import_owners(
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
                     .is_some_and(|item| {
-                        matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                        matches!(
+                            item.kind,
+                            crate::rust_interop::projection::ProjectedKind::Interface(_)
+                        )
                     })
             {
                 continue;
@@ -127,7 +130,7 @@ pub(super) fn index_dependency_import_owners(
                 .projected_type(&object.identity.namespace, &object.identity.name);
             if projected
                 .as_ref()
-                .is_some_and(crate::projection::ProjectedType::contains_opaque)
+                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
             {
                 continue;
             }
@@ -138,7 +141,7 @@ pub(super) fn index_dependency_import_owners(
                 .or_else(|| {
                     projected
                         .as_ref()
-                        .map(crate::projection::ProjectedType::rust_type)
+                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 });
             let Some(path) = path else {
                 continue;
@@ -181,7 +184,7 @@ pub(super) fn index_dependency_import_owners(
             let projected = package.projection.projected_type(&unit.namespace, &name);
             if projected
                 .as_ref()
-                .is_some_and(crate::projection::ProjectedType::contains_opaque)
+                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
             {
                 continue;
             }
@@ -264,7 +267,7 @@ pub(super) fn index_dependency_import_owners(
             .or_else(|| {
                 projected
                     .as_ref()
-                    .map(crate::projection::ProjectedType::rust_type)
+                    .map(crate::rust_interop::projection::ProjectedType::rust_type)
             })
             .map(|path| {
                 if specialized_nominals
@@ -326,12 +329,14 @@ pub(super) fn emit_dependency_imports(
     }
 }
 
-fn projected_owned_field_type(ty: &crate::projection::ProjectedType) -> String {
+fn projected_owned_field_type(ty: &crate::rust_interop::projection::ProjectedType) -> String {
     ty.rust_type()
 }
 
-pub(super) fn projected_field_abi_type(ty: &crate::projection::ProjectedType) -> String {
-    use crate::projection::ProjectedType;
+pub(super) fn projected_field_abi_type(
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    use crate::rust_interop::projection::ProjectedType;
     match ty {
         ProjectedType::String => "String".to_owned(),
         ProjectedType::Bool => "bool".to_owned(),
@@ -353,9 +358,9 @@ fn write_owned_borrowed_struct(
     output: &mut String,
     rust_name_: &str,
     native_path: &str,
-    fields: &[crate::projection::ProjectedField],
+    fields: &[crate::rust_interop::projection::ProjectedField],
 ) {
-    use crate::projection::ProjectedFieldConversion;
+    use crate::rust_interop::projection::ProjectedFieldConversion;
     writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
     for field in fields {
         writeln!(
@@ -434,7 +439,7 @@ fn write_enum_payload(
     output: &mut String,
     rust_name_: &str,
     path: &str,
-    fields: &[crate::projection::ProjectedField],
+    fields: &[crate::rust_interop::projection::ProjectedField],
 ) {
     writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
     for field in fields {
@@ -464,7 +469,7 @@ fn write_enum_payload(
     for field in fields {
         let name = rust_name(&field.name);
         let value = match field.conversion {
-            crate::projection::ProjectedFieldConversion::OptionalOwned => {
+            crate::rust_interop::projection::ProjectedFieldConversion::OptionalOwned => {
                 format!("{name}.into()")
             }
             _ => name.clone(),
@@ -508,9 +513,9 @@ fn write_enum_payload(
     writeln!(output, ") }}\n").expect("writing cannot fail");
 }
 
-fn projected_generic_names(ty: &crate::projection::ProjectedType) -> Vec<String> {
-    fn collect(ty: &crate::projection::ProjectedType, names: &mut BTreeSet<String>) {
-        use crate::projection::ProjectedType;
+fn projected_generic_names(ty: &crate::rust_interop::projection::ProjectedType) -> Vec<String> {
+    fn collect(ty: &crate::rust_interop::projection::ProjectedType, names: &mut BTreeSet<String>) {
+        use crate::rust_interop::projection::ProjectedType;
         match ty {
             ProjectedType::Generic(name) => {
                 names.insert(name.clone());
@@ -589,17 +594,19 @@ pub(super) fn write_foreign_import(
     }
 }
 
-fn projected_type_is_identity(ty: &crate::projection::ProjectedType) -> bool {
+fn projected_type_is_identity(ty: &crate::rust_interop::projection::ProjectedType) -> bool {
     match ty {
-        crate::projection::ProjectedType::Optional(inner) => projected_type_is_identity(inner),
-        crate::projection::ProjectedType::None
-        | crate::projection::ProjectedType::Bool
-        | crate::projection::ProjectedType::FixedInt(_)
-        | crate::projection::ProjectedType::Float
-        | crate::projection::ProjectedType::Float32
-        | crate::projection::ProjectedType::String
-        | crate::projection::ProjectedType::Bytes
-        | crate::projection::ProjectedType::Foreign { .. } => true,
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
+            projected_type_is_identity(inner)
+        }
+        crate::rust_interop::projection::ProjectedType::None
+        | crate::rust_interop::projection::ProjectedType::Bool
+        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+        | crate::rust_interop::projection::ProjectedType::Float
+        | crate::rust_interop::projection::ProjectedType::Float32
+        | crate::rust_interop::projection::ProjectedType::String
+        | crate::rust_interop::projection::ProjectedType::Bytes
+        | crate::rust_interop::projection::ProjectedType::Foreign { .. } => true,
         _ => false,
     }
 }
@@ -610,12 +617,12 @@ fn projected_sequence_is_vec(path: &str) -> bool {
 
 pub(super) fn projected_callback_input_expression(
     value: &str,
-    ty: &crate::projection::ProjectedType,
+    ty: &crate::rust_interop::projection::ProjectedType,
     rust_type: &str,
 ) -> String {
     let borrowed = rust_type.trim_start().starts_with('&');
     match ty {
-        crate::projection::ProjectedType::Int => {
+        crate::rust_interop::projection::ProjectedType::Int => {
             let value = if borrowed {
                 format!("*{value}")
             } else {
@@ -623,7 +630,8 @@ pub(super) fn projected_callback_input_expression(
             };
             format!("terrane_int_support::Int::from(i128::from({value}))")
         }
-        crate::projection::ProjectedType::String | crate::projection::ProjectedType::Bytes
+        crate::rust_interop::projection::ProjectedType::String
+        | crate::rust_interop::projection::ProjectedType::Bytes
             if borrowed =>
         {
             format!("(*{value}).clone()")
@@ -657,10 +665,10 @@ fn callback_parameter_rust_type(rust_type: &str) -> String {
 
 pub(super) fn projected_callback_output_expression(
     value: &str,
-    ty: &crate::projection::ProjectedType,
+    ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
     match ty {
-        crate::projection::ProjectedType::Int => format!(
+        crate::rust_interop::projection::ProjectedType::Int => format!(
             "terrane_int_support::coerce::<i64>(&{value}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
         _ => projected_argument_expression(value, ty),
@@ -669,10 +677,10 @@ pub(super) fn projected_callback_output_expression(
 
 fn projected_callback_argument(
     name: &str,
-    parameters: &[crate::projection::ProjectedType],
+    parameters: &[crate::rust_interop::projection::ProjectedType],
     parameter_rust_types: &[String],
     parameter_borrows: &[bool],
-    result: &crate::projection::ProjectedType,
+    result: &crate::rust_interop::projection::ProjectedType,
     invocation_mode: InvocationMode,
     is_async: bool,
 ) -> String {
@@ -761,22 +769,22 @@ fn projected_callback_argument(
 
 pub(super) fn projected_argument_expression(
     name: &str,
-    ty: &crate::projection::ProjectedType,
+    ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
     match ty {
-        crate::projection::ProjectedType::Int => format!(
+        crate::rust_interop::projection::ProjectedType::Int => format!(
             "terrane_int_support::coerce::<i64>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
-        crate::projection::ProjectedType::RustInt(rust_type) => format!(
+        crate::rust_interop::projection::ProjectedType::RustInt(rust_type) => format!(
             "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
-        crate::projection::ProjectedType::Char => format!(
+        crate::rust_interop::projection::ProjectedType::Char => format!(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
-        crate::projection::ProjectedType::BoxedInterface { .. } => {
+        crate::rust_interop::projection::ProjectedType::BoxedInterface { .. } => {
             format!("Box::new({name})")
         }
-        crate::projection::ProjectedType::Callback {
+        crate::rust_interop::projection::ProjectedType::Callback {
             parameters,
             parameter_rust_types,
             parameter_borrows,
@@ -793,7 +801,7 @@ pub(super) fn projected_argument_expression(
             *invocation_mode,
             *is_async,
         ),
-        crate::projection::ProjectedType::Optional(inner) => {
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 name.to_owned()
             } else {
@@ -803,7 +811,7 @@ pub(super) fn projected_argument_expression(
                 )
             }
         }
-        crate::projection::ProjectedType::Sequence { rust_path, item } => {
+        crate::rust_interop::projection::ProjectedType::Sequence { rust_path, item } => {
             if projected_sequence_is_vec(rust_path) && projected_type_is_identity(item) {
                 format!("{name}.into_vec()")
             } else {
@@ -813,7 +821,7 @@ pub(super) fn projected_argument_expression(
                 )
             }
         }
-        crate::projection::ProjectedType::Set {
+        crate::rust_interop::projection::ProjectedType::Set {
             rust_path, item, ..
         } => {
             let converted = projected_argument_expression("item", item);
@@ -821,7 +829,7 @@ pub(super) fn projected_argument_expression(
                 "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
             )
         }
-        crate::projection::ProjectedType::Mapping {
+        crate::rust_interop::projection::ProjectedType::Mapping {
             rust_path,
             key,
             value,
@@ -833,7 +841,7 @@ pub(super) fn projected_argument_expression(
                 "terrane_collection_support::Iterable::terrane_iterator(&{name}).map(|entry| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
             )
         }
-        crate::projection::ProjectedType::Tuple(items) => {
+        crate::rust_interop::projection::ProjectedType::Tuple(items) => {
             let converted = items
                 .iter()
                 .map(|item| {
@@ -854,7 +862,7 @@ pub(super) fn projected_argument_expression(
 
 pub(super) fn projected_chain_argument_expression(
     name: &str,
-    ty: &crate::projection::ProjectedType,
+    ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
     if projected_type_is_identity(ty) {
         return name.to_owned();
@@ -867,20 +875,22 @@ pub(super) fn projected_chain_argument_expression(
 
 pub(super) fn projected_result_expression(
     value: &str,
-    ty: &crate::projection::ProjectedType,
+    ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
     match ty {
-        crate::projection::ProjectedType::Int => {
+        crate::rust_interop::projection::ProjectedType::Int => {
             format!("terrane_int_support::Int::from(i128::from({value}))")
         }
-        crate::projection::ProjectedType::RustInt(rust_type) if rust_type.starts_with('u') => {
+        crate::rust_interop::projection::ProjectedType::RustInt(rust_type)
+            if rust_type.starts_with('u') =>
+        {
             format!("terrane_int_support::Int::from_u128({value} as u128)")
         }
-        crate::projection::ProjectedType::RustInt(_) => {
+        crate::rust_interop::projection::ProjectedType::RustInt(_) => {
             format!("terrane_int_support::Int::from({value} as i128)")
         }
-        crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
-        crate::projection::ProjectedType::Optional(inner) => {
+        crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 value.to_owned()
             } else {
@@ -888,16 +898,16 @@ pub(super) fn projected_result_expression(
                 format!("{value}.map(|value| {converted})")
             }
         }
-        crate::projection::ProjectedType::AsyncIterationStep(item) => {
+        crate::rust_interop::projection::ProjectedType::AsyncIterationStep(item) => {
             let converted = projected_result_expression("item", item);
             format!(
                 "match {value} {{ Some(item) => terrane_collection_support::AsyncIterationStep::item({converted}), None => terrane_collection_support::AsyncIterationStep::end() }}"
             )
         }
-        crate::projection::ProjectedType::AsyncSinkOutcome => {
+        crate::rust_interop::projection::ProjectedType::AsyncSinkOutcome => {
             format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
         }
-        crate::projection::ProjectedType::Sequence { item, .. } => {
+        crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
             if projected_type_is_identity(item) {
                 format!("terrane_collection_support::List::new({value})")
             } else {
@@ -907,7 +917,7 @@ pub(super) fn projected_result_expression(
                 )
             }
         }
-        crate::projection::ProjectedType::Mapping {
+        crate::rust_interop::projection::ProjectedType::Mapping {
             key,
             value: item,
             ordered,
@@ -920,14 +930,14 @@ pub(super) fn projected_result_expression(
                 "terrane_collection_support::{collection}::new({value}.into_iter().map(|(key, item)| terrane_collection_support::Entry::new({key}, {item})).collect())"
             )
         }
-        crate::projection::ProjectedType::Set { item, ordered, .. } => {
+        crate::rust_interop::projection::ProjectedType::Set { item, ordered, .. } => {
             let converted = projected_result_expression("item", item);
             let collection = if *ordered { "Set" } else { "UnorderedSet" };
             format!(
                 "terrane_collection_support::{collection}::new({value}.into_iter().map(|item| {converted}).collect())"
             )
         }
-        crate::projection::ProjectedType::Tuple(items) => format!(
+        crate::rust_interop::projection::ProjectedType::Tuple(items) => format!(
             "terrane_collection_support::Tuple::new(vec![{}])",
             items
                 .iter()
@@ -1017,7 +1027,9 @@ pub(super) fn emit_dependency_unit(
             let Some(item) = package.projection.item(&unit.namespace, type_name) else {
                 continue;
             };
-            let crate::projection::ProjectedKind::ForeignType { static_methods, .. } = &item.kind
+            let crate::rust_interop::projection::ProjectedKind::ForeignType {
+                static_methods, ..
+            } = &item.kind
             else {
                 continue;
             };
@@ -1032,7 +1044,8 @@ pub(super) fn emit_dependency_unit(
             let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
                 continue;
             };
-            let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
+            let crate::rust_interop::projection::ProjectedKind::Function(projected) = &item.kind
+            else {
                 continue;
             };
             (item, projected, None)
@@ -1044,7 +1057,7 @@ pub(super) fn emit_dependency_unit(
         {
             continue;
         }
-        if projected.chain_role == Some(crate::projection::ChainRole::Root) {
+        if projected.chain_role == Some(crate::rust_interop::projection::ChainRole::Root) {
             continue;
         }
         let dependency_name = unit
@@ -1066,7 +1079,7 @@ pub(super) fn emit_dependency_unit(
                 let preserves_identity = projected.borrowed
                     && matches!(
                         projected.ty,
-                        crate::projection::ProjectedType::Foreign { .. }
+                        crate::rust_interop::projection::ProjectedType::Foreign { .. }
                     );
                 format!(
                     "{}: {}{value_type}",
@@ -1087,7 +1100,8 @@ pub(super) fn emit_dependency_unit(
         let mut arguments = Vec::new();
         for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
             let name = rust_name(&parameter.name);
-            if let crate::projection::ProjectedType::Foreign { rust_path, .. } = &projected.ty
+            if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
+                &projected.ty
                 && package.projection.borrowed_struct_view(rust_path).is_some()
             {
                 let view = format!("{name}.terrane_native_view()");
@@ -1101,7 +1115,7 @@ pub(super) fn emit_dependency_unit(
             if projected.borrowed
                 && matches!(
                     projected.ty,
-                    crate::projection::ProjectedType::Foreign { .. }
+                    crate::rust_interop::projection::ProjectedType::Foreign { .. }
                 )
             {
                 arguments.push(name);
@@ -1121,22 +1135,23 @@ pub(super) fn emit_dependency_unit(
             });
         }
         let arguments = arguments.join(", ");
-        let value = if let crate::projection::ProjectedType::Foreign { rust_path, .. } =
-            &projected.result
-            && rust_path.contains('<')
-        {
-            rust_path.clone()
-        } else {
-            projected.destination_result.as_ref().map_or_else(
-                || {
-                    contract.return_type.clone().map_or_else(
-                        || "()".to_owned(),
-                        |value_type| rust_value_type(package, value_type),
-                    )
-                },
-                |_| projected.result.rust_type(),
-            )
-        };
+        let value =
+            if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
+                &projected.result
+                && rust_path.contains('<')
+            {
+                rust_path.clone()
+            } else {
+                projected.destination_result.as_ref().map_or_else(
+                    || {
+                        contract.return_type.clone().map_or_else(
+                            || "()".to_owned(),
+                            |value_type| rust_value_type(package, value_type),
+                        )
+                    },
+                    |_| projected.result.rust_type(),
+                )
+            };
         let result = format!("Result<{value}, crate::TerraneForeignError>");
         let (error_kind, error_message) = projected
             .error
@@ -1171,7 +1186,7 @@ pub(super) fn emit_dependency_unit(
             projected_result_expression("value", &projected.result)
         };
         let nested_converted_value = match &projected.result {
-            crate::projection::ProjectedType::Optional(inner)
+            crate::rust_interop::projection::ProjectedType::Optional(inner)
                 if projected.error_optional_depth == 1 =>
             {
                 projected_result_expression("value", inner)

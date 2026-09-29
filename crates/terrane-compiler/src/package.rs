@@ -1853,7 +1853,7 @@ fn discover_trn_files(
     let mut entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
-        if entry.file_name() == crate::projection::GENERATED_PROJECTION_FILE {
+        if entry.file_name() == crate::rust_interop::projection::GENERATED_PROJECTION_FILE {
             continue;
         }
         let path = entry.path();
@@ -2021,7 +2021,7 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join("main.trn"), "namespace app\n").unwrap();
         fs::write(
-            root.join(crate::projection::GENERATED_PROJECTION_FILE),
+            root.join(crate::rust_interop::projection::GENERATED_PROJECTION_FILE),
             "# generated projection inventory\n",
         )
         .unwrap();
