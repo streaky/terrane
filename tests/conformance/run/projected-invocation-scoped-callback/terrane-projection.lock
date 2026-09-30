@@ -1,6 +1,9 @@
 {
+  "format": 3,
   "dependencies": [
     {
+      "name": "witness",
+      "version": "0.1.0",
       "members": [
         [
           "/deps/witness",
@@ -114,33 +117,23 @@
           "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/widget",
           "from"
         ]
-      ],
-      "name": "witness",
-      "version": "0.1.0"
+      ]
     }
   ],
-  "format": 3,
   "removed": [],
+  "cache_identity": "30bbb72499eaf867f8398e03d6475f6ed6096cce13662fb5b6ba42825d62232a",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "190",
+  "content_hash": "fe9e4ea41fc14eac780e2a32eb645dcb6d479b6702e5979a1162f817cc938cfd",
   "resolution": {
+    "outcome": "ExactCache",
     "events": [
       {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `30bbb72499eaf867f8398e03d6475f6ed6096cce13662fb5b6ba42825d62232a`"
       }
-    ],
-    "outcome": "LocalRustdoc"
-  },
-  "rustdoc_format": 57,
-  "source": "Local"
+    ]
+  }
 }

@@ -8,6 +8,7 @@ rust-version.workspace = true
 [dependencies]
 serde = "1"
 serde_json = { version = "1", features = ["arbitrary_precision", "unbounded_depth"] }
+# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.
 url = "2.5"
 yaml-rust2 = "=0.10.4"
 

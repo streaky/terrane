@@ -746,11 +746,7 @@ pub fn compile_discovered_test_tier(
             || semantic.units[0].source.clone(),
             |unit| unit.source.clone(),
         );
-    let warnings = semantics::warnings(
-        &semantic,
-        options.lint_name_style,
-        options.lint_unused_functions,
-    );
+    let warnings = collect_warnings(&semantic, options);
     let rust_ir =
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;

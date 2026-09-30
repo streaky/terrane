@@ -3,11 +3,6 @@ pub struct FirstWidget<'view> {
     marker: std::marker::PhantomData<&'view str>,
 }
 
-pub struct SecondWidget<'view> {
-    value: i64,
-    marker: std::marker::PhantomData<&'view str>,
-}
-
 pub struct ScopedView<'view> {
     value: i64,
     marker: std::marker::PhantomData<&'view str>,
@@ -20,31 +15,8 @@ pub fn first_widget(value: &str) -> FirstWidget<'_> {
     }
 }
 
-pub fn pair_widget<'view>(_state: &str, value: &'view str) -> FirstWidget<'view> {
-    FirstWidget {
-        value: value.len() as i64,
-        marker: std::marker::PhantomData,
-    }
-}
-
-pub fn second_widget(value: &str) -> SecondWidget<'_> {
-    SecondWidget {
-        value: value.len() as i64,
-        marker: std::marker::PhantomData,
-    }
-}
-
 impl<'view> From<FirstWidget<'view>> for ScopedView<'view> {
     fn from(widget: FirstWidget<'view>) -> Self {
-        Self {
-            value: widget.value,
-            marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<'view> From<SecondWidget<'view>> for ScopedView<'view> {
-    fn from(widget: SecondWidget<'view>) -> Self {
         Self {
             value: widget.value,
             marker: std::marker::PhantomData,

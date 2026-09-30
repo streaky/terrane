@@ -1962,19 +1962,77 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
     }
 }
 
-fn first_name_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
-    if node.kind == SyntaxKind::Name {
-        return Some(node);
-    }
-    node.children.iter().find_map(first_name_node)
+fn visible_binding<'a>(
+    unit: &'a SemanticUnit,
+    name_node: &SyntaxNode,
+) -> Option<&'a crate::semantics::model::TypedBinding> {
+    let name = node_text(&unit.source, name_node);
+    unit.typed_bindings
+        .iter()
+        .filter(|binding| {
+            binding.name == name && binding.is_visible_at(unit.source.id(), name_node.span.start)
+        })
+        .max_by_key(|binding| binding.visible_from)
 }
 
-fn collect_scoped_append_types(
+fn local_lender_name(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    contract: &FunctionContract,
+    function_span: Span,
+) -> Option<(String, Span)> {
+    if node.kind == SyntaxKind::Name {
+        let name = node_text(&unit.source, node);
+        let binding = visible_binding(unit, node)?;
+        if !contract
+            .parameters
+            .iter()
+            .any(|parameter| parameter.name == name)
+            && binding.scope == Some(function_span)
+            && invocation_scoped_region(&binding.value_type).is_none()
+        {
+            return Some((name.to_owned(), binding.span));
+        }
+    }
+    node.children
+        .iter()
+        .find_map(|child| local_lender_name(unit, child, contract, function_span))
+}
+
+fn local_lender_in_scoped_expression(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
+    contract: &FunctionContract,
+    function_span: Span,
+) -> Option<(String, Span)> {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && projected_function_for_call(package, unit, callee).is_some_and(|function| {
+            matches!(
+                function.result,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+            )
+        })
+    {
+        let lender = arguments
+            .children
+            .iter()
+            .find_map(|argument| local_lender_name(unit, argument, contract, function_span));
+        if lender.is_some() {
+            return lender;
+        }
+    }
+    node.children.iter().find_map(|child| {
+        local_lender_in_scoped_expression(package, unit, child, contract, function_span)
+    })
+}
+
+fn collect_scoped_append_types(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
     receiver_name: &str,
-    results: &mut Vec<crate::rust_interop::projection::ProjectedType>,
+    results: &mut Vec<String>,
 ) {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -1985,16 +2043,15 @@ fn collect_scoped_append_types(
         && let Some(argument) = arguments.children.first()
     {
         let value = argument.children.last().unwrap_or(argument);
-        if value.kind == SyntaxKind::CallExpression
-            && let Some(value_callee) = value.children.first()
-            && let Some(function) = projected_function_for_call(package, unit, value_callee)
-            && !results.contains(&function.result)
+        if let Ok(Some(ValueType::InvocationScopedNative { rust_type, .. })) =
+            infer_value_type(unit, value, &unit.typed_bindings)
+            && !results.contains(&rust_type)
         {
-            results.push(function.result.clone());
+            results.push(rust_type);
         }
     }
     for child in &node.children {
-        collect_scoped_append_types(package, unit, child, receiver_name, results);
+        collect_scoped_append_types(unit, child, receiver_name, results);
     }
 }
 
@@ -2036,14 +2093,6 @@ fn validate_invocation_scoped_node(
     }
     if node.kind == SyntaxKind::ReturnStatement
         && let Some(value) = node.children.first()
-        && value.kind == SyntaxKind::CallExpression
-        && let [callee, arguments] = value.children.as_slice()
-        && projected_function_for_call(package, unit, callee).is_some_and(|function| {
-            matches!(
-                function.result,
-                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-            )
-        })
         && let Some(function_span) = unit
             .enclosing_function_spans
             .get(&node.span.start)
@@ -2053,31 +2102,14 @@ fn validate_invocation_scoped_node(
             .functions
             .iter()
             .find(|contract| contract.span == function_span)
-        && let Some((name, binding)) = arguments.children.iter().find_map(|argument| {
-            let name_node = first_name_node(argument)?;
-            let name = node_text(&unit.source, name_node);
-            let binding = unit
-                .typed_bindings
-                .iter()
-                .filter(|binding| {
-                    binding.name == name
-                        && binding.is_visible_at(unit.source.id(), name_node.span.start)
-                })
-                .max_by_key(|binding| binding.visible_from)?;
-            (!contract
-                .parameters
-                .iter()
-                .any(|parameter| parameter.name == name)
-                && binding.scope == Some(function_span)
-                && invocation_scoped_region(&binding.value_type).is_none())
-            .then_some((name, binding))
-        })
+        && let Some((name, span)) =
+            local_lender_in_scoped_expression(package, unit, value, contract, function_span)
     {
         return Err(failure(
             &unit.source,
             "T0119",
             format!("invocation-scoped native result cannot borrow local value `{name}`"),
-            binding.span,
+            span,
         ));
     }
 
@@ -2116,7 +2148,7 @@ fn validate_invocation_scoped_node(
             && let Some(function) = find_node_by_span(&unit.tree.root, function_span)
         {
             let mut item_types = Vec::new();
-            collect_scoped_append_types(package, unit, function, receiver_name, &mut item_types);
+            collect_scoped_append_types(unit, function, receiver_name, &mut item_types);
             if item_types.len() > 1 {
                 return Err(failure(
                     &unit.source,

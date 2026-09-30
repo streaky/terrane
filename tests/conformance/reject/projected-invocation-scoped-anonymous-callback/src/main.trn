@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/witness import first_widget, render_scoped
+
+function main;
+    state string = '40'
+    callback = function host-invocation-scoped-native; value ref string
+        return first_widget; value
+    result = render_scoped; state, callback

@@ -557,3 +557,68 @@ fn assess(
         declaration_results,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classification_prefers_projected_canonical_paths() {
+        let projected = BTreeSet::from(["crate::canonical".to_owned()]);
+        let declined = BTreeMap::from([(
+            "crate::public".to_owned(),
+            "public alias was declined".to_owned(),
+        )]);
+
+        assert_eq!(
+            classify_paths(
+                "crate::public",
+                Some("crate::canonical"),
+                &projected,
+                &declined
+            ),
+            (
+                "projectable",
+                "admitted by the compiler projection engine".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn classification_preserves_decline_reason() {
+        let projected = BTreeSet::new();
+        let declined = BTreeMap::from([(
+            "crate::canonical".to_owned(),
+            "unsupported native contract".to_owned(),
+        )]);
+
+        assert_eq!(
+            classify_paths(
+                "crate::public",
+                Some("crate::canonical"),
+                &projected,
+                &declined
+            ),
+            (
+                "unsupported-capability",
+                "unsupported native contract".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn classification_marks_unmatched_discovery_as_contextual() {
+        assert_eq!(
+            classify_paths(
+                "crate::public",
+                None,
+                &BTreeSet::new(),
+                &BTreeMap::new()
+            ),
+            (
+                "deferred-contextual",
+                "discovered native declaration has no independently projected operation; concrete source use may be required".to_owned()
+            )
+        );
+    }
+}

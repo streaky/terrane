@@ -1757,7 +1757,7 @@ impl<'a> Emitter<'a> {
         node: &SyntaxNode,
         depth: usize,
     ) -> Option<ValueType> {
-        if depth > self.unit.functions.len() {
+        if depth >= self.unit.functions.len() {
             return None;
         }
         if let Some(value_type) = self.unit.projected_call_result_types.get(&(
@@ -2147,28 +2147,11 @@ impl<'a> Emitter<'a> {
         self.line("}");
     }
 
-    pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
-        self.anonymous_function_as(node, false, None)
-    }
-
-    pub(super) fn invocation_scoped_anonymous_function(
-        &mut self,
-        node: &SyntaxNode,
-        result: ValueType,
-    ) -> String {
-        self.anonymous_function_as(node, true, Some(result))
-    }
-
     #[expect(
         clippy::too_many_lines,
         reason = "closure ownership, contracts, captures, and body lowering form one emission path"
     )]
-    fn anonymous_function_as(
-        &mut self,
-        node: &SyntaxNode,
-        raw: bool,
-        result_override: Option<ValueType>,
-    ) -> String {
+    pub(super) fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
         let contract = self
             .unit
             .functions
@@ -2213,12 +2196,10 @@ impl<'a> Emitter<'a> {
             _ => format!("({})", parameter_types.join(", ")),
         };
         let stateful_parameters = format!("{tuple_pattern}: {tuple_type}");
-        let result = result_override.unwrap_or_else(|| {
-            contract
-                .return_type
-                .clone()
-                .unwrap_or(ValueType::Scalar(ScalarType::None))
-        });
+        let result = contract
+            .return_type
+            .clone()
+            .unwrap_or(ValueType::Scalar(ScalarType::None));
         let result_type = if contract.throws {
             format!(
                 "Result<{}, TerraneError>",
@@ -2283,44 +2264,12 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             };
-        let raw_capture_parameters = if raw {
-            contract
-                .captures
-                .iter()
-                .filter_map(|capture| {
-                    self.unit
-                        .typed_bindings
-                        .iter()
-                        .filter(|binding| {
-                            binding.name == *capture
-                                && binding.is_visible_at(self.unit.source.id(), node.span.start)
-                        })
-                        .max_by_key(|binding| binding.visible_from)
-                        .map(|binding| {
-                            format!(
-                                "{}: {}",
-                                rust_name(capture),
-                                rust_value_type(self.package, binding.value_type.clone())
-                            )
-                        })
-                })
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
         let constructor = match contract.written_invocation_mode {
             InvocationMode::Shared => "std::sync::Arc::new",
             InvocationMode::Mutable => "TerraneMutableCallable::new",
             InvocationMode::Consuming => "TerraneConsumingCallable::new",
         };
-        let closure_parameters = if raw {
-            raw_capture_parameters
-                .iter()
-                .cloned()
-                .chain((!parameters.is_empty()).then_some(parameters.clone()))
-                .collect::<Vec<_>>()
-                .join(", ")
-        } else if contract.written_invocation_mode == InvocationMode::Shared {
+        let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
             parameters
         } else {
             stateful_parameters
@@ -2328,11 +2277,6 @@ impl<'a> Emitter<'a> {
         if contract.is_async {
             format!(
                 "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
-                "    ".repeat(outer_indent)
-            )
-        } else if raw {
-            format!(
-                "{{ move |{closure_parameters}| -> {result_type} {{\n{body}{}}} }}",
                 "    ".repeat(outer_indent)
             )
         } else {

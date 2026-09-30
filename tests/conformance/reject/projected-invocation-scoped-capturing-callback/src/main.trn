@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/witness import first_widget, render_scoped
+from /core/output import print
+
+function main;
+    state string = '40'
+    prefix string = 'captured'
+    callback = function host-invocation-scoped-native; value ref string
+        print; prefix
+        return first_widget; value
+    result = render_scoped; state, callback

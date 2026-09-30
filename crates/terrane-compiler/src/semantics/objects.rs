@@ -3014,56 +3014,73 @@ fn projected_call_result(
     projected_function_for_call(package, unit, callee).map(|function| function.result.clone())
 }
 
-fn projected_callback_result(
+fn callback_expression_result(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    depth: usize,
+    callback_name: Option<&str>,
 ) -> Option<crate::rust_interop::projection::ProjectedType> {
-    if depth > unit.functions.len() {
+    let mut node = node;
+    while node.kind == SyntaxKind::GroupExpression {
+        node = node.children.first()?;
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && callback_name.is_some_and(|name| node_text(&unit.source, callee) == name)
+    {
         return None;
     }
-    if node.kind == SyntaxKind::CallExpression {
-        if let Some(result) = projected_call_result(package, unit, node) {
-            return Some(result);
-        }
-        let callee = node.children.first()?;
-        let contract = unit
-            .functions
-            .iter()
-            .find(|contract| contract.name == node_text(&unit.source, callee))?;
-        let function = find_node_by_span(&unit.tree.root, contract.span)?;
-        return projected_callback_result(package, unit, function, depth + 1);
-    }
-    node.children
-        .iter()
-        .find_map(|child| projected_callback_result(package, unit, child, depth))
+    projected_call_result(package, unit, node).or_else(|| {
+        infer_value_type(unit, node, &unit.typed_bindings)
+            .ok()
+            .flatten()
+            .and_then(|value_type| destination_projected_type(package, &value_type).ok())
+    })
 }
 
 fn collect_projected_callback_results(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
+    callback_name: Option<&str>,
     results: &mut Vec<crate::rust_interop::projection::ProjectedType>,
 ) {
     if node.kind == SyntaxKind::ReturnStatement {
-        if let Some(value) = node.children.first() {
-            let direct_result = value
-                .children
-                .first()
-                .and_then(|callee| projected_function_for_call(package, unit, callee))
-                .map(|function| function.result.clone());
-            if let Some(result) =
-                direct_result.or_else(|| projected_callback_result(package, unit, value, 0))
-            {
-                results.push(result);
-            }
+        if let Some(value) = node.children.first()
+            && let Some(result) = callback_expression_result(package, unit, value, callback_name)
+        {
+            results.push(result);
         }
         return;
     }
     for child in &node.children {
-        collect_projected_callback_results(package, unit, child, results);
+        collect_projected_callback_results(package, unit, child, callback_name, results);
     }
+}
+
+fn anonymous_callback_node<'a>(
+    unit: &'a SemanticUnit,
+    value: &'a SyntaxNode,
+) -> Option<&'a SyntaxNode> {
+    if value.kind == SyntaxKind::AnonymousFunction {
+        return Some(value);
+    }
+    if value.kind != SyntaxKind::Name {
+        return None;
+    }
+    let name = node_text(&unit.source, value);
+    let binding = unit
+        .typed_bindings
+        .iter()
+        .filter(|binding| {
+            binding.name == name && binding.is_visible_at(unit.source.id(), value.span.start)
+        })
+        .max_by_key(|binding| binding.visible_from)?;
+    let binding = find_node_by_span(&unit.tree.root, binding.span)?;
+    binding
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::AnonymousFunction)
 }
 
 fn projected_callback_function_result(
@@ -3071,30 +3088,21 @@ fn projected_callback_function_result(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Option<crate::rust_interop::projection::ProjectedType> {
-    let function = if value.kind == SyntaxKind::AnonymousFunction {
-        value
+    let (function, callback_name) = if let Some(function) = anonymous_callback_node(unit, value) {
+        (function, None)
     } else {
         let name = node_text(&unit.source, value);
-        if let Some(contract) = unit.functions.iter().find(|contract| contract.name == name) {
-            find_node_by_span(&unit.tree.root, contract.span)?
-        } else {
-            let binding = unit
-                .typed_bindings
-                .iter()
-                .filter(|binding| {
-                    binding.name == name
-                        && binding.is_visible_at(unit.source.id(), value.span.start)
-                })
-                .max_by_key(|binding| binding.visible_from)?;
-            let binding = find_node_by_span(&unit.tree.root, binding.span)?;
-            binding
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::AnonymousFunction)?
-        }
+        let contract = unit
+            .functions
+            .iter()
+            .find(|contract| contract.name == name)?;
+        (
+            find_node_by_span(&unit.tree.root, contract.span)?,
+            Some(name),
+        )
     };
     let mut results = Vec::new();
-    collect_projected_callback_results(package, unit, function, &mut results);
+    collect_projected_callback_results(package, unit, function, callback_name, &mut results);
     let first = results.first()?.clone();
     results
         .iter()
@@ -3282,6 +3290,14 @@ fn collect_projected_destinations(
                 &actual,
             ) && actual_invocation_scoped_callback
             {
+                if anonymous_callback_node(unit, value).is_some() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0129",
+                        "anonymous callbacks are not yet supported for exact invocation-scoped results",
+                        value.span,
+                    ));
+                }
                 let destination_selected_parameters = *parameters_destination_selected;
                 let actual_projected_result =
                     projected_callback_function_result(package, unit, value);

@@ -14,6 +14,12 @@ function exact-nested host-invocation-scoped-native; state ref string
     second = borrowed_button; state
     return borrowed_group; first, second
 
+function exact-recursive host-invocation-scoped-native; state ref string
+    if state.length > 100
+        return exact-recursive; state
+    value = borrowed_label; state
+    return value
+
 function exact-branch host-invocation-scoped-native; state ref string
     if state.length > 1
         intermediate = borrowed_label; state
@@ -61,6 +67,7 @@ function main;
     print; (render_exact; exact-state, 'message', true, exact-nested)
     print; (render_exact; exact-state, 'message', true, exact-branch)
     print; (render_exact; exact-state, 'message', true, exact-aggregate)
+    print; (render_exact; exact-state, 'message', true, exact-recursive)
     offset int64 = 2
     captured = function Label; state ref int64
         return label; state + offset

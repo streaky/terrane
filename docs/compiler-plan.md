@@ -208,8 +208,8 @@ This section contains only work that remains required by the settled version-one
 
 ### Milestone 31 — Scalable Rust binding synthesis and generated host integration
 
-**Status:** planned; this section specifies work, not currently supported language syntax or
-completed integrations.
+**Status:** partially delivered. The bounded capabilities identified below are implemented; the
+remaining requirements in this milestone are planned work, not currently supported syntax.
 
 **Outcome:** adding an ordinary new package through `[rust-dependencies]` on the pinned Rust
 language/toolchain must not require a package-specific compiler change, handwritten Rust adapter,
@@ -710,10 +710,12 @@ second compiler representation.
 
 Implemented for the bounded exact-result subset: projection retains invocation-scoped native inputs,
 producer results, and homogeneous sequence elements. Semantic values carry the enclosing
-scoped-function region. Same-type region-local bindings, nested projected calls, branches, and
-scoped child lists are legal; ordinary storage, local lenders, aggregate escape, capture,
-suspension, incompatible native producer contracts, and cross-region flow are rejected. Scoped
-values use ordinary move checking and are never implicitly cloned.
+scoped-function span as a stable region identity; each dynamic callback invocation is represented
+by that same static identity because values cannot escape or cross invocations. Same-type
+region-local bindings, nested projected calls, branches, and scoped child lists are legal; ordinary
+storage, local lenders, aggregate escape, capture, suspension, incompatible native producer
+contracts, and cross-region flow are rejected. Scoped values use ordinary move checking and are
+never implicitly cloned.
 
 The currently implemented exact-result subset is deliberately narrower than the full design above.
 A named Terrane callback may return one exact lifetime-dependent native producer type. Lowering
@@ -723,11 +725,13 @@ All explicit callback returns must currently converge on that same producer type
 
 That producer may flow through same-type local bindings, projected calls, ordinary helpers,
 branches, and homogeneous scoped child lists inside one invocation. It may borrow the callback's
-lender parameter but not an ordinary callback-local value. Unresolved source parameter types, mixed
-native list elements, storage escape, capture, suspension, region mixing, and unauthorized return
-are source errors. Distinct native return types and exact higher-ranked anonymous or capturing
-callbacks remain open work; the compiler declines them rather than inferring a helper ABI or cloning
-an environment on every invocation.
+lender parameter but not an ordinary callback-local value. The source spelling
+`host-invocation-scoped-native` explicitly requests this compiler-managed, non-storable native
+value category until destination-driven result inference is available. Unresolved source parameter
+types, mixed native list elements, storage escape, capture, suspension, region mixing, and
+unauthorized return are source errors. Distinct native return types and exact higher-ranked
+anonymous or capturing callbacks remain open work; the compiler declines them rather than
+inferring a helper ABI or cloning an environment on every invocation.
 
 `projected-invocation-scoped-callback` exercises the supported direct, nested, same-type branching,
 helper, aggregate, and defaulted-terminal paths. Focused rejection fixtures cover local lenders,
@@ -750,13 +754,14 @@ then converts that one owned graph result into the invocation-scoped terminal.
 `projected-invocation-scoped-incompatible-graph` rejects an owned graph result that does not satisfy
 the complete higher-ranked terminal bound before Rust lowering.
 
-This path deliberately reuses ordinary Terrane control flow, collection ownership, move/borrow
-rules, projected generic specialization, and the terminal authority established above. It does not
-introduce a second scoped graph representation: lifetime-bearing nodes never enter the source graph,
-so mixed invocation regions and escaping scoped aggregates are structurally impossible. The exact
-callback-result boundary described above remains responsible for any future API that genuinely
-requires lifetime-bearing intermediate nodes rather than an owned result-generic blanket recipe.
-No lifetime erasure, `transmute`, forced cloning, leaked allocation, or universal boxed value.
+The owned blanket-recipe path deliberately reuses ordinary Terrane control flow, collection
+ownership, move/borrow rules, projected generic specialization, and the terminal authority
+established above. It does not introduce a second scoped graph representation: its intermediate
+nodes are ordinary owned values, so mixed invocation regions and escaping scoped aggregates are
+structurally impossible on that path. The exact callback-result path described above separately
+admits lifetime-bearing nodes under the enclosing scoped-function region and applies its region,
+lender, and escape checks. No lifetime erasure, `transmute`, forced cloning, leaked allocation, or
+universal boxed value.
 Box only where the native public API requires it or the reviewed representation contract
 explicitly justifies it.
 

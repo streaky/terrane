@@ -30,9 +30,9 @@
 //! | Real projected Iced minimal application | Local integration evidence only; tracked reproducible witness remains open (work unit 4E) | local `packages/iced-ui` checkout |
 //!
 //! Projection metadata is canonical. Semantic analysis owns Terrane-region, ownership, and
-//! control-flow validity. Lowering owns Rust spelling and emission only. These ownership boundaries
-//! deliberately prevent a second callback-recipe, generic-substitution, obligation, or scoped-value
-//! model from appearing in another compiler phase.
+//! control-flow validity. Lowering owns emission and, for the explicitly bounded callback subset,
+//! the remaining named-function Rust specialization described in phase 4. No other compiler phase
+//! may create a second callback-recipe, obligation, or scoped-value model.
 pub mod census;
 pub mod projection;
 

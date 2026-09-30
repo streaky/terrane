@@ -1,10 +1,10 @@
 namespace app
 
-from /deps/witness import first_widget, render_scoped
+from /deps/witness import pair_widget, render_scoped
 
 function invalid host-invocation-scoped-native; state ref string
     local string = 'local'
-    return first_widget; local
+    return pair_widget; state, local
 
 function main;
     state string = '40'

@@ -1999,7 +1999,8 @@ fn usage() -> String {
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      package  hash or install local and tagged-Git Terrane libraries\n  \
-     projection-census  compare native public surface with real compiler projection admission\n  \
+     projection-census  compare native public surface with real compiler projection admission;\n\
+       versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }

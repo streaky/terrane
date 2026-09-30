@@ -21,10 +21,6 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
 }
 
 impl Emitter<'_> {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "callback specialization, capture layout, and adapter emission form one path"
-    )]
     fn invocation_scoped_callback_adapter(
         &mut self,
         value: &SyntaxNode,
@@ -32,12 +28,10 @@ impl Emitter<'_> {
         substitutions: Option<&std::collections::BTreeMap<String, String>>,
     ) -> Option<String> {
         let crate::rust_interop::projection::ProjectedType::Callback {
-            native_bound: Some(native_bound),
+            native_bound: Some(_),
             native_method: Some(_),
-            native_result: Some(native_result),
+            native_result: Some(_),
             native_substitutions,
-            parameters,
-            parameter_rust_types,
             result,
             invocation_mode: InvocationMode::Shared,
             ..
@@ -45,100 +39,11 @@ impl Emitter<'_> {
         else {
             return None;
         };
-        let crate::rust_interop::projection::ProjectedType::InvocationScoped { lifetimes, .. } =
-            result.as_ref()
-        else {
-            return None;
-        };
-        let mut producer_value = match self.value_type(value)? {
-            ValueType::Function(_, result, _) => match result.value_type() {
-                value @ ValueType::InvocationScopedNative { .. } => value,
-                _ => return None,
-            },
-            _ => return None,
-        };
-        if matches!(
-            producer_value,
-            ValueType::InvocationScopedNative { ref rust_type, .. } if rust_type == "_"
-        ) && value.kind == SyntaxKind::Name
-        {
-            let name = self.text(value);
-            let source_node = self
-                .unit
-                .functions
-                .iter()
-                .find(|function| function.name == name)
-                .and_then(|function| {
-                    find_node(
-                        &self.unit.tree.root,
-                        SyntaxKind::FunctionDeclaration,
-                        function.span,
-                    )
-                })
-                .or_else(|| {
-                    self.unit
-                        .typed_bindings
-                        .iter()
-                        .find(|binding| {
-                            binding.name == name
-                                && binding.is_visible_at(self.unit.source.id(), value.span.start)
-                        })
-                        .and_then(|binding| find_node_by_span(&self.unit.tree.root, binding.span))
-                });
-            producer_value = source_node
-                .and_then(|node| {
-                    let producer = if node.kind == SyntaxKind::AnonymousFunction {
-                        node
-                    } else {
-                        node.children
-                            .iter()
-                            .find(|child| child.kind == SyntaxKind::AnonymousFunction)?
-                    };
-                    self.invocation_scoped_return_type(producer, 0)
-                })
-                .unwrap_or(producer_value);
-        }
-        let callback_lifetimes = lifetimes
-            .iter()
-            .cloned()
-            .chain(crate::rust_ir::rust_lifetimes(native_bound))
-            .chain(crate::rust_ir::rust_lifetimes(native_result))
-            .chain(
-                parameter_rust_types
-                    .iter()
-                    .flat_map(|parameter| crate::rust_ir::rust_lifetimes(parameter)),
-            )
-            .collect::<std::collections::BTreeSet<_>>();
-        let scoped_type = |rust_type: &str| {
-            callback_lifetimes
-                .iter()
-                .fold(rust_type.replace("'_", "'view"), |rust_type, lifetime| {
-                    rust_type.replace(lifetime, "'view")
-                })
-        };
-        let inputs = parameter_rust_types
-            .iter()
-            .map(|input| scoped_type(input))
-            .collect::<Vec<_>>();
-        let method_parameters = inputs
-            .iter()
-            .enumerate()
-            .map(|(index, input)| {
-                format!(
-                    "callback_argument_{index}: {}",
-                    input.replace("'view", "'_")
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        let arguments = (0..parameters.len())
-            .map(|index| format!("callback_argument_{index}"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let ValueType::InvocationScopedNative {
+        let crate::rust_interop::projection::ProjectedType::InvocationScoped {
             rust_type: producer_template,
+            lifetimes,
             ..
-        } = &producer_value
+        } = result.as_ref()
         else {
             return None;
         };
@@ -148,154 +53,42 @@ impl Emitter<'_> {
                 .iter()
                 .map(|(name, ty)| (name.clone(), ty.rust_type())),
         );
-        let producer = if producer_template == "_" {
-            scoped_type(native_result)
-        } else {
-            scoped_type(&crate::rust_ir::instantiate_rust_generics(
-                producer_template,
-                &selected,
-            ))
-        };
-        let specialized_producer_value = match producer_value.clone() {
-            ValueType::InvocationScopedNative {
-                family,
-                lifetimes,
-                region,
-                ..
-            } => ValueType::InvocationScopedNative {
-                rust_type: producer.replace("'view", "'_"),
-                family,
-                lifetimes,
-                region,
-            },
-            _ => unreachable!("producer value was checked above"),
-        };
-        let raw_callback = if value.kind == SyntaxKind::Name {
-            let name = self.text(value);
-            self.unit
-                .typed_bindings
-                .iter()
-                .find(|binding| {
-                    binding.name == name
-                        && binding.is_visible_at(self.unit.source.id(), value.span.start)
-                })
-                .and_then(|binding| find_node_by_span(&self.unit.tree.root, binding.span))
-                .and_then(|binding| {
-                    binding
-                        .children
-                        .iter()
-                        .find(|child| child.kind == SyntaxKind::AnonymousFunction)
-                })
-                .cloned()
-        } else {
-            None
-        };
-        let raw_contract = raw_callback.as_ref().and_then(|callback| {
-            self.unit
-                .functions
-                .iter()
-                .find(|contract| contract.span == callback.span)
-                .cloned()
-        });
-        let callback = if let Some(callback) = raw_callback {
-            self.invocation_scoped_anonymous_function(&callback, specialized_producer_value)
-        } else {
-            let callback = self.expression(value);
-            if value.kind == SyntaxKind::Name {
-                let name = self.text(value);
-                let source_node = self
-                    .unit
-                    .functions
-                    .iter()
-                    .find(|function| function.name == name)
-                    .and_then(|function| {
-                        find_node(
-                            &self.unit.tree.root,
-                            SyntaxKind::FunctionDeclaration,
-                            function.span,
-                        )
-                    });
-                let generic_arguments = source_node
-                    .map(|source| {
-                        self.invocation_scoped_type_generics(source, producer_template, lifetimes)
-                            .into_iter()
-                            .filter_map(|declaration| {
-                                let name = declaration
-                                    .split_once(':')
-                                    .map_or(declaration.as_str(), |(name, _)| name)
-                                    .trim();
-                                selected.get(name).cloned()
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
-                if generic_arguments.is_empty() {
-                    callback
-                } else {
-                    format!("{callback}::<{}>", generic_arguments.join(", "))
-                }
-            } else {
-                callback
-            }
-        };
-        if let Some(contract) = raw_contract {
-            let captures = contract
-                .captures
-                .iter()
-                .filter_map(|capture| {
-                    self.unit
-                        .typed_bindings
-                        .iter()
-                        .filter(|binding| {
-                            binding.name == *capture
-                                && binding.is_visible_at(self.unit.source.id(), value.span.start)
-                        })
-                        .max_by_key(|binding| binding.visible_from)
-                        .map(|binding| {
-                            (
-                                rust_name(capture),
-                                rust_value_type(self.package, binding.value_type.clone()),
-                            )
-                        })
-                })
-                .collect::<Vec<_>>();
-            let capture_initializers = captures
-                .iter()
-                .enumerate()
-                .map(|(index, (name, ty))| format!("let capture_{index}: {ty} = {name}.clone();"))
-                .collect::<Vec<_>>()
-                .join(" ");
-            let captured_arguments = captures
-                .iter()
-                .enumerate()
-                .map(|(index, _)| format!("capture_{index}.clone()"))
-                .chain((!arguments.is_empty()).then_some(arguments.clone()))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let callback_inputs = captures
-                .iter()
-                .map(|(_, ty)| ty.clone())
-                .chain(
-                    inputs
-                        .iter()
-                        .map(|input| input.replace("'view", "'callback")),
+        if value.kind != SyntaxKind::Name {
+            return None;
+        }
+        let callback = self.expression(value);
+        let name = self.text(value);
+        let source_node = self
+            .unit
+            .functions
+            .iter()
+            .find(|function| function.name == name)
+            .and_then(|function| {
+                find_node(
+                    &self.unit.tree.root,
+                    SyntaxKind::FunctionDeclaration,
+                    function.span,
                 )
-                .collect::<Vec<_>>()
-                .join(", ");
-            let callback_type = format!(
-                "for<'callback> fn({callback_inputs}) -> {}",
-                producer.replace("'view", "'callback")
-            );
-            return Some(format!(
-                "{{ {capture_initializers} let callback: {callback_type} = {callback}; move |{method_parameters}| {{ callback({captured_arguments}) }} }}"
-            ));
-        }
-        if value.kind == SyntaxKind::Name {
-            return Some(callback);
-        }
-        Some(format!(
-            "move |{method_parameters}| {{ ({callback})({arguments}) }}"
-        ))
+            });
+        let generic_arguments = source_node
+            .map(|source| {
+                self.invocation_scoped_type_generics(source, producer_template, lifetimes)
+                    .into_iter()
+                    .filter_map(|declaration| {
+                        let name = declaration
+                            .split_once(':')
+                            .map_or(declaration.as_str(), |(name, _)| name)
+                            .trim();
+                        selected.get(name).cloned()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        Some(if generic_arguments.is_empty() {
+            callback
+        } else {
+            format!("{callback}::<{}>", generic_arguments.join(", "))
+        })
     }
 
     fn typed_document_decode_call(
