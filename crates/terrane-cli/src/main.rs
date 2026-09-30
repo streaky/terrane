@@ -2102,6 +2102,22 @@ mod tests {
     }
 
     #[test]
+    fn run_and_debug_require_program_argument_separator() {
+        for (name, command) in [("run", CliCommand::Run), ("debug", CliCommand::Debug)] {
+            let arguments = [
+                OsString::from(name),
+                OsString::from("package.toml"),
+                OsString::from("argument"),
+            ];
+            let failure = parse_input(&arguments, command).expect_err("separator must be required");
+            assert_eq!(failure.code, 2);
+            assert!(failure.message.contains(
+                "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)"
+            ));
+        }
+    }
+
+    #[test]
     fn backend_error_in_support_sidecar_projects_to_terrane_source() {
         let directory =
             std::env::temp_dir().join(format!("terrane-backend-diagnostic-{}", std::process::id()));

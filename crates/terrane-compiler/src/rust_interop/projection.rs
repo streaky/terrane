@@ -3618,7 +3618,7 @@ pub fn resolve(
             )
         })
         .flat_map(|item| {
-            ["Send", "Sync"]
+            ["core::marker::Send", "core::marker::Sync"]
                 .into_iter()
                 .map(|rust_bound| crate::rust_interop::BoundQuestion {
                     rust_type: item.rust_path.clone(),
@@ -3641,8 +3641,8 @@ pub fn resolve(
                     ProjectedKind::ForeignType { send, sync, .. }
                     | ProjectedKind::Enum { send, sync, .. } => {
                         match evidence.question.rust_bound.as_str() {
-                            "Send" => *send = satisfied,
-                            "Sync" => *sync = satisfied,
+                            "core::marker::Send" => *send = satisfied,
+                            "core::marker::Sync" => *sync = satisfied,
                             _ => {}
                         }
                     }
@@ -10294,6 +10294,14 @@ fn is_builtin_clone(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> boo
     resolved_path_name(path, paths) == "core::clone::Clone"
 }
 
+fn is_builtin_marker_trait(
+    path: &RustdocPath,
+    paths: &HashMap<Id, ItemSummary>,
+    name: &str,
+) -> bool {
+    resolved_path_name(path, paths) == format!("core::marker::{name}")
+}
+
 fn future_output_from_generics(
     name: &str,
     declaration_generics: &Generics,
@@ -10348,13 +10356,11 @@ fn project_callback_generic(
     let bounds = generic_bounds(parameter, function);
     let callback = bounds.iter().find_map(|bound| {
         let (trait_, generic_params) = trait_bound_name(bound)?;
-        let invocation_mode = match trait_.path.rsplit("::").next() {
-            Some("FnOnce") => InvocationMode::Consuming,
-            Some("FnMut") => InvocationMode::Mutable,
-            Some("Fn") => InvocationMode::Shared,
-            _ => return None,
-        };
-        Some((trait_, generic_params, invocation_mode))
+        Some((
+            trait_,
+            generic_params,
+            builtin_callable_mode(trait_, paths)?,
+        ))
     });
     let Some((trait_, generic_params, kind)) = callback else {
         return Ok(None);
@@ -10397,9 +10403,10 @@ fn project_callback_generic(
         } else {
             (project_type(&direct_output, index, paths, known)?, false)
         };
-    let has_trait = |suffix: &str| {
+    let has_trait = |name: &str| {
         bounds.iter().any(|bound| {
-            trait_bound_name(bound).is_some_and(|(trait_, _)| trait_.path.ends_with(suffix))
+            trait_bound_name(bound)
+                .is_some_and(|(trait_, _)| is_builtin_marker_trait(trait_, paths, name))
         })
     };
     let retained = bounds
@@ -10819,12 +10826,14 @@ fn project_callable_adapter_bounds(
                     is_async,
                     retained: false,
                     send: self_bounds.iter().any(|candidate| {
-                        trait_bound_name(candidate)
-                            .is_some_and(|(trait_, _)| trait_.path.ends_with("::Send"))
+                        trait_bound_name(candidate).is_some_and(|(trait_, _)| {
+                            is_builtin_marker_trait(trait_, paths, "Send")
+                        })
                     }),
                     sync: self_bounds.iter().any(|candidate| {
-                        trait_bound_name(candidate)
-                            .is_some_and(|(trait_, _)| trait_.path.ends_with("::Sync"))
+                        trait_bound_name(candidate).is_some_and(|(trait_, _)| {
+                            is_builtin_marker_trait(trait_, paths, "Sync")
+                        })
                     }),
                 },
                 result_bounds,
@@ -13060,12 +13069,13 @@ mod tests {
         decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
         enforce_transitive_reachability, external_reexport_rustdocs, foreign_aliases,
         generated_projection_units, has_type_parameters, instantiated_nominal_name,
-        instantiated_type_name, is_internal_rust_protocol_method, mark_cache_record_used,
-        namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
-        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
-        prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
-        resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
-        seed_dependency_lock, selected_target, validate_projection_artifact,
+        instantiated_type_name, is_builtin_marker_trait, is_internal_rust_protocol_method,
+        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+        persist_dependency_lock, project_type, projectable_interface_bound,
+        projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
+        receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
+        rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
+        selected_target, validate_projection_artifact,
     };
     #[test]
     fn rust_protocol_plumbing_is_not_reported_as_a_callable_gap() {
@@ -14178,9 +14188,11 @@ mod tests {
     }
 
     #[test]
-    fn builtin_callable_recognition_uses_canonical_trait_identity() {
+    fn builtin_callback_trait_recognition_uses_canonical_identity() {
         let builtin_id = Id(1);
         let spoofed_id = Id(2);
+        let send_id = Id(3);
+        let spoofed_send_id = Id(4);
         let paths = HashMap::from([
             (
                 builtin_id,
@@ -14203,6 +14215,22 @@ mod tests {
                     kind: ItemKind::Trait,
                 },
             ),
+            (
+                send_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["core".to_owned(), "marker".to_owned(), "Send".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
+            (
+                spoofed_send_id,
+                ItemSummary {
+                    crate_id: 1,
+                    path: vec!["witness".to_owned(), "Send".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
         ]);
         let path = |id, display: &str| RustdocPath {
             path: display.to_owned(),
@@ -14215,6 +14243,16 @@ mod tests {
             Some(InvocationMode::Shared)
         );
         assert_eq!(builtin_callable_mode(&path(spoofed_id, "Fn"), &paths), None);
+        assert!(is_builtin_marker_trait(
+            &path(send_id, "renamed::Anything"),
+            &paths,
+            "Send"
+        ));
+        assert!(!is_builtin_marker_trait(
+            &path(spoofed_send_id, "Send"),
+            &paths,
+            "Send"
+        ));
     }
 
     #[test]

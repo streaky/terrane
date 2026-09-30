@@ -2471,7 +2471,6 @@ struct PendingProjectedSpecialization {
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
     bounds: Vec<PendingProjectedBound>,
-    callback_function_results: Vec<((u32, usize, usize), ValueType)>,
 }
 
 fn qualify_projected_rust_names(rust: &str, projected_names: &BTreeMap<String, String>) -> String {
@@ -2712,9 +2711,6 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             specialization.span.end,
         );
         package.units[specialization.unit]
-            .invocation_scoped_function_results
-            .extend(specialization.callback_function_results.drain(..));
-        package.units[specialization.unit]
             .projected_call_specializations
             .insert(
                 key,
@@ -2736,33 +2732,14 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
     for unit_index in 0..package.units.len() {
         let plans = {
             let unit = &package.units[unit_index];
-            unit.functions
-                .iter()
-                .filter(|contract| {
-                    matches!(
-                        contract.return_type,
-                        Some(ValueType::InvocationScopedNative { ref rust_type, .. })
-                            if rust_type == "_"
-                    )
-                })
-                .filter_map(|contract| {
-                    let function = find_node_by_span(&unit.tree.root, contract.span)?;
-                    let (result, spans) = projected_callback_node_result(package, unit, function)?;
-                    let mut value_type = result.value_type;
-                    contextualize_callback_value_type(unit, &mut value_type, &spans);
-                    Some((spans, value_type))
-                })
+            resolve_callback_function_results(package, unit)
+                .into_iter()
+                .map(|(span, result)| ((span.file, span.start, span.end), result.value_type))
                 .collect::<Vec<_>>()
         };
-        for (spans, value_type) in plans {
-            package.units[unit_index]
-                .invocation_scoped_function_results
-                .extend(
-                    spans
-                        .into_iter()
-                        .map(|span| ((span.file, span.start, span.end), value_type.clone())),
-                );
-        }
+        package.units[unit_index]
+            .invocation_scoped_function_results
+            .extend(plans);
     }
     Ok(())
 }
@@ -3097,38 +3074,51 @@ fn callback_expression_result(
     })
 }
 
-fn collect_projected_callback_results(
+#[derive(Clone)]
+struct CallbackFunctionFacts {
+    span: Span,
+    direct_results: Vec<CallbackFunctionResult>,
+    forwarded_returns: Vec<Span>,
+}
+
+fn collect_callback_function_facts(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    visited_functions: &mut Vec<Span>,
-    results: &mut Vec<CallbackFunctionResult>,
+    facts: &mut CallbackFunctionFacts,
 ) {
     if node.kind == SyntaxKind::ReturnStatement
         && let Some(value) = node.children.first()
-        && let Some(result) = callback_expression_result(package, unit, value)
     {
-        results.push(result);
-    }
-    if node.kind == SyntaxKind::CallExpression
-        && let Some(callee) = node.children.first()
-        && callee.kind == SyntaxKind::Name
-        && let Some(contract) = unit.functions.iter().find(|contract| {
-            contract.name == node_text(&unit.source, callee)
-                && matches!(
-                    contract.return_type,
-                    Some(ValueType::InvocationScopedNative { ref rust_type, .. })
-                        if rust_type == "_"
-                )
-        })
-        && !visited_functions.contains(&contract.span)
-        && let Some(function) = find_node_by_span(&unit.tree.root, contract.span)
-    {
-        visited_functions.push(contract.span);
-        collect_projected_callback_results(package, unit, function, visited_functions, results);
+        if let Some(result) = callback_expression_result(package, unit, value) {
+            facts.direct_results.push(result);
+        } else {
+            let mut value = value;
+            while value.kind == SyntaxKind::GroupExpression {
+                let Some(grouped) = value.children.first() else {
+                    break;
+                };
+                value = grouped;
+            }
+            if value.kind == SyntaxKind::CallExpression
+                && let Some(callee) = value.children.first()
+                && callee.kind == SyntaxKind::Name
+                && let Some(contract) = unit.functions.iter().find(|contract| {
+                    contract.name == node_text(&unit.source, callee)
+                        && matches!(
+                            contract.return_type,
+                            Some(ValueType::InvocationScopedNative { ref rust_type, .. })
+                                if rust_type == "_"
+                        )
+                })
+            {
+                facts.forwarded_returns.push(contract.span);
+            }
+        }
+        return;
     }
     for child in &node.children {
-        collect_projected_callback_results(package, unit, child, visited_functions, results);
+        collect_callback_function_facts(package, unit, child, facts);
     }
 }
 
@@ -3178,43 +3168,97 @@ fn same_projected_native_family(
     }
 }
 
-fn projected_callback_node_result(
+fn resolve_callback_function_results(
     package: &SemanticPackage,
     unit: &SemanticUnit,
-    function: &SyntaxNode,
-) -> Option<(CallbackFunctionResult, Vec<Span>)> {
-    let mut results = Vec::new();
-    let mut visited_functions = vec![function.span];
-    collect_projected_callback_results(
-        package,
-        unit,
-        function,
-        &mut visited_functions,
-        &mut results,
-    );
-    let first = results.first()?.clone();
-    results
+) -> Vec<(Span, CallbackFunctionResult)> {
+    let mut facts = unit
+        .functions
         .iter()
-        .all(|result| same_projected_native_family(&result.projected, &first.projected))
-        .then_some((first, visited_functions))
+        .filter(|contract| {
+            matches!(
+                contract.return_type,
+                Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+            )
+        })
+        .filter_map(|contract| {
+            let function = find_node_by_span(&unit.tree.root, contract.span)?;
+            let mut facts = CallbackFunctionFacts {
+                span: contract.span,
+                direct_results: Vec::new(),
+                forwarded_returns: Vec::new(),
+            };
+            collect_callback_function_facts(package, unit, function, &mut facts);
+            for result in &mut facts.direct_results {
+                contextualize_callback_value_type(unit, &mut result.value_type, &[contract.span]);
+            }
+            Some(facts)
+        })
+        .collect::<Vec<_>>();
+    facts.sort_by_key(|facts| (facts.span.file, facts.span.start, facts.span.end));
+    let mut candidates = facts
+        .iter()
+        .map(|facts| {
+            facts.direct_results.iter().fold(
+                Vec::<CallbackFunctionResult>::new(),
+                |mut results, result| {
+                    if !results.iter().any(|candidate| {
+                        same_projected_native_family(&candidate.projected, &result.projected)
+                    }) {
+                        results.push(result.clone());
+                    }
+                    results
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    loop {
+        let previous = candidates.clone();
+        for (index, function) in facts.iter().enumerate() {
+            for forwarded in &function.forwarded_returns {
+                let Some(callee) = facts.iter().position(|facts| facts.span == *forwarded) else {
+                    continue;
+                };
+                for result in &previous[callee] {
+                    if !candidates[index].iter().any(|candidate| {
+                        same_projected_native_family(&candidate.projected, &result.projected)
+                    }) {
+                        candidates[index].push(result.clone());
+                    }
+                }
+            }
+        }
+        if candidates
+            .iter()
+            .zip(&previous)
+            .all(|(current, previous)| current.len() == previous.len())
+        {
+            break;
+        }
+    }
+    facts
+        .into_iter()
+        .zip(candidates)
+        .filter_map(|(facts, mut candidates)| {
+            (candidates.len() == 1).then(|| (facts.span, candidates.remove(0)))
+        })
+        .collect()
 }
 
 fn projected_callback_function_result(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
-) -> Option<(CallbackFunctionResult, Vec<Span>)> {
-    let function = if let Some(function) = anonymous_callback_node(unit, value) {
-        function
-    } else {
-        let name = node_text(&unit.source, value);
-        let contract = unit
-            .functions
-            .iter()
-            .find(|contract| contract.name == name)?;
-        find_node_by_span(&unit.tree.root, contract.span)?
-    };
-    projected_callback_node_result(package, unit, function)
+) -> Option<CallbackFunctionResult> {
+    let name = node_text(&unit.source, value);
+    let span = unit
+        .functions
+        .iter()
+        .find(|contract| contract.name == name)?
+        .span;
+    resolve_callback_function_results(package, unit)
+        .into_iter()
+        .find_map(|(candidate, result)| (candidate == span).then_some(result))
 }
 
 fn contextualize_callback_value_type(
@@ -3415,7 +3459,6 @@ fn collect_projected_destinations(
         let mut native_bindings = BTreeMap::new();
         let mut native_value_bindings = BTreeMap::new();
         let mut native_projected_parameters = BTreeMap::new();
-        let mut callback_function_results = Vec::new();
         for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
             .children
             .iter()
@@ -3486,7 +3529,7 @@ fn collect_projected_destinations(
                     ));
                 }
                 let destination_selected_parameters = *parameters_destination_selected;
-                let Some((actual_callback_result, callback_spans)) =
+                let Some(actual_callback_result) =
                     projected_callback_function_result(package, unit, value)
                 else {
                     return Err(failure(
@@ -3497,18 +3540,11 @@ fn collect_projected_destinations(
                     ));
                 };
                 let actual_projected_result = Some(actual_callback_result.projected.clone());
-                let mut callback_value_type = actual_callback_result.value_type.clone();
-                contextualize_callback_value_type(unit, &mut callback_value_type, &callback_spans);
+                let mut callback_value_type = actual_callback_result.value_type;
                 substitute_native_type_parameters(
                     &mut callback_value_type,
                     callback_native_substitutions,
                 );
-                callback_function_results.extend(callback_spans.into_iter().map(|callback_span| {
-                    (
-                        (callback_span.file, callback_span.start, callback_span.end),
-                        callback_value_type.clone(),
-                    )
-                }));
                 if let (
                     crate::rust_interop::projection::ProjectedType::InvocationScoped {
                         name: expected_name,
@@ -4012,10 +4048,6 @@ fn collect_projected_destinations(
                 specialization_substitutions.insert(name.clone(), selected.clone());
             }
         }
-        for (_, value_type) in &mut callback_function_results {
-            substitute_native_type_parameters(value_type, &native_bindings);
-            substitute_native_type_parameters(value_type, &specialization_substitutions);
-        }
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
@@ -4030,7 +4062,6 @@ fn collect_projected_destinations(
             value_parameters,
             value_type,
             bounds,
-            callback_function_results,
         });
     }
     if node.kind == SyntaxKind::CallExpression
@@ -4139,7 +4170,6 @@ fn collect_projected_destinations(
             bounds,
             projected_parameters: function.parameters.clone(),
             direct_projected_call: false,
-            callback_function_results: Vec::new(),
         });
     }
 

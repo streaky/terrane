@@ -1,60 +1,29 @@
-use crate::development_fingerprint::{dirty_fingerprint, git_output};
+use crate::development_fingerprint::compiler_input_fingerprint;
 use std::path::Path;
 
 const BUILD_REPOSITORY: &str = env!("TERRANE_BUILD_REPOSITORY");
-const BUILD_GIT_HEAD: &str = env!("TERRANE_BUILD_GIT_HEAD");
-const BUILD_DIRTY_FINGERPRINT: &str = env!("TERRANE_BUILD_DIRTY_FINGERPRINT");
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Staleness {
-    Commit,
-    WorkingTree,
-}
+const BUILD_INPUT_FINGERPRINT: &str = env!("TERRANE_BUILD_INPUT_FINGERPRINT");
 
 pub fn warning() -> Option<String> {
     let executable = std::env::current_exe().ok()?.canonicalize().ok()?;
     let repository = Path::new(BUILD_REPOSITORY);
-    if !is_repository_target_binary(&executable, repository) || BUILD_GIT_HEAD.is_empty() {
+    if !is_repository_target_binary(&executable, repository) {
         return None;
     }
 
-    let current_head = git_output(repository, &["rev-parse", "HEAD"])?;
-    let current_head = String::from_utf8(current_head).ok()?;
-    let current_head = current_head.trim();
-    let current_fingerprint = dirty_fingerprint(repository)?;
-    let build_fingerprint = u64::from_str_radix(BUILD_DIRTY_FINGERPRINT, 16).ok()?;
     let rebuild_command = rebuild_command(&executable);
-    match staleness(
-        BUILD_GIT_HEAD,
-        build_fingerprint,
-        current_head,
-        current_fingerprint,
-    )? {
-        Staleness::Commit => Some(format!(
-            "warning: this development Terrane compiler is out of date\n  binary: {}\n  built from: {}\n  checkout:   {}\n  help: rebuild this binary with `{rebuild_command}`\n",
-            executable.display(),
-            short_commit(BUILD_GIT_HEAD),
-            short_commit(current_head),
-        )),
-        Staleness::WorkingTree => Some(format!(
-            "warning: this development Terrane compiler predates compiler input changes in the working tree\n  binary: {}\n  help: rebuild this binary with `{rebuild_command}`\n",
+    let build_fingerprint = u64::from_str_radix(BUILD_INPUT_FINGERPRINT, 16).ok();
+    let current_fingerprint = compiler_input_fingerprint(repository);
+    match (build_fingerprint, current_fingerprint) {
+        (Some(build), Ok(current)) if build == current => None,
+        (Some(_), Ok(_)) => Some(format!(
+            "warning: this development Terrane compiler predates compiler input changes\n  binary: {}\n  help: rebuild this binary with `{rebuild_command}`\n",
             executable.display(),
         )),
-    }
-}
-
-fn staleness(
-    build_head: &str,
-    build_fingerprint: u64,
-    current_head: &str,
-    current_fingerprint: u64,
-) -> Option<Staleness> {
-    if build_head != current_head {
-        Some(Staleness::Commit)
-    } else if build_fingerprint != current_fingerprint {
-        Some(Staleness::WorkingTree)
-    } else {
-        None
+        _ => Some(format!(
+            "warning: Terrane could not verify whether this development compiler is current\n  binary: {}\n  help: rebuild this binary with `{rebuild_command}`\n",
+            executable.display(),
+        )),
     }
 }
 
@@ -77,13 +46,9 @@ fn rebuild_command(executable: &Path) -> &'static str {
     }
 }
 
-fn short_commit(commit: &str) -> &str {
-    commit.get(..8).unwrap_or(commit)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Staleness, is_repository_target_binary, rebuild_command, staleness};
+    use super::{is_repository_target_binary, rebuild_command};
     use std::path::Path;
 
     #[test]
@@ -113,12 +78,5 @@ mod tests {
             rebuild_command(Path::new("/workspace/terrane/target/release/terrane")),
             "cargo build --release --bin terrane"
         );
-    }
-
-    #[test]
-    fn provenance_distinguishes_commit_and_working_tree_staleness() {
-        assert_eq!(staleness("aaa", 1, "bbb", 1), Some(Staleness::Commit));
-        assert_eq!(staleness("aaa", 1, "aaa", 2), Some(Staleness::WorkingTree));
-        assert_eq!(staleness("aaa", 1, "aaa", 1), None);
     }
 }

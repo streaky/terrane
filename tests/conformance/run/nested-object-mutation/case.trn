@@ -1,0 +1,22 @@
+namespace app
+
+class leaf
+    value int = 0
+
+    function construct; initial int
+        this.value = initial
+
+class holder
+    child leaf = instance leaf; 0
+
+    function construct; child leaf
+        this.child = child
+
+    mutable function replace int; value int
+        this.child.value = value
+        return this.child.value
+
+function main;
+    value = instance leaf; 1
+    container = instance holder; value
+    print; (container.replace; 42)

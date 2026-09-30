@@ -34,6 +34,12 @@ function exact-pong host-invocation-scoped-native; state ref string
         return exact-ping; state
     return borrowed_label; state
 
+function exact-inner-label host-invocation-scoped-native; state ref string
+    return borrowed_label; state
+
+function exact-outer-group host-invocation-scoped-native; state ref string
+    return borrowed_label_group; (exact-inner-label; state)
+
 function exact-branch host-invocation-scoped-native; state ref string
     if state.length > 1
         intermediate = borrowed_label; state
@@ -83,6 +89,7 @@ function main;
     print; (render_exact; exact-state, 'message', true, exact-recursive)
     print; (render_exact; exact-state, 'message', true, exact-wrapped-binding)
     print; (render_exact; exact-state, 'message', true, exact-ping)
+    print; (render_exact; exact-state, 'message', true, exact-outer-group)
     offset int64 = 2
     captured = function Label; state ref int64
         return label; state + offset
