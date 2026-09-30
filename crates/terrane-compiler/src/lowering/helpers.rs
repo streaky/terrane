@@ -804,7 +804,7 @@ pub(super) fn rust_object_name(name: &str) -> String {
 ///
 /// Counting the source segment keeps the encoding injective when case conversion erases spelling
 /// differences; the following CamelCase letter also makes adjacent decimal lengths unambiguous.
-pub(super) fn rust_object_type_name(
+pub(crate) fn rust_object_type_name(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> String {

@@ -964,6 +964,7 @@ impl terrane_associated_witness::Sequence for Lists {
                     .map(|value| -> Result<_, crate::TerraneForeignError> {
                         Ok(
                             value
+                                .into_vec()
                                 .into_iter()
                                 .map(|item| -> Result<_, crate::TerraneForeignError> {
                                     Ok(
@@ -1277,6 +1278,7 @@ for TerraneNs4Deps26TerraneAssociatedWitnessSequence<
                     .map(|value| -> Result<_, crate::TerraneForeignError> {
                         Ok(
                             value
+                                .into_vec()
                                 .into_iter()
                                 .map(|item| -> Result<_, crate::TerraneForeignError> {
                                     Ok(

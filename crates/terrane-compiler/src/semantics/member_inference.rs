@@ -458,6 +458,25 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::InvocationScopedNative { family, .. }) = &receiver_type
+        && let Some(resolved_family) = unit
+            .descriptors
+            .iter()
+            .find(|descriptor| descriptor.identity.name == family.name)
+            .map(|descriptor| &descriptor.identity)
+        && let Some(member_type) = object_member_type(unit, resolved_family, member_name, false)
+    {
+        return Ok(Some(match member_type {
+            ValueType::Function(parameters, result, effects) if matches!(result.value_type_ref(), ValueType::Object(identity) if identity == resolved_family) => {
+                ValueType::Function(
+                    parameters,
+                    ElementType::new(receiver_type.clone().expect("scoped receiver is present")),
+                    effects,
+                )
+            }
+            member_type => member_type,
+        }));
+    }
     if let Some(ValueType::Object(object_name)) = &receiver_type
         && let Some(member_type) = object_member_type(unit, object_name, member_name, false)
     {
@@ -601,6 +620,12 @@ pub(super) fn infer_member_value_type(
             format!("`.{member_name}` requires a floating receiver"),
             receiver.span,
         ));
+    }
+    if matches!(
+        receiver_type,
+        Some(ValueType::InvocationScopedNative { .. })
+    ) {
+        return Ok(None);
     }
     if member_name != "length" {
         return match receiver_type {

@@ -727,10 +727,12 @@ from package or operation names.
 
 `projected-invocation-scoped-callback` executes direct, nested, branching, helper, capture,
 aggregate, and defaulted-terminal paths. Focused rejection fixtures cover nominal and aggregate
-escape, capture, suspension, invalid reuse, and incompatible terminal graphs. The minimal
-`packages/iced-ui` application now executes projected `iced::application`, `iced::widget::text`,
-the selected `Into<Element<'a, ...>>` terminal conversion, and `.run()` with no Iced-specific
-compiler branch.
+escape, capture, suspension, invalid reuse, and incompatible terminal graphs. The maintained
+`packages/iced-ui` renderer now executes projected `iced::widget::text`, `button`, `column`, `row`,
+`container`, and `scrollable` operations from its Terrane view callback. The selected
+`Into<Element<'a, ...>>` terminal conversions retain correlated theme and renderer generics with no
+Iced-specific compiler branch. A narrow host crate still owns Iced's event-loop entrypoint, while a
+package-local Rust module converts the public Terrane `View`/`Event` data-transfer objects.
 
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
@@ -910,11 +912,12 @@ merely to simplify the binding engine.
    deterministic local loading and validation, then generated host registration and its isolated
    safety boundary. H1's declaration design can proceed alongside B/C after A; host implementation
    consumes the shared contract rather than forking it.
-6. **Iced cutover:** implement application state, event handling, widget/view composition and
-   terminal run using projected operations and Terrane callables. Remove
-   `packages/iced-ui/rust/iced_ui.rs`, its manifest entry and authored-Rust launch call.
-   Keep or reshape `iced-ui` as an ordinary Terrane library only if useful; replace the finite
-   task-list Rust renderer, not merely its filename.
+6. **Iced cutover:** application state, event handling, and widget/view composition now live in
+   Terrane; the maintained renderer invokes projected Iced widget operations and returns through
+   the selected higher-ranked terminal conversion. Keep the remaining host crate and
+   `packages/iced-ui/rust/iced_ui.rs` limited to event-loop startup and `View`/`Event` DTO
+   conversion. Remove those boundaries only when projected host entrypoints and cross-package
+   native DTO representation make that deletion real; do not move rendering back behind them.
 7. **Godot cutover:** remove the registration bridge only after generated extension loading,
    lifecycle, drawing, exports/properties and shutdown succeed in `projects/godot-test`.
 8. **Cross-package hardening:** prove metadata-independent new-package use, profile pin/replay/

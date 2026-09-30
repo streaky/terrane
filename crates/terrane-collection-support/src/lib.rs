@@ -221,6 +221,26 @@ impl<T> List<T> {
     {
         Arc::unwrap_or_clone(self.0)
     }
+    /// Consumes a list whose scoped element type cannot be cloned.
+    ///
+    /// Invocation-scoped lists cannot be duplicated, so their backing vector is uniquely owned.
+    ///
+    /// # Panics
+    ///
+    /// Panics if compiler lowering violated the invocation-region uniqueness invariant.
+    #[must_use]
+    pub fn into_unique_vec(self) -> Vec<T> {
+        Arc::try_unwrap(self.0).unwrap_or_else(|_| {
+            panic!("invocation-scoped list backing storage must be uniquely owned")
+        })
+    }
+    /// Appends to an invocation-scoped list whose backing storage is uniquely owned.
+    #[doc(hidden)]
+    pub fn push_unique(&mut self, value: T) {
+        Arc::get_mut(&mut self.0)
+            .expect("invocation-scoped list backing storage must be uniquely owned")
+            .push(value);
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)

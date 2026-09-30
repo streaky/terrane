@@ -1,4 +1,5 @@
 use proc_macro2::{TokenStream, TokenTree};
+use quote::ToTokens as _;
 use std::fmt::Write as _;
 use syn::fold::Fold as _;
 use syn::parse::Parser as _;
@@ -58,6 +59,48 @@ pub(crate) struct RenderedProgram {
     application: RenderedFragment,
     review: RenderedFragment,
 }
+pub(crate) fn rust_type_arguments(rust: &str) -> Vec<String> {
+    let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(rust) else {
+        return Vec::new();
+    };
+    let Some(segment) = path.path.segments.last() else {
+        return Vec::new();
+    };
+    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+        return Vec::new();
+    };
+    arguments
+        .args
+        .iter()
+        .map(|argument| argument.to_token_stream().to_string())
+        .collect()
+}
+
+pub(crate) fn rust_lifetimes(rust: &str) -> std::collections::BTreeSet<String> {
+    let bytes = rust.as_bytes();
+    let mut lifetimes = std::collections::BTreeSet::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'\'' {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        while index < bytes.len() && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_')
+        {
+            index += 1;
+        }
+        if index > start + 1 {
+            let lifetime = &rust[start..index];
+            if lifetime != "'static" {
+                lifetimes.insert(lifetime.to_owned());
+            }
+        }
+    }
+    lifetimes
+}
+
 pub(crate) fn instantiate_rust_generics(
     rust: &str,
     replacements: &std::collections::BTreeMap<String, String>,

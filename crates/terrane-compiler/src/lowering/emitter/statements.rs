@@ -155,10 +155,17 @@ impl Emitter<'_> {
         let mutation = match (receiver_type, operation.as_str()) {
             (ValueType::List(item), "append") => {
                 let value = self.expression_as(values[0], item.value_type());
-                Some(list_append_vector.map_or_else(
-                    || format!("({receiver_value}).append({value})"),
-                    |vector| format!("{vector}.push({value})"),
-                ))
+                if matches!(
+                    item.value_type_ref(),
+                    ValueType::InvocationScopedNative { .. }
+                ) {
+                    Some(format!("({receiver_value}).push_unique({value})"))
+                } else {
+                    Some(list_append_vector.map_or_else(
+                        || format!("({receiver_value}).append({value})"),
+                        |vector| format!("{vector}.push({value})"),
+                    ))
+                }
             }
             (ValueType::List(item), "set") => {
                 let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));

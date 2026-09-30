@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "176";
+const PROJECTION_SCHEMA: &str = "189";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -1588,6 +1588,17 @@ impl Projection {
     }
 
     #[must_use]
+    pub(crate) fn item_named(&self, name: &str) -> Option<&ProjectedItem> {
+        let mut matching = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.name == name);
+        let item = matching.next()?;
+        matching.next().is_none().then_some(item)
+    }
+
+    #[must_use]
     pub(crate) fn borrowed_struct_view(
         &self,
         rust_path: &str,
@@ -1893,8 +1904,13 @@ impl Projection {
             .find(|item| {
                 item.namespace == namespace
                     && item.name == type_name
-                    && (Self::unqualified_rust_type(&item.rust_path)
-                        == Self::unqualified_rust_type(rust_path)
+                    && (item
+                        .rust_path
+                        .split_once('<')
+                        .map_or(item.rust_path.as_str(), |(base, _)| base)
+                        == base_rust_path
+                        || Self::unqualified_rust_type(&item.rust_path)
+                            == Self::unqualified_rust_type(rust_path)
                         || projected_owner_path_matches(&item.rust_path, base_rust_path))
             })
             .and_then(|item| match &item.kind {
@@ -1913,6 +1929,10 @@ impl Projection {
                         method.name == method_name
                             && native_projection.is_none_or(|owner| {
                                 method.native_owner.as_deref().is_none_or(|native| {
+                                    let native =
+                                        native.split_once('<').map_or(native, |(base, _)| base);
+                                    let owner =
+                                        owner.split_once('<').map_or(owner, |(base, _)| base);
                                     Self::unqualified_rust_type(native)
                                         == Self::unqualified_rust_type(owner)
                                 })
@@ -6495,6 +6515,7 @@ fn project_interface_inner(
             function,
             index,
             paths,
+            &BTreeMap::new(),
             Some(name),
             &supplied,
             false,
@@ -6960,6 +6981,7 @@ fn project_external_provided_trait_methods(
                     function,
                     &trait_document.index,
                     &trait_paths,
+                    &BTreeMap::new(),
                     Some(method_name),
                     &supplied,
                     false,
@@ -7486,6 +7508,7 @@ fn project_rustdoc(
                 function,
                 index,
                 paths,
+                public_paths,
                 Some(&name),
                 true,
             )
@@ -7494,10 +7517,11 @@ fn project_rustdoc(
                     ProjectedType::InvocationScoped { owned, .. } => owned.as_ref().clone(),
                     result => result.clone(),
                 };
-                let chain_owner = project_chain_owner(
+                let mut chain_owner = project_chain_owner(
                     dependency,
                     function,
                     &candidate_result,
+                    false,
                     index,
                     paths,
                     public_paths,
@@ -7556,6 +7580,10 @@ fn project_rustdoc(
                                     })
                             })
                     });
+                if has_external_terminal_conversion {
+                    chain_owner = None;
+                }
+                let ordinary_chain_owner = chain_owner.is_some();
                 let receiver_tied =
                     projected_function
                         .parameters
@@ -7610,9 +7638,27 @@ fn project_rustdoc(
                         owned: Box::new(candidate_result.clone()),
                     };
                 }
+                let invocation_scoped_chain = matches!(
+                    projected_function.result,
+                    ProjectedType::InvocationScoped { .. }
+                );
+                if chain_owner.is_none() && invocation_scoped_chain {
+                    chain_owner = project_chain_owner(
+                        dependency,
+                        function,
+                        &candidate_result,
+                        true,
+                        index,
+                        paths,
+                        public_paths,
+                        &mut source_constants,
+                    );
+                }
                 if let Some(chain_owner) = chain_owner {
-                    projected_function.result = candidate_result;
-                    projected_function.chain_role = Some(ChainRole::Root);
+                    if ordinary_chain_owner {
+                        projected_function.result = candidate_result;
+                        projected_function.chain_role = Some(ChainRole::Root);
+                    }
                     projected_associated_items.push(chain_owner);
                 } else if matches!(
                     projected_function.result,
@@ -8909,6 +8955,7 @@ fn project_methods(
                     function,
                     index,
                     paths,
+                    public_paths,
                     Some(name),
                     &implementation_generics,
                     allow_lifetime_output,
@@ -8967,6 +9014,7 @@ fn project_methods(
                 function,
                 index,
                 paths,
+                public_paths,
                 Some(name),
                 &implementation_generics,
                 allow_lifetime_output,
@@ -9011,10 +9059,15 @@ fn is_internal_rust_protocol_method(trait_path: &str, method: &str) -> bool {
         && (trait_path.ends_with("::fmt::Debug") || trait_path.ends_with("::fmt::Display")))
         || (method == "hash" && trait_path.ends_with("::hash::Hash"))
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "chain-owner projection needs the resolved dependency and all Rustdoc path contexts"
+)]
 fn project_chain_owner(
     dependency: &RustDependency,
     function: &Function,
     result: &ProjectedType,
+    invocation_scoped: bool,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     public_paths: &BTreeMap<Id, String>,
@@ -9081,9 +9134,10 @@ fn project_chain_owner(
         });
         true
     });
-    if methods
-        .iter()
-        .all(|method| method.chain_role != Some(ChainRole::Terminal))
+    if !invocation_scoped
+        && methods
+            .iter()
+            .all(|method| method.chain_role != Some(ChainRole::Terminal))
     {
         return None;
     }
@@ -9166,6 +9220,7 @@ fn project_function_with_generics(
     function: &Function,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
     method_name: Option<&str>,
     supplied_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
@@ -9174,6 +9229,7 @@ fn project_function_with_generics(
         function,
         index,
         paths,
+        public_paths,
         method_name,
         supplied_generics,
         allow_lifetime_output,
@@ -9184,6 +9240,7 @@ fn project_function(
     function: &Function,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
     method_name: Option<&str>,
     allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
@@ -9191,6 +9248,7 @@ fn project_function(
         function,
         index,
         paths,
+        public_paths,
         method_name,
         &BTreeMap::new(),
         allow_lifetime_output,
@@ -9357,6 +9415,7 @@ fn project_function_inner(
     function: &Function,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
     method_name: Option<&str>,
     supplied_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
@@ -9421,6 +9480,14 @@ fn project_function_inner(
                 project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
             {
                 (callback, Some(generic), Some(result_bounds))
+            } else if let Some(projected) = invocation_scoped_sequence_impl_trait_input(
+                bounds,
+                index,
+                paths,
+                public_paths,
+                &generic_types,
+            )? {
+                (projected, None, None)
             } else if let Some(projected) = structural_impl_trait_input(bounds, paths) {
                 (projected, Some(generic), None)
             } else if let Ok(projectable) = projectable_interface_bound(bounds, index, paths) {
@@ -9462,7 +9529,12 @@ fn project_function_inner(
                 None,
             )
         } else {
-            (project_type(ty, index, paths, &generic_types)?, None, None)
+            (
+                project_type(ty, index, paths, &generic_types)
+                    .map_err(|reason| format!("parameter `{name}`: {reason}"))?,
+                None,
+                None,
+            )
         };
         let (borrowed, mutable_borrow) = match ty {
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
@@ -9972,6 +10044,67 @@ fn projectable_interface_bound<'a>(
 
     Ok(trait_)
 }
+fn invocation_scoped_sequence_impl_trait_input(
+    bounds: &[GenericBound],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedType>, String> {
+    let Some(trait_) = bounds.iter().find_map(|bound| {
+        let (trait_, _) = trait_bound_name(bound)?;
+        let path = paths
+            .get(&trait_.id)
+            .map_or_else(|| trait_.path.clone(), |summary| summary.path.join("::"));
+        matches!(
+            path.as_str(),
+            "core::iter::traits::collect::IntoIterator"
+                | "std::iter::IntoIterator"
+                | "core::iter::IntoIterator"
+        )
+        .then_some(trait_)
+    }) else {
+        return Ok(None);
+    };
+    let Some(GenericArgs::AngleBracketed { constraints, .. }) = trait_.args.as_deref() else {
+        return Ok(None);
+    };
+    let Some(item_type) = constraints.iter().find_map(|constraint| {
+        (constraint.name == "Item")
+            .then_some(&constraint.binding)
+            .and_then(|binding| match binding {
+                AssocItemConstraintKind::Equality(Term::Type(ty)) => Some(ty),
+                _ => None,
+            })
+    }) else {
+        return Ok(None);
+    };
+    if !type_contains_lifetime_argument(item_type) {
+        return Ok(None);
+    }
+    let mut rendering_paths = paths.clone();
+    for (id, public_path) in public_paths {
+        if let Some(summary) = rendering_paths.get_mut(id) {
+            summary.path = public_path.split("::").map(str::to_owned).collect();
+        }
+    }
+    if let Type::ResolvedPath(item_path) = item_type
+        && let Some(name) = item_path.path.rsplit("::").next()
+        && let Some(public_path) = public_paths
+            .values()
+            .filter(|path| path.rsplit("::").next() == Some(name))
+            .min_by_key(|path| path.matches("::").count())
+        && let Some(summary) = rendering_paths.get_mut(&item_path.id)
+    {
+        summary.path = public_path.split("::").map(str::to_owned).collect();
+    }
+    let item = project_invocation_scoped_type(item_type, index, &rendering_paths, generics)?;
+    Ok(Some(ProjectedType::Sequence {
+        rust_path: format!("std::vec::Vec<{}>", item.rust_type()),
+        item: Box::new(item),
+    }))
+}
+
 fn structural_impl_trait_input(
     bounds: &[GenericBound],
     paths: &HashMap<Id, ItemSummary>,
@@ -10210,9 +10343,14 @@ fn project_callback_generic(
     let Some((trait_, generic_params, kind)) = callback else {
         return Ok(None);
     };
-    if !generic_params.is_empty() {
+    if generic_params.iter().any(|parameter| {
+        !matches!(
+            parameter.kind,
+            rustdoc_types::GenericParamDefKind::Lifetime { .. }
+        )
+    }) {
         return Err(format!(
-            "callback generic `{}` uses a higher-ranked lifetime",
+            "callback generic `{}` uses higher-ranked type or const parameters",
             parameter.name
         ));
     }
@@ -10227,15 +10365,22 @@ fn project_callback_generic(
         .map(|input| project_type(input, index, paths, known))
         .collect::<Result<Vec<_>, _>>()?;
     let direct_output = output.clone().unwrap_or(Type::Tuple(Vec::new()));
-    let (result, is_async) = if let Type::Generic(future) = &direct_output {
-        if let Some(output) = future_output(future, function, index, paths, known)? {
-            (output, true)
+    let (result, is_async) =
+        if !generic_params.is_empty() && type_contains_lifetime_argument(&direct_output) {
+            (
+                project_invocation_scoped_type(&direct_output, index, paths, known)
+                    .map_err(|reason| format!("callback result: {reason}"))?,
+                false,
+            )
+        } else if let Type::Generic(future) = &direct_output {
+            if let Some(output) = future_output(future, function, index, paths, known)? {
+                (output, true)
+            } else {
+                (project_type(&direct_output, index, paths, known)?, false)
+            }
         } else {
             (project_type(&direct_output, index, paths, known)?, false)
-        }
-    } else {
-        (project_type(&direct_output, index, paths, known)?, false)
-    };
+        };
     let has_trait = |suffix: &str| {
         bounds.iter().any(|bound| {
             trait_bound_name(bound).is_some_and(|(trait_, _)| trait_.path.ends_with(suffix))
@@ -10255,7 +10400,10 @@ fn project_callback_generic(
             .iter()
             .map(|input| render_rust_type(input, index, paths, known))
             .collect::<Result<Vec<_>, _>>()?,
-        parameter_borrows: vec![false; inputs.len()],
+        parameter_borrows: inputs
+            .iter()
+            .map(|input| matches!(input, Type::BorrowedRef { .. }))
+            .collect(),
         result: Box::new(result),
         parameters_destination_selected: false,
         invocation_mode: kind,

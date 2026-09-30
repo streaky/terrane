@@ -1254,7 +1254,13 @@ pub(super) fn value_types_compatible(
         {
             true
         }
-        (ValueType::ProjectedGeneric(_), _)
+        (
+            ValueType::InvocationScopedNative { region: None, .. },
+            ValueType::InvocationScopedNative {
+                region: Some(_), ..
+            },
+        )
+        | (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
         | (ValueType::IterationStep(_), ValueType::IterationEnd)
         | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,

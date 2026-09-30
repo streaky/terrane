@@ -86,11 +86,31 @@ impl Emitter<'_> {
                         .and_then(|binding| find_node_by_span(&self.unit.tree.root, binding.span))
                 });
             producer_value = source_node
-                .and_then(|node| self.invocation_scoped_return_type(node, 0))
+                .and_then(|node| {
+                    let producer = if node.kind == SyntaxKind::AnonymousFunction {
+                        node
+                    } else {
+                        node.children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::AnonymousFunction)?
+                    };
+                    self.invocation_scoped_return_type(producer, 0)
+                })
                 .unwrap_or(producer_value);
         }
+        let callback_lifetimes = lifetimes
+            .iter()
+            .cloned()
+            .chain(crate::rust_ir::rust_lifetimes(native_bound))
+            .chain(crate::rust_ir::rust_lifetimes(native_result))
+            .chain(
+                parameter_rust_types
+                    .iter()
+                    .flat_map(|parameter| crate::rust_ir::rust_lifetimes(parameter)),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
         let scoped_type = |rust_type: &str| {
-            lifetimes
+            callback_lifetimes
                 .iter()
                 .fold(rust_type.replace("'_", "'view"), |rust_type, lifetime| {
                     rust_type.replace(lifetime, "'view")
@@ -132,10 +152,28 @@ impl Emitter<'_> {
                 .iter()
                 .map(|(name, ty)| (name.clone(), ty.rust_type())),
         );
-        let producer = scoped_type(&crate::rust_ir::instantiate_rust_generics(
-            producer_template,
-            &selected,
-        ));
+        let producer = if producer_template == "_" {
+            scoped_type(native_result)
+        } else {
+            scoped_type(&crate::rust_ir::instantiate_rust_generics(
+                producer_template,
+                &selected,
+            ))
+        };
+        let specialized_producer_value = match producer_value.clone() {
+            ValueType::InvocationScopedNative {
+                family,
+                lifetimes,
+                region,
+                ..
+            } => ValueType::InvocationScopedNative {
+                rust_type: producer.replace("'view", "'_"),
+                family,
+                lifetimes,
+                region,
+            },
+            _ => unreachable!("producer value was checked above"),
+        };
         let raw_callback = if value.kind == SyntaxKind::Name {
             let name = self.text(value);
             self.unit
@@ -164,7 +202,7 @@ impl Emitter<'_> {
                 .cloned()
         });
         let callback = if let Some(callback) = raw_callback {
-            self.invocation_scoped_anonymous_function(&callback, producer_value.clone())
+            self.invocation_scoped_anonymous_function(&callback, specialized_producer_value)
         } else {
             let callback = self.expression(value);
             if value.kind == SyntaxKind::Name {
@@ -190,9 +228,7 @@ impl Emitter<'_> {
                                     .split_once(':')
                                     .map_or(declaration.as_str(), |(name, _)| name)
                                     .trim();
-                                native_substitutions
-                                    .get(name)
-                                    .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                                selected.get(name).cloned()
                             })
                             .collect::<Vec<_>>()
                     })
@@ -1840,17 +1876,62 @@ impl Emitter<'_> {
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         !has_invocation_callback
+                            && !matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                            )
                             && (parameter.generic_parameter.is_none()
                                 || matches!(
                                     parameter.ty,
                                     crate::rust_interop::projection::ProjectedType::Callback { .. }
                                 ))
-                            && (specialization
-                                .is_some_and(|specialization| specialization.direct_projected_call)
-                                || projected_chain_role.is_some()
+                            && (specialization.is_some_and(|specialization| {
+                                specialization.direct_projected_call
+                            }) || projected_chain_role.is_some()
                                 || callee.kind == SyntaxKind::MemberExpression)
-                    }) {
-                    projected_chain_argument_expression(&expression, &projected.ty)
+                    })
+                {
+                    let sequence_conversion = match (&projected.ty, self.value_type(value)) {
+                        (
+                            crate::rust_interop::projection::ProjectedType::Sequence {
+                                rust_path,
+                                item,
+                            },
+                            Some(ValueType::List(actual)),
+                        ) if rust_path.starts_with("alloc::vec::Vec<")
+                            || rust_path.starts_with("std::vec::Vec<") =>
+                        {
+                            let convert_items = match (item.as_ref(), actual.value_type_ref()) {
+                                (
+                                    crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                                        name: expected,
+                                        ..
+                                    },
+                                    ValueType::InvocationScopedNative { family, .. },
+                                ) => expected != &family.name,
+                                _ => false,
+                            };
+                            let consume = if matches!(
+                                actual.value_type_ref(),
+                                ValueType::InvocationScopedNative { .. }
+                            ) {
+                                "into_unique_vec"
+                            } else {
+                                "into_vec"
+                            };
+                            Some(if convert_items {
+                                format!(
+                                    "{expression}.{consume}().into_iter().map(Into::into).collect::<Vec<_>>()"
+                                )
+                            } else {
+                                format!("{expression}.{consume}()")
+                            })
+                        }
+                        _ => None,
+                    };
+                    sequence_conversion.unwrap_or_else(|| {
+                        projected_chain_argument_expression(&expression, &projected.ty)
+                    })
                 } else {
                     expression
                 };
@@ -2080,7 +2161,57 @@ impl Emitter<'_> {
         let name = if let Some(specialization) =
             specialization.filter(|specialization| !specialization.generic_arguments.is_empty())
         {
-            format!("{name}::<{}>", specialization.generic_arguments.join(", "))
+            let contextual_value_type = self
+                .unit
+                .enclosing_function_spans
+                .get(&node.span.start)
+                .copied()
+                .flatten()
+                .and_then(|span| {
+                    find_node(&self.unit.tree.root, SyntaxKind::FunctionDeclaration, span)
+                })
+                .and_then(|function| self.invocation_scoped_return_type(function, 0))
+                .or_else(|| {
+                    self.value_type(node)
+                        .map(|value_type| self.contextual_scoped_return_type(node, &value_type))
+                });
+            let mut generic_arguments = specialization
+                .generic_arguments
+                .iter()
+                .map(|argument| {
+                    crate::rust_ir::instantiate_rust_generics(
+                        argument,
+                        &specialization.substitutions,
+                    )
+                })
+                .collect::<Vec<_>>();
+            if let (
+                Some(projected),
+                Some(ValueType::InvocationScopedNative {
+                    rust_type: actual, ..
+                }),
+            ) = (projected_function.as_ref(), contextual_value_type)
+                && let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    rust_type: template,
+                    ..
+                } = &projected.result
+            {
+                let template_arguments = crate::rust_ir::rust_type_arguments(template);
+                let actual_arguments = crate::rust_ir::rust_type_arguments(&actual);
+                for argument in &mut generic_arguments {
+                    if actual_arguments.contains(argument) {
+                        continue;
+                    }
+                    if let Some((_, replacement)) = template_arguments
+                        .iter()
+                        .zip(&actual_arguments)
+                        .find(|(template, _)| *template == argument)
+                    {
+                        argument.clone_from(replacement);
+                    }
+                }
+            }
+            format!("{name}::<{}>", generic_arguments.join(", "))
         } else {
             name
         };

@@ -591,10 +591,14 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn exact_label<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
-    return __terrane_raised(
-        borrowed_label(state),
-        0 /* terrane-site: src/main.trn:8:12-8:33 */,
-    );
+    return {
+        let value: witness::BorrowedLabel<'_> = __terrane_raised(
+                borrowed_label(state),
+                0 /* terrane-site: src/main.trn:8:12-8:33 */,
+            )
+            .into();
+        value
+    };
 }
 fn exact<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
     return exact_label(state);
@@ -608,10 +612,14 @@ fn exact_nested<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
         borrowed_button(state),
         2 /* terrane-site: src/main.trn:14:14-14:36 */,
     );
-    return __terrane_raised(
-        borrowed_group(first, second),
-        3 /* terrane-site: src/main.trn:15:12-15:41 */,
-    );
+    return {
+        let value: witness::BorrowedGroup<'_> = __terrane_raised(
+                borrowed_group(first, second),
+                3 /* terrane-site: src/main.trn:15:12-15:41 */,
+            )
+            .into();
+        value
+    };
 }
 fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     if terrane_int_support::Int::from(
@@ -622,42 +630,54 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
             borrowed_label(state),
             4 /* terrane-site: src/main.trn:19:24-19:45 */,
         );
-        return __terrane_raised(
-            borrowed_label_group(intermediate),
-            5 /* terrane-site: src/main.trn:20:16-20:50 */,
-        );
+        return {
+            let value: witness::BorrowedGroup<'_> = __terrane_raised(
+                    borrowed_label_group(intermediate),
+                    5 /* terrane-site: src/main.trn:20:16-20:50 */,
+                )
+                .into();
+            value
+        };
     }
     let button_intermediate: witness::BorrowedButton<'_> = __terrane_raised(
         borrowed_button(state),
         6 /* terrane-site: src/main.trn:21:27-21:49 */,
     );
-    return __terrane_raised(
-        borrowed_button_group(button_intermediate),
-        7 /* terrane-site: src/main.trn:22:12-22:54 */,
-    );
+    return {
+        let value: witness::BorrowedGroup<'_> = __terrane_raised(
+                borrowed_button_group(button_intermediate),
+                7 /* terrane-site: src/main.trn:22:12-22:54 */,
+            )
+            .into();
+        value
+    };
 }
 fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     let mut children: terrane_collection_support::List<_> = terrane_collection_support::List::<
         _,
     >::new(vec![]);
     children
-        .append(
+        .push_unique(
             __terrane_raised(
                 borrowed_label(state),
                 8 /* terrane-site: src/main.trn:26:23-26:44 */,
             ),
         );
     children
-        .append(
+        .push_unique(
             __terrane_raised(
                 borrowed_label(state),
                 9 /* terrane-site: src/main.trn:27:23-27:44 */,
             ),
         );
-    return __terrane_raised(
-        borrowed_row(children),
-        10 /* terrane-site: src/main.trn:28:12-28:34 */,
-    );
+    return {
+        let value: witness::BorrowedGroup<'_> = __terrane_raised(
+                borrowed_row(children),
+                10 /* terrane-site: src/main.trn:28:12-28:34 */,
+            )
+            .into();
+        value
+    };
 }
 fn direct(state: &i64) -> Label {
     return __terrane_raised(
@@ -938,12 +958,13 @@ fn main() {
         std::string::String) -> witness::ScopedView < 'view, String, bool > { (self
         .callback) (self.capture_0.clone(), callback_argument_0).into() } }
         TerraneInvocationScopedCallback { callback : { move | enabled : bool, value :
-        &String | -> witness::BorrowedLabel < '_ > { if enabled { return
-        __terrane_raised(borrowed_label(value), 35 /* terrane-site: src/main.trn:61:20-61:41 */); } return __terrane_raised(borrowed_label(value),
-        36 /* terrane-site: src/main.trn:62:16-62:37 */); } }, capture_0 : enabled
-        .clone() } }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "witness",
+        &String | -> witness::BorrowedLabel < '_ > { if enabled { return { let value :
+        witness::BorrowedLabel < '_ > = __terrane_raised(borrowed_label(value),
+        35 /* terrane-site: src/main.trn:61:20-61:41 */).into(); value }; } return {
+        let value : witness::BorrowedLabel < '_ > =
+        __terrane_raised(borrowed_label(value), 36 /* terrane-site: src/main.trn:62:16-62:37 */).into(); value }; } }, capture_0 : enabled.clone() }
+        }))) { Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Err(payload) => Err(crate ::__terrane_dependency_panic(payload, "witness",
         "witness::render_exact::<String, bool>")) }, 37 /* terrane-site: src/main.trn:66:13-66:71 */))
     );
     println!(
@@ -1196,7 +1217,7 @@ pub fn borrowed_label_group<'view>(
 pub fn borrowed_row<'view>(
     children: terrane_collection_support::List<witness::BorrowedLabel<'view>>,
 ) -> Result<witness::BorrowedGroup<'view>, crate::TerraneForeignError> {
-    let children = children.into_vec();
+    let children = children.into_unique_vec();
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::borrowed_row(children)),
     ) {

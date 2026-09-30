@@ -23,13 +23,32 @@ pub(super) fn homogeneous_element_type(
     bindings: &[TypedBinding],
     collection: &str,
 ) -> Result<ElementType, SemanticFailure> {
-    let mut item_type = None;
+    let mut item_type: Option<ElementType> = None;
     for argument in &arguments.children {
         let value = argument.children.last().unwrap_or(argument);
         let inferred = ElementType::new(erase_tuple_lengths(
             element_type(unit, value, bindings)?.value_type(),
         ));
-        if item_type.is_some_and(|existing| existing != inferred) {
+        if let Some(existing) = &item_type
+            && *existing != inferred
+            && !matches!(
+                (existing.value_type_ref(), inferred.value_type_ref()),
+                (
+                    ValueType::InvocationScopedNative {
+                        rust_type: left_type,
+                        region: left_region,
+                        ..
+                    },
+                    ValueType::InvocationScopedNative {
+                        rust_type: right_type,
+                        region: right_region,
+                        ..
+                    }
+                ) if left_type == "_"
+                    || right_type == "_"
+                    || left_region.is_some() && left_region == right_region
+            )
+        {
             return Err(failure(
                 &unit.source,
                 "T0042",

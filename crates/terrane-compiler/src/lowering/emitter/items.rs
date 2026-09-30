@@ -1698,6 +1698,60 @@ impl<'a> Emitter<'a> {
             .find_map(|child| self.invocation_scoped_explicit_return_type(child, depth + 1))
     }
 
+    pub(super) fn contextual_scoped_return_type(
+        &self,
+        node: &SyntaxNode,
+        value_type: &ValueType,
+    ) -> ValueType {
+        fn collect(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            template_arguments: &[String],
+            replacements: &mut std::collections::BTreeMap<String, String>,
+        ) {
+            if let Some(ValueType::InvocationScopedNative {
+                rust_type: actual, ..
+            }) = emitter.value_type(node)
+            {
+                let actual_arguments = crate::rust_ir::rust_type_arguments(&actual);
+                if actual_arguments.len() == template_arguments.len() {
+                    for (template, actual) in template_arguments.iter().zip(actual_arguments) {
+                        if template
+                            .bytes()
+                            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+                            && template != &actual
+                        {
+                            replacements.entry(template.clone()).or_insert(actual);
+                        }
+                    }
+                }
+            }
+            for child in &node.children {
+                collect(emitter, child, template_arguments, replacements);
+            }
+        }
+        let ValueType::InvocationScopedNative {
+            rust_type,
+            family,
+            lifetimes,
+            region,
+        } = value_type
+        else {
+            return value_type.clone();
+        };
+        let template_arguments = crate::rust_ir::rust_type_arguments(rust_type);
+        let mut replacements = std::collections::BTreeMap::new();
+        for child in &node.children {
+            collect(self, child, &template_arguments, &mut replacements);
+        }
+        ValueType::InvocationScopedNative {
+            rust_type: crate::rust_ir::instantiate_rust_generics(rust_type, &replacements),
+            family: family.clone(),
+            lifetimes: lifetimes.clone(),
+            region: *region,
+        }
+    }
+
     pub(super) fn invocation_scoped_return_type(
         &self,
         node: &SyntaxNode,
@@ -1711,12 +1765,12 @@ impl<'a> Emitter<'a> {
             node.span.start,
             node.span.end,
         )) {
-            return Some(value_type.clone());
+            return Some(self.contextual_scoped_return_type(node, value_type));
         }
         if node.kind == SyntaxKind::FunctionDeclaration
             && let Some(result) = self.invocation_scoped_explicit_return_type(node, depth + 1)
         {
-            return Some(result);
+            return Some(self.contextual_scoped_return_type(node, &result));
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -1749,6 +1803,7 @@ impl<'a> Emitter<'a> {
         rust_type: &str,
         lifetimes: &[String],
     ) -> Vec<String> {
+        let mut declarations = Vec::new();
         if node.kind == SyntaxKind::CallExpression
             && self.unit.projected_call_result_types.contains_key(&(
                 node.span.file,
@@ -1767,50 +1822,85 @@ impl<'a> Emitter<'a> {
                 .item(&symbol.namespace, &symbol.name)
             && let crate::rust_interop::projection::ProjectedKind::Function(function) = &item.kind
         {
-            return function
-                .generic_parameters
-                .iter()
-                .filter(|parameter| {
-                    rust_type
-                        .split(|character: char| {
-                            !character.is_ascii_alphanumeric() && character != '_'
-                        })
-                        .any(|token| token == parameter.name)
-                })
-                .map(|parameter| {
-                    if parameter.rust_bounds.is_empty() {
-                        parameter.name.clone()
-                    } else {
-                        let bounds = parameter
-                            .rust_bounds
-                            .iter()
-                            .map(|bound| {
-                                lifetimes.iter().enumerate().fold(
-                                    bound.clone(),
-                                    |bound, (index, lifetime)| {
-                                        let binder = format!("for<{lifetime}>");
-                                        let marker = format!("__terrane_lifetime_binder_{index}");
-                                        bound
-                                            .replace(&binder, &marker)
-                                            .replace(lifetime, "'view")
-                                            .replace(&marker, &binder)
-                                    },
-                                )
+            declarations.extend(
+                function
+                    .generic_parameters
+                    .iter()
+                    .filter(|parameter| {
+                        rust_type
+                            .split(|character: char| {
+                                !character.is_ascii_alphanumeric() && character != '_'
                             })
-                            .collect::<Vec<_>>()
-                            .join(" + ");
-                        format!("{}: {bounds}", parameter.name)
-                    }
-                })
-                .collect();
+                            .any(|token| token == parameter.name)
+                    })
+                    .map(|parameter| {
+                        (
+                            parameter.name.clone(),
+                            parameter
+                                .rust_bounds
+                                .iter()
+                                .map(|bound| {
+                                    lifetimes.iter().enumerate().fold(
+                                        bound.clone(),
+                                        |bound, (index, lifetime)| {
+                                            let binder = format!("for<{lifetime}>");
+                                            let marker =
+                                                format!("__terrane_lifetime_binder_{index}");
+                                            bound
+                                                .replace(&binder, &marker)
+                                                .replace(lifetime, "'view")
+                                                .replace(&marker, &binder)
+                                        },
+                                    )
+                                })
+                                .collect::<Vec<_>>(),
+                        )
+                    }),
+            );
         }
-        node.children
-            .iter()
-            .find_map(|child| {
-                let generics = self.invocation_scoped_type_generics(child, rust_type, lifetimes);
-                (!generics.is_empty()).then_some(generics)
+        for child in &node.children {
+            declarations.extend(
+                self.invocation_scoped_type_generics(child, rust_type, lifetimes)
+                    .into_iter()
+                    .map(|declaration| {
+                        if let Some((name, bounds)) = declaration.split_once(':') {
+                            (
+                                name.trim().to_owned(),
+                                bounds
+                                    .split(" + ")
+                                    .map(str::trim)
+                                    .map(str::to_owned)
+                                    .collect(),
+                            )
+                        } else {
+                            (declaration, Vec::new())
+                        }
+                    }),
+            );
+        }
+        let mut merged =
+            std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+        for (name, bounds) in declarations {
+            merged.entry(name).or_default().extend(bounds);
+        }
+        if !lifetimes.is_empty() {
+            for bounds in merged.values_mut() {
+                bounds.insert("'view".to_owned());
+            }
+        }
+        merged
+            .into_iter()
+            .map(|(name, bounds)| {
+                if bounds.is_empty() {
+                    name
+                } else {
+                    format!(
+                        "{name}: {}",
+                        bounds.into_iter().collect::<Vec<_>>().join(" + ")
+                    )
+                }
             })
-            .unwrap_or_default()
+            .collect()
     }
     #[expect(
         clippy::too_many_lines,

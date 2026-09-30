@@ -797,6 +797,10 @@ fn projected_callback_argument(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected argument conversion remains one exhaustive type dispatch"
+)]
 pub(super) fn projected_argument_expression(
     name: &str,
     ty: &crate::rust_interop::projection::ProjectedType,
@@ -842,8 +846,23 @@ pub(super) fn projected_argument_expression(
             }
         }
         crate::rust_interop::projection::ProjectedType::Sequence { rust_path, item } => {
-            if projected_sequence_is_vec(rust_path) && projected_type_is_identity(item) {
-                format!("{name}.into_vec()")
+            if projected_sequence_is_vec(rust_path) {
+                let consume = if matches!(
+                    item.as_ref(),
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                ) {
+                    "into_unique_vec"
+                } else {
+                    "into_vec"
+                };
+                if projected_type_is_identity(item) {
+                    format!("{name}.{consume}()")
+                } else {
+                    let converted = projected_argument_expression("item", item);
+                    format!(
+                        "{name}.{consume}().into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+                    )
+                }
             } else {
                 let converted = projected_argument_expression("item", item);
                 format!(

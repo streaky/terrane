@@ -48,6 +48,10 @@
         ],
         [
           "/deps/sqlx",
+          "RawSql"
+        ],
+        [
+          "/deps/sqlx",
           "Sqlite"
         ],
         [
@@ -1490,6 +1494,10 @@
         ],
         [
           "/deps/sqlx-core/percent-encoding",
+          "PercentEncode"
+        ],
+        [
+          "/deps/sqlx-core/percent-encoding",
           "percent_decode_str"
         ],
         [
@@ -1763,6 +1771,10 @@
         [
           "/deps/sqlx-core/query-scalar",
           "query_scalar_with"
+        ],
+        [
+          "/deps/sqlx-core/raw-sql",
+          "RawSql"
         ],
         [
           "/deps/sqlx-core/raw-sql",

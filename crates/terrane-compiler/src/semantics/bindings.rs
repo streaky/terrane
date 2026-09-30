@@ -1904,9 +1904,13 @@ pub(super) fn projected_function_for_call<'a>(
     let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
         (class_designator_identity(unit, receiver)?, true)
     } else {
-        let ValueType::Object(identity) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        let receiver_type = infer_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
-            .flatten()?
+            .flatten()?;
+        let (ValueType::Object(identity)
+        | ValueType::InvocationScopedNative {
+            family: identity, ..
+        }) = receiver_type
         else {
             return None;
         };

@@ -4,6 +4,14 @@
       "members": [
         [
           "/deps/witness",
+          "BorrowedButton"
+        ],
+        [
+          "/deps/witness",
+          "BorrowedLabel"
+        ],
+        [
+          "/deps/witness",
           "Button"
         ],
         [

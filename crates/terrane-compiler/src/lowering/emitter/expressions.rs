@@ -387,12 +387,37 @@ impl Emitter<'_> {
                 _ => None,
             };
             if let Some((kind, item)) = constructor {
+                let scoped_items = matches!(
+                    item.value_type_ref(),
+                    ValueType::InvocationScopedNative { .. }
+                );
+                let scoped_rust_type =
+                    scoped_items.then(|| rust_element_type(self.package, item.clone()));
                 let values = arguments
                     .children
                     .iter()
                     .map(|argument| argument.children.last().unwrap_or(argument))
-                    .map(|value| self.expression_as(value, item.value_type()))
+                    .map(|value| {
+                        if scoped_items {
+                            let rust_type = scoped_rust_type
+                                .as_deref()
+                                .expect("scoped item Rust type was computed");
+                            format!(
+                                "{{ let value: {rust_type} = ({}).into(); value }}",
+                                self.expression(value)
+                            )
+                        } else {
+                            self.expression_as(value, item.value_type())
+                        }
+                    })
                     .collect::<Vec<_>>();
+                if scoped_items {
+                    return format!(
+                        "terrane_collection_support::List::<{}>::new(vec![{}])",
+                        rust_element_type(self.package, item),
+                        values.join(", ")
+                    );
+                }
                 return format!(
                     "terrane_collection_support::{kind}::<{}>::new(vec![{}])",
                     rust_element_type(self.package, item),
@@ -429,6 +454,36 @@ impl Emitter<'_> {
             if let Some((kind, key, value)) = map_constructor {
                 return self.map_constructor(arguments, kind, key, value);
             }
+        }
+        if let ValueType::InvocationScopedNative {
+            rust_type: expected,
+            family: expected_family,
+            ..
+        } = &value_type
+            && expected != "_"
+            && let Some(ValueType::InvocationScopedNative {
+                rust_type: actual, ..
+            }) = self.value_type(node)
+            && (expected_family.name == "invocation-scoped-native"
+                || actual != "_"
+                    && expected
+                        .split('<')
+                        .next()
+                        .and_then(|path| path.rsplit("::").next())
+                        != actual
+                            .split('<')
+                            .next()
+                            .and_then(|path| path.rsplit("::").next()))
+        {
+            let expected = crate::rust_ir::rust_lifetimes(expected)
+                .iter()
+                .fold(expected.clone(), |expected, lifetime| {
+                    expected.replace(lifetime, "'_")
+                });
+            return format!(
+                "{{ let value: {expected} = ({}).into(); value }}",
+                self.expression(node)
+            );
         }
         if let ValueType::Optional(inner) = value_type {
             let actual = self.value_type(node);
@@ -625,6 +680,14 @@ impl Emitter<'_> {
             return format!("({}).clone()", self.expression(node));
         }
         match value_type {
+            ValueType::List(item)
+                if matches!(
+                    item.value_type_ref(),
+                    ValueType::InvocationScopedNative { .. }
+                ) =>
+            {
+                self.expression(node)
+            }
             ValueType::Scalar(ScalarType::Int) => self.adaptive_expression(node),
             ValueType::Scalar(ScalarType::Float32)
                 if self.value_type(node) == Some(ValueType::Scalar(ScalarType::Float64)) =>

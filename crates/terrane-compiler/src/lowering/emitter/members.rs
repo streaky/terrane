@@ -144,6 +144,28 @@ impl Emitter<'_> {
                     )
                 }
             }
+            Some(ValueType::List(item))
+                if matches!(
+                    item.value_type_ref(),
+                    ValueType::InvocationScopedNative { .. }
+                ) =>
+            {
+                let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
+                    let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+                    self.fallible(
+                        format!("terrane_collection_support::index_from_int(&({index_value}))"),
+                        node,
+                    )
+                } else {
+                    format!("({}) as usize", self.expression(index))
+                };
+                self.fallible(
+                    format!(
+                        "({receiver}).into_unique_vec().into_iter().nth({index}).ok_or_else(|| terrane_collection_support::IndexError::from_usize({index}))"
+                    ),
+                    node,
+                )
+            }
             Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));

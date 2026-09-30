@@ -4,6 +4,10 @@
       "members": [
         [
           "/deps/witness",
+          "BorrowedLabel"
+        ],
+        [
+          "/deps/witness",
           "borrowed_label"
         ]
       ],
