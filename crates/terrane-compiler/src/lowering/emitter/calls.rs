@@ -1947,13 +1947,12 @@ impl Emitter<'_> {
                 .copied()
                 .flatten()
                 .and_then(|span| {
-                    find_node(&self.unit.tree.root, SyntaxKind::FunctionDeclaration, span)
+                    self.unit
+                        .invocation_scoped_function_results
+                        .get(&(span.file, span.start, span.end))
                 })
-                .and_then(|function| self.invocation_scoped_return_type(function, 0))
-                .or_else(|| {
-                    self.value_type(node)
-                        .map(|value_type| self.contextual_scoped_return_type(node, &value_type))
-                });
+                .cloned()
+                .or_else(|| self.value_type(node));
             let mut generic_arguments = specialization
                 .generic_arguments
                 .iter()

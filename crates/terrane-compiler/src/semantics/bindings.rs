@@ -2085,14 +2085,13 @@ fn validate_invocation_scoped_node(
             &unit.source,
             "T0119",
             format!(
-                "parameter `{}` cannot use unresolved `invocation-scoped-native` as a source type",
+                "parameter `{}` cannot use unresolved `host-invocation-scoped-native` as a source type",
                 parameter.name
             ),
             parameter.span,
         ));
     }
-    if node.kind == SyntaxKind::ReturnStatement
-        && let Some(value) = node.children.first()
+    if node.kind == SyntaxKind::CallExpression
         && let Some(function_span) = unit
             .enclosing_function_spans
             .get(&node.span.start)
@@ -2103,7 +2102,7 @@ fn validate_invocation_scoped_node(
             .iter()
             .find(|contract| contract.span == function_span)
         && let Some((name, span)) =
-            local_lender_in_scoped_expression(package, unit, value, contract, function_span)
+            local_lender_in_scoped_expression(package, unit, node, contract, function_span)
     {
         return Err(failure(
             &unit.source,

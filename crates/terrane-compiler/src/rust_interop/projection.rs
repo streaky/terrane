@@ -10278,6 +10278,22 @@ fn future_output(
     future_output_from_generics(name, &function.generics, index, paths, generics)
 }
 
+fn builtin_callable_mode(
+    path: &RustdocPath,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Option<InvocationMode> {
+    match resolved_path_name(path, paths).as_str() {
+        "core::ops::function::FnOnce" => Some(InvocationMode::Consuming),
+        "core::ops::function::FnMut" => Some(InvocationMode::Mutable),
+        "core::ops::function::Fn" => Some(InvocationMode::Shared),
+        _ => None,
+    }
+}
+
+fn is_builtin_clone(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> bool {
+    resolved_path_name(path, paths) == "core::clone::Clone"
+}
+
 fn future_output_from_generics(
     name: &str,
     declaration_generics: &Generics,
@@ -10297,7 +10313,7 @@ fn future_output_from_generics(
         let Some((trait_, generic_params)) = trait_bound_name(&bound) else {
             continue;
         };
-        if !trait_.path.ends_with("Future") {
+        if resolved_path_name(trait_, paths) != "core::future::future::Future" {
             continue;
         }
         if !generic_params.is_empty() {
@@ -10579,11 +10595,7 @@ fn project_callable_adapter_bounds(
         else {
             continue;
         };
-        let builtin_callable = requested_trait
-            .path
-            .rsplit("::")
-            .next()
-            .is_some_and(|name| matches!(name, "Fn" | "FnMut" | "FnOnce"));
+        let builtin_callable = builtin_callable_mode(requested_trait, paths).is_some();
         if !builtin_callable
             && (declaration.is_auto
                 || declaration.is_unsafe
@@ -10691,12 +10703,7 @@ fn project_callable_adapter_bounds(
             let Some((call_trait, call_higher_ranked, mut invocation_mode)) =
                 self_bounds.iter().find_map(|candidate| {
                     let (trait_, generic_params) = trait_bound_name(candidate)?;
-                    let invocation_mode = match trait_.path.rsplit("::").next() {
-                        Some("FnOnce") => InvocationMode::Consuming,
-                        Some("FnMut") => InvocationMode::Mutable,
-                        Some("Fn") => InvocationMode::Shared,
-                        _ => return None,
-                    };
+                    let invocation_mode = builtin_callable_mode(trait_, paths)?;
                     Some((trait_, generic_params, invocation_mode))
                 })
             else {
@@ -10705,7 +10712,7 @@ fn project_callable_adapter_bounds(
             if invocation_mode == InvocationMode::Consuming
                 && self_bounds.iter().any(|candidate| {
                     trait_bound_name(candidate)
-                        .is_some_and(|(trait_, _)| trait_.path.rsplit("::").next() == Some("Clone"))
+                        .is_some_and(|(trait_, _)| is_builtin_clone(trait_, paths))
                 })
             {
                 invocation_mode = InvocationMode::Shared;
@@ -13049,16 +13056,16 @@ mod tests {
         ProjectedMemberDemands, ProjectedParameter, ProjectedType, Projection, ProjectionArtifact,
         ProjectionDemandSites, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
         ReexportProvider, ResolutionOutcome, apply_namespace_overlays, apply_projection_history,
-        collect_source_foreign, decline_functions_with_missing_generic_interfaces,
-        decline_unproven_projected_interfaces, enforce_transitive_reachability,
-        external_reexport_rustdocs, foreign_aliases, generated_projection_units,
-        has_type_parameters, instantiated_nominal_name, instantiated_type_name,
-        is_internal_rust_protocol_method, mark_cache_record_used, namespace_overlays_from_metadata,
-        parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
-        projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
-        receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
-        rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
-        selected_target, validate_projection_artifact,
+        builtin_callable_mode, collect_source_foreign,
+        decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
+        enforce_transitive_reachability, external_reexport_rustdocs, foreign_aliases,
+        generated_projection_units, has_type_parameters, instantiated_nominal_name,
+        instantiated_type_name, is_internal_rust_protocol_method, mark_cache_record_used,
+        namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
+        projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
+        prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
+        resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
+        seed_dependency_lock, selected_target, validate_projection_artifact,
     };
     #[test]
     fn rust_protocol_plumbing_is_not_reported_as_a_callable_gap() {
@@ -14168,6 +14175,46 @@ mod tests {
                     .to_owned(),
             }
         );
+    }
+
+    #[test]
+    fn builtin_callable_recognition_uses_canonical_trait_identity() {
+        let builtin_id = Id(1);
+        let spoofed_id = Id(2);
+        let paths = HashMap::from([
+            (
+                builtin_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![
+                        "core".to_owned(),
+                        "ops".to_owned(),
+                        "function".to_owned(),
+                        "Fn".to_owned(),
+                    ],
+                    kind: ItemKind::Trait,
+                },
+            ),
+            (
+                spoofed_id,
+                ItemSummary {
+                    crate_id: 1,
+                    path: vec!["witness".to_owned(), "Fn".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
+        ]);
+        let path = |id, display: &str| RustdocPath {
+            path: display.to_owned(),
+            id,
+            args: None,
+        };
+
+        assert_eq!(
+            builtin_callable_mode(&path(builtin_id, "renamed::Anything"), &paths),
+            Some(InvocationMode::Shared)
+        );
+        assert_eq!(builtin_callable_mode(&path(spoofed_id, "Fn"), &paths), None);
     }
 
     #[test]

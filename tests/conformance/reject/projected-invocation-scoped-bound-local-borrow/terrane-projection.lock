@@ -4,11 +4,7 @@
       "members": [
         [
           "/deps/witness",
-          "SecondWidget"
-        ],
-        [
-          "/deps/witness",
-          "borrow_identity"
+          "FirstWidget"
         ],
         [
           "/deps/witness",
@@ -16,15 +12,7 @@
         ],
         [
           "/deps/witness",
-          "pair_widget"
-        ],
-        [
-          "/deps/witness",
           "render_scoped"
-        ],
-        [
-          "/deps/witness",
-          "second_widget"
         ]
       ],
       "name": "witness",

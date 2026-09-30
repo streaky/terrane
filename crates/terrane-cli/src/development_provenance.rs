@@ -23,6 +23,7 @@ pub fn warning() -> Option<String> {
     let current_head = current_head.trim();
     let current_fingerprint = dirty_fingerprint(repository)?;
     let build_fingerprint = u64::from_str_radix(BUILD_DIRTY_FINGERPRINT, 16).ok()?;
+    let rebuild_command = rebuild_command(&executable);
     match staleness(
         BUILD_GIT_HEAD,
         build_fingerprint,
@@ -30,13 +31,13 @@ pub fn warning() -> Option<String> {
         current_fingerprint,
     )? {
         Staleness::Commit => Some(format!(
-            "warning: this development Terrane compiler is out of date\n  binary: {}\n  built from: {}\n  checkout:   {}\n  help: rebuild it with `cargo build --release`\n",
+            "warning: this development Terrane compiler is out of date\n  binary: {}\n  built from: {}\n  checkout:   {}\n  help: rebuild this binary with `{rebuild_command}`\n",
             executable.display(),
             short_commit(BUILD_GIT_HEAD),
             short_commit(current_head),
         )),
         Staleness::WorkingTree => Some(format!(
-            "warning: this development Terrane compiler predates compiler input changes in the working tree\n  binary: {}\n  help: rebuild it with `cargo build --release`\n",
+            "warning: this development Terrane compiler predates compiler input changes in the working tree\n  binary: {}\n  help: rebuild this binary with `{rebuild_command}`\n",
             executable.display(),
         )),
     }
@@ -65,13 +66,24 @@ fn is_repository_target_binary(executable: &Path, repository: &Path) -> bool {
         && executable.file_stem().is_some_and(|name| name == "terrane")
 }
 
+fn rebuild_command(executable: &Path) -> &'static str {
+    if executable
+        .components()
+        .any(|component| component.as_os_str() == "release")
+    {
+        "cargo build --release --bin terrane"
+    } else {
+        "cargo build --bin terrane"
+    }
+}
+
 fn short_commit(commit: &str) -> &str {
     commit.get(..8).unwrap_or(commit)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Staleness, is_repository_target_binary, staleness};
+    use super::{Staleness, is_repository_target_binary, rebuild_command, staleness};
     use std::path::Path;
 
     #[test]
@@ -89,6 +101,18 @@ mod tests {
             Path::new("/usr/local/bin/terrane"),
             root,
         ));
+    }
+
+    #[test]
+    fn rebuild_advice_matches_the_binary_profile() {
+        assert_eq!(
+            rebuild_command(Path::new("/workspace/terrane/target/debug/terrane")),
+            "cargo build --bin terrane"
+        );
+        assert_eq!(
+            rebuild_command(Path::new("/workspace/terrane/target/release/terrane")),
+            "cargo build --release --bin terrane"
+        );
     }
 
     #[test]

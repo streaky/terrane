@@ -541,6 +541,14 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
+    if matches!(command, CliCommand::Run | CliCommand::Debug)
+        && arguments.len() >= input_index + 2
+        && arguments[input_index + 1] != "--"
+    {
+        return Err(CliFailure::usage_with(
+            "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)",
+        ));
+    }
     let has_valid_arity = if matches!(command, CliCommand::Run | CliCommand::Debug) {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")

@@ -1682,121 +1682,6 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn invocation_scoped_explicit_return_type(
-        &self,
-        node: &SyntaxNode,
-        depth: usize,
-    ) -> Option<ValueType> {
-        if node.kind == SyntaxKind::ReturnStatement {
-            return node
-                .children
-                .last()
-                .and_then(|value| self.invocation_scoped_return_type(value, depth + 1));
-        }
-        node.children
-            .iter()
-            .find_map(|child| self.invocation_scoped_explicit_return_type(child, depth + 1))
-    }
-
-    pub(super) fn contextual_scoped_return_type(
-        &self,
-        node: &SyntaxNode,
-        value_type: &ValueType,
-    ) -> ValueType {
-        fn collect(
-            emitter: &Emitter<'_>,
-            node: &SyntaxNode,
-            template_arguments: &[String],
-            replacements: &mut std::collections::BTreeMap<String, String>,
-        ) {
-            if let Some(ValueType::InvocationScopedNative {
-                rust_type: actual, ..
-            }) = emitter.value_type(node)
-            {
-                let actual_arguments = crate::rust_ir::rust_type_arguments(&actual);
-                if actual_arguments.len() == template_arguments.len() {
-                    for (template, actual) in template_arguments.iter().zip(actual_arguments) {
-                        if template
-                            .bytes()
-                            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-                            && template != &actual
-                        {
-                            replacements.entry(template.clone()).or_insert(actual);
-                        }
-                    }
-                }
-            }
-            for child in &node.children {
-                collect(emitter, child, template_arguments, replacements);
-            }
-        }
-        let ValueType::InvocationScopedNative {
-            rust_type,
-            family,
-            lifetimes,
-            region,
-        } = value_type
-        else {
-            return value_type.clone();
-        };
-        let template_arguments = crate::rust_ir::rust_type_arguments(rust_type);
-        let mut replacements = std::collections::BTreeMap::new();
-        for child in &node.children {
-            collect(self, child, &template_arguments, &mut replacements);
-        }
-        ValueType::InvocationScopedNative {
-            rust_type: crate::rust_ir::instantiate_rust_generics(rust_type, &replacements),
-            family: family.clone(),
-            lifetimes: lifetimes.clone(),
-            region: *region,
-        }
-    }
-
-    pub(super) fn invocation_scoped_return_type(
-        &self,
-        node: &SyntaxNode,
-        depth: usize,
-    ) -> Option<ValueType> {
-        if depth >= self.unit.functions.len() {
-            return None;
-        }
-        if let Some(value_type) = self.unit.projected_call_result_types.get(&(
-            node.span.file,
-            node.span.start,
-            node.span.end,
-        )) {
-            return Some(self.contextual_scoped_return_type(node, value_type));
-        }
-        if node.kind == SyntaxKind::FunctionDeclaration
-            && let Some(result) = self.invocation_scoped_explicit_return_type(node, depth + 1)
-        {
-            return Some(self.contextual_scoped_return_type(node, &result));
-        }
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && callee.kind == SyntaxKind::Name
-        {
-            let name = &self.unit.source.text()[callee.span.start..callee.span.end];
-            if let Some(contract) = self.unit.functions.iter().find(|contract| {
-                contract.name == name
-                    && matches!(
-                        contract.return_type,
-                        Some(ValueType::InvocationScopedNative { .. })
-                    )
-            }) && let Some(source) = find_node(
-                &self.unit.tree.root,
-                SyntaxKind::FunctionDeclaration,
-                contract.span,
-            ) && source.span != node.span
-                && let Some(result) = self.invocation_scoped_return_type(source, depth + 1)
-            {
-                return Some(result);
-            }
-        }
-        node.children
-            .iter()
-            .find_map(|child| self.invocation_scoped_return_type(child, depth))
-    }
     pub(super) fn invocation_scoped_type_generics(
         &self,
         node: &SyntaxNode,
@@ -1935,7 +1820,11 @@ impl<'a> Emitter<'a> {
             return_type,
             Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
         ) {
-            return_type = self.invocation_scoped_return_type(node, 0);
+            return_type = self
+                .unit
+                .invocation_scoped_function_results
+                .get(&(contract.span.file, contract.span.start, contract.span.end))
+                .cloned();
         }
         let scoped_lifetime = if let Some(ValueType::InvocationScopedNative {
             rust_type,

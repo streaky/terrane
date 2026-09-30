@@ -1452,6 +1452,7 @@ pub struct SemanticUnit {
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
     pub(crate) projected_call_result_types: BTreeMap<(u32, usize, usize), ValueType>,
+    pub(crate) invocation_scoped_function_results: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
     /// Explicit source spans that cross into unsafe Rust.

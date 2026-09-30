@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import render_multi, widget
+
+function view host-invocation-scoped-native; state ref string
+    return widget; state
+
+function main;
+    state string = '40'
+    result = render_multi; state, view

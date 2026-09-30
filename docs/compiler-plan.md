@@ -718,10 +718,13 @@ contracts, and cross-region flow are rejected. Scoped values use ordinary move c
 never implicitly cloned.
 
 The currently implemented exact-result subset is deliberately narrower than the full design above.
-A named Terrane callback may return one exact lifetime-dependent native producer type. Lowering
-passes that named function directly to a proven native callback blanket, leaving terminal conversion
-to the native implementation and avoiding a compiler-forged implementation of an external trait.
-All explicit callback returns must currently converge on that same producer type.
+A named Terrane callback may return one exact lifetime-dependent native producer type. Semantic
+analysis resolves the complete reachable scoped-function graph, records its converged native
+`ValueType` against each function's source identity, and attaches that typed plan to the analyzed
+unit. Lowering consumes that plan directly; it does not walk return syntax or re-infer producer
+types. The named function is passed directly to a proven native callback blanket, leaving terminal
+conversion to the native implementation and avoiding a compiler-forged implementation of an
+external trait. All explicit callback returns must currently converge on that same producer type.
 
 That producer may flow through same-type local bindings, projected calls, ordinary helpers,
 branches, and homogeneous scoped child lists inside one invocation. It may borrow the callback's
@@ -734,7 +737,8 @@ anonymous or capturing callbacks remain open work; the compiler declines them ra
 inferring a helper ABI or cloning an environment on every invocation.
 
 `projected-invocation-scoped-callback` exercises the supported direct, nested, same-type branching,
-helper, aggregate, and defaulted-terminal paths. Focused rejection fixtures cover local lenders,
+helper, bound-and-wrapped return, direct recursion, mutual recursion, aggregate, and
+defaulted-terminal paths. Focused rejection fixtures cover nested and bound local lenders,
 unresolved source parameters, heterogeneous scoped lists, restrictive native callback traits,
 escape, capture, suspension, invalid reuse, and incompatible graphs. The maintained
 `packages/iced-ui` renderer executes the supported projected Iced widget operations through named

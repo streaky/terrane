@@ -4,27 +4,15 @@
       "members": [
         [
           "/deps/witness",
-          "SecondWidget"
+          "Widget"
         ],
         [
           "/deps/witness",
-          "borrow_identity"
+          "render_multi"
         ],
         [
           "/deps/witness",
-          "first_widget"
-        ],
-        [
-          "/deps/witness",
-          "pair_widget"
-        ],
-        [
-          "/deps/witness",
-          "render_scoped"
-        ],
-        [
-          "/deps/witness",
-          "second_widget"
+          "widget"
         ]
       ],
       "name": "witness",
