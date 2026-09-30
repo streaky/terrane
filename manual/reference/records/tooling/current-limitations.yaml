@@ -1,0 +1,161 @@
+format: 1
+id: tool.current-limitations
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Current implementation limitations
+  title-style: text
+  summary: >-
+    Separates temporary compiler limitations and safe workarounds from intended Terrane language semantics.
+  tags: [tooling, compiler, limitations, status, workarounds]
+  sections:
+    - id: interpretation
+      title: How to read this page
+      blocks:
+        - type: rule
+          id: rule.limitations.not-language-semantics
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            A limitation records behavior of the named compiler versions, not a language
+            rule. Normative language and standard-library pages describe intended behavior.
+            Use a workaround only when its semantic-effect field is acceptable, and remove
+            it when the objective removal condition is met.
+    - id: projection-namespace-cycles
+      title: LIM-PROJ-NAMESPACE-CYCLES
+      blocks:
+        - type: table
+          id: limitation-projected-namespace-cycles
+          title: Eager projected namespace cycles
+          show-header: true
+          columns:
+            - id: field
+              title: Field
+              cell: text
+            - id: value
+              title: Value
+              cell: markdown
+          rows:
+            - field: Affected versions
+              value: Terrane compiler 0.1.x
+            - field: Observable failure
+              value: Projection rejects cyclic generated namespaces before a usable member can be imported.
+            - field: Intended behavior
+              value:
+                Member-demand projection admits an acyclic reachable operation without importing an unrelated cyclic
+                graph.
+            - field: Safe workaround
+              value: Use a registered narrow adapter operation for the concrete input and output shape.
+            - field: Removal target
+              value: "`projection/projected-namespace-cycles-and-generic-path-save`"
+            - field: Changes semantics
+              value: No, only if the adapter preserves upstream behavior and failure.
+
+    - id: implicit-support-dependencies
+      title: LIM-CORE-IMPLICIT-SUPPORT-DEPENDENCY
+      blocks:
+        - type: table
+          id: limitation-implicit-support-dependency
+          title: Implicit core support dependency
+          show-header: true
+          columns:
+            - id: field
+              title: Field
+              cell: text
+            - id: value
+              title: Value
+              cell: markdown
+          rows:
+            - field: Affected versions
+              value: Terrane compiler 0.1.x
+            - field: Observable failure
+              value: Generated support can require a runtime crate not declared by the application package.
+            - field: Intended behavior
+              value: Compiler-owned core support owns and emits every private runtime dependency it requires.
+            - field: Safe workaround
+              value: Declare the exact runtime dependency and required feature temporarily.
+            - field: Removal target
+              value: Compiler plan core-runtime dependency ownership.
+            - field: Changes semantics
+              value: No, but it exposes an implementation detail in the application manifest.
+
+    - id: test-executable-cache-identity
+      title: LIM-CACHE-TEST-EXECUTABLE-IDENTITY
+      blocks:
+        - type: table
+          id: limitation-test-executable-cache
+          title: Test and executable cache identity
+          show-header: true
+          columns:
+            - id: field
+              title: Field
+              cell: text
+            - id: value
+              title: Value
+              cell: markdown
+          rows:
+            - field: Affected versions
+              value: Terrane compiler 0.1.x
+            - field: Observable failure
+              value:
+                After testing an unchanged package, a later run can select the test harness and report an unknown test
+                case.
+            - field: Intended behavior
+              value: Artifact mode participates in cache identity so test registries and ordinary executables cannot collide.
+            - field: Safe workaround
+              value: Remove only that package's generated `.trn/build` directory before the executable run.
+            - field: Removal target
+              value: Compiler plan package artifact cache identity.
+            - field: Changes semantics
+              value: No; it discards derived build state.
+
+    - id: field-mutation-inference
+      title: LIM-OWNERSHIP-FIELD-MUTATION-INFERENCE
+      blocks:
+        - type: table
+          id: limitation-field-mutation-inference
+          title: Field-mutation mutability inference
+          show-header: true
+          columns:
+            - id: field
+              title: Field
+              cell: text
+            - id: value
+              title: Value
+              cell: markdown
+          rows:
+            - field: Affected versions
+              value: Terrane compiler 0.1.x
+            - field: Observable failure
+              value:
+                A method that mutates a collection-valued field may require explicit mutable receiver authority rather
+                than inferring it from the statement-form member call.
+            - field: Intended behavior
+              value: Receiver authority is inferred consistently from observable field mutation and checked against the declaration.
+            - field: Safe workaround
+              value: Declare the method `mutable function` and call it through a retained mutable owner.
+            - field: Removal target
+              value: Compiler plan receiver-authority and field-mutation analysis.
+            - field: Changes semantics
+              value: It may expose stronger authority than the method's eventual minimal contract; review interface conformance.
+  see-also:
+    - tool.diagnostics
+    - tool.packages.rust-dependencies
+    - internals.integration-boundaries
+
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

@@ -1,0 +1,53 @@
+format: 1
+id: lang.classes.methods
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Mutable and immutable receivers"
+  title-style: text
+  summary: >-
+    Method contracts distinguish mutable from immutable receivers. Compatibility between method declarations and implementations
+    is enforced.
+  tags:
+    - "objects"
+    - "methods"
+    - "receiver-mutability"
+  sections:
+    - id: receiver-mutability
+      title: "Mutable and Immutable Receivers"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Method contracts distinguish whether invocation may mutate the receiver.
+            Mutation is visible by default for ordinary object state; immutable behavior
+            must be made explicit through `constant` or an applicable contract.
+
+            A method declaration and its implementation must have compatible
+            receiver-mutation contracts. In particular, an implementation cannot require
+            mutable receiver access when its declared contract permits invocation through an
+            immutable receiver. A contract that permits mutation exposes that possibility to
+            callers even when a particular invocation does not change the receiver.
+
+            `this` denotes the current instance and is available only in instance methods.
+            `self` denotes the effective, late-bound class receiver and is available in
+            instance and static methods. `self` does not replace the instance receiver used
+            to access or mutate instance state.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "receiver-mutability"
+  conformance: null
+  compiler: null

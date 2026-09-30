@@ -1,0 +1,97 @@
+format: 1
+id: lang.namespaces.name-resolution
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Single-view name lookup"
+  title-style: text
+  summary: >-
+    Ordinary names and former object-form names use one unified lookup model. `.` is reserved for member selection.
+  tags:
+    - "names"
+    - "name-resolution"
+    - "single-name-lookup"
+  sections:
+    - id: single-name-lookup
+      title: "Unified Name Lookup"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane uses one lookup view for names. Imports, lexical bindings, namespace
+            declarations, program globals, and prelude names do not occupy separate ordinary
+            and object-form tables. Lookup proceeds through lexical scope, the applicable
+            namespace tiers, program-global bindings, `/core/types`, and the prelude. A
+            nearer binding shadows a farther one.
+
+            Imports bind ordinary names directly in the importing scope. Renaming occurs at
+            import time:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/types import int8 as byte
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Ordinary assignment is not an aliasing mechanism for compile-time constructs, so
+            `byte = int8` does not rename the descriptor. Selectively importing a different
+            object under an existing name in the same scope produces `S2011`. Reimporting
+            the same export is idempotent, including namespace-wide reimports. For
+            namespace-wide imports, a top-level declaration in the importing namespace keeps
+            its name; a conflicting imported object is skipped with `W4004`. Otherwise, the
+            last namespace-wide import wins according to normalized relative source-path
+            order, and the warning identifies the earlier import that was displaced.
+
+            A dot is exclusively member selection and must follow a receiver. It never
+            prefixes a name and has no other role. A receiverless expression such as
+            `.print` is rejected at its source span with `S1017`; it is not lookup in a
+            second symbol space.
+
+            From a function body, namespace-level lookup can provide constants, constructs,
+            imported names, functions, types, and explicit `global` bindings. It cannot
+            provide namespace-local variables. A namespace-local variable is available only
+            to namespace-level declarations in its own namespace, not to that namespace’s
+            function bodies, descendant namespaces, or importers. Mutable state crosses a
+            function boundary through an explicit `global`, a parameter, or a return value.
+            Applying `public` to a namespace-local variable is rejected.
+
+            Plain top-level assignment creates a namespace-local variable, including in the
+            root namespace. `global` creates or replaces a program-global identity without
+            erasing the declaration’s lexical provenance or visibility.
+
+            Within a lexical scope, a declaration may replace an earlier binding in source
+            order, and its initializer resolves against the earlier binding. After the
+            initializer is evaluated, the old owned value is released and a new identity is
+            installed; a changed annotation also changes the binding’s type. This
+            replacement rule does not apply at namespace top level, where initialization is
+            dependency-ordered rather than source-ordered.
+
+            The same unified model maps `float` to the canonical `float64` descriptor. A
+            value declared as `float` satisfies `is a float64`, and type reporting and
+            diagnostics use `float64`. `float32` remains distinct.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "single-name-lookup"
+  conformance: null
+  compiler: null

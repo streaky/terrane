@@ -1,0 +1,51 @@
+format: 1
+id: std.urls
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "URL parsing and ordered queries"
+  title-style: text
+  summary: >-
+    Absolute and relative URLs are validated during parsing. Query data preserves entry order and duplicate entries.
+  tags:
+    - "stdlib"
+    - "urls"
+  sections:
+    - id: urls
+      title: "URL Parsing and Ordered Queries"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A `url` is a parsed URL value governed by the pinned WHATWG URL standard,
+            including UTS #46 host-name processing. URL facilities support absolute URLs and
+            relative resolution. Relative URLs are resolved according to URL semantics, not
+            lexical filesystem-path rules; paths and URLs are distinct value domains.
+
+            A URL query is represented as an ordered sequence of entries. Parsing preserves
+            entry order and retains repeated names as separate entries rather than
+            collapsing them into a map. Consumers must therefore allow multiple entries with
+            the same name and account for their order.
+
+            Default URL display omits credentials. Routine display, logging, and diagnostics
+            can therefore use the default form without rendering embedded credentials. The
+            displayed form should not be treated as a lossless representation of
+            credential-bearing input.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "urls"
+  conformance: null
+  compiler: null

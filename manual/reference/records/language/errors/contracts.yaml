@@ -1,0 +1,121 @@
+format: 1
+id: lang.errors.contracts
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Exact callable throwable inference"
+  title-style: text
+  summary: >-
+    Callable throwable inference determines the exact set of escaping throwables, accounting for catches and replacement by
+    `finally`. Declarations may constrain this throwable set.
+  tags:
+    - "callables"
+    - "contracts"
+    - "throwable-inference"
+  sections:
+    - id: throwable-inference
+      title: "Exact Throwable Inference"
+      blocks:
+        - type: markdown
+          markdown: |-
+            For every callable, Terrane infers the exact set of concrete throwable types
+            that can escape. Inference is transitive and includes explicit throws, failures
+            propagated from called functions, fallible explicit integer coercions, and
+            fallible implicit numeric destination conversions. It applies to public and
+            private callables, including named functions, closures, and bound methods.
+
+            A catch removes the failures it handles from the escaping set, while failures
+            produced by the handler remain relevant. Inference also accounts for `finally`:
+            when the final block cannot fall through because it explicitly returns or
+            throws, it replaces the pending outcome and only its own escaping throwables
+            remain on that path. A final block that can fall through retains the pending
+            outcome.
+
+            A callable declaration may include an optional postfix upper bound:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function load string throws config-error; path string
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            In `function name Return throws T; parameters`, `throws T` is a compatibility
+            contract, not a claim that the callable always throws. Every inferred escaping
+            throwable must conform to `T`; compilation fails if any is incompatible. An
+            infallible implementation or one with a narrower escaping set satisfies the
+            bound. Omitting `throws` from a callable declaration requests inference—it does
+            not mean `nothrow`.
+
+            Callable types have a different omission rule. A written callable type with
+            `throws T` accepts only implementations whose exact escaping sets conform to
+            `T`; the implementation may be infallible or narrower. Omitting `throws` from a
+            written callable type declares an infallible callable type. Callable
+            compatibility therefore admits fewer compatible throwables, but never an
+            incompatible throwable. Terrane introduces no implicit broad fallback contract.
+
+            Postfix throwable bounds on nested callable results associate to the right. In
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function from A to function from B to R throws Inner throws Outer
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `Inner` constrains the returned callable, while `Outer` constrains the outer
+            callable. `async function` uses the same postfix rule. Throwable contracts
+            remain independent of invocation authority—`function`, `mutable function`, or
+            `consuming function`—and of async task production.
+
+            Exact throwable metadata survives callable conversion for named functions,
+            closures, bound methods, and inferred bindings. An explicitly typed binding
+            retains two distinct facts: the initializer’s exact escaping set for reflection,
+            and the written callable contract used as the storage ABI and invocation bound.
+            Selecting a result-bearing storage ABI for a wider written bound does not change
+            a proven-empty exact escaping set.
+
+            Reflection exposes these facts separately:
+
+            - `throwable-contract`: the written upper bound, when present.
+            - `escaping-throwables`: the currently inferred concrete set.
+
+            These summaries can remain available when private bodies are stripped. If the
+            selected reflection profile does not retain requested metadata, attempting to
+            access it is a compile-time error.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "throwable-inference"
+  conformance:
+    - finally-error-replacement
+    - finally-throwable-replacement
+  compiler:
+    - crates/terrane-compiler/src/semantics/contracts.rs

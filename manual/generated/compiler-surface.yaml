@@ -1,0 +1,964 @@
+generation:
+  tool: tools/generate_manual_catalog.py
+  input-sha256: 97232850eca26e4162de07d2d5d13cfe6ef1016b64974ffdf352708b6fd9c972
+format: 1
+generated: true
+modules:
+- source: crates/terrane-compiler/src/core/codecs.trn
+  declarations:
+  - declaration: class decode-result
+    line: 4
+  - declaration: function construct; failed bool, message string, data bytes
+    line: 9
+  - declaration: class hex-codec
+    line: 14
+  - declaration: function encode string; data bytes
+    line: 15
+  - declaration: function decode decode-result; text string
+    line: 18
+  - declaration: class base64-codec
+    line: 22
+  - declaration: function construct; url-safe bool
+    line: 25
+  - declaration: function encode string; data bytes, padded bool
+    line: 28
+  - declaration: function decode decode-result; text string, padded bool
+    line: 31
+  - declaration: function hex hex-codec
+    line: 35
+  - declaration: function base64 base64-codec
+    line: 38
+  - declaration: function base64-url base64-codec
+    line: 41
+  - declaration: function bytes-from-octets bytes; octets (list of uint8)
+    line: 44
+  - declaration: function encode-hex string; data bytes
+    line: 47
+  - declaration: function decode-hex decode-result; text string
+    line: 50
+  - declaration: function encode-base64 string; data bytes, url-safe bool, padded bool
+    line: 54
+  - declaration: function decode-base64 decode-result; text string, url-safe bool, padded bool
+    line: 57
+- source: crates/terrane-compiler/src/core/compression.trn
+  declarations:
+  - declaration: class compression-options
+    line: 4
+  - declaration: function construct; level int, deterministic bool
+    line: 8
+  - declaration: class decompression-limits
+    line: 12
+  - declaration: function construct; max-output int, max-ratio int, max-work int
+    line: 17
+  - declaration: class compression-result
+    line: 22
+  - declaration: function construct; failed bool, resource-limit bool, message string, data bytes
+    line: 28
+  - declaration: class compression-codec
+    line: 34
+  - declaration: function construct; format string
+    line: 37
+  - declaration: function compress compression-result; data bytes, options compression-options
+    line: 40
+  - declaration: function decompress compression-result; data bytes, limits decompression-limits
+    line: 45
+  - declaration: function gzip compression-codec
+    line: 50
+  - declaration: function zlib compression-codec
+    line: 53
+  - declaration: function deflate-raw compression-codec
+    line: 56
+  - declaration: function zstd compression-codec
+    line: 59
+- source: crates/terrane-compiler/src/core/concurrency.trn
+  declarations:
+  - declaration: class concurrency-operation-result
+    line: 5
+  - declaration: function construct; did-fail bool, exceeded-deadline bool, detail string
+    line: 10
+  - declaration: class concurrency-int-result
+    line: 15
+  - declaration: function construct; did-fail bool, exceeded-deadline bool, has-value bool, detail string,
+      result-value int
+    line: 22
+  - declaration: class int-mutex
+    line: 30
+  - declaration: function construct; initial int
+    line: 35
+  - declaration: function load concurrency-int-result
+    line: 41
+  - declaration: function store concurrency-operation-result; value int
+    line: 45
+  - declaration: class int-read-write-lock
+    line: 53
+  - declaration: function construct; initial int
+    line: 58
+  - declaration: function read concurrency-int-result
+    line: 64
+  - declaration: function write concurrency-operation-result; value int
+    line: 68
+  - declaration: class memory-order
+    line: 72
+  - declaration: function construct; ordering-name string
+    line: 75
+  - declaration: function relaxed-order memory-order
+    line: 79
+  - declaration: function acquire-order memory-order
+    line: 83
+  - declaration: function release-order memory-order
+    line: 87
+  - declaration: function acquire-release-order memory-order
+    line: 91
+  - declaration: function sequentially-consistent-order memory-order
+    line: 95
+  - declaration: class atomic-int64
+    line: 99
+  - declaration: function construct; initial int64
+    line: 104
+  - declaration: function load concurrency-int-result; ordering memory-order
+    line: 110
+  - declaration: function store concurrency-operation-result; value int64, ordering memory-order
+    line: 114
+  - declaration: class thread-local-int
+    line: 122
+  - declaration: function construct; initial int
+    line: 127
+  - declaration: function get concurrency-int-result
+    line: 133
+  - declaration: function write concurrency-operation-result; value int
+    line: 137
+- source: crates/terrane-compiler/src/core/documents.trn
+  declarations:
+  - declaration: class document-integer
+    line: 5
+  - declaration: function construct; text string
+    line: 8
+  - declaration: class document-decimal
+    line: 11
+  - declaration: function construct; coefficient string, exponent int, text string
+    line: 16
+  - declaration: function to-document document-value
+    line: 22
+  - declaration: function from-document document-result; value document-value
+    line: 25
+  - declaration: function validate-document string|none
+    line: 30
+  - declaration: class document-value implements serializable
+    line: 32
+  - declaration: function length int
+    line: 50
+  - declaration: function to-document document-value
+    line: 53
+  - declaration: function item document-result; index int
+    line: 56
+  - declaration: function key string; index int
+    line: 60
+  - declaration: function field document-result; name string
+    line: 63
+  - declaration: class document-result
+    line: 67
+  - declaration: class document-mapping implements deserializable
+    line: 81
+  - declaration: function construct; descriptor-name string, expected-kind string, allow-unknown bool
+    line: 90
+  - declaration: function from-document document-result; value document-value
+    line: 96
+  - declaration: function serialize-document document-value; value serializable
+    line: 99
+  - declaration: function deserialize-document document-result; value document-value, destination deserializable
+    line: 102
+  - declaration: function make-document-none document-value
+    line: 109
+  - declaration: function make-document-bool document-value; value bool
+    line: 112
+  - declaration: function make-document-string document-value; value string
+    line: 115
+  - declaration: function make-document-integer document-result; value string
+    line: 118
+  - declaration: function make-document-decimal document-result; value string
+    line: 121
+  - declaration: class document-map-entries
+    line: 123
+  - declaration: function construct
+    line: 126
+  - declaration: function append-document-map-entry document-map-entries; entries document-map-entries,
+      key string, value document-value
+    line: 132
+  - declaration: function make-document-list document-result; values list of document-value
+    line: 136
+  - declaration: function make-document-map document-result; entries document-map-entries
+    line: 144
+  - declaration: function mapping-required-fields list of string; mapping document-mapping
+    line: 146
+  - declaration: function decode-document document-result; value document-value, mapping document-mapping
+    line: 171
+- source: crates/terrane-compiler/src/core/filesystem.trn
+  declarations:
+  - declaration: class filesystem-operation-result
+    line: 5
+  - declaration: function construct; failure bool, detail string
+    line: 9
+  - declaration: class existence-result
+    line: 13
+  - declaration: function construct; exists bool, failure bool, detail string
+    line: 18
+  - declaration: class path-result
+    line: 23
+  - declaration: function construct; target path, failure bool, detail string
+    line: 28
+  - declaration: class file-metadata
+    line: 33
+  - declaration: function construct; kind string, size int, readonly bool, permission-detail string, failure
+      bool, detail string
+    line: 41
+  - declaration: class file-data
+    line: 49
+  - declaration: function construct; data bytes, completed int, end bool, failure bool, detail string
+    line: 56
+  - declaration: class file-handle
+    line: 63
+  - declaration: class directory-handle
+    line: 76
+  - declaration: function open-file file-handle; capability filesystem, target path, readable bool, writable
+      bool, create bool = false, truncate bool = false
+    line: 89
+  - declaration: function file-read file-data; capability filesystem, file ref file-handle, limit int
+    line: 96
+  - declaration: function file-write file-data; capability filesystem, file ref file-handle, data bytes,
+      offset int = 0
+    line: 100
+  - declaration: function file-flush filesystem-operation-result; capability filesystem, file ref file-handle
+    line: 104
+  - declaration: function file-sync-data filesystem-operation-result; capability filesystem, file ref
+      file-handle
+    line: 108
+  - declaration: function file-sync-all filesystem-operation-result; capability filesystem, file ref file-handle
+    line: 112
+  - declaration: function file-close filesystem-operation-result; capability filesystem, file file-handle
+    line: 116
+  - declaration: class filesystem
+    line: 120
+  - declaration: function filesystem-capability filesystem
+    line: 126
+  - declaration: function filesystem-exists existence-result; capability filesystem, target path
+    line: 130
+  - declaration: function filesystem-metadata file-metadata; capability filesystem, target path
+    line: 134
+  - declaration: function filesystem-symlink-metadata file-metadata; capability filesystem, target path
+    line: 138
+  - declaration: function filesystem-canonical path-result; capability filesystem, target path
+    line: 142
+  - declaration: function filesystem-realpath path-result; capability filesystem, target path
+    line: 147
+  - declaration: function filesystem-read-link path-result; capability filesystem, target path
+    line: 150
+  - declaration: function filesystem-open-beneath directory-handle; capability filesystem, directory path,
+      relative path, cross-filesystem bool = false
+    line: 155
+  - declaration: function open-file-beneath file-handle; capability filesystem, directory ref directory-handle,
+      relative path, readable bool, writable bool, create bool = false, truncate bool = false
+    line: 162
+  - declaration: function filesystem-read-bounded file-data; capability filesystem, target path, limit
+      int
+    line: 169
+  - declaration: function filesystem-write-atomic filesystem-operation-result; capability filesystem,
+      target path, data bytes
+    line: 173
+  - declaration: function filesystem-rename filesystem-operation-result; capability filesystem, source
+      path, destination path
+    line: 177
+  - declaration: function filesystem-remove filesystem-operation-result; capability filesystem, target
+      path
+    line: 181
+- source: crates/terrane-compiler/src/core/json.trn
+  declarations:
+  - declaration: class json-options
+    line: 7
+  - declaration: function construct; max-depth int, max-bytes int
+    line: 11
+  - declaration: function default-json-options json-options
+    line: 15
+  - declaration: function parse-json document-result; input string, options json-options
+    line: 18
+  - declaration: function stringify-json document-result; value document-value, options json-options
+    line: 22
+  - declaration: function canonical-json document-result; value document-value
+    line: 26
+  - declaration: function decode-json document-result; input string, mapping deserializable, options json-options
+    line: 30
+  - declaration: function encode-json document-result; value serializable, options json-options
+    line: 36
+- source: crates/terrane-compiler/src/core/legacy_digests.trn
+  declarations:
+  - declaration: function sha1 hash-algorithm
+    line: 5
+  - declaration: function md5 hash-algorithm
+    line: 8
+  - declaration: function digest-bytes digest-result; algorithm hash-algorithm, data bytes
+    line: 11
+- source: crates/terrane-compiler/src/core/logging.trn
+  declarations:
+  - declaration: class log-level
+    line: 6
+  - declaration: function trace-level log-level
+    line: 14
+  - declaration: function debug-level log-level
+    line: 16
+  - declaration: function info-level log-level
+    line: 18
+  - declaration: function warning-level log-level
+    line: 20
+  - declaration: function error-level log-level
+    line: 22
+  - declaration: function critical-level log-level
+    line: 24
+  - declaration: function render document-value
+    line: 28
+  - declaration: class document-log-value implements log-value
+    line: 30
+  - declaration: function render document-value
+    line: 36
+  - declaration: class text-log-value implements log-value
+    line: 39
+  - declaration: function render document-value
+    line: 45
+  - declaration: class error-log-value implements log-value
+    line: 48
+  - declaration: function render document-value
+    line: 54
+  - declaration: function log-document log-value; value document-value
+    line: 58
+  - declaration: function log-text log-value; value string
+    line: 61
+  - declaration: function log-error log-value; value throwable
+    line: 65
+  - declaration: class log-field
+    line: 68
+  - declaration: function field log-field; name string, value log-value
+    line: 83
+  - declaration: function secret-field log-field; name string, value log-value
+    line: 86
+  - declaration: function empty-log-fields list of log-field
+    line: 89
+  - declaration: class log-sink
+    line: 92
+  - declaration: class log-sink-result
+    line: 98
+  - declaration: function memory-sink log-sink-result; capacity int, overflow string, start int, step
+      int, reveal bool
+    line: 108
+  - declaration: function console-sink log-sink-result; reveal bool
+    line: 113
+  - declaration: function failing-sink log-sink-result
+    line: 118
+  - declaration: class logger-options
+    line: 122
+  - declaration: function make-logger-options logger-options; minimum log-level, target-prefix string,
+      target string, max-fields int, max-bytes int
+    line: 136
+  - declaration: class log-context
+    line: 139
+  - declaration: function adding-field log-context; addition log-field
+    line: 157
+  - declaration: function adding-span log-context; span string
+    line: 166
+  - declaration: class logger
+    line: 175
+  - declaration: function make-logger logger; sink log-sink, options logger-options
+    line: 185
+  - declaration: function default-logger logger; sink log-sink
+    line: 188
+  - declaration: function named-logger logger; sink log-sink, target string
+    line: 191
+  - declaration: function with-field logger; value logger, addition log-field
+    line: 194
+  - declaration: function with-span logger; value logger, span string
+    line: 197
+  - declaration: class log-outcome
+    line: 200
+  - declaration: class log-event
+    line: 210
+  - declaration: function make-event log-event; level log-level, message string, fields list of log-field
+    line: 225
+  - declaration: function emit log-outcome; value logger, level log-level, message string, fields list
+      of log-field
+    line: 242
+  - declaration: function debug log-outcome; value logger, message string, fields list of log-field
+    line: 245
+  - declaration: function write-event log-outcome; value logger, event log-event
+    line: 248
+  - declaration: function install-dependency-bridge log-outcome; value logger
+    line: 251
+  - declaration: function info log-outcome; value logger, message string, fields list of log-field
+    line: 255
+  - declaration: function warning log-outcome; value logger, message string, fields list of log-field
+    line: 258
+  - declaration: function error log-outcome; value logger, message string, fields list of log-field
+    line: 261
+  - declaration: function discarded-count int; value logger
+    line: 264
+  - declaration: function drain-memory list of string; value logger
+    line: 267
+  - declaration: function drain-fallback list of string
+    line: 270
+- source: crates/terrane-compiler/src/core/logging_async.trn
+  declarations: []
+- source: crates/terrane-compiler/src/core/networking.trn
+  declarations:
+  - declaration: class network-operation-result
+    line: 6
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string
+    line: 11
+  - declaration: class network-cancellation-token
+    line: 15
+  - declaration: function network-cancel-operation network-operation-result; cancellation network-cancellation-token
+    line: 19
+  - declaration: class network-operation-options
+    line: 23
+  - declaration: function construct; requested deadline|none, cancellation network-cancellation-token
+    line: 27
+  - declaration: class tcp-options
+    line: 42
+  - declaration: function construct; no-delay bool, ttl int
+    line: 46
+  - declaration: class udp-options
+    line: 50
+  - declaration: function construct; broadcast bool, ttl int
+    line: 54
+  - declaration: class ip-address
+    line: 59
+  - declaration: function string string
+    line: 69
+  - declaration: class ip-result
+    line: 72
+  - declaration: function construct; failed bool, message string, address ip-address
+    line: 77
+  - declaration: function ip-address-from-string ip-result; text string
+    line: 82
+  - declaration: class socket-address
+    line: 88
+  - declaration: function string string
+    line: 98
+  - declaration: class socket-result
+    line: 101
+  - declaration: function construct; failed bool, message string, address socket-address
+    line: 106
+  - declaration: function socket-address-from-ip socket-result; ip ip-address, port int
+    line: 111
+  - declaration: function socket-address-from-string socket-result; text string
+    line: 118
+  - declaration: class io-result
+    line: 127
+  - declaration: function construct; failed bool, truncated bool, deadline-exceeded bool, message string,
+      data bytes, completed int, peer string, end bool
+    line: 137
+  - declaration: class tcp-stream
+    line: 147
+  - declaration: function configure network-operation-result; options tcp-options
+    line: 161
+  - declaration: function shutdown network-operation-result; direction string
+    line: 165
+  - declaration: class stream-result
+    line: 176
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string, peer string,
+      stream tcp-stream
+    line: 183
+  - declaration: class tcp-listener
+    line: 200
+  - declaration: class listener-result
+    line: 219
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string, listener tcp-listener
+    line: 225
+  - declaration: function bind-tcp listener-result; address socket-address
+    line: 231
+  - declaration: class udp-socket
+    line: 238
+  - declaration: function configure network-operation-result; options udp-options
+    line: 253
+  - declaration: class udp-result
+    line: 264
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string, socket udp-socket
+    line: 270
+  - declaration: function bind-udp udp-result; address socket-address
+    line: 276
+  - declaration: class dns-result
+    line: 283
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string, ttl int, ttl-known
+      bool, candidates list of string
+    line: 291
+  - declaration: class network-host-name
+    line: 299
+  - declaration: class network-host-name-result
+    line: 305
+  - declaration: function construct; failed bool, message string, host network-host-name
+    line: 310
+  - declaration: function parse-host-name network-host-name-result; text string
+    line: 315
+- source: crates/terrane-compiler/src/core/paths.trn
+  declarations:
+  - declaration: class path
+    line: 5
+  - declaration: function construct; input string
+    line: 8
+  - declaration: function path-components list of string; subject path
+    line: 11
+  - declaration: function path-is-absolute bool; subject path
+    line: 22
+  - declaration: function normalise-path path; subject path
+    line: 25
+  - declaration: function path-name string; subject path
+    line: 64
+  - declaration: function path-parent path; subject path
+    line: 71
+  - declaration: function path-stem string; subject path
+    line: 90
+  - declaration: function path-extension string; subject path
+    line: 106
+  - declaration: function join-path path; base path, child path
+    line: 115
+- source: crates/terrane-compiler/src/core/process.trn
+  declarations:
+  - declaration: class native-string
+    line: 5
+  - declaration: function construct; encoded string
+    line: 10
+  - declaration: class environment-entry
+    line: 15
+  - declaration: function construct; name native-string, entry-value native-string
+    line: 19
+  - declaration: class process-host-name-result
+    line: 23
+  - declaration: function construct; did-fail bool, is-available bool, detail string, result-value native-string
+    line: 29
+  - declaration: function process-host-name process-host-name-result
+    line: 35
+  - declaration: function arguments list of native-string
+    line: 40
+  - declaration: function environment list of environment-entry
+    line: 49
+  - declaration: class cli-schema
+    line: 60
+  - declaration: function construct; declared list of string
+    line: 63
+  - declaration: class command-line
+    line: 66
+  - declaration: function schema-has bool; schema cli-schema, sought string
+    line: 75
+  - declaration: function parse-command-line command-line; schema cli-schema, supplied list of native-string
+    line: 81
+  - declaration: class exit-status
+    line: 122
+  - declaration: function make-exit-status exit-status; requested int
+    line: 127
+  - declaration: function exit; status exit-status
+    line: 136
+  - declaration: function native-text native-string; value string
+    line: 139
+  - declaration: function native-raw native-string; value bytes
+    line: 143
+  - declaration: function native-text-value string|none; value native-string
+    line: 147
+  - declaration: function native-raw-value bytes; value native-string
+    line: 152
+  - declaration: function environment-pair environment-entry; key native-string, item native-string
+    line: 155
+  - declaration: function encode-native-string string; value native-string
+    line: 158
+- source: crates/terrane-compiler/src/core/process_signals.trn
+  declarations:
+  - declaration: class process-signal-error implements throwable
+    line: 7
+  - declaration: function render string
+    line: 13
+  - declaration: class process-signal
+    line: 16
+  - declaration: class process-signal-event
+    line: 34
+  - declaration: class process-signal-subscription
+    line: 48
+  - declaration: function process-signals process-signal-subscription throws process-signal-error; selected
+      set of process-signal
+    line: 68
+- source: crates/terrane-compiler/src/core/random.trn
+  declarations:
+  - declaration: class byte-result
+    line: 4
+  - declaration: function construct; failed bool, message string, data bytes
+    line: 9
+  - declaration: class random-int-result
+    line: 14
+  - declaration: function construct; failed bool, message string, number int
+    line: 19
+  - declaration: class secret-operation-result
+    line: 24
+  - declaration: function construct; failed bool, message string
+    line: 28
+  - declaration: class secret-buffer
+    line: 32
+  - declaration: function construct; data bytes
+    line: 35
+  - declaration: function destroy-secret secret-operation-result; secret secret-buffer
+    line: 38
+  - declaration: class digest-value
+    line: 42
+  - declaration: function construct; algorithm string, data bytes
+    line: 46
+  - declaration: function constant-time-equals bool; other digest-value
+    line: 50
+  - declaration: class digest-result
+    line: 56
+  - declaration: function construct; failed bool, message string, digest digest-value
+    line: 61
+  - declaration: class signature-value
+    line: 66
+  - declaration: function construct; algorithm string, data bytes
+    line: 70
+  - declaration: function constant-time-equals bool; other signature-value
+    line: 74
+  - declaration: class signature-result
+    line: 80
+  - declaration: function construct; failed bool, message string, signature signature-value
+    line: 85
+  - declaration: class secure-random
+    line: 90
+  - declaration: function construct
+    line: 93
+  - declaration: function generate-bytes byte-result; count int
+    line: 96
+  - declaration: function bounded-int random-int-result; upper-exclusive int
+    line: 100
+  - declaration: class pseudo-random-algorithm
+    line: 104
+  - declaration: function construct; name string
+    line: 107
+  - declaration: function chacha20 pseudo-random-algorithm
+    line: 110
+  - declaration: class pseudo-random
+    line: 113
+  - declaration: function construct; algorithm pseudo-random-algorithm, seed bytes
+    line: 116
+  - declaration: function generate-bytes byte-result; count int
+    line: 119
+  - declaration: function bounded-int random-int-result; upper-exclusive int
+    line: 123
+  - declaration: function split-pseudo pseudo-random; source pseudo-random
+    line: 133
+  - declaration: function secure-bytes byte-result; source secure-random, count int
+    line: 138
+  - declaration: function pseudo-bytes byte-result; source pseudo-random, count int
+    line: 142
+  - declaration: function secure-bounded-int random-int-result; source secure-random, upper-exclusive
+      int
+    line: 146
+  - declaration: function pseudo-bounded-int random-int-result; source pseudo-random, upper-exclusive
+      int
+    line: 150
+  - declaration: class hash-algorithm
+    line: 154
+  - declaration: function construct; name string
+    line: 157
+  - declaration: function sha256 hash-algorithm
+    line: 161
+  - declaration: function sha512 hash-algorithm
+    line: 164
+  - declaration: function digest-bytes digest-result; algorithm hash-algorithm, data bytes
+    line: 167
+  - declaration: function sign-hmac signature-result; algorithm hash-algorithm, key secret-buffer, data
+      bytes
+    line: 172
+  - declaration: function digest-equals bool; left digest-value, right digest-value
+    line: 177
+  - declaration: function signature-equals bool; left signature-value, right signature-value
+    line: 180
+- source: crates/terrane-compiler/src/core/streams.trn
+  declarations:
+  - declaration: class stream-operation-result
+    line: 6
+  - declaration: function construct; failed bool, message string
+    line: 10
+  - declaration: class read-result
+    line: 14
+  - declaration: function construct; data bytes, completed int, end bool, failed bool, message string
+    line: 21
+  - declaration: class text-read-result
+    line: 28
+  - declaration: function construct; text string, completed int, end bool, failed bool, message string
+    line: 35
+  - declaration: class write-result
+    line: 42
+  - declaration: function construct; data bytes, completed int, failed bool, message string
+    line: 48
+  - declaration: class byte-reader
+    line: 57
+  - declaration: function read read-result; count int
+    line: 63
+  - declaration: function read-exact read-result; count int
+    line: 67
+  - declaration: function read-all read-result; limit int
+    line: 88
+  - declaration: function text text-reader; codec encoding
+    line: 110
+  - declaration: class byte-writer
+    line: 121
+  - declaration: function write write-result; data bytes
+    line: 127
+  - declaration: function write-all write-result; data bytes
+    line: 132
+  - declaration: function resume write-result; prior write-result
+    line: 146
+  - declaration: function text text-writer; codec encoding
+    line: 155
+  - declaration: function flush stream-operation-result
+    line: 158
+  - declaration: function sync-data stream-operation-result
+    line: 162
+  - declaration: function sync-all stream-operation-result
+    line: 166
+  - declaration: class text-reader
+    line: 178
+  - declaration: function read text-read-result throws decode-error; count int
+    line: 186
+  - declaration: function read-exact text-read-result throws decode-error; count int
+    line: 191
+  - declaration: function read-all text-read-result throws decode-error; limit int
+    line: 213
+  - declaration: class text-writer
+    line: 245
+  - declaration: function write write-result; text string
+    line: 253
+  - declaration: function write-all write-result; text string
+    line: 258
+  - declaration: function resume write-result; prior write-result
+    line: 273
+  - declaration: function line write-result; text string
+    line: 279
+  - declaration: function flush stream-operation-result
+    line: 285
+  - declaration: function sync-data stream-operation-result
+    line: 289
+  - declaration: function sync-all stream-operation-result
+    line: 293
+  - declaration: function stdin byte-reader
+    line: 305
+  - declaration: function stdout byte-writer
+    line: 308
+  - declaration: function stderr byte-writer
+    line: 311
+- source: crates/terrane-compiler/src/core/testing.trn
+  declarations:
+  - declaration: function render string
+    line: 9
+  - declaration: class test-failure implements throwable
+    line: 11
+  - declaration: function construct; failure-message string
+    line: 16
+  - declaration: function render string
+    line: 19
+  - declaration: class test-skip implements throwable
+    line: 22
+  - declaration: function construct; reason string
+    line: 27
+  - declaration: function render string
+    line: 30
+  - declaration: class test-infrastructure-failure implements throwable
+    line: 33
+  - declaration: function construct; failure-message string
+    line: 36
+  - declaration: function render string
+    line: 39
+  - declaration: function fail none throws test-failure; message string
+    line: 42
+  - declaration: function skip none throws test-skip; reason string
+    line: 45
+  - declaration: function assert none throws test-failure; condition bool
+    line: 48
+  - declaration: function deny none throws test-failure; condition bool
+    line: 53
+  - declaration: function fail-values none throws test-failure; failure-message string, actual test-value,
+      expected test-value
+    line: 66
+  - declaration: function assert-equal-int none throws test-failure; actual int, expected int
+    line: 79
+  - declaration: function assert-not-equal-int none throws test-failure; actual int, expected int
+    line: 84
+  - declaration: function assert-equal-string none throws test-failure; actual string, expected string
+    line: 89
+  - declaration: function assert-not-equal-string none throws test-failure; actual string, expected string
+    line: 94
+  - declaration: function assert-equal-bool none throws test-failure; actual bool, expected bool
+    line: 99
+  - declaration: function assert-not-equal-bool none throws test-failure; actual bool, expected bool
+    line: 104
+  - declaration: function assert-equal-float64 none throws test-failure; actual float64, expected float64
+    line: 109
+  - declaration: function assert-not-equal-float64 none throws test-failure; actual float64, expected
+      float64
+    line: 114
+  - declaration: function assert-equal-bytes none throws test-failure; actual bytes, expected bytes
+    line: 119
+  - declaration: function assert-not-equal-bytes none throws test-failure; actual bytes, expected bytes
+    line: 124
+  - declaration: function assert-present-int none throws test-failure; actual int|none
+    line: 129
+  - declaration: function assert-none-int none throws test-failure; actual int|none
+    line: 134
+  - declaration: function assert-present-string none throws test-failure; actual string|none
+    line: 139
+  - declaration: function assert-none-string none throws test-failure; actual string|none
+    line: 144
+  - declaration: function assert-present-bool none throws test-failure; actual bool|none
+    line: 149
+  - declaration: function assert-none-bool none throws test-failure; actual bool|none
+    line: 154
+  - declaration: function assert-present-float64 none throws test-failure; actual float64|none
+    line: 159
+  - declaration: function assert-none-float64 none throws test-failure; actual float64|none
+    line: 164
+  - declaration: function assert-present-bytes none throws test-failure; actual bytes|none
+    line: 169
+  - declaration: function assert-none-bytes none throws test-failure; actual bytes|none
+    line: 174
+  - declaration: function assert-near none throws test-failure; actual float64, expected float64, tolerance
+      float64
+    line: 179
+  - declaration: function assert-throws none throws test-failure; operation function to none throws throwable,
+      expected-descriptor string
+    line: 189
+  - declaration: function context-value string|none; name string
+    line: 199
+  - declaration: function test-arguments list of native-string
+    line: 205
+  - declaration: function test-deadline duration throws invalid-duration
+    line: 214
+  - declaration: function temporary-directory string|none
+    line: 217
+  - declaration: function deterministic-seed string|none
+    line: 220
+  - declaration: function test-identity string|none
+    line: 223
+  - declaration: function application-artifact string|none
+    line: 226
+  - declaration: function test-tier string|none
+    line: 229
+  - declaration: function advance-time none throws test-failure; nanoseconds int
+    line: 233
+- source: crates/terrane-compiler/src/core/testing_process.trn
+  declarations:
+  - declaration: class process-fixture
+    line: 8
+  - declaration: function construct; executable string
+    line: 15
+  - declaration: class process-result
+    line: 19
+  - declaration: function construct; status int, did-crash bool, exceeded-deadline bool, output bytes,
+      errors bytes, output-truncated bool, errors-truncated bool
+    line: 28
+  - declaration: function run-process process-result throws test-infrastructure-failure; fixture process-fixture
+    line: 37
+- source: crates/terrane-compiler/src/core/time.trn
+  declarations:
+  - declaration: class invalid-duration implements throwable
+    line: 5
+  - declaration: function render string
+    line: 8
+  - declaration: function checked duration|none; other duration
+    line: 18
+  - declaration: class duration
+    line: 24
+  - declaration: function add duration; other duration
+    line: 56
+  - declaration: function multiply duration throws invalid-duration; multiplier int
+    line: 60
+  - declaration: class monotonic-instant
+    line: 66
+  - declaration: function duration-until duration throws invalid-duration; later ref monotonic-instant
+    line: 74
+  - declaration: class instant
+    line: 80
+  - declaration: class deadline
+    line: 88
+  - declaration: function remaining duration|none
+    line: 94
+  - declaration: function expired bool
+    line: 100
+  - declaration: class tick
+    line: 112
+  - declaration: class ticker
+    line: 122
+  - declaration: class clock
+    line: 147
+- source: crates/terrane-compiler/src/core/tls.trn
+  declarations:
+  - declaration: class tls-stream
+    line: 5
+  - declaration: class tls-result
+    line: 34
+  - declaration: function construct; failed bool, deadline-exceeded bool, message string, stream tls-stream
+    line: 40
+- source: crates/terrane-compiler/src/core/urls.trn
+  declarations:
+  - declaration: class url-query
+    line: 5
+  - declaration: function construct
+    line: 10
+  - declaration: function length int
+    line: 17
+  - declaration: function get string; name string
+    line: 20
+  - declaration: function get-all list of string; name string
+    line: 28
+  - declaration: function append-query-entry url-query; query url-query, name string, value string
+    line: 37
+  - declaration: class url
+    line: 44
+  - declaration: function construct; serialized string, display string, scheme string, username string,
+      password string, host string, port string, path string, query url-query, fragment string, origin
+      string
+    line: 57
+  - declaration: function string string
+    line: 70
+  - declaration: function resolve url-result; relative string
+    line: 73
+  - declaration: class url-result
+    line: 76
+  - declaration: function construct; failed bool, message string, parsed-url url
+    line: 81
+  - declaration: function parse-url url-result; input string
+    line: 101
+  - declaration: function parse-url-relative url-result; input string, base url
+    line: 105
+- source: crates/terrane-compiler/src/core/uuid.trn
+  declarations:
+  - declaration: class uuid
+    line: 5
+  - declaration: function construct; text string, data bytes
+    line: 9
+  - declaration: class uuid-result
+    line: 13
+  - declaration: function construct; failed bool, message string, identifier uuid
+    line: 18
+  - declaration: function parse-uuid uuid-result; text string
+    line: 23
+  - declaration: function random-uuid uuid-result; source secure-random
+    line: 27
+  - declaration: function time-uuid uuid-result; source secure-random, unix-milliseconds int
+    line: 31
+- source: crates/terrane-compiler/src/core/yaml.trn
+  declarations:
+  - declaration: class yaml-options
+    line: 7
+  - declaration: function construct; max-depth int, max-bytes int, max-alias-nodes int
+    line: 12
+  - declaration: function default-yaml-options yaml-options
+    line: 17
+  - declaration: function make-yaml-options yaml-options; max-depth int, max-bytes int, max-alias-nodes
+      int
+    line: 20
+  - declaration: function parse-yaml document-result; input string, options yaml-options
+    line: 23
+  - declaration: function stringify-yaml document-result; value document-value
+    line: 27
+  - declaration: function decode-yaml document-result; input string, mapping deserializable, options yaml-options
+    line: 32
+  - declaration: function encode-yaml document-result; value serializable
+    line: 38

@@ -1,0 +1,68 @@
+format: 1
+id: tool.formatting
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Canonical source formatting"
+  title-style: text
+  summary: >-
+    The lossless syntax representation supports deterministic canonical source formatting and stable parse/format behavior.
+  tags:
+    - "syntax"
+    - "formatting"
+    - "canonical-formatting"
+  sections:
+    - id: canonical-formatting
+      title: "Canonical Formatting"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane parses source into a lossless syntax representation that retains the
+            complete token stream and trivia, together with byte spans, token ranges, child
+            structure, and dedicated node shapes for supported constructs. Comments,
+            whitespace, and other trivia are therefore preserved rather than discarded
+            during parsing.
+
+            The syntax tree has a deterministic normalized serialization. This gives syntax
+            goldens and source tools a stable structural representation. Parsing does not
+            depend on semantic analysis to recover tree shape: declarations, imports,
+            bindings, functions, parameters, blocks, control flow, assignments, expressions,
+            calls, grouping, member and index operations, and structured type expressions
+            are represented directly in the tree.
+
+            Parser recovery occurs at newline and dedent boundaries so that later statements
+            can remain structurally available after an error. Recovery does not silently
+            repair invalid or ambiguous source. Invalid member adjacency, chained
+            non-associative comparisons, unparenthesized nested calls, unsupported `===`,
+            and angle-bracket generic intent produce source-oriented syntax diagnostics.
+            When the primary message does not fully express the correction, a diagnostic can
+            carry separate structured help.
+
+            The same expression parser handles call-permitted and call-free contexts, while
+            applying the language’s precedence and associativity rules consistently. Postfix
+            `++` and `--` are update statements rather than expressions, so using either in
+            a value position is a syntax error.
+
+            Canonical source formatting can be built from this recovered, lossless structure
+            without treating malformed or unsupported syntax as valid. Syntax diagnostics
+            remain authoritative; formatting must preserve the parser’s structural
+            interpretation rather than guess at semantic intent.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "canonical-formatting"
+  conformance: null
+  compiler: null

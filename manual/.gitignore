@@ -1,0 +1,12 @@
+
+# scratch doc with notes etc
+scratch.md
+
+# book notes
+tutorial-book/notes.md
+
+design/
+
+# Python bytecode
+*.pyc
+__pycache__/

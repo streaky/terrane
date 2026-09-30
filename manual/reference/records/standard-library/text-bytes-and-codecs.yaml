@@ -1,0 +1,216 @@
+format: 1
+id: std.text-bytes-codecs
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Text, bytes, and codecs
+  title-style: text
+  summary: >-
+    Distinguishes Unicode text from immutable bytes and documents total encoding, checked decoding, octet construction, and
+    hexadecimal and Base64 codecs.
+  tags: [standard-library, strings, bytes, encodings, codecs]
+  sections:
+    - id: text-and-bytes
+      title: Text and byte values
+      blocks:
+        - type: markdown
+          markdown: |-
+            `string` is Unicode text. `bytes` is an immutable sequence of octets; indexing
+            and iteration produce `uint8`, and `.length` reports octets. A byte literal uses
+            `b'...'`. Text and bytes never convert implicitly. `.concat` preserves the
+            receiver type and accepts values of that same type.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            text string = 'Terrane'
+            data bytes = b'Terrane'
+            empty bytes = b''
+            combined bytes = data.concat; b' docs'
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: encodings
+      title: Encoding and decoding
+      blocks:
+        - type: markdown
+          markdown: |-
+            `/core/encodings` provides `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and
+            `utf32-be`. Encoding is total and returns owned bytes. Decoding validates the
+            complete input and throws `decode-error`; it never substitutes replacement text.
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/encodings import utf8
+            from /core/errors import decode-error
+
+            data bytes = 'hello'.encode; utf8
+            try
+              text string = data.decode; utf8
+            catch decode-error as failure
+              print; failure.message
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: table
+          id: encoding-synopsis
+          title: Encoding operations
+          show-header: true
+          columns:
+            - id: declaration
+              title: Declaration
+              cell: code
+            - id: result
+              title: Result
+              cell: code
+            - id: failure
+              title: Failure behavior
+              cell: text
+            - id: ownership
+              title: Ownership
+              cell: text
+          rows:
+            - declaration: string.encode; encoding
+              result: bytes
+              failure: Infallible.
+              ownership: Reads text and returns owned bytes.
+            - declaration: bytes.decode; encoding
+              result: string
+              failure: Throws decode-error for invalid complete input.
+              ownership: Reads bytes and returns owned text.
+
+    - id: string-operations
+      title: Common string operations
+      blocks:
+        - type: table
+          id: string-recipes
+          title: String operation synopsis
+          show-header: true
+          columns:
+            - id: operation
+              title: Operation
+              cell: code
+            - id: parameter
+              title: Parameter
+              cell: code
+            - id: result
+              title: Result
+              cell: code
+          rows:
+            - operation: text.contains
+              parameter: needle string
+              result: bool
+            - operation: text.contains.start
+              parameter: prefix string
+              result: bool
+            - operation: text.contains.end
+              parameter: suffix string
+              result: bool
+            - operation: text.split
+              parameter: separator string
+              result: list of string
+            - operation: text.join
+              parameter: variadic displayable values
+              result: string
+            - operation: text.replace
+              parameter: target string, replacement string
+              result: string
+            - operation: text.concat
+              parameter: variadic displayable values
+              result: string
+
+        - type: markdown
+          markdown: |-
+            `join` belongs to the separator: `', '.join; 'a', 'b'` returns `a, b`. `concat`
+            inserts nothing. Prefix and suffix checks are the `start` and `end` children of
+            `contains`, not separate names.
+    - id: octets-and-codecs
+      title: Octets, hexadecimal, and Base64
+      blocks:
+        - type: markdown
+          markdown: |-
+            The compiler-backed codec declarations are:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function bytes-from-octets bytes; octets (list of uint8)
+            function encode-hex string; data bytes
+            function decode-hex decode-result; text string
+            function encode-base64 string; data bytes, url-safe bool, padded bool
+            function decode-base64 decode-result; text string, url-safe bool, padded bool
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `bytes-from-octets` copies the selected `uint8` values into an immutable byte
+            sequence. Decoder functions return `decode-result`; inspect `failed`, `message`,
+            and `value`. Hex and Base64 syntax failures are result-object failures, unlike
+            character-encoding failures from `bytes.decode`, which throw `decode-error`.
+        - type: example
+          id: bytes-from-octets-example
+          title: Construct and encode bytes
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/octet-codec
+
+            from /core/collections import list
+            from /core/codecs import bytes-from-octets, encode-hex
+
+            function marker string;
+              octets list of uint8 = list;
+              octets.append; (84.coerce; uint8)
+              octets.append; (82.coerce; uint8)
+              octets.append; (78.coerce; uint8)
+              return encode-hex; (bytes-from-octets; octets)
+          response: null
+          diagnostic: null
+          markdown: >-
+            The explicit list destination supplies element type evidence before the first
+            append.
+  see-also:
+    - std.filesystem
+    - std.collections
+    - app.collection-string-idioms
+    - app.error-boundaries
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "9"
+  conformance: []
+  compiler: null
+
+implementation:
+  compiler:
+    - crates/terrane-compiler/src/core/codecs.trn
+    - crates/terrane-compiler/src/semantics/member_inference.rs

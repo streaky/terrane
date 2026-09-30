@@ -13069,9 +13069,9 @@ mod tests {
         decline_functions_with_missing_generic_interfaces, decline_unproven_projected_interfaces,
         enforce_transitive_reachability, external_reexport_rustdocs, foreign_aliases,
         generated_projection_units, has_type_parameters, instantiated_nominal_name,
-        instantiated_type_name, is_builtin_marker_trait, is_internal_rust_protocol_method,
-        mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
-        persist_dependency_lock, project_type, projectable_interface_bound,
+        instantiated_type_name, is_builtin_clone, is_builtin_marker_trait,
+        is_internal_rust_protocol_method, mark_cache_record_used, namespace_overlays_from_metadata,
+        parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
         projection_content_hash, provider_fragment_public_paths, prune_projection_cache,
         receiver_kind, recursive_owner_dependencies, resolve, resolved_library_package,
         rewrite_projected_owner_root, rewrite_rust_bound_root, seed_dependency_lock,
@@ -14188,14 +14188,22 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one identity matrix keeps callable and marker trait aliases together"
+    )]
     fn builtin_callback_trait_recognition_uses_canonical_identity() {
-        let builtin_id = Id(1);
-        let spoofed_id = Id(2);
-        let send_id = Id(3);
-        let spoofed_send_id = Id(4);
+        let fn_id = Id(1);
+        let spoofed_fn_id = Id(2);
+        let fn_mut_id = Id(3);
+        let fn_once_id = Id(4);
+        let send_id = Id(5);
+        let spoofed_send_id = Id(6);
+        let sync_id = Id(7);
+        let clone_id = Id(8);
         let paths = HashMap::from([
             (
-                builtin_id,
+                fn_id,
                 ItemSummary {
                     crate_id: 0,
                     path: vec![
@@ -14208,10 +14216,36 @@ mod tests {
                 },
             ),
             (
-                spoofed_id,
+                spoofed_fn_id,
                 ItemSummary {
                     crate_id: 1,
                     path: vec!["witness".to_owned(), "Fn".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
+            (
+                fn_mut_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![
+                        "core".to_owned(),
+                        "ops".to_owned(),
+                        "function".to_owned(),
+                        "FnMut".to_owned(),
+                    ],
+                    kind: ItemKind::Trait,
+                },
+            ),
+            (
+                fn_once_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![
+                        "core".to_owned(),
+                        "ops".to_owned(),
+                        "function".to_owned(),
+                        "FnOnce".to_owned(),
+                    ],
                     kind: ItemKind::Trait,
                 },
             ),
@@ -14231,6 +14265,22 @@ mod tests {
                     kind: ItemKind::Trait,
                 },
             ),
+            (
+                sync_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["core".to_owned(), "marker".to_owned(), "Sync".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
+            (
+                clone_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["core".to_owned(), "clone".to_owned(), "Clone".to_owned()],
+                    kind: ItemKind::Trait,
+                },
+            ),
         ]);
         let path = |id, display: &str| RustdocPath {
             path: display.to_owned(),
@@ -14239,10 +14289,21 @@ mod tests {
         };
 
         assert_eq!(
-            builtin_callable_mode(&path(builtin_id, "renamed::Anything"), &paths),
+            builtin_callable_mode(&path(fn_id, "renamed::Anything"), &paths),
             Some(InvocationMode::Shared)
         );
-        assert_eq!(builtin_callable_mode(&path(spoofed_id, "Fn"), &paths), None);
+        assert_eq!(
+            builtin_callable_mode(&path(fn_mut_id, "renamed::Anything"), &paths),
+            Some(InvocationMode::Mutable)
+        );
+        assert_eq!(
+            builtin_callable_mode(&path(fn_once_id, "renamed::Anything"), &paths),
+            Some(InvocationMode::Consuming)
+        );
+        assert_eq!(
+            builtin_callable_mode(&path(spoofed_fn_id, "Fn"), &paths),
+            None
+        );
         assert!(is_builtin_marker_trait(
             &path(send_id, "renamed::Anything"),
             &paths,
@@ -14253,6 +14314,16 @@ mod tests {
             &paths,
             "Send"
         ));
+        assert!(is_builtin_marker_trait(
+            &path(sync_id, "renamed::Anything"),
+            &paths,
+            "Sync"
+        ));
+        assert!(is_builtin_clone(
+            &path(clone_id, "renamed::Anything"),
+            &paths
+        ));
+        assert!(!is_builtin_clone(&path(spoofed_fn_id, "Clone"), &paths));
     }
 
     #[test]

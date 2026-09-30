@@ -1,0 +1,237 @@
+format: 1
+id: lang.functions.asynchronous
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Asynchronous functions and cancellation
+  title-style: text
+  summary: >-
+    Defines async invocation, linear task consumption, heterogeneous selection, suspension, and cleanup when cancellation
+    reaches an operation.
+  tags:
+    - functions
+    - async
+    - tasks
+    - cancellation
+    - finally
+    - select
+  sections:
+    - id: invocation
+      title: Invoking and awaiting asynchronous functions
+      blocks:
+        - type: rule
+          id: rule.async.invocation-task
+          level: must
+          since: null
+          evidence:
+            - async-await
+            - rust-dependency-async-function
+          markdown: |-
+            Calling an `async function` constructs a linear Terrane task. `await` consumes
+            that task exactly once and is valid only in an async callable. An asynchronous
+            entrypoint enters one runtime selected by the manifest profile. A projected Rust
+            future is constructed when the Terrane call expression is evaluated, before its
+            generated async containment wrapper begins polling it. Pending timers and
+            sockets sleep until their waker fires rather than being repeatedly polled.
+
+            Projected async completion and hover information report wake, runtime-context,
+            and transfer requirements in Terrane terms. An unknown requirement remains
+            conservative rather than selecting a hidden blocking fallback.
+    - id: transferability
+      title: Local and transferable tasks
+      blocks:
+        - type: rule
+          id: rule.async.task-transferability
+          level: must
+          since: null
+          evidence:
+            - rust-dependency-async-function
+            - projected-async-local-task-threaded
+          markdown: |-
+            Every async callable and task retains compiler-inferred local or transferable
+            execution metadata. Parameters, captures, values live across suspension, and
+            called async boundaries contribute to that decision. A projected Rust future is
+            local unless its admitted contract proves transferability.
+
+            A cooperative scope may spawn local work. A threaded scope requires a
+            transferable callable and reports a source diagnostic rather than relying on a
+            generated-Rust `Send` error. Direct calls and immediate `await` keep concrete
+            future types; boxing and pinning occur only at erased callable or heterogeneous
+            task-storage boundaries.
+    - id: structured-concurrency
+      title: Scoped child tasks
+      blocks:
+        - type: rule
+          id: rule.async.scope-join-await
+          level: must
+          since: null
+          evidence:
+            - rust-dependency-async-function
+            - rejoined-task-scope-child
+            - unawaited-task-scope-join
+          markdown: |-
+            `scope.spawn; callable` creates a linear scoped child. It also accepts an
+            unpolled, statically non-copyable task that transfers into the scope
+            automatically, which lets resource-owning arguments enter the child without a
+            suspension borrow. Joining consumes the child by the same automatic by-value
+            transfer and returns an asynchronous task of its outcome, so the observing form
+            is:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            outcome = await scope.join; child
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The child transfers into `join` without source-level `move`, and the join task
+            must be awaited. On the selected runtime, sibling children can make progress
+            while a join is pending. A failed child retains its error in its outcome and
+            requests cancellation of surviving siblings; each child remains joined exactly
+            once.
+    - id: selection
+      title: Heterogeneous asynchronous selection
+      blocks:
+        - type: rule
+          id: rule.async.select
+          level: must
+          since: null
+          evidence:
+            - heterogeneous-select
+            - select-pending-wakeup
+            - select-terminal-cursor
+            - select-concurrent-activations
+            - select-task-outcomes
+            - select-async-closure
+            - select-loser-cleanup
+            - select-cleanup-shield
+            - select-resource-release
+            - select-error-propagation
+            - select-external-cancellation
+            - select-post-borrow-use
+            - select-case-control-flow
+            - select-exclusive-case-move
+            - select-definite-assignment
+            - rust-dependency-async-function
+          markdown: |-
+            `select` is an async-only structural word at statement start, so that position
+            does not resolve an ordinary binding named `select`. It waits for the first
+            ready operation among at least two static cases. A case header is
+            `await expression` or one ordinary local binding initialized by exactly one
+            top-level `await`; that binding exists only in its case body. Case result types
+            may differ.
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            select
+              case count int = await (next-count;)
+                print; count
+              case received = await receiver.receive;
+                print; received.value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Operations and header tasks are constructed or consumed once in source order.
+            They are polled wakefully from a cursor local to the current callable
+            activation; concurrent calls and async closures therefore do not share fairness
+            state. Simultaneously ready cases rotate deterministically. A ready value or
+            terminal error advances the cursor before cleanup, while an all-pending poll,
+            construction failure, or pre-winner cancellation does not.
+
+            Once a winner is fixed, every loser receives cancellation before any drain
+            begins. Losers drain and release in reverse source order, including async
+            `finally`, channel waiter removal, and projected Rust cleanup. Cleanup is
+            shielded from cancellation after winner selection, and the winning body cannot
+            begin early. Cleanup continues after a failure; a later cleanup failure replaces
+            the earlier outcome and releases any displaced winning value.
+
+            Storage is stack-local: one pinned future and typed result slot per case plus
+            the cursor. Selection creates no helper tasks, universal payload box,
+            busy-polling loop, or private event loop. Case bodies retain ordinary `return`,
+            `throw`, `break`, and `continue` behavior after cleanup.
+
+            Dynamic case lists, guards, default cases, expression-position `select`,
+            duplicate linear tasks, and incompatible simultaneous receiver borrows are
+            rejected before lowering. Case-operation borrows end after loser cleanup at the
+            end of the statement, so the following statement may read or mutate the
+            receiver.
+    - id: cancellation
+      title: Cancellation at suspension
+      blocks:
+        - type: rule
+          id: rule.async.cancellation-cleanup
+          level: must
+          since: null
+          evidence:
+            - cancelled-foreign-await-runs-finally
+            - cancelled-nested-finally-order
+            - cancelled-finally-error-wins
+            - borrow-parameter-in-async-finally
+          markdown: |-
+            Cancellation observed while a task is suspended drops the in-flight operation
+            but does not skip Terrane `finally` blocks. The compiler retains cleanup-owned
+            state separately, enters applicable cleanup blocks once in innermost-first
+            order, and drives asynchronous cleanup shielded from the cancellation that
+            initiated it. The scope's join remains pending until cleanup finishes.
+
+            If cleanup fails, that error replaces pending cancellation in the affected
+            child's outcome: `error` is present and `cancelled` is false. The scope's
+            cancellation request is not withdrawn, so its other children continue to observe
+            cancellation normally.
+
+            Owned foreign values held only by the dropped operation run Rust `Drop` first.
+            Values required by Terrane cleanup remain owned by the cleanup state and are
+            destroyed after that cleanup. A borrow shape that cannot assign those
+            responsibilities unambiguously is rejected at the suspension point.
+        - type: note
+          id: note.async.cleanup-liveness
+          style: warning
+          markdown: |-
+            A deadline requests cancellation; it does not hard-kill cleanup. If cleanup
+            awaits a foreign operation that never wakes, joining the task can remain
+            pending. Cleanup should therefore use bounded, cancellation-safe operations
+            whenever progress depends on an external system.
+  see-also:
+    - lang.functions.callable-types
+    - tool.packages.rust-dependencies
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "21.3"
+    - document: language-spec
+      section: "21.4"
+  conformance:
+    - async-await
+    - async-finally-after-await
+    - borrow-parameter-in-async-finally
+    - cancelled-nested-finally-order
+    - projected-async-local-task-threaded
+    - rust-dependency-async-function
+  compiler: null

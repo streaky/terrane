@@ -1,0 +1,1718 @@
+format: 1
+id: book.testing-and-debugging
+kind: chapter
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Testing and Debugging
+  title-style: text
+  summary: >-
+    Develops a practical workflow for testing Terrane packages at unit, integration, and end-to-end boundaries, then diagnosing
+    failures with source evidence, the LLDB-backed Terrane debugger, and explicit native escape hatches.
+  tags:
+    - testing
+    - debugging
+    - assertions
+    - command-line
+    - packages
+    - continuous-integration
+  blocks:
+    - type: markdown
+      markdown: |-
+        A program can compile, use precise types, and still implement the wrong policy.
+        The compiler can prove that a completion count is an integer; it cannot decide
+        whether `4` completed tasks out of `5` should be called “nearly done” or
+        “behind.” That decision belongs to the application, and a test can preserve it
+        as the application changes.
+
+        Terrane tests are ordinary Terrane functions. They use the same parser, type
+        system, failure model, asynchronous runtime, capability checks, and native
+        lowering as production code. `terrane test` discovers those functions, compiles
+        a native registry, and runs each selected case in its own process and temporary
+        working directory.
+
+        This chapter turns the writing-plan program from Chapter 14 into a tested
+        package. We will begin with one small unit test, move outward through public
+        integration behavior and the built executable, and finish with a repeatable
+        debugging workflow. Debugging remains source-first: use the evidence Terrane
+        already provides, then use source breakpoints and stepping before inspecting
+        generated Rust or native state.
+  sections:
+    - id: begin-with-one-observable-behavior
+      title: Begin with one observable behavior
+      blocks:
+        - type: markdown
+          markdown: |-
+            Begin with a behavior a reader can state without mentioning fields, lowering, or
+            Rust. Our writing plan needs a label for completed work:
+
+            - no completed items means `not started`;
+            - some completed items means `in progress`;
+            - all completed items means `complete`.
+
+            Put production source below an ordinary namespace root and unit tests below
+            `tests/unit`:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            writing-plan/
+            ├── package.toml
+            ├── src/
+            │   └── plan.trn
+            └── tests/
+                └── unit/
+                    └── status.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The manifest describes production source. Test roots are conventional, so this
+            first version needs no testing configuration:
+        - type: example
+          id: first-test-package-manifest
+          title: A package with conventional test roots
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            package = "writing-plan"
+
+            [namespaces]
+            writing-plan = "src"
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Production code may keep the labeling helper private. A unit test in the same
+            namespace can exercise that internal policy without making it part of the
+            package's public contract:
+        - type: example
+          id: first-unit-test
+          title: Test one private policy
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          files:
+            - path: src/plan.trn
+              language: terrane
+              source: |-
+                namespace writing-plan
+
+                private function completion-label string; completed int, total int
+                  if completed == 0
+                    return 'not started'
+                  if completed >= total
+                    return 'complete'
+                  return 'in progress'
+            - path: tests/unit/status.trn
+              language: terrane
+              source: |-
+                namespace writing-plan
+
+                from /core/testing import assert-equal-string, test-failure
+
+                function test-completion-label none throws test-failure;
+                  assert-equal-string; (completion-label; 0, 5), 'not started'
+                  assert-equal-string; (completion-label; 3, 5), 'in progress'
+                  assert-equal-string; (completion-label; 5, 5), 'complete'
+                  return none
+          source: null
+          entry: src/plan.trn
+          annotations:
+            - id: ordinary-test-function
+              file: tests/unit/status.trn
+              lines:
+                start: 5
+                end: 9
+              markdown: >-
+                Discovery depends on the top-level `test-*` function contract, not on a special
+                annotation or generated Rust test target.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Run the package, not the individual test file:
+        - type: example
+          id: run-first-test
+          title: Run the first native test
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            terrane test writing-plan
+          files: null
+          entry: null
+          annotations: []
+          response:
+            kind: stdout
+            language: text
+            display: shown
+            content: |-
+              passed /writing-plan::test-completion-label (0.001s)
+              1 passed; 0 skipped; 0 failed
+          diagnostic: null
+          markdown: >-
+            Durations vary by machine. Identity and report order do not.
+        - type: markdown
+          markdown: |-
+            A discovered test must be top-level, take no parameters, and return `none`. It
+            may be synchronous or asynchronous and may declare a throwing boundary. Helper
+            functions can accept data, so table-like setup remains ordinary source rather
+            than a second test language.
+      sections: []
+
+    - id: write-assertions-that-explain-the-contract
+      title: Write assertions that explain the contract
+      blocks:
+        - type: markdown
+          markdown: |-
+            Import assertions from `/core/testing`. Choose the assertion that communicates
+            the contract rather than reducing every check to an opaque Boolean.
+
+            `assert` and `deny` cover conditions. Typed equality and inequality assertions
+            cover integers, strings, Booleans, floating-point values, and bytes. Optional
+            assertions distinguish presence from absence. `assert-near` states a
+            floating-point tolerance explicitly. `assert-throws` accepts a typed callback
+            and an expected throwable descriptor. Custom assertions can compare concrete
+            fields and call `fail-values` with operands implementing `test-value`,
+            preserving typed comparison while producing useful rendered values. `fail`
+            records an unconditional failure, while `skip` records that a case was
+            deliberately not executed under the current conditions.
+        - type: example
+          id: assertion-surface
+          title: Express several kinds of expectation
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace writing-plan
+
+            from /core/testing import assert, assert-equal-int, assert-near, assert-none-string, assert-not-equal-string, assert-present-string, assert-throws, deny, fail, test-failure
+
+            function expected-failure none throws test-failure;
+              fail; 'expected failure'
+              return none
+
+            function test-assertion-surface none throws test-failure;
+              assert; true
+              deny; false
+              assert-equal-int; 5, 5
+              assert-not-equal-string; 'draft', 'complete'
+              assert-present-string; 'owner'
+              assert-none-string; none
+              assert-near; 1.0, 1.05, 0.1
+              assert-throws; expected-failure, test-failure.identity
+              return none
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: admonition
+          id: assertions-evaluate-once
+          kind: guidance
+          title: Assert the value you mean
+          markdown: |-
+            Assertion operands are ordinary call arguments and are evaluated once. Compute a
+            value under a descriptive name first when its origin matters to the explanation.
+            Avoid duplicating an expensive or state-changing operation merely to place it
+            inside an assertion.
+        - type: markdown
+          markdown: |-
+            Failed assertions travel through Terrane's normal throwing path. The resulting
+            diagnostic retains the authored call frame, so the useful location is the
+            assertion in the test—not an internal function inside `/core/testing`. Assertion
+            rendering also remains bounded. Do not build a custom failure message by
+            concatenating secrets merely to make a test look more descriptive.
+      sections: []
+
+    - id: choose-the-test-boundary-deliberately
+      title: Choose the test boundary deliberately
+      blocks:
+        - type: markdown
+          markdown: |-
+            The three test roots represent different contracts. They are not merely folders
+            for organizing a large suite.
+
+            A **unit test** joins the package source set. When it declares the same
+            namespace as production source, it can test private behavior in that namespace.
+            Use this boundary for a small domain rule whose public caller would make
+            failures harder to locate.
+
+            An **integration test** is an external consumer. It declares its own namespace
+            and imports only public package names. If an integration test cannot reach a
+            private helper, the test should normally call a public operation instead of
+            widening production visibility.
+
+            An **end-to-end test** receives the actual production artifact built from the
+            ordinary package profile. It observes arguments, environment, files, standard
+            streams, exit behavior, and deadlines at a process boundary.
+        - type: example
+          id: integration-public-contract
+          title: Test the public package surface
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace writing-plan-tests
+
+            from /writing-plan import summarize
+            from /core/testing import assert-equal-string, test-failure
+
+            function test-public-summary none throws test-failure;
+              actual = summarize; 3, 5
+              assert-equal-string; actual, 'in progress'
+              return none
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Place this source below `tests/integration`. The import succeeds only when
+            `summarize` is public.
+        - type: table
+          id: test-tier-comparison
+          title: Choosing a test tier
+          show-header: true
+          columns:
+            - id: tier
+              title: Tier
+              cell: code
+            - id: observes
+              title: Contract observed
+              cell: text
+            - id: use
+              title: Prefer it for
+              cell: text
+          rows:
+            - tier: unit
+              observes: Same-namespace implementation and package behavior
+              use: Focused domain rules and private collaborators
+            - tier: integration
+              observes: Public package surface as an external namespace
+              use: Consumer-visible APIs and package composition
+            - tier: end-to-end
+              observes: Built executable and host process boundary
+              use: Arguments, environment, streams, exit behavior, and deadlines
+
+        - type: markdown
+          markdown: |-
+            Test-only imports never enter production compilation. A production module cannot
+            depend on a declaration found only below a test root. Test compilation still
+            uses a capability profile: test code does not gain filesystem, process, network,
+            or time authority merely because it is a test.
+
+            Override roots or select an explicit test profile only when the conventional
+            layout or ordinary profile is unsuitable:
+        - type: example
+          id: testing-manifest-configuration
+          title: Override roots and select a test profile
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            package = "writing-plan"
+
+            [namespaces]
+            writing-plan = "src"
+
+            [testing]
+            unit = "spec/unit"
+            integration = "spec/integration"
+            end-to-end = "spec/end-to-end"
+
+            [testing.profile]
+            name = "test"
+            capabilities = ["process"]
+            panic = "unwind"
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Omitted profile fields inherit the ordinary package profile. An explicitly
+            listed capability is deliberate authority, not an automatic testing exception.
+      sections: []
+
+    - id: make-time-and-context-deterministic
+      title: Make time and context deterministic
+      blocks:
+        - type: markdown
+          markdown: |-
+            A case runs in a fresh process and working directory. `/core/testing` exposes
+            the stable identity, selected tier, deterministic seed, and temporary directory
+            supplied to that process. Reading this runner-supplied context is intentionally
+            ungated because it grants no external authority; using context values for
+            operations such as child-process creation retains the ordinary
+            `/core/testing/process` capability requirement. Use these values instead of
+            depending on the developer's current directory, inherited shell environment, or
+            a random seed chosen from wall time.
+
+            Test compilation also selects a controlled monotonic clock. Awaiting a
+            test-clock sleep advances immediately to its target; no wall-clock wait or
+            pending test waker is involved. `advance-time` remains the checked explicit
+            operation for moving the clock without sleeping, never moves backward, and has
+            no production entrypoint.
+        - type: example
+          id: deterministic-context-and-time
+          title: Read test context and advance monotonic time
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace writing-plan
+
+            from /core/errors import throwable
+            from /core/testing import advance-time, assert, assert-equal-int, assert-present-string, deterministic-seed, temporary-directory, test-arguments, test-deadline
+            from /core/time import clock
+
+            function test-controlled-context none throws throwable;
+              assert-present-string; (deterministic-seed;)
+              assert-present-string; (temporary-directory;)
+              assert-equal-int; (test-arguments;).length, 0
+              limit = test-deadline;
+              assert; limit.total-nanoseconds > 0
+
+              started = clock::monotonic;
+              advance-time; 25000000
+              finished = clock::monotonic;
+              elapsed = started.duration-until; ref finished
+              assert-equal-int; elapsed.nanoseconds, 25000000
+              return none
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Asynchronous tests are ordinary async functions. The generated registry enters
+            the same executor model as an async application and awaits the case correctly:
+        - type: example
+          id: asynchronous-test
+          title: Await production work in a test
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace writing-plan
+
+            from /core/testing import assert-equal-string, test-failure
+
+            async function load-summary string;
+              return '3 of 5 tasks complete: in progress'
+
+            async function test-load-summary none throws test-failure;
+              summary = await load-summary;
+              assert-equal-string; summary, '3 of 5 tasks complete: in progress'
+              return none
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: admonition
+          id: process-timeout-is-a-backstop
+          kind: important
+          title: Controlled time and process timeout solve different problems
+          markdown: |-
+            `advance-time` drives application-visible monotonic time deterministically.
+            `terrane test --timeout` is an external safety boundary that terminates a case
+            process which stops making progress. Keep both: controlled time makes tests fast
+            and repeatable, while the process timeout prevents a defective test from hanging
+            the suite.
+      sections: []
+
+    - id: drive-the-built-application
+      title: Drive the built application
+      blocks:
+        - type: markdown
+          markdown: |-
+            An end-to-end test should cross the same boundary as a real caller.
+            `application-artifact` returns `string|none`, so the test handles the
+            unavailable case explicitly. A `process-fixture` from capability-gated
+            `/core/testing/process` then describes the invocation.
+
+            Native arguments and environment entries use lossless platform values.
+            `native-text` creates a text argument, `native-raw` creates a raw byte value
+            when the platform permits it, and `environment-pair` creates one explicit
+            environment entry. Fixtures are clonable value-style builders: each
+            `run-process` call consumes an independent snapshot. The fixture starts with
+            empty argument and environment lists, so it does not accidentally inherit a
+            developer's shell state.
+        - type: example
+          id: application-process-fixture
+          title: Invoke the built application as a controlled process
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace writing-plan-end-to-end
+
+            from /core/errors import throwable
+            from /core/process import environment-pair, native-text
+            from /core/testing import application-artifact, assert-equal-int, fail
+            from /core/testing/process import process-fixture, run-process
+
+            function test-command-line-application none throws throwable;
+              artifact = application-artifact;
+              if artifact != none
+                fixture = instance process-fixture; artifact
+                fixture.arguments.append; (native-text; '--summary')
+                fixture.environment.append; (environment-pair; (native-text; 'WRITING_PLAN_MODE'), (native-text; 'test'))
+                fixture.standard-input = b'3 5'
+                fixture.deadline-milliseconds = 2000
+                result = run-process; fixture
+                assert-equal-int; result.exit-code, 0
+                assert-equal-int; result.stdout.length, 37
+                assert-equal-int; result.stderr.length, 0
+              else
+                fail; 'missing application artifact'
+              return none
+          files: null
+          entry: null
+          annotations:
+            - id: explicit-fixture-inputs
+              file: null
+              lines:
+                start: 9
+                end: 13
+              markdown: >-
+                Arguments, environment, standard input, and deadline are all visible in source.
+                No host process state is inherited implicitly.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `process-result` distinguishes a normal exit code, a signal-like crash, and a
+            fixture deadline. Its stdout and stderr are bytes rather than assumed UTF-8
+            text. Assertions can inspect lengths directly or decode through an explicit
+            codec when the application's protocol defines text.
+
+            Each end-to-end case receives its own working directory. A process that exits
+            early, crashes, or exceeds its deadline cannot suppress later cases because the
+            runner does not execute the suite inside one application process.
+      sections: []
+
+    - id: run-the-suite-at-the-right-scale
+      title: Run the suite at the right scale
+      blocks:
+        - type: markdown
+          markdown: |-
+            The default command discovers and compiles the complete test package, then
+            executes every selected case:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            During a local edit, narrow execution without changing what was compiled:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --filter completion-label writing-plan
+            terrane test --tier unit --filter completion writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `--filter` is a stable substring match against the full test identity. Use
+            `--exact` for one full identity, `--glob` for shell-style `*` and `?` matching,
+            or `--regex` for a regular expression; selector modes are mutually exclusive.
+            `--tier` may be repeated with `unit`, `integration`, or `end-to-end`. Selection
+            affects execution only; it does not create a differently compiled version of the
+            test declarations.
+
+            List the deterministic selection without running cases:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --list --tier integration writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Control execution policy separately:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --jobs 4 --timeout 10s writing-plan
+            terrane test --fail-fast --show-output writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `--jobs` bounds parallel case processes. Reports remain in discovery order
+            rather than completion order. `--fail-fast` stops scheduling after the first
+            unsuccessful result and uses sequential execution so its boundary remains
+            understandable. `--show-output` displays captured streams for successful cases
+            as well as failures.
+        - type: table
+          id: test-command-options
+          title: Useful test command options
+          show-header: true
+          columns:
+            - id: option
+              title: Option
+              cell: code
+            - id: purpose
+              title: Purpose
+              cell: text
+          rows:
+            - option: --list
+              purpose: Show selected identities without executing them
+            - option: --filter TEXT
+              purpose: Select identities containing a stable substring
+            - option: --exact IDENTITY
+              purpose: Select one complete stable identity
+            - option: --glob PATTERN
+              purpose: Select identities with shell-style star and question-mark matching
+            - option: --regex PATTERN
+              purpose: Select identities with a regular expression
+            - option: --tier TIER
+              purpose: Select one or more test tiers
+            - option: --jobs N
+              purpose: Bound parallel isolated case processes
+            - option: --timeout Nms|Ns
+              purpose: Enforce an external deadline per case; bare values are seconds
+            - option: --argument VALUE
+              purpose: Add one controlled test process argument; repeat as needed
+            - option: --fail-fast
+              purpose: Stop after the first unsuccessful case
+            - option: --show-output
+              purpose: Display captured output for successful cases
+            - option: --report FILE
+              purpose: Write the versioned machine-readable JSON report
+      sections: []
+
+    - id: read-failures-and-machine-reports
+      title: Read failures and machine reports
+      blocks:
+        - type: markdown
+          markdown: |-
+            Human output distinguishes passed, failed, skipped, timed-out, crashed, and
+            infrastructure-failed cases. Compilation diagnostics occur before case execution
+            and retain their ordinary Terrane diagnostic codes and source paths.
+
+            Start with the first Terrane source location and the case's captured output. A
+            failure inside an assertion is usually evidence that the application returned an
+            unexpected value. A timeout instead says the process failed to finish before the
+            external deadline. A crash says the process ended without a normal exit code.
+            Infrastructure failure means the runner could not create, start, observe, or
+            cleanly manage the case process.
+        - type: example
+          id: failing-human-report
+          title: Read a failed assertion report
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            failed /writing-plan::test-completion-label (0.001s)
+            --- cause: assertion ---
+            string values differ
+            actual: in progress
+            expected: done
+            at tests/unit/status.trn:7:3
+            0 passed; 0 skipped; 1 failed; 0 timed out; 0 crashed; 0 infrastructure failed
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Exact rendering may gain additional source frames, but the authored assertion
+            remains the location to investigate first.
+        - type: markdown
+          markdown: |-
+            CI can request schema `1.2.0` JSON:
+        - type: example
+          id: legacy-fence-006
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --report build/test-report.json writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Captured streams are arrays of byte values, not lossy text. Separate truncation
+            flags say whether incremental bounded capture omitted later bytes. Case
+            durations remain decimal nanosecond strings for precision; the configured
+            timeout is numeric milliseconds. Reports name effective tiers and retain
+            per-tier compilation status and diagnostics.
+        - type: example
+          id: machine-report-shape
+          title: Inspect one machine report result
+          language: json
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            {
+              "schema_version": "1.2.0",
+              "run": {
+                "status": "completed",
+                "package": "writing-plan",
+                "filter": null,
+                "tiers": ["unit", "integration", "end-to-end"],
+                "jobs": 4,
+                "timeout_milliseconds": 30000,
+                "fail_fast": false,
+                "show_output": false
+              },
+              "compilation": [
+                {
+                  "tier": "unit",
+                  "status": "compiled",
+                  "diagnostics": []
+                },
+                {
+                  "tier": "integration",
+                  "status": "compiled",
+                  "diagnostics": []
+                },
+                {
+                  "tier": "end-to-end",
+                  "status": "compiled",
+                  "diagnostics": []
+                }
+              ],
+              "cases": [
+                {
+                  "identity": "/writing-plan::test-completion-label",
+                  "tier": "unit",
+                  "status": "passed",
+                  "duration_nanoseconds": "842113",
+                  "source": {
+                    "path": "tests/unit/status.trn",
+                    "start": 103,
+                    "end": 372
+                  },
+                  "cause": null,
+                  "stdout": [],
+                  "stdout_truncated": false,
+                  "stderr": [],
+                  "stderr_truncated": false
+                }
+              ]
+            }
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+      sections: []
+
+    - id: debug-from-the-terrane-boundary-inward
+      title: Debug from the Terrane boundary inward
+      blocks:
+        - type: markdown
+          markdown: |-
+            Debugging is the work of reducing uncertainty. Move inward one boundary at a
+            time instead of beginning with the lowest representation available.
+
+            First, reproduce one stable identity:
+        - type: example
+          id: legacy-fence-007
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --filter /writing-plan::test-completion-label --show-output writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Read the Terrane diagnostic, assertion site, explicit cause, and both captured
+            streams. Confirm which tier is running and whether the case depends on process
+            context, capability policy, controlled time, or a fixture deadline.
+
+            Next, reduce the source-level question. Give an intermediate value a descriptive
+            name and assert it directly. Run the same identity again. Do not add retries,
+            sleeps, or a wider tolerance merely to make an intermittent symptom disappear.
+
+            Then inspect the boundary under test. For a unit test, verify the private rule.
+            For an integration test, verify the public import and returned value. For an
+            end-to-end test, inspect the exact fixture arguments, environment, input bytes,
+            exit status, and captured output.
+
+            When the remaining question needs execution state, launch the package's
+            production entry through the source debugger:
+        - type: example
+          id: legacy-fence-008
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane debug writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This command builds a dedicated executable with full debug information,
+            optimization disabled, and stripping disabled. The debugger stops at entry
+            before the program continues. It does not run a selected `terrane test` case:
+            preserve the failure as a small test, then exercise the same production path
+            through the package entry or a minimal source reproducer.
+        - type: example
+          id: source-debugger-session
+          title: Trace a value from callee to caller
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            $ terrane debug writing-plan
+            Terrane debugger stopped at entry. Type `help` for commands.
+            (terrane-debug) break src/plan.trn:11
+            verified breakpoint src/plan.trn:11 (generated at src/main.rs:42)
+            (terrane-debug) continue
+            /writing-plan::summarize at src/plan.trn:11
+            (terrane-debug) source 1
+            src/plan.trn:11
+                 10 | public function summarize string; completed int, total int
+            >    11 |   return completion-label; completed, total
+            (terrane-debug) locals
+            completed = 3
+            total = 5
+            (terrane-debug) value completed
+            completed = 3
+            (terrane-debug) generated 1
+            .trn/build/<build-id>/src/main.rs:42
+                 41 |     /* terrane-debug-point:0:...:user */
+            >    42 |     return completion_label(completed, total);
+                 43 | }
+            (terrane-debug) frames
+            #0   /writing-plan::summarize at src/plan.trn:11
+            #1   /writing-plan::main at src/main.trn:6
+            (terrane-debug) frame 1
+            #1   /writing-plan::main at src/main.trn:6
+            (terrane-debug) source 1
+            src/main.trn:6
+                  5 | function main;
+            >     6 |   print; (summarize; 3, 5)
+            (terrane-debug) frame 0
+            #0   /writing-plan::summarize at src/plan.trn:11
+            (terrane-debug) next
+            /writing-plan::main at src/main.trn:6
+            (terrane-debug) continue
+            in progress
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Generated line numbers and build IDs may vary, but the requested and resolved
+            Terrane locations remain explicit. One Terrane source point may map to more than
+            one native location.
+        - type: markdown
+          markdown: |-
+            Treat the session as an investigation rather than a command tour. `source`
+            establishes the authored operation. `locals` surveys its live inputs, and
+            `value NAME` focuses one hypothesis. `generated` answers a lowering question
+            only after the source-level state is understood. `frames` and `frame N` then let
+            you follow a value across a call boundary: frame 0 proves that `summarize`
+            received `completed = 3`, while frame 1 shows the caller that supplied `3`.
+
+            `break PATH:LINE` places a Terrane source breakpoint. An executable source line
+            may map to several native locations, and the debugger keeps every one. If the
+            requested line has no sequence point, adjustment is permitted only to the
+            nearest declared point in the same function. Otherwise the breakpoint stays
+            unverified and explains why. Verification names both the resolved Terrane
+            location and its generated location.
+
+            Use `continue` to resume, `next` to step over, `step` to step in, and `out` to
+            step out. Stepping targets compiler-declared Terrane sequence points rather than
+            every generated Rust line. In the session above, `next` at the final point of
+            `summarize` returns to the caller rather than running through process exit. This
+            source-oriented behavior also matters around loops, asynchronous suspension,
+            `select`, cleanup, and error propagation. If source progress cannot be found
+            after a bounded native search, the debugger exposes the native stop and says
+            that source fidelity is unavailable; it never spins forever.
+
+            A value is available only when the exact native stop retains usable debug
+            storage for it. `<optimized out>`, `<unavailable debug information>`,
+            `<unsupported layout>`, and `<truncated>` are states rather than guessed values.
+            Seeing one is evidence about this stop, not automatically a debugger failure. A
+            distinct moved-value state is not shown because current LLDB data does not prove
+            source ownership transitions.
+
+            When a local is structured, focused inspection expands it recursively without
+            dumping the whole frame:
+        - type: example
+          id: focused-structured-debug-value
+          title: Expand one value without crossing its privacy boundary
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            (terrane-debug) value auth
+            auth = credentials
+              username = "alice"
+              token = <secret>
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Focused expansion is depth-, cycle-, count-, response-, and byte-bounded. Secret
+            fields remain redacted and lose ordinary child, memory, and evaluation
+            references.
+        - type: markdown
+          markdown: |-
+            `frames` shows mapped Terrane frames with stable session-local indices;
+            `frame N` selects one for later inspection. `source [RADIUS]` and
+            `generated [RADIUS]` show bounded context around that frame. `locals` uses
+            lexical Terrane names and presents fixed scalars, adaptive integers, strings,
+            and bytes when their selected debug layout is available. `value NAME`
+            recursively expands one structured value. Raw LLDB remains a separate opt-in
+            boundary that may expose physical memory, including values hidden by the
+            ordinary Terrane view.
+        - type: table
+          id: debugger-command-table
+          title: Interactive debugger commands
+          show-header: true
+          columns:
+            - id: command
+              title: Command
+              cell:
+                type: code
+            - id: purpose
+              title: Purpose
+              cell:
+                type: text
+          rows:
+            - command: break PATH:LINE
+              purpose: Set or adjust a Terrane source breakpoint
+            - command: continue
+              purpose: Resume until a breakpoint, failure, or process exit
+            - command: next
+              purpose: Step over to another source sequence point
+            - command: step
+              purpose: Step into a called source function
+            - command: out
+              purpose: Step out to a caller's source sequence point
+            - command: frames
+              purpose: Show mapped Terrane stack frames
+            - command: frame N
+              purpose: Select a mapped frame by its session-local index
+            - command: source [RADIUS]
+              purpose: Show bounded Terrane source context for the selected frame
+            - command: locals
+              purpose: Show bounded source-level local values in the selected frame
+            - command: value NAME
+              purpose: Recursively expand one local value within privacy and size bounds
+            - command: generated [RADIUS]
+              purpose: Show bounded generated Rust context for the selected frame
+            - command: native
+              purpose: Show the native stack without source filtering
+            - command: registers
+              purpose: Inspect native registers explicitly
+            - command: lldb COMMAND
+              purpose: Run an explicit raw LLDB command
+            - command: quit
+              purpose: Disconnect and terminate a debugger-launched process
+
+        - type: admonition
+          id: source-breakpoints-persist
+          kind: guidance
+          title: A loop breakpoint stops on every matching iteration
+          markdown: |-
+            Source breakpoints remain active until disabled or deleted. After stopping
+            inside a loop, `continue` normally reaches the same breakpoint on the next
+            iteration; this is not a stuck debugger. The current source CLI does not yet
+            have friendly breakpoint-lifecycle commands. Use an explicit raw command such as
+            `lldb breakpoint disable` when that native escape hatch is appropriate, or end
+            the investigation with `quit`.
+        - type: admonition
+          id: exact-build-debugging
+          kind: important
+          title: Debug the executable that produced the evidence
+          markdown: |-
+            A debug build records versioned provenance beside both generated Rust and the
+            executable. It binds compiler, exact Rust release and sysroot, target,
+            toolchain-bound ABI recipe, named unoptimized artifact profile, manifest,
+            projection lock, logical source, final generated files, semantic identities, and
+            native module by hash. Changed source or generated files, a mismatched
+            executable, malformed metadata, or any profile/toolchain/ABI mismatch disables
+            Terrane translation with a diagnostic instead of showing plausible but wrong
+            locations.
+
+            Explicit relocation mappings may point copied-but-identical artifacts at new
+            source and build roots; the adapter forwards the same mapping to LLDB so native
+            line tables and provenance agree. Relocation never changes identity. Raw native
+            debugging remains available when source translation is disabled. Generated
+            source can be embedded independently with `--embed-generated-sources` for exact
+            rendering when a build tree is unavailable.
+        - type: admonition
+          id: do-not-debug-by-diluting-the-contract
+          kind: warning
+          title: Do not make the test less true
+          markdown: |-
+            A timeout that disappears after increasing every deadline has not necessarily
+            been diagnosed. Neither has a numeric mismatch hidden by an arbitrary tolerance
+            or a race hidden by serial execution. Change the expectation only when the
+            application contract changed; otherwise identify the missing wake, ownership
+            boundary, uncontrolled input, or incorrect value.
+        - type: admonition
+          id: debugger-validates-performance-hypotheses
+          kind: guidance
+          title: Use the debugger to test a performance hypothesis, not to invent one
+          markdown: |-
+            Suppose an operation intended to process ten thousand items receives a much
+            larger bound:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function sum-to int64; limit int64
+              total int64 = 0
+              index int64 = 0
+              while index < limit
+                total = total + index
+                index++
+              return total
+
+            function main;
+              limit int64 = 100000000
+              result = sum-to; limit
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A source breakpoint inside the loop and `locals` can validate the suspected
+            cause:
+        - type: example
+          id: legacy-fence-015
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            (terrane-debug) locals
+            limit = 100000000
+            total = 0
+            index = 0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Use `frames`, select the caller with `frame 1`, and inspect `source` and
+            `locals` there to determine where the bound originated. After correcting the
+            source, repeat the same observation in caller and callee before measuring again.
+
+            This establishes an obvious live-state cause; it does not establish where an
+            unfamiliar program spends its time. Debugger builds are intentionally
+            unoptimized. Representative performance work requires profiling, while the
+            debugger tests a specific hypothesis about state and execution.
+        - type: markdown
+          markdown: |-
+            Descend into lower layers deliberately. `generated` and
+            `terrane rust --output build/review.rs package.toml` answer questions about
+            lowered structure. If a native question remains,
+            `lldb disassemble --frame --mixed` correlates generated lines with the exact
+            debug artifact's machine instructions; `native`, `registers`, memory requests,
+            and other `lldb COMMAND` forms expose additional machine state. Raw backend
+            commands are not Terrane expressions and may reveal secret physical memory, so
+            they are an opt-in boundary rather than the ordinary value view.
+
+            Mixed disassembly describes the exact unoptimized debugger artifact, not
+            representative production performance. Use it to corroborate a narrow
+            hypothesis—for example, that a loop performs checked addition and branches back
+            on every iteration—not as a substitute for a profiler.
+
+            Chapter 13 explained how to distinguish the review artifact from the emitted
+            crate and how to validate canonical output. Generated Rust remains useful
+            evidence, not a second source contract. Preserve the small Terrane reproduction,
+            record the source-level fact that differs from the expectation, make the
+            smallest source correction, and repeat the same observation before broad
+            testing.
+
+            The debugger CLI, DAP adapter, and provenance schema are experimental in 0.1.
+            Linux x86-64 with LLDB 22 is exercised end to end, including standard DAP
+            step-in/step-out, recursive step-over, fatal native stops, disconnect during
+            stepping, relocated builds, split generated support, shadowed locals, and more
+            than 500 sequence points. Attach reports the host process-policy outcome and
+            remains host-dependent. Other hosts and optimized or stripped modules report
+            reduced fidelity. Editors can use `terrane debug-adapter --stdio`; protocol
+            stdout contains only framed DAP messages, initialization emits one immediate
+            `initialized` event, and `terrane/fidelity` reports source or native translation
+            mode. Conditional breakpoints, logpoints, restart, Terrane expression
+            evaluation, alternate backends, and time travel remain out of scope.
+      sections: []
+
+    - id: profile-the-optimized-application
+      title: Profile the optimized application
+      blocks:
+        - type: markdown
+          markdown: |-
+            Tests tell you whether the application preserves its contract. The debugger can
+            validate a specific hypothesis about live state. A profiler answers a different
+            question: where does a representative optimized execution accumulate evidence?
+
+            Begin with a workload whose inputs and expected output are already covered by
+            tests. Profile the production entry, not a test registry and not the debugger
+            executable. The following small package gives the profiler enough repeated work
+            to observe while keeping the authored hot path easy to recognize:
+        - type: example
+          id: cpu-profile-workload
+          title: A repeatable CPU-bound workload
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          files:
+            - path: package.toml
+              language: toml
+              source: |-
+                package = "profile-study"
+
+                [namespaces]
+                profile-study = "src"
+            - path: src/main.trn
+              language: terrane
+              source: |-
+                namespace profile-study
+
+                from /core/output import print
+
+                function configured-count int64;
+                  return 300000000
+
+                function reduce int64; count int64
+                  index int64 = 0
+                  total int64 = 0
+                  while index < count
+                    total = total + (index % 97)
+                    index++
+                  return total
+
+                function main;
+                  count = configured-count;
+                  print; (reduce; count)
+            - path: tests/unit/reduction.trn
+              language: terrane
+              source: |-
+                namespace profile-study
+
+                from /core/testing import assert-equal-int, test-failure
+
+                function test-reduction-contract none throws test-failure;
+                  assert-equal-int; (configured-count;), 300000000
+                  return none
+          source: null
+          entry: package.toml
+          annotations:
+            - id: representative-bound
+              file: src/main.trn
+              lines:
+                start: 5
+                end: 6
+              markdown: >-
+                Keep this bound and the expected printed result under test. If the bound is
+                wrong, correct the contract before interpreting the performance change.
+            - id: sampled-hot-path
+              file: src/main.trn
+              lines:
+                start: 8
+                end: 14
+              markdown: >-
+                The optimized build may inline this function. The observed source-first report
+                therefore groups the sampled work with the authored `main` call site; generated
+                and native expansions retain the lower-level constituents when that distinction
+                matters.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Record one optimized CPU profile:
+        - type: example
+          id: legacy-fence-009
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane profile record --cpu --output before.trnprof profile-study
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `profile record` builds a dedicated optimized artifact with line tables, no
+            stripping, ThinLTO, and ordinary optimized inlining. This differs from the
+            ordinary release profile's fat LTO so the selected sampler retains useful
+            location information. On the currently supported Linux x86-64 backend, `perf`
+            samples the launched process tree and all of its threads. The workload keeps the
+            terminal's standard input, output, and error, and its exit or signal result
+            remains the command result. The command finalizes usable partial evidence after
+            an interruption.
+
+            The resulting `.trnprof` file binds the samples to the exact compiler, Rust
+            toolchain, build profile, executable, loaded modules, generated Rust, and
+            Terrane source identities. It records sample frequency, elapsed and active
+            intervals, process and thread scope, and captured, lost-event, dropped-sample,
+            and dropped-frame counts. It does not silently turn a debug build into
+            performance evidence.
+
+            Show the source-first report:
+        - type: example
+          id: source-first-cpu-profile
+          title: Read accounting before following the hot path
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            $ terrane profile show before.trnprof --limit 5
+            CPU samples: 391 captured, 0 lost, 0 samples dropped, 0 frames dropped; 999 Hz; 0.772s elapsed
+            collector: linux-perf perf version 7.2.6-1; build: terrane-profile-cpu-v1; fidelity: exact-build-source
+
+            exclusive accounting (CPU sample count)
+                  389   99.48%  exact authored
+                    0    0.00%  shared or ambiguous
+                    0    0.00%  runtime-associated
+                    2    0.51%  generated-only
+                    0    0.00%  native-only
+                    0    0.00%  unavailable
+
+            hottest source groups (CPU sample count)
+            exclusive inclusive  quality               source group
+                  389       389  exact authored        /profile-study::main src/main.trn
+                    2         2  generated-only        src/main.rs:0
+
+            call tree (inclusive CPU sample count; root to leaf)
+                  389  terrane_program.c07bc568bd737873-cgu.0 -> main -> /profile-study::main src/main.trn
+
+            flame graph (folded stacks; weight = CPU sample count)
+            terrane_program.c07bc568bd737873-cgu.0;main;/profile-study::main src/main.trn 389
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            Sample counts vary between runs. The accounting invariant does not: all 391
+            captured samples appear exactly once in the six exclusive buckets, while lost
+            events remain reported separately.
+        - type: markdown
+          markdown: |-
+            Read the report from the top. First confirm the workload, profile, frequency,
+            duration, collector, and exact-build fidelity. Next confirm complete bucket
+            accounting. Only then follow the hottest source group and its inclusive call
+            path. CPU samples are statistical observations; they are not deterministic wall
+            time, call counts, allocation counts, or proof that an unsampled path is free.
+
+            Each captured sample enters exactly one exclusive attribution bucket:
+
+            - **exact authored** identifies one most-specific Terrane source operation;
+            - **shared or ambiguous** retains multiple valid source causes instead of
+              inventing one owner;
+            - **runtime-associated** connects compiler/runtime work to an explicit authored
+              semantic parent;
+            - **generated-only** has valid generated Rust evidence but no authored owner;
+            - **native-only** has valid module and offset evidence without generated/source
+              attribution;
+            - **unavailable** cannot be attributed safely because required evidence is
+              unreadable, stale, or unsupported.
+
+            Inclusive counts answer which source groups were present in sampled stacks. A
+            recursively repeated or inlined semantic group contributes at most once to its
+            inclusive count for one sample. Folded flame-graph stacks are another view of
+            the same typed evidence, not a second measurement.
+
+            Focus on one authored line while preserving whole-capture accounting:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane profile show before.trnprof --focus src/main.trn:18 --generated --native
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `--generated` adds the generated Rust ranges that justify each source group.
+            `--native` adds module identities, load-relative offsets, and symbols. Descend
+            to those layers only when the source group leaves a lowering or native-code
+            question. `--format json` emits the same bounded report for a script.
+
+            Suppose a domain test now proves that `count` should be `5000000`, not
+            `300000000`. Make that source correction, verify the expected result
+            `239998879`, and repeat the profile under the same collector settings:
+        - type: example
+          id: before-and-after-cpu-profile
+          title: Repeat under the same collection conditions after a tested correction
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            $ terrane test profile-study
+            1 passed; 0 failed; 0 skipped
+            $ terrane profile record --cpu --output after.trnprof profile-study
+            239998879
+            recorded 7 CPU samples (0 lost, 0 samples dropped, 0 frames dropped) in after.trnprof
+            $ terrane profile show after.trnprof --focus src/main.trn:18 --limit 3
+            CPU samples: 7 captured, 0 lost, 0 samples dropped, 0 frames dropped; 999 Hz; 0.101s elapsed
+            collector: linux-perf perf version 7.2.6-1; build: terrane-profile-cpu-v1; fidelity: exact-build-source
+
+            exclusive accounting (CPU sample count)
+                    7  100.00%  exact authored
+                    0    0.00%  shared or ambiguous
+                    0    0.00%  runtime-associated
+                    0    0.00%  generated-only
+                    0    0.00%  native-only
+                    0    0.00%  unavailable
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: >-
+            This illustrative rerun assumes that the tested contract established a smaller
+            correct bound. Compare like-for-like workload conditions, output, frequency,
+            loss, and profile identity before interpreting the lower sample count. Terrane
+            does not yet provide a comparison command.
+        - type: admonition
+          id: profile-artifacts-carry-diagnostic-data
+          kind: important
+          title: Choose what the profile artifact may retain
+          markdown: |-
+            A profile always declares that it contains source paths, symbols, timing, and
+            workload structure. Generated Rust and compiler-bundled sources are embedded for
+            exact relocated attribution. Other authored source text is omitted unless
+            `--embed-sources` is requested. Workload arguments are omitted from both
+            conditions and raw collector configuration unless `--retain-arguments` is
+            requested. These are independent privacy choices.
+
+            `profile show` validates current source, generated files, the executable, and
+            loaded modules before assigning authored cost. `--source-root` and
+            `--build-root` can relocate copied-but-identical trees. Changed or missing
+            identities produce an explicit reduced-native view rather than plausible but
+            false source attribution. Treat `.trnprof` files as diagnostic material when
+            sharing or retaining them.
+        - type: markdown
+          markdown: |-
+            CPU sampling currently requires Linux x86-64, the host `perf` tool, and
+            permission to collect user-space `cpu-clock` samples. Missing tools, unsupported
+            hosts or targets, permission failures, collector failures, and unusable captures
+            fail explicitly. Allocation profiling, retained-object analysis, process-memory
+            timelines, thresholds, comparison commands, continuous-service capture, and
+            non-Linux collectors are not current features.
+      sections: []
+
+    - id: complete-project-testing-a-writing-plan
+      title: "Complete project: testing a writing plan"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The following project combines all three tiers. The production namespace owns
+            one private label helper and one public summary operation. Unit tests preserve
+            the private domain table, integration tests use only the public contract, and
+            the end-to-end test starts the real executable.
+        - type: example
+          id: complete-tested-writing-plan
+          title: A writing-plan package with all three test tiers
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          files:
+            - path: package.toml
+              language: toml
+              source: |-
+                package = "writing-plan"
+
+                [namespaces]
+                writing-plan = "src"
+
+                [testing.profile]
+                name = "test"
+                capabilities = ["process"]
+                panic = "unwind"
+            - path: src/plan.trn
+              language: terrane
+              source: |-
+                namespace writing-plan
+
+                private function completion-label string; completed int, total int
+                  if completed == 0
+                    return 'not started'
+                  if completed >= total
+                    return 'complete'
+                  return 'in progress'
+
+                public function summarize string; completed int, total int
+                  return completion-label; completed, total
+            - path: src/main.trn
+              language: terrane
+              source: |-
+                namespace writing-plan
+
+                from /core/output import print
+
+                function main;
+                  print; (summarize; 3, 5)
+            - path: tests/unit/status.trn
+              language: terrane
+              source: |-
+                namespace writing-plan
+
+                from /core/testing import assert-equal-string, test-failure
+
+                function test-completion-label none throws test-failure;
+                  assert-equal-string; (completion-label; 0, 5), 'not started'
+                  assert-equal-string; (completion-label; 3, 5), 'in progress'
+                  assert-equal-string; (completion-label; 5, 5), 'complete'
+                  return none
+            - path: tests/integration/summary.trn
+              language: terrane
+              source: |-
+                namespace writing-plan-tests
+
+                from /writing-plan import summarize
+                from /core/testing import assert-equal-string, test-failure
+
+                function test-public-summary none throws test-failure;
+                  actual = summarize; 3, 5
+                  assert-equal-string; actual, 'in progress'
+                  return none
+            - path: tests/end-to-end/application.trn
+              language: terrane
+              source: |-
+                namespace writing-plan-end-to-end
+
+                from /core/errors import throwable
+                from /core/testing import application-artifact, assert-equal-int, fail
+                from /core/testing/process import process-fixture, run-process
+
+                function test-application none throws throwable;
+                  artifact = application-artifact;
+                  if artifact != none
+                    fixture = instance process-fixture; artifact
+                    fixture.deadline-milliseconds = 2000
+                    result = run-process; fixture
+                    assert-equal-int; result.exit-code, 0
+                    assert-equal-int; result.stdout.length, 12
+                    assert-equal-int; result.stderr.length, 0
+                  else
+                    fail; 'missing application artifact'
+                  return none
+          source: null
+          entry: package.toml
+          annotations:
+            - id: private-unit-boundary
+              file: tests/unit/status.trn
+              lines:
+                start: 5
+                end: 9
+              markdown: >-
+                The unit test declares `/writing-plan`, so it may preserve the private
+                completion-label policy without exporting that helper.
+            - id: public-integration-boundary
+              file: tests/integration/summary.trn
+              lines:
+                start: 3
+                end: 9
+              markdown: >-
+                The integration namespace imports only the public `summarize` operation, exactly
+                as another package would.
+            - id: executable-boundary
+              file: tests/end-to-end/application.trn
+              lines:
+                start: 6
+                end: 16
+              markdown: >-
+                The end-to-end case observes the production executable through exit status and
+                byte-exact captured streams.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            List the suite first:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --list writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The identities appear in tier and source order:
+        - type: example
+          id: legacy-fence-012
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            /writing-plan::test-completion-label [unit]
+            /writing-plan-tests::test-public-summary [integration]
+            /writing-plan-end-to-end::test-application [end-to-end]
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Then run it:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane test --jobs 3 --timeout 5s --report build/tests.json writing-plan
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The compiler analyzes each populated tier independently and generates one native
+            registry for each. The CLI executes three isolated cases and reports them in
+            deterministic discovery order even if their processes finish in another order.
+      sections: []
+
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: exercise
+          id: exercise-failing-boundary
+          title: Preserve a new completion boundary
+          markdown: |-
+            Add the policy that a negative completion count is invalid. Choose whether
+            `summarize` should throw or return an ordinary status. Add the smallest unit and
+            integration tests that preserve your decision, and explain why each assertion
+            belongs at its chosen boundary.
+        - type: exercise
+          id: exercise-controlled-time
+          title: Remove a wall-clock delay
+          markdown: |-
+            Write an async operation with a monotonic deadline. Test it with controlled time
+            advancement rather than a real sleep. Keep `--timeout` enabled as the external
+            deadlock backstop.
+        - type: exercise
+          id: exercise-process-protocol
+          title: Exercise the executable protocol
+          markdown: |-
+            Extend the writing-plan application to accept one argument and one environment
+            entry. Supply both through `process-fixture`, decode the resulting stdout under
+            an explicit text contract, and assert the exit status and output.
+        - type: exercise
+          id: exercise-debugging-evidence
+          title: Diagnose before changing the contract
+          markdown: |-
+            Deliberately break the `complete` boundary. Capture a machine report and rerun
+            only the failing identity with output shown. Then launch
+            `terrane debug writing-plan`, set a source breakpoint in `summarize`, use
+            `source`, `locals`, and `value` to identify the first differing fact, and use
+            `frames` plus `frame 1` to trace that value to its caller. Inspect `generated`
+            only if a lowering question remains. Restore the production behavior without
+            weakening the assertion, then repeat the same debugger observation before
+            rerunning the test.
+        - type: exercise
+          id: exercise-profile-tested-hot-path
+          title: Profile a tested hot path
+          markdown: |-
+            Give a package a repeatable CPU-bound workload and preserve its output with a
+            test. Record an optimized CPU profile, account for every captured sample, and
+            identify the hottest authored source group. Use `--focus`, then inspect
+            generated and native constituents only if a lower-layer question remains. Make
+            one tested source correction, record a second profile under the same workload
+            and collection conditions, and explain what the statistical evidence does and
+            does not establish. Do not use a debugger build as either measurement.
+        - type: exercise
+          id: exercise-ci-selection
+          title: Design local and CI commands
+          markdown: |-
+            Choose one fast local command and one complete CI command for the package. State
+            the selected tiers, jobs, timeout, output policy, and report path. Explain why
+            filtering changes execution rather than compilation.
+      sections: []
+
+    - id: chapter-summary
+      title: Chapter summary
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane tests are ordinary typed functions discovered from package test roots.
+            Unit, integration, and end-to-end tiers preserve different boundaries:
+            same-namespace implementation, public consumer surface, and built process
+            behavior.
+
+            `/core/testing` provides assertions, explicit skips and failures, intentionally
+            ungated runner context, and controlled monotonic time. Awaited test-clock sleeps
+            advance immediately to their target, while `advance-time` permits explicit
+            checked movement. Capability-gated `/core/testing/process` provides value-style
+            process fixtures with incrementally bounded stream capture and independent
+            truncation flags. The CLI semantically analyzes production sources and every
+            populated test root first, then compiles one native registry only for each
+            selected populated tier and runs each selected case in an isolated process with
+            a fresh working directory and external timeout.
+
+            Filtering and tier selection narrow lowering, backend validation, native
+            compilation, and execution without hiding frontend semantic errors; an
+            unselected tier's backend-only error appears when that tier is selected. Human
+            output counts timeout, crash, and infrastructure outcomes separately; schema
+            `1.2.0` JSON preserves effective run metadata, per-tier compilation results,
+            deterministic identities, outcomes, source spans, structured causes, precise
+            durations, and byte-exact captures for automation.
+
+            Debug from the Terrane boundary inward. Reproduce one identity, read its source
+            frame and streams, reduce the source-level question, and inspect the relevant
+            tier boundary. When execution state is needed, use the exact-build debugger for
+            Terrane breakpoints, frames, sequence-point stepping, and bounded values.
+            Generated Rust and raw LLDB state remain explicit lower-level escape hatches. A
+            good test makes the application contract clearer; a good debugging change fixes
+            the cause without making that contract less true.
+
+            Representative performance evidence comes from `terrane profile record --cpu`,
+            which measures a dedicated optimized exact build rather than the debugger
+            artifact. Read capture conditions and complete quality-bucket accounting before
+            following hottest source groups, inclusive call paths, or folded flame stacks.
+            Sample counts are statistical evidence, and lower-level generated/native views
+            remain explicit expansions. Preserve workload output with tests, repeat
+            like-for-like conditions after a correction, and treat source embedding and
+            argument retention as separate privacy choices.
+      sections: []
+  see-also:
+    - tool.packages.testing
+    - tool.packages.command-line
+    - lang.functions.asynchronous
+    - tool.debugging
+    - tool.profiling
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "31.5"
+    - document: language-spec
+      section: "31.6"
+    - document: language-spec
+      section: "26.6"
+  conformance: []
+  compiler: null

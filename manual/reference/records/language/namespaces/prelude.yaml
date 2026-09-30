@@ -1,0 +1,111 @@
+format: 1
+id: lang.namespaces.prelude
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Default prelude"
+  title-style: text
+  summary: >-
+    The default prelude contains the exact compiler-owned version-one bindings. Package policy may disable these default bindings.
+  tags:
+    - "names"
+    - "prelude"
+  sections:
+    - id: prelude
+      title: "Default Prelude"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The version-one default prelude consists of exactly seven ordinary
+            program-global bindings:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            print task-scope utf8 utf16-le utf16-be utf32-le utf32-be
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            These compiler-owned names are available without an import when the package
+            enables the default prelude. For example, `print; value` is a complete
+            statement, and `scope = task-scope;` creates a structured-concurrency scope
+            without any import lines. In `package.toml`, `prelude` is optional, defaults to
+            `true`, and may be set to `false`. A direct single-file input uses the default
+            prelude.
+
+            The prelude is deliberately small. Collection facilities such as `map`, `list`,
+            and `range`, as well as filesystem tools, are not implicit bindings and must be
+            imported. Explicit `/core` imports remain available for rebinding, aliasing, and
+            shadowing names, including names normally supplied by the prelude.
+
+            Type descriptors are separate from the seven ordinary prelude bindings. Every
+            descriptor registered under `/core/types`—including scalar, fixed-width,
+            abstract-category, `string`, `bytes`, and `none` descriptors—is available as
+            construct vocabulary without an import, independently of whether the prelude is
+            enabled. For example:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value int8 = 42
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Construct availability does not make a descriptor an ordinary runtime value:
+            using a construct in value position is rejected. A descriptor may still be
+            imported explicitly when an ordinary imported binding or alias is needed:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/types import int64 as word
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Plain-name lookup proceeds through lexical scope, namespace scope,
+            program-global scope, and then the selected prelude, so a nearer binding shadows
+            a prelude default. Namespace-wide imports include the prelude in their
+            visible-chain collision check and emit non-blocking `W4004` before shadowing a
+            different prelude object. Import syntax is structural rather than a prelude
+            binding, so disabling the prelude does not alter import syntax or importer
+            selection.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "prelude"
+  conformance: null
+  compiler: null

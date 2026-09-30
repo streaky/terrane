@@ -1,0 +1,98 @@
+format: 1
+id: internals.future.build-selection
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: planned
+  stability: null
+  since: null
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Future compile-time build selection
+  title-style: text
+  summary: >-
+    Preserves the planned `when build` design: deterministic compile-time branch selection over declared build inputs, scheduled
+    for Milestone 32 and absent from the selected compiler surface.
+  tags: [future, compiler-internals, syntax, build-selection, cache-identity]
+  sections:
+    - id: status
+      title: Planned status
+      blocks:
+        - type: admonition
+          kind: important
+          title: Planned syntax
+          markdown: >-
+            This is a settled future design, not part of the selected Terrane source surface.
+            The selected compiler rejects `when` in statement position. Milestone 32 owns its
+            implementation and conformance evidence.
+    - id: selection-model
+      title: Selection model
+      blocks:
+        - type: markdown
+          markdown: |-
+            `when build` will select one branch during compilation. Its condition may use
+            literals; immutable manifest, target, and capability descriptors; Boolean and
+            comparison operators; and compiler-provided pure queries. Runtime state is not an
+            input to selection.
+
+            The selected branch is the program presented to later semantic analysis and
+            lowering. An inactive branch is not type-checked, resolved, lowered, or included
+            in the generated program. Selection therefore permits one package to describe
+            target- or capability-specific source without introducing a runtime capability
+            test.
+        - type: example
+          id: planned-when-build
+          title: Planned target-specific branch
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            when build target.os is 'linux'
+              function platform-name string;
+                return 'linux'
+            else
+              function platform-name string;
+                return 'other'
+          response: null
+          diagnostic: null
+          markdown: >-
+            The example describes planned syntax only. It is not accepted by the selected
+            compiler.
+    - id: cache-identity
+      title: Cache and reproducibility boundary
+      blocks:
+        - type: markdown
+          markdown: |-
+            Every declared input consulted by a `when build` condition, together with the
+            selected result, must participate in build-cache identity. Builds that differ in
+            manifest, target, capability, or another permitted query input must have distinct
+            identities. A cache hit is valid only when it preserves the same selected source.
+
+            Query evaluation must be deterministic, side-effect free, and limited to the
+            declared build-input model. It must not read ambient process state, clock time,
+            network state, or undeclared filesystem inputs.
+    - id: delivery
+      title: Milestone 32 delivery boundary
+      blocks:
+        - type: markdown
+          markdown: |-
+            Delivery requires parser support, selection before ordinary semantic analysis,
+            deterministic cache-key integration, and focused accepted and rejected conformance
+            cases. The evidence must cover selected and inactive branches, differing cache
+            identities for differing allowed inputs, and rejection of runtime or undeclared
+            condition inputs.
+  see-also: []
+
+provenance:
+  specification:
+    - document: compiler-plan
+      section: "Milestone 32"
+  conformance: null
+  compiler: null

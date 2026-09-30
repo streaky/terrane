@@ -1,0 +1,101 @@
+format: 1
+id: lang.lexical-structure.literals
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Comments and scalar literals"
+  title-style: text
+  summary: >-
+    The syntax supports comments and scalar literals comprising strings, bytes, booleans, `none`, and numeric forms. These
+    constructs are preserved through the lossless syntax…
+  tags:
+    - "syntax"
+    - "literals"
+    - "comments-literals"
+  sections:
+    - id: comments-literals
+      title: "Comments and Scalar Literals"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane recognizes three comment forms:
+
+            - `#` begins a line comment.
+            - `//` begins a line comment.
+            - `/*` begins a block comment; the first following `*/` closes it.
+
+            Comments and surrounding whitespace are retained as trivia in the lossless
+            syntax representation. Comment-only lines do not affect indentation, and a line
+            containing only the terminator of a multiline comment does not open or close a
+            block. An unclosed block comment produces `L0002 unterminated block comment` at
+            its source span.
+
+            Text has three source forms:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            'single quoted default'
+            >rest of physical line is literal text
+            >>
+              indentation-delimited multiline text
+              common structural indentation removed
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The `>` form treats the rest of its physical line as literal text. The `>>` form
+            introduces indentation-delimited multiline text and removes common structural
+            indentation. These markers introduce text only in expression-start position.
+            That position includes immediately after a value-bearing `return` whose keyword
+            begins a logical statement. A `.return` member name and `throw` do not establish
+            text-literal context.
+
+            Tail and block text cannot be used as a non-final, ungrouped subexpression. A
+            block-string token spans its marker and body. A malformed string produces
+            `L0007 malformed string literal`, while a block-string marker that is not final
+            produces `L0008 block string marker not final`.
+
+            Numeric literals have either decimal form—with digits and at most one fractional
+            part—or hexadecimal form beginning with `0x`. An underscore may separate digits,
+            but it cannot be leading, trailing, doubled, or adjacent to `.`. A dot belongs
+            to a number only when followed by a digit, so `1.type` is member access rather
+            than a decimal literal.
+
+            Exponent notation, radix prefixes other than `0x`, and type suffixes are not
+            part of the version-one numeric grammar. Runs such as `1e9`, `0b101`, `123abc`,
+            and incomplete `0x` are each reported as one `L0009 invalid numeric literal`
+            rather than split into unrelated tokens.
+
+            The scalar-literal set also includes byte, Boolean, and `none` literals. The
+            syntax tree retains literal structure together with byte spans, token ranges,
+            the complete token stream, and trivia. Quoted, tail, and block text, numeric
+            literals, bytes, Booleans, and `none` therefore pass through parsing without
+            reconstructing their source spelling. Literal typing occurs during semantic
+            analysis, including destination-range checks for compile-time numeric constant
+            expressions.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "comments-literals"
+  conformance: null
+  compiler: null

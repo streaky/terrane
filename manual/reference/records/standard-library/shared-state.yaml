@@ -1,0 +1,76 @@
+format: 1
+id: std.concurrency.shared-state
+kind: topic
+
+surface: /core/concurrency
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Shared mutable state
+  title-style: text
+  summary: >-
+    Defines the version-one owner-task and typed-channel boundary for mutable application state and the remaining integer-specialized
+    facilities.
+  tags:
+    - standard-library
+    - concurrency
+    - async
+    - ownership
+  sections:
+    - id: owner-task
+      title: One mutation owner
+      blocks:
+        - type: rule
+          id: rule.shared-state.owner-task
+          level: must
+          since: null
+          evidence:
+            - shared-state-owner
+          markdown: |-
+            Version one deliberately has no generic shared mutable cell. Keep mutable
+            application state in one owner task. Other tasks send typed commands and receive
+            typed results through bounded channels. This keeps mutation authority,
+            backpressure, shutdown, and task ownership explicit without guard lifetimes or
+            suspendable critical sections.
+
+            The state itself can be a class or collection owned by that task. Senders
+            transfer command values through `channel-sender`; only the owner mutates the
+            state and publishes result values through another channel.
+    - id: unavailable-cells
+      title: Generic cell diagnostics
+      blocks:
+        - type: rule
+          id: rule.shared-state.generic-cells-unavailable
+          level: must
+          since: null
+          evidence:
+            - typed-shared-mutex
+            - typed-shared-read-write-lock
+            - typed-shared-cell
+          markdown: |-
+            `mutex`, `read-write-lock`, and `shared-cell` are compiler-owned diagnostic
+            names. Attempting to construct one emits `T0111` and directs the program toward
+            one owner task plus bounded typed channels. They are not generic runtime objects
+            or incomplete aliases.
+
+            `int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int`
+            remain concrete low-level integer facilities. Their presence does not promise
+            generic stored values or exposed lock guards.
+relationships:
+  see-also:
+    - std.concurrency.channels
+    - lang.functions.asynchronous
+  supersedes: []
+  superseded-by: []
+  conflicts-with: []
+
+implementation:
+  compiler: null

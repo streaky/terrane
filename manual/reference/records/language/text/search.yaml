@@ -1,0 +1,91 @@
+format: 1
+id: lang.text.search
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "String search families"
+  title-style: text
+  summary: >-
+    The contains and find families return boolean, range, iterable read-only match-list, and count results. Their results
+    follow the defined empty-pattern rules.
+  tags:
+    - "text-data"
+    - "search"
+    - "string-search"
+  sections:
+    - id: string-search
+      title: "String Search Families"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides two distinct literal-search families on `string`. The
+            `contains` family always returns `bool`: `text.contains; pattern` searches
+            anywhere, while `text.contains.start; pattern` and `text.contains.end; pattern`
+            test the logical start and logical end. “Start” means logical index zero, and
+            “end” means the logical final scalar. These meanings are based on stored text
+            order and do not change for right-to-left scripts.
+
+            The separate `find` family reports locations and quantities:
+
+            - `text.find; pattern` returns `text-range|none`.
+            - `text.find.all; pattern` returns a read-only list of `text-range` values.
+            - `text.find.count; pattern` returns an `int`.
+
+            Literal matches are found from start to end and do not overlap. A list returned
+            by `find.all` can be iterated repeatedly, but cannot be mutated with collection
+            operations such as `append`.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            matches = 'banana'.find.all; 'an'
+            for found in matches
+              print; found.text
+            print; matches.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A `text-range` retains its immutable source string and provides checked byte,
+            Unicode-scalar, and grapheme views. Non-empty literal searches compare scalar
+            sequences rather than requiring matches to align with grapheme boundaries. A
+            match may therefore end inside a grapheme, so grapheme-oriented access must use
+            the checked view.
+
+            The empty pattern has explicit grapheme-boundary behavior:
+
+            - `contains` returns `true`.
+            - `find` returns the first zero-width grapheme boundary.
+            - `find.all` returns every grapheme boundary, including both ends.
+            - `find.count` returns the grapheme count plus one.
+
+            These operations perform literal search only. There is no case-insensitive
+            search child; case-insensitive workflows explicitly apply `case-fold` to both
+            operands. Regular-expression operations remain `match` and `matches`. They are
+            not children of `contains`, and string search does not switch behavior according
+            to an argument’s runtime kind.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "string-search"
+  conformance: null
+  compiler: null

@@ -1,0 +1,64 @@
+format: 1
+id: lang.classes.traits
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Trait reuse and conflict resolution"
+  title-style: text
+  summary: >-
+    Traits reuse fields and methods. Conflicts require explicit resolution, so trait composition has no implicit ambiguity.
+  tags:
+    - "objects"
+    - "traits"
+  sections:
+    - id: traits
+      title: "Trait Reuse and Conflict Resolution"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A trait is reusable source implementation composed into a class with `uses`. It
+            may contribute fields and methods, but it is not a type, a subtyping relation,
+            an interface, or a foreign-contract mechanism. Composing a trait therefore does
+            not make an instance assignable to that trait. Interfaces remain named nominal
+            contracts and dispatch boundaries adopted with `implements`; structural
+            protocols remain unnamed operation shapes.
+
+            A class has one effective member view. If inherited, class-declared, or
+            trait-contributed fields or methods conflict, the using class must resolve the
+            conflict explicitly; source order does not implicitly choose a winner.
+            Composition also does not introduce implicit same-name signature dispatch.
+
+            A typed trait field may omit its initializer only when its declared type has a
+            canonical default. The canonical defaults are `false` for `bool`, typed zero for
+            numeric types, `''` for `string`, empty bytes for `bytes`, `none` for `T|none`,
+            and an empty collection for `list`, `map`, `set`, `unordered-map`, or
+            `unordered-set`. Plain `none`, tuples, source objects, references, callables,
+            resources, and other runtime contracts are nondefaultable. Omitting an
+            initializer never infers the field type, invokes an arbitrary constructor, or
+            makes `none` a hidden member of plain `T`.
+
+            A trait may supply a field initializer, and the using class may override the
+            field. After inheritance and trait composition, every effective nondefaultable
+            field must have an explicit initializer; otherwise the class is rejected with
+            T0061. Effective fields are validated before lowering. An explicit inherited or
+            trait-contributed initializer is evaluated in the source and object context of
+            the declaration that supplied it.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "traits"
+  conformance: null
+  compiler: null

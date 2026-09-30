@@ -1,0 +1,72 @@
+format: 1
+id: internals.semantics.return-validation
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Semantic return validation
+  title-style: text
+  summary: >-
+    Explains how concrete function and method returns are checked before Rust lowering and how one conservative static-member
+    post-condition is proved.
+  tags:
+    - compiler-internals
+    - semantics
+    - control-flow
+    - diagnostics
+  sections:
+    - id: concrete-return-contracts
+      title: Concrete return contracts
+      blocks:
+        - type: rule
+          id: rule.internals.semantics.concrete-return-contracts
+          level: must
+          since: null
+          evidence:
+            - ordinary-method-wrong-return
+            - method-fallthrough
+          markdown: |-
+            Every concrete top-level function and class method body enters the same
+            control-flow validator. Each reachable `return` is checked against the semantic
+            result type before lowering; incompatible values receive T0015 at the source
+            return rather than reaching rustc. Empty projected or declaration-only bodies
+            remain outside concrete-body validation.
+    - id: initialized-static-optional
+      title: Initialized static optional
+      blocks:
+        - type: rule
+          id: rule.internals.semantics.initialized-static-optional
+          level: must
+          since: null
+          evidence:
+            - optional-member-post-if-return
+            - static-class-singleton
+          markdown: |-
+            Return validation proves an exact static `T|none` member present only when a
+            preceding sibling `if member == none` or `if none == member` has no `else`,
+            directly assigns exactly one compatible `T` value to that same textual target,
+            has no other target write, and no intervening sibling rewrites it before the
+            return. This return-only postcondition is deliberately not general in-block
+            member-expression narrowing and never applies to instance members; unsupported
+            shapes retain their optional type and are rejected at the source boundary.
+relationships:
+  see-also:
+    - lang.functions.declarations
+    - lang.types.optional-refinement
+  supersedes: []
+  superseded-by: []
+  conflicts-with: []
+
+implementation:
+  compiler:
+    - crates/terrane-compiler/src/semantics/scopes.rs

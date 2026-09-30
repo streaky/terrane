@@ -1,0 +1,92 @@
+format: 1
+id: lang.namespaces.declarations
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Slash-separated namespace paths"
+  title-style: text
+  summary: >-
+    Namespace declarations use lowercase, slash-separated paths. Each declared path is checked for correspondence with its
+    source directory.
+  tags:
+    - "names"
+    - "declarations"
+    - "namespace-paths"
+  sections:
+    - id: namespace-paths
+      title: "Namespace Paths"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Namespace declarations use lowercase, slash-separated paths. `/` is the only
+            namespace boundary marker: it separates every segment and also serves as the
+            root anchor. An unanchored path is relative, while `../tier` and `../../tier`
+            express repeated parent components.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace application/commands
+            from /core/collections import map
+            private cache = map;
+            global shared-limit int = 10
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Each namespace segment follows `[a-z]([a-z0-9]|-[a-z0-9])*`: it begins with a
+            lowercase ASCII letter and may continue with lowercase letters, digits, or
+            internal hyphens. A hyphen stays within one segment; a slash starts another.
+            Namespace segments use a distinct, stricter grammar than identifiers, so an
+            identifier such as `foo+bar` cannot be a namespace segment.
+
+            Empty segments and the whole-segment names `con`, `prn`, `aux`, `nul`, `com1`
+            through `com9`, and `lpt1` through `lpt9` are reserved. Uppercase namespace
+            spelling is rejected with a diagnostic that identifies the lowercase correction;
+            it is never silently folded. A valid namespace’s identity is its exact source
+            spelling.
+
+            A package manifest maps namespace roots to relative directory roots. Within a
+            mapped root, the namespace tree corresponds to the source directory tree. For
+            example, mapping `foo/bar` to `./some/path` places namespace `foo/bar/dave`
+            under `./some/path/dave`. When mappings overlap, the longest matching namespace
+            prefix determines the expected namespace. Mapping two namespace roots to the
+            same directory is a manifest-load error. Duplicate, missing, and mismatched
+            roots are rejected before semantic resolution.
+
+            Source discovery is bounded to manifest-declared roots. The package loader
+            recursively discovers `.trn` files within those roots in sorted path order and
+            checks each declaration against the namespace expected from its location and the
+            applicable longest-prefix mapping. A `.trn` file that no mapping reaches is
+            outside the package and is neither compiled nor reported as package source. A
+            dependency’s namespaces come from that dependency’s own manifest rather than
+            from scanning its directory tree.
+
+            The resolved source set is recorded in build metadata. Sorted discovery and
+            longest-prefix mapping make source assembly deterministic, while ambiguous or
+            conflicting mappings are errors rather than implicit layout choices.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "namespace-paths"
+  conformance: null
+  compiler: null

@@ -1,0 +1,168 @@
+format: 1
+id: app.collection-string-idioms
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Collection and string idioms
+  title-style: text
+  summary: >-
+    Shows the intended application patterns for typed empty collections, collection-valued fields, mutation, iteration, strings,
+    bytes, and octets.
+  tags: [applications, collections, strings, bytes, recipes]
+  sections:
+    - id: typed-empty-values
+      title: Constructing typed empty collections
+      blocks:
+        - type: markdown
+          markdown: |-
+            A bare constructor such as `list;` is a value constructor, not a complete type.
+            Give an empty value a typed destination when no item supplies element evidence.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/collections import list, map, set
+
+            names list of string = list;
+            counts map of string, int = map;
+            selected set of string = set;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The same rule applies to class fields. Declare the complete field type and
+            initialize it with the matching empty constructor.
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            class report
+              lines list of string = list;
+              labels map of string, string = map;
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: mutation
+      title: Mutating without moving the owner
+      blocks:
+        - type: markdown
+          markdown: |-
+            Statement-form collection members mutate the retained binding and return the
+            updated value internally. Use them directly on a named field or local instead of
+            extracting the collection by value.
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            mutable function add-line; line string
+              this.lines.append; line
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Collection values use copy-on-write storage, but their language-level identity
+            remains a value. Borrowed observers prevent owner replacement or shape-changing
+            mutation for the duration of the borrow.
+    - id: iteration
+      title: Owned and referenced iteration
+      blocks:
+        - type: markdown
+          markdown: |-
+            `for item in values` traverses a stable snapshot in deterministic authored order
+            for lists and ordered maps. Passing `values ref list of string` to a helper
+            avoids moving a resource-shaped owner. The loop item is a logical value;
+            changing it does not mutate the collection.
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function total-length int; values ref list of string
+              total int = 0
+              for value in values
+                total = total + value.length
+              return total
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: strings
+      title: Prefixes, suffixes, splitting, joining, and replacement
+      blocks:
+        - type: table
+          id: string-idioms
+          title: Common string expressions
+          show-header: true
+          columns:
+            - id: task
+              title: Task
+              cell: text
+            - id: expression
+              title: Expression
+              cell: code
+          rows:
+            - task: Prefix test
+              expression: text.contains.start; prefix
+            - task: Suffix test
+              expression: text.contains.end; suffix
+            - task: Containment test
+              expression: text.contains; fragment
+            - task: Split
+              expression: text.split; separator
+            - task: Join
+              expression: separator.join; first, second
+            - task: Replace
+              expression: text.replace; old, new
+            - task: Concatenate
+              expression: text.concat; more
+
+    - id: bytes
+      title: Strings, bytes, and octets
+      blocks:
+        - type: markdown
+          markdown: |-
+            Use `text.encode; utf8` for total text-to-byte conversion and
+            `data.decode; utf8` inside a `try` for checked byte-to-text conversion.
+            Construct arbitrary bytes with `bytes-from-octets` after giving the source list
+            the type `list of uint8`. Iterating bytes also produces `uint8` values. Do not
+            route binary input through `string` merely to store or forward it.
+  see-also:
+    - std.collections
+    - std.text-bytes-codecs
+    - lang.types.authority-in-practice
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "9"
+  conformance: []
+  compiler: null

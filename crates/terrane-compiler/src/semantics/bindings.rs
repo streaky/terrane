@@ -1962,6 +1962,15 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
     }
 }
 
+fn projected_native_name(projected: &crate::rust_interop::projection::ProjectedType) -> String {
+    match projected {
+        crate::rust_interop::projection::ProjectedType::InvocationScoped { name, .. } => {
+            name.clone()
+        }
+        _ => projected.rust_type(),
+    }
+}
+
 fn visible_binding<'a>(
     unit: &'a SemanticUnit,
     name_node: &SyntaxNode,
@@ -2008,12 +2017,23 @@ fn local_lender_in_scoped_expression(
 ) -> Option<(String, Span)> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && projected_function_for_call(package, unit, callee).is_some_and(|function| {
+        && (projected_function_for_call(package, unit, callee).is_some_and(|function| {
             matches!(
                 function.result,
                 crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
             )
-        })
+        }) || (callee.kind == SyntaxKind::Name
+            && resolved_function_contract(
+                unit,
+                node_text(&unit.source, callee),
+                callee.span.start,
+            )
+            .is_some_and(|function| {
+                matches!(
+                    function.return_type,
+                    Some(ValueType::InvocationScopedNative { .. })
+                )
+            })))
     {
         let lender = arguments
             .children
@@ -2029,10 +2049,11 @@ fn local_lender_in_scoped_expression(
 }
 
 fn collect_scoped_append_types(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     receiver_name: &str,
-    results: &mut Vec<String>,
+    results: &mut Vec<crate::rust_interop::projection::ProjectedType>,
 ) {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -2043,15 +2064,17 @@ fn collect_scoped_append_types(
         && let Some(argument) = arguments.children.first()
     {
         let value = argument.children.last().unwrap_or(argument);
-        if let Ok(Some(ValueType::InvocationScopedNative { rust_type, .. })) =
-            infer_value_type(unit, value, &unit.typed_bindings)
-            && !results.contains(&rust_type)
+        if let Ok(Some(value_type)) = infer_value_type(unit, value, &unit.typed_bindings)
+            && let Ok(projected) = super::objects::destination_projected_type(package, &value_type)
+            && !results
+                .iter()
+                .any(|result| super::objects::same_projected_native_family(result, &projected))
         {
-            results.push(rust_type);
+            results.push(projected);
         }
     }
     for child in &node.children {
-        collect_scoped_append_types(unit, child, receiver_name, results);
+        collect_scoped_append_types(package, unit, child, receiver_name, results);
     }
 }
 
@@ -2147,7 +2170,7 @@ fn validate_invocation_scoped_node(
             && let Some(function) = find_node_by_span(&unit.tree.root, function_span)
         {
             let mut item_types = Vec::new();
-            collect_scoped_append_types(unit, function, receiver_name, &mut item_types);
+            collect_scoped_append_types(package, unit, function, receiver_name, &mut item_types);
             if item_types.len() > 1 {
                 return Err(failure(
                     &unit.source,
@@ -2159,6 +2182,40 @@ fn validate_invocation_scoped_node(
                 ));
             }
         }
+    }
+
+    if node.kind == SyntaxKind::Assignment
+        && let [target, value] = node.children.as_slice()
+        && target.kind == SyntaxKind::Name
+        && let Some(binding) = visible_binding(unit, target)
+        && let Some(declaration) = find_node_by_span(&unit.tree.root, binding.span)
+        && let Some(initializer) = declaration.children.last()
+        && let Some(initial_type) = infer_value_type(unit, initializer, &unit.typed_bindings)?
+        && let Some(reassigned_type) = infer_value_type(unit, value, &unit.typed_bindings)?
+        && let Ok(initial_projected) =
+            super::objects::destination_projected_type(package, &initial_type)
+        && let Ok(reassigned_projected) =
+            super::objects::destination_projected_type(package, &reassigned_type)
+        && matches!(
+            (&initial_projected, &reassigned_projected),
+            (
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. },
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+            )
+        )
+        && !super::objects::same_projected_native_family(&initial_projected, &reassigned_projected)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0019",
+            format!(
+                "cannot reassign invocation-scoped `{}` from `{}` to `{}`",
+                binding.name,
+                projected_native_name(&initial_projected),
+                projected_native_name(&reassigned_projected)
+            ),
+            value.span,
+        ));
     }
 
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
@@ -2317,8 +2374,8 @@ fn validate_projected_callback_node(
                     "T0019",
                     format!(
                         "incompatible argument types: expected `{}`, found `{}`",
-                        parameter.ty.rust_type(),
-                        actual_projected.rust_type()
+                        projected_native_name(&parameter.ty),
+                        projected_native_name(&actual_projected)
                     ),
                     value.span,
                 ));

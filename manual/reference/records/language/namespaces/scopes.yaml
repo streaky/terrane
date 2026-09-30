@@ -1,0 +1,87 @@
+format: 1
+id: lang.namespaces.scopes
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Lexical scopes and shadowing"
+  title-style: text
+  summary: >-
+    Declarations resolve by identity across namespace, function, and lexical scopes, including through shadowing. Duplicate
+    names and unresolved names produce diagnostics.
+  tags:
+    - "names"
+    - "scopes"
+  sections:
+    - id: scopes
+      title: "Lexical Scopes and Shadowing"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane resolves declarations by identity through an ordered view of the
+            program. Plain-name lookup proceeds from the nearest lexical scope through
+            namespace scope, program-global scope, and finally the selected prelude.
+            Namespace lookup includes the current namespace and its parents. The nearest
+            matching binding shadows farther bindings; shadowing changes which identity a
+            spelling resolves to rather than merging declarations.
+
+            Ordinary names and object-form names occupy separate symbol tables, and
+            object-form lookup is lexical. Lexical scope information covers function
+            parameters, local bindings, assignments, and block-local imports. A selective
+            import binds its object in the exact scope containing the import and does not
+            leak into an enclosing or sibling scope. An `as` alias changes the local name
+            without changing the imported object’s identity. Reimporting the same exported
+            identity is idempotent; importing a distinct identity under an occupied
+            same-scope import name produces `S2011`.
+
+            Namespace variables have a deliberately narrow boundary. A plain top-level
+            assignment creates a namespace-local variable, including in the root namespace.
+            That variable is readable and writable only by other namespace-level
+            declarations in the same namespace. It is unavailable to that namespace’s
+            function bodies, descendant namespaces, and importers.
+
+            From a function body, namespace tiers may provide constants, constructs,
+            imports, functions, and types, but never namespace variables. Mutable state
+            crosses a function boundary only as a `global`, a parameter, or a returned
+            value. Marking a namespace variable `public` is rejected with `S2025`; violating
+            namespace-variable confinement produces `S2026`.
+
+            `global` explicitly creates or replaces a program-global identity and does not
+            erase lexical provenance or visibility. A namespace-local declaration may
+            legally shadow a program global. A value that must leave the namespace tier must
+            instead be a constant, a global, or a function result. Reassigning a constant
+            produces `S2022`; initializer self-reference produces `S2023`; and a namespace
+            initialization cycle produces `S2024`.
+
+            A duplicate lexical binding produces `S2012`, while an unresolved source name
+            produces `S2013`. A duplicate namespace declaration produces `S2005`. Import
+            failures remain distinct: `S2009` identifies an unresolved imported name,
+            `S2010` an inaccessible imported name, and `S2011` an import collision.
+
+            Namespace-wide imports check a broader visible chain: lexical scopes, the
+            current and parent namespaces, program globals, implicit `/core/types`
+            constructs, and the prelude. Shadowing, replacing, or skipping a different
+            visible object emits non-blocking `W4004`. An authored top-level declaration in
+            the importing namespace retains its name, so a conflicting namespace-wide object
+            is skipped. Identical reimports remain silent. Other namespace-wide imports
+            replace one another in source order; across files, normalized relative
+            source-path order determines the resulting identity and the earlier import
+            binding identified by the warning.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "scopes"
+  conformance: null
+  compiler: null

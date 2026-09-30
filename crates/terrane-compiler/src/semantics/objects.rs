@@ -2727,11 +2727,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             .insert(
                 key,
                 ProjectedCallSpecialization {
-                    substitutions: specialization
-                        .substitutions
-                        .into_iter()
-                        .map(|(name, projected)| (name, projected.rust_type()))
-                        .collect(),
+                    substitutions: specialization.substitutions,
                     generic_arguments: specialization.generic_arguments,
                     projected_result: specialization.projected_result,
                     value_type: specialization.value_type,
@@ -3101,10 +3097,14 @@ fn forwarded_callback_function_span(
     if value.kind != SyntaxKind::Name {
         return None;
     }
-    let binding = unit.typed_bindings.iter().rev().find(|binding| {
-        binding.name == node_text(&unit.source, value)
-            && binding.is_visible_at(unit.source.id(), value.span.start)
-    })?;
+    let binding = unit
+        .typed_bindings
+        .iter()
+        .filter(|binding| {
+            binding.name == node_text(&unit.source, value)
+                && binding.is_visible_at(unit.source.id(), value.span.start)
+        })
+        .max_by_key(|binding| binding.visible_from)?;
     let key = (binding.span.file, binding.span.start, binding.span.end);
     if !visited_bindings.insert(key) {
         return None;
@@ -3281,11 +3281,7 @@ fn projected_callback_function_result(
     value: &SyntaxNode,
 ) -> Option<CallbackFunctionResult> {
     let name = node_text(&unit.source, value);
-    let span = unit
-        .functions
-        .iter()
-        .find(|contract| contract.name == name)?
-        .span;
+    let span = resolved_function_contract(unit, name, value.span.start)?.span;
     let value_type = unit
         .invocation_scoped_function_results
         .get(&(span.file, span.start, span.end))?

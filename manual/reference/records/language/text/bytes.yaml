@@ -1,0 +1,61 @@
+format: 1
+id: lang.text.bytes
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Immutable byte sequences"
+  title-style: text
+  summary: >-
+    Byte sequences are immutable and preserve arbitrary byte values. Their length is measured in octets, iteration yields
+    `uint8` values, and indexing and slicing are checked.
+  tags:
+    - "text-data"
+    - "bytes"
+  sections:
+    - id: bytes
+      title: "Immutable Byte Sequences"
+      blocks:
+        - type: markdown
+          markdown: |-
+            `bytes` is the immutable sequence type for arbitrary octets and is distinct from
+            Unicode `string`. A byte sequence preserves its contents without text decoding.
+            Its `length` counts octets, and iteration yields each octet as `uint8` in
+            sequence order.
+
+            Byte literals use the `b'...'` form. The admitted escapes are `\\`, `\'`, `\n`,
+            `\r`, `\t`, `\0`, and `\xHH`; other escapes are invalid.
+
+            Indexing uses `value[index]`. A byte index is an integer and produces `uint8`. A
+            negative, unrepresentable, or out-of-bounds index throws `index-error`. Indexing
+            does not interpret an octet as a character or return a one-byte string.
+
+            Indexing with a range produces a new `bytes` value. The slice visits the range’s
+            authored half-open or inclusive bounds and step in order. Every selected index
+            is checked; if any selected index is invalid, the operation throws
+            `index-error`. A valid empty boundary produces empty bytes. Stepped and
+            inclusive ranges are supported, and slicing never performs text decoding.
+
+            Conversion between bytes and text is explicit through the encoding descriptors
+            `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`. Encoding text is
+            total. Decoding validates the entire input and throws `decode-error` for
+            malformed data; it neither inserts replacement characters nor accepts only a
+            valid prefix.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "bytes"
+  conformance: null
+  compiler: null

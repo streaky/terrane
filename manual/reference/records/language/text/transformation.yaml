@@ -1,0 +1,93 @@
+format: 1
+id: lang.text.transformation
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "String transformation families"
+  title-style: text
+  summary: >-
+    Trim, case conversion, normalization, split, replace, concat, and join operate at their specified grapheme boundaries.
+    Split results are iterable, read-only lists.
+  tags:
+    - "text-data"
+    - "transformation"
+    - "string-transform"
+  sections:
+    - id: string-transform
+      title: "String Transformations"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The `trim` family selects both ends, the logical start, or the logical end:
+
+            - `text.trim;` removes Unicode whitespace from both ends.
+            - `text.trim.start;` and `text.trim.end;` remove the whitespace run at the
+              selected end.
+            - A literal argument removes exactly one matching prefix or suffix at the
+              selected end and otherwise leaves the text unchanged. For example,
+              `text.trim.start; "foo"` removes one matching `"foo"` prefix.
+
+            “Start” is logical scalar index zero and “end” is the logical final scalar,
+            regardless of display direction.
+
+            Case operations are explicit, locale-independent Unicode transformations.
+            Terrane provides `upper` and `lower`, their `.first` forms, and `upper.words`.
+            Full locale-independent folding is the separate `case-fold` operation. For
+            case-insensitive searching, apply `case-fold` explicitly to both operands.
+            Normalization is available through `normalise.nfc`, `normalise.nfd`,
+            `normalise.nfkc`, and `normalise.nfkd`.
+
+            `split` and `replace` use literal, left-to-right, non-overlapping matching.
+            Splitting on an empty pattern returns the graphemes without synthetic empty
+            elements. Replacing an empty pattern inserts the replacement at every grapheme
+            boundary, including both ends.
+
+            A `split` result is an iterable, read-only list with a `length`. It can be
+            traversed repeatedly, but mutation is rejected. For example:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            parts = 'red,green,blue'.split; ','
+            for part in parts
+              print; part
+            print; parts.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `concat` and `join` are separate, nonmutating operations that return new
+            strings. `concat` appends its arguments to the receiver without a separator:
+            `'a'.concat; b, c` produces `'abc'`. For `join`, the receiver is the separator:
+            `': '.join; a, b, c` produces `'a: b: c'`. Joining no arguments returns `''`;
+            joining one returns that argument without a separator. A separator is never
+            placed before the first part or after the last.
+
+            Both operations convert every argument through canonical text display. If an
+            argument has no display protocol, the operation produces a typed error rather
+            than silently inventing a rendering.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "string-transform"
+  conformance: null
+  compiler: null

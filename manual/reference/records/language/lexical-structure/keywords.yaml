@@ -1,0 +1,362 @@
+format: 1
+id: lang.lexical-structure.keywords
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Keywords and reserved names
+  title-style: text
+  summary: >-
+    Lists Terrane's structural words, the names that are always reserved, and the contexts in which a structural word cannot
+    be used as an ordinary name.
+  tags:
+    - lexical-structure
+    - identifiers
+    - keywords
+    - names
+  sections:
+    - id: overview
+      title: Overview
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane uses mostly **contextual words**, not a single flat set of tokens that
+            are forbidden everywhere. A spelling such as `label` may be unambiguous as a
+            method name after `function` or as a parameter name, while the same spelling at
+            the beginning of a statement is reserved for label syntax.
+
+            There are therefore two lists to consult:
+
+            1. `function`, `instance`, `self`, and `this` are reserved declaration names.
+               They cannot name a binding, parameter, function, class, interface, or trait.
+            2. Structural words have grammatical meaning in particular positions. They must
+               not be used where that meaning prevents the name from being declared or
+               selected as an ordinary object.
+
+            As a practical naming rule, avoid every structural word on this page for an
+            ordinary public variable, function, type, or namespace name. This keeps a name
+            usable from all of the positions in which readers will reasonably expect to
+            write it.
+    - id: always-reserved
+      title: Always-reserved declaration names
+      blocks:
+        - type: rule
+          id: rule.lexical.reserved-declaration-names
+          level: must
+          since: null
+          evidence:
+            - contextual-class-name-binding
+            - contextual-this-binding
+          markdown: |-
+            The names `function`, `instance`, `self`, and `this` must not be declared.
+        - type: table
+          id: reserved-name-roles
+          title: Reserved name roles
+          show-header: true
+          columns:
+            - id: name
+              title: Name
+              cell: code
+            - id: role
+              title: Language role
+              cell: text
+          rows:
+            - name: function
+              role: Begins a function declaration.
+            - name: instance
+              role: Begins explicit construction of a class instance.
+            - name: self
+              role: Refers to the declaring object in static object context.
+            - name: this
+              role: Refers to the receiving instance in instance context.
+
+        - type: markdown
+          markdown: |-
+            The compiler reports `S1095` when one of these spellings is used as a
+            declaration name.
+        - type: example
+          id: rejected-instance-binding
+          title: A reserved name cannot declare a binding
+          language: terrane
+          mode: reject
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/reserved-instance
+
+            function main;
+              instance int = 1
+          diagnostic: S1095
+          markdown: >-
+            Rename the binding according to its role, such as `item` or `created-item`.
+    - id: implementation-language-keywords
+      title: Words reserved by an implementation language
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane's identifier rules do not inherit keywords from the compiler's
+            implementation language. In particular, these ordinary Terrane identifiers are
+            legal even though Rust reserves them:
+
+            `abstract`, `become`, `box`, `do`, `final`, `gen`, `macro`, `override`, `priv`,
+            `typeof`, `unsized`, and `virtual`.
+
+            The compiler maps such names to safe generated-Rust identifiers. Generated Rust
+            therefore remains an implementation receipt rather than an extra naming
+            restriction on Terrane source.
+        - type: example
+          id: rust-reserved-terrane-bindings
+          title: Use implementation-language keywords as Terrane names
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/implementation-keywords
+
+            function main;
+              box = 3
+              final = 5
+              print; box + final
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              8
+          diagnostic: null
+          markdown: >-
+            These names are legal because neither spelling has a structural role in Terrane.
+    - id: structural-words
+      title: Structural words
+      blocks:
+        - type: markdown
+          markdown: |-
+            The following words have grammar-defined meaning. The groups are descriptive;
+            they do not create separate namespaces or levels of reservation.
+        - type: table
+          id: structural-word-groups
+          title: Structural word groups
+          show-header: true
+          columns:
+            - id: area
+              title: Area
+              cell: text
+            - id: words
+              title: Structural words
+              cell: code-list
+          rows:
+            - area: Namespaces and imports
+              words:
+                - namespace
+                - from
+                - import
+                - as
+            - area: Objects and declarations
+              words:
+                - class
+                - interface
+                - trait
+                - function
+                - extends
+                - implements
+                - uses
+                - public
+                - private
+                - protected
+                - global
+                - constant
+                - static
+                - async
+                - mutable
+                - consuming
+                - throws
+                - construct
+                - destruct
+            - area: Control flow and errors
+              words:
+                - if
+                - else
+                - while
+                - for
+                - in
+                - select
+                - return
+                - break
+                - continue
+                - try
+                - catch
+                - finally
+                - throw
+            - area: Expressions and types
+              words:
+                - and
+                - or
+                - not
+                - is
+                - a
+                - ref
+                - shared
+                - move
+                - await
+                - instance
+                - of
+                - to
+                - "true"
+                - "false"
+            - area: Receiver names
+              words:
+                - self
+                - this
+            - area: Native integration
+              words:
+                - rust
+                - unsafe
+            - area: Reserved language shapes
+              words:
+                - linear
+                - yield
+                - match
+                - label
+                - goto
+                - when
+                - use
+                - case
+
+        - type: markdown
+          markdown: |-
+            A reserved language shape has a claimed syntactic role even when the selected
+            compiler release does not yet implement that feature. Using it in that
+            structural position is an error rather than an ordinary name lookup.
+
+            `linear` is reserved before `class`, `interface`, `trait`, and `function` so the
+            compiler can reject an unsupported explicit qualifier clearly. Resource
+            ownership is inferred; `linear` remains an ordinary identifier in unambiguous
+            positions such as `linear = 42`.
+        - type: admonition
+          kind: important
+          title: Context matters
+          markdown: |-
+            This table is deliberately not labelled “words that are illegal everywhere.”
+            Terrane's grammar prefers contextual interpretation where it is unambiguous.
+            Tooling should describe the failing context rather than claiming every
+            structural word is globally forbidden.
+    - id: label-example
+      title: Why `label` can be surprising
+      blocks:
+        - type: markdown
+          markdown: |-
+            At the beginning of a statement, `label` is reserved for the language's label
+            syntax. A local binding or class field written in that position therefore cannot
+            be named `label` in the current grammar.
+
+            After an explicit declaration marker, the spelling is unambiguous. It can name a
+            parameter or a method. Member selection after `.` is likewise unambiguous.
+        - type: example
+          id: label-as-parameter
+          title: Use `label` as a parameter name
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/label-parameter
+
+            function keep int; label int
+              return label
+
+            function main;
+              print; (keep; 4)
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              4
+          diagnostic: null
+          markdown: null
+
+        - type: example
+          id: label-as-method
+          title: Use `label` as a method name
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/label-method
+
+            class item
+              function label string;
+                return 'item'
+
+            function main;
+              value = instance item;
+              print; (value.label;)
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              item
+          diagnostic: null
+          markdown: null
+
+        - type: example
+          id: label-as-binding
+          title: Reject `label` as a statement-leading binding
+          language: terrane
+          mode: reject
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/label-binding
+
+            function main;
+              label = 4
+          diagnostic: S1090
+          markdown: >-
+            Use a more specific binding name such as `display-label` or `category`.
+    - id: naming-guidance
+      title: Choosing durable names
+      blocks:
+        - type: markdown
+          markdown: |-
+            A name accepted in one contextual position is not necessarily a good general API
+            name. Before choosing a structural word, consider whether callers must use it:
+
+            - as a bare binding at the beginning of a statement;
+            - as a bare function invoked with `;`;
+            - as a field declaration in a class or trait;
+            - as a method selected after `.`;
+            - as a parameter following an explicit function declaration.
+
+            Prefer a non-structural spelling when the name should work across several of
+            these positions. Hyphenated names such as `display-label`, `match-rule`, and
+            `shared-item` remain ordinary identifiers because their full spellings are not
+            structural words.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "6.5"
+    - document: language-spec
+      section: "6.6"
+  conformance:
+    - contextual-class-name-binding
+    - contextual-this-binding
+    - linear-class-qualifier
+    - linear-ordinary-identifier
+    - rust-reserved-identifiers
+  compiler: null

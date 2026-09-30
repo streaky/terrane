@@ -1,0 +1,95 @@
+format: 1
+id: lang.types.unions
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Finite union types"
+  title-style: text
+  summary: >-
+    Finite union alternatives preserve their declared identities. Selection prefers an exact arm; a constant admitted by more
+    than one arm is rejected.
+  tags:
+    - "types"
+    - "unions"
+  sections:
+    - id: unions
+      title: "Finite Union Types"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A finite union type is written with `|`, as in `T|U`. Each arm is a distinct
+            declared alternative with its own canonical semantic identity; the union does
+            not erase the alternatives into a common source-level type. `none` is an
+            ordinary union member, so `T|none` uses the same union mechanism. `T|none` is
+            accepted anywhere a source type is accepted, including bindings, parameters, and
+            return types.
+
+            Repeated arms are normalized by canonical semantic identity. Each authored
+            duplicate reports warning `W4003`, including duplicates written through
+            different aliases of the same descriptor. Different source spellings therefore
+            cannot create distinct alternatives when they denote one canonical type.
+
+            When a value reaches a union destination, Terrane first looks for an arm that
+            exactly matches the value’s semantic type. If there is no exact match, it
+            considers arms admitted through contextual constant typing or numeric
+            destination conversion. Exactly one arm must be admitted at this stage. If
+            multiple arms admit the value, compilation fails with an ambiguity diagnostic
+            naming the candidates; arm order never resolves the ambiguity.
+
+            For example, the numeric constant `5` is ambiguous for `int8|int32` because both
+            arms admit it. A value already typed as one of those arms selects its exact arm
+            before conversion is considered. The selected arm is preserved at runtime across
+            initialization and assignment and determines subsequent `is a` results.
+
+            Optional narrowing applies only to stable named bindings and these direct
+            guards:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value != none
+            none != value
+            not (value is a none)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Within the guarded block, such a test narrows a named `T|none` binding to `T`.
+            Combining tests with `and` or `or` does not establish the narrowing fact, and
+            assigning to the binding invalidates it. Member, index, and call expressions are
+            not narrowing subjects because repeated evaluation may produce a different
+            result. Bind the expression once, then guard and use that stable name.
+
+            A separate static return rule applies when a function or method declares a
+            concrete return type `T`. An exact static `T|none` member may be returned after
+            a preceding sibling `if member == none` or `if none == member` with no `else`,
+            but only when that `if` body contains exactly one direct compatible assignment
+            to the same textual member, contains no other write to it, and no write
+            intervenes before the return. If any condition is not met, the returned
+            expression remains `T|none`. This rule does not apply to instance members or
+            other member expressions.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "unions"
+  conformance: null
+  compiler: null

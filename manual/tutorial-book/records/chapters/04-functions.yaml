@@ -1,0 +1,1418 @@
+format: 1
+id: book.functions
+kind: chapter
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "Functions: Giving Work a Name"
+  title-style: text
+  summary: |-
+    The number classifier at the end of Chapter 3 works, but all of its decisions live inside `main`. If another part of the
+    program needs the same classification, we must either repeat the branches or give that work a name.
+  tags: []
+  blocks:
+    - type: markdown
+      markdown: |-
+        A function turns a piece of behavior into an object that can be called, passed,
+        and composed. Its header states what information crosses the boundary. Its body
+        keeps the implementation local.
+
+        In this chapter, we will:
+
+        - define and call functions;
+        - describe parameters and results;
+        - use required, optional, and named arguments;
+        - return as soon as a result is known;
+        - reason about local scope;
+        - pass a function as an ordinary value;
+        - assemble small functions into a larger operation;
+        - turn the number classifier into a reusable program.
+
+        Function boundaries are the first places where Terrane asks us to write types
+        regularly. That is deliberate. Local values can remain inferred while the
+        contract between two pieces of a program stays visible.
+  sections:
+    - id: defining-and-calling-a-function
+      title: Defining and calling a function
+      blocks:
+        - type: markdown
+          markdown: |-
+            A function declaration begins with `function`, followed by its name and the call
+            marker:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function greet; name string
+              print; 'Hello, ', name
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The indented body belongs to the function. `name string` declares one parameter
+            named `name` whose value must be a string.
+
+            Call the function with the same `;` used for every invocation:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            greet; 'Ada'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This prints:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Hello, Ada
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The declaration and call deliberately echo each other:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function greet; name string
+            greet; 'Ada'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The semicolon in the declaration introduces the parameter list. The semicolon at
+            the call site introduces the argument list. In both places, it marks the
+            callable boundary rather than terminating a statement.
+
+            A function with no parameters still includes the marker:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function announce;
+              print; 'Ready'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Call it with:
+        - type: example
+          id: legacy-fence-006
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            announce;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Leaving off the semicolon refers to the function object; it does not invoke it.
+      sections:
+        - id: defining-and-calling-a-function-definitions-do-not-run-themselves
+          title: Definitions do not run themselves
+          blocks:
+            - type: markdown
+              markdown: |-
+                Declaring a function makes it available but does not execute its body:
+            - type: example
+              id: legacy-fence-007
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function announce;
+                  print; 'Ready'
+
+                function main;
+                  print; 'Before'
+                  announce;
+                  print; 'After'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The output is:
+            - type: example
+              id: legacy-fence-008
+              title: null
+              language: text
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                Before
+                Ready
+                After
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Execution enters `announce` only at the call and returns to the following
+                statement when the function finishes.
+          sections: []
+        - id: defining-and-calling-a-function-unreferenced-functions-are-reported
+          title: Unreferenced functions are reported
+          blocks:
+            - type: markdown
+              markdown: |-
+                A top-level function that is never called, passed, or otherwise referred to does
+                not prevent the program from running. The compiler reports `W4005` at its source
+                declaration instead:
+            - type: example
+              id: legacy-fence-009
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function leftover string;
+                  return 'not used'
+
+                function main;
+                  print; 'Ready'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                This program prints `Ready` and also warns that `leftover` is never referenced.
+                A warning is useful here because the declaration may be an accidental remnant,
+                but it may also be work deliberately written ahead of its first caller. Remove
+                the function when it is genuinely obsolete; otherwise the program remains valid
+                while you connect it.
+          sections: []
+    - id: parameters-and-results
+      title: Parameters and results
+      blocks:
+        - type: markdown
+          markdown: |-
+            Parameters carry values into a function. A result carries one value back.
+
+            Place the result type after the function name:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function add int; left int, right int
+              return left + right
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Read the header as:
+
+            > `add` is a function that returns an `int` and accepts two `int` parameters,
+            > `left` and `right`.
+
+            Call it in an expression:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            total = add; 4, 7
+            print; total
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The output is `11`.
+
+            A function returning a value must satisfy its result contract on every reachable
+            path. This is rejected:
+        - type: example
+          id: legacy-fence-012
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function absolute int; value int
+              if value < 0
+                return -value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            When `value` is nonnegative, execution could reach the end without producing the
+            promised `int`. Complete the function:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function absolute int; value int
+              if value < 0
+                return -value
+              return value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A function without a result type performs work but produces no value:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function show-total; total int
+              print; 'Total: ', total
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Do not invent a meaningless result merely so every function looks alike. A
+            calculation should return its value; an operation whose contract is only an
+            effect may have no result.
+      sections:
+        - id: parameters-and-results-arguments-are-evaluated-before-the-call
+          title: Arguments are evaluated before the call
+          blocks:
+            - type: markdown
+              markdown: |-
+                At a call site, each argument expression is evaluated and its value is passed to
+                the corresponding parameter:
+            - type: example
+              id: legacy-fence-015
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                result = add; 2 * 3, 4 + 1
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                `add` receives `6` and `5`, producing `11`.
+
+                A parameter is a local binding. Reassigning it changes the function's local
+                parameter value; it does not create a hidden reference to the caller's binding:
+            - type: example
+              id: legacy-fence-016
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function increase int; value int
+                  value++
+                  return value
+
+                function main;
+                  original = 10
+                  changed = increase; original
+                  print; original, ', ', changed
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The output is:
+            - type: example
+              id: legacy-fence-017
+              title: null
+              language: text
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                10, 11
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Terrane's ordinary value semantics remain in force across function calls.
+                Chapter 11 introduces explicit references for functions whose contract genuinely
+                includes shared identity.
+          sections: []
+    - id: required-optional-and-named-arguments
+      title: Required, optional, and named arguments
+      blocks:
+        - type: markdown
+          markdown: |-
+            A parameter without a default is required:
+        - type: example
+          id: legacy-fence-018
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function report; name string, passed bool
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Both arguments must be supplied:
+        - type: example
+          id: legacy-fence-019
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            report; 'lexer', true
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A default value makes a parameter optional:
+        - type: example
+          id: legacy-fence-020
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function report; name string, passed bool, attempts int = 1
+              if passed
+                print; name, ': passed in ', attempts, ' attempt(s)'
+              else
+                print; name, ': failed'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The caller may omit `attempts`:
+        - type: example
+          id: legacy-fence-021
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            report; 'lexer', true
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Inside the function, it receives the default value `1`.
+
+            Or the caller may provide it positionally:
+        - type: example
+          id: legacy-fence-022
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            report; 'parser', true, 2
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Required parameters must precede optional parameters in the declaration.
+            Otherwise a positional call would have no stable way to say which value was
+            omitted.
+      sections:
+        - id: required-optional-and-named-arguments-named-arguments
+          title: Named arguments
+          blocks:
+            - type: markdown
+              markdown: |-
+                A caller may bind an argument by parameter name:
+            - type: example
+              id: legacy-fence-023
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                report; name = 'parser', passed = true, attempts = 2
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Named arguments may appear in a different order:
+            - type: example
+              id: legacy-fence-024
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                report; attempts = 2, name = 'parser', passed = true
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Both calls mean the same thing. The names are part of the function's exposed
+                calling contract.
+
+                Named arguments are especially useful when several adjacent values have the same
+                type or when a call supplies one optional policy among many:
+            - type: example
+              id: legacy-fence-025
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                connect; host = 'example.test', port = 443, timeout = 10
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                A positional argument may not follow a named one:
+            - type: example
+              id: legacy-fence-026
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                report; name = 'parser', true       # rejected
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Once a call begins naming destinations, every later argument must be named too.
+                This prevents a reader from having to merge two ordering systems midway through
+                the call.
+          sections: []
+        - id: required-optional-and-named-arguments-defaults-are-evaluated-by-the-declaration-s-contract
+          title: Defaults are evaluated by the declaration's contract
+          blocks:
+            - type: markdown
+              markdown: |-
+                A default belongs to the parameter declaration:
+            - type: example
+              id: legacy-fence-027
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function report; name string, passed bool, attempts int = 1
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The caller does not receive a special overloaded function with fewer parameters.
+                It invokes the same callable while allowing the declared default to supply one
+                argument.
+
+                Use defaults for values that are genuinely unsurprising. A default that changes
+                safety, persistence, or destructive behavior deserves particular scrutiny;
+                requiring the caller to state it may be clearer.
+          sections: []
+    - id: returning-early
+      title: Returning early
+      blocks:
+        - type: markdown
+          markdown: |-
+            `return` immediately leaves the current function. When the function produces a
+            result, the returned expression must satisfy its declared type.
+
+            When the result is text, `return` is an expression-start position, so it accepts
+            both tail and block text directly:
+        - type: example
+          id: legacy-fence-028
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function status string;
+              return >ready
+
+            function explanation string;
+              return >>
+                The operation is ready.
+                No further action is required.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The first function returns `ready`. The second returns the two content lines
+            joined by `\n`, with no implicit final newline. Neither form needs parentheses
+            or an intermediate binding.
+
+            Early returns are useful when a special case has a complete answer:
+        - type: example
+          id: legacy-fence-029
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function classify string; number int
+              if number == 0
+                return 'zero'
+
+              if number < 0
+                return 'negative'
+
+              return 'positive'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Once zero is handled, later code does not need to nest inside `else`. Once a
+            negative value returns, the final line necessarily handles a positive value.
+
+            Compare the nested form:
+        - type: example
+          id: legacy-fence-030
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function classify string; number int
+              if number == 0
+                return 'zero'
+              else
+                if number < 0
+                  return 'negative'
+                else
+                  return 'positive'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Both can be correct, but the early-return version keeps the main path at one
+            indentation level.
+      sections:
+        - id: returning-early-return-when-the-answer-is-complete
+          title: Return when the answer is complete
+          blocks:
+            - type: markdown
+              markdown: |-
+                An early return should express a completed decision, not scatter unexplained
+                exits throughout a long body.
+
+                This is easy to follow:
+            - type: example
+              id: legacy-fence-031
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function admission string; age int
+                  if age < 0
+                    return 'invalid'
+                  if age < 18
+                    return 'minor'
+                  return 'adult'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Each branch settles the function's answer. If a function accumulates partial
+                work that must be cleaned up or reported together, one carefully structured exit
+                may be clearer. Chapter 7 adds error handling and deterministic cleanup to that
+                decision.
+
+                A result-less function may return without a value:
+            - type: example
+              id: legacy-fence-032
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function show-if-positive; value int
+                  if value <= 0
+                    return
+                  print; value
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The bare `return` ends the operation; it does not manufacture a `none` result.
+          sections: []
+    - id: local-scope
+      title: Local scope
+      blocks:
+        - type: markdown
+          markdown: |-
+            Parameters and names first declared inside a function belong to that function:
+        - type: example
+          id: legacy-fence-033
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function area int; width int, height int
+              result = width * height
+              return result
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The names `width`, `height`, and `result` are unavailable to unrelated
+            functions.
+
+            This is rejected:
+        - type: example
+          id: legacy-fence-034
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function area int; width int, height int
+              result = width * height
+              return result
+
+            function main;
+              print; result                 # unresolved here
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Local scope lets a function choose implementation names without publishing them
+            as part of its contract.
+      sections:
+        - id: local-scope-nested-blocks-have-their-own-scope
+          title: Nested blocks have their own scope
+          blocks:
+            - type: markdown
+              markdown: |-
+                Every indented control-flow body introduces a nested lexical scope:
+            - type: example
+              id: legacy-fence-035
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function describe string; value int
+                  if value < 0
+                    prefix = 'negative '
+                    return prefix.concat; (-value)
+
+                  return 'nonnegative'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                `prefix` is available only inside the `if` body. It cannot be used after that
+                body.
+
+                An existing outer binding remains visible and may be updated:
+            - type: example
+              id: legacy-fence-036
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function sum int; values list of int
+                  total = 0
+                  for value in values
+                    total = total + value
+                  return total
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                `total` is declared in the function body, so the loop updates that existing
+                binding. The loop target `value` remains local to the loop body.
+
+                The `list` type used here comes from `/core/collections`; a complete source file
+                would import its constructor and type vocabulary before this declaration.
+          sections: []
+        - id: local-scope-keep-local-state-local
+          title: Keep local state local
+          blocks:
+            - type: markdown
+              markdown: |-
+                If a value is used only to calculate one result, keep it inside the function
+                that owns that calculation. Do not move it to namespace or global state merely
+                so another function can reach it.
+
+                Prefer:
+            - type: example
+              id: legacy-fence-037
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function subtotal int; price int, quantity int
+                  return price * quantity
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                to a function that implicitly reads unrelated mutable program state. Explicit
+                parameters make dependencies visible at the call site and make the function
+                easier to reuse.
+          sections: []
+    - id: passing-functions-as-values
+      title: Passing functions as values
+      blocks:
+        - type: markdown
+          markdown: |-
+            A function name refers to a callable object. Without `;`, it can be assigned or
+            passed like another value:
+        - type: example
+          id: legacy-fence-038
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function double int; value int
+              return value * 2
+
+            operation function from int to int = double
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The annotation:
+        - type: example
+          id: legacy-fence-039
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function from int to int
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            describes a callable accepting one `int` and returning one `int`.
+
+            Invoke the stored function normally:
+        - type: example
+          id: legacy-fence-040
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            result = operation; 7
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The result is `14`.
+
+            A function may accept another function as a parameter:
+        - type: example
+          id: legacy-fence-041
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function apply int; operation function from int to int, value int
+              return operation; value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Call it by passing the function object rather than invoking it first:
+        - type: example
+          id: legacy-fence-042
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            result = apply; double, 7
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Inside `apply`, `operation; value` performs the invocation.
+
+            Compare the roles:
+        - type: example
+          id: legacy-fence-043
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            double                 # the callable object
+            double; 7              # invoke it now
+            apply; double, 7        # pass it, then apply invokes it
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The explicit call marker keeps these cases visually distinct.
+      sections:
+        - id: passing-functions-as-values-callable-contracts-must-match
+          title: Callable contracts must match
+          blocks:
+            - type: markdown
+              markdown: |-
+                A function value's parameter and result types are part of its type. A function
+                accepting a string is not interchangeable with one accepting an integer merely
+                because both are callable:
+            - type: example
+              id: legacy-fence-044
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function length int; text string
+                  return text.length
+
+                operation function from int to int = length     # rejected
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Terrane checks this boundary before the call can occur.
+
+                Passing functions is useful when the caller owns the sequence of work but
+                another part of the program should choose one operation: transforming a value,
+                validating an item, formatting a result, or handling an event. Do not introduce
+                a callback when one direct call is clearer.
+          sections: []
+    - id: small-functions-that-compose
+      title: Small functions that compose
+      blocks:
+        - type: markdown
+          markdown: |-
+            A useful function usually owns one recognizable decision or transformation.
+            Small functions can then build larger behavior without duplicating that logic.
+
+            Begin with parity:
+        - type: example
+          id: legacy-fence-045
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function parity string; number int
+              if number % 2 == 0
+                return 'even'
+              return 'odd'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Then use it inside a fuller classification:
+        - type: example
+          id: legacy-fence-046
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function classify string; number int, detailed bool = true
+              if number == 0
+                return 'zero'
+
+              kind = parity; number
+              if not detailed
+                return kind
+              if number < 0
+                return 'negative '.concat; kind
+              return 'positive '.concat; kind
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `classify` does not reproduce the remainder calculation. It delegates that
+            decision to `parity` and adds sign information when requested.
+
+            Composition is not a contest to produce the shortest possible functions. This
+            extraction would add little:
+        - type: example
+          id: legacy-fence-047
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function zero int;
+              return 0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A function earns its name when the name communicates an idea, the boundary
+            enables reuse or testing, or the implementation contains a rule worth keeping in
+            one place.
+      sections:
+        - id: small-functions-that-compose-keep-data-movement-visible
+          title: Keep data movement visible
+          blocks:
+            - type: markdown
+              markdown: |-
+                This composition remains straightforward:
+            - type: example
+              id: legacy-fence-048
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                kind = parity; number
+                return 'positive '.concat; kind
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                A deeply nested chain of tiny calls can obscure the intermediate ideas it
+                supposedly clarifies. Giving an important intermediate result a name is often
+                better than minimizing line count.
+
+                Terrane's parenthesized nested calls remain available when a value is genuinely
+                used once:
+            - type: example
+              id: legacy-fence-049
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                print; 'Classification: ', (classify; number)
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Use the form that makes the stages easiest to read.
+          sections: []
+    - id: project-turn-the-number-classifier-into-functions
+      title: "Project: turn the number classifier into functions"
+      blocks:
+        - type: markdown
+          markdown: |-
+            We will now refactor Chapter 3's classifier. The loop will supply numbers, while
+            functions own the reusable decisions.
+
+            Create `number-classifier-functions.trn`:
+        - type: example
+          id: legacy-fence-050
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace number-classifier-functions
+
+            from /core/collections import range
+
+            function parity string; number int
+              if number % 2 == 0
+                return 'even'
+              return 'odd'
+
+            function classify string; number int, detailed bool = true
+              if number == 0
+                return 'zero'
+
+              kind = parity; number
+              if not detailed
+                return kind
+              if number < 0
+                return 'negative '.concat; kind
+              return 'positive '.concat; kind
+
+            function double int; value int
+              return value * 2
+
+            function apply int; operation function from int to int, value int
+              return operation; value
+
+            function main;
+              numbers = range; -3, 5
+              for number in numbers
+                print; number, ': ', (classify; number)
+
+              print; 'brief: ', (classify; 4, false)
+              print; 'named: ', (classify; detailed = false, number = -3)
+              print; 'passed: ', (apply; double, 7)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Run it:
+        - type: example
+          id: legacy-fence-051
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane run number-classifier-functions.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-052
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            -3: negative odd
+            -2: negative even
+            -1: negative odd
+            0: zero
+            1: positive odd
+            2: positive even
+            3: positive odd
+            4: positive even
+            brief: even
+            named: odd
+            passed: 14
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The program exercises three calling styles:
+        - type: example
+          id: legacy-fence-053
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            classify; number
+            classify; 4, false
+            classify; detailed = false, number = -3
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The first uses the default `detailed = true`. The second supplies both arguments
+            positionally. The third names both arguments and changes their order.
+
+            It also passes `double` to `apply`:
+        - type: example
+          id: legacy-fence-054
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            apply; double, 7
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            No special callback syntax is involved. `double` is a value satisfying the
+            declared callable contract, and `apply` invokes it.
+
+            Most importantly, `main` no longer contains the classification rules. It
+            describes the program's orchestration: obtain numbers, classify each one, and
+            print a few variations. `parity` and `classify` own the decisions.
+      sections: []
+    - id: terrane-style-express-contracts-not-ceremony
+      title: "Terrane style: express contracts, not ceremony"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Function headers are valuable because they describe boundaries:
+        - type: example
+          id: legacy-fence-055
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function classify string; number int, detailed bool = true
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A reader can see what the function accepts, what it returns, and which policy is
+            optional without reading its body.
+
+            Inside the function, obvious locals remain inferred:
+        - type: example
+          id: legacy-fence-056
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            kind = parity; number
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Writing another annotation there would usually repeat information the compiler
+            and reader already have. Add a local annotation when it communicates an intended
+            narrowing, a public format, a union boundary, or another fact inference would
+            not express clearly—not merely to prove that the program has types.
+
+            The same principle applies to decomposition. A function should expose a
+            meaningful operation, not wrap every expression in a ceremonial name. Prefer the
+            smallest set of functions that makes rules, reuse, and data flow clear.
+
+            A good boundary answers useful questions:
+
+            - What must the caller provide?
+            - What result can the caller rely on?
+            - Which values have meaningful defaults?
+            - Can the operation be passed where this callable contract is expected?
+
+            The body answers a different question: how is that contract fulfilled here?
+      sections: []
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: markdown
+          markdown: |-
+            1. Write `minimum int; left int, right int` and call it with several pairs,
+               including equal values.
+
+            2. Add an optional `prefix string = 'Result: '` parameter to a printing
+               function. Call it once with the default, once positionally, and once by name.
+
+            3. Write a function with an early return for an invalid negative input and a
+               normal result for nonnegative input. Ensure every reachable path satisfies
+               its result contract.
+
+            4. Create `triple int; value int`, then pass it to `apply`. Confirm that `apply`
+               itself does not need to change.
+
+            5. Try assigning a string-taking function to `function from int to int`. Read
+               the compiler's type diagnostic, then restore a compatible callable.
+
+            6. Extend `classify` with an optional `show-zero-sign bool = false`. Keep the
+               default behavior unchanged and use a named argument for the exceptional call.
+      sections: []
+    - id: what-we-learned
+      title: What we learned
+      blocks:
+        - type: markdown
+          markdown: |-
+            A function gives behavior a name and a typed boundary. Parameters carry values
+            in; `return` carries a result out. Required parameters precede optional
+            parameters, defaults supply omitted arguments, and named arguments make selected
+            call-site intent explicit.
+
+            Parameters and local bindings belong to the function. Nested control-flow bodies
+            introduce narrower scopes, while assignment can deliberately update a binding
+            from an enclosing function body. Early returns keep completed special cases from
+            forcing unnecessary nesting.
+
+            Functions are objects. A bare function name passes the callable; `;` invokes it.
+            Callable types such as `function from int to int` let functions cross bindings
+            and parameter boundaries with their contracts checked.
+
+            Small functions compose when each names a real decision or transformation. Their
+            headers should express contracts, while inferred locals and direct expressions
+            prevent those contracts from becoming ceremony.
+
+            In the next chapter, we will give these functions more substantial values to
+            work on: Unicode text, mutable-by-value lists, ordered maps, and a complete
+            word-frequency program.
+      sections: []
+  see-also: []
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

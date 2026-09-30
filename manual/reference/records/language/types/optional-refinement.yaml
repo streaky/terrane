@@ -1,0 +1,145 @@
+format: 1
+id: lang.types.optional-refinement
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Optional-value refinement
+  title-style: text
+  summary: >-
+    Explains how direct presence guards narrow a stable named T|none binding, why repeated expressions are not narrowing subjects,
+    and how to respond to T0031 when the contained object owns the requested member.
+  tags:
+    - types
+    - unions
+    - optional-values
+    - refinement
+    - diagnostics
+  sections:
+    - id: overview
+      title: Overview
+      blocks:
+        - type: markdown
+          markdown: |-
+            `T|none` represents either a value satisfying `T` or the singleton absence value
+            `none`. Operations that require `T` must first establish that the optional value
+            is present.
+
+            Refinement belongs to a stable source binding. It does not change the declared
+            type and does not make a second evaluation of a member, index, or call
+            expression equivalent to the first.
+    - id: direct-presence-guards
+      title: Direct presence guards
+      blocks:
+        - type: rule
+          id: rule.types.optional-direct-presence-guard
+          level: must
+          since: null
+          evidence:
+            - throwable-value-flow
+          markdown: |-
+            A direct `value != none`, `none != value`, or `not (value is a none)` guard
+            narrows the named `T|none` binding to `T` within the guarded block. Assignment
+            to the name invalidates the refinement from that assignment onward.
+        - type: example
+          id: guarded-optional-throwable
+          title: Guard a stable optional binding
+          language: terrane
+          mode: accept
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/optional-throwable
+            from /core/errors import throwable
+
+            function report; failure throwable|none
+              if failure != none
+                print; failure.message
+
+            function main;
+              report; none
+          diagnostic: null
+          markdown: >-
+            The member selection is valid inside the guarded block because `failure` is one
+            stable name whose presence has been established.
+    - id: bind-expression-once
+      title: Bind optional-producing expressions once
+      blocks:
+        - type: rule
+          id: rule.types.optional-refinement-subject
+          level: must
+          since: null
+          evidence:
+            - optional-member-before-narrowing
+            - throwable-value-flow
+          markdown: |-
+            Member, index, and call expressions are not general narrowing subjects. Evaluate
+            an optional-producing expression once, bind its result, guard that name, and
+            select members from the narrowed name. A distinct return-only postcondition
+            applies to an exact static `T|none` member after a preceding sibling no-else
+            absence guard: its body must directly assign one compatible `T` to that same
+            textual target, contain no other target write, and no intervening sibling may
+            rewrite it. This never narrows inside the block and never applies to instance
+            members.
+        - type: example
+          id: unguarded-optional-member
+          title: Do not select through an unrefined optional
+          language: terrane
+          mode: reject
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/unguarded-optional-member
+            from /core/errors import throwable
+
+            function report; failure throwable|none
+              print; failure.message
+          diagnostic: T0031
+          markdown: |-
+            The compiler explains that `.message` requires narrowing and gives the
+            bind-then-guard remedy. The member exists on `throwable`; it is not available on
+            `throwable|none` until presence is established.
+        - type: example
+          id: stable-optional-cause
+          title: Bind and guard a throwable cause
+          language: terrane
+          mode: accept
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/optional-cause
+            from /core/errors import arithmetic-overflow, coercion-error
+
+            function main;
+              try
+                try
+                  throw coercion-error
+                catch coercion-error
+                  throw arithmetic-overflow
+              catch arithmetic-overflow as outer
+                origin = outer.cause
+                if origin != none
+                  print; origin.message
+          diagnostic: null
+          markdown: null
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "14.1"
+  conformance:
+    - optional-member-before-narrowing
+    - optional-member-post-if-return
+    - static-class-singleton
+    - throwable-value-flow

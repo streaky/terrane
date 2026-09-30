@@ -1,0 +1,1033 @@
+format: 1
+id: book.identity-and-movement
+kind: chapter
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Values, Shared Identity, and Movement
+  title-style: text
+  summary: |-
+    The task-list program from Chapters 9 and 10 contains objects that change. A task can become complete, and a task list
+    can gain another item. Mutation, however, does not by itself answer a more important question:
+  tags: []
+  blocks:
+    - type: markdown
+      markdown: |-
+        > If two names came from the same value, should a change through one name be
+        > visible through the other?
+
+        Terrane's ordinary answer is **no**. Assignment gives each binding an
+        independent logical value. That rule is deliberately broad: it applies to
+        numbers and strings, but also to collections, functions, and ordinary class
+        instances. A programmer asks for shared identity only when the model requires
+        it.
+
+        This chapter makes that distinction explicit. We will:
+
+        - begin with ordinary assignment;
+        - observe value semantics and copy-on-write collections;
+        - introduce non-owning `ref` values;
+        - distinguish them from owning `shared ref` values;
+        - transfer otherwise copyable values with `move`;
+        - read lifetime and use-after-move diagnostics;
+        - choose the least complicated ownership relationship that tells the truth.
+
+        These concepts lead directly into Chapter 12. A concurrent task is a resource
+        that must be consumed, and a reference crossing an asynchronous suspension must
+        still have a living owner. First, though, we will learn the rules without
+        concurrency in the way.
+  sections:
+    - id: ordinary-assignment-first
+      title: Ordinary assignment first
+      blocks:
+        - type: markdown
+          markdown: |-
+            Consider two lists:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/collections import list
+
+            original = list; 1, 2
+            copy = original
+            copy.append; 3
+
+            print; original.length
+            print; copy.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The output is:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            2
+            3
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `copy = original` is ordinary assignment. The two bindings may begin with equal
+            values, but a later mutation of `copy` does not mutate `original`.
+
+            This is the right default for most code. A function can receive a value,
+            transform its local copy, and return a result without quietly changing the
+            caller's value. A collection can be stored in two records without making every
+            future edit an action at a distance. Local reasoning remains local.
+
+            The same principle applies to an ordinary class instance:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            class counter
+              value int = 0
+
+              function increment;
+                this.value++
+
+            first = instance counter
+            second = first
+            second.increment;
+
+            print; first.value
+            print; second.value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This prints `0` and then `1`. A class gives a value named fields and behavior;
+            it does not automatically give every copy shared identity.
+
+            That may differ from languages in which class assignment always copies an object
+            reference. In Terrane, the punctuation does not conceal that decision. Ordinary
+            assignment means ordinary value semantics.
+      sections: []
+    - id: independent-logical-values
+      title: Independent logical values
+      blocks:
+        - type: markdown
+          markdown: |-
+            The word _logical_ matters. Terrane specifies what each binding may observe, not
+            how many bytes the runtime must copy at each assignment.
+
+            After:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            left = list; 10, 20, 30
+            right = left
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `left` and `right` are independent logical values. They are not required to
+            occupy two unrelated allocations immediately. If neither is mutated, duplicating
+            all of the storage would be wasted work.
+
+            The observable contract is narrower and more useful:
+
+            - reading either value produces the expected contents;
+            - mutating `left` cannot change what `right` observes;
+            - mutating `right` cannot change what `left` observes;
+            - destroying or rebinding one does not invalidate the other.
+
+            A compiler may satisfy those rules with a machine copy, copy elision, persistent
+            storage, or copy-on-write backing. Source code should depend on the
+            independence, not guess the representation.
+
+            This distinction also explains why equality and identity are different
+            questions. Two independent values may compare equal because their contents are
+            equal. They do not thereby become one changing object.
+      sections: []
+    - id: copy-on-write-behavior-in-practice
+      title: Copy-on-write behavior in practice
+      blocks:
+        - type: markdown
+          markdown: |-
+            Copy-on-write is a common way to make value semantics inexpensive. The
+            implementation may initially let two logical values share read-only backing
+            storage:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            planned = list; 1, 2
+            snapshot = planned
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            At this point, `planned` and `snapshot` may share storage internally. That
+            sharing is not a source-language reference. It is an optimization that no
+            Terrane operation can observe directly.
+
+            When one value changes:
+        - type: example
+          id: legacy-fence-006
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            planned.set; 0, 9
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            it separates before the mutation becomes visible. Reading both values witnesses
+            the contract directly:
+        - type: example
+          id: legacy-fence-007
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            print; snapshot[0]  # 1
+            print; planned[0]   # 9
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The same rule applies through nested value paths. If a copied object contains a
+            collection and one copy changes that collection, the implementation separates
+            enough of the path to preserve the other logical value.
+
+            This gives us two useful properties at once:
+
+            1. **The programming model stays simple.** Assignment creates independent
+               values.
+            2. **The implementation can stay efficient.** Unchanged backing storage may be
+               shared.
+
+            Do not reach for `ref` merely because a value is large. A reference is a
+            statement about shared identity and visible mutation, not a performance
+            annotation. Ordinary assignment leaves the compiler more freedom to copy, share,
+            elide, or specialize storage while preserving the same behavior.
+      sections: []
+    - id: sharing-identity-explicitly-with-ref
+      title: Sharing identity explicitly with `ref`
+      blocks:
+        - type: markdown
+          markdown: |-
+            Sometimes the model really does contain one changing identity observed from more
+            than one place. A view may observe a document owned by its editor. A child node
+            may point back to a tree owned elsewhere. A short-lived helper may update the
+            same work queue as its caller.
+
+            Create that relationship explicitly:
+        - type: example
+          id: legacy-fence-008
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1
+            observer ref list of int = ref values
+            values.append; 2
+
+            print; observer.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This prints `2`. `observer` does not contain an independent list. It observes
+            the logical identity owned by `values`.
+
+            Mutation can travel through the reference as well:
+        - type: example
+          id: legacy-fence-009
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1
+            editor ref list of int = ref values
+            editor.append; 2
+
+            print; values.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Again, the result is `2`.
+
+            The reference is transparent when using the value's normal surface. A
+            `ref list of int` still exposes list members such as `length` and `append`; it
+            is not a wrapper object that must be unpacked before every use. Its reference
+            contract still matters at assignment, parameter, storage, and lifetime
+            boundaries.
+
+            A function can state that it borrows rather than owns:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function count-items int; items ref list of int
+              return items.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The caller must pass a compatible reference explicitly:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1, 2, 3
+            print; count-items; (ref values)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Terrane does not silently turn an ordinary value into a reference because a
+            parameter asks for one. The call site shows that the function receives identity
+            rather than an independent value.
+
+            A `ref` aliases the value identity, not the binding slot. If the owning binding
+            is rebound to a different value, an existing reference does not retarget itself
+            to the replacement. Instead, the original identity's lifetime ends when its
+            owner is no longer available, and the reference cannot be used afterward.
+
+            The owner proof follows a path rather than stopping at one local name. You can
+            borrow a field or collection element, pass that reference through a borrowing
+            function, and receive the same provenance back:
+        - type: example
+          id: legacy-fence-012
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function pass ref int; value ref int
+              return value
+
+            values = list; 1, 2
+            element ref int = ref values[1]
+            returned ref int = pass; element
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Here `returned` still depends on `values`, narrowed through element `1` and the
+            call result. Parentheses do not discard that fact, and the same model supports
+            element references from `map` and `unordered-map`. Replacing or moving `values`,
+            or mutating a collection in a way that can invalidate an element path, is
+            rejected when the observer is used later. Iterating a `ref list of T` similarly
+            yields `ref T` items tied to the same owner.
+
+            A function may return a reference only when its return flow selects exactly one
+            reference parameter. Terrane follows that selection through calls; it does not
+            guess from the number or position of reference parameters. A by-value parameter
+            is not an external lender, and a function cannot return a borrow of its own
+            local value. This same proof permits a borrow to cross `await` only while its
+            owner remains live and valid through the suspension. Capturing a reference in a
+            local function preserves the borrow rather than silently creating ownership. If
+            return flow can select several lenders, the call is rejected rather than
+            choosing at run time.
+      sections: []
+    - id: shared-references-and-ownership
+      title: Shared references and ownership
+      blocks:
+        - type: markdown
+          markdown: |-
+            An ordinary `ref` observes an identity but does not keep it alive. That is often
+            precisely what we want: one clear owner controls the lifetime, and temporary
+            observers cannot prolong it accidentally.
+
+            When an alias must also own the identity, use `shared ref`:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1
+            owner shared ref list of int = shared ref values
+            observer ref list of int = ref values
+
+            owner.append; 2
+            print; values.length
+            print; observer.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Both lines print `2`. `values` and `owner` are owners of the same identity;
+            `observer` sees it without becoming an owner.
+
+            The extra word is not ceremony. Shared ownership changes when cleanup may occur
+            and makes ownership cycles possible. If two objects retain one another with
+            `shared ref`, neither relationship alone provides a final owner whose
+            disappearance obviously ends the cycle.
+
+            On the current native target, shared ownership uses synchronized reference
+            counting. The compiler rejects a descriptor field graph with a statically
+            provable strong `shared ref` cycle, including a cycle through collection element
+            types, while accepting acyclic shared fields. A cycle assembled later through
+            authored mutation outside that proof is not automatically traced or collected
+            and can retain its members until process exit, so break that cycle explicitly.
+            Prefer ordinary `ref` for back-edges: it is excluded from ownership-cycle edges
+            and does not keep the owner alive. An ordinary `ref` cannot be promoted into
+            `shared ref`; shared ownership must begin from an owned value at an explicit
+            `shared ref` operation.
+
+            Prefer one owning direction and non-owning back-edges when a graph permits it:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            project owns tasks by value
+            task has ref project as a back-pointer
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Use shared ownership only when the domain truly has several peers whose
+            lifetimes are independent:
+        - type: example
+          id: legacy-fence-015
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            several sessions retain one shared document identity
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The source contract does not require a particular implementation such as `Rc`,
+            `Arc`, a lock, or a heap allocation. The compiler chooses a representation that
+            preserves the declared lifetime and mutation behavior for the selected target.
+            It must not silently promote `ref` into `shared ref`, because doing so would
+            change ownership.
+      sections: []
+    - id: transferring-a-value-with-move
+      title: Transferring a value with `move`
+      blocks:
+        - type: markdown
+          markdown: |-
+            Ordinary assignment copies an ordinary copyable value logically. `move` asks
+            Terrane to transfer it instead:
+        - type: example
+          id: legacy-fence-016
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            queued = list; 8
+            active = move queued
+            active.append; 9
+
+            print; active.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            After the transfer, `active` owns the value and `queued` is unavailable until it
+            receives another value.
+
+            This is useful when the source binding should no longer participate in the
+            design. It may avoid an unnecessary copy, but its primary meaning is still
+            semantic:
+
+            > Ownership leaves this binding and arrives at that one.
+
+            For resource-owning values, transfer is not optional. A file handle, device
+            handle, task, or other unique resource cannot be copied into two independent
+            owners merely because assignment normally has value semantics. Terrane derives
+            that property from the complete stored value. Such values transfer automatically
+            when assigned or passed; an explicit `move` may make a consuming boundary
+            especially clear.
+
+            This avoids a dangerous compromise. Terrane does not make every ordinary value
+            cumbersome merely because some resources require unique ownership, and it does
+            not make unique resources copyable merely to preserve uniform syntax.
+      sections: []
+    - id: when-a-value-is-no-longer-available
+      title: When a value is no longer available
+      blocks:
+        - type: markdown
+          markdown: |-
+            Using a binding after moving its value is a source error:
+        - type: example
+          id: legacy-fence-017
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1
+            transferred = move values
+            print; values
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A diagnostic identifies the use and the operation that transferred ownership.
+            The important fact is not a Rust implementation detail. In the Terrane program,
+            `values` no longer owns anything to print.
+
+            The binding name may become useful again after rebinding:
+        - type: example
+          id: legacy-fence-018
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1
+            transferred = move values
+            values = list; 2
+
+            print; values
+            print; transferred
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The old value remains with `transferred`; the new assignment gives `values` a
+            new value.
+
+            A consuming operation follows the same rule. Chapter 12 will use:
+        - type: example
+          id: legacy-fence-019
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            outcome = await scope.join; child
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Passing the statically non-copyable child handle into `join` transfers it
+            automatically. A second join would not represent a second observation of the
+            same event; it would attempt to consume a resource that has already been
+            accounted for. The lowered Rust still moves its task value, but that
+            representation detail does not require source-level ceremony.
+
+            Treat a move diagnostic as information about the program's ownership story.
+            Usually one of three intentions needs to be made clear:
+
+            - the earlier consumer should borrow with `ref` rather than take ownership;
+            - the later use should receive an ordinary independent value instead of moving;
+            - the transfer is correct, and the stale later use should be removed or moved
+              before it.
+      sections: []
+    - id: lifetimes-without-annotation-clutter
+      title: Lifetimes without annotation clutter
+      blocks:
+        - type: markdown
+          markdown: |-
+            A non-owning reference must not outlive its owner. Terrane checks that rule
+            without asking ordinary source code to name lifetime parameters.
+
+            This is valid because the owner remains alive while the reference is used:
+        - type: example
+          id: legacy-fence-020
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            values = list; 1, 2
+            observer = ref values
+            print; observer.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is not:
+        - type: example
+          id: legacy-fence-021
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function escaping ref list of int;
+              values = list; 1, 2
+              return ref values
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The returned reference would point to an identity whose local owner disappears
+            when the function returns. The compiler rejects the escape and identifies both
+            the reference's origin and the lifetime-ending boundary.
+
+            A `shared ref` can outlive the original binding because it is itself an owner,
+            but that is not a reason to replace every rejected `ref` with `shared ref`.
+            First ask which part of the program ought to own the value. Moving an owned
+            value to the caller or placing it in a longer-lived containing object often
+            expresses the design more clearly.
+
+            References also interact with operations that could invalidate a path. If code
+            takes a reference to a collection element, the compiler must preserve that
+            element's identity while the reference is live. Removing or relocating the
+            element may therefore be rejected until the reference is no longer used.
+
+            The practical model is straightforward:
+
+            - owners determine how long an identity exists;
+            - `ref` may observe only within that proven lifetime;
+            - `shared ref` extends the lifetime by becoming another owner;
+            - `move` transfers an owner's value elsewhere.
+
+            The compiler keeps the lifetime bookkeeping. Source code keeps the ownership
+            relationships.
+      sections: []
+    - id: choosing-between-assignment-ref-and-move
+      title: Choosing between assignment, `ref`, and `move`
+      blocks:
+        - type: markdown
+          markdown: |-
+            Begin with the ordinary operation:
+        - type: example
+          id: legacy-fence-022
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            copy = value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Choose it when `copy` should be independently mutable. This is the overwhelming
+            default for scalars, text, collections, data records, callable values, and
+            ordinary class instances.
+
+            Choose a non-owning reference:
+        - type: example
+          id: legacy-fence-023
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            observer = ref value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            when the program intentionally models one identity, the owner is elsewhere, and
+            the observer must not extend its lifetime.
+
+            Choose a shared owning reference:
+        - type: example
+          id: legacy-fence-024
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            owner = shared ref value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            when several aliases genuinely own the same identity and no single ordinary
+            owner naturally governs the complete lifetime.
+
+            Choose transfer:
+        - type: example
+          id: legacy-fence-025
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            next = move value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            when ownership should leave the source binding rather than create an independent
+            logical value. Resource-owning values require transfer even when the source does
+            not spell `move`.
+
+            A useful review question is not “Which form is fastest?” It is:
+
+            > After this line, how many independently mutable values should exist, and who
+            > keeps each shared identity alive?
+
+            Once that answer is precise, the source form usually follows directly.
+      sections: []
+    - id: common-designs-that-do-not-need-references
+      title: Common designs that do not need references
+      blocks:
+        - type: markdown
+          markdown: |-
+            References are powerful enough to attract uses that ordinary values express
+            better.
+      sections:
+        - id: common-designs-that-do-not-need-references-read-only-function-inputs
+          title: Read-only function inputs
+          blocks:
+            - type: markdown
+              markdown: |-
+                Do not add `ref` only to avoid copying a large input. Ordinary values may share
+                copy-on-write backing, and the compiler may elide physical copies:
+            - type: example
+              id: legacy-fence-026
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                function total int; values list of int
+                  result = 0
+                  for value in values
+                    result = result + value
+                  return result
+              response: null
+              diagnostic: null
+              markdown: null
+          sections: []
+        - id: common-designs-that-do-not-need-references-snapshots
+          title: Snapshots
+          blocks:
+            - type: markdown
+              markdown: |-
+                A snapshot should remain independent when later state changes. Assignment says
+                exactly that:
+            - type: example
+              id: legacy-fence-027
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                snapshot = current-state
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                A reference would undermine the purpose by observing later mutations.
+          sections: []
+        - id: common-designs-that-do-not-need-references-tree-ownership
+          title: Tree ownership
+          blocks:
+            - type: markdown
+              markdown: |-
+                A tree whose parent owns children by value needs no shared ownership for its
+                downward edges. If a child needs to observe its parent, a bounded non-owning
+                `ref` may be enough. Do not turn every edge into shared ownership.
+          sections: []
+        - id: common-designs-that-do-not-need-references-transformation-pipelines
+          title: Transformation pipelines
+          blocks:
+            - type: markdown
+              markdown: |-
+                A sequence of functions that receives a value and returns a new value usually
+                benefits from ordinary value semantics. Each stage has a clear input and output;
+                hidden shared mutation would make the pipeline harder to test.
+          sections: []
+        - id: common-designs-that-do-not-need-references-caches-for-immutable-results
+          title: Caches for immutable results
+          blocks:
+            - type: markdown
+              markdown: |-
+                If callers should receive independent values, a cache can retain one value and
+                return ordinary assignments. Internal storage sharing can remain an
+                implementation optimization rather than a public identity contract.
+          sections: []
+    - id: project-observing-a-work-list
+      title: "Project: observing a work list"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The following complete program places all three relationships beside one
+            another:
+        - type: example
+          id: legacy-fence-028
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace ownership-worklist
+
+            from /core/collections import list
+
+            function main;
+              planned list of int = list; 1, 2
+              snapshot list of int = planned
+              planned.append; 3
+              print; 'snapshot: ', snapshot.length
+              print; 'planned: ', planned.length
+
+              shared-values list of int = list; 1
+              owner shared ref list of int = shared ref shared-values
+              observer ref list of int = ref shared-values
+              owner.append; 2
+              print; 'shared: ', shared-values.length, '/', observer.length
+
+              queued list of int = list; 8
+              active list of int = move queued
+              active.append; 9
+              print; 'active: ', active.length
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-029
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            snapshot: 2
+            planned: 3
+            shared: 2/2
+            active: 2
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The first pair demonstrates independent logical values. The second group
+            deliberately shares one identity through an owning and a non-owning reference.
+            The final pair transfers a value and uses only its new owner.
+
+            The example is small, but its review questions scale:
+
+            - Is `snapshot` meant to remain unchanged? Then assignment is right.
+            - Should `observer` see edits to `shared-values`? Then a reference is right.
+            - Must `observer` keep the list alive? No, so `ref` is enough.
+            - Should `queued` remain usable after activating the list? No, so `move` is
+              honest.
+      sections: []
+    - id: terrane-style-make-identity-part-of-the-model-only-when-it-matters
+      title: "Terrane style: make identity part of the model only when it matters"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Shared identity is not an implementation convenience. It is observable program
+            behavior.
+
+            When two parts of a program share identity, a change made in one place may
+            affect another place later. Cleanup waits for the last owner. Cycles become
+            possible. Concurrency may require additional guarantees. These consequences
+            deserve visible source.
+
+            Terrane therefore keeps the default plain:
+        - type: example
+          id: legacy-fence-030
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            next = current
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            and marks the exceptional relationships:
+        - type: example
+          id: legacy-fence-031
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            observer = ref current
+            co-owner = shared ref current
+            next = move current
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is less about policing syntax than preserving a useful habit: choose
+            ownership from the domain model, not from folklore about what might allocate.
+      sections: []
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: markdown
+          markdown: |-
+            1. Create a list, assign it to a second binding, mutate the second binding, and
+               print both lengths. Predict the output before running it.
+            2. Repeat the experiment with an ordinary class containing one integer field.
+               Confirm that mutating the copy does not mutate the original.
+            3. Replace the independent copy with `ref`. Mutate through the reference and
+               observe the owner.
+            4. Add both a `shared ref` owner and a non-owning `ref` observer to one list.
+               Explain which bindings keep the identity alive.
+            5. Move a value, deliberately use its old binding, and read the diagnostic. Then
+               repair the program in two different ways: by removing the stale use and by
+               choosing ordinary assignment instead.
+            6. Write a function receiving `ref list of int` and call it with an explicit
+               `ref` operation. Then decide whether the function truly needs identity or
+               whether an ordinary value parameter would be clearer.
+            7. Sketch an ownership graph for a project containing tasks and task-to-project
+               back-pointers. Mark value ownership, non-owning references, and any genuinely
+               shared owners.
+      sections: []
+    - id: chapter-summary
+      title: Chapter summary
+      blocks:
+        - type: markdown
+          markdown: |-
+            - Ordinary assignment creates independent logical values.
+            - Independence does not require an eager physical copy.
+            - Copy-on-write storage may be shared until mutation requires separation.
+            - Internal storage sharing is not source-visible shared identity.
+            - `ref value` creates a non-owning reference to one logical identity.
+            - `shared ref value` observes the same identity and also owns it.
+            - `move value` transfers a value that ordinary assignment would copy.
+            - Resource-owning values transfer automatically because copying them would
+              create invalid duplicate owners.
+            - A moved binding is unavailable until rebound.
+            - Non-owning references cannot outlive their owners; Terrane infers and checks
+              lifetimes without source lifetime parameters.
+            - Choose ordinary values unless shared identity is part of the model.
+
+            Chapter 12 applies these rules to asynchronous work. Task handles have one
+            owner, joining consumes them, and references that cross suspension must remain
+            valid. The ownership vocabulary will not change; concurrency will make its value
+            more visible.
+      sections: []
+  see-also: []
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

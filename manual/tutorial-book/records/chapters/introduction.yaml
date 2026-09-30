@@ -1,0 +1,454 @@
+format: 1
+id: book.introduction
+kind: chapter
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Introduction
+  title-style: text
+  summary: >-
+    Explains whom the book is for, what it teaches, how to use its examples, and the path from approachable Terrane programs
+    to native implementation.
+  tags:
+    - introduction
+    - learning-path
+    - examples
+    - native-code
+  blocks:
+    - type: markdown
+      markdown: |-
+        Terrane is a language for writing ordinary programs that become ordinary native
+        programs.
+
+        You can begin with names, values, functions, loops, and collections. You can add
+        types where a contract deserves to be visible. When a program needs shared
+        identity, explicit ownership, or structured concurrency, those facilities are
+        there—but they do not have to dominate the code that does not need them.
+
+        This book is an introduction to that way of programming.
+
+        It is not a tour of every feature in the language, and it is not a shortened
+        language reference. Its purpose is more practical: to take you from your first
+        Terrane program to the point where you can design, build, and understand a
+        substantial one of your own.
+
+        The book has succeeded if, when you finish it, you can build a normal real
+        application in Terrane and find more specialized material in the reference when
+        you need it. It has not succeeded merely because it mentioned every construct.
+
+        Along the way, the book will also try to answer a question that syntax alone
+        cannot:
+
+        > What does good Terrane code look like?
+
+        That means we will sometimes recommend one approach even when several approaches
+        are possible. Most of the time, for example, ordinary value assignment is the
+        right operation. A reference is not a more serious or more efficient kind of
+        assignment; it says something different about the problem. In the same spirit, a
+        type annotation is most useful when it expresses a contract, not when it repeats
+        something the compiler already knows.
+
+        Learning those choices is part of learning the language.
+  sections:
+    - id: audience
+      title: Who this book is for
+      blocks:
+        - type: markdown
+          markdown: |-
+            This book is for readers who already understand the basic shape of programming
+            but do not necessarily know Rust, native-code toolchains, type theory, ownership
+            systems, or compiler construction.
+
+            You should be comfortable with ideas such as:
+
+            - storing a value under a name;
+            - calling a function;
+            - making a decision with a condition;
+            - repeating work with a loop;
+            - dividing a larger problem into smaller pieces.
+
+            You do not need to know how those ideas are written in Terrane. That is what the
+            early chapters establish. If you have used Python, JavaScript, Ruby, Java, C#,
+            Go, Rust, or another general-purpose language, you have more than enough
+            background.
+
+            The book assumes that you want to write programs, not study language machinery
+            for its own sake. Terrane has an unusual implementation model and some
+            deliberately strong semantics, but neither should stand between you and your
+            first useful result. We will introduce the machinery only when it helps explain
+            behavior you can already observe.
+
+            Experienced systems programmers are welcome too. If you are accustomed to
+            beginning with representation, allocation, and ownership, some early
+            explanations may appear intentionally high-level. They are not hiding a second,
+            less precise language underneath. Terrane's source-level rules are the contract.
+            The compiler is free to choose a native representation that preserves that
+            contract, and later chapters will show how to inspect the choices it made.
+      sections: []
+
+    - id: scope
+      title: What this book will teach
+      blocks:
+        - type: markdown
+          markdown: |-
+            The book begins with the small vocabulary used by almost every Terrane program:
+
+            - values and names;
+            - expressions and calls;
+            - conditions and loops;
+            - functions;
+            - text and collections.
+
+            We will use those pieces to build complete programs before introducing the
+            language's deeper facilities. The progression is deliberate. It is easier to
+            understand why a type, reference, interface, or task scope exists after
+            encountering the ordinary programming problem it solves.
+
+            From there, the book develops four related kinds of competence.
+
+            First, you will learn to **write useful Terrane**: organize code into functions
+            and namespaces, model data with collections and classes, handle failures, and
+            assemble a multi-file package.
+
+            Second, you will learn to **state stronger contracts when they matter**: add
+            types at useful boundaries, describe shared behavior with interfaces, and
+            distinguish ordinary values from intentionally shared identity.
+
+            Third, you will learn to **manage work and resources explicitly without
+            spreading that machinery everywhere**: transfer a value with `move`, use
+            references when identity is part of the model, and keep asynchronous work inside
+            a task scope.
+
+            Finally, you will learn enough about the compiler's output to **follow a Terrane
+            program into its generated Rust and native executable**. This is useful for
+            debugging, profiling, interoperability, and performance work. It is not required
+            for ordinary application development.
+
+            Several chapters build on programs introduced earlier. This lets us practice
+            growing software rather than repeatedly demonstrating isolated syntax. A feature
+            earns its place in the main progression by helping us make one of those programs
+            clearer, safer, or more capable.
+
+            Short **Terrane style** sections call attention to idioms: the choices that make
+            code feel native to the language rather than merely transliterated from another
+            one.
+
+            Short **Why Terrane** sections explain selected design decisions. These are not
+            detours into language history. They clarify practical rules such as why calls
+            use `;`, why imports bind only selected names, why ordinary assignment does not
+            accidentally create shared mutable identity, and why types can be optional
+            without being ornamental.
+      sections: []
+
+    - id: reference-boundary
+      title: What this book deliberately leaves to the reference
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane is larger than this tutorial, and the tutorial should end before the
+            language does.
+
+            A feature does not require a chapter merely because it exists. The main
+            progression concentrates on the facilities needed to build normal applications
+            and to understand unfamiliar Terrane code. Specialized facilities belong in the
+            language, package, compiler, or interoperability references, where they can be
+            described precisely and found when needed.
+
+            This book therefore does not attempt to catalog:
+
+            - every member of every built-in value;
+            - the complete grammar and precedence rules;
+            - every numeric width and conversion boundary;
+            - every compiler diagnostic;
+            - every reflection record;
+            - every package-manifest field;
+            - raw addresses, ABI-level types, or foreign-runtime details;
+            - specialized compiler and build profiles;
+            - features reserved for later language versions.
+
+            When one of those subjects becomes relevant, the book will explain enough to
+            keep the current program understandable and point onward to the appropriate
+            reference.
+
+            This distinction matters because tutorials and references answer different
+            questions.
+
+            A tutorial asks:
+
+            > What should I learn next, and how do these pieces work together in a program?
+
+            A reference asks:
+
+            > What exactly is permitted here, including every boundary case?
+
+            Trying to answer both questions at once usually makes the first answer difficult
+            to read and the second difficult to trust. Terrane keeps them separate. This
+            book teaches a path through the language; the reference defines the language.
+
+            Terrane is also still being built. The executable conformance cases define what
+            the current compiler supports, while the language specification describes the
+            settled direction of the language more broadly. Examples in this book should use
+            released, end-to-end compiler behavior. Facilities that are planned but not yet
+            available belong in forward-looking notes or the closing guide, not in programs
+            presented as runnable today.
+      sections: []
+
+    - id: examples
+      title: How to read the examples
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane source in this book appears in blocks like this:
+        - type: example
+          id: source-example
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            message = 'Hello from Terrane'
+            print; message
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Generated Rust, shell commands, compiler output, and other text use their own
+            labels so that the boundary is always visible:
+        - type: example
+          id: command-and-output
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            terrane run hello.trn
+          files: null
+          entry: null
+          annotations: []
+          response:
+            kind: stdout
+            language: text
+            display: shown
+            content: |-
+              Hello from Terrane
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Unless a section says otherwise, an example is intended to be entered and run.
+            Longer examples are developed in steps. New or changed lines will be explained
+            in the surrounding prose rather than encoded through an invented notation that
+            cannot be pasted into a source file.
+
+            Names in Terrane are lowercase and usually written in kebab-case. The examples
+            favor descriptive names over short placeholders:
+        - type: example
+          id: descriptive-name
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            completed-count = 3
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            rather than:
+        - type: example
+          id: short-name
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            n = 3
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Very small mathematical examples may still use familiar names such as `x` and
+            `y` when longer names would obscure the idea.
+
+            Terrane uses indentation to show structure. Preserve the relative indentation in
+            examples. You may use spaces or tabs consistently; this book uses spaces.
+
+            Calls are marked explicitly with `;`:
+        - type: example
+          id: explicit-call
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            print; message
+          files: null
+          entry: null
+          annotations: []
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The semicolon is part of the call, not an end-of-statement marker. This will
+            become natural quickly, and Chapter 2 explains both the rule and the reason for
+            it.
+
+            Some examples include an expected result. Exact output is shown when it is part
+            of the lesson. In other places, especially when examining generated Rust, your
+            output may contain platform-specific paths or compiler details. The text will
+            distinguish stable behavior from incidental presentation.
+
+            You will get more from the book by changing the examples. Rename a value. Add
+            another collection item. Make a condition false. Introduce an error and read the
+            diagnostic before correcting it. Small experiments turn a rule you have read
+            into behavior you understand.
+
+            Exercises are invitations to do that deliberately. Most have more than one
+            reasonable solution. The goal is not to guess the author's source text; it is to
+            make the stated behavior clear and correct.
+      sections: []
+
+    - id: continuum-of-competence
+      title: Terrane's continuum of competence
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane is intended to support a continuum of competence.
+
+            Programming education often moves through a succession of languages. One
+            language makes the first loop approachable; another introduces static contracts;
+            another exposes memory and native interfaces; assembly finally reveals the
+            processor. Each language teaches something valuable, but each jump also asks the
+            learner to replace syntax, tools, libraries, and part of the mental model just
+            as the underlying questions become more interesting.
+
+            Terrane explores the opposite progression: begin at a genuinely high level, then
+            reveal lower levels without abandoning the original program. The first
+            `hello world` must therefore be legitimate. It uses the real namespace model,
+            the real entry point, the real compiler pipeline, and the same `print` available
+            to a substantial application—just without making beginners pay for machinery
+            their program does not yet need.
+
+            For that progression to hold, Terrane must be fast enough in two senses. It must
+            be **fast to write**, preserving the immediacy that makes languages such as
+            Python and PHP useful for small programs and developing ideas. It must also be
+            **fast to run**, producing native work efficient enough that a successful
+            project does not inevitably reach a rewrite boundary. Convenience at the
+            beginning and control at the end are one design requirement, not opposing
+            language modes.
+
+            At one end, you can write a straightforward program using values, functions,
+            collections, and inferred types. You can understand that program entirely in
+            Terrane terms. You do not need to know how Rust represents a class, how LLVM
+            lays out a value, or which machine instruction implements an addition.
+
+            As your programs and interests grow, you can move farther along the same path:
+
+            1. **Use the language.** Write and run ordinary Terrane programs.
+            2. **Express contracts.** Add types, interfaces, errors, and ownership
+               distinctions where they make the design clearer.
+            3. **Understand lowering.** Inspect the deterministic Rust emitted for your
+               source and relate it back to Terrane behavior.
+            4. **Investigate native behavior.** Debug, profile, and reason about the
+               resulting executable.
+            5. **Cross a native boundary.** Use Rust or another foreign interface when the
+               problem genuinely requires it.
+            6. **Work in Rust directly.** When Terrane is no longer the right level for a
+               particular piece of work, the knowledge gained along the way remains useful
+               rather than being discarded.
+
+            This is not a ladder every programmer is expected to finish. It is a connected
+            route, and you may stop wherever your work stops asking for more.
+
+            The same continuity applies when performance becomes part of the lesson. Start
+            with the clear Terrane algorithm and measure it. If it is unexpectedly slow, the
+            explanation is not sealed inside a virtual machine: inspect the generated Rust,
+            benchmark the lowered operation, profile the executable, and follow the cost as
+            far as an allocation, an atomic instruction, or the CPU. The investigation may
+            suggest clearer Terrane, a compiler improvement that benefits every program, an
+            existing Rust library, or a small section of direct Rust. The algorithm being
+            learned, the source being run, and the native work being measured remain
+            connected.
+
+            This does not make other languages unnecessary. Different languages expose
+            different ideas, and mature Rust libraries should be used rather than recreated
+            for ceremony. The goal is to remove the forced migration—the point where growing
+            competence or ambition requires throwing away the approachable program and
+            beginning again in a supposedly more serious language.
+
+            The same progression is useful outside education. In an open-source or
+            commercial project, contributors can work at different levels of the same
+            codebase: some remain in ordinary Terrane, while others inspect a lowering,
+            integrate a Rust crate, or optimize a native section. A small tool can grow
+            without being rewritten solely to gain access to those lower levels.
+
+            The generated Rust is visible because a native toolchain should not become a
+            sealed box. Visibility does not mean that Terrane is merely shorthand for Rust,
+            nor that every Terrane concept must have a matching Rust object at runtime.
+
+            Consider the statement:
+
+            > Everything in Terrane is an object.
+
+            This is a semantic promise. It tells you how a value may participate in types,
+            members, protocols, and reflection. It does not require the compiler to allocate
+            a universal runtime object for every integer, function, or class value.
+
+            The compiler's job is not to reproduce Terrane's object universe literally in
+            Rust. Its job is to produce a native program with the behavior that Terrane
+            promises. A member call may become a direct Rust operation. A descriptor query
+            may be resolved during compilation. A class may become a struct, an enum, a
+            specialized call, or some combination of those. If no runtime object is needed,
+            there may be no runtime object to find.
+
+            That distinction lets Terrane offer a high-level semantic model without
+            committing every program to one high-cost runtime representation. It also
+            explains why learning to inspect generated Rust comes after learning the source
+            language: the source describes the behavior; the generated program is one
+            solution chosen by the compiler.
+
+            You can write good Terrane without following that solution downward. When you do
+            choose to follow it, the path should be readable.
+
+            We will start at the other end of the continuum, with the smallest complete
+            program and the shortest route to making it do something useful.
+      sections: []
+  see-also: []
+
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

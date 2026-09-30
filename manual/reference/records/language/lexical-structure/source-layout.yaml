@@ -1,0 +1,73 @@
+format: 1
+id: lang.lexical-structure.source-layout
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "UTF-8 source and indentation layout"
+  title-style: text
+  summary: >-
+    Source text is validated as `UTF-8`. The syntax representation records exact source spans and retains trivia. Layout is
+    tokenized as `NEWLINE`, `INDENT`, and `DEDENT`. Legal…
+  tags:
+    - "syntax"
+    - "source-layout"
+    - "utf8-layout"
+  sections:
+    - id: utf8-layout
+      title: "UTF-8 Source and Layout"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane source files use UTF-8. Source encoding is validated before parsing, and
+            diagnostics refer to the originating byte spans even when nearby text contains
+            multibyte UTF-8 characters. Version-one identifiers remain ASCII-only; accepting
+            UTF-8 source does not widen the identifier character set. An invalid source
+            character produces `L0001 invalid source character`.
+
+            The lexical stream preserves the source. Tokens carry exact byte spans, while
+            whitespace and all supported comment forms are retained as trivia. Tokens,
+            trivia, and layout transitions account for every source byte exactly once,
+            allowing diagnostics and source-preserving tools to use the original spelling
+            and layout.
+
+            Terrane uses indentation-delimited blocks, represented by `NEWLINE`, `INDENT`,
+            and `DEDENT` tokens. A newline normally ends a statement; continuation occurs
+            only where the grammar permits it. Within a parenthesized continuation, physical
+            newlines and indentation remain non-structural until the matching `)`.
+
+            Only lines containing source outside comments participate in indentation. Blank
+            lines, comment-only lines, and lines that only terminate a multiline comment do
+            not open or close a block. Blank and comment-only lines still emit terminators
+            as part of the lossless lexical stream.
+
+            A source file may use spaces consistently or tabs consistently for indentation.
+            Mixing tabs and spaces within one indentation prefix, or changing indentation
+            style between code-bearing lines in the same file, produces
+            `L0003 indentation style`. A dedent must return to an established indentation
+            level; otherwise, the lexer reports `L0004 inconsistent dedent`.
+
+            An indented body may be empty wherever the grammar permits an empty block.
+            Terrane has no `pass` or other no-op statement that must be inserted to satisfy
+            layout. Syntax recovery occurs at newline and dedent boundaries so that a
+            malformed construct does not unnecessarily hide later statements. A missing
+            block newline produces `S1023 missing block newline`; an indented block that
+            ends prematurely produces `S1024 unterminated indented block`.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "utf8-layout"
+  conformance: null
+  compiler: null

@@ -1,0 +1,28 @@
+package = "iced-ui"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+iced-ui = "src"
+
+[rust-dependencies.iced]
+version = "=0.14.0"
+default-features = false
+features = ["wgpu", "tokio", "wayland", "x11"]
+effects = ["build"]
+
+[rust-dependencies.rfd]
+version = "=0.15.4"
+default-features = false
+features = ["xdg-portal", "async-std"]
+effects = ["build"]
+
+[rust-dependencies.iced-ui-host]
+version = "=0.1.13"
+effects = ["build"]
+
+[rust-modules]
+iced_ui = "rust/iced_ui.rs"
+
+[testing]
+unit = "tests/unit"

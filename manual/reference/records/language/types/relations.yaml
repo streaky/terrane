@@ -1,0 +1,126 @@
+format: 1
+id: lang.types.relations
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Type relation expressions"
+  title-style: text
+  summary: >-
+    `is a` expressions and descriptor relations are evaluated against canonical semantic type identity.
+  tags:
+    - "types"
+    - "relations"
+    - "type-tests"
+  sections:
+    - id: type-tests
+      title: "Type Relation Expressions"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The two-word operator `is a` tests type membership using canonical semantic type
+            identity. Aliases and representation choices do not affect the result. A class,
+            interface, or trait has nominal identity determined by its declaring namespace
+            and declared name, so same-named declarations in different namespaces are
+            unrelated types.
+
+            Abstract numeric descriptors are explicitly imported from `/core/types` and
+            participate through declared conformance. `int` implements `integer` and
+            `number`. Fixed-width integers also implement `fixed-integer` and the
+            appropriate signed or unsigned category. `float`, `float32`, and `float64`
+            implement `floating` and `number`; in the current language version, `float` and
+            `float64` denote the same canonical descriptor. These category relationships are
+            contracts and do not create storage supertypes.
+
+            Membership is not numeric destination convertibility. A value already typed as
+            `int8` is not an `int`, even though it can arrive exactly at an `int`
+            destination. Numeric constants are different because, before context supplies a
+            type, they denote mathematical constants. In `42 is a int8`, the queried type
+            supplies that context, so the result is `true`. If the constant cannot be
+            admitted by the queried type, the result is `false` rather than a constant-range
+            failure. The right-hand side of a membership test must resolve as a type; an
+            unresolvable name is a compile-time error at that span.
+
+            The grammar distinguishes membership from identity by whether a complete type
+            follows `a`:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            c is a widget
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is a membership test against `widget`. By contrast:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            c is a
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Here `a` is a binding, so the expression compares the identities of `c` and `a`.
+
+            The operator `is` tests source-visible identity, not value equality. Ordinary
+            scalars, strings, and collections are identity-less, so `x is x` is false when
+            `x` is such a value, and `42 is 42` is also false. Explicit references, linear
+            resources, and canonical descriptors carry identity. A reference and shared
+            reference compare true exactly when both denote the same referent.
+
+            Descriptor metadata exposes this distinction through
+            `inherently-identity-bearing`. It is true for reference types, resources, and
+            descriptors, and false for ordinary values and collections.
+
+            Use `==` for value equality. `===` is invalid. To require both equal value and
+            exact semantic type, write:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            left == right and left.type is right.type
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Because `.type` returns canonical descriptors when not shadowed by a declared
+            member, this comparison is stable across import aliases and equivalent type
+            spellings.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "type-tests"
+  conformance: null
+  compiler: null

@@ -1,0 +1,1545 @@
+format: 1
+id: book.async
+kind: chapter
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Asynchronous Work and Structured Concurrency
+  title-style: text
+  summary: |-
+    So far, every function in this book has completed one step before the caller continued to the next. That is often
+    exactly what a program should do. Sequential code is easy to read, easy to test, and usually the clearest expression of
+    a sequential problem.
+  tags: []
+  blocks:
+    - type: markdown
+      markdown: |-
+        Some work is different. A program may need to wait for several independent
+        operations, keep making progress while one operation is suspended, or arrange
+        for a group of operations to stop together when their result is no longer
+        useful.
+
+        Terrane expresses that work with asynchronous functions and structured task
+        scopes.
+
+        The most important word in that sentence is _structured_. Starting concurrent
+        work is easy in many languages. Knowing when it ends, where its errors go, what
+        owns its result, and whether it survives the code that started it is the harder
+        problem. Terrane makes those questions part of the program's ordinary structure.
+
+        Chapter 11 gave us the ownership vocabulary for this structure. Task handles
+        have one owner, `move` transfers that handle into the operation that consumes
+        it, and references that cross a suspension must still have a living owner.
+        Concurrency does not replace those rules; it gives them more work to do.
+
+        In this chapter, we will:
+
+        - construct, retain, and await linear asynchronous tasks;
+        - start independent work in a task scope, then join every child and inspect its
+          outcome;
+        - reason about failure, cooperative cancellation, partial progress, and
+          asynchronous cleanup;
+        - apply absolute deadlines and coordinate sleeps, anchored tickers, and
+          heterogeneous selection;
+        - organize shared mutable state and asynchronous logging with owner tasks and
+          bounded channels;
+        - choose threaded or cooperative execution without changing the source-level
+          concurrency contract.
+
+        You do not need to think about operating-system threads to begin. An
+        asynchronous function describes work that may suspend. The selected executor
+        decides how tasks are driven. Terrane's source-level rules remain the same
+        either way.
+  sections:
+    - id: when-a-program-should-be-asynchronous
+      title: When a program should be asynchronous
+      blocks:
+        - type: markdown
+          markdown: |-
+            Asynchronous code is useful when a program has work that can make progress
+            independently.
+
+            Typical examples include:
+
+            - waiting for several network responses;
+            - processing independent inputs;
+            - supervising a set of background operations for the lifetime of a request;
+            - applying one deadline to a group of related tasks;
+            - cancelling work whose result is no longer needed.
+
+            Asynchronous code is not automatically faster. Turning one calculation into a
+            task does not make the calculation smaller, and immediately waiting for every
+            task before starting the next one preserves the same basic sequence.
+
+            A useful first question is:
+
+            > Can something else make meaningful progress while this work is suspended?
+
+            If the answer is no, an ordinary function is probably clearer. If the answer is
+            yes, an asynchronous function may describe the work more honestly.
+
+            We will begin with a deliberately small example so that the new mechanics are
+            visible.
+      sections: []
+    - id: declaring-and-awaiting-asynchronous-work
+      title: Declaring and awaiting asynchronous work
+      blocks:
+        - type: markdown
+          markdown: |-
+            Add `async` before `function` to declare an asynchronous function:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace async-answer
+
+            async function answer int;
+              return 42
+
+            async function main;
+              value int = await answer;
+              print; value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This program prints:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            42
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The declaration:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            async function answer int;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            looks like the function declarations from Chapter 4 with one additional promise:
+            invoking `answer` creates asynchronous work.
+
+            The expression:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            await answer;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            invokes `answer`, waits for that invocation to finish, and produces its `int`
+            result. `await` is accepted inside an asynchronous function, so `main` is
+            asynchronous here as well.
+
+            There are two distinct operations in that line:
+
+            1. `answer;` invokes the asynchronous function and creates a task.
+            2. `await` consumes that task and produces its result.
+
+            A task is a real value, even when the two operations are written together. We
+            can separate them:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            task = (answer;)
+            value int = await task
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The parentheses delimit the call so that the task produced by `answer;` can be
+            assigned before `await` consumes it. This is the same call-grouping rule used
+            elsewhere in Terrane; asynchronous calls do not introduce a second invocation
+            grammar.
+      sections:
+        - id: declaring-and-awaiting-asynchronous-work-tasks-are-linear
+          title: Tasks are linear
+          blocks:
+            - type: markdown
+              markdown: |-
+                An asynchronous invocation produces a **linear task**. A linear value must have
+                one clear consumer. Awaiting the task consumes it:
+            - type: example
+              id: legacy-fence-006
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                task = (answer;)
+                value = await task
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The task cannot then be awaited again. More importantly, it cannot simply be
+                forgotten:
+            - type: example
+              id: legacy-fence-007
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                task = (answer;)
+                print; 'leaving without consuming task'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Terrane rejects the function because `task` reaches the end of its scope
+                unconsumed.
+
+                This is not bookkeeping for its own sake. An abandoned task raises questions
+                with no reliable local answer:
+
+                - Is it still running?
+                - Who observes its failure?
+                - What keeps its captured values alive?
+                - Should it be cancelled when the caller returns?
+
+                Terrane does not answer those questions by silently detaching the task. The
+                program must consume the task, either by awaiting it directly or by managing
+                scoped work through the task-scope operations introduced next.
+          sections: []
+        - id: declaring-and-awaiting-asynchronous-work-await-is-a-suspension-point
+          title: Await is a suspension point
+          blocks:
+            - type: markdown
+              markdown: |-
+                An asynchronous function may suspend at `await`. While it is suspended, its
+                executor may make progress on other work.
+
+                That has an ownership consequence. Values that remain live across the suspension
+                must remain valid when execution resumes. Terrane checks that condition rather
+                than treating every reference as safe merely because its source binding is
+                textually nearby.
+
+                Most ordinary owned values require no special handling. Non-owning references
+                deserve more care: the compiler must be able to prove that the owner survives
+                the suspension and is valid in the selected execution context. If it cannot, the
+                program is rejected at the relevant source locations.
+
+                The practical rule remains the one from Chapter 11:
+
+                > Prefer ordinary values. Carry a reference across suspension only when shared
+                > identity is genuinely required and its lifetime is clear.
+
+                Tasks also carry a compiler-inferred execution contract. A **transferable** task
+                may be handed to an executor that moves work between threads. A **local** task
+                must remain on one executor thread. The compiler derives that distinction from
+                the callable's parameters, captures, values retained across suspension, and the
+                async operations it invokes.
+
+                This does not add a qualifier to ordinary source. Direct calls and immediate
+                `await` keep their concrete future representation. An asynchronous entrypoint
+                enters one runtime selected by the manifest profile; a projected Rust future is
+                constructed when its Terrane call expression is evaluated, before the generated
+                async containment wrapper begins polling it. Pending dependency timers and
+                sockets sleep until their waker fires rather than being repeatedly polled. The
+                distinction between local and transferable work becomes visible when an
+                operation such as scoped spawn requires movement: the threaded profile rejects
+                an executor-local callable in source terms, while the cooperative profile can
+                run it. Projected Rust async members are conservatively local unless their
+                admitted contract proves that the returned future is transferable.
+          sections: []
+    - id: task-scopes
+      title: Task scopes
+      blocks:
+        - type: markdown
+          markdown: |-
+            Direct `await` is enough when one asynchronous operation begins and the caller
+            immediately needs its result. To run independent work under one lifetime, create
+            a task scope:
+        - type: example
+          id: legacy-fence-008
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope = task-scope;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A task scope owns the concurrent work started through it. It provides a boundary
+            for spawning, joining, cancellation, and deadlines.
+
+            Here is a complete scoped example:
+        - type: example
+          id: legacy-fence-009
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace structured-task-scope
+
+            async function work int;
+              return 42
+
+            async function main;
+              scope = task-scope;
+              child = scope.spawn; work
+              outcome = await scope.join; child
+              print; outcome.completed, outcome.cancelled
+              value = outcome.value
+              if value != none
+                print; value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            truefalse
+            42
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Recall that `print` concatenates its arguments without inserting a separator.
+            The first line therefore contains the two values `true` and `false` next to one
+            another.
+
+            There are three new operations:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope = task-scope;
+            child = scope.spawn; work
+            outcome = await scope.join; child
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            We will take them one at a time.
+      sections: []
+    - id: spawning-work-within-a-scope
+      title: Spawning work within a scope
+      blocks:
+        - type: markdown
+          markdown: |-
+            The call:
+        - type: example
+          id: legacy-fence-012
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            child = scope.spawn; work
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            passes the asynchronous function `work` to the scope. It does **not** invoke
+            `work` first. Compare the two forms:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope.spawn; work       # pass the callable for the scope to start
+            await work;             # invoke the callable, then await its task directly
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The current scoped operation accepts a zero-argument asynchronous callable. The
+            scope starts it and returns a scoped child-task value.
+
+            A scope may start more than one child before joining any of them:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            first = scope.spawn; first-work
+            second = scope.spawn; second-work
+            third = scope.spawn; third-work
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Those children are independent pieces of work under the same structural owner.
+            The selected executor may make progress on them concurrently.
+
+            Spawning several children before joining them is the important difference from
+            immediately awaiting one call after another. This:
+        - type: example
+          id: legacy-fence-015
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            first-value = await first-work;
+            second-value = await second-work;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            finishes the first awaited invocation before the second invocation is consumed.
+            This:
+        - type: example
+          id: legacy-fence-016
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope = task-scope;
+            first = scope.spawn; first-work
+            second = scope.spawn; second-work
+            first-outcome = await scope.join; first
+            second-outcome = await scope.join; second
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            starts both children before waiting for their outcomes.
+
+            The order in which we join children does not claim that they completed in that
+            order. It only controls the order in which this function observes their
+            outcomes.
+      sections: []
+    - id: joining-tasks-and-observing-outcomes
+      title: Joining tasks and observing outcomes
+      blocks:
+        - type: markdown
+          markdown: |-
+            A scoped child is consumed by `join`:
+        - type: example
+          id: legacy-fence-017
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            outcome = await scope.join; child
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The scoped child is statically non-copyable, so passing it to `join` transfers
+            it automatically. `join` constructs a task for observing the outcome, and
+            `await` consumes that task. After the join, `child` has been consumed and cannot
+            be joined again. Lowering may express the transfer as a Rust move without
+            requiring a corresponding keyword in Terrane source.
+
+            Joining asynchronously returns an outcome rather than returning only the child's
+            value. A task outcome exposes four observations:
+
+            - `completed`: whether the child completed successfully;
+            - `cancelled`: whether cancellation was requested or observed for the child;
+            - `value`: the successful result, or `none` when no result is available;
+            - `error`: the escaping error, or `none` when no error is available.
+
+            For a successful child:
+        - type: example
+          id: legacy-fence-018
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            outcome = await scope.join; child
+            value = outcome.value
+            if value != none
+              print; value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The comparison with `none` narrows the optional value before it is used. This is
+            the same approach used for other finite alternatives: first establish which
+            alternative is present, then use the value under that knowledge.
+
+            Do not infer success from `value` alone when the other outcome facts matter to
+            your program. The outcome fields exist so that code can distinguish success,
+            failure, and cancellation explicitly.
+      sections:
+        - id: joining-tasks-and-observing-outcomes-every-scoped-child-must-be-joined
+          title: Every scoped child must be joined
+          blocks:
+            - type: markdown
+              markdown: |-
+                Starting work in a scope creates an obligation to account for it:
+            - type: example
+              id: legacy-fence-019
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                scope = task-scope;
+                child = scope.spawn; work
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Leaving the function here is rejected because `child` has not been consumed.
+
+                The valid form joins it:
+            - type: example
+              id: legacy-fence-020
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                scope = task-scope;
+                child = scope.spawn; work
+                outcome = await scope.join; child
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                This rule remains in force when a scope contains several children. A failure in
+                one child does not turn the others into detached work, and requesting
+                cancellation does not remove the obligation to join them.
+
+                That gives task scopes their central structural guarantee:
+
+                > Work started in a scope remains owned and observable within that scope.
+          sections: []
+    - id: failure-inside-a-task
+      title: Failure inside a task
+      blocks:
+        - type: markdown
+          markdown: |-
+            Asynchronous functions use the same structured error model as ordinary
+            functions. An asynchronous function may declare an escaping throwable contract
+            and throw an error:
+        - type: example
+          id: legacy-fence-021
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace throwing-scoped-task
+            from /core/errors import throwable, coercion-error
+
+            async function fail int throws throwable;
+              throw coercion-error
+
+            async function main;
+              scope = task-scope;
+              child = scope.spawn; fail
+              outcome = await scope.join; child
+              print; outcome.completed, outcome.cancelled, outcome.value == none
+              print; outcome.error != none
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This prints:
+        - type: example
+          id: legacy-fence-022
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            falsefalsetrue
+            true
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The child did not complete successfully, it was not cancelled in this example,
+            it produced no value, and its outcome contains an error.
+
+            Notice where the failure appears. `scope.spawn; fail` starts the child; it does
+            not throw the child's eventual error into `main` at that line. The failure is
+            retained in the outcome observed by `join`.
+
+            This gives the supervising function a place to make a policy decision. It can
+            inspect the outcome, report the error, cancel related work, or translate the
+            failure into a different application-level result.
+      sections:
+        - id: failure-inside-a-task-one-child-failing-affects-its-siblings
+          title: One child failing affects its siblings
+          blocks:
+            - type: markdown
+              markdown: |-
+                When a scoped child fails, the scope requests cancellation of surviving sibling
+                work. That prevents a group of related operations from continuing indefinitely
+                after the group can no longer produce its intended result.
+
+                The children must still all be joined:
+            - type: example
+              id: legacy-fence-023
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                namespace failing-task-cancels-sibling
+                from /core/errors import throwable, coercion-error
+
+                async function fail int throws throwable;
+                  throw coercion-error
+
+                async function survive int;
+                  return 7
+
+                async function main;
+                  scope = task-scope;
+                  failing = scope.spawn; fail
+                  sibling = scope.spawn; survive
+                  failed = await scope.join; failing
+                  survived = await scope.join; sibling
+                  print; failed.completed, failed.cancelled
+                  print; survived.cancelled
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                There is an intentional race here. `survive` may finish before cancellation
+                reaches it, or cancellation may be observed first. Correct code should not
+                depend on one fixed ordering unless the program itself establishes that
+                ordering.
+
+                What remains deterministic at the language level is the ownership structure:
+
+                - both children belong to `scope`;
+                - the failure is retained in `failed`;
+                - sibling cancellation is requested;
+                - both child values are consumed by joins;
+                - no child silently outlives the scope.
+          sections: []
+    - id: cancellation-and-partial-progress
+      title: Cancellation and partial progress
+      blocks:
+        - type: markdown
+          markdown: |-
+            Cancellation is a request for cooperative termination, not a rewind operation.
+
+            A scope can request cancellation explicitly:
+        - type: example
+          id: legacy-fence-024
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope.cancel;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            For example:
+        - type: example
+          id: legacy-fence-025
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace cancelled-task-progress
+
+            async function work int;
+              return 7
+
+            async function main;
+              scope = task-scope;
+              child = scope.spawn; work
+              scope.cancel;
+              outcome = await scope.join; child
+              consistent = (outcome.cancelled and outcome.value == none) or (outcome.completed and outcome.value != none)
+              print; consistent
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This program prints:
+        - type: example
+          id: legacy-fence-026
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            true
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It does not assert that the child must be cancelled. The child is small and may
+            complete before it observes the cancellation request. Either of these outcomes
+            is coherent:
+
+            - cancellation is observed before successful completion, so no value is
+              available;
+            - the child completes and retains its value.
+
+            A completed outcome may also record that cancellation was requested. `completed`
+            and `cancelled` answer different questions: whether the child succeeded, and
+            whether cancellation participated in its execution. Do not treat them as simple
+            opposites.
+
+            This distinction matters for useful work. Suppose several tasks process
+            independent records and cancellation arrives after some have completed. Their
+            completed results do not become unreal. The supervising code can observe partial
+            progress through the outcomes it joins.
+      sections:
+        - id: cancellation-and-partial-progress-cancellation-points
+          title: Cancellation points
+          blocks:
+            - type: markdown
+              markdown: |-
+                A task observes cancellation at defined points rather than at an arbitrary
+                instruction in the middle of an operation. `await`, scope joins, and operations
+                explicitly documented as cancellable provide such points.
+
+                This makes cleanup and invariants tractable. Code is not interrupted between any
+                two machine instructions merely because cancellation was requested.
+
+                It also means that cancellation is cooperative. A task must eventually reach a
+                cancellation point for the request to affect its progress. A long computation
+                with no suspension or cancellable operation should not be assumed to stop
+                immediately.
+          sections: []
+        - id: cancellation-and-partial-progress-cancellation-while-an-operation-is-suspended
+          title: Cancellation while an operation is suspended
+          blocks:
+            - type: markdown
+              markdown: |-
+                When a task observes cancellation while waiting inside a dependency or
+                compiler-owned operation, the executor stops polling and drops that in-flight
+                operation. Rust resources owned only by the operation run their `Drop`
+                implementations promptly.
+
+                Terrane cleanup is stronger than simply dropping the whole task. Active
+                `finally` blocks remain owned by compiler-generated cleanup state. They run
+                exactly once, from the innermost active block outward, before the task's join
+                can finish. A cleanup block may itself use `await`; it is shielded from the
+                cancellation request that caused cleanup to begin so that the same request
+                cannot skip or restart it.
+
+                This affects how values may cross a suspension point. A value needed both by the
+                pending operation and by later cleanup must have an ownership arrangement the
+                compiler can separate safely. Overlapping exclusive ownership, or a borrowed
+                value whose owner cannot be proven alive through cleanup, is rejected rather
+                than being left to executor timing.
+
+                A deadline follows the same rule. It requests cancellation and drops the pending
+                operation, but it does not hard-kill `finally`. If cleanup waits on an external
+                operation that never wakes, joining the task can still remain pending. Keep
+                cancellation cleanup bounded when progress depends on an external system.
+          sections: []
+        - id: cancellation-and-partial-progress-cancellation-does-not-replace-joining
+          title: Cancellation does not replace joining
+          blocks:
+            - type: markdown
+              markdown: |-
+                This is incomplete:
+            - type: example
+              id: legacy-fence-027
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                scope = task-scope;
+                child = scope.spawn; work
+                scope.cancel;
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Cancellation requests that the work stop. It does not consume `child`, observe
+                its final state, or prove that the child has finished. The program must still
+                join it:
+            - type: example
+              id: legacy-fence-028
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                scope.cancel;
+                outcome = await scope.join; child
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                That rule closes a common hole in concurrent programs: cancellation cannot be
+                used as a synonym for forgetting.
+          sections: []
+    - id: deadlines
+      title: Deadlines
+      blocks:
+        - type: markdown
+          markdown: |-
+            A task scope may carry an absolute monotonic deadline:
+        - type: example
+          id: legacy-fence-029
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/time import clock, duration
+
+            parent = task-scope; (clock::deadline; (duration::seconds; 10))
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `duration` values are exact and have named constructors for seconds,
+            milliseconds, microseconds, and nanoseconds. `clock::deadline` captures the
+            monotonic target when it is called; the task scope stores that target rather
+            than recomputing a relative timeout later.
+
+            A nested scope requests its own deadline in the same form:
+        - type: example
+          id: legacy-fence-030
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            child = parent.child-scope; (clock::deadline; (duration::seconds; 5))
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The effective child deadline is always the earlier of the inherited parent
+            target and the requested target. A longer request is therefore clamped rather
+            than extending the parent's lifetime. This rule holds for dynamic values as well
+            as literal durations.
+
+            Deadlines use the same cooperative machinery as cancellation. Reaching the
+            deadline requests cancellation; the scope still joins its children and preserves
+            observable partial progress.
+      sections: []
+    - id: project-coordinating-a-heartbeat-with-an-overall-time-budget
+      title: "Project: coordinating a heartbeat with an overall time budget"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Deadlines are useful when one structural owner should bound a group of work.
+            Sometimes the coordination itself is the interesting part: an operation has an
+            overall time budget, periodic work should remain aligned to a stable schedule,
+            and whichever event becomes ready first should decide what happens next.
+
+            The following example combines those ideas:
+        - type: example
+          id: legacy-fence-031
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace heartbeat-budget
+
+            from /core/time import clock, duration, ticker, tick
+
+            async function main;
+                period = duration::milliseconds; 100
+                budget = duration::seconds; 2
+
+                # Both schedules begin here, when their asynchronous calls are evaluated.
+                overall-timeout = clock::sleep; budget
+                heartbeats ticker = clock::interval; period
+
+                first tick = await heartbeats.next;
+                print; 'first heartbeat count: ', first.count
+
+                # Stand in for useful work that takes longer than one heartbeat period.
+                processed = await clock::sleep; (duration::milliseconds; 350)
+                print; 'batch complete: ', processed == none
+                delayed tick = await heartbeats.next;
+
+                print; 'coalesced heartbeat count: ', delayed.count
+                print; 'late by nanoseconds: ', (delayed.scheduled.duration-until; ref delayed.observed).total-nanoseconds
+
+                select
+                    case pulse tick = await heartbeats.next;
+                        print; 'next heartbeat count: ', pulse.count
+                    case await overall-timeout
+                        print; 'overall time budget expired'
+
+                heartbeats.destruct;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is not a stopwatch test. It models four separate time concepts that
+            application code often accidentally blends together.
+      sections:
+        - id: project-coordinating-a-heartbeat-with-an-overall-time-budget-an-asynchronous-timer-starts-when-the-call-is-evaluated
+          title: An asynchronous timer starts when the call is evaluated
+          blocks:
+            - type: markdown
+              markdown: |-
+                The line:
+            - type: example
+              id: legacy-fence-032
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                overall-timeout = clock::sleep; budget
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                constructs a linear task and captures its absolute monotonic target immediately.
+                The program does not await that task until later, but the two-second budget is
+                already running while the heartbeat and simulated work are processed.
+
+                That distinction matters for overall limits. Constructing a fresh sleep inside
+                the later `select` would instead start a new two-second interval at that later
+                point.
+          sections: []
+        - id: project-coordinating-a-heartbeat-with-an-overall-time-budget-a-ticker-follows-its-original-schedule
+          title: A ticker follows its original schedule
+          blocks:
+            - type: markdown
+              markdown: |-
+                The ticker is anchored when `clock::interval` is called. Waiting 350
+                milliseconds does not move a 100-millisecond ticker's schedule forward by 350
+                milliseconds. When `next` observes that several periods have passed, it
+                coalesces those expirations:
+
+                - `delayed.count` reports how many scheduled expirations this delivery
+                  represents;
+                - `delayed.scheduled` is the most recent scheduled instant represented by the
+                  delivery;
+                - `delayed.observed` is when the program actually observed it.
+
+                The next tick is still calculated from the original anchor. This avoids drift
+                that would accumulate if each period were scheduled from the previous
+                observation time.
+
+                The example prints counts and monotonic differences rather than assuming exact
+                wall-clock delays. Executor scheduling and host load can make an observation
+                late; they do not change the exact schedule represented by the ticker.
+          sections: []
+        - id: project-coordinating-a-heartbeat-with-an-overall-time-budget-selection-cleans-up-the-losing-wait
+          title: Selection cleans up the losing wait
+          blocks:
+            - type: markdown
+              markdown: |-
+                The final `select` waits for either the next heartbeat or the already-running
+                overall timeout. Once one case wins, Terrane cancels and drains the losing
+                operation before entering the winning case body. A losing sleep therefore does
+                not leave a hidden timer registration behind, and a losing `heartbeats.next`
+                does not remain attached to the ticker.
+
+                The ticker itself is a linear resource, so the example consumes it with
+                `heartbeats.destruct` after the selection. `destruct` is the ordinary explicit
+                resource-consumption operation for this bundled type. Selection cleans up one
+                pending `next`; it does not replace explicit ownership of the longer-lived
+                ticker.
+          sections: []
+    - id: sharing-mutable-state-by-giving-it-one-owner
+      title: Sharing mutable state by giving it one owner
+      blocks:
+        - type: markdown
+          markdown: |-
+            Concurrent tasks often need to coordinate around changing application state.
+            Terrane version one does not put an arbitrary value behind a generic shared
+            mutex. Instead, one task owns and mutates the state while other tasks exchange
+            typed commands and results with it through bounded channels.
+        - type: example
+          id: legacy-fence-033
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            command-pair = channel; string, 4, channel-block
+            result-pair = channel; int, 1, channel-block
+            scope = task-scope;
+            owner = scope.spawn; (own-state; command-pair.receiver, result-pair.sender)
+            client = scope.spawn; (use-state; command-pair.sender, result-pair.receiver)
+            owner-outcome = await scope.join; owner
+            client-outcome = await scope.join; client
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Here `own-state` receives commands and is the only function that mutates the
+            state object. `use-state` transfers commands through one channel and receives
+            snapshots or operation results through the other. The channel capacities make
+            backpressure explicit, endpoint ownership makes shutdown visible, and the task
+            scope still accounts for both participants.
+
+            This is a design boundary, not a missing spelling. Importing `mutex`,
+            `read-write-lock`, or `shared-cell` and trying to construct a generic cell
+            produces a diagnostic directing you back to the owner-task pattern. The
+            integer-specific synchronization objects remain available for low-level counters
+            and coordination, but they do not generalize to arbitrary application values.
+
+            Choose the owner-task shape when several concurrent activities need one logical
+            writer. It keeps the mutation in one sequential place, which is usually easier
+            to reason about than a critical section that might accidentally suspend while
+            holding shared state.
+      sections: []
+    - id: carrying-log-events-through-typed-channels
+      title: Carrying log events through typed channels
+      blocks:
+        - type: markdown
+          markdown: |-
+            Asynchronous logging does not need a special queue. `/core/logging` exposes
+            `log-event`, while `/core/logging/async` publishes events and runs the
+            corresponding sink consumer:
+        - type: example
+          id: legacy-fence-034
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/collections import list
+            from /core/concurrency import channel, channel-block
+            from /core/logging import log-field, log-event, info-level, make-event, memory-sink
+            from /core/logging/async import consume-events
+
+            sink = memory-sink; 64, 'reject', 0, 1, false
+            fields list of log-field = list;
+            events = channel; log-event, 16, channel-block
+            producer = events.sender
+            receiver = events.receiver
+            scope = task-scope;
+            consumer = scope.spawn; (consume-events; sink.value, receiver)
+
+            event = make-event; (info-level;), 'work accepted', fields
+            accepted = await producer.send; event
+            producer.close;
+            consumed = await scope.join; consumer
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The channel determines capacity, blocking, closure, cancellation, and overflow
+            behavior. `consume-events` drains its receiver into the supplied explicit sink
+            until the channel closes; it returns `false` on sink failure, after the ordinary
+            nonrecursive fallback records the failure. The logging package does not hide
+            another buffer behind either endpoint. The event retains the call site at which
+            `make-event` was invoked.
+
+            Use the ordinary channel policies when a logger must not block its producer.
+            `channel-fail-send`, `channel-drop-newest`, and `channel-drop-oldest` remain
+            explicit application choices; logging does not silently turn one policy into
+            another. A synchronous memory sink separately exposes `discarded-count`, so
+            either dropping policy remains observable after writes.
+      sections: []
+    - id: threaded-and-cooperative-executor-profiles
+      title: Threaded and cooperative executor profiles
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane source describes tasks, scopes, joins, cancellation, and deadlines. It
+            does not hard-code one executor into those constructs.
+
+            The default hosted package profile uses the threaded executor. A package can
+            select the cooperative executor in `package.toml`:
+        - type: example
+          id: legacy-fence-035
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            package = "cooperative-task-scope"
+            executor = "cooperative"
+
+            [namespaces]
+            cooperative-task-scope = "app"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The Terrane source does not change:
+        - type: example
+          id: legacy-fence-036
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace cooperative-task-scope
+
+            async function work int;
+              return 9
+
+            async function main;
+              scope = task-scope;
+              child = scope.spawn; work
+              outcome = await scope.join; child
+              value = outcome.value
+              if value != none
+                print; outcome.completed, outcome.cancelled, value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-037
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            truefalse9
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The profile selects how the runtime drives the tasks. It does not change the
+            source contracts:
+
+            - async invocation still produces a linear task;
+            - `await` still consumes a direct task;
+            - spawned children still belong to their scope;
+            - every child must still be joined;
+            - cancellation remains cooperative;
+            - outcomes retain completion, cancellation, value, and error information.
+
+            Application code should therefore choose an executor profile for deployment
+            needs, not encode executor-specific timing assumptions into program logic.
+      sections: []
+    - id: project-processing-several-values-concurrently
+      title: "Project: processing several values concurrently"
+      blocks:
+        - type: markdown
+          markdown: |-
+            We can now combine the chapter's pieces in a small supervisor. The individual
+            functions are intentionally simple; the point is the shape of the coordination.
+        - type: example
+          id: legacy-fence-038
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace concurrent-values
+
+            async function first-value int;
+              return 3
+
+            async function second-value int;
+              return 5
+
+            async function third-value int;
+              return 8
+
+            async function main;
+              scope = task-scope;
+
+              first = scope.spawn; first-value
+              second = scope.spawn; second-value
+              third = scope.spawn; third-value
+
+              first-outcome = await scope.join; first
+              second-outcome = await scope.join; second
+              third-outcome = await scope.join; third
+
+              first-result = first-outcome.value
+              second-result = second-outcome.value
+              third-result = third-outcome.value
+
+              if first-result != none
+                print; 'first: ', first-result
+
+              if second-result != none
+                print; 'second: ', second-result
+
+              if third-result != none
+                print; 'third: ', third-result
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The output is observed in join order:
+        - type: example
+          id: legacy-fence-039
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            first: 3
+            second: 5
+            third: 8
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The functions may make progress independently, but `main` presents their
+            outcomes deterministically. Concurrency does not require nondeterministic
+            output.
+
+            The program has one weakness: it prints whichever values are present without
+            explaining absent ones. A fuller application would inspect each complete
+            outcome, distinguishing successful completion, failure, and cancellation
+            according to its own policy. The task scope provides the facts; the application
+            decides what those facts mean to its users.
+
+            The structure scales more importantly than the toy calculation:
+
+            1. Create one owner for a related group of tasks.
+            2. Spawn the independent work before joining it.
+            3. Retain every child handle.
+            4. Join every child exactly once.
+            5. Inspect outcomes rather than assuming success.
+            6. Present results in an order chosen by the application.
+
+            That is the reusable part of the example.
+      sections: []
+    - id: terrane-style-keep-concurrency-within-a-scope
+      title: "Terrane style: keep concurrency within a scope"
+      blocks:
+        - type: markdown
+          markdown: |-
+            When concurrency is needed, make its lifetime visible in the program's
+            structure.
+
+            Prefer:
+        - type: example
+          id: legacy-fence-040
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope = task-scope;
+            first = scope.spawn; first-work
+            second = scope.spawn; second-work
+            first-outcome = await scope.join; first
+            second-outcome = await scope.join; second
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The code identifies the owner, the children, and the points where their outcomes
+            are observed.
+
+            Do not look for a way to start work and discard its handle. Terrane
+            intentionally provides no implicit detach path for scoped tasks. Work that truly
+            belongs to a longer-lived service needs a longer-lived structural owner, not a
+            hole in the current scope.
+
+            Likewise, do not introduce tasks merely to make a sequential calculation appear
+            sophisticated. This is clearer:
+        - type: example
+          id: legacy-fence-041
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value = calculate;
+            print; value
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            than creating a scope, spawning one calculation, and joining it immediately when
+            no other work can progress.
+
+            Use asynchronous structure when the problem has asynchronous structure.
+      sections: []
+    - id: why-terrane-async-is-structured
+      title: "Why Terrane: async is structured"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Unstructured concurrency lets a child task escape the code that created it.
+            Sometimes that feels convenient. The cost appears later:
+
+            - failures have no obvious observer;
+            - cancellation becomes a convention;
+            - captured values acquire surprising lifetimes;
+            - shutdown must discover work it did not retain;
+            - tests depend on timing because completion is no longer structurally awaited.
+
+            Terrane chooses a stricter default.
+
+            A direct asynchronous invocation produces a linear task that must be consumed. A
+            scoped invocation produces a child that belongs to its task scope and must be
+            joined. Failure requests cancellation of surviving siblings, but does not erase
+            them. Cancellation requests termination, but does not replace observation.
+            Deadlines propagate inward and cannot be extended by nested code.
+
+            Those rules turn concurrency from ambient activity into a value-and-scope
+            relationship the compiler can check.
+
+            The ceremony is small:
+        - type: example
+          id: legacy-fence-042
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            scope = task-scope;
+            child = scope.spawn; work
+            outcome = await scope.join; child
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            What it buys is substantial: when the scope's work is complete, the program has
+            accounted for the task, its ownership, and its outcome.
+      sections: []
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: markdown
+          markdown: |-
+            1. Write an `async function` that returns a string. Invoke it from another
+               asynchronous function, retain the task in a binding, and consume it with
+               `await`.
+            2. Remove the `await` from the first exercise while leaving the task in scope.
+               Read the compiler's linear-task diagnostic, then restore the consuming
+               operation.
+            3. Spawn two independent zero-argument asynchronous functions in one task scope.
+               Join them in the opposite order from the order in which they were spawned,
+               and present their values deterministically.
+            4. Change one child in the previous exercise so that it throws. Inspect the
+               failed child's `completed`, `cancelled`, `value`, and `error` observations,
+               and still join the surviving sibling.
+            5. Request cancellation after spawning a child. Write the outcome check so that
+               both successful completion before cancellation and observed cancellation are
+               valid.
+            6. Give a parent scope a deadline, then request shorter and longer child
+               deadlines. Confirm that both are accepted and that the longer request is
+               clamped to the parent's target.
+            7. Run the same deterministic task program with the threaded and cooperative
+               executor profiles. Compare its output, then explain which timing assumptions
+               the source deliberately avoids.
+            8. Choose one sequential operation from an earlier chapter. Decide whether
+               anything else could make meaningful progress while it waits; keep it
+               sequential unless the answer is genuinely yes.
+      sections: []
+    - id: chapter-summary
+      title: Chapter summary
+      blocks:
+        - type: markdown
+          markdown: |-
+            - Calling an `async function` constructs a linear task; `await` consumes that
+              task exactly once.
+            - A task begins owning its arguments and captured schedule when its call
+              expression is evaluated, even when the resulting task is awaited later.
+            - Suspension lets the selected executor make progress elsewhere, but values and
+              references retained across it must still satisfy their ownership and
+              transferability contracts.
+            - A task scope structurally owns its children. `spawn` starts scoped work, and
+              every returned child must be consumed by exactly one `join`.
+            - A joined outcome separately reports completion, cancellation, a successful
+              value, and an escaping error. Completed partial progress remains meaningful
+              after cancellation is requested.
+            - Failure in one child requests cancellation of surviving siblings without
+              detaching them or removing the obligation to join them.
+            - Cancellation is cooperative. It drops a pending operation at a cancellation
+              point, then runs applicable `finally` cleanup exactly once; asynchronous
+              cleanup is shielded while it drains.
+            - Task-scope deadlines are absolute monotonic targets. A child may request an
+              earlier deadline, while a later request is clamped to the parent's target.
+            - A sleep captures its target when called. An anchored ticker coalesces missed
+              expirations, reports scheduled and observed instants separately, and continues
+              from its original schedule without drift.
+            - After `select` chooses a winner, it cancels and drains losing waits before
+              entering the winning case. Longer-lived linear resources, such as a ticker,
+              still require explicit consumption.
+            - Shared mutable application state belongs to one owner task; bounded channels
+              make communication, backpressure, closure, cancellation, and logging overflow
+              policy explicit.
+            - Threaded and cooperative executor profiles change how work is driven, not the
+              ownership, cancellation, deadline, or outcome semantics visible in Terrane
+              source.
+            - Prefer sequential code for sequential problems. When work is genuinely
+              concurrent, keep its lifetime, ownership, cancellation, and observation inside
+              explicit structure.
+
+            In the next chapter, we will follow Terrane source through lowering and inspect
+            the native program these semantics become.
+      sections: []
+  see-also: []
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

@@ -1,0 +1,219 @@
+format: 1
+id: lang.functions.declarations
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Function declarations and references
+  title-style: text
+  summary: >-
+    Defines top-level functions, distinguishes declaring a function from invoking it, and documents the optional W4005
+    unreferenced-function lint.
+  tags:
+    - functions
+    - declarations
+    - calls
+    - diagnostics
+    - warnings
+  sections:
+    - id: declaration
+      title: Declaring a function
+      blocks:
+        - type: markdown
+          markdown: |-
+            A top-level function declaration creates a callable object in its namespace.
+            Plain `function` is shared; `mutable function` and `consuming function` declare
+            repeatable mutation and one-shot transfer authority. The optional invocation
+            prefix precedes `async`, while `throws` follows the signature. The same
+            spellings apply to methods, anonymous closures, and function types.
+
+            The semicolon in the header introduces parameters and is present even when the
+            parameter list is empty. A declared result type is a contract for every
+            reachable return path in both top-level functions and class methods. The
+            compiler rejects an incompatible returned value before generating Rust.
+
+            A method body may use less receiver authority than its written declaration,
+            never more. `construct` has intrinsic mutable lifecycle authority. An authored
+            `destruct` is written `consuming function destruct;`, making its one-shot
+            lifecycle contract explicit even though generated Rust cleanup may receive a
+            mutable borrow.
+
+            One conservative post-condition is recognized only for an exact static `T|none`
+            member returned from a concrete function or method declared as `T`. A preceding
+            sibling `if member == none` or `if none == member` must have no `else`, contain
+            exactly one direct compatible assignment to the same textual target and no other
+            target write, and no intervening sibling may rewrite it. This supports lazy
+            singleton initialization without treating member expressions as generally
+            flow-refined.
+        - type: example
+          id: declared-and-called-function
+          title: Declare and call a function
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/function-declaration
+
+            function double int; value int
+              return value * 2
+
+            function main;
+              print; (double; 4)
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              8
+          diagnostic: null
+          markdown: null
+
+    - id: returns
+      title: Returning a value
+      blocks:
+        - type: rule
+          id: rule.functions.return-expression
+          level: must
+          since: null
+          evidence:
+            - return-tail-block-strings
+          markdown: |-
+            `return` immediately completes the current function or method. A value-bearing
+            return accepts any compatible expression. Because the position after `return`
+            begins an expression, `return >text` and `return >>` followed by an indented
+            block return tail and block text directly without parentheses or an intermediate
+            binding.
+    - id: references
+      title: Referring to a function
+      blocks:
+        - type: rule
+          id: rule.functions.declaration-is-not-invocation
+          level: must
+          since: null
+          evidence:
+            - unused-top-level-function
+          markdown: |-
+            Declaring a function does not execute it. A call uses `;` after the callable
+            expression. Writing the function name without that call marker refers to the
+            callable value instead.
+    - id: unreferenced
+      title: Unreferenced top-level functions
+      blocks:
+        - type: rule
+          id: rule.functions.unreferenced-warning
+          level: should
+          since: null
+          evidence:
+            - unused-top-level-function
+          markdown: |-
+            Authored top-level functions other than `main` may intentionally exist without a
+            reference in the current package: public package surface, callback registration,
+            staged development, and downstream use are all ordinary reasons. Normal
+            compilation therefore remains silent for an unreferenced function.
+
+            Pass `--lint-unused-functions` to request warning `W4005` for each authored
+            top-level function with no resolved reference anywhere in the program. The
+            declaration name itself is not a reference. Calling, passing, or otherwise
+            selecting the function by its resolved identity counts as a reference; recursive
+            self-reference may conservatively count as use. This opt-in lint is
+            non-blocking.
+        - type: example
+          id: unused-top-level-function
+          title: Opt in to the unreferenced-function lint
+          language: terrane
+          mode: check
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/unused-function
+
+            function prepared string;
+              return 'ready later'
+
+            function main;
+              print; 'ready now'
+          diagnostic: null
+          markdown: >-
+            This source checks silently by default. `terrane check --lint-unused-functions`
+            reports `W4005` on `prepared`; this is an explicit inventory aid rather than a
+            normal compilation warning.
+    - id: parameters-and-arguments
+      title: "Parameters and Arguments"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A function header declares required parameters after its mandatory call marker.
+            An optional parameter has a default expression. Required parameters must precede
+            optional parameters, and each default must satisfy its parameter's destination
+            type:
+        - type: example
+          id: parameters-and-arguments
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function connect connection; host string, port int, timeout int = 10
+              ...
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            Calls evaluate supplied arguments from left to right. Defaults evaluate at the
+            call site after supplied arguments, in parameter order. Positional arguments
+            must precede named arguments. A named argument binds through the parameter's
+            stable exposed name; missing, duplicate, unknown, and positionally invalid
+            bindings are diagnostics.
+
+            A final `name T ...` parameter captures zero or more remaining positional
+            arguments as an ordinary `list of T`. It cannot have a default and cannot be
+            bound by name. Fixed required and optional parameters may precede it:
+        - type: example
+          id: variadic-parameters
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function total int; values int ...
+              result int = 0
+              for value in values
+                result = result + value
+              return result
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            Fixed versus variadic arity is part of a callable type, interface and trait
+            conformance, and callable identity. The same final-variadic rule applies to
+            source functions, methods, closures, and projected callable contracts.
+  see-also:
+    - lang.functions.callable-types
+    - lang.lexical-structure.text-blocks
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "29"
+  conformance:
+    - unused-top-level-function
+    - ordinary-method-wrong-return
+    - optional-member-post-if-return
+    - static-class-singleton
+    - return-tail-block-strings
+  compiler: null

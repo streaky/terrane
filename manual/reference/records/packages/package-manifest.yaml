@@ -1,0 +1,405 @@
+format: 1
+id: tool.packages.package-manifest
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Package manifest
+  title-style: text
+  summary: >-
+    Defines every supported package.toml field, its default, native Terrane and Rust dependencies, and adjacent development
+    configuration.
+  tags:
+    - packages
+    - manifest
+    - capabilities
+    - dependencies
+    - testing
+  sections:
+    - id: complete-example
+      title: Complete working manifest
+      blocks:
+        - type: markdown
+          markdown: |-
+            `package.toml` is strict: unknown keys are errors. `package` and a non-empty
+            `[namespaces]` table are required. This example shows every supported top-level
+            area; remove optional entries that the package does not use.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            package = "document-tool"
+            artifact = "executable"
+            prelude = true
+            reflection = "ordinary"
+            executor = "threaded"
+            rust-toolchain = "pinned"
+
+            [profile]
+            name = "document-tool"
+            capabilities = ["filesystem", "build"]
+            panic = "unwind"
+
+            [namespaces]
+            document-tool = "src"
+
+            [testing]
+            unit = "tests/unit"
+            integration = "tests/integration"
+            end-to-end = "tests/end-to-end"
+
+            [testing.profile]
+            name = "document-tool-tests"
+            capabilities = ["filesystem", "process", "build"]
+            panic = "unwind"
+
+            [terrane-dependencies.document-model]
+            path = "../document-model"
+            hash = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+            [rust-dependencies.codec]
+            package = "base64"
+            version = "=0.22.1"
+            default-features = false
+            features = ["alloc"]
+            target = "cfg(unix)"
+            effects = ["build"]
+
+            [rust-modules]
+            native-helper = "native/helper.rs"
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: fields
+      title: Field reference
+      blocks:
+        - type: table
+          id: manifest-fields
+          title: Supported package.toml fields
+          show-header: true
+          columns:
+            - id: path
+              title: TOML path
+              cell: code
+            - id: type
+              title: Value type
+              cell: text
+            - id: default
+              title: Default
+              cell: code
+            - id: repeatability
+              title: Repeatability
+              cell: text
+            - id: example
+              title: Minimal example
+              cell: code
+          rows:
+            - path: package
+              type: non-empty string
+              default: required
+              repeatability: once
+              example: package = "app"
+            - path: artifact
+              type: '"executable", "dynamic-library", or "library"'
+              default: executable
+              repeatability: once
+              example: artifact = "library"
+            - path: prelude
+              type: boolean
+              default: "true"
+              repeatability: once
+              example: prelude = false
+            - path: reflection
+              type: '"ordinary" or "minimal"'
+              default: ordinary
+              repeatability: once
+              example: reflection = "minimal"
+            - path: executor
+              type: '"threaded" or "cooperative"'
+              default: threaded
+              repeatability: once
+              example: executor = "cooperative"
+            - path: rust-toolchain
+              type: '"pinned" or "system"'
+              default: pinned
+              repeatability: once
+              example: rust-toolchain = "pinned"
+            - path: profile.name
+              type: string
+              default: default
+              repeatability: once
+              example: name = "application"
+            - path: profile.capabilities
+              type: array of capability names
+              default: unrestricted
+              repeatability: once
+              example: capabilities = ["filesystem"]
+            - path: profile.panic
+              type: '"unwind" or "abort"'
+              default: unwind
+              repeatability: once
+              example: panic = "abort"
+            - path: namespaces.<namespace>
+              type: normalized relative directory
+              default: required non-empty table
+              repeatability: once per namespace
+              example: app = "src"
+            - path: testing.unit
+              type: bounded relative directory
+              default: tests/unit
+              repeatability: once
+              example: unit = "test/unit"
+            - path: testing.integration
+              type: bounded relative directory
+              default: tests/integration
+              repeatability: once
+              example: integration = "test/integration"
+            - path: testing.end-to-end
+              type: bounded relative directory
+              default: tests/end-to-end
+              repeatability: once
+              example: end-to-end = "test/system"
+            - path: testing.profile
+              type: profile table
+              default: inherits package profile
+              repeatability: once
+              example: capabilities = ["process"]
+            - path: terrane-dependencies.<name>.path
+              type: relative directory
+              default: one source required
+              repeatability: mutually exclusive with git
+              example: path = "../document-model"
+            - path: terrane-dependencies.<name>.git
+              type: Git repository URL
+              default: one source required
+              repeatability: mutually exclusive with path
+              example: git = "https://example.invalid/document-model.git"
+            - path: terrane-dependencies.<name>.tag
+              type: non-empty Git tag
+              default: required with git
+              repeatability: once per Git dependency
+              example: tag = "v1.2.3"
+            - path: terrane-dependencies.<name>.hash
+              type: "sha256: plus 64 lowercase hexadecimal digits"
+              default: required with git; optional with path
+              repeatability: once per dependency
+              example: hash = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            - path: rust-dependencies.<alias>.package
+              type: crates.io package name
+              default: dependency alias
+              repeatability: once per dependency
+              example: package = "base64"
+            - path: rust-dependencies.<alias>.version
+              type: Cargo version requirement string
+              default: required
+              repeatability: once per dependency
+              example: version = "=0.22.1"
+            - path: rust-dependencies.<alias>.default-features
+              type: boolean
+              default: "true"
+              repeatability: once per dependency
+              example: default-features = false
+            - path: rust-dependencies.<alias>.features
+              type: array of strings
+              default: "[]"
+              repeatability: once per dependency
+              example: features = ["alloc"]
+            - path: rust-dependencies.<alias>.target
+              type: Cargo target condition string
+              default: none
+              repeatability: once per dependency
+              example: target = "cfg(unix)"
+            - path: rust-dependencies.<alias>.effects
+              type: array of capability names
+              default: "[]"
+              repeatability: once per dependency
+              example: effects = ["build"]
+            - path: rust-modules.<module>
+              type: relative .rs file path
+              default: none
+              repeatability: once per Rust identifier
+              example: helper = "native/helper.rs"
+
+    - id: capabilities-and-effects
+      title: Profiles, capabilities, and dependency effects
+      blocks:
+        - type: markdown
+          markdown: |-
+            The recognized capability names are `build`, `clocks`, `entropy`, `filesystem`,
+            `logging`, `networking`, `process`, `process-signals`, `threads`, and `tls`.
+            Omitting `profile.capabilities` selects the unrestricted profile; writing an
+            empty array permits none. A projected Rust dependency always requires `build` in
+            addition to its declared `effects`, and an authored Rust module requires
+            `build`.
+
+            Test roots are optional directories. Each populated tier is analyzed as a
+            separate package. `[testing.profile]` inherits omitted values from the ordinary
+            profile and can grant only the capabilities explicitly listed there.
+    - id: namespaces-and-artifacts
+      title: Namespace roots and artifact kinds
+      blocks:
+        - type: markdown
+          markdown: |-
+            A namespace key maps its canonical root to a package-relative source directory.
+            Nested `.trn` paths extend that namespace. Roots must be portable lowercase
+            kebab-case namespaces; directories must be normalized, relative, non-empty
+            paths, and two roots cannot map the same directory.
+
+            `artifact = "executable"` expects exactly one package entrypoint and produces a
+            runnable program. `artifact = "dynamic-library"` emits the platform's
+            dynamic-library artifact and selects `src/lib.rs` as the generated Cargo
+            entrypoint. `artifact = "library"` forbids `main`, requires every namespace root
+            to equal or descend from the package identity, and is lowered together with a
+            consuming application rather than built or run as a standalone artifact.
+    - id: terrane-library-dependencies
+      title: Terrane library dependencies
+      blocks:
+        - type: markdown
+          markdown: |-
+            `[terrane-dependencies.<name>]` selects either a relative local development
+            directory with `path`, or a remote repository with `git` and an exact `tag`. Git
+            branches and untagged revisions are not accepted. A Git dependency requires
+            `hash`; a local dependency may omit it while actively developing, and local
+            installation leaves it unpinned.
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            [terrane-dependencies.document-model]
+            path = "../document-model"
+
+            [terrane-dependencies.remote-codec]
+            git = "https://example.invalid/remote-codec.git"
+            tag = "v1.2.3"
+            hash = "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The hash is not a Git object ID. It is the complete deterministic SHA-256 of
+            every normalized package-relative file path and file byte, excluding only `.git`
+            and `.trn` directories. README files, ignored build output, and editor files
+            therefore affect a local tree hash. Symbolic links are rejected, and abbreviated
+            hashes are not accepted. For Git sources, Terrane verifies the exact requested
+            tag and the temporary checkout's source hash before publishing it into the
+            application-local `.trn/packages/<digest>` cache.
+
+            Each library source unit retains its own manifest's `prelude` setting.
+            Reflection, executor, capability and panic profile, build toolchain, and testing
+            policy remain application-owned for the final artifact. Library source units,
+            their transitive Terrane libraries, projected Rust dependencies, and authored
+            Rust modules otherwise join the application's semantic and lowering pipeline.
+            Distinct source roots cannot share one library identity. Conflicting Rust
+            aliases or authored module names are errors. The consuming application's
+            capability profile must permit every required dependency effect.
+
+            Use the package commands to calculate or record these declarations:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane package hash ../document-model
+            terrane package hash --git https://example.invalid/remote-codec.git --tag v1.2.3
+            terrane package install ../document-model
+            terrane package install --git https://example.invalid/remote-codec.git --tag v1.2.3
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `package install` requires the consuming application's `package.toml` in the
+            current directory. It validates the library, preserves existing manifest
+            content, and refuses to replace an existing dependency. A local install writes
+            only `path` so edits remain immediately visible; a Git install records `git`,
+            `tag`, and the full required hash. `--name <dependency-name>` overrides the
+            table key; otherwise the library package identity is used.
+    - id: overlays-and-local-patches
+      title: Namespace overlays and local Cargo patches
+      blocks:
+        - type: markdown
+          markdown: |-
+            Namespace overlays are provider-package metadata, not an application
+            `package.toml` key. A provider crate declares them in its Cargo manifest:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            [[package.metadata.terrane.namespace-overlays]]
+            module = "data_engine"
+            target-package = "data-engine"
+            feature = "data-engine"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            During repository development, keep the application's exact
+            `[rust-dependencies]` contract and patch the crate source separately in
+            `.cargo/config.toml`:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            [patch.crates-io]
+            data-engine = { path = "../../vendor/data-engine" }
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The patch changes where Cargo obtains matching package versions; it does not
+            alter the Terrane manifest, projected package identity, enabled features, or
+            review obligation. Do not add unsupported path keys to `package.toml`.
+  see-also:
+    - tool.packages.rust-dependencies
+    - tool.packages.testing
+    - tool.packages.command-line
+    - internals.projection.namespace-overlays
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "31"
+  conformance:
+    - terrane-library-package
+  compiler: null
+
+implementation:
+  compiler:
+    - crates/terrane-compiler/src/package.rs
+    - crates/terrane-compiler/src/testing.rs

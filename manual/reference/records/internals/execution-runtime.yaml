@@ -1,0 +1,253 @@
+format: 1
+id: internals.execution.runtime-selection
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Execution requirements and runtime selection
+  title-style: text
+  summary: >-
+    Describes how semantic analysis records runtime-neutral execution needs and how lowering selects only the generated async
+    support required to satisfy them.
+  tags:
+    - compiler-internals
+    - semantics
+    - lowering
+    - async
+    - runtime
+  sections:
+    - id: requirements
+      title: Runtime-neutral execution requirements
+      blocks:
+        - type: rule
+          id: rule.internals.execution.requirements-remain-runtime-neutral
+          level: must
+          since: null
+          evidence:
+            - rust-dependency-async-function
+            - projected-async-local-task-threaded
+          markdown: |-
+            Semantic analysis represents execution needs as compiler-owned requirements for
+            runtime context, wake support, blocking delegation, local tasks, and
+            transferable tasks. These requirements do not name Tokio or another concrete
+            executor.
+
+            Function-level requirements propagate through callable contracts. The package
+            aggregate merges the requirements of its asynchronous entrypoint and referenced
+            asynchronous functions. An asynchronous entrypoint requires runtime context and
+            wake support; scoped tasks require wake support; asynchronous host operations
+            that cannot be implemented directly as non-blocking polling also request
+            blocking delegation.
+
+            The model rejects incoherent combinations: runtime context or task execution
+            requires wake support, and blocking delegation requires a runtime context. The
+            representation and consistency checks live in
+            `crates/terrane-compiler/src/execution.rs`; semantic aggregation lives in
+            `crates/terrane-compiler/src/semantics/bindings.rs`.
+    - id: strategy
+      title: Runtime selection boundary
+      blocks:
+        - type: rule
+          id: rule.internals.execution.strategy-selection-is-centralized
+          level: must
+          since: null
+          evidence:
+            - rust-dependency-async-function
+            - projected-async-local-task-threaded
+          markdown: |-
+            The package manifest's `cooperative` and `threaded` executor profiles map to the
+            compiler-owned `Local` and `Parallel` execution strategies. Semantic analysis
+            and source diagnostics use those strategies and generic requirements; concrete
+            runtime support is selected later at the lowering boundary.
+
+            Lowering chooses the local or parallel executor template in
+            `crates/terrane-compiler/src/lowering/emitter/pipeline.rs`. Keeping this
+            selection at one boundary prevents runtime-library types from leaking into
+            semantic contracts and gives a replacement executor a single integration seam.
+    - id: generated-support
+      title: Demand-driven generated support
+      blocks:
+        - type: rule
+          id: rule.internals.execution.support-is-demand-driven
+          level: must
+          since: null
+          evidence:
+            - async-await
+            - cooperative-task-scope
+            - networking-tcp-loopback
+            - rust-dependency-async-function
+          markdown: |-
+            Lowering emits async runtime support only for a package that uses asynchronous
+            functions. It adds a selected entrypoint executor only for an asynchronous
+            `main`, projected-future support only when a referenced projected async function
+            exists, and task-scope support only when the semantic package uses a scope.
+
+            An asynchronous entrypoint is wrapped in exactly one selected wake-driven
+            runtime. The generated Cargo dependency and support modules follow the same
+            semantic decision so synchronous packages do not acquire an unused runtime.
+            Generated module assembly remains deterministic for identical semantic input.
+    - id: heterogeneous-selection
+      title: Selection state and cancellation runtime
+      blocks:
+        - type: rule
+          id: rule.internals.execution.selection-is-activation-local
+          level: must
+          since: null
+          evidence:
+            - heterogeneous-select
+            - select-pending-wakeup
+            - select-concurrent-activations
+            - select-task-outcomes
+            - select-async-closure
+            - select-cleanup-shield
+            - rust-dependency-async-function
+          markdown: |-
+            Lowering emits one fairness cursor in the actual async callable activation that
+            owns each static `select`, including anonymous async functions. Each case
+            retains a distinct pinned future and typed result slot; no helper task or
+            universal result box is used.
+
+            Source-only selection uses the cooperative poll-future support. Task scopes,
+            asynchronous finalization, or projected async cases select native cancellation
+            support through ordinary execution requirements. Once a winner is fixed, one
+            finalization guard shields the complete reverse-order loser drain. Native
+            cancellation continues polling the suspended selection while cleanup depth is
+            nonzero rather than dropping it before nested cleanup can finish.
+    - id: mutable-async-callables
+      title: Mutable async callable serialization
+      blocks:
+        - type: rule
+          id: rule.internals.execution.mutable-async-callables-serialize
+          level: must
+          since: null
+          evidence:
+            - mutable-async-overlap-serialization
+          markdown: |-
+            Generated mutable async callable values own one invocation gate. Bound-method
+            adapters acquire it through `TerraneAsyncMutableState::with_receiver`; anonymous
+            functions acquire the same kind of gate around their complete generated body.
+            The gate spans suspension, while committed capture and receiver values use only
+            short synchronous snapshot and commit locks.
+
+            Separating a callable clones its committed environment and creates an
+            independent gate. Per-call handles share the original gate. This distinction
+            permits separation while a call is suspended without allowing overlapping calls
+            through one callable value to lose updates.
+    - id: readiness-io
+      title: Readiness-native network I/O
+      blocks:
+        - type: rule
+          id: rule.internals.execution.network-io-uses-readiness
+          level: must
+          since: null
+          evidence:
+            - networking-tcp-loopback
+            - networking-readiness-outcomes
+          markdown: |-
+            Generated TCP connect, listener accept, TCP read/write, UDP send/receive, and
+            TLS handshake/read/write/shutdown futures poll nonblocking descriptors through
+            the package's selected Tokio runtime. Cancellation wakes pending operations
+            through the same compiler-owned signal used by task scopes, and deadlines race
+            the readiness future without consuming an executor worker.
+
+            Host-name connection delegates only DNS resolution to Tokio's blocking pool,
+            then races resolved socket candidates asynchronously. Standalone DNS lookup and
+            standard-stream reads remain explicit blocking-delegation requirements because
+            their current host interfaces do not expose portable readiness.
+
+            The platform-support saturation test fixes both executor-worker and
+            blocking-pool capacity at one while completing substantially more concurrent
+            socket operations. This guards the architectural boundary: readiness-capable
+            network operations must not regress to universal `spawn_blocking` offload.
+    - id: cancellation
+      title: Wake-driven cancellation and cleanup
+      blocks:
+        - type: rule
+          id: rule.internals.execution.cancellation-preserves-finally
+          level: must
+          since: null
+          evidence:
+            - cancelled-foreign-await-runs-finally
+            - cancelled-nested-finally-order
+            - cancelled-finally-error-wins
+            - borrow-parameter-in-async-finally
+          markdown: |-
+            Native task scopes share a compiler-owned cancellation state that registers and
+            wakes suspended task wakers. Cancellation requests and effective deadlines
+            therefore wake blocked tasks directly; native scope execution does not poll
+            cancellation with a periodic timer.
+
+            Lowered asynchronous `try` regions with `finally` install nested finalization
+            guards. Only the innermost active guard may observe the request; it drops the
+            pending Rust future, including operation-only foreign owners, before generated
+            `finally` dispatch runs. The guard then exposes cancellation to its parent.
+            Cleanup runs exactly once in innermost-first order, and cleanup containing
+            `await` remains protected until the outermost guard releases the request to the
+            scoped-task result boundary. Guard state is compiler-internal, cannot be caught
+            as a Terrane throwable, uses no Rust panic or unwind control flow, and does not
+            alter dependency panic policy.
+
+            A cleanup failure replaces pending cancellation only while shaping that child's
+            result: the child reports an error rather than cancellation. It does not clear
+            the compiler-owned scope cancellation signal, which remains visible to other
+            child guards and join outcomes.
+
+            The native cancellation support is assembled from
+            `crates/terrane-compiler/src/runtime/async_native.rs`; scope state and join
+            outcome shaping live in the selected `tasks_native_local.rs` or
+            `tasks_native_parallel.rs` template; finalization guards and cleanup dispatch
+            are emitted by `crates/terrane-compiler/src/lowering/emitter/statements.rs`.
+    - id: task-ownership-lowering
+      title: Task ownership across the lowering boundary
+      blocks:
+        - type: rule
+          id: rule.internals.execution.task-transfer-is-source-semantic
+          level: must
+          since: null
+          evidence:
+            - rejoined-task-scope-child
+            - structured-task-scope
+          markdown: |-
+            Terrane task and scoped-task values are statically non-copyable. Passing an
+            unpolled task into `scope.spawn`, passing a child into `scope.join`, and
+            awaiting a task consume their source bindings automatically. Semantic ownership
+            analysis records those transfers, rejects a later use with `T0058`, and
+            separately rejects a task that reaches the end of its scope unconsumed.
+
+            Lowering does not need a source `move` node to realize this contract. The
+            generated Rust task or child value is passed by value into the selected runtime
+            helper, so Rust performs the concrete ownership move required by its
+            representation. Source transfer recognition lives in
+            `crates/terrane-compiler/src/semantics/ownership.rs`; task consumption
+            obligations live in `crates/terrane-compiler/src/semantics/bindings.rs`; Rust
+            call emission lives in `crates/terrane-compiler/src/lowering/emitter/calls.rs`.
+  see-also:
+    - lang.functions.asynchronous
+    - std.networking.operations
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "21.3"
+    - document: language-spec
+      section: "21.4"
+  conformance:
+    - cancelled-foreign-await-runs-finally
+    - cancelled-nested-finally-order
+    - cancelled-finally-error-wins
+    - async-await
+    - cooperative-task-scope
+    - networking-tcp-loopback
+    - projected-async-local-task-threaded
+    - rust-dependency-async-function
+  compiler: null

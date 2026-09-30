@@ -11,6 +11,7 @@ docs/MEMORY.md
 /target/
 **/.trn/
 **/terrane-projection.generated.trn
+**/target/
 
 # Generated projection-census application surfaces
 /compatibility/projection-census/application-surfaces.yaml
@@ -23,7 +24,8 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 /editors/vscode/*.vsix
 
 /projects/
-/packages/
+/packages/*
+!/packages/iced-ui/
 
 .vscode/
 

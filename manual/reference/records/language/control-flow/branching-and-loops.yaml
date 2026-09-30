@@ -1,0 +1,111 @@
+format: 1
+id: lang.control-flow.branching-and-loops
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Conditional and loop control"
+  title-style: text
+  summary: >-
+    `if`/`else`, `while`, and `for` use checked control-flow semantics. The `break`, `continue`, and `return` statements follow
+    the same checked semantics.
+  tags:
+    - "callables"
+    - "branching-and-loops"
+    - "if-while-for"
+  sections:
+    - id: if-while-for
+      title: "Conditional and Loop Control"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane’s structured conditional and loop forms are indentation-delimited:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            if condition
+              ...
+            else
+              ...
+
+            while condition
+              ...
+
+            for item in things
+              ...
+
+            for i = 0; i < limit; i++
+              ...
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            An `if` may include an `else` branch. Conditions use the truth protocol rather
+            than accepting arbitrary unchecked values. `while` repeatedly evaluates its
+            condition. The iterator form of `for` binds each item supplied by the iterable.
+            For a `string`, iteration visits grapheme clusters rather than bytes or Unicode
+            scalar values.
+
+            The three-clause `for` form has initialization, condition, and update clauses
+            separated by semicolons. A call used within a clause must be grouped so that its
+            call semicolon is not parsed as a clause separator:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            for i = (start-at; limit); ...
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `++` and `--` are update statements for compatible mutable numeric bindings and
+            may appear in the update clause. They produce no value and cannot appear in
+            expression position.
+
+            `break` and `continue` are loop-control statements. Each must occur where an
+            enclosing loop can receive it; otherwise it is rejected at the source location.
+
+            Control-flow analysis tracks reachability and definite assignment across
+            branches and loops. A binding cannot be read when a reachable path can arrive at
+            that read before assigning it.
+
+            `return` is checked against the function’s declared return contract. A returned
+            expression receives the declared return type as its destination, including
+            contextual numeric-constant evaluation and ordinary numeric exact-arrival
+            behavior. A function required to produce a value must return on every reachable
+            path; a reachable fallthrough path that does not satisfy the return contract is
+            rejected.
+
+            `match`, `label`, and `goto` are reserved but unsupported. The compiler rejects
+            their use rather than treating labels or jumps as current control-flow forms.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "if-while-for"
+  conformance: null
+  compiler: null

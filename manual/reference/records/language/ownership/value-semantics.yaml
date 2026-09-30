@@ -1,0 +1,69 @@
+format: 1
+id: lang.ownership.value-semantics
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Value copying and COW"
+  title-style: text
+  summary: >-
+    Every copyable value has independent mutation semantics, even when copy-on-write lowering temporarily shares backing storage.
+  tags:
+    - "objects"
+    - "value-semantics"
+    - "value-copy-semantics"
+  sections:
+    - id: value-copy-semantics
+      title: "Value Copying and Copy-on-Write"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Ordinary assignment of a copyable value has value semantics. The destination is
+            independently mutable: changing it must not change the source, and changing the
+            source must not change the destination. This rule applies to all copyable
+            values.
+
+            An implementation may temporarily share backing storage, including through
+            copy-on-write representation, while no mutation is observably shared. Before a
+            mutation could become visible through another ordinary value, the implementation
+            must separate the backing state. Representation sharing is not source-level
+            aliasing or identity. Ordinary assignment therefore provides independent value
+            behavior without requiring an eager physical duplication of backing storage.
+
+            Use references only when shared identity is intentional. `ref T` is an explicit
+            non-owning observer of an identity owned elsewhere and does not extend its
+            lifetime. `shared ref T` preserves identity and carries shared ownership, so it
+            can extend the lifetime. Neither form is introduced merely to avoid a copy, and
+            assignment, parameter, and return boundaries do not silently convert among `T`,
+            `ref T`, and `shared ref T`.
+
+            Resource ownership changes the assignment rule. Ownership is inferred
+            transitively from compiler-known noncopyable fields; there is no separate
+            linear-class qualifier. A resource-owning value transfers automatically on
+            assignment or when passed by value, leaving the source unavailable. Explicit
+            `move` requests transfer for a value that ordinary assignment would copy and may
+            also emphasize a transfer that is already required.
+
+            Copying state into an independently owned value creates a fresh lifecycle
+            lineage. Each lineage is destroyed independently when it ends. Internal
+            representation clones do not create additional source-level lineages or
+            additional destruction-hook invocations. A move preserves the existing lineage,
+            while `ref` creates no lineage and never delays destruction.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "value-copy-semantics"
+  conformance: null
+  compiler: null

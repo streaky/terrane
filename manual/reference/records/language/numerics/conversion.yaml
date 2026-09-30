@@ -1,0 +1,325 @@
+format: 1
+id: lang.numerics.conversion
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Numeric arrival and explicit conversion
+  title-style: text
+  summary: >-
+    Distinguishes exact destination-directed numeric arrival, declared coercion policies, and one caller-supplied typed conversion
+    callback.
+  tags:
+    - numerics
+    - coercion
+    - callbacks
+    - errors
+  sections:
+    - id: destinations
+      title: Destination-directed numeric arrival
+      blocks:
+        - type: markdown
+          markdown: |-
+            A numeric value arriving at a declared binding, argument, return, field, or
+            element destination must preserve its exact value or fail. Integer destination
+            failure raises `integer-conversion-overflow`; integer-to-floating arrival must
+            be exactly representable. No unrelated category is converted implicitly.
+    - id: declared-family
+      title: Declared coercion policies
+      blocks:
+        - type: markdown
+          markdown: |-
+            `value.coerce; Destination` selects the compiler-declared throwing conversion.
+            `coerce.checked` returns `Destination|none`; `coerce.wrap` and `coerce.saturate`
+            exist only for supported fixed-width integer pairs.
+            `float64.coerce.lossy; float32` is the sole lossy pair: it is an infallible IEEE
+            narrowing operation. Written integer-to-float coercion permits IEEE
+            round-to-nearest, ties-to-even. No floating-to-integer pair is declared: choose
+            `round`, `floor`, `ceiling`, or `truncate` before the integer destination.
+        - type: rule
+          id: rule.conversion.family-not-storable
+          level: must
+          since: null
+          evidence:
+            - unbound-coercion-family
+          markdown: |-
+            A coercion family selection is compile-time policy metadata and must be invoked
+            in the same expression. It is not a storable bound method value.
+    - id: callback
+      title: Caller-supplied conversion
+      blocks:
+        - type: markdown
+          markdown: |-
+            `value.coerce; Destination, converter` handles a source/destination pair for
+            which no compiler conversion is selected. Both arguments are positional.
+            `converter` must be one ordinary synchronous
+            `function from Source to Destination`, using the receiver's exact static type
+            and a concrete destination descriptor. The receiver evaluates once and the
+            converter is invoked once. Declared converter throwables propagate through the
+            ordinary call ABI.
+
+            Named arguments, multiple converters, asynchronous converters, parameter or
+            result mismatches, and callbacks on policy children are compile-time errors.
+        - type: example
+          id: coercion-callback
+          title: Convert through a typed callback
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/coercion-callback
+
+            function render string; value int
+              return 'converted'
+
+            function main;
+              print; (7.coerce; string, render)
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              converted
+          diagnostic: null
+          markdown: null
+    - id: numeric-arrival
+      title: "Destination-Directed Numeric Arrival"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Whenever a numeric value reaches a declared numeric destination, Terrane
+            preserves the value exactly or throws; no written coercion is required. This
+            rule applies to typed binding initialization and assignment, parameter defaults,
+            arguments matched to declared parameters, declared returns, and declared
+            elements or fields. Acceptance is determined by declared types and constant
+            evaluation. Range analysis may remove a check that is provably unnecessary, but
+            it cannot make an otherwise unsupported crossing valid.
+
+            If the source type’s entire range is exactly representable by the destination,
+            the crossing is an exact widening. It changes representation without a
+            representability check or conversion-failure path. Other admitted integer
+            crossings check the actual value. Integer narrowing throws
+            `integer-conversion-overflow` when the value is outside the destination range.
+            Conversion from any fixed-width integer to adaptive `int` is exact, and the
+            adaptive representation tier selected for the value is not a distinct source
+            type.
+
+            Implicit integer-to-floating arrival requires the particular integer to be
+            exactly representable; it does not round. Floating-to-integer arrival succeeds
+            only for a finite, integral, in-range value. Fractional values, NaN, infinities,
+            and out-of-range values throw `integer-conversion-overflow`.
+
+            For floating-point narrowing, exact finite values, signed zero, and signed
+            infinities arrive with their signs preserved. A finite value that would require
+            rounding, and every NaN, throws `integer-conversion-overflow`. Implicit arrival
+            therefore never silently discards integer precision or a fractional component.
+
+            Constants are destination-directed. An integer destination folds the entire
+            constant expression using exact arithmetic and unbounded intermediates, then
+            checks only the final value. A floating destination performs each operation at
+            destination precision so that constant evaluation matches runtime floating
+            arithmetic. For example:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            count int = 4.0
+            ratio float = 1 / 3
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The first initializer denotes the exact integer `4`; `4.2` would be rejected at
+            that destination. In the second initializer, the destination selects
+            floating-point division. An inadmissible constant is diagnosed at the constant’s
+            source span rather than deferred to runtime.
+
+            Written coercion deliberately differs when rounding is requested.
+            `value.coerce; float-type` converts an integer source using IEEE
+            round-to-nearest, ties-to-even, so an inexact finite result can be valid. For
+            floating-to-floating written coercion, narrowing uses the same rounding rule;
+            finite-range failure throws `coercion-error`, while `coerce.checked` returns
+            `none`. `float64.coerce.lossy; float32` instead completes without failure:
+            finite overflow becomes signed infinity and underflow can become signed zero.
+            Signed zero and infinity, plus the NaN category, are preserved; NaN payload
+            preservation is not portable.
+
+            No floating-to-integer `coerce` pair exists. Use `round;`, `floor;`, `ceiling;`,
+            or `truncate;` to produce an integer first, after which ordinary destination
+            arrival applies. `round;` uses ties-to-even.
+
+            For a union destination, Terrane first prefers an exact type match. Otherwise,
+            exactly one union arm must admit the value. If multiple arms admit it, the
+            program is rejected as ambiguous regardless of arm order. Runtime arrival
+            failures retain the `integer-conversion-overflow` identity and are reported with
+            source-oriented details about the value and destination.
+    - id: numeric-coercion
+      title: "Canonical Numeric Coercion"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Numeric coercion is a compiler-declared callable family selected by the receiver
+            type, destination descriptor, and policy:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value.coerce; Destination
+            value.coerce.checked; Destination
+            value.coerce.lossy; Destination
+            value.coerce.wrap; Destination
+            value.coerce.saturate; Destination
+            value.coerce; Destination, converter
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The bare form uses the throwing default policy. `checked` returns
+            `Destination|none`; conversion failure produces `none`, not a substitute value.
+            `lossy` is declared only from `float64` to `float32`: it is infallible IEEE
+            round-to-nearest, ties-to-even narrowing. `wrap` and `saturate` exist only for
+            supported fixed-width destinations. Availability is resolved statically from the
+            complete source-type, destination-type, and policy combination. An undeclared
+            source/destination pair is absent rather than becoming a runtime conversion
+            failure, and an unsupported policy/type combination is rejected at its source
+            location.
+
+            The flat spellings `checked-coerce`, `wrapping-coerce`, and `saturating-coerce`
+            are invalid. A child named `default` exists in descriptor metadata for
+            reflection, but `value.coerce.default` is not valid source syntax. A coercion
+            family cannot be extracted or stored as a bound-method value. The receiver is
+            evaluated exactly once, before policy selection and destination arguments.
+
+            Numeric values reaching a declared numeric destination through assignment,
+            argument passing, return, element construction, or field construction use
+            exact-arrival conversion without a written `coerce`. A range-contained exact
+            widening changes representation without a representability check or
+            conversion-error path. Other admitted crossings check the actual value: integer
+            narrowing requires an in-range value; integer-to-floating arrival requires exact
+            representability; and floating-to-integer arrival requires a finite, integral,
+            in-range value. Failure throws `integer-conversion-overflow`. Equivalent
+            implicit and written integer narrowings perform equivalent checks.
+
+            Written numeric-to-floating coercion deliberately permits rounding. For an
+            integer source, `value.coerce; float32` or `value.coerce; float64` uses IEEE
+            round-to-nearest, ties-to-even; an inexact rounded result is an ordinary
+            success. `float32` to `float64` is exact, while `float64` to `float32` uses the
+            same rounding rule. Floating-to-floating coercion preserves signed zero, signed
+            infinity, and the NaN category. If a finite value is outside the destination
+            range, the default form throws `coercion-error` and `checked` returns `none`;
+            overflow never produces infinity.
+
+            `value.coerce.lossy; float32` is declared only for a `float64` receiver. It
+            makes the alternate, total policy explicit: one IEEE round-to-nearest,
+            ties-to-even narrowing; normal values may become subnormal or signed zero on
+            underflow, and finite overflow produces signed infinity. The result preserves
+            signed zero, signed infinity, and the NaN category, but portable Terrane does
+            not promise a NaN payload. Implicit floating narrowing admits exact finite
+            values, signed zero, and signed infinity with sign preserved, but rejects
+            rounded finite values and every NaN with `integer-conversion-overflow`.
+
+            No floating-to-integer `coerce` pair exists. Selecting an integer from a
+            floating value requires an explicit rounding operation: `round;` uses
+            ties-to-even, and `floor;`, `ceiling;`, and `truncate;` apply their named modes.
+            Each produces an integer that can then undergo ordinary destination conversion.
+            A floating value may nevertheless arrive implicitly at an integer destination
+            when it is already finite, integral, and in range.
+
+            Boolean-to-integer conversion is declared, total, and lossless: `false` becomes
+            `0` and `true` becomes `1`. Integer-to-Boolean conversion is not declared; use
+            an explicit comparison.
+
+            The two-argument bare form admits an otherwise undeclared source/destination
+            pair by supplying the complete converter:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value.coerce; Destination, converter
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The converter is an ordinary synchronous function from the source type to the
+            destination type. Both arguments are positional. One callback is invoked exactly
+            once, and its declared throws propagate normally.
+
+            `coerce` has no radix, formatting, or locale options. Where a declared
+            conversion parses text, it accepts exactly the destination type’s canonical
+            text-display spelling. Radix handling is a separate receiver operation:
+            `text.radix; 16` interprets text as an integer, while `value.radix; 16` renders
+            an integer. Any narrowing is a separate conversion, for example:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            (text.radix; 16).coerce; int8
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Callback-based parsing is also separate. `value.parse; callback` requires a
+            statically resolvable function name, and the callback’s declared return type
+            determines the result type; there is no built-in destination-owned `parse`.
+            `parse.checked; callback` catches a throwing callback and returns absence. If
+            the callback returns a union, ordinary destination-union rules apply without a
+            parse-specific recheck.
+
+            Locale-dependent parsing belongs to imported formatting facilities, not
+            `coerce`. No type is guaranteed to coerce to every other type. A total
+            conversion that substitutes a value on failure must use a separately named
+            child; plain `coerce` never provides that behavior.
+  see-also:
+    - lang.functions.declarations
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "11.6"
+    - document: language-scoreboard
+      section: "numeric-arrival"
+    - document: language-scoreboard
+      section: "numeric-coercion"
+  conformance:
+    - coercion-callback
+    - coercion-callback-source
+    - coercion-callback-result
+    - coercion-callback-ambiguous
+    - lossy-float-narrowing
+    - lossy-float-widening
+  compiler: null

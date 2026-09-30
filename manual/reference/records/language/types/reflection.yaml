@@ -1,0 +1,86 @@
+format: 1
+id: lang.types.reflection
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Universal type reflection"
+  title-style: text
+  summary: >-
+    Universal `.type` lookup and descriptor metadata reflect canonical semantic type identity. Declared members take precedence.
+  tags:
+    - "types"
+    - "reflection"
+    - "descriptor-reflection"
+  sections:
+    - id: descriptor-reflection
+      title: "Universal Type Reflection"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Every Terrane value has a semantic type, and `.type` returns that type’s
+            canonical descriptor unless ordinary member lookup selects a declared member
+            named `type`. The descriptor reflects semantic identity rather than source
+            spelling or storage representation. For example, `float` is currently a spelling
+            of `float64`, so values written through either spelling report the canonical
+            `float64` descriptor. Import aliases likewise change only the name visible in a
+            scope; they neither create a new descriptor nor replace canonical identity.
+
+            Canonical identity is namespace-qualified for named types. A source-declared
+            class, interface, or trait is identified by its declaring namespace and declared
+            name. Built-in scalar descriptors use identities such as `/core/types::<name>`,
+            while instantiated collection descriptors use
+            `/core/collections::<family> of <arguments>`. Synthesized references, callables,
+            optionals, and unions retain canonical source-shaped identities unless the
+            language assigns their family a named namespace identity. Reflection,
+            diagnostics, `is a`, and descriptor identity therefore use the same semantic
+            type identity despite aliases or equivalent spellings.
+
+            Descriptors use a common semantic model for built-ins and source-declared
+            classes, interfaces, and traits. That model answers member lookup, nominal
+            relationships, interface and category conformance, dispatch metadata,
+            reflection, and structural-protocol satisfaction. Iteration and `truth`, for
+            example, are protocol-member queries rather than separate type tables.
+
+            Descriptor metadata includes the Boolean property `inherently-identity-bearing`.
+            It is true for reference types, linear resources, and descriptors, and false for
+            ordinary values and collections. Class-field reflection presents resolved
+            instance fields in order and retains each field’s semantic name, external name,
+            canonical-or-explicit default status, `T|none` optionality, and secrecy bit.
+            Callable reflection exposes an optional declared throwable bound separately from
+            the inferred set of throwable types that may escape. `.contracts` reports
+            retained source-declared callable contracts.
+
+            Declared members take precedence over descriptor metadata that uses the same
+            lookup name. Descriptor properties such as `.type` are reached only when
+            ordinary declared-member resolution has not already selected a member.
+
+            Descriptors are stable semantic objects, but they are not ordinary assignable
+            values. For example, `d = int8` is rejected at that source span rather than
+            creating a value binding. A descriptor cannot be printed, used arithmetically,
+            or passed as an ordinary value merely because it can have a runtime
+            representation. Reflection or dynamic descriptor use may materialize the
+            canonical descriptor object when observed; a statically resolved descriptor
+            needs no runtime storage when erasing it leaves source behavior unchanged.
+
+            If a selected profile does not retain requested metadata, accessing that
+            metadata fails at compile time. Removing reflection metadata may eliminate
+            runtime materialization, but it does not change semantic type identity.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "descriptor-reflection"
+  conformance: null
+  compiler: null

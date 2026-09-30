@@ -1,0 +1,82 @@
+format: 1
+id: internals.lowering.rust-output
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Deterministic readable Rust lowering"
+  title-style: text
+  summary: >-
+    A single Rust-oriented IR emits readable, deterministic modules, items, expressions, types, and source associations.
+  tags:
+    - "interop"
+    - "rust-output"
+    - "rust-lowering"
+  sections:
+    - id: rust-lowering
+      title: "Deterministic Rust Lowering"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane uses Rust as a native compilation target rather than as a foreign
+            runtime. Lowering passes through a Rust-oriented representation and produces
+            deterministic Rust output with stable module and item ordering. Fixed-width
+            scalar values and functions lower directly where Rust preserves the Terrane
+            contract; operations needing additional semantics use selectively included
+            support code.
+
+            Generated identifiers use an exact, deterministic, injective encoding.
+            Punctuation is not normalized away, so distinct Terrane names remain distinct. A
+            source name, its generated Rust name, and its native or link symbol are separate
+            identities. Lowered output retains source and namespace associations, including
+            generated module-association comments.
+
+            `terrane rust` streams a complete standalone Rust translation unit by default.
+            With `--output` or `-o`, it writes a split artifact. For a requested entrypoint
+            named `<entrypoint-stem>.rs`, Terrane also emits `<entrypoint-stem>.support.rs`
+            beside it. The entrypoint contains authored lowering, user-authored package
+            modules, source and namespace associations, and one relative `include!`. The
+            support sidecar contains the compiler prelude, runtime, structured-error and
+            source-site infrastructure, selected bundled `/core` implementation code, and
+            projected `/deps` lowering. The sidecar is emitted even when empty, preserving a
+            uniform two-file layout. `check`, `build`, and `run` use the same renderer and
+            request `src/main.rs`, which is paired with `src/main.support.rs`.
+
+            Each lowered item is parsed into a compiler-owned Rust syntax tree before
+            rendering. Structural normalization removes redundant expression parentheses,
+            including from macro bodies that parse as comma-separated expression lists;
+            required parentheses follow Rust precedence. Canonical-format validation uses
+            the same normalization and pinned formatting path. When validation detects a
+            mismatch, it reports compiler defect `S9004` and does not repair or replace the
+            generated output.
+
+            Generated projects contain Cargo manifests, compiler and source metadata, and
+            copied content-addressed support crates referenced by generated-project-relative
+            paths. Bundled support does not rely on registry, network, or
+            compiler-installation paths. Build identity covers compiler version, source and
+            support content, target, profile, and command-relevant environment. Generated
+            artifacts are kept in a project-local ignored directory or a user cache unless
+            deliberately exposed through requested output or retention options.
+
+            Inline Rust blocks and expressions and maintained `.rs` files are escape hatches
+            with explicit safety and source mapping. Generated and handwritten Rust can call
+            each other within one Rust crate graph. Ejection tooling can produce
+            maintainable Rust and Cargo artifacts.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "rust-lowering"
+  conformance: null
+  compiler: null

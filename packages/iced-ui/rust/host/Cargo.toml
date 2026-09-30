@@ -1,0 +1,13 @@
+[package]
+name = "iced-ui-host"
+version = "0.1.13"
+edition = "2024"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+iced = { version = "=0.14.0", default-features = false, features = ["thread-pool", "tiny-skia", "x11"] }
+
+[workspace]

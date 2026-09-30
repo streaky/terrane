@@ -1,0 +1,115 @@
+format: 1
+id: std.cryptography
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Cryptographic operations"
+  title-style: text
+  summary: >-
+    `SHA-256` and `SHA-512` descriptors select exactly matching digest and HMAC algorithms. Secret buffers are opaque, and
+    constant-time equality is available only for values using…
+  tags:
+    - "stdlib"
+    - "cryptography"
+    - "digests-hmac"
+    - "legacy-digests"
+  sections:
+    - id: digests-hmac
+      title: "Digests, HMAC, and Constant-Time Equality"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides SHA-256 and SHA-512 algorithm descriptors. A descriptor selects
+            both an unkeyed digest algorithm and its corresponding HMAC algorithm:
+
+            - SHA-256 selects SHA-256 and HMAC-SHA-256.
+            - SHA-512 selects SHA-512 and HMAC-SHA-512.
+
+            HMAC is an independent operation over a descriptor, a secret key, and a message.
+            It does not consume a previously computed digest as an HMAC input or use one to
+            infer the HMAC algorithm. Cross-algorithm pairings are not inferred, and an
+            unsupported descriptor produces a structured operation failure rather than
+            selecting a fallback algorithm.
+
+            Digest and MAC values are distinct and retain their algorithm identity. An
+            SHA-256 digest is therefore distinct from an SHA-512 digest, and a digest is
+            distinct from a MAC. Constant-time equality requires operands of the same value
+            kind and algorithm.
+
+            Keys are held in opaque secret buffers. A secret buffer supports explicit
+            destruction and best-effort zeroisation on final release. An operation using a
+            destroyed key fails. Final-release zeroisation is best effort; explicit
+            destruction is available when the program needs to request destruction directly.
+
+            Digest and HMAC operations remain unavailable until their owning namespace or
+            object is imported.
+    - id: legacy-digests
+      title: "Legacy Digests"
+      blocks:
+        - type: markdown
+          markdown: |-
+            SHA-1 and MD5 are available through the explicitly imported legacy-digest
+            package rather than the ordinary modern digest import. The package and its
+            algorithm descriptors are visibly named `legacy`. Using them does not itself
+            emit an ambient warning or make the operation `unsafe`.
+
+            The legacy descriptors use the same algorithm-identified digest values and
+            byte-or-reader input contracts as the ordinary digest surface. SHA-1 and MD5 are
+            provided for compatibility, protocol-mandated hashing, fixtures, and
+            non-adversarial content identity. They are not suitable choices for new
+            cryptographic security designs. APIs whose contracts require modern collision or
+            preimage resistance may deliberately accept only modern digest descriptors.
+
+            This example explicitly imports the legacy descriptors, computes SHA-1 and MD5
+            over byte input, and encodes the resulting digests as hexadecimal text:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace bytes-and-legacy-digests
+
+            from /core/codecs import encode-hex
+            from /core/random import digest-bytes
+            from /core/random/legacy-digests import sha1, md5
+
+            function main;
+              first = digest-bytes; (sha1;), b'abc'
+              print; (encode-hex; first.value.value)
+              second = digest-bytes; (md5;), b'abc'
+              print; (encode-hex; second.value.value)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A standard protocol may still require a legacy algorithm; RFC 6455’s
+            `Sec-WebSocket-Accept` transformation, for example, requires SHA-1. When
+            computed octets are needed as bytes, keep them as byte data rather than
+            converting them through hexadecimal text. Hexadecimal encoding is appropriate
+            when the required result is textual, as in the example.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "digests-hmac"
+    - document: language-scoreboard
+      section: "legacy-digests"
+  conformance: null
+  compiler: null

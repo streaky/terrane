@@ -1,0 +1,51 @@
+format: 1
+id: std.codecs
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Hex and Base64 codecs"
+  title-style: text
+  summary: >-
+    Strict Hex and Base64 codecs are available in reusable and direct forms. Alphabet and padding policies are explicit.
+  tags:
+    - "stdlib"
+    - "codecs"
+  sections:
+    - id: codecs
+      title: "Hex and Base64 Codecs"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides strict Hex and Base64 codecs in reusable-codec and
+            direct-operation forms. Codec facilities are import-controlled: an operation
+            remains unavailable until its owning namespace or object is imported.
+
+            Hex decoding is strict. Invalid Hex input is rejected rather than partially
+            decoded or repaired.
+
+            Base64 provides distinct selections for the standard and URL-safe alphabets.
+            Padding policy is explicit rather than inferred. Input that violates the
+            selected alphabet or padding policy is rejected.
+
+            Reusable codec values retain their selected codec and policy through use. The
+            same strict alphabet and padding rules apply when encoding or decoding through a
+            retained codec value or through a direct operation.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "codecs"
+  conformance: null
+  compiler: null

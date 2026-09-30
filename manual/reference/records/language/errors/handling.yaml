@@ -1,0 +1,110 @@
+format: 1
+id: lang.errors.handling
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Throw try catch finally"
+  title-style: text
+  summary: >-
+    Recoverable failures from `throw` and `try`/`catch`/`finally` use compiler-owned result propagation rather than native
+    unwinding.
+  tags:
+    - "callables"
+    - "handling"
+    - "structured-errors"
+  sections:
+    - id: structured-errors
+      title: "`throw`, `try`, `catch`, and `finally`"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane represents recoverable failures as structured throwables. Every value
+            used with `throw` must statically conform to the structural `throwable`
+            interface from `/core/errors`; arbitrary dynamic values are not throwable. A
+            throwable class provides `message string` and a synchronous, non-throwing,
+            zero-argument `render string` method. The runtime envelope adds
+            `cause throwable|none`, initially `none`, and retains the concrete descriptor
+            and a deterministic source-context chain. Matching is based on descriptor
+            compatibility, never message text.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/errors import throwable
+
+            class config-error implements throwable
+              message string = ''
+              path string = ''
+              function construct; path string, message string
+                this.path = path
+                this.message = message
+              function render string;
+                return this.message
+
+            function load string throws config-error; path string
+              throw config-error; path, >configuration is invalid
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `throw expression` throws an existing instance. `throw class; args` ordinarily
+            invokes the class constructor with those arguments and throws the resulting
+            instance.
+
+            Within `try`, `catch` clauses are tested in source order against compatible
+            classes or interfaces. A later clause made unreachable by an earlier clause is a
+            compile-time diagnostic. Typed and catch-all clauses may bind the caught runtime
+            throwable envelope and inspect its `message`, optional `cause`, and non-throwing
+            `render` operation. Throwing that bound value again preserves its kind and cause
+            chain.
+
+            A `finally` block always executes. Normal completion of the block leaves the
+            pending result, return, or throw unchanged. It replaces that outcome only by
+            explicitly returning or throwing.
+
+            Uncaught throwables render deterministic cause and source chains. A failure
+            translated at a foreign boundary retains its native traceback or details after
+            conversion to a declared throwable class.
+
+            Recoverable `throw` and `try`/`catch`/`finally` control flow uses
+            compiler-owned, Rust `Result`-like propagation rather than native unwinding.
+            Panic is separate and fatal.
+
+            Generated errors use a 16-byte
+            `kind + origin TerraneSite + optional boxed detail` header. Built-in messages
+            derivable from the kind remain lazy; detail for messages, causes, and
+            propagation frames is allocated only when present. A fresh failure sets its
+            origin once. Propagation appends frames without changing that origin, using
+            type-distinct compiler operations for fresh construction and propagation.
+
+            A `TerraneSite` is a dense, deterministic semantic-site identifier within one
+            generated program. Emitted tables map each site to its file, enclosing callable,
+            and exact source range; generated-code comments preserve local readability.
+            Numeric site identifiers are lowering details, not stable keys across builds.
+            Error representation uses ordinary safe ownership rather than tagged-pointer
+            packing.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "structured-errors"
+  conformance: null
+  compiler: null

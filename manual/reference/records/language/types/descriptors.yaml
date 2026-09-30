@@ -1,0 +1,155 @@
+format: 1
+id: lang.types.descriptors
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Type descriptors
+  title-style: text
+  summary: >-
+    Defines canonical type identity and the unified compiler descriptor representation.
+  tags: [types, descriptors, reflection, objects]
+  sections:
+    - id: identity
+      title: Canonical identity
+      blocks:
+        - type: markdown
+          markdown: |-
+            Type descriptors are compiler-owned semantic objects with stable canonical
+            identity. Built-ins and source-declared classes, interfaces, and traits share
+            one descriptor contract model. Source descriptors keep namespace-qualified
+            nominal identity through imports and aliases. Named built-ins use their
+            canonical `/core` identity, including instantiated collection-family names.
+            Synthesized references, callables, optionals, and unions retain canonical
+            source-shaped identity unless assigned a named namespace family.
+    - id: delivery
+      title: Current compiler delivery
+      blocks:
+        - type: markdown
+          markdown: |-
+            `DescriptorContract` drives member lookup, nominal compatibility, conformance,
+            dispatch, reflection, and structural protocols for both built-in and
+            source-declared types. Scalar and category descriptor aliases retain canonical
+            contract identities. String, numeric, and collection member availability selects
+            stable operation IDs from the receiver's descriptor before operation-specific
+            checking and lowering.
+    - id: queries
+      title: Version-one query contract
+      blocks:
+        - type: markdown
+          markdown: |-
+            The model answers member lookup, nominal compatibility, interface conformance,
+            dispatch metadata, reflection, and structural protocol queries. A statically
+            known descriptor may erase during lowering only when doing so does not change
+            observable identity or reflection. Materialized descriptors obtain name, kind,
+            identity, and field metadata from the selected contract.
+    - id: type-descriptors
+      title: "Built-In Type Descriptors"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Every built-in concrete type has a canonical compiler-owned descriptor. Scalar
+            descriptor identity is namespace-qualified under `/core/types`. An import alias
+            changes only the source spelling, not descriptor identity. For example, `float`
+            denotes the canonical `float64` descriptor.
+
+            Source-declared classes, interfaces, and traits have nominal,
+            namespace-qualified identity: the identity is the pair of declaring namespace
+            and declared name. Same-named declarations in different namespaces are
+            unrelated, and diagnostics qualify names when a short spelling would be
+            ambiguous.
+
+            A type descriptor is a language construct backed by a canonical semantic object,
+            not an ordinary value that can be stored in a value binding. This is rejected at
+            the assignment:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            d = int8
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Descriptor aliases are introduced at import:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/types import int8 as byte
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The alias may then be used in annotations, as a coercion destination, and on the
+            right side of `is a`. It still denotes `/core/types::int8`.
+
+            A statically resolved descriptor needs no runtime storage and may be erased when
+            that preserves source behavior. `.type`, `is a`, reflection, or other dynamic
+            descriptor uses may require the canonical backing object. Such materialization
+            does not make descriptors ordinary variable-held type values.
+
+            `/core/types` exports the abstract category descriptors `number`, `integer`,
+            `fixed-integer`, `signed-fixed-integer`, `unsigned-fixed-integer`, and
+            `floating`. They are not default-prelude names and must be imported explicitly.
+            Concrete descriptors declare their conformance: `int` conforms to `integer` and
+            `number`; fixed-width integer descriptors additionally conform to
+            `fixed-integer` and the applicable signedness category; and `float32` and
+            `float64` conform to `floating` and `number`. The `value` and `object` roots are
+            identity and ownership categories and carry no numeric members.
+
+            Category conformance is an interface contract, not a storage supertype or an
+            implicit numeric conversion. It drives abstract `is a` membership and numeric
+            classification without requiring scalar boxing. It also participates in member
+            attachment and finite-union reasoning. Fixed-width integers are not
+            assignment-compatible subtypes of `int`, and a typed `int8` value does not
+            satisfy `is a int`.
+
+            Numeric constants are context-sensitive before a type is selected. Thus
+            `42 is a int8` is true because `42` is admissible as an `int8`; a constant that
+            is not admissible for the queried type produces `false` rather than a range
+            failure.
+
+            Type expressions and coercion destinations must resolve to finite,
+            compiler-known descriptor alternatives. Descriptor identity also governs union
+            normalization: repeated arms are identified by canonical semantic identity,
+            aliases of the same descriptor are duplicates, and each authored duplicate
+            reports `W4003`.
+  see-also:
+    - lang.classes.protocols
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "11.7"
+    - document: language-scoreboard
+      section: "type-descriptors"
+  conformance:
+    - descriptor-reflection
+    - builtin-descriptor-contracts
+    - composed-descriptor-identities
+    - same-named-cross-namespace-methods
+    - nominal-object-identity
+  compiler: null

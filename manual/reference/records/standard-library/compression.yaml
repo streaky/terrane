@@ -1,0 +1,58 @@
+format: 1
+id: std.compression
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Bounded compression codecs"
+  title-style: text
+  summary: >-
+    Gzip, zlib, raw-deflate, and zstd operations use explicit codecs. Decompression requires bounded limits.
+  tags:
+    - "stdlib"
+    - "compression"
+  sections:
+    - id: compression
+      title: "Bounded Compression Codecs"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides four explicitly selected compression codecs: `gzip`, `zlib`,
+            `deflate-raw`, and `zstd`. The program selects the format; decompression does
+            not auto-detect one by default. Raw deflate is therefore selected as
+            `deflate-raw`, separately from zlib and gzip framing.
+
+            Compression supports a deterministic mode.
+
+            Every decompression operation requires three resource bounds:
+
+            - an output limit, bounding the amount of decompressed data;
+            - a ratio limit, bounding decompressed size relative to compressed input;
+            - a work limit, bounding decompression effort.
+
+            An input that exceeds a configured bound is refused with a distinct
+            resource-limit error. Limit refusal is not reported as successful decompression
+            with truncated output.
+
+            Decompression processes one explicitly selected layer. It does not recursively
+            inspect or decompress the resulting bytes. Nested compression must be processed
+            one layer at a time, with an explicit codec and all required bounds for each
+            operation.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "compression"
+  conformance: null
+  compiler: null

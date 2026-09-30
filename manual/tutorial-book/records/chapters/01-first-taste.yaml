@@ -1,0 +1,1172 @@
+format: 1
+id: book.first-taste
+kind: chapter
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: A First Taste of Terrane
+  title-style: text
+  summary: |-
+    Terrane is a language for writing ordinary programs that become ordinary native programs.
+  tags: []
+  blocks:
+    - type: markdown
+      markdown: |-
+        You can begin with a source file, a few familiar values, and a call to `print`.
+        The compiler checks the program, lowers it to readable Rust, asks the Rust
+        toolchain to build it, and runs the resulting executable. You do not need to
+        understand that complete path before writing useful code, but the path remains
+        available when you want to inspect it.
+
+        This chapter takes the shortest route through that process. By the end, you will
+        have:
+
+        - built the current Terrane compiler;
+        - written and run a complete source file;
+        - checked a program without running it;
+        - introduced a mistake and read its diagnostic;
+        - changed several values to produce a useful result;
+        - located Terrane between scripting-language convenience and systems-language
+          visibility.
+
+        We will deliberately leave most language details unexplained for now. Chapter 2
+        returns to values, names, expressions, members, and calls in a more systematic
+        way. For the moment, the goal is to make something work and to understand the
+        basic development loop.
+  sections:
+    - id: what-terrane-is-for
+      title: What Terrane is for
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane is intended for software that benefits from a high-level source language
+            but must eventually live as native code.
+
+            That includes familiar programs such as:
+
+            - command-line tools;
+            - services and ordinary applications;
+            - libraries;
+            - data-processing programs;
+            - software that later needs to cross into Rust or a native platform facility.
+
+            The language is designed to stay approachable while a program is small. You can
+            let the compiler infer obvious types, use ordinary value assignment, and write
+            direct control flow. As the program grows, you can state stronger contracts
+            around types, errors, ownership, interfaces, concurrency, and platform access
+            where those distinctions matter.
+
+            This progression is important. Terrane does not require every small calculation
+            to begin with an object hierarchy, an ownership diagram, or a collection of type
+            annotations. Nor does it hide the native program behind a permanent interpreter
+            or virtual machine.
+
+            The broad path is:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Terrane source
+                ↓
+            checked Terrane program
+                ↓
+            readable generated Rust
+                ↓
+            Cargo and rustc
+                ↓
+            native executable
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            At the beginning of the book, we will mostly work at the top of that diagram.
+            Later chapters move downward when doing so answers a practical question.
+
+            Terrane is still an experimental language. Its specification describes a larger
+            settled direction, while the working compiler implements an intentionally
+            smaller subset. The examples in this book use behavior exercised by the current
+            compiler rather than treating every designed feature as already available.
+      sections: []
+    - id: installing-the-toolchain
+      title: Installing the toolchain
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane is currently developed from its source repository rather than
+            distributed through a finalized release installer. To build the compiler from a
+            checkout, you need:
+
+            - a supported native development platform;
+            - Rust and Cargo, with Rust 1.85 or newer;
+            - the Terrane repository.
+
+            Rust installation instructions differ by platform and change independently of
+            this book. Install Rust through the method recommended for your system, then
+            check that both commands are available:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            rustc --version
+            cargo --version
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Terrane-generated programs use the exact stable Rust release reported by
+            `terrane --version`. The generated crate carries that pin, and rustup installs
+            it when first needed. This prevents an ambient `rustup update` from changing
+            whether an unchanged Terrane program builds. A package author who deliberately
+            accepts ambient compiler changes may put `rust-toolchain = "system"` in
+            `package.toml`; Terrane records that opt-out in the generated build metadata.
+
+            The same compiler release also pins Unicode 16.0.0 for case folding,
+            normalization, word segmentation, and grapheme boundaries. That language-level
+            data contract stays fixed even when a package deliberately uses the system Rust
+            toolchain. The generated Cargo manifest records the Unicode version so an
+            inspected build states which tables define its text behavior.
+
+            From the root of the Terrane repository, build the command-line compiler:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            cargo build --release -p terrane-cli
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The resulting executable is:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            target/release/terrane
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Check it directly:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            ./target/release/terrane --version
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A successful current checkout reports a version in this shape:
+        - type: example
+          id: legacy-fence-006
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane 0.1.0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The exact version will change as Terrane develops.
+
+            The examples below write commands as `terrane`. You may add `target/release` to
+            your shell's `PATH`, install or link the built executable somewhere already on
+            that path, or substitute the repository-relative command each time:
+        - type: example
+          id: legacy-fence-007
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            ./target/release/terrane run hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Choose whichever approach makes it obvious which compiler you are running.
+            During active compiler development, using the repository-relative path can
+            prevent an older installed executable from being mistaken for the one you just
+            built.
+
+            The small programs in this chapter need only Cargo and the stable toolchain
+            Terrane requests. Some later projects that import Rust dependencies have
+            additional projection and containment requirements; we will introduce those only
+            when a program actually needs them.
+
+            > **Working from a packaged release:** Once Terrane provides a release artifact
+            > for your platform, use its accompanying installation instructions instead of
+            > rebuilding the compiler. The language commands used by the rest of this
+            > chapter remain the same.
+      sections: []
+    - id: your-first-program
+      title: Your first program
+      blocks:
+        - type: markdown
+          markdown: |-
+            Create a file named `hello.trn` with this source:
+        - type: example
+          id: legacy-fence-008
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace hello
+
+            function main;
+              print; 'Hello from Terrane!'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is a complete Terrane program. It has four visible parts.
+
+            The first line declares the source namespace:
+        - type: example
+          id: legacy-fence-009
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace hello
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A namespace gives declarations a stable home. This one is named `hello`,
+            matching the small purpose of the file. Namespaces become more important when a
+            program spans several source files; Chapter 8 develops them fully.
+
+            The next declaration defines the program entry point:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function main;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Execution begins with `main`. The semicolon after its name marks a function
+            declaration with no parameters. It is not an end-of-statement marker.
+
+            The indented line is the body of `main`:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+              print; 'Hello from Terrane!'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Indentation gives the line its structure. Because it is indented beneath the
+            function declaration, it belongs to `main`.
+
+            `print` writes a value followed by a newline. The semicolon after `print` marks
+            a call, and the quoted text is the argument passed to it.
+
+            For now, read the line aloud as:
+
+            > Call `print` with the text “Hello from Terrane!”
+
+            Chapter 2 explains the call marker in more detail. The important first rule is
+            that Terrane calls are explicit: the semicolon belongs to the call.
+      sections:
+        - id: your-first-program-what-is-available-without-an-import
+          title: What is available without an import?
+          blocks:
+            - type: markdown
+              markdown: |-
+                `print` is one of Terrane's deliberately small set of default prelude names. The
+                complete default set is:
+            - type: example
+              id: legacy-fence-012
+              title: null
+              language: text
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                print
+                task-scope
+                utf8
+                utf16-le
+                utf16-be
+                utf32-le
+                utf32-be
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                These names are ready to use in an ordinary program. Importing `print` from
+                `/core/output` would bind the same object again, so examples should not do it
+                unless they are specifically demonstrating explicit rebinding or a project with
+                the default prelude disabled.
+
+                Type descriptors such as `int`, `string`, `bool`, `int64`, and `float64` also
+                need no import. They are language construction vocabulary rather than ordinary
+                prelude bindings.
+
+                The distinction is intentionally narrow. Collections such as `list`, `map`, and
+                `set`, filesystem operations, and most other `/core` facilities still require
+                imports. Chapter 8 will develop namespaces and imports properly; for now, do not
+                add an import merely to make `print` or a type name available.
+          sections: []
+        - id: your-first-program-source-files-are-ordinary-text
+          title: Source files are ordinary text
+          blocks:
+            - type: markdown
+              markdown: |-
+                Terrane source uses UTF-8 text and the `.trn` filename extension. You can edit
+                it in any text editor.
+
+                This book uses two spaces for indentation in examples. Terrane accepts
+                consistently used spaces or tabs, but mixing them within one indentation prefix
+                is an error. Whichever editor you use, make its whitespace behavior visible and
+                predictable.
+
+                Save the file before continuing.
+          sections: []
+    - id: running-a-source-file
+      title: Running a source file
+      blocks:
+        - type: markdown
+          markdown: |-
+            From the directory containing `hello.trn`, run:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane run hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            You should see:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Hello from Terrane!
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The command performs more work than the short output suggests:
+
+            1. it reads the Terrane source;
+            2. it parses and resolves the program;
+            3. it checks the program's semantic contracts;
+            4. it lowers the accepted program to Rust;
+            5. it asks Cargo and rustc to build a native executable;
+            6. it runs that executable.
+
+            Those are not six unrelated implementations. Terrane's `check`, `rust`, `build`,
+            and `run` commands share one compiler pipeline. A program is not interpreted one
+            way during development and translated according to different rules for release.
+
+            The first run may take longer because Cargo must compile generated support code
+            and populate its cache. Later runs reuse unchanged work. Terrane pays native
+            compilation costs at development and build boundaries, not each time an
+            already-built executable starts.
+        - type: admonition
+          id: ignore-generated-terrane-state
+          kind: important
+          title: Ignore generated `.trn` directories
+          markdown: |-
+            Terrane creates a `.trn/` directory for generated source, native build
+            artifacts, and reusable package state. This derived state should not be
+            committed.
+
+            If the program is in a Git repository, add this pattern to the repository's root
+            `.gitignore` now:
+        - type: example
+          id: legacy-fence-040
+          title: null
+          language: gitignore
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            **/.trn/
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Using the recursive pattern from the beginning also covers Terrane packages that
+            are later nested inside a larger repository or workspace. You can still inspect
+            generated files locally whenever they help explain a build.
+      sections:
+        - id: running-a-source-file-if-the-command-cannot-be-found
+          title: If the command cannot be found
+          blocks:
+            - type: markdown
+              markdown: |-
+                If your shell reports that `terrane` does not exist, but the repository build
+                succeeded, invoke the binary by its path:
+            - type: example
+              id: legacy-fence-015
+              title: null
+              language: console
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                /path/to/terrane/target/release/terrane run hello.trn
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                If Terrane reports that Cargo is unavailable, make sure the directory containing
+                `cargo` is on the same shell's `PATH`. The compiler uses Cargo to validate and
+                build its generated Rust.
+
+                `terrane toolchains` reports stable toolchain pins this Terrane installation has
+                previously requested. An older entry is described only as “not used by this
+                Terrane version”: the command neither removes it nor claims it is safe to
+                remove, because an older project may still use it.
+
+                These are toolchain-location problems rather than Terrane source errors. Source
+                errors have a filename, source position, severity, and stable diagnostic code,
+                as we will see shortly.
+          sections: []
+    - id: the-edit-check-and-run-cycle
+      title: The edit, check, and run cycle
+      blocks:
+        - type: markdown
+          markdown: |-
+            Most work on a small Terrane program follows a simple cycle:
+        - type: example
+          id: legacy-fence-016
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            edit source → check → run → observe → edit again
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Change the greeting:
+        - type: example
+          id: legacy-fence-017
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace hello
+
+            function main;
+              print; 'Hello, native world!'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Before running it, ask the compiler to check the program:
+        - type: example
+          id: legacy-fence-018
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane check hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A successful check normally prints nothing. Silence means the source was
+            accepted and its generated Rust passed backend validation. The command does not
+            execute `main`, so it does not print the greeting.
+
+            Now run it:
+        - type: example
+          id: legacy-fence-019
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane run hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The output changes:
+        - type: example
+          id: legacy-fence-020
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Hello, native world!
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The distinction is useful:
+
+            - use `terrane check` when you want to validate the program without executing
+              its behavior;
+            - use `terrane run` when you want the compiler to build and execute it.
+
+            A practical early workflow is to run often. Small changes produce small
+            diagnostics, and small diagnostics are easier to understand than a page of
+            errors introduced all at once.
+      sections:
+        - id: the-edit-check-and-run-cycle-keep-the-first-experiments-small
+          title: Keep the first experiments small
+          blocks:
+            - type: markdown
+              markdown: |-
+                Try each of these changes separately:
+            - type: example
+              id: legacy-fence-021
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                print; 'Good morning'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: example
+              id: legacy-fence-022
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                print; 'Good morning'
+                print; 'The program has two lines of output.'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: example
+              id: legacy-fence-023
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                message = 'Good morning'
+                print; message
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                The last example gives the text a name before printing it. You do not need to
+                understand binding rules yet; simply notice that the program can separate the
+                value it computes from the operation that uses it.
+
+                After each change:
+
+                1. save the file;
+                2. run `terrane check hello.trn`;
+                3. if the check succeeds, run `terrane run hello.trn`;
+                4. compare the output with what you expected.
+
+                The habit matters more than the size of this example. It is the same loop used
+                when the source grows from five lines to five thousand.
+          sections: []
+    - id: reading-a-compiler-diagnostic
+      title: Reading a compiler diagnostic
+      blocks:
+        - type: markdown
+          markdown: |-
+            A compiler diagnostic is part of the programming interface. It should tell you
+            what the compiler could not establish and point to the source that caused the
+            problem.
+
+            Introduce a spelling mistake in `hello.trn`:
+        - type: example
+          id: legacy-fence-024
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace hello
+
+            function main;
+              pritn; 'Hello from Terrane!'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Now check the file:
+        - type: example
+          id: legacy-fence-025
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane check hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Terrane reports:
+        - type: example
+          id: legacy-fence-026
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            hello.trn:4:3: error[S2013]: unresolved name `pritn`
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Read the diagnostic from left to right:
+
+            - `hello.trn` is the source file;
+            - `4:3` means line 4, column 3;
+            - `error` says the program cannot be accepted as written;
+            - `S2013` is the stable diagnostic code;
+            - **unresolved name `pritn`** explains what failed.
+
+            The compiler is not claiming that `print` was intended. It does not silently
+            repair the source. It reports that the written name, `pritn`, does not resolve
+            to anything available there.
+
+            That distinction is deliberate. Guessing may seem friendly for a typo, but
+            silent guesses become dangerous when two real operations have similar names.
+            Terrane keeps the authored program and the compiled program in agreement.
+
+            Correct the spelling:
+        - type: example
+          id: legacy-fence-027
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace hello
+
+            function main;
+              print; 'Hello from Terrane!'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Then check again:
+        - type: example
+          id: legacy-fence-028
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane check hello.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The successful command returns without an error. Run the program once more to
+            confirm its behavior.
+      sections:
+        - id: reading-a-compiler-diagnostic-start-with-the-first-diagnostic
+          title: Start with the first diagnostic
+          blocks:
+            - type: markdown
+              markdown: |-
+                A single mistake can confuse later parts of a file and produce more than one
+                message. Begin with the earliest clear diagnostic, correct it, and check again.
+                Do not assume every later message represents an independent defect.
+
+                When a message is unfamiliar, keep three questions separate:
+
+                1. **Where did the compiler lose confidence?** Read the file, line, and column.
+                2. **What contract could it not satisfy?** Read the diagnostic message and any
+                   attached notes or help.
+                3. **What did you intend to say?** Correct the source rather than trying to
+                   silence the diagnostic.
+
+                Later chapters deliberately examine type, ownership, import, and error-flow
+                diagnostics. The unresolved-name example establishes the common shape without
+                requiring those concepts first.
+          sections: []
+    - id: a-slightly-more-useful-program
+      title: A slightly more useful program
+      blocks:
+        - type: markdown
+          markdown: |-
+            A greeting proves that the toolchain works. Our next program will compute a
+            small packing requirement.
+
+            Create `packing-list.trn`:
+        - type: example
+          id: legacy-fence-029
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace packing-list
+
+            function main;
+              travellers = 3
+              bottles-each = 2
+              spare-bottles = 1
+              total-bottles = travellers * bottles-each + spare-bottles
+              print; 'Pack ', total-bottles, ' bottles.'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Run it:
+        - type: example
+          id: legacy-fence-030
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane run packing-list.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-031
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Pack 7 bottles.
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This program introduces several ideas that Chapter 2 will explain carefully:
+
+            - `travellers`, `bottles-each`, and `spare-bottles` name integer values;
+            - `*` multiplies and `+` adds;
+            - `total-bottles` names the result of the expression;
+            - `print` accepts several arguments and displays them from left to right;
+            - the quoted pieces supply the spaces and punctuation in the output.
+
+            The compiler infers the obvious value types here. We did not need to declare
+            that `3` is an integer before multiplying it. Type inference keeps a
+            straightforward calculation straightforward.
+
+            At the same time, the values are not untyped. The compiler knows which
+            operations apply to them and will reject an expression whose contracts do not
+            fit. Later we will add explicit annotations where they communicate information
+            that inference alone cannot express clearly.
+      sections:
+        - id: a-slightly-more-useful-program-change-the-inputs
+          title: Change the inputs
+          blocks:
+            - type: markdown
+              markdown: |-
+                Change the values without changing the calculation:
+            - type: example
+              id: legacy-fence-032
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                travellers = 5
+                bottles-each = 3
+                spare-bottles = 2
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Before running, work out the expected total. The program should print:
+            - type: example
+              id: legacy-fence-033
+              title: null
+              language: text
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                Pack 17 bottles.
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                This small experiment separates inputs, calculation, and presentation:
+            - type: example
+              id: legacy-fence-034
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                travellers = 5
+                bottles-each = 3
+                spare-bottles = 2
+
+                total-bottles = travellers * bottles-each + spare-bottles
+
+                print; 'Pack ', total-bottles, ' bottles.'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Blank lines do not change the result. They can make the stages easier to see.
+
+                Now add another calculated value:
+            - type: example
+              id: legacy-fence-035
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                total-people = travellers + 1
+                print; 'Including the guide: ', total-people, ' people.'
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                There is no single correct arrangement for a program this small. The useful
+                question is whether the names and layout let a reader recover the calculation
+                without mentally decoding abbreviations.
+          sections: []
+        - id: a-slightly-more-useful-program-terrane-style-name-the-meaning-not-the-mechanism
+          title: "Terrane style: name the meaning, not the mechanism"
+          blocks:
+            - type: markdown
+              markdown: |-
+                This version is short:
+            - type: example
+              id: legacy-fence-036
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                t = n * 2 + 1
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                This version communicates the domain:
+            - type: example
+              id: legacy-fence-037
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                total-bottles = travellers * bottles-each + spare-bottles
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                Terrane permits both, but descriptive names usually repay their extra
+                characters. Kebab-case names such as `total-bottles` are the language and
+                standard-library convention.
+
+                Names should still be proportional to their scope. A two-line mathematical
+                formula may be clearest with `x` and `y`; a value used throughout a packing
+                program deserves a name that survives distance.
+          sections: []
+    - id: where-terrane-fits-between-scripting-and-systems-programming
+      title: Where Terrane fits between scripting and systems programming
+      blocks:
+        - type: markdown
+          markdown: |-
+            The source we have written has the lightness often associated with a scripting
+            language:
+        - type: example
+          id: legacy-fence-038
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            travellers = 3
+            total-bottles = travellers * 2 + 1
+            print; total-bottles
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            There are no mandatory type annotations on obvious local values, no manual
+            allocation, and no build configuration in the source file. `terrane run`
+            provides a direct edit-and-run experience.
+
+            Underneath, Terrane takes a native build path. It checks the source, emits
+            deterministic Rust, and uses Cargo and rustc to produce an executable. The
+            generated Rust is not intended to be a secret implementation artifact. It is a
+            receipt that can later be inspected for debugging, profiling, integration, or
+            learning.
+
+            This combination does not mean that Terrane is a scripting language translated
+            mechanically into Rust syntax. Terrane has its own source semantics. Its
+            compiler may choose whichever Rust representation preserves those semantics, and
+            one Terrane idea need not correspond to one Rust object or statement.
+
+            It also does not mean that every programmer must become a systems programmer.
+            The layers are available progressively:
+
+            1. write ordinary Terrane and run it;
+            2. add contracts when the application needs them;
+            3. inspect generated Rust when it answers a useful question;
+            4. cross into native facilities when the problem requires it.
+
+            You may spend an entire project at the first two layers. The lower layers are an
+            escape route and an investigation path, not homework imposed on every source
+            file.
+      sections:
+        - id: where-terrane-fits-between-scripting-and-systems-programming-development-convenience-without-an-execution-time-compiler
+          title: Development convenience without an execution-time compiler
+          blocks:
+            - type: markdown
+              markdown: |-
+                `terrane run` can feel like running a script, but compilation happens before
+                execution. A deployed executable does not need to parse the Terrane source each
+                time it starts.
+
+                That distinction has practical consequences:
+
+                - many mistakes are rejected before the program runs;
+                - native compilation time is paid when the program changes;
+                - unchanged generated work can be cached;
+                - deployment can use an ordinary native executable;
+                - the Rust and native layers remain available to standard tooling.
+
+                None of this guarantees that every Terrane program is automatically fast or
+                small. Performance still depends on the program, the libraries it uses, the
+                selected build profile, and the compiler's current lowering quality. What
+                Terrane provides is a visible native route rather than a promise that source
+                convenience erases engineering tradeoffs.
+          sections: []
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: markdown
+          markdown: |-
+            1. Change the greeting so that it prints your name or the name of a project.
+               Check the file before running it.
+
+            2. Add a second `print` call to `hello.trn`. Predict exactly where the newline
+               appears, then run the program.
+
+            3. In `packing-list.trn`, change the number of travellers, bottles per
+               traveller, and spares. Calculate the result yourself before running the
+               source.
+
+            4. Misspell `total-bottles` at its use in `print`. Read the resulting file
+               position, diagnostic code, and message. Correct only that mistake and check
+               again.
+
+            5. Replace one integer in the packing calculation with quoted text. Read the
+               compiler's response before restoring the integer. You do not need to
+               understand every type term yet; identify which expression the compiler could
+               not accept.
+
+            6. Run `terrane check packing-list.trn` and confirm that it produces no program
+               output. Then run `terrane run packing-list.trn` and compare the two commands'
+               roles.
+      sections: []
+    - id: what-we-learned
+      title: What we learned
+      blocks:
+        - type: markdown
+          markdown: |-
+            A complete Terrane program can be small. It declares a namespace, defines
+            `main`, and performs work in an indented function body. Calls use an explicit
+            semicolon, and `print` is available to ordinary programs without an import.
+
+            The command-line development loop is equally small:
+        - type: example
+          id: legacy-fence-039
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            edit → terrane check → terrane run → observe
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `check` validates the Terrane program and its generated Rust without executing
+            `main`. `run` follows the same pipeline through native compilation and then
+            starts the resulting executable. When source is invalid, diagnostics identify a
+            location, severity, stable code, and explanation rather than silently changing
+            the program.
+
+            Terrane aims to preserve the approachable top of that workflow as applications
+            grow, while leaving a visible path into types, ownership, generated Rust, and
+            native integration. You can begin with ordinary values and inferred contracts;
+            deeper machinery appears when it earns its place.
+
+            In the next chapter, we will slow down and examine the vocabulary already hiding
+            inside these first programs: numbers, truth values, text, names, assignment,
+            arithmetic, member access, and the explicit call marker.
+      sections: []
+  see-also: []
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

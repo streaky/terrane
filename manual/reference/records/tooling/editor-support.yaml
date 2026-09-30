@@ -1,0 +1,110 @@
+format: 1
+id: tool.editor-support
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Language server and editor integration"
+  title-style: text
+  summary: >-
+    Completion, signature help, hover, definitions, projection declines, semantic highlighting, and diagnostics reuse compiler
+    data.
+  tags:
+    - "interop"
+    - "editor-support"
+  sections:
+    - id: editor-support
+      title: "Language Server and Editor Integration"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane editor support is provided through the language server. Completion,
+            signature help, hover, go-to-definition, semantic highlighting, and diagnostics
+            reuse compiler data rather than relying on a separate editor-only language
+            model.
+
+            The VS Code extension starts one `terrane-language-server` child process. By
+            default it resolves that executable inside the installed extension at
+            `server/terrane-language-server` (`server/terrane-language-server.exe` on
+            Windows). The executable is bundled into the extension rather than discovered
+            from the repository build directory, so rebuilding
+            `target/release/terrane-language-server` alone does not update an installed
+            extension or an already-running server process.
+
+            The extension's `npm run package-server` command builds the
+            `terrane-language-server` package in release mode and copies that executable
+            into `editors/vscode/server/`, preserving executable permissions on Unix. This
+            repository-local copy is the staging input for extension packaging. Installing
+            the resulting VSIX creates another independent copy below the active VS Code
+            extension directory. Consequently, changing the staged repository copy does not
+            mutate an extension that is already installed; package and reinstall the VSIX to
+            update that installation.
+
+            For compiler development, the `terrane.server.path` VS Code setting may name an
+            absolute language-server executable and takes precedence over the bundled copy.
+            This makes it possible to exercise `target/release/terrane-language-server`
+            without repackaging the extension. Whether using the override or replacing an
+            installed extension, reload the VS Code window after changing the selected
+            executable. Existing language-server child processes continue running the binary
+            image with which they were started.
+
+            When diagnosing an apparently stale language-server result, first identify which
+            executable the extension selected. Distinguish the Cargo build output, the
+            repository-staged extension binary, and the binary copied into the installed
+            extension. Comparing their hashes is a direct way to establish whether VS Code
+            is executing the build under investigation.
+
+            For manifest-declared Rust dependencies, completion, signature help, and hover
+            use the same lock-resolved projection as compilation. The projection is derived
+            from the resolved package, selected features, target, and rustdoc data. It
+            represents projected functions, inherent methods, receiver ownership, static
+            associated members, receiver-first trait namespaces, enums, aliases, primitives,
+            and opaque foreign values. Dependency information can show an item's verbatim
+            Rust path. If an item is not projected, the language server can show the
+            recorded reason for declining it instead of presenting it as usable Terrane API.
+
+            Dependency information in the editor is advisory; Cargo and rustc remain
+            authoritative about whether the resolved Rust package compiles. Compiler
+            diagnostics report dependency-boundary problems in Terrane terms. These include
+            relevant move and drop errors, `Send` and `Sync` requirements at task
+            boundaries, and escaping borrows. If a crossed member is missing, the error is
+            reported at its Terrane import or use site rather than only against generated
+            Rust.
+
+            Semantic highlighting, definition navigation, and editor diagnostics use
+            compiler-derived source information. The diagnostics displayed by the editor are
+            therefore the compiler's diagnostics.
+
+            The compiler-owned `terrane-projection.generated.trn` is a generated report and
+            multi-unit source container, not one authored namespace source.
+            `Generated source unit` markers delimit ordinary one-namespace Terrane units.
+            When the physical container is opened for inspection, the language server
+            suppresses both whole-file namespace-count and duplicate-namespace diagnostics
+            caused solely by viewing those virtual units as one document. Package analysis
+            separately syntax-validates each generated unit. Ordinary namespace-less,
+            duplicate-namespace, or multi-namespace authored files continue to receive their
+            diagnostics.
+
+            Dependency-import lookup has one advisory limitation. If the same local name is
+            imported from two `/deps` namespaces in one file, hover and signature help use
+            the first matching import line and can consequently show the wrong dependency
+            namespace. Completion does not use this first-match lookup, and compilation is
+            unaffected.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "editor-support"
+  conformance: null
+  compiler: null

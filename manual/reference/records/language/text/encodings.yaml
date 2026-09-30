@@ -1,0 +1,61 @@
+format: 1
+id: lang.text.encodings
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Unicode encoding objects"
+  title-style: text
+  summary: >-
+    UTF-8, UTF-16, and UTF-32 encoding objects support byte round-tripping. Decode failures are typed errors that report offsets.
+  tags:
+    - "text-data"
+    - "encodings"
+  sections:
+    - id: encodings
+      title: "Unicode Encoding Objects"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides encoding objects named `utf8`, `utf16-le`, `utf16-be`,
+            `utf32-le`, and `utf32-be`. Encoding is total for strings, and encoding and then
+            decoding with the same object round-trips the text through a `bytes` value.
+
+            Decoding validates the entire input. Malformed input throws `decode-error`,
+            which carries the byte offset of the failure. Decoding never substitutes
+            replacement text or accepts only a valid prefix while ignoring malformed
+            trailing input. The reported offset is measured in the supplied bytes, including
+            for UTF-16 and UTF-32.
+
+            `bytes` is an immutable sequence of octets, distinct from `string`. Its `length`
+            counts octets, iteration yields `uint8`, and it has no scalar-text display.
+            Integer indexing returns `uint8`; a negative, unrepresentable, or out-of-bounds
+            index throws `index-error`.
+
+            Range indexing returns a new `bytes` value. It visits the authored half-open or
+            inclusive range, including its step, in order and never decodes the result as
+            text. If any selected index is invalid, it throws `index-error`; a valid empty
+            boundary returns empty `bytes`.
+
+            A byte literal has the form `b'...'` and preserves arbitrary byte values. Its
+            escapes are exactly `\\`, `\'`, `\n`, `\r`, `\t`, `\0`, and `\xHH`, where `HH`
+            denotes one hexadecimal byte. Other escape forms are invalid. Use an encoding
+            object to convert explicitly between text and bytes.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "encodings"
+  conformance: null
+  compiler: null

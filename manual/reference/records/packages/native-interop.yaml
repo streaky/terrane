@@ -1,0 +1,62 @@
+format: 1
+id: tool.packages.native-interop
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "System and C ABI packages"
+  title-style: text
+  summary: >-
+    System and C ABI package adapters are distinct from Rust extension surfaces. These concrete adapters are capability-gated
+    and cross explicit ABI, ownership, failure, and…
+  tags:
+    - "interop"
+    - "native-interop"
+    - "system-c-interop"
+  sections:
+    - id: system-c-interop
+      title: "System and C ABI Packages"
+      blocks:
+        - type: markdown
+          markdown: |-
+            System and C interoperation crosses an explicit ABI boundary. It is distinct
+            from inline Rust, maintained Rust modules, and Rust dependency projection: Rust
+            remains Terrane's native lowering language rather than a foreign-runtime
+            transition.
+
+            A system or C crossing uses a concrete, capability-gated adapter. Its contract
+            must make the ABI, ownership, failure, and blocking boundaries explicit so that
+            the crossing is not treated as an unchecked Terrane operation. The adapter
+            presents those foreign behaviors through a boundary that preserves Terrane's
+            language semantics.
+
+            Failure declarations remain part of Terrane's callable type system. A function
+            type can use postfix `throws T`; omitting `throws` declares an infallible
+            callable type. Infallible or narrower implementations can satisfy a broader
+            callable destination, but a broader or unrelated throwable set cannot be stored
+            behind a narrower or infallible callable contract. Synchronous and asynchronous
+            callables follow the same rule.
+
+            Arbitrary C++ ABI integration is not supported. C++ initially crosses through
+            C-compatible shims or Rust bridges. General foreign-runtime adapters are
+            deferred until after version one. Any such adapter must define its conversion,
+            ownership, lifetime, threading, exception, deployment, and tooling contracts
+            without weakening Terrane semantics.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "system-c-interop"
+  conformance: null
+  compiler: null

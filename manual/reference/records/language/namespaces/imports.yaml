@@ -1,0 +1,104 @@
+format: 1
+id: lang.namespaces.imports
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Imports and aliases"
+  title-style: text
+  summary: >-
+    Imports may be absolute, relative, selective, aliased, or namespace-wide. All supported forms resolve deterministically.
+  tags:
+    - "names"
+    - "imports"
+  sections:
+    - id: imports
+      title: "Imports and Aliases"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides dependency declarations, selective imports, aliased imports,
+            and namespace-wide imports. An absolute namespace path begins at `/`; an
+            unanchored path is relative to the current namespace, and each `..` component
+            moves to the parent namespace. These forms are structural compile-time syntax
+            rather than ordinary calls or bindings:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            use (system) sqlite
+            from /image/codec import resize
+            from /core/collections import map as ordered-map
+            import /core/filesystem
+            from ../shared/config import settings
+            import with custom-import
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `use` declares a build dependency but does not automatically bind the
+            dependency’s supplied names. `from path import x` binds `x` in the lexical scope
+            containing the import. `from path import x as y` binds the same object identity
+            under the local name `y`; there is no separate declare-then-bind step. An
+            unresolved imported name produces `S2009`, an inaccessible imported name
+            produces `S2010`, and importing distinct objects under the same name in one
+            scope produces `S2011`. Reimporting the same object identity is idempotent and
+            silent.
+
+            `import /namespace` binds every public function-body object from the namespace
+            under its declared name. Private objects remain hidden, and imported identities
+            remain in their source namespace. Namespace-wide imports have no alias clause.
+            Namespace-wide imports from `/deps/*` are unsupported; dependency namespaces
+            must be imported selectively. Attempting the namespace-wide form produces
+            `S2033`.
+
+            Before installing a namespace-wide binding, Terrane checks the complete visible
+            chain: enclosing lexical scopes, the current and parent namespaces, program
+            globals, implicit `/core/types` constructs, and the prelude. If the imported
+            name denotes a different object, Terrane emits non-blocking warning `W4004`. An
+            authored top-level declaration in the importing namespace always retains its
+            name, so a conflicting imported object is skipped with `W4004`.
+
+            Other namespace-wide imports replace one another in source order. Across files,
+            source order is determined by normalized relative source path. A replacement
+            warning identifies the earlier import binding that was invalidated. To retain
+            both objects, establish a selective alias before the namespace-wide import.
+
+            Imports may occur at any lexical depth. A nested import can load its bundled
+            core package and contribute capability requirements, but its names remain
+            confined to the scope containing the import. Import discovery affects package
+            and capability analysis without widening lexical visibility. Import plans and
+            inputs participate in deterministic cache keys.
+
+            Importer selection is scoped. `import with custom-import` selects an importer
+            for its scope, while `global import with custom-import` selects the program
+            fallback. An ordinary binding named `import` cannot change importer selection.
+            Only declared, precompiled, versioned host extensions execute as importers or
+            modifiers; importing does not recursively execute arbitrary Terrane source.
+            Structural processing proceeds through the manifest and lockfile, host
+            extensions, imports in source order, namespaces, build selection, and then
+            resolution, typing, and modifiers.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "imports"
+  conformance: null
+  compiler: null

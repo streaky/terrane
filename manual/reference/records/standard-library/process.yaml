@@ -1,0 +1,67 @@
+format: 1
+id: std.process
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Process arguments environment and exit"
+  title-style: text
+  summary: >-
+    Arguments and environment are exposed as snapshots using lossless native strings. Command-line handling is schema-driven,
+    host-name access is provided, and exit status is explicit.
+  tags:
+    - "stdlib"
+    - "process"
+  sections:
+    - id: process
+      title: "Process Arguments, Environment, and Exit"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Process facilities are provided by `/core/process`. Host arguments, environment
+            entries, and host names use `native-string` values so that platform data is
+            preserved without lossy decoding. Each value represents exactly one host
+            component. Its `is-text` state distinguishes lossless Unicode text from lossless
+            raw bytes; non-Unicode data is never replacement-decoded.
+
+            Argument and environment access uses explicit snapshots. Arguments are
+            represented as native strings, including non-Unicode arguments. Environment
+            snapshots return paired native-string names and values, preserving both without
+            requiring Unicode conversion.
+
+            Command-line handling is schema-driven. Schemas declare exact `flag:` and
+            `value:` long-option spellings. Parsing returns flags, options, positionals, and
+            structured diagnostics; each diagnostic includes an argument index and message.
+            Parsing never terminates the process.
+
+            The command-line grammar does not support `--option=value`, a `--`
+            positional-only separator, or short-option clustering. An undeclared short
+            spelling remains positional rather than being interpreted as an option.
+
+            `process-host-name` requires process capability and returns
+            `process-host-name-result`, containing `failed`, `available`, and `message`
+            fields together with a lossless native-string value. The returned host-name data
+            is owned, preserves non-Unicode platform data, and exposes no host handle.
+
+            An `exit-status` is valid only when constructed from an exact integer in the
+            inclusive range `0..=255`. An invalid construction does not terminate the
+            process; it returns `valid=false` with the sentinel status `255`. Validation and
+            termination are separate: `exit` is the only terminating operation.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "process"
+  conformance: null
+  compiler: null

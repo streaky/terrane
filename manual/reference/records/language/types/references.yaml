@@ -1,0 +1,88 @@
+format: 1
+id: lang.types.references
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: References, provenance, and shared ownership
+  title-style: text
+  summary: >-
+    Defines non-owning ref paths, explicit shared ownership, lifetime ends, and reference lowering.
+  tags: [types, references, ownership, provenance, lowering]
+  sections:
+    - id: forms
+      title: Ownership forms
+      blocks:
+        - type: markdown
+          markdown: |-
+            `ref T` is a non-owning identity observer and does not extend the lender's
+            lifetime. `shared ref T` is an explicit shared owner. `move` transfers an owned
+            value. Assignment and calls do not silently convert among these contracts, and a
+            `ref T` cannot be promoted to `shared ref T`.
+    - id: provenance
+      title: Whole-path provenance
+      blocks:
+        - type: markdown
+          markdown: |-
+            Every ordinary reference records its originating owner, selected external-lender
+            parameter, and an ordered path of field, element, and call-result projections.
+            Parentheses, binding, calls, returned references, captures, and borrowed
+            iteration preserve or narrow that path; they never widen its lifetime. A
+            reference-returning function is accepted only when return flow selects exactly
+            one reference parameter, including through another call. Parameter count never
+            chooses the lender, and a by-value parameter or local value cannot lend a
+            returned reference.
+    - id: lifetime
+      title: Lifetime-ending operations
+      blocks:
+        - type: markdown
+          markdown: |-
+            Mutation that may invalidate the projected path, including ordinary-owner
+            collection mutation, owner replacement, movement, release, and scope exit ends
+            the relevant lifetime. A later observer use is a source error at the ending
+            operation rather than a run-time expiry path. List, map, and unordered-map
+            elements have supported borrow paths; unsupported index owners reject. A
+            reference crossing `await` is accepted only when the selected lender remains
+            valid.
+    - id: lowering
+      title: Cost and cycle contracts
+      blocks:
+        - type: markdown
+          markdown: |-
+            A bounded native ordinary reference lowers to a Rust borrow, and a selected
+            reference-return lender becomes an explicit Rust result lifetime. Reading it
+            does not upgrade, lock, or clone its owner. Explicit shared ownership retains
+            synchronized reference-counted storage; an ordinary observer of that same shared
+            identity uses a non-owning weak handle. The native target rejects statically
+            provable strong cycles in descriptor fields, including through collection
+            element types, while admitting acyclic shared fields. Later unproved native
+            shared cycles are not traced and must be broken explicitly; ordinary `ref`
+            back-edges are not ownership edges.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "12.4"
+  conformance:
+    - references-derived-provenance
+    - reference-return-selected-lender
+    - reference-group-map
+    - reference-call-result-invalidation
+    - reference-map-mutation
+    - reference-value-parameter-escape
+    - reference-shared-acyclic
+    - reference-shared-cycle
+    - reference-shared-promotion
+    - borrow-across-await
+  compiler: null

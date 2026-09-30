@@ -1,0 +1,140 @@
+format: 1
+id: lang.expressions.operators
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Operators and expression precedence"
+  title-style: text
+  summary: >-
+    Expressions use the version-one operator families, precedence, and grouping rules implemented by the parser and semantic
+    pipeline.
+  tags:
+    - "syntax"
+    - "operators"
+    - "operators-precedence"
+  sections:
+    - id: operators-precedence
+      title: "Operators and Precedence"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Expression operators bind in the following order, from highest to lowest:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            postfix member access, indexing, and calls
+            prefix: not  -  ~  shared ref  ref  move  await
+            *  /  %
+            +  -
+            <<  >>
+            &
+            ^
+            |
+            comparisons
+            is / is a
+            and
+            or
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Postfix member access, indexing, and calls bind most tightly. Parentheses
+            override the precedence table and also permit nested calls where the argument
+            grammar would otherwise require grouping. Prefix operators associate to the
+            right. Arithmetic, shift, bitwise, `and`, and `or` operators associate to the
+            left. Unary `+` is not defined.
+
+            Comparisons are non-associative, so chained comparisons are rejected. Write an
+            explicit Boolean combination instead:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            a < b and b < c
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Operator attachment is lexically significant. A spaced form such as `a + b` is
+            infix, while compact letter/operator/letter text such as `a+b` is one
+            identifier. In `a +b`, the preceding whitespace starts an infix operator. A
+            left-attached form such as `a+ b` requires declared postfix behavior; otherwise
+            it produces `L0006 invalid attached operator`. A terminal identifier joiner
+            followed by a digits-only unit, as in `count-1`, produces
+            `L0005 joiner-introduced digit unit`; write `count - 1` instead.
+
+            Postfix `++` and `--` are update statements, not expressions, and cannot be used
+            where a value is required.
+
+            `shared ref` is one compound prefix in both type and value positions. Bare
+            prefix `shared`, `ref ref value`, `shared ref ref value`, and `move move value`
+            are rejected.
+
+            Assignment is statement syntax rather than an operator in the precedence ladder.
+            Its target must be a mutable bare binding or an assignable member or index path.
+            Assignment receivers and indices are evaluated exactly once, from left to right,
+            before the assigned value. More generally, operands and call arguments evaluate
+            from left to right, receiver evaluation precedes member selection, and `and` and
+            `or` short-circuit.
+
+            Operator checking is type-directed and does not introduce implicit cross-type
+            coercions merely to make an operation applicable. Adaptive `int` arithmetic is
+            exact. Its bitwise operations use infinite two’s-complement behavior; its shifts
+            are exact or arithmetic as appropriate; and division and remainder are
+            Euclidean. Ordinary fixed-width arithmetic is checked rather than inheriting
+            host debug or release behavior. Division by zero, fixed-width overflow, and
+            invalid shifts retain their source location and defined failure identity; an
+            uncaught failure is rendered deterministically and exits unsuccessfully.
+
+            Equality, comparison, identity, and type membership are distinct operations.
+            `is` and `is a` share a precedence level below comparisons. Version-one identity
+            is restricted to canonical compiler-owned descriptor objects, including
+            descriptors exposed through `.type`. Ordinary scalars, strings, and collections
+            are identity-less, so `x is x` is false when `x` is such a value.
+
+            `===` is unsupported and produces `S1091 unsupported ===`. Express equality
+            together with type-descriptor identity explicitly:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            left == right and left.type is right.type
+          response: null
+          diagnostic: null
+          markdown: null
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "operators-precedence"
+  conformance: null
+  compiler: null

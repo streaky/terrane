@@ -1,0 +1,142 @@
+format: 1
+id: tool.rust-package-integrations.godot
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Godot"
+  title-style: text
+  summary: >-
+    Use the Rust godot package from Terrane, including generated builtin and class APIs, application compilation, and the remaining GDExtension registration boundary.
+  tags:
+    - "rust-packages"
+    - "godot"
+    - "gdextension"
+    - "projection"
+  sections:
+    - id: dependency-and-imports
+      title: "Dependency and imports"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Declare the `godot` crate as an exact Rust dependency with the effects needed by
+            the application. Terrane resolves generated definitions through the crate's
+            public re-exports, so users import the package surface rather than its internal
+            `godot-core` owner.
+
+            Godot builtin values live under `/deps/godot/builtin`; generated engine classes
+            live under `/deps/godot/classes`. The projector deliberately prefers these
+            substantive modules over convenience-prelude aliases, making imports stable and
+            unambiguous across editor, compiler, and generated Rust output.
+        - type: example
+          id: example.rust-packages.godot.manifest
+          status: accepted
+          caption: Declare the Godot Rust package
+          source:
+            language: toml
+            text: |-
+              [rust-dependencies.godot]
+              version = "=0.5.5"
+              effects = ["build", "runtime"]
+        - type: example
+          id: example.rust-packages.godot.values
+          status: accepted
+          caption: Construct projected Godot builtin values
+          source:
+            language: terrane
+            text: |-
+              namespace godot-values
+
+              from /deps/godot/builtin import Color, Vector2
+
+              public function draw-position Vector2; x float32, y float32
+                  return Vector2::new; x, y
+
+              public function body-color Color;
+                  return Color::from_rgb; 0.45, 0.78, 1.0
+    - id: generated-api
+      title: "Generated and reexported API"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The `godot` facade re-exports types defined by generated code in `godot-core`.
+            Terrane follows the resolved Cargo graph to the concrete owner, reads the hidden
+            generated definitions needed to describe that public binding, and emits calls
+            through the public `godot` path. Hidden owner modules do not become additional
+            Terrane namespaces, and `godot-core` does not need to be declared directly.
+
+            Projection remains item-specific. A generated type or operation appears only
+            when its concrete Rust signature satisfies the ordinary projection rules.
+            Missing generic, callback, ownership, failure, or lifetime facts still produce a
+            targeted projection decline rather than a Godot-specific compiler exception.
+        - type: example
+          id: example.rust-packages.godot.class-method
+          status: accepted
+          caption: Call a generated engine class method
+          source:
+            language: terrane
+            text: |-
+              namespace godot-class-contract
+
+              from /deps/godot/classes import Node2D
+              from /deps/godot/builtin import Vector2
+
+              function node-position Vector2; node ref Node2D
+                  return node.get_position;
+    - id: gdextension-boundary
+      title: "GDExtension boundary"
+      blocks:
+        - type: markdown
+          markdown: |-
+            GDExtension class registration still uses Rust attribute and derive macros, and
+            Godot invokes lifecycle callbacks through Rust traits. Projected foreign
+            resources cannot yet be stored in Terrane collections, and explicit lossy
+            `float64`-to-`float32` narrowing is planned in compiler milestone 30.5. Keep
+            that host-mandated ceremony, the three boundary casts, and final drawing calls
+            in one maintained Rust module. Simulation scheduling, render preparation, and
+            projected Godot value construction remain Terrane code.
+
+            Build the Terrane package as a dynamic library, then install the generated
+            library where the `.gdextension` descriptor expects it. The repository's
+            `projects/godot-test/build-extension.sh` is the executable reference workflow. A
+            compatible Godot 4.6 or newer runtime can smoke-test the installed extension
+            headlessly with `--headless --path godot --quit-after 120`.
+    - id: verification
+      title: "Verification profile"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The required `godot-generated-api-compile` native-survey profile combines
+            resolved-graph surveys for `godot` and `godot-core`, the focused generated API
+            acceptance fixture, and compilation of `projects/godot-test`. The dedicated
+            `godot-generated-api-runtime` profile adds extension installation and a headless
+            run on the pinned `4.7.2.stable` release line; build metadata suffixes may vary.
+            Ordinary compile evidence never reports runtime success when that release line
+            is absent. Godot can exit successfully after extension-load or script failures,
+            so the profile also treats the runner's stable `ERROR:` and `SCRIPT ERROR:`
+            diagnostics as runtime failure evidence.
+  see-also:
+    - tool.packages.rust-dependencies
+    - internals.projection-resolution
+    - internals.integration-boundaries
+
+provenance:
+  specification:
+    - document: adapt-crate
+      section: "M7"
+  conformance:
+    - godot-generated-api-projection
+    - projected-macro-reexport
+  compiler:
+    - crates/terrane-compiler/src/rust_interop/projection.rs
+    - crates/terrane-rust-analysis/src/lib.rs

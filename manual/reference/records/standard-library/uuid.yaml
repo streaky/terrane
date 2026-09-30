@@ -1,0 +1,47 @@
+format: 1
+id: std.uuid
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "UUID parsing and generation"
+  title-style: text
+  summary: >-
+    UUID parsing accepts canonical form. Random `v4` and time-ordered `v7` generation require an entropy capability.
+  tags:
+    - "stdlib"
+    - "uuid"
+  sections:
+    - id: uuid
+      title: "UUID Parsing and Generation"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane supports UUID parsing and generation of UUID versions 4 and 7.
+
+            Version 4 generation uses secure randomness. Version 7 generation is
+            time-ordered and also uses secure randomness. Operating-system entropy is
+            obtained through the secure-random facility. A `pseudo-random of Algorithm`
+            value is a distinct, incompatible type and cannot be supplied where secure
+            randomness is required.
+
+            UUID facilities are import-driven: they are unavailable until their owning
+            namespace or object is imported.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "uuid"
+  conformance: null
+  compiler: null

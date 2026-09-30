@@ -1,0 +1,102 @@
+format: 1
+id: internals.future.decorative-modifiers
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: planned
+  stability: null
+  since: null
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Future open decorative modifiers
+  title-style: text
+  summary: >-
+    Preserves the planned package-defined `with` modifier protocol for declaration realization outside the selected Terrane
+    source surface.
+  tags: [future, compiler-internals, syntax, modifiers, declaration-realization]
+  sections:
+    - id: status
+      title: Planned status
+      blocks:
+        - type: admonition
+          kind: important
+          title: Planned syntax
+          markdown: >-
+            This is a future language design. The selected compiler does not accept a `with`
+            clause, and version one defers custom declaration modifiers and package-defined
+            type constructors.
+    - id: structural-boundary
+      title: Structural and decorative boundary
+      blocks:
+        - type: markdown
+          markdown: |-
+            The planned protocol separates compiler-owned structural declaration keywords from
+            package-supplied decorative modifiers. Structural keywords define language
+            semantics: name resolution, visibility, mutability, ownership, or a callable's
+            type contract. They include `global`, `constant`, visibility qualifiers, and
+            callable qualifiers such as `static`, `async`, and `throws`. A modifier must not
+            alter those semantics.
+
+            Decorative modifiers instead describe how an already-understood declaration is
+            realized: storage, layout, linkage, ABI, section placement, or alignment. This
+            makes the modifier vocabulary open to packages without making Terrane's structural
+            declaration grammar or semantic guarantees replaceable.
+    - id: syntax
+      title: Planned clause syntax
+      blocks:
+        - type: markdown
+          markdown: |-
+            A planned `with` clause precedes structural declaration keywords. It begins with
+            `with`, contains comma-separated modifier expressions, and applies them from left
+            to right through ordinary lexical resolution. A modifier with arguments uses a
+            parenthesized call form; the clause itself has no wrapping parentheses.
+        - type: example
+          id: planned-with-modifiers
+          title: Planned declaration realization modifiers
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            with per-cpu, aligned global counts unsigned-long = 0
+            with per-cpu, (aligned; 64) global x int = 0
+          response: null
+          diagnostic: null
+          markdown: >-
+            These examples describe planned syntax only. They are not accepted by the selected
+            compiler.
+        - type: markdown
+          markdown: |-
+            A comma requires another modifier. The declaration begins after the first modifier
+            expression not followed by a comma, so a trailing comma is invalid. In `with
+            per-cpu, global x = 0`, `global` is read as the next modifier and rejected because
+            it is a structural word rather than a modifier.
+    - id: semantic-boundary
+      title: Planned semantic boundary
+      blocks:
+        - type: markdown
+          markdown: |-
+            A `with` clause may decorate any declaration, including an untyped local binding.
+            Its use must remain independently answerable: which package supplied the modifier,
+            what declaration forms it accepts, what realization it requests, how it composes,
+            and what lowering it requires. `with global` is invalid because `global` remains a
+            compiler-owned declaration form.
+
+            The protocol is closed in its guarantees, not in its vocabulary. A package may add
+            a new realization property without extending declaration grammar, but it cannot
+            use a modifier to create hidden changes to visibility, ownership, name resolution,
+            mutability, or callable contracts.
+  see-also: []
+
+provenance:
+  specification:
+    - document: compiler-plan
+      section: "Explicitly deferred"
+  conformance: null
+  compiler: null

@@ -129,10 +129,20 @@ impl Backend {
                 .expect("the opened source belongs to its snapshot");
             (metadata, syntax)
         };
+        let generated_projection =
+            terrane_compiler::rust_interop::projection::generated_projection_units(text)
+                .is_ok_and(|units| !units.is_empty());
+        let diagnostics = syntax
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| {
+                !generated_projection || !matches!(diagnostic.code.as_str(), "S0005" | "S2002")
+            })
+            .collect();
         Analysis {
             snapshot_id: metadata.snapshot_id,
             source_texts,
-            diagnostics: syntax.diagnostics,
+            diagnostics,
         }
     }
 

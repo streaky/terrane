@@ -1,0 +1,65 @@
+format: 1
+id: lang.classes.lifecycle
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Construct destruct and value lineage"
+  title-style: text
+  summary: >-
+    Construction and destruction methods compose across inheritance. Copies create fresh lifecycle lineages, while moves preserve
+    a single lineage.
+  tags:
+    - "objects"
+    - "lifecycle"
+  sections:
+    - id: lifecycle
+      title: "Construction, Destruction, and Value Lineage"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Construct an object only with `instance class; arguments`. The class designator
+            is a simple visible class name, including an imported local name, or the
+            late-bound `self` available inside a class method. Calls use the explicit `;`
+            form, including construction without arguments. Calling a class as an ordinary
+            callable does not construct an instance. `instance` specifies semantic
+            instantiation and does not require a particular allocation strategy.
+
+            Instantiation invokes the conventional `construct` method. Lifecycle methods
+            compose across the class’s single-inheritance chain, including `construct` and
+            `destruct` behavior for inherited state.
+
+            Declare a destructor as `function destruct`; it is always consuming. Writing
+            `consuming` is accepted as an explicit equivalent. `mutable`, `shared`,
+            `static`, and `async` are invalid destructor qualifiers and produce a compiler
+            error. A destructor may await required finalization without itself being
+            declared as an ordinary async callable. Destruction completes only after each
+            such await completes; it is never deferred as background cleanup. The compiler
+            runs that finalization on a dedicated runtime so synchronous destruction sites
+            retain their immediate lifecycle guarantee. Awaited destructors currently
+            require the threaded executor; the cooperative executor rejects them with a
+            source diagnostic because it permits non-transferable values. A destructor
+            cannot report a normal failure result, so resource APIs should also expose an
+            explicit async close operation when callers need to observe close failures.
+
+            Each independently owned value has its own lifecycle lineage. Copying creates a
+            fresh lineage, so the copy and original have independent lifecycles. Moving a
+            value preserves its existing lineage rather than creating another one.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "lifecycle"
+  conformance: null
+  compiler: null

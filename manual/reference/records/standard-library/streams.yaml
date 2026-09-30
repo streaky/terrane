@@ -1,0 +1,84 @@
+format: 1
+id: std.streams
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Byte and text streams"
+  title-style: text
+  summary: >-
+    Byte and text streams provide linear readers and writers, encoded adapters, and access to process standard streams. Stream
+    operations preserve cancellation behavior and report…
+  tags:
+    - "async"
+    - "streams"
+    - "byte-text-streams"
+  sections:
+    - id: byte-text-streams
+      title: "Byte and Text Streams"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The `/core/streams` package provides resource-owning `byte-reader`,
+            `byte-writer`, `text-reader`, and `text-writer` objects. Its bundled Terrane
+            source is included recursively only when imported. Process factories expose
+            standard input as a byte reader and standard output and standard error as byte
+            writers.
+
+            Stream objects are noncopyable because they store process handles. Assignment
+            and by-value calls transfer them automatically. Use after transfer or
+            consumption, including use after close, is rejected statically; double release
+            is likewise rejected.
+
+            A byte endpoint is adapted to text with `byte-endpoint.text; encoding`.
+            Adaptation transfers the byte endpoint into an adapter that carries the explicit
+            encoding. Text I/O performs no implicit newline translation. `text-writer.line`
+            explicitly appends `\n`, and its completed count includes the encoded newline.
+            Malformed input during text decoding throws `decode-error`.
+
+            Reads and writes may complete partially. A byte read result contains data bytes,
+            a completed byte count, an `end` flag, a `failed` flag, and a message string. A
+            text read result contains text and the same byte-count and status fields. EOF is
+            explicit, including on a zero-length read. `read-exact` fails on short EOF.
+            Bounded read-all accepts EOF and requires an explicit limit.
+
+            An incomplete write result retains the encoded data bytes required for
+            resumption; a completed result releases that data. Write results also report the
+            completed byte count, failure status, and message. `resume` performs one host
+            write and may remain partial, so it can be repeated. `write-all` loops until
+            completion, failure, or no progress. These rules apply to byte writes and
+            encoded text writes.
+
+            Close is explicit and consuming. Host release is idempotent, and an explicit
+            close makes release failure observable. Destruction releases the resource but
+            discards any release failure. Byte and text writers distinguish `flush`,
+            `sync-data`, and `sync-all`; an unsupported or failed operation is reported and
+            is not silently weakened to another operation.
+
+            `read-async` and `write-async` preserve the synchronous result contracts.
+            Cancellation is an outcome of the enclosing task and never fabricates stream
+            progress. When cancellation races completion, the task reports the resulting
+            cancellation or operation outcome without inventing bytes read or written.
+
+            The host boundary consists of the process-I/O handle registry and one partial
+            host operation at a time. Exact and all-operation loops, encoding, resumption,
+            stream policy, process factories, and asynchronous wrappers remain in the
+            Terrane stream layer.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "byte-text-streams"
+  conformance: null
+  compiler: null

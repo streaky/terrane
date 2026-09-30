@@ -1,0 +1,121 @@
+format: 1
+id: lang.types.authority-in-practice
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Parameter and receiver authority in practice
+  title-style: text
+  summary: >-
+    Gives application-facing declaration and call forms for shared, mutable, consuming, borrowed, and moved values.
+  tags: [types, references, ownership, functions, interfaces]
+  sections:
+    - id: declaration-table
+      title: Declaration and call forms
+      blocks:
+        - type: table
+          id: authority-forms
+          title: Authority syntax
+          show-header: true
+          columns:
+            - id: intent
+              title: Intent
+              cell: text
+            - id: declaration
+              title: Declaration form
+              cell: code
+            - id: call
+              title: Call form
+              cell: code
+          rows:
+            - intent: Borrow without ownership
+              declaration: function inspect none; value ref some-type
+              call: inspect; ref value
+            - intent: Share ownership explicitly
+              declaration: function retain none; value shared ref some-type
+              call: retain; shared ref value
+            - intent: Mutate receiver repeatedly
+              declaration: mutable function append; value string
+              call: buffer.append; value
+            - intent: Consume receiver once
+              declaration: consuming function close;
+              call: close; move resource
+            - intent: Implement a borrowed interface method
+              declaration: function inspect none; value ref some-type
+              call: implementation receives ref
+
+    - id: interfaces
+      title: Interfaces and receiver authority
+      blocks:
+        - type: rule
+          id: rule.authority.interface-contravariance
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            An implementation may require no more authority than its interface contract. A
+            shared method can satisfy a mutable or consuming requirement when its behavior
+            needs less authority; a mutable or consuming implementation cannot satisfy a
+            shared requirement. Reference parameters remain references in interface
+            declarations and implementations and must select the same value type.
+    - id: fields-and-collections
+      title: Borrowing fields and iterating references
+      blocks:
+        - type: markdown
+          markdown: |-
+            Borrow an interface-valued field when the caller only observes it; move it only
+            when ownership must leave the enclosing value. A moved resource-shaped field
+            cannot be used again through its former owner.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function render string; formatter ref document-formatter
+              return formatter.format; 'report'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A `for` loop over a referenced collection borrows the collection for traversal.
+            The iteration variable is a logical value snapshot; moving or mutating the owner
+            while that traversal is live is rejected.
+    - id: repeated-use
+      title: Why repeated by-value use can fail
+      blocks:
+        - type: note
+          id: resource-shaped-values
+          style: warning
+          markdown: |-
+            A value containing a non-copyable foreign object, file handle, consuming
+            callback, or another resource-owning field is linear. Passing it by value
+            transfers it even when the call does not spell `move` as documentation. Prefer
+            an explicit `ref` parameter for observation, a mutable receiver for repeated
+            mutation, or `move` at the one intentional ownership transfer. Do not hide a
+            resource move behind repeated by-value calls.
+  see-also:
+    - lang.types.references
+    - lang.functions.declarations
+    - app.collection-string-idioms
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "12.4"
+  conformance: []
+  compiler: null

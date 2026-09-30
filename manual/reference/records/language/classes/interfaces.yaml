@@ -1,0 +1,64 @@
+format: 1
+id: lang.classes.interfaces
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Nominal interfaces and typed dispatch"
+  title-style: text
+  summary: >-
+    Declared interface identity is nominal. For interface-typed calls, the dispatch contract is checked and lowered statically.
+  tags:
+    - "objects"
+    - "interfaces"
+  sections:
+    - id: interfaces
+      title: "Nominal Interfaces and Typed Dispatch"
+      blocks:
+        - type: markdown
+          markdown: |-
+            An interface is a named, nominal contract and type. A class adopts an interface
+            explicitly with `implements`; merely exposing members with a compatible shape
+            does not give the class that interface identity.
+
+            Interfaces differ from unnamed structural protocols, which describe operation
+            shapes without introducing declarations, nominal types, or dispatch objects.
+            Traits are different as well: a trait contributes source fields and method
+            implementations through `uses`, but is not itself a type or a subtyping
+            relation.
+
+            Interface conformance and calls through interface-typed values are checked
+            statically against the declared interface contract. The interface is the
+            dispatch boundary: calls are lowered as interface dispatch rather than as
+            runtime probing for a coincidentally shaped member. A call must conform to the
+            operation declared by the interface; a contract mismatch is a type error.
+
+            Member selection and invocation remain separate. `value.name` selects an
+            instance member but does not invoke it. Invocation uses the explicit semicolon
+            form, including for a zero-argument method. Likewise, an ordinary name denotes
+            its bound object rather than invoking it implicitly. Functions, classes,
+            namespaces, and type objects are reflectable semantic objects.
+
+            Interfaces do not introduce implicit same-name signature overloading. Terrane
+            does not select an interface operation by searching same-named alternatives
+            according to argument types. Each declared operation provides the statically
+            checked contract used at its call sites, and the conforming receiver provides
+            the implementation reached through the interface dispatch boundary.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "interfaces"
+  conformance: null
+  compiler: null

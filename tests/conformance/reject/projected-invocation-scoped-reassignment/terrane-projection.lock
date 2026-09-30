@@ -1,0 +1,31 @@
+{
+  "format": 3,
+  "dependencies": [
+    {
+      "name": "witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/witness",
+          "render_scoped"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "dab43f86ac3265a08b0a743907a3332ff8d015a5b099bdeb05898918b76f9656",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "145",
+  "content_hash": "872a72ce25d726f7b58909014b9d73bcea90f87126ea49431c7f5c4259136a8f",
+  "resolution": {
+    "outcome": "ExactCache",
+    "events": [
+      {
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `dab43f86ac3265a08b0a743907a3332ff8d015a5b099bdeb05898918b76f9656`"
+      }
+    ]
+  }
+}

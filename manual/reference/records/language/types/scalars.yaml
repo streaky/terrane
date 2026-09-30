@@ -1,0 +1,85 @@
+format: 1
+id: lang.types.scalars
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Core scalar types"
+  title-style: text
+  summary: >-
+    The core scalar types are `bool`, exact `int`, fixed-width integers, floats, string, bytes, and `none`. Values of these
+    types can lower directly to native representations.
+  tags:
+    - "types"
+    - "scalars"
+    - "scalar-types"
+  sections:
+    - id: scalar-types
+      title: "Core Scalar Types"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane’s core scalar types are `bool`, exact `int`, fixed-width integers,
+            floating-point types, `string`, `bytes`, and `none`.
+
+            The fixed signed integer types are `int8`, `int16`, `int32`, `int64`, and
+            `int128`. The unsigned types are `uint8`, `uint16`, `uint32`, `uint64`, and
+            `uint128`. The floating-point types are `float32` and `float64`.
+
+            `bool` has the values `true` and `false`. `string` is Unicode text with UTF-8 as
+            its standard representation, while `bytes` represents arbitrary binary data.
+            `none` is the singleton absence value and may be an ordinary union member, as in
+            `T|none`; it is distinct from `void`, which means that no value is produced.
+
+            `int` is an exact, arbitrary-precision signed semantic value. Its adaptive
+            representation uses exact `i64`, `i128`, and arbitrary-precision tiers and
+            normalizes to the smallest exact tier. These representation choices do not
+            change the source-level type or arithmetic semantics. If a required
+            arbitrary-precision promotion is unavailable, the build is rejected rather than
+            silently changing the result.
+
+            Fixed-width integers have distinct types and ranges. Their ordinary arithmetic
+            is checked. Uncaught division by zero, fixed-width overflow, integer-conversion
+            overflow, and invalid shifts preserve the defined error identity and source
+            location, are rendered deterministically, and terminate the program with a
+            nonzero exit status.
+
+            Assignment does not implicitly coerce across numeric types. Supported integer
+            conversions use the explicit `.coerce`, `.coerce.checked`, `.coerce.wrap`, and
+            `.coerce.saturate` callable families. Type membership is not conversion: a typed
+            `int8` value is not an `int`.
+
+            `float` is a spelling of `float64`, not a separate type. Both spellings denote
+            the same canonical descriptor, and `.type`, `is a`, reflection, and diagnostics
+            use `float64`. `float` denotes the language’s default precision and may be
+            repointed at a language-version boundary, but never according to target or build
+            profile. `float64` explicitly pins binary64 semantics, and `float32` is a
+            separate pinned type.
+
+            These scalar types lower without requiring a universal boxed scalar
+            representation. Fixed-width scalar values use direct native representations,
+            while `int` uses its dedicated adaptive exact-integer representation. Ordinary
+            scalar values and strings do not carry source-visible identity: use `==` for
+            value equality rather than `is`.
+
+            A string’s default `length` is measured in grapheme clusters, and iteration over
+            a string visits grapheme clusters. Arbitrary `bytes` are not treated as text and
+            are not assigned an inferred text-display behavior.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "scalar-types"
+  conformance: null
+  compiler: null

@@ -1,0 +1,167 @@
+format: 1
+id: std.paths
+kind: topic
+
+surface: /core/filesystem/paths
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Paths
+  title-style: text
+  summary: >-
+    Represents filesystem paths as explicit values and provides lexical component, normalization, parent, name, extension,
+    and joining operations.
+  tags: [standard-library, filesystem, paths]
+  sections:
+    - id: synopsis
+      title: Compiler-backed synopsis
+      blocks:
+        - type: markdown
+          markdown: |-
+            These declarations require no capability because they transform path values
+            without touching the filesystem. The synopsis is checked against the
+            compiler-owned source by `tools/generate_manual_catalog.py`.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            class path
+            function path-components list of string; subject path
+            function path-is-absolute bool; subject path
+            function normalise-path path; subject path
+            function path-name string; subject path
+            function path-parent path; subject path
+            function path-stem string; subject path
+            function path-extension string; subject path
+            function join-path path; base path, child path
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: behavior
+      title: Lexical path behavior
+      blocks:
+        - type: table
+          id: path-operations
+          title: Path operations
+          show-header: true
+          columns:
+            - id: operation
+              title: Operation
+              cell: code
+            - id: result
+              title: Result
+              cell: text
+            - id: failure
+              title: Failure behavior
+              cell: text
+          rows:
+            - operation: path-components
+              result: Non-empty slash-separated components.
+              failure: Infallible.
+            - operation: path-is-absolute
+              result: Whether text begins with a slash.
+              failure: Infallible.
+            - operation: normalise-path
+              result: Removes empty and dot components and resolves lexical dot-dot components where possible.
+              failure: Infallible; performs no filesystem lookup.
+            - operation: path-name
+              result: Final normalized component, or empty text when absent.
+              failure: Infallible.
+            - operation: path-parent
+              result: Lexical normalized parent.
+              failure: Infallible.
+            - operation: path-stem
+              result: Name without its final extension.
+              failure: Infallible.
+            - operation: path-extension
+              result: Final extension without the dot, or empty text.
+              failure: Infallible.
+            - operation: join-path
+              result: Normalized child beneath base; an absolute child replaces base.
+              failure: Infallible.
+
+        - type: note
+          id: lexical-not-filesystem
+          style: warning
+          markdown: |-
+            Path normalization is lexical. It does not canonicalize symlinks, prove
+            containment, check existence, or grant filesystem authority. Use
+            `filesystem-canonical` or `filesystem-open-beneath` when the operation requires
+            host-backed identity or containment.
+    - id: examples
+      title: Constructing and joining paths
+      blocks:
+        - type: example
+          id: join-output-path
+          title: Join a relative child
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/paths
+
+            from /core/filesystem/paths import path, join-path, path-name
+
+            function output-name string; root string
+              combined = join-path; (instance path; root), (instance path; 'reports/result.json')
+              return path-name; combined
+          response: null
+          diagnostic: null
+          markdown: >-
+            `join-path` returns a new value. Neither input is moved or mutated.
+    - id: paths
+      title: "Platform-Neutral Lexical Paths"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Path facilities are provided by `/core/filesystem/paths` as an ordinary
+            import-driven Terrane package. A `path` is a platform-neutral lexical value with
+            `/` as its canonical separator. Creating, normalizing, joining, or inspecting a
+            path does not consult the host filesystem, check existence, or imply that the
+            path identifies an accessible host object.
+
+            Normalization discards empty components and `.` components and resolves `..`
+            lexically. In a rooted path, parent components cannot move the result above the
+            root. In an unrooted path, unresolved leading parent components are retained.
+            These operations work only on lexical components and do not account for
+            filesystem objects or symbolic links.
+
+            Joining an absolute child to a base returns the child in place of the base.
+            Joining any other child concatenates it with the base and then normalizes the
+            result. Joining is therefore deterministic and platform-neutral, but it does not
+            establish that the resulting path exists or is reachable.
+
+            Host resolution is a separate, capability-mediated filesystem operation.
+            `filesystem-canonical` resolves a path through the native filesystem, follows
+            filesystem resolution rules, and may fail. `filesystem-realpath` is its
+            deliberate POSIX-spelled alias and has the same implementation. Both require
+            filesystem authority; neither performs lexical normalization alone.
+  see-also:
+    - std.filesystem
+    - std.text-bytes-codecs
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "5"
+    - document: language-scoreboard
+      section: "paths"
+  conformance: []
+  compiler: null
+
+implementation:
+  compiler:
+    - crates/terrane-compiler/src/core/paths.trn

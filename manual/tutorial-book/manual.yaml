@@ -1,0 +1,605 @@
+format: 1
+publication:
+  id: tutorial
+  kind: book
+imports:
+  - reference
+title: The Terrane Book
+landing: book.preface
+navigation:
+  - group: Front matter
+    numbering: none
+    children:
+      - source: records/preface.yaml
+        contents: []
+      - source: records/chapters/introduction.yaml
+        contents:
+          - section: audience
+            title: Who this book is for
+          - section: scope
+            title: What this book will teach
+          - section: reference-boundary
+            title: What this book deliberately leaves to the reference
+          - section: examples
+            title: How to read the examples
+          - section: continuum-of-competence
+            title: Terrane's continuum of competence
+  - group: Chapters
+    numbering: decimal
+    children:
+      - number: 1
+        source: records/chapters/01-first-taste.yaml
+        contents:
+          - section: what-terrane-is-for
+            title: What Terrane is for
+          - section: installing-the-toolchain
+            title: Installing the toolchain
+          - section: your-first-program
+            title: Your first program
+          - section: running-a-source-file
+            title: Running a source file
+          - section: the-edit-check-and-run-cycle
+            title: The edit, check, and run cycle
+          - section: reading-a-compiler-diagnostic
+            title: Reading a compiler diagnostic
+          - section: a-slightly-more-useful-program
+            title: A slightly more useful program
+          - section: where-terrane-fits-between-scripting-and-systems-programming
+            title: Where Terrane fits between scripting and systems programming
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 2
+        source: records/chapters/02-values-and-names.yaml
+        contents:
+          - section: numbers-truth-values-and-text
+            title: Numbers, truth values, and text
+          - section: giving-a-value-a-name
+            title: Giving a value a name
+          - section: changing-a-binding
+            title: Changing a binding
+          - section: arithmetic-and-comparisons
+            title: Arithmetic and comparisons
+          - section: member-access-with
+            title: Member access with `.`
+          - section: calling-with-semicolon
+            title: Calling with `;`
+          - section: nested-calls-and-parentheses
+            title: Nested calls and parentheses
+          - section: comments-and-readable-layout
+            title: Comments and readable layout
+          - section: everything-is-an-object-semantically
+            title: Everything is an object—semantically
+          - section: why-terrane-why-calls-use-semicolon
+            title: "Why Terrane: why calls use `;`"
+          - section: project-calculate-a-small-purchase
+            title: "Project: calculate a small purchase"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 3
+        source: records/chapters/03-decisions-and-repetition.yaml
+        contents:
+          - section: choosing-with-if-and-else
+            title: Choosing with `if` and `else`
+          - section: combining-conditions
+            title: Combining conditions
+          - section: repeating-with-while
+            title: Repeating with `while`
+          - section: iterating-with-for
+            title: Iterating with `for`
+          - section: ranges-and-ordinary-iteration
+            title: Ranges and ordinary iteration
+          - section: break-and-continue
+            title: "`break` and `continue`"
+          - section: loop-local-names
+            title: Loop-local names
+          - section: choosing-the-clearest-loop
+            title: Choosing the clearest loop
+          - section: project-classify-a-range-of-numbers
+            title: "Project: classify a range of numbers"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 4
+        source: records/chapters/04-functions.yaml
+        contents:
+          - section: defining-and-calling-a-function
+            title: Defining and calling a function
+          - section: parameters-and-results
+            title: Parameters and results
+          - section: required-optional-and-named-arguments
+            title: Required, optional, and named arguments
+          - section: returning-early
+            title: Returning early
+          - section: local-scope
+            title: Local scope
+          - section: passing-functions-as-values
+            title: Passing functions as values
+          - section: small-functions-that-compose
+            title: Small functions that compose
+          - section: project-turn-the-number-classifier-into-functions
+            title: "Project: turn the number classifier into functions"
+          - section: terrane-style-express-contracts-not-ceremony
+            title: "Terrane style: express contracts, not ceremony"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 5
+        source: records/chapters/05-text-and-collections.yaml
+        contents:
+          - section: quoted-tail-and-block-text
+            title: Quoted, tail, and block text
+          - section: common-string-operations
+            title: Common string operations
+          - section: bytes-unicode-scalars-and-grapheme-clusters
+            title: Bytes, Unicode scalars, and grapheme clusters
+          - section: creating-lists
+            title: Creating lists
+          - section: iterating-over-lists
+            title: Iterating over lists
+          - section: creating-and-updating-maps
+            title: Creating and updating maps
+          - section: building-collections-from-existing-values
+            title: Building collections from existing values
+          - section: choosing-the-right-collection
+            title: Choosing the right collection
+          - section: assignment-and-copy-on-write-value-behavior
+            title: Assignment and copy-on-write value behavior
+          - section: why-terrane-values-without-accidental-aliasing
+            title: "Why Terrane: values without accidental aliasing"
+          - section: project-word-frequency
+            title: "Project: word frequency"
+          - section: terrane-style-make-data-shape-visible
+            title: "Terrane style: make data shape visible"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 6
+        source: records/chapters/06-complete-program.yaml
+        contents:
+          - section: starting-from-a-user-story
+            title: Starting from a user story
+          - section: dividing-the-program-into-functions
+            title: Dividing the program into functions
+          - section: modeling-the-program-s-data
+            title: Modeling the program's data
+          - section: validating-values
+            title: Validating values
+          - section: reporting-useful-output
+            title: Reporting useful output
+          - section: keeping-decisions-separate-from-presentation
+            title: Keeping decisions separate from presentation
+          - section: checking-and-testing-behavior
+            title: Checking and testing behavior
+          - section: growing-the-program-without-losing-its-shape
+            title: Growing the program without losing its shape
+          - section: project-a-small-in-memory-reporting-tool
+            title: "Project: a small in-memory reporting tool"
+          - section: terrane-style-let-the-program-read-like-its-decisions
+            title: "Terrane style: let the program read like its decisions"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 7
+        source: records/chapters/07-errors.yaml
+        contents:
+          - section: mistakes-failures-and-exceptional-conditions
+            title: Mistakes, failures, and exceptional conditions
+          - section: throwing-an-error
+            title: Throwing an error
+          - section: handling-errors-with-try-and-catch
+            title: Handling errors with `try` and `catch`
+          - section: cleaning-up-with-finally
+            title: Cleaning up with `finally`
+          - section: letting-an-error-travel-to-the-right-layer
+            title: Letting an error travel to the right layer
+          - section: replacing-and-preserving-errors
+            title: Replacing and preserving errors
+          - section: designing-useful-error-values
+            title: Designing useful error values
+          - section: when-not-to-catch-an-error
+            title: When not to catch an error
+          - section: improving-the-reporting-tool-s-failures
+            title: Improving the reporting tool's failures
+          - section: terrane-style-make-failure-boundaries-as-clear-as-success-boundaries
+            title: "Terrane style: make failure boundaries as clear as success boundaries"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 8
+        source: records/chapters/08-namespaces-imports-and-packages.yaml
+        contents:
+          - section: from-one-file-to-a-project
+            title: From one file to a project
+          - section: namespaces-and-paths
+            title: Namespaces and paths
+          - section: imports
+            title: Imports
+          - section: organizing-the-source-tree
+            title: Organizing the source tree
+          - section: visibility
+            title: Visibility
+          - section: the-package-manifest
+            title: The package manifest
+          - section: dependencies
+            title: Dependencies
+          - section: building-and-running-a-package
+            title: Building and running a package
+          - section: project-split-the-reporting-tool-across-files
+            title: "Project: split the reporting tool across files"
+          - section: terrane-style-let-namespace-boundaries-follow-responsibility
+            title: "Terrane style: let namespace boundaries follow responsibility"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 9
+        source: records/chapters/09-classes-interfaces-and-traits.yaml
+        contents:
+          - section: objects-as-behavior
+            title: Objects as behavior
+          - section: defining-a-class
+            title: Defining a class
+          - section: constructing-an-instance
+            title: Constructing an instance
+          - section: typed-fields-and-ordinary-methods
+            title: Typed fields and ordinary methods
+          - section: initialization-with-construct
+            title: Initialization with `construct`
+          - section: cleanup-with-destruct
+            title: Cleanup with `destruct`
+          - section: encapsulation-and-visibility
+            title: Encapsulation and visibility
+          - section: extending-one-base-class
+            title: Extending one base class
+          - section: describing-shared-behavior-with-an-interface
+            title: Describing shared behavior with an interface
+          - section: reusing-fields-and-methods-with-traits
+            title: Reusing fields and methods with traits
+          - section: designing-an-object-that-earns-its-existence
+            title: Designing an object that earns its existence
+          - section: project-model-a-small-task-list
+            title: "Project: model a small task list"
+          - section: under-the-surface-the-object-model-is-a-semantic-abstraction
+            title: "Under the surface: the object model is a semantic abstraction"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 10
+        source: records/chapters/10-types.yaml
+        contents:
+          - section: type-inference
+            title: Type inference
+          - section: annotations-where-they-communicate-intent
+            title: Annotations where they communicate intent
+          - section: union-types-and-optional-values
+            title: Union types and optional values
+          - section: refinement-after-a-check
+            title: Refinement after a check
+          - section: coercion
+            title: Coercion
+          - section: generic-types
+            title: Generic types
+          - section: function-types
+            title: Function types
+          - section: compile-time-guarantees
+            title: Compile-time guarantees
+          - section: project-strengthen-the-task-list-program-with-types
+            title: "Project: strengthen the task-list program with types"
+          - section: terrane-style-state-contracts-not-compiler-trivia
+            title: "Terrane style: state contracts, not compiler trivia"
+          - section: exercises
+            title: Exercises
+          - section: what-we-learned
+            title: What we learned
+      - number: 11
+        source: records/chapters/11-identity-and-movement.yaml
+        contents:
+          - section: ordinary-assignment-first
+            title: Ordinary assignment first
+          - section: independent-logical-values
+            title: Independent logical values
+          - section: copy-on-write-behavior-in-practice
+            title: Copy-on-write behavior in practice
+          - section: sharing-identity-explicitly-with-ref
+            title: Sharing identity explicitly with `ref`
+          - section: shared-references-and-ownership
+            title: Shared references and ownership
+          - section: transferring-a-value-with-move
+            title: Transferring a value with `move`
+          - section: when-a-value-is-no-longer-available
+            title: When a value is no longer available
+          - section: lifetimes-without-annotation-clutter
+            title: Lifetimes without annotation clutter
+          - section: choosing-between-assignment-ref-and-move
+            title: Choosing between assignment, `ref`, and `move`
+          - section: common-designs-that-do-not-need-references
+            title: Common designs that do not need references
+          - section: project-observing-a-work-list
+            title: "Project: observing a work list"
+          - section: terrane-style-make-identity-part-of-the-model-only-when-it-matters
+            title: "Terrane style: make identity part of the model only when it matters"
+          - section: exercises
+            title: Exercises
+          - section: chapter-summary
+            title: Chapter summary
+      - number: 12
+        source: records/chapters/12-async.yaml
+        contents:
+          - section: when-a-program-should-be-asynchronous
+            title: When a program should be asynchronous
+          - section: declaring-and-awaiting-asynchronous-work
+            title: Declaring and awaiting asynchronous work
+          - section: task-scopes
+            title: Task scopes
+          - section: spawning-work-within-a-scope
+            title: Spawning work within a scope
+          - section: joining-tasks-and-observing-outcomes
+            title: Joining tasks and observing outcomes
+          - section: failure-inside-a-task
+            title: Failure inside a task
+          - section: cancellation-and-partial-progress
+            title: Cancellation and partial progress
+          - section: deadlines
+            title: Deadlines
+          - section: project-coordinating-a-heartbeat-with-an-overall-time-budget
+            title: "Project: coordinating a heartbeat with an overall time budget"
+          - section: sharing-mutable-state-by-giving-it-one-owner
+            title: Sharing mutable state by giving it one owner
+          - section: carrying-log-events-through-typed-channels
+            title: Carrying log events through typed channels
+          - section: threaded-and-cooperative-executor-profiles
+            title: Threaded and cooperative executor profiles
+          - section: project-processing-several-values-concurrently
+            title: "Project: processing several values concurrently"
+          - section: terrane-style-keep-concurrency-within-a-scope
+            title: "Terrane style: keep concurrency within a scope"
+          - section: why-terrane-async-is-structured
+            title: "Why Terrane: async is structured"
+          - section: exercises
+            title: Exercises
+          - section: chapter-summary
+            title: Chapter summary
+      - number: 13
+        source: records/chapters/13-native-program.yaml
+        contents:
+          - section: from-terrane-source-to-an-executable
+            title: From Terrane source to an executable
+          - section: the-semantic-model-between-source-and-rust
+            title: The semantic model between source and Rust
+          - section: reading-generated-rust
+            title: Reading generated Rust
+          - section: source-locations-and-diagnostics-across-lowering
+            title: Source locations and diagnostics across lowering
+          - section: debug-and-release-builds
+            title: Debug and release builds
+          - section: what-optimization-may-erase
+            title: What optimization may erase
+          - section: why-a-terrane-object-need-not-become-a-rust-object
+            title: Why a Terrane object need not become a Rust object
+          - section: behavior-is-the-contract-semicolon-representation-is-a-compiler-decision
+            title: Behavior is the contract; representation is a compiler decision
+          - section: debugging-at-the-terrane-and-rust-levels
+            title: Debugging at the Terrane and Rust levels
+          - section: the-continuum-of-competence
+            title: The continuum of competence
+          - section: exercises
+            title: Exercises
+          - section: chapter-summary
+            title: Chapter summary
+      - number: 14
+        source: records/chapters/14-terrane-shaped-programs.yaml
+        contents:
+          - section: prefer-the-ordinary-operation
+            title: Prefer the ordinary operation
+          - section: let-inference-remove-noise
+            title: Let inference remove noise
+          - section: use-types-to-state-real-contracts
+            title: Use types to state real contracts
+          - section: pass-values-unless-identity-matters
+            title: Pass values unless identity matters
+          - section: give-errors-an-appropriate-owner
+            title: Give errors an appropriate owner
+          - section: use-iteration-rather-than-managing-indexes
+            title: Use iteration rather than managing indexes
+          - section: keep-concurrency-within-a-scope
+            title: Keep concurrency within a scope
+          - section: favor-readable-generated-behavior-over-clever-source-tricks
+            title: Favor readable generated behavior over clever source tricks
+          - section: refactoring-the-book-s-project-as-a-whole
+            title: Refactoring the book's project as a whole
+          - section: a-practical-review-checklist
+            title: A practical review checklist
+          - section: exercises
+            title: Exercises
+          - section: chapter-summary
+            title: Chapter summary
+      - number: 15
+        source: records/chapters/15-testing-and-debugging.yaml
+        contents:
+          - section: begin-with-one-observable-behavior
+            title: Begin with one observable behavior
+          - section: write-assertions-that-explain-the-contract
+            title: Write assertions that explain the contract
+          - section: choose-the-test-boundary-deliberately
+            title: Choose the test boundary deliberately
+          - section: make-time-and-context-deterministic
+            title: Make time and context deterministic
+          - section: drive-the-built-application
+            title: Drive the built application
+          - section: run-the-suite-at-the-right-scale
+            title: Run the suite at the right scale
+          - section: read-failures-and-machine-reports
+            title: Read failures and machine reports
+          - section: debug-from-the-terrane-boundary-inward
+            title: Debug from the Terrane boundary inward
+          - section: profile-the-optimized-application
+            title: Profile the optimized application
+          - section: complete-project-testing-a-writing-plan
+            title: "Complete project: testing a writing plan"
+          - section: exercises
+            title: Exercises
+          - section: chapter-summary
+            title: Chapter summary
+      - number: 16
+        planned:
+          id: book.larger-program
+          kind: chapter
+          title: A Larger Program, Step by Step
+          contents:
+            - section: choosing-a-manageable-application
+              title: Choosing a manageable application
+            - section: sketching-behavior-before-structure
+              title: Sketching behavior before structure
+            - section: establishing-the-package-layout
+              title: Establishing the package layout
+            - section: modeling-the-core-values
+              title: Modeling the core values
+            - section: writing-the-first-vertical-slice
+              title: Writing the first vertical slice
+            - section: adding-collections-and-iteration
+              title: Adding collections and iteration
+            - section: adding-structured-error-handling
+              title: Adding structured error handling
+            - section: adding-classes-and-an-interface
+              title: Adding classes and an interface
+            - section: adding-an-explicit-ownership-boundary
+              title: Adding an explicit ownership boundary
+            - section: adding-concurrent-work-where-it-helps
+              title: Adding concurrent work where it helps
+            - section: testing-observable-behavior
+              title: Testing observable behavior
+            - section: inspecting-the-generated-rust
+              title: Inspecting the generated Rust
+            - section: building-and-running-the-finished-application
+              title: Building and running the finished application
+            - section: what-we-deliberately-did-not-build
+              title: What we deliberately did not build
+      - number: 17
+        planned:
+          id: book.next
+          kind: chapter
+          title: Where to Go Next
+          contents:
+            - section: navigating-the-language-reference
+              title: Navigating the language reference
+            - section: reading-compiler-diagnostics-as-guidance
+              title: Reading compiler diagnostics as guidance
+            - section: exploring-generated-rust
+              title: Exploring generated Rust
+            - section: profiling-and-debugging-native-programs
+              title: Profiling and debugging native programs
+            - section: standard-facilities-as-they-become-available
+              title: Standard facilities as they become available
+            - section: going-lower-rust-abi-types-and-foreign-boundaries
+              title: "Going lower: Rust, ABI types, and foreign boundaries"
+            - section: specialized-and-deferred-territory
+              title: Specialized and deferred territory
+            - section: contributing-packages
+              title: Contributing packages
+            - section: contributing-to-terrane
+              title: Contributing to Terrane
+            - section: continuing-the-continuum-of-competence
+              title: Continuing the continuum of competence
+  - group: Appendices
+    numbering: upper-alpha
+    children:
+      - number: A
+        planned:
+          id: book.appendix.installing
+          kind: appendix
+          title: Installing Terrane on Supported Platforms
+          contents:
+            - section: toolchain-requirements
+              title: Toolchain requirements
+            - section: editor-integration
+              title: Editor integration
+            - section: updating-and-troubleshooting
+              title: Updating and troubleshooting
+      - number: B
+        planned:
+          id: book.appendix.commands
+          kind: appendix
+          title: The Commands Used in This Book
+          contents:
+            - section: terrane-check
+              title: "`terrane check`"
+            - section: terrane-rust
+              title: "`terrane rust`"
+            - section: terrane-build
+              title: "`terrane build`"
+            - section: terrane-run
+              title: "`terrane run`"
+            - section: package-manifests-and-use-declarations
+              title: Package manifests and `use` declarations
+      - number: C
+        planned:
+          id: book.appendix.syntax-map
+          kind: appendix
+          title: A Reader's Syntax Map
+          contents:
+            - section: bindings-and-assignment
+              title: Bindings and assignment
+            - section: calls-and-member-access
+              title: Calls and member access
+            - section: function-declarations
+              title: Function declarations
+            - section: control-flow
+              title: Control flow
+            - section: imports-and-namespaces
+              title: Imports and namespaces
+            - section: types-ref-and-move
+              title: Types, `ref`, and `move`
+            - section: error-handling
+              title: Error handling
+            - section: async-forms
+              title: Async forms
+      - number: D
+        planned:
+          id: book.appendix.answers
+          kind: appendix
+          title: Answers and Further Experiments
+          contents:
+            - section: chapter-exercises
+              title: Chapter exercises
+            - section: alternative-solutions
+              title: Alternative solutions
+            - section: ideas-for-extending-the-projects
+              title: Ideas for extending the projects
+      - number: E
+        planned:
+          id: book.appendix.reference-map
+          kind: appendix
+          title: From Tutorial to Reference
+          contents:
+            - section: topic-by-topic-pointers-into-the-language-and-package-references
+              title: Topic-by-topic pointers into the language and package references
+            - section: features-intentionally-not-taught-in-the-main-progression
+              title: Features intentionally not taught in the main progression
+      - number: F
+        planned:
+          id: book.appendix.beyond-tutorial
+          kind: appendix
+          title: Beyond the Tutorial
+          contents:
+            - section: standard-streams-files-paths-processes-and-command-line-parsing
+              title: Standard streams, files, paths, processes, and command-line parsing
+            - section: documents-networking-time-and-structured-logging
+              title: Documents, networking, time, and structured logging
+            - section: native-rust-and-foreign-runtime-boundaries
+              title: Native Rust and foreign-runtime boundaries
+            - section: raw-addresses-and-abi-level-facilities
+              title: Raw addresses and ABI-level facilities
+            - section: deliberately-deferred-features-generators-labels-and-goto-hot-code-replacement-no-std-embedded-firmware-and-kernel-targets
+              title:
+                "Deliberately deferred features: generators, labels and `goto`, hot-code replacement, `no_std`, embedded,
+                firmware, and kernel targets"

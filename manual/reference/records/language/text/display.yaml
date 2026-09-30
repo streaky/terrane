@@ -1,0 +1,70 @@
+format: 1
+id: lang.text.display
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Canonical scalar display and print"
+  title-style: text
+  summary: >-
+    Strings, numerics, booleans, and `none` have canonical display and printing forms. Arbitrary bytes have no display conversion.
+  tags:
+    - "text-data"
+    - "display"
+    - "scalar-display"
+  sections:
+    - id: scalar-display
+      title: "Canonical Scalar Display"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Core text display converts supported values to `string`. It is defined for
+            strings, every integer type, every floating-point type, booleans, and `none`.
+            Arbitrary `bytes` have no core display conversion. Type descriptors are language
+            constructs rather than displayable runtime values.
+
+            Rendering is canonical rather than locale-sensitive:
+
+            - Integers use base-ten digits without grouping.
+            - Booleans render as `true` or `false`.
+            - Absence renders as `none`.
+            - Floating-point values use the shortest decimal representation that round-trips
+              and preserve negative zero.
+            - Non-finite floating-point spellings are `nan`, `inf`, and `-inf`; the platform
+              spelling `NaN` is normalized to `nan`.
+
+            Core `print` displays its arguments from left to right and appends a newline.
+            Each argument uses canonical text display. Locale, styling, field width,
+            precision, and other presentation policies require imported formatting
+            facilities.
+
+            Display-based string composition follows the same rule. Both `concat` and `join`
+            convert their arguments through canonical text display and report a typed error
+            when an argument has no display operation; they do not silently invent a
+            representation.
+
+            Version-one dynamic bindings have finite, compiler-known alternatives. The
+            compiler checks display support and typed-boundary compatibility across every
+            alternative. Runtime display type errors are reserved for later dynamic
+            facilities or foreign values whose alternatives have been erased. A value that
+            may be arbitrary bytes therefore cannot be passed to `print` on the assumption
+            that its contents are textual; it must first be converted to a type with
+            supported display.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "scalar-display"
+  conformance: null
+  compiler: null

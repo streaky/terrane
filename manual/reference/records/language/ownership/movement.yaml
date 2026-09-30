@@ -1,0 +1,71 @@
+format: 1
+id: lang.ownership.movement
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Explicit ownership transfer"
+  title-style: text
+  summary: >-
+    Resource ownership transfers explicitly, and a moved-from binding becomes unavailable. Replacing a resource binding invalidates
+    its prior ownership.
+  tags:
+    - "objects"
+    - "movement"
+    - "move-semantics"
+  sections:
+    - id: move-semantics
+      title: "Explicit Ownership Transfer"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane uses ordinary assignment for both copyable and resource-owning values,
+            with different ownership effects. Assigning a copyable value uses value
+            semantics. Its backing storage may be shared internally through copy-on-write,
+            but mutation separates the value before a change can become observable through
+            another copy. Assigning a resource-owning value transfers its identity and
+            ownership to the destination and makes the source binding unavailable.
+
+            Resource ownership is inferred transitively from compiler-known noncopyable
+            fields; there is no `linear class` qualifier. Passing a statically noncopyable
+            value by value transfers it automatically, without requiring `move`. Explicit
+            `move` requests transfer where ordinary assignment would copy and may be used
+            for emphasis where transfer is already required for a noncopyable value. It
+            neither creates a second owner nor keeps the moved-from binding available.
+
+            Replacing a binding ends the lifetime of its previous value. Reference
+            provenance tied to that value is bounded by the replacement, so a dependent
+            reference cannot be used afterward. Uses after a move, replacement, or other
+            lifetime-ending operation are source errors. Constants cannot be rebound,
+            whether their identity is lexical, namespace-local, or program-global.
+
+            Move state across a loop follows binding identity. A binding declared in the
+            loop body is freshly initialized on every iteration, so consuming its value does
+            not carry that consumed state across the back-edge. A moved binding originating
+            outside the loop remains unavailable on later iterations until it is explicitly
+            rebound.
+
+            Each independently owned source value has one lifecycle lineage. Transfer moves
+            that lineage rather than duplicating it, and a non-owning `ref` does not extend
+            it. When the lineage ends, deterministic lexical cleanup invokes each applicable
+            `destruct` once, ordered from the most-derived class to the root base.
+            Copy-on-write representation clones cannot multiply this cleanup; separating a
+            value copy creates a fresh lineage.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "move-semantics"
+  conformance: null
+  compiler: null

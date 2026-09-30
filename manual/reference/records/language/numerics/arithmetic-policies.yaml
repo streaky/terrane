@@ -1,0 +1,80 @@
+format: 1
+id: lang.numerics.arithmetic-policies
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Named bounded arithmetic families"
+  title-style: text
+  summary: >-
+    The named arithmetic families are `checked`, `wrap`, `saturate`, and `overflowing`. Each family is exposed only for the
+    integer operations where it is semantically valid.
+  tags:
+    - "numerics"
+    - "arithmetic-policies"
+    - "bounded-arithmetic"
+  sections:
+    - id: bounded-arithmetic
+      title: "Named Bounded Arithmetic"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Integers provide the named families `add`, `subtract`, `multiply`, `divide`,
+            `remainder`, `div-rem`, `negate`, `shift-left`, and `shift-right`. Symbolic
+            operators select the corresponding family’s default child. Policy availability
+            is resolved statically during member lookup; selecting an unavailable child is
+            rejected at its source span rather than treated as a runtime no-op.
+
+            For fixed-width receivers, `add`, `subtract`, `multiply`, `divide`, `remainder`,
+            and `negate` provide the default, `checked`, `wrap`, `saturate`, and
+            `overflowing` children. The default child throws on a result outside the
+            receiver type’s range. `checked` returns an optional result, producing absence
+            on bounded-arithmetic failure. `wrap` reduces an out-of-range result into the
+            fixed-width range, and `saturate` clamps it to the applicable lower or upper
+            bound. `overflowing` returns an `overflow-result of T` containing a `value` of
+            type `T` and an `overflowed` Boolean. None of these behaviors depends on target
+            build mode.
+
+            Division by zero throws `division-by-zero` on the default path. The `checked`
+            division and remainder children can represent failure with absence rather than
+            inventing a quotient or remainder.
+
+            `div-rem` has only default and `checked` children. It returns a
+            `div-rem-result of T` containing a quotient and remainder of type `T`, with
+            Euclidean division semantics. Wrapping and saturating variants are absent
+            because changing the quotient independently would break the quotient/remainder
+            identity that the combined result guarantees; no overflowing child is provided.
+
+            For fixed-width `shift-left` and `shift-right`, the default and `checked`
+            children reject counts outside the receiver width, and `wrap` reduces the count
+            modulo that width. Saturating shifts are absent. Negative counts throw
+            `negative-shift-count`. Shift behavior is defined by Terrane rather than
+            inherited from target-language masking or panic rules.
+
+            Adaptive `int` has no finite bounds to wrap, clamp, or report as overflow, so
+            `wrap`, `saturate`, and `overflowing` are absent rather than accepted as no-ops.
+            Its exact default children are available throughout the arithmetic families.
+            `checked` is present only where an `int` operation is genuinely fallible:
+            `divide`, `remainder`, and `div-rem`, for division by zero. Exact `int` shifts
+            have no count-policy children.
+
+            Postfix `++` and `--` always select default addition or subtraction. To use
+            another policy, write the operation and assignment explicitly.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "bounded-arithmetic"
+  conformance: null
+  compiler: null

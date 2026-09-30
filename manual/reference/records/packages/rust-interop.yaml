@@ -1,0 +1,101 @@
+format: 1
+id: tool.packages.rust-interop
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Inline and maintained Rust escape hatches"
+  title-style: text
+  summary: >-
+    Inline Rust blocks and Rust expressions are capability-gated. Manifest-declared maintained Rust source files provide an
+    additional Rust escape hatch. These surfaces retain an…
+  tags:
+    - "interop"
+    - "rust-interop"
+    - "inline-rust"
+  sections:
+    - id: inline-rust
+      title: "Rust Escape Hatches"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Rust is Terrane's native lowering and extension language, not a foreign-runtime
+            boundary. Terrane provides capability-gated inline Rust blocks and expressions,
+            including concrete `unsafe rust` forms. A bare `rust` or `unsafe` qualifier is
+            invalid; Rust access must use a defined block or expression boundary.
+            `unsafe rust` relaxes Rust-operation safety only within that boundary. It does
+            not bypass Terrane's definite-assignment, cleanup, lifetime, capability,
+            ownership, or effect rules.
+
+            An inline Rust boundary observes a Terrane `ref` binding as the existing native
+            borrow. Lowering does not clone the referent into the boundary: a native result
+            may therefore retain the admitted relationship to that lender, subject to the
+            surrounding Terrane lifetime and escape checks. Owned, reusable inputs retain
+            their ordinary value-separation behavior.
+
+            Packages can also include maintained Rust source files declared in the manifest.
+            A Rust module declaration maps a module name to an authored `.rs` file:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            [rust-modules]
+            adapters = "rust/adapters.rs"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The declared file participates in the package's locked Rust crate graph.
+            Generated and authored Rust can call each other through explicit typed adapters.
+            For example, with the module declaration above, generated Rust can call
+            `crate::adapters::answer()`. These boundaries participate in ownership and
+            effect declarations and in panic and error translation.
+
+            Inline Rust and maintained Rust modules are subject to build-capability and
+            profile checks. They also participate in deterministic artifact identity and
+            source association. Lowering emits canonical Rust, and generated identifiers use
+            an exact, deterministic, injective encoding: punctuation is not normalized away.
+            A Terrane source name, its generated Rust name, and any native or link symbol
+            are separate identities.
+
+            Rust diagnostics map back to the originating Terrane spans without suppressing
+            the original Rust diagnostics. Generated artifacts retain source-site
+            infrastructure so both the Terrane location and the native compiler report
+            remain available.
+
+            Streamed Rust output is one complete standalone unit. Named-file output and
+            Cargo builds use a two-file layout: the requested entrypoint contains authored
+            lowering and one relative include, while `<entrypoint-stem>.support.rs` contains
+            the compiler prelude, runtime, structured-error and source-site infrastructure,
+            selectively included `/core` implementation code, and projected `/deps`
+            lowering. User-authored package modules remain in the entrypoint. The support
+            sidecar is emitted even when empty.
+
+            Ejection tooling can produce maintainable Rust and Cargo artifacts. Lowering
+            itself remains canonical. A bundled pinned formatter may validate an untouched
+            generated artifact, but its formatted copy is discarded. A mismatch is a
+            compiler defect, not permission to silently rewrite the generated artifact.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "inline-rust"
+  conformance: null
+  compiler: null

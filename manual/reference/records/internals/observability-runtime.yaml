@@ -1,0 +1,109 @@
+format: 1
+id: internals.observability.runtime
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Observability runtime boundary
+  title-style: text
+  summary: >-
+    Explains the narrow generated-Rust and platform-support boundary behind Terrane structured logging policy.
+  tags:
+    - compiler-internals
+    - lowering
+    - runtime
+    - logging
+    - observability
+  sections:
+    - id: ownership
+      title: Terrane policy and Rust resources
+      blocks:
+        - type: rule
+          id: rule.internals.observability.ownership
+          level: must
+          since: null
+          evidence:
+            - structured-logging
+          markdown: |-
+            `/core/logging` owns logger construction, named severity policy, immutable
+            enrichment, target and severity filtering, redaction policy, and event assembly
+            as bundled Terrane source. Generated Rust owns only opaque sink IDs,
+            synchronization, bounded storage, controlled clock and sequence assignment,
+            console I/O, and foreign callback registration. Those pieces require
+            host-resource or foreign-callback runtime ownership; moving ordinary policy into
+            the host layer is not permitted.
+
+            Lowering injects Terrane call-site source into the source-private policy
+            operation after semantic resolution of `emit`, `debug`, `info`, `warning`, and
+            `error`. It similarly injects field call sites into `field` and `secret-field`.
+            Generated field dispatch checks sink reveal permission before invoking a secret
+            renderer, so raw secret values never cross into platform support without
+            explicit consent.
+
+            The generated `log-value` protocol object is `Send + Sync`. This is the Rust
+            representation invariant that lets a typed `log-event` channel receiver move
+            into a worker task; rendering and sink policy remain source-defined and occur
+            only after receipt.
+    - id: determinism
+      title: Stable capture
+      blocks:
+        - type: rule
+          id: rule.internals.observability.determinism
+          level: must
+          since: null
+          evidence:
+            - structured-logging
+          markdown: |-
+            Memory sinks receive an explicit timestamp origin and step and own a monotonic
+            per-sink sequence. Platform support serializes records with a fixed field layout
+            and drains them in insertion order. Sink registries do not provide ambient
+            logger lookup to Terrane source; a program must retain and pass its concrete
+            sink or logger value.
+    - id: dependency-bridge
+      title: Foreign facade callbacks
+      blocks:
+        - type: rule
+          id: rule.internals.observability.dependency-bridge
+          level: must
+          since: null
+          evidence:
+            - dependency-observability
+          markdown: |-
+            Platform support registers a direct Rust `log` facade adapter and one `tracing`
+            layer only when Terrane calls `install-dependency-bridge` with a concrete sink.
+            The process-global registration is the narrow foreign-callback justification for
+            Rust ownership; the selected sink remains explicit in Terrane.
+
+            The `log` adapter visits key-value sources directly, so structured fields do not
+            disappear in a lossy `log`-to-`tracing` conversion. The tracing layer retains
+            primitive event fields, walks the active span scope from root to leaf, and
+            projects span fields under `span.<span-name>.<field>`. Unsupported values use
+            the explicit `<field>.debug` fallback name. Both paths retain module, file, and
+            line. Absolute Cargo file paths are normalized to a stable path beginning at
+            `src` when available. The bridge constructs `dependency://` sources and a
+            `dependency` origin instead of passing the event through Terrane source-site
+            injection.
+
+            `dependency_sink_layer` and `dependency_subscriber` expose the tracing side
+            before global registration. A host integration can compose an optional reporting
+            layer there rather than competing for a second global subscriber; omitting it
+            creates no layer or work.
+relationships:
+  see-also:
+    - std.logging
+  supersedes: []
+  superseded-by: []
+  conflicts-with: []
+
+implementation:
+  compiler: null

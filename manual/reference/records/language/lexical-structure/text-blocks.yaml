@@ -1,0 +1,102 @@
+format: 1
+id: lang.lexical-structure.text-blocks
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Tail and block text literals
+  title-style: text
+  summary: >-
+    Defines the undelimited tail and indentation-delimited block forms for literal text, including their use as direct return
+    expressions.
+  tags:
+    - lexical-structure
+    - literals
+    - strings
+    - return
+  sections:
+    - id: forms
+      title: Writing undelimited text
+      blocks:
+        - type: rule
+          id: rule.lexical-structure.tail-and-block-text
+          level: must
+          since: null
+          evidence:
+            - return-tail-block-strings
+          markdown: |-
+            An attached `>` at the start of an expression captures every remaining source
+            character on its physical line as literal text. An exact `>>` at the start of an
+            expression, with no same-line content after it, captures the following indented
+            block. Common structural indentation is removed, content lines are joined with
+            `\n`, and no implicit final newline is added.
+
+            Both forms are non-interpolating. Comments, escapes, substitutions, delimiters,
+            and operators have no grammatical meaning after the tail marker or inside block
+            content.
+    - id: placement
+      title: Placing the literal
+      blocks:
+        - type: rule
+          id: rule.lexical-structure.text-expression-start
+          level: must
+          since: null
+          evidence:
+            - return-tail-block-strings
+          markdown: |-
+            Tail and block text markers are valid only where an expression begins.
+            Initializers, call arguments, and the result position after `return` are
+            expression-start positions. A tail or block literal is necessarily the final
+            ungrouped syntactic element in its containing line or block; use quoted text
+            when more expression syntax follows.
+        - type: example
+          id: return-tail-and-block-text
+          title: Return tail and block text directly
+          language: terrane
+          mode: run
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/return-text
+
+            function status string;
+              return >ready
+
+            function explanation string;
+              return >>
+                First line
+                Second line
+
+            function main;
+              print; (status;)
+              print; (explanation;)
+          response:
+            kind: stdout
+            language: text
+            display: on-run
+            content: |-
+              ready
+              First line
+              Second line
+          diagnostic: null
+          markdown: null
+  see-also:
+    - lang.functions.declarations
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "6.7"
+  conformance:
+    - return-tail-block-strings
+  compiler: null

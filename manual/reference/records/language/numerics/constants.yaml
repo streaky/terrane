@@ -1,0 +1,103 @@
+format: 1
+id: lang.numerics.constants
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Contextual constant arithmetic"
+  title-style: text
+  summary: >-
+    Constant arithmetic uses the destination type or a typed operand as its arithmetic context. Representability is checked
+    once, on the final result.
+  tags:
+    - "numerics"
+    - "constants"
+    - "constant-arithmetic"
+  sections:
+    - id: constant-arithmetic
+      title: "Contextual Constant Arithmetic"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A numeric constant expression is a literal, a unary-negated literal, a
+            parenthesized constant, or a compile-time arithmetic combination. Whole-number
+            and decimal spelling does not permanently assign a type. A surrounding numeric
+            destination or a statically typed numeric operand selects the type and
+            arithmetic for the expression. Only an unconstrained constant defaults from its
+            spelling: a whole-number constant becomes `int`, and a decimal constant becomes
+            `float`.
+
+            Destination context can come from a typed binding initializer or assignment, a
+            parameter default, an argument matched to a declared parameter, a return matched
+            to a declared return type, or a declared element or field. That context reaches
+            through parentheses and arithmetic operators. The same source expression can
+            therefore use different arithmetic in different destinations:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            count int = (1 / 3)
+            ratio float = (1 / 3)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The first expression uses integer arithmetic and produces `0`; the second uses
+            floating arithmetic and produces the floating quotient.
+
+            For an integer destination, folding uses exact arithmetic with unbounded
+            intermediate values, including Euclidean division. Intermediate values are not
+            rejected merely because they fall outside the destination range. Terrane checks
+            representability only after evaluating the complete expression. Unary negation
+            is included before that final check, so a signed type’s minimum value is not
+            rejected merely because its corresponding positive magnitude is out of range. An
+            out-of-range final constant is rejected at the constant’s source span with
+            `T0003`.
+
+            For a floating destination, each operation is evaluated at the destination
+            precision so that folding matches runtime arithmetic. Terrane does not evaluate
+            the entire expression as an exact mathematical value and round only once at the
+            end. Finite decimal and non-integral results may round normally, but an integral
+            whole-number value is admitted only if the floating destination represents it
+            exactly.
+
+            An admitted contextual constant materializes directly in its destination
+            representation, with no runtime conversion, representability check, or
+            conversion-failure path.
+
+            When a constant is combined with one statically typed numeric operand, the
+            constant takes that operand’s type. Shift counts are exempt and follow the
+            shift-count rules. Two differently typed integer values promote to the smallest
+            integer type whose range contains both source ranges, or to adaptive `int` if no
+            fixed-width integer type does. Integer/floating mixtures remain rejected rather
+            than implicitly selecting a common arithmetic type.
+
+            Declared types and constant evaluation determine source acceptance. Range
+            analysis and other optimization proofs may remove checks after a program has
+            been accepted, but they cannot make an otherwise invalid program valid.
+            Conversely, a valid contextual constant is emitted directly rather than routed
+            through the runtime conversion needed by an equivalent nonconstant value.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "constant-arithmetic"
+  conformance: null
+  compiler: null

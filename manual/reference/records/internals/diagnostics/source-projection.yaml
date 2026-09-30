@@ -1,0 +1,61 @@
+format: 1
+id: internals.diagnostics.source-projection
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Source-projected backend diagnostics"
+  title-style: text
+  summary: >-
+    Cargo and `rustc` failures are projected through generated-Rust spans into source-oriented diagnostics.
+  tags:
+    - "interop"
+    - "source-projection"
+    - "source-diagnostics"
+  sections:
+    - id: source-diagnostics
+      title: "Source-Projected Backend Diagnostics"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane consumes Cargo and rustc diagnostics as structured JSON. For authored
+            Rust items that retain Terrane span associations, the CLI projects the primary
+            backend span to the associated Terrane source location and presents that
+            location as the primary diagnostic.
+
+            The raw rustc diagnostic is retained as a note. Backend, toolchain, and
+            compiler-defect reports use stable codes and the same CLI diagnostic
+            representation.
+
+            Terrane distinguishes source errors, uncaught source-language runtime failures,
+            compiler defects, Rust toolchain failures, and ordinary user-program exits.
+            Ordinary type and name errors should be rejected before Rust lowering. Backend
+            translation is for missed constraints, target failures, generated-code defects,
+            and handwritten-Rust or toolchain boundaries, not as a substitute for
+            source-language semantic analysis.
+
+            Normative runtime failures are rendered with Terrane namespace and function
+            frames and Terrane source spans. Generated Rust frames are retained only as
+            secondary detail; these failures are not presented merely as raw Rust panics or
+            backtraces.
+
+            When reporting a compiler defect, Terrane preserves the generated project under
+            `.trn/build` subject to bounded eviction.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "source-diagnostics"
+  conformance: null
+  compiler: null

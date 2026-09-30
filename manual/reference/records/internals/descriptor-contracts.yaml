@@ -1,0 +1,80 @@
+format: 1
+id: internals.semantics.descriptor-contracts
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Canonical descriptor contracts
+  title-style: text
+  summary: >-
+    Records the unified semantic descriptor model for built-in and source-declared types.
+  tags: [compiler, semantics, descriptors, protocols]
+  sections:
+    - id: model
+      title: Semantic model
+      blocks:
+        - type: markdown
+          markdown: |-
+            `DescriptorContract` is the compiler-owned semantic record for built-in types
+            and source-declared classes, interfaces, and traits. Semantic units keep only
+            source-declared descriptors in their mutable local collection and share one
+            immutable compiler-owned built-in template registry. A contract owns canonical
+            identity, kind, category conformance, instance and static member inventories,
+            stable built-in operation IDs, and reflection data. Compiler-produced string and
+            text-range result lists select a dedicated read-only list template rather than
+            inheriting mutable list operations; the template exposes `length` and the
+            canonical collection iterator operation. Function contracts retain the full
+            canonical owner identity so same-named classes from different namespaces cannot
+            cross-select methods.
+    - id: protocols
+      title: Structural queries
+      blocks:
+        - type: markdown
+          markdown: |-
+            `descriptor_protocol_method` recursively resolves a required non-static member
+            from a source descriptor, its traits, base, and interfaces. Built-in truth and
+            iteration satisfaction query the canonical operation inventory; source protocols
+            layer signature constraints over the same descriptor member model. Neither path
+            creates a hidden interface or receiver-family availability table.
+    - id: imported-type-closure
+      title: Imported type closure
+      blocks:
+        - type: markdown
+          markdown: |-
+            An imported function or descriptor makes every canonically identified source
+            object reachable through its complete type graph available to semantic member
+            lookup. Dependency discovery recursively traverses optional, collection, map and
+            entry, callable, channel, task, document-outcome, and reference wrappers in
+            fields, parameters, and results. Member access on an inferred nested value
+            therefore does not depend on separately importing the leaf class name into the
+            consumer namespace.
+  see-also:
+    - lang.types.descriptors
+    - lang.classes.protocols
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "11.7"
+  conformance:
+    - descriptor-reflection
+    - builtin-descriptor-contracts
+    - builtin-name-class
+    - composed-descriptor-identities
+    - same-named-cross-namespace-methods
+    - member-access-without-type-import
+    - string-result-list-iteration
+    - string-result-list-mutation
+    - truth-protocol
+    - iterator-protocol
+  compiler: null

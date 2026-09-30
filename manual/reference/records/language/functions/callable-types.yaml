@@ -1,0 +1,167 @@
+format: 1
+id: lang.functions.callable-types
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Callable invocation modes, types, and throwable bounds
+  title-style: text
+  summary: >-
+    Defines shared, mutable, and consuming callable syntax, synchronous and
+    asynchronous forms, throwable upper bounds, exact metadata, compatibility,
+    invocation, and reflection.
+  tags:
+    - functions
+    - types
+    - errors
+    - async
+    - reflection
+  sections:
+    - id: syntax
+      title: Callable type syntax
+      blocks:
+        - type: rule
+          id: rule.functions.callable-throwable-syntax
+          level: must
+          since: null
+          evidence:
+            - callable-throwable-contracts
+            - callable-throws-missing-bound
+            - callable-throws-nonthrowable
+          markdown: |-
+            A synchronous callable type is written `function from A, B to R`. Prefix
+            `mutable` permits repeatable updates to receiver or captured state; `consuming`
+            permits transfer and one invocation. An asynchronous callable adds `async` after
+            that invocation prefix. Every form accepts a postfix throwable upper bound:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function from int to string
+            mutable async function from int to string throws coercion-error
+            consuming function to connection
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `throws` requires one object type conforming to `throwable`. Callable results
+            associate right, and a postfix clause binds to the callable introduced by the
+            nearest `function`. Thus
+            `function from A to function from B to R throws Inner throws Outer` constrains
+            the result callable with `Inner` and the outer callable with `Outer`.
+    - id: invocation-modes
+      title: Invocation authority and compatibility
+      blocks:
+        - type: rule
+          id: rule.functions.callable-invocation-modes
+          level: must
+          since: null
+          evidence:
+            - callable-invocation-modes
+            - consuming-callable-reuse
+          markdown: |-
+            Plain `function` is shared and may observe its receiver or captured environment
+            repeatedly. `mutable function` may update repeatable state. `consuming function`
+            may transfer from that environment and is callable once.
+
+            The compiler retains the written mode separately from the exact authority used
+            by the implementation. A body may use less authority than written, never more.
+            Shared implementations satisfy shared, mutable, or consuming destinations;
+            mutable implementations satisfy mutable or consuming destinations; consuming
+            implementations satisfy only consuming destinations. One mutable invocation owns
+            its receiver and captures exclusively for the full call, including suspension;
+            overlapping invocations of the same callable value execute serially. Mutable
+            value separation copies the current environment into an independent invocation
+            boundary rather than aliasing it.
+
+            Invocation mode, `async`, and `throws` are orthogonal contracts. Their canonical
+            order is invocation prefix, `async`, `function`, signature, then `throws`.
+    - id: compatibility
+      title: Throwable compatibility
+      blocks:
+        - type: rule
+          id: rule.functions.callable-throwable-compatibility
+          level: must
+          since: null
+          evidence:
+            - callable-throwable-contracts
+            - callable-throwable-broad-to-narrow
+            - callable-throwable-argument-broad-to-narrow
+            - callable-throwable-return-broad-to-narrow
+            - callable-throwable-field-broad-to-narrow
+            - callable-throwable-to-unbounded
+          markdown: |-
+            A written `throws T` clause is an upper bound, not a claim that every invocation
+            throws. An infallible or narrower implementation satisfies a broader
+            destination. An implementation with a broader or unrelated escaping set is
+            rejected at the binding, argument, return, or class field initializer that
+            attempts the conversion.
+
+            Omitting `throws` declares an infallible callable type. Every source callable
+            has either exact inferred metadata or an explicit written storage contract; the
+            compiler does not introduce a broad fallback.
+    - id: exact-metadata
+      title: Exact values, invocation, and reflection
+      blocks:
+        - type: rule
+          id: rule.functions.callable-exact-throwables
+          level: must
+          since: null
+          evidence:
+            - callable-throwable-contracts
+            - throwable-function-value
+          markdown: |-
+            Named functions, anonymous closures, stored bound methods, and inferred callable
+            bindings retain exact invocation and throwable metadata. A callable binding or
+            field with a written type retains both exact initializer summaries for
+            reflection and the written contracts as its storage ABI and invocation bounds.
+
+            ABI selection follows written contracts independently. A proven-empty
+            implementation widened into a throwing destination therefore receives
+            result-bearing storage without falsifying its empty exact escaping set. Its
+            invocation through that storage observes the written bound. The same rules apply
+            to synchronous and asynchronous callable values.
+
+            Reflection exposes `invocation-mode` and `exact-invocation-mode` alongside
+            `throwable-contract`, `escaping-throwables`, and the aggregate `contracts`
+            marker.
+
+            Reflection is ordinary value access. Invoking a consuming callable consumes that
+            value, so inspect its contract metadata before the invocation or through a
+            separate owning value.
+  see-also:
+    - lang.functions.declarations
+    - lang.functions.asynchronous
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "15.4"
+  conformance:
+    - callable-throwable-contracts
+    - callable-throwable-broad-to-narrow
+    - callable-throwable-argument-broad-to-narrow
+    - callable-throwable-return-broad-to-narrow
+    - callable-throwable-field-broad-to-narrow
+    - callable-throws-missing-bound
+    - callable-throws-nonthrowable
+    - throwable-function-value
+    - callable-invocation-modes
+    - consuming-callable-reuse
+  compiler: null

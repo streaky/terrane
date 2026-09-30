@@ -1,0 +1,172 @@
+format: 1
+id: tool.packages.terrane-packages
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Package manifest and source units"
+  title-style: text
+  summary: >-
+    Manifest-backed package loading enumerates the complete set of source units together with the package’s capabilities,
+    profiles, and dependencies.
+  tags:
+    - "names"
+    - "terrane-packages"
+    - "package-manifest"
+  sections:
+    - id: package-manifest
+      title: "Package Manifests and Source Units"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A manifest-backed Terrane package is defined by an authored `package.toml`. The
+            manifest uses TOML syntax, rejects unknown fields, and requires a non-empty
+            `package` identity and a non-empty `[namespaces]` mapping. `prelude` is optional
+            and defaults to `true`. `artifact` is optional and defaults to `executable`; its
+            permitted values are `executable`, `dynamic-library`, and `library`.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            package = "example.tools"
+            prelude = true
+            artifact = "executable"
+
+            [namespaces]
+            "example/tools" = "src"
+            "example/generated" = "generated"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Namespace mappings determine the package’s complete source-unit set. Keys are
+            canonical namespace roots, and values are distinct relative directory roots;
+            absolute paths and parent paths are forbidden. Discovery recursively includes
+            only `.trn` files. Overlapping mappings are resolved by the longest namespace
+            prefix, and source units receive stable file IDs in sorted package-relative path
+            order.
+
+            Every discovered file’s namespace declaration must match the namespace derived
+            from its mapping and relative parent directory. Duplicate mapped directories,
+            mapped roots containing no `.trn` files, and namespace-directory mismatches are
+            manifest-load errors. A `.trn` file not reached by any mapping is not part of
+            the package and is neither compiled nor reported.
+
+            The optional `[profile]` table defines build policy. Its `name` defaults to
+            `default`. Its `panic` setting defaults to `unwind` and may be either `unwind`
+            or `abort`. Its `capabilities` setting is an allowlist drawn from:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            build entropy filesystem networking process threads tls
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Rust dependency effects and capability-gated bundled core imports must be
+            allowed by the consuming profile. A forbidden capability import produces
+            `S2032`, naming the profile, capability, imported namespace, and importer. The
+            bundled namespace gates are:
+
+            - `/core/streams` and `/core/process`: `process`
+            - `/core/filesystem`: `filesystem`
+            - `/core/random` and `/core/random/uuid`: `entropy`
+            - `/core/networking`: `networking`
+            - `/core/networking/tls`: `networking` and `tls`
+            - `/core/concurrency`: `threads`
+
+            The optional `[testing]` table may override the conventional `unit`,
+            `integration`, and `end-to-end` roots. `[testing.profile]` selects a named test
+            profile and uses the same `capabilities` and `panic` fields as the ordinary
+            profile. Omitted fields inherit from the ordinary profile, so test compilation
+            cannot acquire an undeclared capability implicitly.
+
+            Terrane dependencies are declared under `[terrane-dependencies.<name>]`. Each
+            entry specifies exactly one source: a relative local `path`, or `git` with a
+            required tag. Git dependencies also require a `sha256:<lowercase-hex>` tree
+            hash; local dependencies may optionally provide one.
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            [terrane-dependencies.codec]
+            path = "../codec"
+
+            [terrane-dependencies.remote]
+            git = "https://example.invalid/remote.git"
+            tag = "v1.2.3"
+            hash = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The hash covers every sorted, normalized relative file path and its bytes,
+            excluding only `.git` and `.trn` directories. Symbolic links are rejected. As a
+            result, files such as local README files, ignored build output, and editor files
+            affect the hash.
+
+            Dependent Terrane packages must declare `artifact = "library"`. Their Terrane
+            dependencies, Rust dependencies, and authored Rust modules compose transitively
+            into the application. One package graph cannot contain distinct source roots
+            with the same library identity. Conflicting Rust dependency aliases and
+            conflicting authored Rust module names are rejected. Every dependency effect
+            must remain allowed by the consuming application’s capability profile.
+
+            A library has no `main`, and each namespace root must equal or descend from its
+            package identity. An application has exactly one `main`, independently of its
+            libraries. Each composed library source unit retains its library manifest’s
+            `prelude` setting. The consuming application owns the final artifact’s
+            reflection, executor, capability and panic profile, build toolchain, and testing
+            policy; corresponding library settings do not replace the application’s
+            settings.
+
+            Library source joins the application’s semantic and lowering pipeline. Ordinary
+            imports and source-intelligence operations therefore cross the package boundary
+            without an ABI or generated wrapper. A Terrane library may be checked or
+            rendered as Rust directly, but it is not built, run, debugged, or profiled as a
+            standalone artifact.
+
+            The lockfile records the reproducible exact dependency graph. Dependency graph
+            order is deterministic, source-unit assembly follows sorted package-relative
+            paths, and import plans and inputs enter deterministic cache keys. Manifest
+            loading can report independently discoverable diagnostics together. Semantic
+            analysis reports the first failure in deterministic package and source order
+            when later resolution failures may depend on declarations or imports that the
+            first failure prevented from assembling.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "package-manifest"
+  conformance: null
+  compiler: null

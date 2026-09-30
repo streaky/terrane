@@ -1,0 +1,60 @@
+format: 1
+id: std.randomness
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Secure and deterministic randomness"
+  title-style: text
+  summary: >-
+    Secure entropy and an explicitly seeded ChaCha20 deterministic source are provided as incompatible random-source types.
+  tags:
+    - "stdlib"
+    - "randomness"
+  sections:
+    - id: randomness
+      title: "Secure and Deterministic Randomness"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane distinguishes secure randomness from deterministic pseudo-random
+            generation at the type level. A secure source has type `secure-random`; an
+            explicitly seeded pseudo-random source has type `pseudo-random of Algorithm`.
+            ChaCha20 is available as a deterministic pseudo-random algorithm.
+
+            These source types are incompatible. A ChaCha20 pseudo-random source cannot
+            satisfy a parameter requiring `secure-random`, including when its seed
+            originated from secure entropy. The selected pseudo-random algorithm remains
+            part of the source’s type and is not treated as a secure source.
+
+            Secure generation obtains entropy from the operating system. Explicitly seeded
+            ChaCha20 supports deterministic generation and splitting into derived
+            deterministic sources. Use `secure-random` where an operation requires secure
+            randomness, and use an explicitly seeded ChaCha20 source where deterministic
+            behavior is required.
+
+            Both secure and pseudo-random sources support bounded generation. Bounded
+            generation uses rejection sampling to avoid the distribution bias introduced by
+            reducing unrestricted random values modulo the requested bound.
+
+            Randomness facilities are import-controlled: their operations remain unavailable
+            until the owning namespace or object is imported. Importing them does not create
+            a conversion between secure and pseudo-random source types.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "randomness"
+  conformance: null
+  compiler: null

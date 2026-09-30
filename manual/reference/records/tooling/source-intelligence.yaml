@@ -1,0 +1,222 @@
+format: 1
+id: tool.source-intelligence
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Compiler-backed source intelligence
+  title-style: text
+  summary: >-
+    Exposes Terrane's recovered syntax, canonical semantic identities, generated source associations, validated edits, and
+    source formatting through one versioned snapshot engine shared by the CLI and language server.
+  tags:
+    - tooling
+    - syntax
+    - semantics
+    - language-server
+    - formatting
+  sections:
+    - id: snapshots
+      title: Immutable snapshots
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.snapshots
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            `open-snapshot` accepts explicit logical source URIs and source text, plus
+            optional manifest/lock inputs and analysis options. The returned metadata
+            identifies the compiler and schema versions, a content-derived immutable
+            snapshot ID, every source hash, the selected target/profile, capabilities, and
+            an optional exact build ID. Unsaved overlays are the supplied bytes; queries
+            never replace them with disk contents.
+
+            Retention is bounded by snapshot count and source bytes. `close-snapshot`
+            releases a snapshot eagerly. A closed or evicted ID returns `expired-snapshot`
+            with `retry-fresh-query: true`; continuations and edit proposals tied to it
+            expire too.
+    - id: protocol
+      title: JSON protocol
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.protocol
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            `terrane tooling --stdio` reads one JSON request per line and writes one JSON
+            response per line. Protocol frames are the only stdout content.
+            `terrane query --request <json-file>` accepts one request or a request array;
+            `$last`, `$last-build`, and `$last-proposal` address the latest successful
+            snapshot, generated build, and edit proposal in the session. Schema `1.0`
+            requires `schema_version`, `request_id`, and a kebab-case `operation`; unknown
+            fields are rejected.
+
+            Response envelopes carry compiler/schema versions and the request ID;
+            snapshot/source requests also carry snapshot ID, logical source URI, and source
+            hash. Failures use stable error codes and never disguise cancellation, expiry,
+            invalid source, or unavailable analysis as an empty successful result.
+        - type: example
+          id: source-intelligence-open-request
+          title: Open a parse snapshot
+          language: json
+          mode: static
+          target: null
+          timeout-ms: null
+          source: |-
+            {"schema_version":"1.0","request_id":"open-1","operation":"open-snapshot","sources":[{"uri":"file:///work/main.trn","text":"function main;\n"}]}
+          response:
+            kind: none
+            language: text
+            display: never
+            content: ""
+          diagnostic: null
+          markdown: |-
+            Set `options.semantic` for canonical symbol/type queries and `options.generated`
+            for build-bound generated-Rust associations.
+    - id: queries
+      title: Trees and queries
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.queries
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            `syntax` returns exact tokens, trivia and byte spans plus deterministic
+            snapshot-local node IDs, named child fields, and complete/error/recovery/
+            contains-recovery/unsupported state. Syntax remains available when semantic
+            analysis fails. `locate`, `definition`, `references`, `implementations`, `find`,
+            and `generated-rust` consume the same compiler snapshot through either stdio or
+            one-shot query transport. Interface-method references contain only sites
+            resolved directly to that interface identity; concrete-receiver calls belong to
+            the concrete override. Implementation queries connect the interface contract to
+            those implementing methods, including from a concrete method use.
+
+            Structural selectors may constrain kind, child field, containing span, source
+            text, token kind, or canonical symbol/descriptor identity. With recovery
+            matching disabled, only directly error/recovery/unsupported nodes are excluded;
+            valid `contains-recovery` ancestors remain eligible.
+
+            Results are ordered by URI and UTF-8 byte offset. `find` is bounded and reports
+            `complete` plus an opaque snapshot/query-bound continuation whose remaining
+            matches are retained. Facts distinguish `known`, `unresolved`, `invalid`,
+            `not-yet-analyzed`, and `unsupported`; absence is not encoded as a fabricated
+            empty type, effect set, ownership state, or source association.
+    - id: edits
+      title: Validated edits and rename
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.edits
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            `propose-edits` validates UTF-8 boundaries, overlap, reparsing, and available
+            semantic reanalysis before returning replacements, affected hashes, preview
+            diagnostics, and a proposal ID. `propose-rename` treats an interface method and
+            every implementing override as one canonical contract family regardless of which
+            member initiated the request. It rejects invalid identifiers (`invalid-name`),
+            capture (`rename-capture`), or candidates with parse or semantic diagnostics
+            (`invalid-rename`) and does not retain rejected proposals. `invalid-rename`
+            includes the first preview diagnostic explaining the broken contract.
+            `apply-edits` rejects diagnostic-bearing proposals with `invalid-proposal`,
+            preflights every disk hash before writing, and uses same-directory temporary
+            files; stale bytes are refused. A partial host failure returns a structured
+            report naming committed, uncommitted, and recovery files rather than continuing
+            silently.
+    - id: formatting
+      title: Source formatting
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.formatting
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            `terrane fmt <file-or-manifest>` and LSP formatting use the recovered compiler
+            tree. The formatter removes safe trailing whitespace and canonicalises
+            parser-proven assignment and infix operator gaps without splitting
+            operator-bearing identifiers. It preserves CRLF/LF style, comments, multiline
+            text, untouched bytes, and malformed input it cannot safely rewrite. `--check`
+            prints drifting paths, exits 1, and writes nothing. A second pass over formatted
+            source is byte-identical.
+    - id: language-server
+      title: Language server integration
+      blocks:
+        - type: rule
+          id: rule.source-intelligence.language-server
+          level: must
+          since: null
+          evidence: []
+          markdown: |-
+            The language server stores compiler snapshot IDs for open documents and uses the
+            shared engine for diagnostics, semantic hover, definitions, references,
+            implementations, identity-safe rename, document symbols, formatting, and source
+            code actions. Ordinary open/change analysis does not compile generated Rust. The
+            custom `terrane/generatedRust` request lazily opens a short-lived generated
+            snapshot from the exact current package and editor overlays, exposes exact-build
+            source associations, and closes it before responding. Rename returns versioned
+            workspace edits and maps tooling errors to JSON-RPC invalid params (`-32602`)
+            while retaining the tooling code and explanation. UTF-8, UTF-16, or UTF-32 LSP
+            positions are negotiated and converted only at the protocol boundary; compiler
+            spans remain canonical UTF-8 byte offsets. Token highlighting retains a direct
+            lossless-lexer encoding pass and does not define syntax or semantic meaning.
+        - type: example
+          id: source-intelligence-omp-project-server
+          title: Use the repository-local server from oh-my-pi
+          language: json
+          mode: static
+          target: .omp/lsp.json
+          timeout-ms: null
+          source: |-
+            {
+              "servers": {
+                "terrane-language-server": {
+                  "command": "./target/debug/terrane-language-server",
+                  "args": [],
+                  "fileTypes": [".trn"],
+                  "languageId": "terrane",
+                  "rootMarkers": ["Cargo.toml"]
+                }
+              }
+            }
+          response:
+            kind: none
+            language: text
+            display: never
+            content: ""
+          diagnostic: null
+          markdown: |-
+            This development configuration requires oh-my-pi to start at the repository
+            root. Build the executable with `cargo build -p terrane-language-server`;
+            installation and `PATH` changes are unnecessary.
+        - type: note
+          id: note.source-intelligence-running-server-rebuild
+          style: warning
+          markdown: |-
+            Rebuilding replaces the executable on disk but does not update a language-server
+            process that is already running. Restart that server process after a rebuild.
+            Restarting only an editor or terminal client may be insufficient when a shared
+            language-server manager remains alive; confirm the new process uses the rebuilt
+            executable before diagnosing stale results.
+  see-also:
+    - tool.packages.command-line
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "31"
+  conformance: []
+  compiler: terrane_compiler::tooling

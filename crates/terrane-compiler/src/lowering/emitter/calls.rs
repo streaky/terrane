@@ -25,7 +25,9 @@ impl Emitter<'_> {
         &mut self,
         value: &SyntaxNode,
         projected: &crate::rust_interop::projection::ProjectedType,
-        substitutions: Option<&std::collections::BTreeMap<String, String>>,
+        substitutions: Option<
+            &std::collections::BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+        >,
     ) -> Option<String> {
         let crate::rust_interop::projection::ProjectedType::Callback {
             native_bound: Some(_),
@@ -48,11 +50,7 @@ impl Emitter<'_> {
             return None;
         };
         let mut selected = substitutions.cloned().unwrap_or_default();
-        selected.extend(
-            native_substitutions
-                .iter()
-                .map(|(name, ty)| (name.clone(), ty.rust_type())),
-        );
+        selected.extend(native_substitutions.clone());
         if value.kind != SyntaxKind::Name {
             return None;
         }
@@ -79,7 +77,9 @@ impl Emitter<'_> {
                             .split_once(':')
                             .map_or(declaration.as_str(), |(name, _)| name)
                             .trim();
-                        selected.get(name).cloned()
+                        selected
+                            .get(name)
+                            .map(crate::rust_interop::projection::ProjectedType::rust_type)
                     })
                     .collect::<Vec<_>>()
             })
@@ -1953,14 +1953,16 @@ impl Emitter<'_> {
                 })
                 .cloned()
                 .or_else(|| self.value_type(node));
+            let rendered_substitutions = specialization
+                .substitutions
+                .iter()
+                .map(|(name, projected)| (name.clone(), projected.rust_type()))
+                .collect();
             let mut generic_arguments = specialization
                 .generic_arguments
                 .iter()
                 .map(|argument| {
-                    crate::rust_ir::instantiate_rust_generics(
-                        argument,
-                        &specialization.substitutions,
-                    )
+                    crate::rust_ir::instantiate_rust_generics(argument, &rendered_substitutions)
                 })
                 .collect::<Vec<_>>();
             if let (

@@ -1,0 +1,125 @@
+format: 1
+id: internals.collections.lifetime
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Collection lifetime lowering
+  title-style: text
+  summary: >-
+    Explains how collection mutation, destruction, and reference identity remain source-observable across copy-on-write Rust
+    lowering.
+  tags:
+    - compiler-internals
+    - collections
+    - lifetime
+    - identity
+  sections:
+    - id: mutation-release-points
+      title: Mutation release points
+      blocks:
+        - type: rule
+          id: rule.internals.collections.release-points
+          level: must
+          since: null
+          evidence:
+            - collection-identity-lifetime
+            - map-key-removal
+            - stable-list-sorting
+          markdown: |-
+            List replacement and stable sorting perform copy-on-write separation before
+            mutation. A displaced logical value is dropped before the Terrane call returns
+            only when no preserved copy still owns it; otherwise the unchanged copy remains
+            readable and releases that value at its own lifetime boundary. Separation never
+            exposes backing sharing as identity.
+
+            List removal uses `Vec::remove` after separation. Ordered-map removal uses one
+            `IndexMap::shift_remove`, preserving the remaining order without rebuilding the
+            map. Unordered maps store each key's iteration position beside its value, and
+            unordered sets store an equivalent item-position index. New items append, while
+            removal uses `swap_remove` and repairs the one moved position. Unique insertion
+            and removal are therefore expected amortized constant time, and traversal
+            remains deterministic for the operation history. Both map representations test a
+            shared miss before separation; a successful shared mutation clones backing
+            storage once. Removal returns the stored value without an earlier drop.
+            List-only `clear` and ordered collection destruction release elements in backing
+            iteration order.
+
+            Sorting calls Rust's stable slice sort once on unique backing storage. The
+            emitted comparator is monomorphic for the admitted item descriptor, performs no
+            cloning or allocation, compares adaptive integers directly, and uses explicit
+            floating helpers so NaNs remain last in both directions.
+    - id: representation-identity
+      title: Representation is not identity
+      blocks:
+        - type: rule
+          id: rule.internals.collections.representation-identity
+          level: must
+          since: null
+          evidence:
+            - collection-identity-lifetime
+          markdown: |-
+            Copy-on-write `Arc` storage is never exposed through Terrane `is`. Ordinary
+            collection and class operands therefore lower to false after preserving operand
+            effects. Explicit `ref` and `shared ref` operands compare their weak or strong
+            allocation pointers, including mixed weak/strong comparisons, so aliases of one
+            referent compare true and different referents compare false.
+    - id: borrowed-result-iteration
+      title: Compiler-result iteration borrows storage
+      blocks:
+        - type: rule
+          id: rule.internals.collections.result-iteration-borrows
+          level: must
+          since: null
+          evidence:
+            - string-result-list-iteration
+          markdown: |-
+            Compiler-produced read-only string and text-range lists retain their raw-vector
+            representation, but `for` constructs a slice-backed iterator that borrows the
+            vector and clones each logical value as it advances. Iteration never consumes
+            the result-list binding, so the list remains readable and may be iterated again
+            afterward without cloning or reallocating the entire collection.
+    - id: descriptor-metadata
+      title: Descriptor metadata
+      blocks:
+        - type: description
+          id: description.internals.collections.descriptor-metadata
+          since: null
+          evidence:
+            - collection-identity-lifetime
+          markdown: |-
+            Materialized descriptors carry `inherently_identity_bearing` alongside canonical
+            identity, name, kind, and field metadata. The emitter reads the selected
+            `DescriptorContract`: built-in collection families instantiate their canonical
+            `/core/collections` identity and name, while source classes retain
+            namespace-qualified identity and composed fields. Explicit reference descriptors
+            and resource-owning objects are identity-bearing; ordinary values and
+            collections are not. Runtime storage choices never change this bit. Inline
+            `.type` expressions request the descriptor runtime; declared object members
+            named `type` retain precedence.
+relationships:
+  see-also:
+    - lang.collections.protocols
+    - internals.optimization.proof-guided-lowering
+    - std.collections
+  supersedes: []
+  superseded-by: []
+  conflicts-with: []
+
+implementation:
+  compiler:
+    - crates/terrane-collection-support/src/lib.rs
+    - crates/terrane-compiler/src/lowering/emitter/calls.rs
+    - crates/terrane-compiler/src/lowering/emitter/expressions.rs
+    - crates/terrane-compiler/src/lowering/emitter/members.rs
+    - crates/terrane-compiler/src/lowering/runtime_support.rs

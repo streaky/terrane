@@ -1,0 +1,223 @@
+format: 1
+id: internals.optimization.proof-guided-lowering
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Proof-guided native optimization
+  title-style: text
+  summary: >-
+    Defines how compiler proofs select optimizer-friendly native lowering while preserving Terrane evaluation, failure, ownership,
+    and allocation semantics.
+  tags:
+    - compiler-internals
+    - lowering
+    - optimization
+    - numerics
+    - collections
+    - allocation
+  sections:
+    - id: optimization-contract
+      title: Optimization contract
+      blocks:
+        - type: rule
+          id: rule.internals.optimization.proof-boundary
+          level: must
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+            - guarded-checked-arithmetic
+          markdown: |-
+            A performance-oriented lowering is selected only after the compiler proves every
+            source property that its generated shape relies upon. Failure or incompleteness
+            of that proof is not an error: lowering keeps the ordinary source-shaped
+            implementation instead of guessing that a nearby program is equivalent.
+
+            Optimized lowering must preserve source evaluation order, observable bindings,
+            ownership and copy-on-write behavior, runtime failures, source attribution, and
+            applicable allocation limits. Speculative computation is permitted only when it
+            is pure, cannot fail, and cannot be observed independently of the source
+            operation it implements.
+
+            Debug and release builds use the same proof-guided lowering decisions.
+            Optimization never weakens the language's checked arithmetic, failure,
+            collection, source-attribution, or debugging contracts.
+    - id: bounded-facts
+      title: Bounded facts
+      blocks:
+        - type: description
+          id: description.internals.optimization.bounded-facts
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+            - guarded-checked-arithmetic
+          markdown: |-
+            The compiler records exact facts rather than inferring safety from a benchmark
+            or generated machine instruction. Canonical induction ranges, resolved local
+            identities, collection freshness, contextual integer constants, fixed-width
+            bounds, and affine intermediate ranges can all justify a more informative Rust
+            representation.
+
+            Each consumer owns its complete proof boundary. A bounded loop does not imply
+            collection freshness, and a final arithmetic result fitting its type does not
+            imply that every intermediate operation fits. Facts are reused only where their
+            scopes, bindings, types, and control-flow assumptions remain identical.
+    - id: bulk-collection-producers
+      title: Bulk collection producers
+      blocks:
+        - type: rule
+          id: rule.internals.optimization.list-builder-recognition
+          level: must
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+          markdown: |-
+            Iterator-backed list construction requires all of the following:
+
+            - the destination is a freshly constructed empty list whose backing storage has
+              not escaped, been aliased, or been observed;
+            - a fixed-width integer induction binding starts at zero, advances by one, and
+              is compared with a compatible upper bound using `<`;
+            - every completed iteration performs exactly one append to that list;
+            - statements before the append introduce only iteration-local bindings;
+            - the append is followed by the induction increment; and
+            - the body has no relevant early exit, suspension, or error-propagation boundary
+              that an iterator closure cannot preserve.
+
+            A failed proof retains the ordinary statement-by-statement loop. Non-empty,
+            shared, aliased, multiply appended, or otherwise observed collections are not
+            fresh builders.
+        - type: rule
+          id: rule.internals.optimization.list-builder-semantics
+          level: must
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+          markdown: |-
+            Bulk construction evaluates iterations, local bindings, conversions, arithmetic,
+            and appended values in source order. The induction binding retains its
+            observable value after the loop, including zero for an empty negative range and
+            the upper bound for a completed positive range. Runtime failures retain their
+            source behavior and location, and the transformation does not consume or expose
+            the list's backing storage.
+
+            Exact-size iterator collection is selected at run time only when the complete
+            backing allocation fits within the compiler's 256 MiB list-preallocation
+            ceiling. A larger range delegates to the ordinary bounded-growth loop, which may
+            reserve at most the ceiling before normal `Vec` growth. Optimization never turns
+            that capped policy into an arbitrarily large eager allocation.
+        - type: description
+          id: description.internals.optimization.list-builder-strategy
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+          markdown: |-
+            For a proven range beneath the allocation ceiling, lowering expresses the
+            producer as an exact-size Rust range, mapping closure, and `collect` into the
+            unique list backing. This exposes whole-producer information that an explicit
+            `while` plus `Vec::push` loop may conceal from LLVM.
+    - id: checked-arithmetic-regions
+      title: Checked arithmetic regions
+      blocks:
+        - type: rule
+          id: rule.internals.optimization.guarded-arithmetic-recognition
+          level: must
+          since: null
+          evidence:
+            - guarded-checked-arithmetic
+          markdown: |-
+            Lowering may coalesce an `if`/`else` only when both branches assign to the same
+            ordinary local fixed-width integer, the condition is pure, and the target is
+            neither global, projected, referenced, nor aliased through an uncertain
+            representation.
+
+            One branch must be an affine expression over that binding and contextual integer
+            literals using only `+`, `-`, and `*`. Exact interval analysis constrains every
+            intermediate operation as well as the final result. The other branch must be
+            division or remainder of that binding by a nonzero contextual constant other
+            than `-1`. The fast domain is restricted to nonnegative inputs so native
+            division and remainder retain Terrane's Euclidean result.
+
+            Unsupported operators, multiple source bindings, effects, an empty safe
+            interval, or a proof that does not narrow the fixed-width domain retain ordinary
+            checked conditional lowering.
+        - type: rule
+          id: rule.internals.optimization.guarded-arithmetic-semantics
+          level: must
+          since: null
+          evidence:
+            - guarded-checked-arithmetic
+          markdown: |-
+            Within the proven range, lowering may eagerly compute both pure and safe
+            outcomes and select their bits with an integer mask. Outside that range, it
+            executes the original checked conditional. Overflow in an intermediate
+            multiplication or addition therefore remains observable even when the
+            mathematical final result would fit the destination type.
+
+            The range guard and eager computations cannot throw or mutate state. The source
+            condition is evaluated once on the selected path, and the checked fallback
+            retains the original failure site. Debug metadata describes the same optimized
+            generated program used by other build modes.
+    - id: numeric-lowering-boundaries
+      title: Numeric lowering boundaries
+      blocks:
+        - type: description
+          id: description.internals.optimization.numeric-boundaries
+          since: null
+          evidence:
+            - guarded-checked-arithmetic
+          markdown: |-
+            Fixed-width operations outside a complete proof continue through the ordinary
+            checked arithmetic support. Positive-literal remainder may use direct Euclidean
+            remainder because its divisor is nonzero and cannot trigger signed minimum
+            divided by `-1`. Exact bounded integer-to-float conversions likewise use direct
+            native conversion only when the compiler proves representability; conversion
+            policy and failure behavior remain defined by Conversion analysis and lowering.
+    - id: backend-handoff
+      title: Backend handoff and performance claims
+      blocks:
+        - type: description
+          id: description.internals.optimization.backend-handoff
+          since: null
+          evidence:
+            - list-append-bulk-mutation
+            - guarded-checked-arithmetic
+          markdown: |-
+            Terrane proves the source-level shape and emits deterministic, readable,
+            source-attributed Rust. Rust and LLVM remain responsible for selecting scalar,
+            unrolled, vectorized, predicated, or branchless machine code. A SIMD width,
+            instruction mnemonic, or fixed speedup is not a language or lowering guarantee.
+
+            This reference records semantic and lowering contracts rather than benchmark
+            rankings. If an observed performance effect is documented, it is stated as a
+            Terrane-before versus Terrane-after comparison for the same workload and
+            environment. Cross-language rankings and links to benchmark reports are not
+            evidence for these rules.
+relationships:
+  see-also:
+    - internals.collections.lifetime
+    - internals.semantics.conversion-lowering
+    - lang.collections.protocols
+    - lang.numerics.conversion
+  supersedes: []
+  superseded-by: []
+  conflicts-with: []
+
+implementation:
+  compiler:
+    - crates/terrane-compiler/src/lowering/emitter/context.rs
+    - crates/terrane-compiler/src/lowering/emitter/expressions.rs
+    - crates/terrane-compiler/src/lowering/emitter/guarded_arithmetic.rs
+    - crates/terrane-compiler/src/lowering/emitter/statements.rs
+    - tests/conformance/run/list-append-bulk-mutation/case.trn
+    - tests/conformance/run/guarded-checked-arithmetic/case.trn

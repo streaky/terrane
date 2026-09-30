@@ -1,0 +1,136 @@
+format: 1
+id: lang.numerics.integers
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Integer types"
+  title-style: text
+  summary: >-
+    The exact signed `int` promotes across `i64`, `i128`, and arbitrary-precision storage, and normalizes back to smaller
+    storage tiers when possible. It has no source-level overflow.
+  tags:
+    - "numerics"
+    - "integers"
+    - "exact-int"
+    - "fixed-integers"
+  sections:
+    - id: exact-int
+      title: "Exact Signed Integers"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane `int` is a mathematical exact signed integer. Its source-level range is
+            not limited to a machine word. Its runtime representation uses adaptive signed
+            64-bit, signed 128-bit, and arbitrary-precision limb tiers. Exceeding a compact
+            tier promotes the representation while preserving the exact value; this is
+            representation promotion, not source-level arithmetic overflow, and it does not
+            throw an overflow error.
+
+            A target without arbitrary-precision promotion must either prove that required
+            bounds are safe or reject the program. It must not silently impose a bounded
+            interpretation of `int`.
+
+            After every operation, an `int` result is normalized to the smallest tier that
+            represents it exactly. An operation can therefore promote through wider storage,
+            while a later result can return to a compact tier without changing its type or
+            observable value. Small multiplication uses an exact signed 128-bit
+            intermediate, and wider operations preserve exactness. A compiler may use
+            another physical layout or remove unnecessary representation work only when it
+            preserves exact arithmetic, promotion, normalization, and all source-visible
+            behavior.
+
+            Ordinary `int` arithmetic has no source-level overflow boundary. Left shift is
+            exact, right shift is arithmetic and flooring, and bitwise operations use
+            infinite two’s-complement semantics. Signed division and remainder are
+            Euclidean. Operations may still fail where their contracts define another
+            failure: division by zero throws `division-by-zero`, and a negative shift count
+            throws `negative-shift-count`.
+
+            Because `int` has no finite bounds, it has no `wrap`, `saturate`, or
+            `overflowing` arithmetic children. A `checked` child exists only for genuinely
+            fallible operations, including division, remainder, and combined
+            division/remainder when the divisor may be zero.
+
+            Fixed-width integer types have a different contract. Signed and unsigned widths
+            through 128 bits retain their declared width and use checked ordinary
+            arithmetic. Their named operation families provide explicit checked, wrapping,
+            saturating, or overflowing policies where defined; the exact available children
+            depend on the operation. Fixed-width integers are not assignment-compatible
+            subtypes of `int`, although numeric destination conversion can admit an exact
+            arrival.
+
+            When two integer values have different concrete types, their operation uses the
+            smallest integer type whose range contains both source ranges, or exact `int` if
+            no fixed-width type does. Integer constant expressions are evaluated exactly
+            with unbounded intermediates, and only the final value is checked against a
+            declared destination. Outside a constraining context, a whole-number constant
+            has type `int`.
+
+            Both constant evaluation and runtime `int` arithmetic obey the same exactness
+            requirement: intermediate machine-width overflow must not alter an `int` result,
+            inherit host build-mode behavior, or become a Terrane overflow failure.
+    - id: fixed-integers
+      title: "Fixed-Width Integers"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane provides signed and unsigned fixed-width integer types at widths of 8,
+            16, 32, 64, and 128 bits: `int8`, `int16`, `int32`, `int64`, `int128`, and
+            `uint8`, `uint16`, `uint32`, `uint64`, `uint128`. For width `N`, a signed type
+            ranges from −2^(N−1) through 2^(N−1)−1, and an unsigned type ranges from 0
+            through 2^N−1. Each is a distinct source type, separate from adaptive `int` and
+            from every other fixed width. Their canonical descriptor objects are available
+            from `/core/types`; binding an imported descriptor under an ordinary type name
+            does not change the descriptor’s canonical identity.
+
+            A whole-number spelling does not select a fixed width by itself. Numeric context
+            can come from a typed binding initialization or assignment, a parameter default,
+            a declared argument or return, a declared element or field, or a typed numeric
+            operand. Constant integer expressions use exact arithmetic with unbounded
+            intermediates and are checked against the destination only after the final value
+            is computed. An intermediate may therefore lie outside the destination range
+            when the final result fits. Signed minima are accepted without first rejecting
+            the positive magnitude of the unary-negated literal. Without numeric context, a
+            whole-number constant has type `int`.
+
+            Operations on a single fixed-width type retain that width. Ordinary fixed-width
+            arithmetic is checked: an out-of-range result fails rather than promoting to
+            `int`, widening to another fixed-width type, wrapping, or depending on target
+            build mode. Signed division and remainder use Euclidean semantics, and division
+            by zero throws `division-by-zero`. Explicit named children provide checked,
+            wrapping, saturating, or overflowing behavior only where the corresponding
+            policy is defined.
+
+            When two integer values have different concrete types, Terrane selects the
+            smallest integer type whose range contains both source ranges, falling back to
+            exact `int` when no fixed-width type suffices. This promotion is determined from
+            the operand types; it is not recovery from arithmetic overflow. Integer and
+            floating-point values do not implicitly combine under a common arithmetic type.
+
+            Fixed-width shifts also follow source-language rules. The default and `checked`
+            forms reject counts outside the value type’s width, while `wrap` reduces the
+            count modulo that width. There is no saturating shift. A negative count throws
+            `negative-shift-count`. Fixed-width overflow and invalid shifts are reported
+            deterministically at the relevant Terrane source location, and uncaught failures
+            exit with a nonzero status.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "exact-int"
+    - document: language-scoreboard
+      section: "fixed-integers"
+  conformance: null
+  compiler: null

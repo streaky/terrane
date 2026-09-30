@@ -1,0 +1,196 @@
+format: 1
+id: app.error-boundaries
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: Error handling at application boundaries
+  title-style: text
+  summary: >-
+    Compares result-object and throwable failures at file, codec, document, projected-dependency, validation, and command-line
+    boundaries.
+  tags: [applications, errors, filesystem, documents, dependencies]
+  sections:
+    - id: choose-a-boundary
+      title: Result objects and throwables
+      blocks:
+        - type: table
+          id: failure-forms
+          title: Failure forms
+          show-header: true
+          columns:
+            - id: boundary
+              title: Boundary
+              cell: text
+            - id: form
+              title: Form
+              cell: code
+            - id: handling
+              title: Handling
+              cell: text
+          rows:
+            - boundary: Filesystem operations
+              form: result.failed, result.message
+              handling: Inspect the result object and add operation context.
+            - boundary: UTF decoding
+              form: decode-error
+              handling: Catch around bytes.decode.
+            - boundary: YAML or JSON parsing
+              form: document-result
+              handling: Inspect failed and diagnostics or message.
+            - boundary: Projected Rust Result or panic
+              form: dependency-error
+              handling: Catch at the dependency call boundary.
+            - boundary: Application validation
+              form: application result object
+              handling: Return domain-specific failure fields to the orchestrator.
+
+        - type: rule
+          id: rule.errors.translate-at-application-boundary
+          level: should
+          since: null
+          evidence: []
+          markdown: |-
+            Preserve typed low-level failure inside the layer that can act on it. Translate
+            it once at the application boundary into a message naming the attempted
+            operation and subject. Do not discard a filesystem path, parser location,
+            dependency cause, or validation field while adding context.
+    - id: filesystem-and-utf8
+      title: Filesystem and UTF-8 failure
+      blocks:
+        - type: example
+          id: bounded-utf8-read-failure
+          title: Contextualize a bounded UTF-8 read
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            namespace reference-examples/read-text
+
+            from /core/encodings import utf8
+            from /core/errors import decode-error
+            from /core/filesystem import filesystem-capability, filesystem-read-bounded
+            from /core/filesystem/paths import path
+
+            class text-result
+              failed bool = false
+              message string = ''
+              value string = ''
+
+            function read-text text-result; source string
+              result = instance text-result;
+              loaded = filesystem-read-bounded; (filesystem-capability;), (instance path; source), 1048577
+              if loaded.failed
+                result.failed = true
+                result.message = 'read failed for '.concat; source, ': ', loaded.message
+                return result
+              if loaded.completed >= 1048577
+                result.failed = true
+                result.message = 'input exceeds one megabyte: '.concat; source
+                return result
+              try
+                result.value = loaded.data.decode; utf8
+              catch decode-error as failure
+                result.failed = true
+                result.message = 'invalid UTF-8 in '.concat; source, ': ', failure.message
+              return result
+          response: null
+          diagnostic: null
+          markdown: null
+
+    - id: documents
+      title: YAML and JSON parse failure
+      blocks:
+        - type: markdown
+          markdown: |-
+            `parse-yaml` and `parse-json` return `document-result`; they do not throw for
+            malformed input. Check `failed` before reading the document value. Typed
+            decoding additionally returns deterministic diagnostics with path, expected
+            type, actual kind, reason, message, call source, and field source. Keep those
+            details for developer-facing reports and summarize them only at the final
+            user-facing boundary.
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            parsed = parse-yaml; source, (default-yaml-options;)
+            if parsed.failed
+              result.message = 'configuration parse failed: '.concat; parsed.message
+              return result
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: projected-dependencies
+      title: Projected dependency failure
+      blocks:
+        - type: markdown
+          markdown: |-
+            A projected Rust `Result` error and a contained dependency panic enter the
+            `dependency-error` path. Catch it around the smallest call chain that has enough
+            context to classify the failed operation.
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/errors import dependency-error
+
+            try
+              rendered = projected-render; input
+            catch dependency-error as failure
+              result.failed = true
+              result.message = 'render dependency failed: '.concat; failure.message
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Do not treat a member declined during projection as a runtime error; that is a
+            compile-time availability or implementation-limitation issue.
+    - id: validation-and-exit
+      title: Validation and command-line exit status
+      blocks:
+        - type: markdown
+          markdown: |-
+            Domain validation is usually clearer as an application result object carrying
+            `failed`, a stable application reason, and a reader-facing message. The
+            top-level orchestrator decides whether to continue, render diagnostics, or fail
+            the command.
+
+            `fail; message` terminates the command-line program through Terrane's structured
+            error path and produces a nonzero process status. Use it in `main` only after
+            lower layers have returned or contextualized their typed failures; do not print
+            an error and then return success.
+  see-also:
+    - std.filesystem
+    - std.text-bytes-codecs
+    - std.documents.typed-decoding
+    - tool.packages.rust-dependencies
+    - tool.packages.command-line
+
+provenance:
+  specification:
+    - document: language-spec
+      section: "22"
+  conformance:
+    - rust-dependency-error-catch
+  compiler: null

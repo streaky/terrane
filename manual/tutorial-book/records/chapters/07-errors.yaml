@@ -1,0 +1,1091 @@
+format: 1
+id: book.errors
+kind: chapter
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Errors Are Part of the Program
+  title-style: text
+  summary: |-
+    The reporting tool in Chapter 6 treats malformed entries as ordinary data. It skips them, counts them, and continues
+    producing a partial report. That is a defensible policy when useful rows may safely survive beside bad ones.
+  tags: []
+  blocks:
+    - type: markdown
+      markdown: |-
+        Now change the requirement:
+
+        > A report is an auditable unit. If any entry is malformed, do not publish a
+        > partial total. Identify the failure, finish required cleanup, and let the user
+        > correct the input.
+
+        The validation rule has not changed. The consequence has.
+
+        This chapter makes that consequence visible with typed errors, `throw`, `try`,
+        `catch`, and `finally`. These constructs are not an emergency side channel
+        outside the program. They describe one of the paths the program may deliberately
+        take.
+  sections:
+    - id: mistakes-failures-and-exceptional-conditions
+      title: Mistakes, failures, and exceptional conditions
+      blocks:
+        - type: markdown
+          markdown: |-
+            Not every unwelcome event is the same kind of problem.
+
+            A **source mistake** can be rejected before the program runs:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            value = missing-name + 1
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            An unresolved name is not a runtime condition the application should catch. The
+            source does not identify a valid operation, so the compiler reports a
+            diagnostic.
+
+            An **expected absence** is part of an operation's ordinary result. A checked map
+            lookup makes absence explicit:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            possible = entries.get.checked; 'review'
+            if possible == none
+              print; 'No review entry'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The caller asked whether a key was present. `none` answers that question without
+            claiming that the program failed.
+
+            A **recoverable exceptional condition** interrupts the current operation but may
+            be handled by another layer. Default map indexing throws when a required key is
+            absent:
+        - type: example
+          id: legacy-fence-003
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            required = entries['review']
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            That spelling asserts that the key is required. If the assertion is false,
+            ordinary calculation cannot continue with a made-up integer.
+
+            A **fatal failure** indicates that ordinary source recovery is not reliable: an
+            internal invariant violation, an explicit panic, a process abort, hardware
+            failure, or unsafe native undefined behavior. `catch` is not a promise that
+            execution can continue after the machine or runtime has ceased to provide a
+            valid program state.
+
+            Choosing among these categories is part of API design:
+
+            - use a compile-time diagnostic when invalidity is provable from source;
+            - return `T|none` when absence is an expected answer;
+            - throw a typed error when an operation cannot produce its promised result but
+              another layer may respond;
+            - reserve panic or abort for conditions outside normal recovery.
+
+            A common mistake is to use one mechanism for all four. Returning `none` for
+            malformed payroll data hides why it failed. Throwing whenever a search finds no
+            match makes ordinary branching noisy. Catching a compiler defect and pretending
+            the operation succeeded corrupts evidence.
+      sections: []
+    - id: throwing-an-error
+      title: Throwing an error
+      blocks:
+        - type: markdown
+          markdown: |-
+            `throw` transfers control with a value that conforms to Terrane's `throwable`
+            contract. Arbitrary strings and integers cannot be thrown.
+
+            The reporting tool needs an error that means one specific thing: an entry
+            violated the report contract. We will define `invalid-report-entry`:
+        - type: example
+          id: legacy-fence-004
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            from /core/errors import throwable
+
+            class invalid-report-entry implements throwable
+              message string = ''
+              entry-name string = ''
+              units int = 0
+
+              function construct; entry-name string, units int
+                if entry-name == ''
+                  this.message = 'entry name must not be empty'
+                else
+                  this.message = 'work units must be greater than zero'
+                this.entry-name = entry-name
+                this.units = units
+
+              function render string;
+                return 'invalid report entry: '.concat; this.message
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This compact declaration previews classes and interfaces, which Chapter 9
+            teaches in full. For now, read it as the definition of one structured error
+            value:
+
+            - it conforms to the shared `throwable` behavior;
+            - `message` gives a human-facing explanation;
+            - `entry-name` and `units` retain domain data;
+            - `construct` initializes a new value;
+            - `render` supplies its text representation.
+
+            The compiler supplies the error's cause and source-context chain. The class does
+            not declare those fields itself.
+
+            Validation can now stop the current operation:
+        - type: example
+          id: legacy-fence-005
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function require-entry throws invalid-report-entry; entry-name string, units int
+              if entry-name == '' or units <= 0
+                throw instance invalid-report-entry; entry-name, units
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Read the last line in two stages:
+            `instance invalid-report-entry; entry-name, units` constructs the error value,
+            and `throw` transfers control carrying it. The `instance` keyword appears
+            because a new class value is being constructed; `throw` can also carry an
+            existing throwable value.
+
+            The optional `throws invalid-report-entry` clause is a contract bound. It says
+            that every error escaping this function must conform to `invalid-report-entry`.
+            It does not force the function to throw, and omitting `throws` would not
+            prohibit errors: the compiler infers what may escape either way.
+
+            A thrown error is not a return value. `require-entry` does not need to invent a
+            sentinel and make every caller remember to inspect it. On success, execution
+            continues at the next statement. On failure, ordinary statements in that path
+            are skipped until a compatible handler is reached.
+      sections: []
+    - id: handling-errors-with-try-and-catch
+      title: Handling errors with `try` and `catch`
+      blocks:
+        - type: markdown
+          markdown: |-
+            Place operations that may fail inside `try`, then name the error type a nearby
+            layer can handle:
+        - type: example
+          id: legacy-fence-006
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              print-report; 'Unchecked report', 18, unchecked
+            catch invalid-report-entry
+              print; 'Report rejected: correct the input and try again'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            If `print-report` completes normally, the catch body does not run. If an
+            `invalid-report-entry` reaches this `try`, control moves to that catch body.
+            Statements after the failed operation inside `try` do not run.
+
+            Catch matching uses throwable type identity, never message text. This is robust:
+        - type: example
+          id: legacy-fence-007
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            catch invalid-report-entry
+              print; 'Report rejected'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This is not a matching mechanism:
+        - type: example
+          id: legacy-fence-008
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            if message contains "greater than zero"
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Human wording may improve, be translated, or include more context. The error's
+            type remains the program-facing contract.
+
+            Multiple catches are tried in source order. Put narrower types before broader
+            interfaces. If an earlier catch already accepts everything a later catch could
+            receive, the compiler diagnoses the later clause as unreachable rather than
+            silently retaining dead recovery code.
+
+            A catch without a type is a catch-all:
+        - type: example
+          id: legacy-fence-009
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              perform-work;
+            catch
+              print; 'The operation failed'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A catch-all is sometimes appropriate at a top-level user boundary, where the
+            program must convert any recoverable failure into an exit report. It is usually
+            too broad in calculation code because it erases the distinction among failures
+            the caller may handle differently.
+
+            A catch may bind the caught value with `as`:
+        - type: example
+          id: legacy-fence-010
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              perform-work;
+            catch invalid-report-entry as failure
+              print; failure.message
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The binding exists only inside that catch body. Every caught value exposes the
+            common `throwable` surface: `message` provides its explanation, `cause` is the
+            displaced lower-level failure or `none`, and `render;` produces the complete
+            human-facing error with its source context. The type named after `catch` still
+            controls matching; `as failure` gives the handler the value that matched.
+
+            A catch-all can bind the same common surface when the application boundary needs
+            to report any recoverable source-language failure:
+        - type: example
+          id: legacy-fence-011
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            catch as failure
+              print; (failure.render;)
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Prefer a typed catch when the handler understands one failure category. Binding
+            the value is useful for reporting and preservation, but it is not a reason to
+            replace type-directed handling with message parsing.
+      sections:
+        - id: handling-errors-with-try-and-catch-following-a-cause-through-a-stable-binding
+          title: Following a cause through a stable binding
+          blocks:
+            - type: markdown
+              markdown: |-
+                A handler may need to report the earlier failure displaced by a later one. Read
+                `cause` once, bind the optional result, then guard that name:
+            - type: example
+              id: legacy-fence-012
+              title: null
+              language: terrane
+              mode: illustrative
+              target: null
+              timeout-ms: null
+              source: |2
+                catch invalid-report-entry as outer
+                  origin = outer.cause
+                  if origin != none
+                    print; 'Original failure: ', origin.message
+              response: null
+              diagnostic: null
+              markdown: null
+
+            - type: markdown
+              markdown: |-
+                `origin` has type `throwable|none`. The direct presence check narrows that
+                stable binding to `throwable` inside the `if`, so its members are available
+                there. The compiler does not narrow a repeated expression such as `outer.cause`
+                itself: evaluating a member, index, or call again is not promised to return the
+                same value. Binding once makes both the program's intent and the value being
+                checked explicit.
+
+                If code selects `.message` from the optional expression before introducing and
+                guarding `origin`, the compiler reports `T0031` and points to this
+                bind-then-narrow sequence. The member exists on the contained throwable; the
+                diagnostic is explaining that its presence has not yet been established.
+
+                This is ordinary value flow. A throwable is not restricted to the `catch`
+                header: it may be rebound, passed to a function, returned, or selected from an
+                optional cause once the program has established that it is present.
+          sections: []
+    - id: cleaning-up-with-finally
+      title: Cleaning up with `finally`
+      blocks:
+        - type: markdown
+          markdown: |-
+            A `finally` body runs after its `try` regardless of how the protected work
+            completes:
+        - type: example
+          id: legacy-fence-013
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              print-report; 'Unchecked report', 18, unchecked
+            catch invalid-report-entry
+              print; 'Report rejected: correct the input and try again'
+            finally
+              print; 'Unchecked report attempt finished'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It runs after:
+
+            - normal completion;
+            - a handled or escaping throw;
+            - `return`;
+            - `break`;
+            - `continue`.
+
+            This makes `finally` suitable for obligations that belong to the attempted
+            operation rather than to one outcome: releasing a resource, restoring state,
+            completing an audit record, or marking an operation attempt as finished.
+
+            Printing a completion line is only a visible stand-in. Later chapters introduce
+            resource-owning values whose cleanup has concrete effects. The control-flow rule
+            remains the same.
+
+            Cleanup should not quietly decide whether the original work succeeded. Keep it
+            narrow:
+        - type: example
+          id: legacy-fence-014
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            finally
+              print; 'attempt finished'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Avoid placing unrelated calculations or fallback business logic in `finally`.
+            Because it runs on every exit path, complicated work there is easy to execute
+            more often than intended.
+
+            The guarantee has physical limits. A process abort, hardware failure, or
+            undefined behavior in unsafe native code may prevent cleanup. `finally` governs
+            source-language control flow; it cannot promise that a machine continues
+            executing after execution itself has become impossible.
+      sections: []
+    - id: letting-an-error-travel-to-the-right-layer
+      title: Letting an error travel to the right layer
+      blocks:
+        - type: markdown
+          markdown: |-
+            `require-entry` detects the problem, but it cannot decide how the whole
+            application should respond. It has no title to print, no user interaction, and
+            no policy for retrying. Its job is to stop invalid data from entering the
+            calculation.
+
+            `strict-total` calls it without a local catch:
+        - type: example
+          id: legacy-fence-015
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function strict-total int throws invalid-report-entry; entries map of string, int
+              total = 0
+              for entry-name, units in entries
+                require-entry; entry-name, units
+                total = total + units
+              return total
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            If validation throws, `strict-total` stops before adding the invalid value. The
+            error travels through the function automatically. There is no repeated
+            `if failed` check at every call boundary.
+
+            `print-report` also lets the error travel:
+        - type: example
+          id: legacy-fence-016
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function print-report; title string, target int, entries map of string, int
+              total = strict-total; entries
+              print; title
+              # ...render only after validation succeeds...
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This ordering matters. The total is validated before the heading or detail rows
+            are published, so the strict report does not print a plausible-looking partial
+            result and then announce failure halfway through.
+
+            Finally, `main` catches the error because it has enough context to respond:
+        - type: example
+          id: legacy-fence-017
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            catch invalid-report-entry
+              print; 'Report rejected: correct the input and try again'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The detection layer knows **what went wrong**. The handling layer knows **what
+            to do about it**. Letting the error travel connects those two pieces without
+            forcing every intermediate function to invent a response.
+
+            Terrane infers the concrete errors that may escape each function. A written
+            `throws` clause is useful when a boundary should remain constrained even as
+            implementation changes. For example:
+        - type: example
+          id: legacy-fence-018
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function strict-total int throws invalid-report-entry; entries map of string, int
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            If a later edit allows an unrelated error to escape, the boundary no longer
+            satisfies its declaration and compilation fails. The clause is therefore an API
+            promise, not documentation that can quietly drift away from the body.
+      sections: []
+    - id: replacing-and-preserving-errors
+      title: Replacing and preserving errors
+      blocks:
+        - type: markdown
+          markdown: |-
+            Sometimes a catch cannot recover but must perform local work before the error
+            continues. Bind the error and throw that same value:
+        - type: example
+          id: legacy-fence-019
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              calculate;
+            catch invalid-report-entry as failure
+              print; failure.message
+              throw failure
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            This preserves the throwable's identity, message, and cause while adding
+            propagation context. It is preferable to constructing a new error of the same
+            type merely to continue, because a fresh value would falsely claim a new origin.
+
+            A bare `throw` inside a catch is the concise rethrow form when the body does not
+            otherwise need the caught value:
+        - type: example
+          id: legacy-fence-020
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              calculate;
+            catch invalid-report-entry
+              print; 'calculation failed'
+              throw
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A catch-all may use either form. A catch that only rethrows is rarely useful by
+            itself, but rethrow becomes meaningful after local logging or state restoration.
+
+            `finally` can explicitly replace a pending outcome. Consider:
+        - type: example
+          id: legacy-fence-021
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function error-then-return int;
+              try
+                throw instance invalid-report-entry; '', 0
+              finally
+                return 7
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The `return 7` replaces the pending error. Conversely:
+        - type: example
+          id: legacy-fence-022
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function return-then-error int throws invalid-report-entry;
+              try
+                return 8
+              finally
+                throw instance invalid-report-entry; '', 0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The error replaces the pending return. If one error is pending and `finally`
+            throws another, the new error becomes primary and the displaced error is
+            retained as its cause.
+
+            Replacement is powerful and should be conspicuous. A cleanup failure may
+            genuinely prevent the operation from claiming success—for example, a durable
+            writer that cannot finish or close its output. But an incidental logging failure
+            should not casually hide the business failure the log was trying to record.
+
+            A sound rule is:
+
+            > Preserve the original outcome unless cleanup failure makes that outcome
+            > untruthful.
+
+            Bare rethrow preserves. A new throw or return from `finally` replaces. The
+            source should make that choice deliberate.
+      sections: []
+    - id: designing-useful-error-values
+      title: Designing useful error values
+      blocks:
+        - type: markdown
+          markdown: |-
+            An error type should identify a condition a caller can meaningfully distinguish.
+            `invalid-report-entry` is more useful than a generic `operation-error` because a
+            report boundary can respond specifically to invalid input.
+
+            Its fields retain facts:
+        - type: example
+          id: legacy-fence-023
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            message string = ''
+            entry-name string = ''
+            units int = 0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The message serves people. The structured fields serve programs, diagnostics,
+            and tools. If later presentation changes “work units must be greater than zero”
+            to “enter at least one unit,” the type and numeric field retain their meanings.
+
+            Useful errors answer several questions:
+
+            - What operation failed?
+            - Which input or resource was involved?
+            - What stable category should handlers match?
+            - What human explanation helps correction?
+            - Is there a lower-level cause that must remain visible?
+            - Where did the failure originate and through which functions did it travel?
+
+            Do not put secrets into messages or diagnostic fields merely because errors are
+            convenient to print. Paths, credentials, personal records, and raw network
+            contents may cross logging boundaries. Error design is also data-handling
+            design.
+
+            Avoid creating a unique class for every sentence. Two failures deserve separate
+            types when callers may handle them differently or when their structured
+            contracts differ. Wording variants of the same corrective action normally belong
+            to one type with different field values.
+
+            Likewise, do not use a broad type and require handlers to parse `message`. That
+            turns prose into a fragile hidden protocol. Type identity and structured members
+            exist so the program can state the distinction directly.
+
+            The built-in errors follow the same principle. `/core/errors` supplies types
+            such as:
+
+            - `division-by-zero` for integer division and remainder with a zero divisor;
+            - `arithmetic-overflow` for checked fixed-width arithmetic outside its range;
+            - `integer-conversion-overflow` when exact numeric arrival cannot preserve a
+              value;
+            - `coercion-error` for other declared coercion failures;
+            - collection-specific `missing-key` and `index-error` conditions;
+            - `decode-error` for malformed encoded text.
+
+            A package may define domain errors such as `invalid-report-entry`. It should not
+            throw a built-in error merely because that class is already available. Error
+            identity must tell the truth about the failed operation.
+      sections: []
+    - id: when-not-to-catch-an-error
+      title: When not to catch an error
+      blocks:
+        - type: markdown
+          markdown: |-
+            Do not catch an error merely because the syntax allows it.
+
+            A function should usually leave an error alone when it lacks enough context to
+            recover, translate honestly, add necessary local evidence, or fulfill a cleanup
+            obligation. Catching and printing “failed” in a low-level function may prevent a
+            higher layer from choosing retry, fallback, cancellation, or a proper exit
+            status.
+
+            Do not catch an error and substitute a plausible value:
+        - type: example
+          id: legacy-fence-024
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            try
+              total = strict-total; entries
+            catch
+              total = 0
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Zero is a real total. Using it for failure makes corrupted input
+            indistinguishable from a valid empty report.
+
+            Do not use exceptions for expected alternatives already represented by an
+            ordinary result. A checked lookup is clear when absence is routine:
+        - type: example
+          id: legacy-fence-025
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            possible = entries.get.checked; 'review'
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Default lookup is clear when absence violates the operation's premise:
+        - type: example
+          id: legacy-fence-026
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            required = entries['review']
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Do not catch a broad throwable interface when only one error is understood. A
+            catch-all at the application boundary may ensure a controlled failure
+            presentation, but broad catches deep in reusable functions tend to swallow
+            information.
+
+            Finally, do not catch fatal failures under the assumption that every problem is
+            recoverable. Source-language errors are deliberately separate from panic, abort,
+            and unsafe undefined behavior.
+
+            The right question is not “Can I catch this here?” It is:
+
+            > Can this layer produce a truthful next action?
+
+            If not, let the error travel.
+      sections: []
+    - id: improving-the-reporting-tool-s-failures
+      title: Improving the reporting tool's failures
+      blocks:
+        - type: markdown
+          markdown: |-
+            We can now change Chapter 6's permissive report into a strict one. Create
+            `strict-work-report.trn`:
+        - type: example
+          id: legacy-fence-027
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            namespace strict-work-report
+
+            from /core/collections import map
+            from /core/errors import throwable
+
+            class invalid-report-entry implements throwable
+              message string = ''
+              entry-name string = ''
+              units int = 0
+
+              function construct; entry-name string, units int
+                if entry-name == ''
+                  this.message = 'entry name must not be empty'
+                else
+                  this.message = 'work units must be greater than zero'
+                this.entry-name = entry-name
+                this.units = units
+
+              function render string;
+                return 'invalid report entry: '.concat; this.message
+
+            function require-entry throws invalid-report-entry; entry-name string, units int
+              if entry-name == '' or units <= 0
+                throw instance invalid-report-entry; entry-name, units
+
+            function strict-total int throws invalid-report-entry; entries map of string, int
+              total = 0
+              for entry-name, units in entries
+                require-entry; entry-name, units
+                total = total + units
+              return total
+
+            function progress-label string; total int, target int
+              if total >= target
+                return 'target met'
+              return 'target not met'
+
+            function print-report; title string, target int, entries map of string, int
+              total = strict-total; entries
+              print; title
+              for entry-name, units in entries
+                print; '- ', entry-name, ': ', units
+              print; 'Total units: ', total
+              print; 'Progress: ', (progress-label; total, target)
+
+            function main;
+              unchecked map of string, int = map; design = 6, implementation = 9, cleanup = -2
+              try
+                print-report; 'Unchecked report', 18, unchecked
+              catch invalid-report-entry as failure
+                print; 'Report rejected: ', failure.message
+              finally
+                print; 'Unchecked report attempt finished'
+
+              corrected map of string, int = map; design = 6, implementation = 9, review = 5
+              print-report; 'Corrected report', 18, corrected
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Run it:
+        - type: example
+          id: legacy-fence-028
+          title: null
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            terrane run strict-work-report.trn
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            It prints:
+        - type: example
+          id: legacy-fence-029
+          title: null
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            Report rejected: invalid report entry: work units must be greater than zero
+            Unchecked report attempt finished
+            Corrected report
+            - design: 6
+            - implementation: 9
+            - review: 5
+            Total units: 20
+            Progress: target met
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            Notice what is absent: the heading and valid-looking rows from the unchecked
+            report never print. `strict-total` validates every entry before `print-report`
+            begins presentation. Once `cleanup = -2` throws, control passes through
+            `strict-total` and `print-report` to `main`.
+
+            `main` handles the domain error and uses its bound `message` for a specific
+            explanation. `finally` then records that the attempt ended. Execution continues
+            after the complete `try` statement, so the corrected report can run.
+
+            The corrected call is not surrounded by a catch. That is deliberate for this
+            small program. If supposedly corrected hard-coded data is still malformed, the
+            program should fail visibly with its uncaught typed error and source chain
+            rather than print another generic response. A real interactive application might
+            place a retry loop around user-supplied batches instead.
+
+            The project now has a stricter and more honest contract than Chapter 6's
+            version:
+
+            - no partial report is published;
+            - invalid data has a distinct throwable type;
+            - calculation code detects the failure;
+            - intermediate functions preserve it automatically;
+            - the application boundary chooses the response;
+            - finalization runs for success or failure;
+            - corrected input uses the same calculation and presentation paths.
+      sections: []
+    - id: terrane-style-make-failure-boundaries-as-clear-as-success-boundaries
+      title: "Terrane style: make failure boundaries as clear as success boundaries"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A function header can tell a reader both what it produces and what exceptional
+            boundary it promises:
+        - type: example
+          id: legacy-fence-030
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            function strict-total int throws invalid-report-entry; entries map of string, int
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            The body then shows exactly where that failure originates:
+        - type: example
+          id: legacy-fence-031
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            require-entry; entry-name, units
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            No Boolean flag travels beside a half-valid total. No magic `-1` pretends to be
+            both a quantity and an error. No message string doubles as a dispatch key.
+
+            Use `none` for expected absence, typed throwables for interrupted operations,
+            and uncaught failure when no layer can recover truthfully. Catch at the layer
+            that can choose a real next action. Keep cleanup in `finally` narrow, and
+            replace an existing outcome only when preserving it would lie.
+
+            Errors are part of the program because failure behavior is observable behavior.
+            It deserves the same explicit names, types, ordering, and tests as the
+            successful path.
+      sections: []
+    - id: exercises
+      title: Exercises
+      blocks:
+        - type: markdown
+          markdown: |-
+            1. Add an empty-name entry before the negative entry. Observe which failure is
+               encountered first and explain why map insertion order makes that
+               deterministic.
+
+            2. Change `require-entry` so empty names and nonpositive units use two distinct
+               throwable classes. Catch them separately in `main` and print different
+               corrective actions.
+
+            3. Remove the catch but retain `finally`. Run the invalid report and inspect the
+               uncaught error's type and source-context chain.
+
+            4. Add a function between `print-report` and `strict-total`. Let the error
+               propagate through it without a catch, then inspect how the additional call
+               appears in uncaught context.
+
+            5. Write a checked map lookup for an optional category and a default lookup for
+               a required category. Explain why one yields `none` while the other may throw.
+
+            6. Bind an error inside a typed catch, print its message, and explicitly rethrow
+               the same value. Catch it at an outer `try` and inspect its rendered
+               propagation context.
+
+            7. Create a `finally` body that throws while another error is pending. Inspect
+               the rendered primary error and cause chain, then decide whether replacement
+               tells the truth for that scenario.
+      sections: []
+    - id: what-we-learned
+      title: What we learned
+      blocks:
+        - type: markdown
+          markdown: |-
+            Source mistakes, expected absence, recoverable exceptional conditions, and fatal
+            failures require different responses. Compile-time diagnostics reject invalid
+            source; `T|none` represents ordinary absence; typed throwables interrupt an
+            operation while preserving recoverable information; panic and abort remain
+            outside ordinary recovery.
+
+            `throw` carries a value conforming to `throwable`. `try` protects operations,
+            compatible `catch` clauses respond in source order, and `finally` runs across
+            normal completion, returns, loop exits, and source-language throws. Catch
+            matching uses type identity rather than human message text. An `as` binding
+            exposes the caught value's common `message`, `cause`, and `render` surface
+            within its clause.
+
+            Errors travel automatically through functions until a compatible handler
+            consumes them. The compiler infers escaping throwable sets, while an optional
+            `throws` clause places a stable upper bound on a function's error contract. Bare
+            rethrow or explicitly throwing the caught value preserves the current failure;
+            explicit return or a different throw from `finally` replaces a pending outcome,
+            retaining a displaced error as a cause when appropriate.
+
+            Useful error values describe stable failure categories and retain structured
+            facts. Catch only when the current layer can recover, translate honestly, add
+            necessary evidence, or fulfill cleanup. Otherwise, propagation preserves
+            information for the layer that can choose a truthful response.
+
+            The strict reporting tool now rejects an invalid batch before publishing output
+            and handles that domain failure at its application boundary. In Chapter 8, we
+            will split the growing program across source files and use namespaces, imports,
+            and a package manifest to keep the same boundaries visible at project scale.
+      sections: []
+  see-also: []
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

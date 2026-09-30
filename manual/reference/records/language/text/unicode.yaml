@@ -1,0 +1,77 @@
+format: 1
+id: lang.text.unicode
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Unicode text"
+  title-style: text
+  summary: >-
+    Strings expose distinct views over UTF-8 bytes, Unicode scalar values, and extended grapheme clusters.
+  tags:
+    - "text-data"
+    - "unicode"
+    - "unicode-views"
+    - "unicode-version"
+  sections:
+    - id: unicode-views
+      title: "UTF-8 String Views"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A `string` is Unicode text represented as UTF-8. Terrane distinguishes three
+            views of that text: UTF-8 bytes, Unicode scalar values, and extended grapheme
+            clusters. These units are not interchangeable: one grapheme can contain multiple
+            scalars, and one scalar can occupy multiple UTF-8 bytes, so their counts can
+            differ for the same string.
+
+            A string’s default `length` counts graphemes and requires the corresponding
+            capability. Use the explicit byte, scalar, or grapheme view when the unit
+            matters. The byte view observes UTF-8 octets, the scalar view observes Unicode
+            scalar values, and the grapheme view observes extended grapheme clusters.
+
+            A `text-range` retains its immutable source text and provides checked byte,
+            scalar, and grapheme views. Boundaries are checked in the selected unit rather
+            than treated as interchangeable.
+
+            The UTF-8 byte view of a string is distinct from the `bytes` type. `bytes` is an
+            immutable sequence of arbitrary octets; conversion between `string` and `bytes`
+            is explicit through an encoding object.
+    - id: unicode-version
+      title: "Unicode Data Version"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane’s version-one Unicode profile is Unicode 16.0.0. The compiler and text-
+            and collection-support providers use that single embedded version, and table
+            providers expose the version they contain.
+
+            The profile covers compiler-owned Unicode tables, including case folding,
+            normalization, word segmentation, and grapheme segmentation. Unicode-dependent
+            operations therefore use a coherent release rather than independently selected
+            dependency data.
+
+            Generated manifests record the selected Unicode profile. Choosing a pinned or
+            system Rust installation does not change Terrane’s Unicode semantics. When the
+            language selects a new Unicode profile, case, normalization, word-segmentation,
+            grapheme-segmentation, and other affected support data update together.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "unicode-views"
+    - document: language-scoreboard
+      section: "unicode-version"
+  conformance: null
+  compiler: null

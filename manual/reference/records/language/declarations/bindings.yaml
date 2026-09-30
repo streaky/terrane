@@ -1,0 +1,127 @@
+format: 1
+id: lang.declarations.bindings
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Bindings and declaration modifiers"
+  title-style: text
+  summary: >-
+    Declarations support typed and inferred bindings, constants, globals, visibility, and compiler-owned structural modifiers.
+  tags:
+    - "syntax"
+    - "bindings"
+    - "declarations"
+  sections:
+    - id: declarations
+      title: "Bindings and Declaration Modifiers"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A binding places its type expression after its name. The principal forms are:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            name = value
+            name int = 42
+            name string
+            constant max-size int = 1024
+            private cache = map;
+            global service = service;
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            `name = value` infers a type from the initializer. `name T = value` supplies an
+            explicit destination type, while `name T` declares an uninitialized typed
+            binding. Flow-sensitive definite-assignment analysis must prove that an
+            uninitialized binding has received a value before any read, reference, member
+            access, argument pass, or capture. Assignment compatibility does not introduce
+            implicit cross-type coercions.
+
+            `constant` is the immutability qualifier; `const` is not its spelling. `global`
+            is a compiler-owned structural qualifier. Visibility is public by default, and
+            the structural visibility qualifiers are `public`, `private`, and `protected`.
+            Strict visibility mode may require an explicit qualifier. Misplaced declaration
+            prefixes produce declaration syntax diagnostics, including
+            `S1029 invalid declaration prefix`.
+
+            The bare discard forms are:
+        - type: example
+          id: legacy-fence-002
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            _ = expression
+            _ T = expression
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            A discard requires an initializer, accepts no declaration qualifiers, and
+            creates no readable binding. Its initializer is evaluated exactly once,
+            optionally with destination type `T`, and the result is released at the end of
+            the statement. Discards suppress binding and store warnings.
+
+            A longer name beginning with `_` remains an ordinary binding. It retains its
+            value until the normal scope endpoint and suppresses the unused-binding warning,
+            but its first read produces a warning.
+
+            An initializer resolves names against the scope as it exists immediately before
+            the declaration, so the new binding is not visible in its own initializer. If no
+            earlier binding supplies the name, a direct read—or a read through a called
+            function—is an error naming the absent binding.
+
+            Within the same lexical scope, a later declaration may replace an earlier
+            binding. Its initializer can read the earlier binding; after the initializer has
+            been evaluated, the old owned value is released and a new binding identity is
+            installed. Replacement may change the binding’s type. A non-owning `ref` to the
+            released value becomes unusable, while a `shared ref` continues to own the old
+            identity and is not retargeted. An identical type annotation makes the
+            declaration equivalent to assignment for type purposes but does not preserve
+            identity.
+
+            Namespace-level declarations cannot replace one another. Namespace
+            initialization dependencies, including dependencies introduced by
+            namespace-level assignments folded into initialization, must be acyclic.
+
+            Function bodies and indented control-flow bodies create lexical scopes. A local
+            declaration is visible through the remainder of its body and in deeper scopes,
+            but not in sibling bodies or after scope exit. Its value is released on each
+            exit. A nearer declaration shadows an outer binding until the inner scope ends.
+            Untyped assignment to an existing enclosing name updates that binding rather
+            than declaring a new one. A `for` target is visible only in the loop body.
+
+            Source-declared type parameters are unsupported. Angle-bracket generic intent
+            produces `S1092 unsupported angle generic`; use the canonical constructor form,
+            such as `list of string`, where applicable.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "declarations"
+  conformance: null
+  compiler: null

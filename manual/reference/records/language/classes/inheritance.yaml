@@ -1,0 +1,60 @@
+format: 1
+id: lang.classes.inheritance
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Single inheritance and late-bound self"
+  title-style: text
+  summary: >-
+    Classes support deep single inheritance. Inherited state is preserved, and inherited method calls use late-bound dispatch.
+  tags:
+    - "objects"
+    - "inheritance"
+  sections:
+    - id: inheritance
+      title: "Single Inheritance and Late-Bound Dispatch"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Terrane classes use single inheritance. A class has at most one direct base
+            class, while an inheritance chain may extend through multiple levels. Traits are
+            separate from inheritance: `uses` composes source fields and method
+            implementations, but a trait is not a type and does not establish a
+            class-subtyping relationship.
+
+            A derived instance preserves its complete effective state, including fields
+            inherited through the full chain. Assigning a subclass value to a
+            base-class-typed binding preserves the dynamic value; subclass state is not
+            sliced away. Inherited typed fields remain subject to the usual initialization
+            rules, including canonical defaults for defaultable types and explicit
+            initializers for nondefaultable fields.
+
+            Dispatch remains late-bound through base-class-typed bindings. Calls use the
+            preserved value’s dynamic class, including when an operation is inherited or
+            overridden. Within an instance method, `this` denotes the current instance,
+            while `self` denotes the effective late-bound class. `self` may therefore be
+            used in `instance self;`.
+
+            Inheritance does not change member-selection or call syntax. `value.name`
+            selects an instance member, and invoking that member requires the explicit `;`
+            call form. Terrane does not choose among same-named methods through implicit
+            signature-based overloading.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "inheritance"
+  conformance: null
+  compiler: null

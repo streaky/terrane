@@ -1,0 +1,99 @@
+format: 1
+id: lang.numerics.arithmetic
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Default integer operators"
+  title-style: text
+  summary: >-
+    Default integer operators include arithmetic, comparison, bitwise, and shift operations, as well as update statements.
+    Their behavior is defined by Terrane contracts.
+  tags:
+    - "numerics"
+    - "arithmetic"
+    - "integer-operators"
+  sections:
+    - id: integer-operators
+      title: "Default Integer Operators"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Integer arithmetic operators select the default child of the corresponding named
+            family: `add`, `subtract`, `multiply`, `divide`, `remainder`, `negate`,
+            `shift-left`, or `shift-right`. The related `div-rem` family returns both
+            division results together. Operands are evaluated strictly from left to right.
+
+            On adaptive `int`, arithmetic is mathematically exact; growth or normalization
+            of its internal representation is not source-observable. On a fixed-width type,
+            ordinary arithmetic retains the selected width and checks the result. An
+            out-of-range result fails rather than promoting, wrapping, or depending on
+            target-language overflow behavior.
+
+            Signed division and remainder are Euclidean. For a nonzero divisor `b`, quotient
+            `q` and remainder `r` satisfy `a = bq + r` and `0 ≤ r < |b|`. Division or
+            remainder by zero throws `division-by-zero`. `div-rem` returns the corresponding
+            quotient and remainder in a `div-rem-result of T`. Constant integer arithmetic
+            uses the same division rule, exact intermediates, and a final destination-range
+            check.
+
+            Bitwise operations on `int` use an infinite two’s-complement interpretation.
+            Left shift on `int` is exact and unbounded; right shift is arithmetic,
+            equivalent to flooring division by the corresponding power of two. A negative
+            shift count throws `negative-shift-count`. Fixed-width bitwise and shift results
+            retain their fixed-width type. For a fixed-width shift, the default and
+            `checked` forms reject counts outside the width, while `wrap` reduces the count
+            modulo the width.
+
+            Integer comparisons follow the numeric operand rules rather than runtime
+            representation details. Differently typed integer operands promote to the
+            smallest integer type containing both source ranges, or to `int` when no
+            fixed-width type does. Integer and floating-point values are not implicitly
+            mixed.
+
+            Ordinary integer values have no identity. An identity test does not become true
+            merely because the same integer expression or binding occurs on both sides; use
+            value equality to compare integer values. The `===` operator is rejected. When
+            both value and type must match, write
+            `left == right and left.type is right.type`.
+
+            Postfix updates are statements, not expressions:
+        - type: example
+          id: legacy-fence-001
+          title: null
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |2
+            counter++
+            counter--
+          response: null
+          diagnostic: null
+          markdown: null
+
+        - type: markdown
+          markdown: |-
+            They produce no value and cannot be embedded in another expression. `++` selects
+            default addition and `--` selects default subtraction, so fixed-width updates
+            use checked ordinary arithmetic. A nondefault arithmetic policy requires an
+            explicit operation and assignment. An assignment receiver or index is evaluated
+            exactly once.
+  see-also: []
+
+provenance:
+  specification:
+    - document: language-scoreboard
+      section: "integer-operators"
+  conformance: null
+  compiler: null

@@ -1412,7 +1412,7 @@ pub(crate) enum ContextualConstant {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProjectedCallSpecialization {
-    pub substitutions: BTreeMap<String, String>,
+    pub substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     pub generic_arguments: Vec<String>,
     pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     pub direct_projected_call: bool,
