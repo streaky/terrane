@@ -59,6 +59,31 @@ pub(crate) struct RenderedProgram {
     application: RenderedFragment,
     review: RenderedFragment,
 }
+pub(crate) fn rust_type_constructor(rust: &str) -> Option<String> {
+    let syn::Type::Path(path) = syn::parse_str::<syn::Type>(rust).ok()? else {
+        return None;
+    };
+    path.qself.is_none().then(|| {
+        path.path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::")
+    })
+}
+pub(crate) fn format_rust_bound(rust: &str) -> String {
+    let source = format!("fn __terrane<T>() where T: {rust} {{}}");
+    let Ok(file) = syn::parse_file(&source) else {
+        return rust.to_owned();
+    };
+    let rendered = prettyplease::unparse(&file);
+    rendered
+        .split_once("    T: ")
+        .and_then(|(_, bound)| bound.split_once(",\n").map(|(bound, _)| bound.to_owned()))
+        .unwrap_or_else(|| rust.to_owned())
+}
+
 pub(crate) fn rust_type_arguments(rust: &str) -> Vec<String> {
     let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(rust) else {
         return Vec::new();

@@ -525,6 +525,7 @@ pub enum ValueType {
     InlineRust,
     InvocationScopedNative {
         rust_type: String,
+        concrete: bool,
         family: ObjectIdentity,
         lifetimes: Vec<String>,
         region: Option<(u32, usize, usize)>,
@@ -1413,7 +1414,7 @@ pub(crate) enum ContextualConstant {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProjectedCallSpecialization {
     pub substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
-    pub generic_arguments: Vec<String>,
+    pub generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
     pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     pub direct_projected_call: bool,
     pub value_parameters: Vec<Option<ValueType>>,

@@ -1953,17 +1953,10 @@ impl Emitter<'_> {
                 })
                 .cloned()
                 .or_else(|| self.value_type(node));
-            let rendered_substitutions = specialization
-                .substitutions
-                .iter()
-                .map(|(name, projected)| (name.clone(), projected.rust_type()))
-                .collect();
             let mut generic_arguments = specialization
                 .generic_arguments
                 .iter()
-                .map(|argument| {
-                    crate::rust_ir::instantiate_rust_generics(argument, &rendered_substitutions)
-                })
+                .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 .collect::<Vec<_>>();
             if let (
                 Some(projected),

@@ -2268,6 +2268,7 @@ fn collect_projected_call_result_types(
         && let Some(receiver) = callee.children.first()
         && let Some(ValueType::InvocationScopedNative {
             rust_type,
+            concrete: true,
             family,
             lifetimes,
             region,
@@ -2304,6 +2305,7 @@ fn collect_projected_call_result_types(
             (node.span.file, node.span.start, node.span.end),
             ValueType::InvocationScopedNative {
                 rust_type: crate::rust_ir::instantiate_rust_generics(&rust_type, &replacements),
+                concrete: true,
                 family,
                 lifetimes,
                 region,
@@ -2345,6 +2347,7 @@ fn collect_projected_call_result_types(
                 (node.span.file, node.span.start, node.span.end),
                 ValueType::InvocationScopedNative {
                     rust_type: rust_type.clone(),
+                    concrete: true,
                     family: ObjectIdentity::new(family_namespace, name.clone())
                         .with_native_projection(
                             rust_type
@@ -2464,7 +2467,7 @@ struct PendingProjectedSpecialization {
     unit: usize,
     span: Span,
     substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
-    generic_arguments: Vec<String>,
+    generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
     projected_result: crate::rust_interop::projection::ProjectedType,
     projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     direct_projected_call: bool,
@@ -2662,28 +2665,31 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 rust_bound: normalize_projected_rust_names(&bound.rust_bound),
                 inferred_parameters: bound.inferred_parameters.clone(),
             };
+            let unit = &package.units[specialization.unit];
+            let call_name = find_node_by_span(&unit.tree.root, specialization.span)
+                .and_then(|call| call.children.first())
+                .map_or("projected operation", |callee| {
+                    node_text(&unit.source, callee)
+                });
+            let native_name = crate::rust_ir::rust_type_constructor(&bound.direct_rust_type)
+                .and_then(|path| path.rsplit("::").next().map(str::to_owned))
+                .unwrap_or_else(|| bound.direct_rust_type.clone());
             let subject = generic.as_ref().map_or_else(
-                || {
+                || format!("projected result destination `{}`", specialization.value_type),
+                |_| {
                     format!(
-                        "projected result destination `{}`",
-                        specialization.value_type
-                    )
-                },
-                |name| {
-                    format!(
-                        "projected generic input `{name}` with Rust type `{}`",
-                        bound.direct_rust_type
+                        "input to projected operation `{call_name}` with native type `{native_name}`"
                     )
                 },
             );
+            let displayed_bound = crate::rust_ir::format_rust_bound(&bound.rust_bound);
             match answers.get(&question) {
                 Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => {
                     return Err(failure(
-                        &package.units[specialization.unit].source,
+                        &unit.source,
                         "T0119",
                         format!(
-                            "{subject} could not be proven against `{}`: {}",
-                            bound.rust_bound,
+                            "{subject} could not be proven against `{displayed_bound}`: {}",
                             oracle_diagnostic_summary(reason)
                         ),
                         specialization.span,
@@ -2693,19 +2699,19 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                     crate::rust_interop::ProbeAnswer::No | crate::rust_interop::ProbeAnswer::Yes,
                 ) => {
                     return Err(failure(
-                        &package.units[specialization.unit].source,
+                        &unit.source,
                         "T0119",
-                        format!("{subject} does not satisfy `{}`", bound.rust_bound),
+                        format!("{subject} does not satisfy `{displayed_bound}`"),
                         specialization.span,
                     ));
                 }
                 None => {
                     return Err(failure(
-                        &package.units[specialization.unit].source,
+                        &unit.source,
                         "T0119",
                         format!(
-                            "projection oracle returned no answer for {subject} against `{}`",
-                            bound.rust_bound
+                            "projection oracle returned no answer for {subject} against \
+                             `{displayed_bound}`"
                         ),
                         specialization.span,
                     ));
@@ -2871,6 +2877,7 @@ fn merge_projected_callback_value_shape(
             ..
         }) => Some(ElementType::new(ValueType::InvocationScopedNative {
             rust_type: rust_type.clone(),
+            concrete: true,
             family: ObjectIdentity::new(namespace.to_owned(), name.clone()),
             lifetimes: lifetimes.clone(),
             region,
@@ -3045,8 +3052,10 @@ fn callback_expression_result(
             contract.name == node_text(&unit.source, callee)
                 && matches!(
                     contract.return_type,
-                    Some(ValueType::InvocationScopedNative { ref rust_type, .. })
-                        if rust_type == "_"
+                    Some(ValueType::InvocationScopedNative {
+                        concrete: false,
+                        ..
+                    })
                 )
         })
     {
@@ -3087,7 +3096,10 @@ fn forwarded_callback_function_span(
             resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
         && matches!(
             contract.return_type,
-            Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+            Some(ValueType::InvocationScopedNative {
+                concrete: false,
+                ..
+            })
         )
         && find_node_by_span(&unit.tree.root, contract.span)
             .is_some_and(|node| node.kind == SyntaxKind::FunctionDeclaration)
@@ -3185,14 +3197,8 @@ pub(super) fn same_projected_native_family(
             },
         ) => {
             left_name == right_name
-                && left_rust
-                    .chars()
-                    .take_while(|character| *character != '<')
-                    .filter(|character| !character.is_whitespace())
-                    .eq(right_rust
-                        .chars()
-                        .take_while(|character| *character != '<')
-                        .filter(|character| !character.is_whitespace()))
+                && crate::rust_ir::rust_type_constructor(left_rust)
+                    == crate::rust_ir::rust_type_constructor(right_rust)
         }
         _ => left == right,
     }
@@ -3208,7 +3214,10 @@ fn resolve_callback_function_results(
         .filter(|contract| {
             matches!(
                 contract.return_type,
-                Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+                Some(ValueType::InvocationScopedNative {
+                    concrete: false,
+                    ..
+                })
             )
         })
         .filter_map(|contract| {
@@ -3837,7 +3846,8 @@ fn collect_projected_destinations(
                         };
                         Some(ValueType::List(ElementType::new(
                             ValueType::InvocationScopedNative {
-                                rust_type: "_".to_owned(),
+                                rust_type: "host-invocation-scoped-native".to_owned(),
+                                concrete: false,
                                 family: ObjectIdentity::new("/deps", name.clone()),
                                 lifetimes: lifetimes.clone(),
                                 region: None,
@@ -4083,10 +4093,7 @@ fn collect_projected_destinations(
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
-            generic_arguments: generic_arguments
-                .iter()
-                .map(crate::rust_interop::projection::ProjectedType::rust_type)
-                .collect(),
+            generic_arguments,
             substitutions: specialization_substitutions,
             projected_result,
             projected_parameters,
@@ -4193,7 +4200,7 @@ fn collect_projected_destinations(
             generic_arguments: destination_result
                 .parameters
                 .iter()
-                .map(|parameter| substitutions[&parameter.name].rust_type())
+                .map(|parameter| substitutions[&parameter.name].clone())
                 .collect(),
             substitutions,
             projected_result,
@@ -4352,6 +4359,10 @@ fn collect_projected_destinations(
 
 type DestinationProjectionError = std::borrow::Cow<'static, str>;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one closed conversion keeps every semantic destination category exhaustive"
+)]
 pub(crate) fn destination_projected_type(
     package: &SemanticPackage,
     value_type: &ValueType,
@@ -4429,6 +4440,7 @@ pub(crate) fn destination_projected_type(
         }
         ValueType::InvocationScopedNative {
             rust_type,
+            concrete: true,
             family,
             lifetimes,
             ..
@@ -4442,6 +4454,23 @@ pub(crate) fn destination_projected_type(
                 base_rust_path: rust_type
                     .split_once('<')
                     .map_or_else(|| rust_type.clone(), |(base, _)| base.to_owned()),
+                arguments: Vec::new(),
+            }),
+        },
+        ValueType::InvocationScopedNative {
+            rust_type,
+            concrete: false,
+            family,
+            lifetimes,
+            ..
+        } => ProjectedType::InvocationScoped {
+            rust_type: rust_type.clone(),
+            name: family.name.clone(),
+            lifetimes: lifetimes.clone(),
+            owned: Box::new(ProjectedType::Foreign {
+                rust_path: rust_type.clone(),
+                name: family.name.clone(),
+                base_rust_path: rust_type.clone(),
                 arguments: Vec::new(),
             }),
         },

@@ -621,4 +621,79 @@ mod tests {
             )
         );
     }
+    #[test]
+    fn assessment_reports_complete_discovery_denominators() {
+        let package = terrane_rust_analysis::SurveyPackage {
+            identity: "witness@1.0.0".to_owned(),
+            name: "witness".to_owned(),
+            version: "1.0.0".to_owned(),
+            source: "path".to_owned(),
+            checksum: None,
+            manifest: "/tmp/witness/Cargo.toml".to_owned(),
+            content_fingerprint: None,
+            features: Vec::new(),
+            dependencies: Vec::new(),
+        };
+        let native = terrane_rust_analysis::SurveyReport {
+            manifest: package.manifest.clone(),
+            selected_package: package.clone(),
+            resolved_packages: vec![package],
+            public_paths: vec!["witness::operation".to_owned()],
+            declarations: vec![terrane_rust_analysis::SurveyDeclaration {
+                public_path: "witness::operation".to_owned(),
+                canonical_path: None,
+                source: None,
+                definition_hidden: false,
+                kind: "function".to_owned(),
+                members: Vec::new(),
+                signature: serde_json::json!({}),
+            }],
+            discovery_failures: Vec::new(),
+            complete_public_api: Vec::new(),
+            target: "x86_64-unknown-linux-gnu".to_owned(),
+            build_toolchain: "stable".to_owned(),
+            rustdoc_format: 57,
+            rustdoc_toolchain: "nightly".to_owned(),
+            rustdoc_visibility_policy: "public".to_owned(),
+            containment: terrane_rust_analysis::Containment::Enforced,
+            probe_execution: terrane_rust_analysis::SurveyProbeExecution {
+                status: "not-requested".to_owned(),
+                compile_only: true,
+                bounds: terrane_rust_analysis::StableProbeReport {
+                    evidence: Vec::new(),
+                    compiled_probe_count: 0,
+                },
+                calls: terrane_rust_analysis::StableProbeReport {
+                    evidence: Vec::new(),
+                    compiled_probe_count: 0,
+                },
+                implementations: terrane_rust_analysis::StableProbeReport {
+                    evidence: Vec::new(),
+                    compiled_probe_count: 0,
+                },
+            },
+        };
+        let projection = Projection {
+            cache_identity: "witness".to_owned(),
+            content_hash: "content".to_owned(),
+            dependencies: Vec::new(),
+            bound_dependencies: Vec::new(),
+            containment: terrane_rust_analysis::Containment::Enforced,
+            source: crate::rust_interop::projection::ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: crate::rust_interop::projection::ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+
+        let assessment = assess(&native, &[], &[], &projection);
+
+        assert_eq!(assessment.discovered_declarations, 1);
+        assert_eq!(assessment.discovered_public_paths, 1);
+        assert_eq!(
+            assessment.classifications.get("deferred-contextual"),
+            Some(&1)
+        );
+        assert_eq!(assessment.declaration_results.len(), 1);
+    }
 }

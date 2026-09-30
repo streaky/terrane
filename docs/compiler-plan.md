@@ -762,8 +762,8 @@ projected constructors nested as arguments, multiple owned intermediates, branch
 one owned `Widget`, an ordered child collection, an ordinary Terrane helper, and an owned capture.
 A traced aggregate proves exact-once source-order evaluation. The selected native blanket recipe
 then converts that one owned graph result into the invocation-scoped terminal.
-`projected-invocation-scoped-incompatible-graph` rejects an owned graph result that does not satisfy
-the complete higher-ranked terminal bound before Rust lowering.
+`projected-invocation-scoped-owned-blanket-bound` rejects an owned graph result that does not
+satisfy the complete higher-ranked terminal bound before Rust lowering.
 
 The owned blanket-recipe path deliberately reuses ordinary Terrane control flow, collection
 ownership, move/borrow rules, projected generic specialization, and the terminal authority

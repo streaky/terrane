@@ -2100,7 +2100,10 @@ fn validate_invocation_scoped_node(
         && let Some(parameter) = contract.parameters.iter().find(|parameter| {
             matches!(
                 &parameter.value_type,
-                Some(ValueType::InvocationScopedNative { rust_type, .. }) if rust_type == "_"
+                Some(ValueType::InvocationScopedNative {
+                    concrete: false,
+                    ..
+                })
             )
         })
     {
@@ -2157,7 +2160,9 @@ fn validate_invocation_scoped_node(
                     ValueType::List(item)
                         if matches!(
                             item.value_type_ref(),
-                            ValueType::InvocationScopedNative { rust_type, .. } if rust_type == "_"
+                            ValueType::InvocationScopedNative {
+                                concrete: false, ..
+                            }
                         )
                 )
             });

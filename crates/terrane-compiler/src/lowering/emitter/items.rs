@@ -1818,7 +1818,10 @@ impl<'a> Emitter<'a> {
         });
         if matches!(
             return_type,
-            Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+            Some(ValueType::InvocationScopedNative {
+                concrete: false,
+                ..
+            })
         ) {
             return_type = self
                 .unit

@@ -457,23 +457,24 @@ impl Emitter<'_> {
         }
         if let ValueType::InvocationScopedNative {
             rust_type: expected,
+            concrete: true,
             family: expected_family,
             ..
         } = &value_type
-            && expected != "_"
             && let Some(ValueType::InvocationScopedNative {
-                rust_type: actual, ..
+                rust_type: actual,
+                concrete: true,
+                ..
             }) = self.value_type(node)
             && (expected_family.name == "invocation-scoped-native"
-                || actual != "_"
-                    && expected
+                || expected
+                    .split('<')
+                    .next()
+                    .and_then(|path| path.rsplit("::").next())
+                    != actual
                         .split('<')
                         .next()
-                        .and_then(|path| path.rsplit("::").next())
-                        != actual
-                            .split('<')
-                            .next()
-                            .and_then(|path| path.rsplit("::").next()))
+                        .and_then(|path| path.rsplit("::").next()))
         {
             let expected = crate::rust_ir::rust_lifetimes(expected)
                 .iter()

@@ -647,7 +647,8 @@ pub(super) fn declared_value_type_with_visible_objects(
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
         "host-invocation-scoped-native" => {
             return Ok(ValueType::InvocationScopedNative {
-                rust_type: "_".to_owned(),
+                rust_type: "host-invocation-scoped-native".to_owned(),
+                concrete: false,
                 family: ObjectIdentity::new(
                     "/deps".to_owned(),
                     "invocation-scoped-native".to_owned(),
@@ -1241,20 +1242,24 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
-        (
-            ValueType::InvocationScopedNative { rust_type, .. },
-            ValueType::InvocationScopedNative { .. },
-        ) if rust_type == "_" => true,
-        (
-            ValueType::InvocationScopedNative { .. },
-            ValueType::InvocationScopedNative { rust_type, .. },
-        ) if rust_type == "_" => true,
         (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
             if expected.name == actual.name =>
         {
             true
         }
         (
+            ValueType::InvocationScopedNative {
+                concrete: false, ..
+            },
+            ValueType::InvocationScopedNative { .. },
+        )
+        | (
+            ValueType::InvocationScopedNative { .. },
+            ValueType::InvocationScopedNative {
+                concrete: false, ..
+            },
+        )
+        | (
             ValueType::InvocationScopedNative { region: None, .. },
             ValueType::InvocationScopedNative {
                 region: Some(_), ..
