@@ -23,6 +23,9 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 /editors/vscode/server/
 /editors/vscode/*.vsix
 
+# Standalone documentation repository (never a submodule)
+/manual/
+
 /projects/
 /packages/*
 !/packages/iced-ui/
