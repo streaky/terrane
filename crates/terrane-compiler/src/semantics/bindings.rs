@@ -1962,10 +1962,174 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
     }
 }
 
+fn first_name_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
+    if node.kind == SyntaxKind::Name {
+        return Some(node);
+    }
+    node.children.iter().find_map(first_name_node)
+}
+
+fn collect_scoped_append_types(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    receiver_name: &str,
+    results: &mut Vec<crate::rust_interop::projection::ProjectedType>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && node_text(&unit.source, receiver) == receiver_name
+        && node_text(&unit.source, member) == "append"
+        && let Some(argument) = arguments.children.first()
+    {
+        let value = argument.children.last().unwrap_or(argument);
+        if value.kind == SyntaxKind::CallExpression
+            && let Some(value_callee) = value.children.first()
+            && let Some(function) = projected_function_for_call(package, unit, value_callee)
+            && !results.contains(&function.result)
+        {
+            results.push(function.result.clone());
+        }
+    }
+    for child in &node.children {
+        collect_scoped_append_types(package, unit, child, receiver_name, results);
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one syntax walk keeps invocation-region rejection rules in source order"
+)]
 fn validate_invocation_scoped_node(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::FunctionDeclaration
+        && let Some(contract) = unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+        && !unit
+            .source
+            .path()
+            .to_string_lossy()
+            .starts_with("<terrane>/projected/")
+        && let Some(parameter) = contract.parameters.iter().find(|parameter| {
+            matches!(
+                &parameter.value_type,
+                Some(ValueType::InvocationScopedNative { rust_type, .. }) if rust_type == "_"
+            )
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            format!(
+                "parameter `{}` cannot use unresolved `invocation-scoped-native` as a source type",
+                parameter.name
+            ),
+            parameter.span,
+        ));
+    }
+    if node.kind == SyntaxKind::ReturnStatement
+        && let Some(value) = node.children.first()
+        && value.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = value.children.as_slice()
+        && projected_function_for_call(package, unit, callee).is_some_and(|function| {
+            matches!(
+                function.result,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+            )
+        })
+        && let Some(function_span) = unit
+            .enclosing_function_spans
+            .get(&node.span.start)
+            .copied()
+            .flatten()
+        && let Some(contract) = unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == function_span)
+        && let Some((name, binding)) = arguments.children.iter().find_map(|argument| {
+            let name_node = first_name_node(argument)?;
+            let name = node_text(&unit.source, name_node);
+            let binding = unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| {
+                    binding.name == name
+                        && binding.is_visible_at(unit.source.id(), name_node.span.start)
+                })
+                .max_by_key(|binding| binding.visible_from)?;
+            (!contract
+                .parameters
+                .iter()
+                .any(|parameter| parameter.name == name)
+                && binding.scope == Some(function_span)
+                && invocation_scoped_region(&binding.value_type).is_none())
+            .then_some((name, binding))
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            format!("invocation-scoped native result cannot borrow local value `{name}`"),
+            binding.span,
+        ));
+    }
+
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, _] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && node_text(&unit.source, member) == "append"
+    {
+        let receiver_name = node_text(&unit.source, receiver);
+        let scoped_wildcard_list = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == receiver_name
+                    && binding.is_visible_at(unit.source.id(), receiver.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)
+            .is_some_and(|binding| {
+                matches!(
+                    &binding.value_type,
+                    ValueType::List(item)
+                        if matches!(
+                            item.value_type_ref(),
+                            ValueType::InvocationScopedNative { rust_type, .. } if rust_type == "_"
+                        )
+                )
+            });
+        if scoped_wildcard_list
+            && let Some(function_span) = unit
+                .enclosing_function_spans
+                .get(&node.span.start)
+                .copied()
+                .flatten()
+            && let Some(function) = find_node_by_span(&unit.tree.root, function_span)
+        {
+            let mut item_types = Vec::new();
+            collect_scoped_append_types(package, unit, function, receiver_name, &mut item_types);
+            if item_types.len() > 1 {
+                return Err(failure(
+                    &unit.source,
+                    "T0119",
+                    format!(
+                        "invocation-scoped list `{receiver_name}` cannot mix native element types"
+                    ),
+                    node.span,
+                ));
+            }
+        }
+    }
+
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
         && let Some(value) = node.children.last()
         && let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
@@ -2048,7 +2212,7 @@ fn validate_projected_callback_node(
     immediately_awaited: bool,
     chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
-    validate_invocation_scoped_node(unit, node)?;
+    validate_invocation_scoped_node(package, unit, node)?;
     if matches!(
         projected_chain_role(package, unit, node),
         Some(

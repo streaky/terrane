@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use terrane_compiler::{
     ArtifactKind, BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile,
-    RustDependency, analyze, compile_discovered_test_tier, compile_package, compile_test_package,
-    discover_test_package, source_tree_hash,
+    RustDependency, analyze, compile_discovered_test_tier, compile_package,
+    compile_package_with_options, compile_test_package, discover_test_package, source_tree_hash,
     testing::{TestPackage, TestTier},
     with_tokio_runtime,
 };
@@ -1275,7 +1275,14 @@ fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
         "namespace acme/lib\nfunction first;\n  none\nfunction second;\n  none\n",
     );
     let library = Package::load(workspace.0.join("library")).unwrap();
-    let standalone = compile_package(&library).unwrap();
+    let standalone = compile_package_with_options(
+        &library,
+        CompilerOptions {
+            lint_unused_functions: true,
+            ..CompilerOptions::default()
+        },
+    )
+    .unwrap();
     assert!(
         standalone
             .warnings

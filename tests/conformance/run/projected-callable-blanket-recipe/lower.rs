@@ -664,15 +664,14 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_callable_recipe_witness::accepts_handler(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok({ let callback = TerraneConsumingCallable::new(move
-        | () : () | no_argument()); move | | { match | | -> Result < _, crate
-        ::TerraneForeignError > { let callback_value = callback.call(());
-        Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
-        crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
-        ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
-        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
-        std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
-        Err(crate ::__terrane_dependency_panic(payload,
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(no_argument)
+        .clone(); move | | { match | | -> Result < _, crate ::TerraneForeignError > { let
+        callback_value = callback(); Ok(terrane_int_support::coerce:: < i64 >
+        (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
+        ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
+        Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
         "terrane-callable-recipe-witness",
         "terrane_callable_recipe_witness::accepts_handler")) }, 6 /* terrane-site: src/main.trn:40:13-40:41 */))
     );
@@ -680,11 +679,10 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_callable_recipe_witness::accepts_handler(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok({ let callback = TerraneConsumingCallable::new(move
-        | (argument_0,) : (terrane_int_support::Int,) | one_argument(argument_0)); move |
-        callback_argument_0 : i64 | { match | | -> Result < _, crate
-        ::TerraneForeignError > { let callback_value = callback
-        .call((terrane_int_support::Int::from(i128::from(callback_argument_0)),));
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(one_argument)
+        .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+        ::TerraneForeignError > { let callback_value =
+        callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
         Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
         crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>

@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/witness import first_widget, render_scoped
+
+function invalid host-invocation-scoped-native; state ref string
+    local string = 'local'
+    return first_widget; local
+
+function main;
+    state string = '40'
+    result = render_scoped; state, invalid

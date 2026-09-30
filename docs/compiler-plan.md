@@ -708,31 +708,34 @@ as the terminal authority when it already owns that conversion: this preserves t
 Terrane callable, recursion, helpers, captures, diagnostics, and static result type without a
 second compiler representation.
 
-Implemented for exact lifetime-bearing callback results: projection schema 176 recursively retains
-invocation-scoped native inputs and sequence elements when the same projected operation returns a
-lifetime-bearing value authorized by an external terminal conversion. Semantic values carry the
-enclosing scoped-function region. Region-local bindings, nested projected calls, branches that
-converge through one exact terminal family, and scoped child lists are legal; ordinary storage,
-aggregate escape, capture, suspension, incompatible terminal conversion, and cross-region flow are
-rejected before lowering. Scoped values use ordinary move checking and are never implicitly cloned.
+Implemented for the bounded exact-result subset: projection retains invocation-scoped native inputs,
+producer results, and homogeneous sequence elements. Semantic values carry the enclosing
+scoped-function region. Same-type region-local bindings, nested projected calls, branches, and
+scoped child lists are legal; ordinary storage, local lenders, aggregate escape, capture,
+suspension, incompatible native producer contracts, and cross-region flow are rejected. Scoped
+values use ordinary move checking and are never implicitly cloned.
 
-Lowering reuses the analyzed function body and emits a monomorphized helper with the selected
-invocation lifetime and exact native local/collection types. Explicit return graphs select the
-helper result, so an earlier intermediate cannot accidentally determine its ABI. The terminal
-adapter performs one external conversion; no callback body copying, erased storage,
-representation-only allocation, dynamic dispatch, `'static` promotion, leak, or `transmute` is
-introduced. Defaulted generic arguments on the selected native terminal alias remain correlated
-with the callback contract and are emitted at the projected call and helper use rather than guessed
-from package or operation names.
+The currently implemented exact-result subset is deliberately narrower than the full design above.
+A named Terrane callback may return one exact lifetime-dependent native producer type. Lowering
+passes that named function directly to a proven native callback blanket, leaving terminal conversion
+to the native implementation and avoiding a compiler-forged implementation of an external trait.
+All explicit callback returns must currently converge on that same producer type.
 
-`projected-invocation-scoped-callback` executes direct, nested, branching, helper, capture,
-aggregate, and defaulted-terminal paths. Focused rejection fixtures cover nominal and aggregate
-escape, capture, suspension, invalid reuse, and incompatible terminal graphs. The maintained
-`packages/iced-ui` renderer now executes projected `iced::widget::text`, `button`, `column`, `row`,
-`container`, and `scrollable` operations from its Terrane view callback. The selected
-`Into<Element<'a, ...>>` terminal conversions retain correlated theme and renderer generics with no
-Iced-specific compiler branch. A narrow host crate still owns Iced's event-loop entrypoint, while a
-package-local Rust module converts the public Terrane `View`/`Event` data-transfer objects.
+That producer may flow through same-type local bindings, projected calls, ordinary helpers,
+branches, and homogeneous scoped child lists inside one invocation. It may borrow the callback's
+lender parameter but not an ordinary callback-local value. Unresolved source parameter types, mixed
+native list elements, storage escape, capture, suspension, region mixing, and unauthorized return
+are source errors. Distinct native return types and exact higher-ranked anonymous or capturing
+callbacks remain open work; the compiler declines them rather than inferring a helper ABI or cloning
+an environment on every invocation.
+
+`projected-invocation-scoped-callback` exercises the supported direct, nested, same-type branching,
+helper, aggregate, and defaulted-terminal paths. Focused rejection fixtures cover local lenders,
+unresolved source parameters, heterogeneous scoped lists, restrictive native callback traits,
+escape, capture, suspension, invalid reuse, and incompatible graphs. The maintained
+`packages/iced-ui` renderer executes the supported projected Iced widget operations through named
+callbacks. A narrow host crate still owns Iced's event-loop entrypoint, while a package-local Rust
+module converts the public Terrane `View`/`Event` data-transfer objects.
 
 Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
 `Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
@@ -3521,7 +3524,7 @@ explicitly, compiles with warnings denied, and passes canonical validation where
 already does.
 
 Status: implemented on `destination-directed-projected-results` and generalized on
-`feature/projection-gap-census`. Projection schema 157 retains a correlated set of result-only
+`feature/projection-gap-census`. Projection metadata retains a correlated set of result-only
 generic parameters, one recursive result template, and complete per-parameter rendered bounds;
 semantic analysis structurally selects the complete substitution only from a written binding,
 argument, field, or return destination and records exact cached oracle evidence.

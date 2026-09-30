@@ -45,6 +45,13 @@ impl<'view> From<SecondWidget<'view>> for ScopedView<'view> {
     }
 }
 
+pub fn first_row<'view>(children: Vec<FirstWidget<'view>>) -> ScopedView<'view> {
+    ScopedView {
+        value: children.into_iter().map(|child| child.value).sum(),
+        marker: std::marker::PhantomData,
+    }
+}
+
 pub trait ViewFn<'view, State> {
     fn view(&self, state: &'view State) -> ScopedView<'view>;
 }
@@ -62,6 +69,26 @@ where
 pub fn render_scoped<State>(
     state: &State,
     view: impl for<'view> ViewFn<'view, State>,
+) -> i64 {
+    view.view(state).value
+}
+
+pub trait RestrictedViewFn<'view> {
+    fn view(&self, state: &'view String) -> ScopedView<'view>;
+}
+
+impl<'view, F> RestrictedViewFn<'view> for F
+where
+    F: Fn(&'view String) -> FirstWidget<'view>,
+{
+    fn view(&self, state: &'view String) -> ScopedView<'view> {
+        self(state).into()
+    }
+}
+
+pub fn render_restricted(
+    state: &String,
+    view: impl for<'view> RestrictedViewFn<'view>,
 ) -> i64 {
     view.view(state).value
 }

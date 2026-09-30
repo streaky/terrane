@@ -3040,18 +3040,66 @@ fn projected_callback_result(
         .find_map(|child| projected_callback_result(package, unit, child, depth))
 }
 
+fn collect_projected_callback_results(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    results: &mut Vec<crate::rust_interop::projection::ProjectedType>,
+) {
+    if node.kind == SyntaxKind::ReturnStatement {
+        if let Some(value) = node.children.first() {
+            let direct_result = value
+                .children
+                .first()
+                .and_then(|callee| projected_function_for_call(package, unit, callee))
+                .map(|function| function.result.clone());
+            if let Some(result) =
+                direct_result.or_else(|| projected_callback_result(package, unit, value, 0))
+            {
+                results.push(result);
+            }
+        }
+        return;
+    }
+    for child in &node.children {
+        collect_projected_callback_results(package, unit, child, results);
+    }
+}
+
 fn projected_callback_function_result(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Option<crate::rust_interop::projection::ProjectedType> {
-    let name = node_text(&unit.source, value);
-    let contract = unit
-        .functions
+    let function = if value.kind == SyntaxKind::AnonymousFunction {
+        value
+    } else {
+        let name = node_text(&unit.source, value);
+        if let Some(contract) = unit.functions.iter().find(|contract| contract.name == name) {
+            find_node_by_span(&unit.tree.root, contract.span)?
+        } else {
+            let binding = unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| {
+                    binding.name == name
+                        && binding.is_visible_at(unit.source.id(), value.span.start)
+                })
+                .max_by_key(|binding| binding.visible_from)?;
+            let binding = find_node_by_span(&unit.tree.root, binding.span)?;
+            binding
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::AnonymousFunction)?
+        }
+    };
+    let mut results = Vec::new();
+    collect_projected_callback_results(package, unit, function, &mut results);
+    let first = results.first()?.clone();
+    results
         .iter()
-        .find(|contract| contract.name == name)?;
-    let function = find_node_by_span(&unit.tree.root, contract.span)?;
-    projected_callback_result(package, unit, function, 0)
+        .all(|result| result == &first)
+        .then_some(first)
 }
 
 fn bind_projected_native_generics(
@@ -3086,6 +3134,20 @@ fn bind_projected_native_generics(
                 bind_projected_native_generics(expected, actual, bindings)?;
             }
             Ok(())
+        }
+        (
+            ProjectedType::InvocationScoped {
+                name: expected_name,
+                owned: expected_owned,
+                ..
+            },
+            ProjectedType::InvocationScoped {
+                name: actual_name,
+                owned: actual_owned,
+                ..
+            },
+        ) if expected_name == actual_name => {
+            bind_projected_native_generics(expected_owned, actual_owned, bindings)
         }
         (ProjectedType::Optional(expected), ProjectedType::Optional(actual))
         | (
@@ -3131,10 +3193,19 @@ fn collect_projected_destinations(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) = projected_function_for_call(package, unit, callee)
-        && function
+        && (function
             .generic_parameters
             .iter()
             .any(|generic| generic.input_selected)
+            || function.parameters.iter().any(|parameter| {
+                matches!(
+                    parameter.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_result: Some(_),
+                        ..
+                    }
+                )
+            }))
         && (function.chain_role.is_none()
             || function.parameters.iter().any(|parameter| {
                 parameter.generic_parameter.is_some()
@@ -3187,30 +3258,86 @@ fn collect_projected_destinations(
             let Some(expected) = parameter.element_value_type() else {
                 continue;
             };
+            let actual_invocation_scoped_callback = match &actual {
+                ValueType::Function(_, result, _) | ValueType::AsyncFunction(_, result, _, _) => {
+                    matches!(
+                        result.value_type_ref(),
+                        ValueType::InvocationScopedNative { .. }
+                    )
+                }
+                _ => false,
+            };
             if let (
                 crate::rust_interop::projection::ProjectedType::Callback {
                     parameters_destination_selected,
+                    native_result: Some(_),
+                    result: projected_callback_result,
                     ..
                 },
-                Some(generic),
+                _,
                 ValueType::Function(..) | ValueType::AsyncFunction(..),
             ) = (
                 &projected_parameter.ty,
                 projected_parameter.generic_parameter.as_ref(),
                 &actual,
-            ) && function
-                .generic_parameters
-                .iter()
-                .any(|candidate| candidate.input_selected && candidate.name == *generic)
+            ) && actual_invocation_scoped_callback
             {
                 let destination_selected_parameters = *parameters_destination_selected;
                 let actual_projected_result =
                     projected_callback_function_result(package, unit, value);
+                if actual_projected_result.is_none() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0129",
+                        "projected callback returns do not converge on one native type",
+                        value.span,
+                    ));
+                }
+                if let (
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                        name: expected_name,
+                        ..
+                    },
+                    Some(crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                        name: actual_name,
+                        ..
+                    }),
+                ) = (
+                    projected_callback_result.as_ref(),
+                    actual_projected_result.as_ref(),
+                ) && expected_name != actual_name
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected callback has an incompatible native producer type: expected `{expected_name}`, actual `{actual_name}`"
+                        ),
+                        value.span,
+                    ));
+                }
+                bind_projected_native_generics(
+                    projected_callback_result,
+                    actual_projected_result
+                        .as_ref()
+                        .expect("callback convergence was checked above"),
+                    &mut native_bindings,
+                )
+                .map_err(|reason| {
+                    failure(
+                        &unit.source,
+                        "T0129",
+                        format!(
+                            "projected callback has an incompatible native producer type: {reason}"
+                        ),
+                        value.span,
+                    )
+                })?;
                 bind_projected_callback_generics(
                     package,
                     &expected,
                     &actual,
-                    actual_projected_result.as_ref(),
+                    None,
                     &mut value_bindings,
                     &mut native_bindings,
                     destination_selected_parameters,

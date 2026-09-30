@@ -452,21 +452,17 @@ pub fn compile_package_with_options(
     })?;
     let (source, entry_span) = package_entry(&semantic, package)?;
     let sources = compilation_sources(&semantic, package);
-    let warnings = semantics::warnings(
-        &semantic,
-        options.lint_name_style,
-        options.lint_unused_functions,
-    )
-    .into_iter()
-    .filter(|warning| {
-        let dependency_warning = warning
-            .primary
-            .is_some_and(|span| package.library_source_ids.contains(&span.file));
-        let library_export_warning =
-            package.artifact == crate::package::ArtifactKind::Library && warning.code == "W4001";
-        !dependency_warning && !library_export_warning
-    })
-    .collect();
+    let warnings = collect_warnings(&semantic, options)
+        .into_iter()
+        .filter(|warning| {
+            let dependency_warning = warning
+                .primary
+                .is_some_and(|span| package.library_source_ids.contains(&span.file));
+            let library_export_warning = package.artifact == crate::package::ArtifactKind::Library
+                && matches!(warning.code, "W4001" | "W4005");
+            !dependency_warning && !library_export_warning
+        })
+        .collect();
     let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();

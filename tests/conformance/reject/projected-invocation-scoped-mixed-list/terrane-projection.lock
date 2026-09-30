@@ -8,7 +8,15 @@
         ],
         [
           "/deps/witness",
+          "ScopedView"
+        ],
+        [
+          "/deps/witness",
           "SecondWidget"
+        ],
+        [
+          "/deps/witness",
+          "first_row"
         ],
         [
           "/deps/witness",

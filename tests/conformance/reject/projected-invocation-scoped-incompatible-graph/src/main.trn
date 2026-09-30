@@ -1,10 +1,12 @@
 namespace app
 
-from /deps/witness import BadWidget, bad_widget, render_scoped
+from /deps/witness import first_widget, second_widget, render_scoped
 
-function incompatible BadWidget; state ref int64
-    return bad_widget; state + 1
+function incompatible host-invocation-scoped-native; state ref string
+    if state.length > 0
+        return first_widget; state
+    return second_widget; state
 
 function main;
-    state int64 = 40
+    state string = '40'
     result = render_scoped; state, incompatible

@@ -33,7 +33,7 @@ impl Emitter<'_> {
     ) -> Option<String> {
         let crate::rust_interop::projection::ProjectedType::Callback {
             native_bound: Some(native_bound),
-            native_method: Some(native_method),
+            native_method: Some(_),
             native_result: Some(native_result),
             native_substitutions,
             parameters,
@@ -116,14 +116,6 @@ impl Emitter<'_> {
                     rust_type.replace(lifetime, "'view")
                 })
         };
-        let trimmed_bound = native_bound.trim();
-        let trait_path = scoped_type(if trimmed_bound.starts_with("for") {
-            trimmed_bound
-                .split_once('>')
-                .map_or(trimmed_bound, |(_, trait_path)| trait_path.trim())
-        } else {
-            trimmed_bound
-        });
         let inputs = parameter_rust_types
             .iter()
             .map(|input| scoped_type(input))
@@ -131,14 +123,18 @@ impl Emitter<'_> {
         let method_parameters = inputs
             .iter()
             .enumerate()
-            .map(|(index, input)| format!("callback_argument_{index}: {input}"))
+            .map(|(index, input)| {
+                format!(
+                    "callback_argument_{index}: {}",
+                    input.replace("'view", "'_")
+                )
+            })
             .collect::<Vec<_>>()
             .join(", ");
         let arguments = (0..parameters.len())
             .map(|index| format!("callback_argument_{index}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let output = scoped_type(native_result);
         let ValueType::InvocationScopedNative {
             rust_type: producer_template,
             ..
@@ -263,22 +259,16 @@ impl Emitter<'_> {
                         })
                 })
                 .collect::<Vec<_>>();
-            let fields = captures
+            let capture_initializers = captures
                 .iter()
                 .enumerate()
-                .map(|(index, (_, ty))| format!("capture_{index}: {ty}"))
+                .map(|(index, (name, ty))| format!("let capture_{index}: {ty} = {name}.clone();"))
                 .collect::<Vec<_>>()
-                .join(", ");
-            let initializers = captures
-                .iter()
-                .enumerate()
-                .map(|(index, (name, _))| format!("capture_{index}: {name}.clone()"))
-                .collect::<Vec<_>>()
-                .join(", ");
+                .join(" ");
             let captured_arguments = captures
                 .iter()
                 .enumerate()
-                .map(|(index, _)| format!("self.capture_{index}.clone()"))
+                .map(|(index, _)| format!("capture_{index}.clone()"))
                 .chain((!arguments.is_empty()).then_some(arguments.clone()))
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -296,19 +286,15 @@ impl Emitter<'_> {
                 "for<'callback> fn({callback_inputs}) -> {}",
                 producer.replace("'view", "'callback")
             );
-            let separator = if fields.is_empty() { "" } else { ", " };
             return Some(format!(
-                "{{ struct TerraneInvocationScopedCallback {{ callback: {callback_type}{separator}{fields} }} impl<'view> {trait_path} for TerraneInvocationScopedCallback {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ (self.callback)({captured_arguments}).into() }} }} TerraneInvocationScopedCallback {{ callback: {callback}{separator}{initializers} }} }}"
+                "{{ {capture_initializers} let callback: {callback_type} = {callback}; move |{method_parameters}| {{ callback({captured_arguments}) }} }}"
             ));
         }
         if value.kind == SyntaxKind::Name {
-            return Some(format!(
-                "{{ struct TerraneInvocationScopedCallback; impl<'view> {trait_path} for TerraneInvocationScopedCallback {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ {callback}({arguments}).into() }} }} TerraneInvocationScopedCallback }}"
-            ));
+            return Some(callback);
         }
         Some(format!(
-            "{{ struct TerraneInvocationScopedCallback<F>(F); impl<'view, F> {trait_path} for TerraneInvocationScopedCallback<F> where F: Fn({}) -> {producer} {{ fn {native_method}(&self, {method_parameters}) -> {output} {{ (self.0)({arguments}).into() }} }} TerraneInvocationScopedCallback({callback}) }}",
-            inputs.join(", ")
+            "move |{method_parameters}| {{ ({callback})({arguments}) }}"
         ))
     }
 

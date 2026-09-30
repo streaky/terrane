@@ -55,15 +55,9 @@ function aggregate Widget; state ref int64
 function main;
     state int64 = 40
     exact-state string = '40'
-    enabled bool = true
-    captured-exact = function host-invocation-scoped-native; value ref string
-        if enabled
-            return borrowed_label; value
-        return borrowed_label; value
     print; (render_scoped; state, 'message', true, direct)
     print; (render_exact; exact-state, 'message', true, exact)
     print; (render_default; state, direct)
-    print; (render_exact; exact-state, 'message', true, captured-exact)
     print; (render_exact; exact-state, 'message', true, exact-nested)
     print; (render_exact; exact-state, 'message', true, exact-branch)
     print; (render_exact; exact-state, 'message', true, exact-aggregate)

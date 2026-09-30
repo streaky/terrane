@@ -203,9 +203,10 @@ pub trait ExactViewFn<'view, Message, Theme> {
     fn view(&self, state: &'view String) -> ScopedView<'view, Message, Theme>;
 }
 
-impl<'view, F, Message, Theme> ExactViewFn<'view, Message, Theme> for F
+impl<'view, F, Message, Theme, WidgetValue> ExactViewFn<'view, Message, Theme> for F
 where
-    F: Fn(&'view String) -> BorrowedLabel<'view>,
+    F: Fn(&'view String) -> WidgetValue,
+    WidgetValue: Into<ScopedView<'view, Message, Theme>>,
 {
     fn view(&self, state: &'view String) -> ScopedView<'view, Message, Theme> {
         self(state).into()

@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import second_widget, render_restricted
+
+function invalid host-invocation-scoped-native; state ref string
+    return second_widget; state
+
+function main;
+    state string = '40'
+    result = render_restricted; state, invalid

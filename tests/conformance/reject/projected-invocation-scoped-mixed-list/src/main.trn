@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/witness import first_widget, second_widget, first_row, render_scoped
+from /core/collections import list
+
+function invalid host-invocation-scoped-native; state ref string
+    children list of host-invocation-scoped-native = list;
+    children.append; (first_widget; state)
+    children.append; (second_widget; state)
+    return first_row; children
+
+function main;
+    state string = '40'
+    result = render_scoped; state, invalid

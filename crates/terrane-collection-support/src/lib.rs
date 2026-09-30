@@ -1386,4 +1386,19 @@ mod tests {
         assert_eq!(small_clones, 0);
         assert_eq!(large_clones, 0);
     }
+    #[test]
+    #[should_panic(expected = "invocation-scoped list backing storage must be uniquely owned")]
+    fn scoped_list_consumption_rejects_shared_storage() {
+        let list = List::new(vec![String::from("value")]);
+        let _shared = list.clone();
+        let _ = list.into_unique_vec();
+    }
+
+    #[test]
+    #[should_panic(expected = "invocation-scoped list backing storage must be uniquely owned")]
+    fn scoped_list_append_rejects_shared_storage() {
+        let mut list = List::new(vec![String::from("first")]);
+        let _shared = list.clone();
+        list.push_unique(String::from("second"));
+    }
 }

@@ -1,9 +1,0 @@
-namespace repro
-from /deps/reqwest import Response
-
-function inspect-status; response Response;
-    value = response.status;
-    print; value
-
-function main;
-    print; 'StatusCode is owned by the undeclared http crate'

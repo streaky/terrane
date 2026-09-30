@@ -45,6 +45,13 @@ impl<'view> From<SecondWidget<'view>> for ScopedView<'view> {
     }
 }
 
+pub fn first_row<'view>(children: Vec<FirstWidget<'view>>) -> ScopedView<'view> {
+    ScopedView {
+        value: children.into_iter().map(|child| child.value).sum(),
+        marker: std::marker::PhantomData,
+    }
+}
+
 pub trait ViewFn<'view, State> {
     fn view(&self, state: &'view State) -> ScopedView<'view>;
 }

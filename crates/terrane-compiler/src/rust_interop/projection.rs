@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "189";
+const PROJECTION_SCHEMA: &str = "190";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -10579,6 +10579,25 @@ fn project_callable_adapter_bounds(
         else {
             continue;
         };
+        let builtin_callable = requested_trait
+            .path
+            .rsplit("::")
+            .next()
+            .is_some_and(|name| matches!(name, "Fn" | "FnMut" | "FnOnce"));
+        if !builtin_callable
+            && (declaration.is_auto
+                || declaration.is_unsafe
+                || !declaration.bounds.is_empty()
+                || declaration.items.len() != 1
+                || !declaration.items.first().is_some_and(|item_id| {
+                    matches!(
+                        index.get(item_id).map(|item| &item.inner),
+                        Some(ItemEnum::Function(function)) if !function.has_body
+                    )
+                }))
+        {
+            continue;
+        }
         let native_function = declaration.items.iter().find_map(|item_id| {
             let item = index.get(item_id)?;
             let ItemEnum::Function(function) = &item.inner else {
@@ -11226,8 +11245,17 @@ fn generic_monomorphisations(
         if let Some((callback, result_bounds, defaults)) =
             project_callable_adapter_generic(parameter, function, index, paths, &result)?
         {
+            let open_callback_result = match &callback {
+                ProjectedType::Callback { result, .. } => match result.as_ref() {
+                    ProjectedType::Generic(name) => Some(name.as_str()),
+                    _ => None,
+                },
+                _ => None,
+            };
             for (name, default) in defaults {
-                if matches!(result.get(&name), None | Some(ProjectedType::Generic(_))) {
+                if open_callback_result != Some(name.as_str())
+                    && matches!(result.get(&name), None | Some(ProjectedType::Generic(_)))
+                {
                     result.insert(name, default);
                 }
             }
