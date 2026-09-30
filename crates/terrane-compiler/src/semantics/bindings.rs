@@ -2234,6 +2234,36 @@ fn validate_invocation_scoped_node(
     Ok(())
 }
 
+fn projected_argument_for_parameter<'a>(
+    unit: &SemanticUnit,
+    function: &crate::rust_interop::projection::ProjectedFunction,
+    arguments: &'a SyntaxNode,
+    parameter_index: usize,
+) -> Option<&'a SyntaxNode> {
+    let mut positional = 0;
+    arguments.children.iter().find_map(|argument| {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let argument_index = named.map_or_else(
+            || {
+                let current = positional;
+                positional += 1;
+                current
+            },
+            |name| {
+                function
+                    .parameters
+                    .iter()
+                    .position(|candidate| candidate.name == node_text(&unit.source, name))
+                    .unwrap_or(usize::MAX)
+            },
+        );
+        (argument_index == parameter_index).then(|| argument.children.last().unwrap_or(argument))
+    })
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -2266,38 +2296,39 @@ fn validate_projected_callback_node(
         && let Some(function) = projected_function_for_call(package, unit, callee)
     {
         for (index, parameter) in function.parameters.iter().enumerate() {
-            let crate::rust_interop::projection::ProjectedType::Callback { .. } = &parameter.ty
+            let Some(value) = projected_argument_for_parameter(unit, function, arguments, index)
             else {
                 continue;
             };
-            let value = {
-                let mut positional = 0;
-                arguments.children.iter().find_map(|argument| {
-                    let named = argument.children.first().filter(|child| {
-                        child.kind == SyntaxKind::Name && argument.children.len() > 1
-                    });
-                    let argument_index = named.map_or_else(
-                        || {
-                            let current = positional;
-                            positional += 1;
-                            current
-                        },
-                        |name| {
-                            function
-                                .parameters
-                                .iter()
-                                .position(|candidate| {
-                                    candidate.name == node_text(&unit.source, name)
-                                })
-                                .unwrap_or(usize::MAX)
-                        },
-                    );
-                    (argument_index == index).then(|| argument.children.last().unwrap_or(argument))
-                })
-            };
-            let Some(value) = value else {
+            if matches!(
+                parameter.ty,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+            ) && let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)?
+                && let Ok(actual_projected) =
+                    super::objects::destination_projected_type(package, &actual)
+                && matches!(
+                    actual_projected,
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                )
+                && !super::objects::same_projected_native_family(&parameter.ty, &actual_projected)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0019",
+                    format!(
+                        "incompatible argument types: expected `{}`, found `{}`",
+                        parameter.ty.rust_type(),
+                        actual_projected.rust_type()
+                    ),
+                    value.span,
+                ));
+            }
+            if !matches!(
+                parameter.ty,
+                crate::rust_interop::projection::ProjectedType::Callback { .. }
+            ) {
                 continue;
-            };
+            }
             let Some(contract) = callback_contract(package, unit, value) else {
                 continue;
             };

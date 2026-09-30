@@ -2510,6 +2510,18 @@ fn qualify_projected_rust_names(rust: &str, projected_names: &BTreeMap<String, S
     reason = "oracle proof and specialization installation remain one atomic semantic step"
 )]
 fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit_index in 0..package.units.len() {
+        let plans = {
+            let unit = &package.units[unit_index];
+            resolve_callback_function_results(package, unit)
+                .into_iter()
+                .map(|(span, result)| ((span.file, span.start, span.end), result.value_type))
+                .collect::<Vec<_>>()
+        };
+        package.units[unit_index]
+            .invocation_scoped_function_results
+            .extend(plans);
+    }
     let mut pending = Vec::new();
     for (unit_index, unit) in package.units.iter().enumerate() {
         collect_projected_destinations(
@@ -2729,18 +2741,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 },
             );
     }
-    for unit_index in 0..package.units.len() {
-        let plans = {
-            let unit = &package.units[unit_index];
-            resolve_callback_function_results(package, unit)
-                .into_iter()
-                .map(|(span, result)| ((span.file, span.start, span.end), result.value_type))
-                .collect::<Vec<_>>()
-        };
-        package.units[unit_index]
-            .invocation_scoped_function_results
-            .extend(plans);
-    }
+    rebuild_typed_bindings(package)?;
     Ok(())
 }
 fn oracle_diagnostic_summary(message: &str) -> String {
@@ -3074,6 +3075,45 @@ fn callback_expression_result(
     })
 }
 
+fn forwarded_callback_function_span(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    visited_bindings: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<Span> {
+    let mut value = value;
+    while value.kind == SyntaxKind::GroupExpression {
+        value = value.children.first()?;
+    }
+    if value.kind == SyntaxKind::CallExpression
+        && let Some(callee) = value.children.first()
+        && callee.kind == SyntaxKind::Name
+        && let Some(contract) =
+            resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
+        && matches!(
+            contract.return_type,
+            Some(ValueType::InvocationScopedNative { ref rust_type, .. }) if rust_type == "_"
+        )
+        && find_node_by_span(&unit.tree.root, contract.span)
+            .is_some_and(|node| node.kind == SyntaxKind::FunctionDeclaration)
+    {
+        return Some(contract.span);
+    }
+    if value.kind != SyntaxKind::Name {
+        return None;
+    }
+    let binding = unit.typed_bindings.iter().rev().find(|binding| {
+        binding.name == node_text(&unit.source, value)
+            && binding.is_visible_at(unit.source.id(), value.span.start)
+    })?;
+    let key = (binding.span.file, binding.span.start, binding.span.end);
+    if !visited_bindings.insert(key) {
+        return None;
+    }
+    let declaration = find_node_by_span(&unit.tree.root, binding.span)?;
+    let initializer = declaration.children.last()?;
+    forwarded_callback_function_span(unit, initializer, visited_bindings)
+}
+
 #[derive(Clone)]
 struct CallbackFunctionFacts {
     span: Span,
@@ -3090,30 +3130,10 @@ fn collect_callback_function_facts(
     if node.kind == SyntaxKind::ReturnStatement
         && let Some(value) = node.children.first()
     {
-        if let Some(result) = callback_expression_result(package, unit, value) {
+        if let Some(span) = forwarded_callback_function_span(unit, value, &mut BTreeSet::new()) {
+            facts.forwarded_returns.push(span);
+        } else if let Some(result) = callback_expression_result(package, unit, value) {
             facts.direct_results.push(result);
-        } else {
-            let mut value = value;
-            while value.kind == SyntaxKind::GroupExpression {
-                let Some(grouped) = value.children.first() else {
-                    break;
-                };
-                value = grouped;
-            }
-            if value.kind == SyntaxKind::CallExpression
-                && let Some(callee) = value.children.first()
-                && callee.kind == SyntaxKind::Name
-                && let Some(contract) = unit.functions.iter().find(|contract| {
-                    contract.name == node_text(&unit.source, callee)
-                        && matches!(
-                            contract.return_type,
-                            Some(ValueType::InvocationScopedNative { ref rust_type, .. })
-                                if rust_type == "_"
-                        )
-                })
-            {
-                facts.forwarded_returns.push(contract.span);
-            }
         }
         return;
     }
@@ -3147,7 +3167,7 @@ fn anonymous_callback_node<'a>(
         .find(|child| child.kind == SyntaxKind::AnonymousFunction)
 }
 
-fn same_projected_native_family(
+pub(super) fn same_projected_native_family(
     left: &crate::rust_interop::projection::ProjectedType,
     right: &crate::rust_interop::projection::ProjectedType,
 ) -> bool {
@@ -3163,7 +3183,17 @@ fn same_projected_native_family(
                 rust_type: right_rust,
                 ..
             },
-        ) => left_name == right_name && left_rust.split('<').next() == right_rust.split('<').next(),
+        ) => {
+            left_name == right_name
+                && left_rust
+                    .chars()
+                    .take_while(|character| *character != '<')
+                    .filter(|character| !character.is_whitespace())
+                    .eq(right_rust
+                        .chars()
+                        .take_while(|character| *character != '<')
+                        .filter(|character| !character.is_whitespace()))
+        }
         _ => left == right,
     }
 }
@@ -3256,9 +3286,15 @@ fn projected_callback_function_result(
         .iter()
         .find(|contract| contract.name == name)?
         .span;
-    resolve_callback_function_results(package, unit)
-        .into_iter()
-        .find_map(|(candidate, result)| (candidate == span).then_some(result))
+    let value_type = unit
+        .invocation_scoped_function_results
+        .get(&(span.file, span.start, span.end))?
+        .clone();
+    let projected = destination_projected_type(package, &value_type).ok()?;
+    Some(CallbackFunctionResult {
+        projected,
+        value_type,
+    })
 }
 
 fn contextualize_callback_value_type(

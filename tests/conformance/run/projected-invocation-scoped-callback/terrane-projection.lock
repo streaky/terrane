@@ -1,15 +1,10 @@
 {
+  "format": 3,
   "dependencies": [
     {
+      "name": "witness",
+      "version": "0.1.0",
       "members": [
-        [
-          "/deps/witness",
-          "BorrowedButton"
-        ],
-        [
-          "/deps/witness",
-          "BorrowedLabel"
-        ],
         [
           "/deps/witness",
           "Button"
@@ -25,30 +20,6 @@
         [
           "/deps/witness",
           "Widget"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_button"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_button_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_label"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_label_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_row"
         ],
         [
           "/deps/witness",
@@ -114,33 +85,23 @@
           "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/widget",
           "from"
         ]
-      ],
-      "name": "witness",
-      "version": "0.1.0"
+      ]
     }
   ],
-  "format": 3,
   "removed": [],
+  "cache_identity": "a12de65d846e350b806def0e66a6a7f32bee735797b940f9386156c6fc92b937",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "145",
+  "content_hash": "a7c8a5d77c8c404e4438a3a1bc1297bbf4351533c3bbafee6b0ee2a64109e099",
   "resolution": {
+    "outcome": "ExactCache",
     "events": [
       {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `a12de65d846e350b806def0e66a6a7f32bee735797b940f9386156c6fc92b937`"
       }
-    ],
-    "outcome": "LocalRustdoc"
-  },
-  "rustdoc_format": 57,
-  "source": "Local"
+    ]
+  }
 }

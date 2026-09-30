@@ -719,12 +719,15 @@ never implicitly cloned.
 
 The currently implemented exact-result subset is deliberately narrower than the full design above.
 A named Terrane callback may return one exact lifetime-dependent native producer type per scoped
-function. Semantic analysis resolves each scoped function's direct returns and return-forwarding
-edges, converges recursive components without merging nested callees into their callers, records
-the resulting native `ValueType` against that function's source identity, and attaches that typed
-plan to the analyzed unit. Lowering consumes that plan directly; it does not walk return syntax or
-re-infer producer types. The named function is passed directly to a proven native callback blanket,
-leaving terminal conversion to the native implementation and avoiding a compiler-forged
+function. Semantic analysis resolves each scoped function's direct returns, local-binding aliases,
+and return-forwarding edges, converges recursive components without merging nested callees into
+their callers, records the resulting native `ValueType` against that function's source identity,
+and attaches that typed plan to the analyzed unit. Authored calls consume that plan during semantic
+type inference, including region rebinding to the caller invocation. Projected consumers compare
+those concrete producer families before lowering, so a bound helper cannot hide an incompatible
+native argument until rustc. Lowering consumes the same plan directly; it does not walk return
+syntax or re-infer producer types. The named function is passed directly to a proven native callback
+blanket, leaving terminal conversion to the native implementation and avoiding a compiler-forged
 implementation of an external trait. All explicit returns from one function must currently
 converge on that function's producer type.
 
@@ -739,10 +742,11 @@ anonymous or capturing callbacks remain open work; the compiler declines them ra
 inferring a helper ABI or cloning an environment on every invocation.
 
 `projected-invocation-scoped-callback` exercises the supported direct, nested, same-type branching,
-helper, bound-and-wrapped return, distinct nested-callee producer, direct recursion, mutual
-recursion, aggregate, and defaulted-terminal paths. Focused rejection fixtures cover nested and
-bound local lenders, unresolved source parameters, heterogeneous scoped lists, restrictive native
-callback traits, escape, capture, suspension, invalid reuse, and incompatible recursive graphs.
+helper, bound-and-wrapped return, bound helper-return forwarding, distinct nested-callee producer,
+direct recursion, mutual recursion, aggregate, and defaulted-terminal paths. Focused rejection
+fixtures cover nested and bound local lenders, unresolved source parameters, heterogeneous scoped
+lists, restrictive native callback traits, incompatible bound projected consumers, escape,
+capture, suspension, invalid reuse, and incompatible recursive graphs.
 The maintained
 `packages/iced-ui` renderer executes the supported projected Iced widget operations through named
 callbacks. A narrow host crate still owns Iced's event-loop entrypoint, while a package-local Rust

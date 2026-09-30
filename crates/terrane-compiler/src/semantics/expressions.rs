@@ -1194,12 +1194,19 @@ pub(super) fn infer_value_type(
                 ));
             }
             if let Some(contract) = resolved_function_contract(unit, name, callee.span.start) {
-                let result = ElementType::new(
-                    contract
-                        .return_type
-                        .clone()
-                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
-                );
+                let mut result_type = unit
+                    .invocation_scoped_function_results
+                    .get(&(contract.span.file, contract.span.start, contract.span.end))
+                    .cloned()
+                    .or_else(|| contract.return_type.clone())
+                    .unwrap_or(ValueType::Scalar(ScalarType::None));
+                if let ValueType::InvocationScopedNative { region, .. } = &mut result_type
+                    && let Some(Some(function_span)) =
+                        unit.enclosing_function_spans.get(&node.span.start)
+                {
+                    *region = Some((function_span.file, function_span.start, function_span.end));
+                }
+                let result = ElementType::new(result_type);
                 return Ok(Some(if contract.is_async {
                     ValueType::Task(result, contract.task_transferability)
                 } else {
