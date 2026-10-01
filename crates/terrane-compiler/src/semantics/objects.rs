@@ -1020,7 +1020,7 @@ pub(super) fn validate_object_conformance(
                             })
                         {
                             return Err(failure(
-                                &declaration_unit.source,
+                                &field.unit.source,
                                 "T0122",
                                 format!(
                                     "class `{}` cannot implement authored interface `{}` because field `{}` does not satisfy the {requirement} transfer obligation",

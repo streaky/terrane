@@ -1,0 +1,8 @@
+package = "authored-interface-inherited-cross-file-long-field"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-nontransferable-interface-witness"
+version = "=0.1.0"

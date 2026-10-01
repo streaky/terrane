@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import NonSend, make_non_send
+
+class holder
+  stored-value int = 3
+
+  payload NonSend = make_non_send;

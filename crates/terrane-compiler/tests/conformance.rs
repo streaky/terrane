@@ -543,25 +543,25 @@ fn prepare_conformance_case(
         }
         ("check", "reject") => {
             let code = field(&manifest, "code").unwrap();
-            let diagnostics = if package_case {
+            let failure = if package_case {
                 let package = terrane_compiler::Package::load(&source_path).unwrap();
                 let result = terrane_compiler::compile_package(&package);
                 verify_reviewed_projection(case, &source_path, update_goldens);
-                result.unwrap_err().diagnostics
+                result.unwrap_err()
             } else {
                 let source = fs::read_to_string(&source_path).unwrap();
-                terrane_compiler::compile(&source_path, source)
-                    .unwrap_err()
-                    .diagnostics
+                terrane_compiler::compile(&source_path, source).unwrap_err()
             };
+            let diagnostics = &failure.diagnostics;
             let expected = field(&manifest, "contains");
             let expected_help = field(&manifest, "help");
-            let reported = reports(&diagnostics, code, expected, expected_help);
+            let reported = reports(diagnostics, code, expected, expected_help);
             assert!(
                 reported,
                 "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
                 case.display()
             );
+            assert_diagnostic_location(case, &manifest, &failure, code);
             timing.pass();
             None
         }
@@ -569,6 +569,39 @@ fn prepare_conformance_case(
             "unsupported conformance manifest {}: phase={phase}, status={status}",
             manifest_path.display()
         ),
+    }
+}
+
+fn assert_diagnostic_location(
+    case: &Path,
+    manifest: &str,
+    failure: &terrane_compiler::CompilationFailure,
+    code: &str,
+) {
+    if let Some(expected_source) = field(manifest, "source") {
+        assert!(
+            failure.source.path().ends_with(expected_source),
+            "{} reported {code} against {} instead of {expected_source}",
+            case.display(),
+            failure.source.path().display()
+        );
+    }
+    if let Some(expected_line) = field(manifest, "line") {
+        let expected_line = expected_line.parse::<usize>().unwrap();
+        let diagnostic = failure
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == code)
+            .expect("the reported diagnostic was checked before its location");
+        let span = diagnostic
+            .primary
+            .expect("a diagnostic with an expected line must have a primary span");
+        assert_eq!(
+            failure.source.line_column(span.start).0,
+            expected_line,
+            "{} reported {code} on the wrong line",
+            case.display()
+        );
     }
 }
 

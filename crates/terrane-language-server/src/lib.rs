@@ -1101,6 +1101,10 @@ fn byte_offset(text: &str, position: Position, encoding: &PositionEncodingKind) 
 }
 
 fn position_for_offset(text: &str, offset: usize, encoding: &PositionEncodingKind) -> Position {
+    let mut offset = offset.min(text.len());
+    while !text.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let line = text[..offset].bytes().filter(|byte| *byte == b'\n').count();
     let line_start = text[..offset].rfind('\n').map_or(0, |index| index + 1);
     let character = text[line_start..offset]
@@ -1559,6 +1563,19 @@ mod tests {
             assert_eq!(position, Position::new(0, character));
             assert_eq!(byte_offset(text, position, &encoding), Some(offset));
         }
+    }
+
+    #[test]
+    fn diagnostic_offsets_are_bounded_to_valid_document_positions() {
+        let text = "a🙂\nnext";
+        assert_eq!(
+            position_for_offset(text, 2, &PositionEncodingKind::UTF16),
+            Position::new(0, 1)
+        );
+        assert_eq!(
+            position_for_offset(text, usize::MAX, &PositionEncodingKind::UTF16),
+            Position::new(1, 4)
+        );
     }
 
     #[test]

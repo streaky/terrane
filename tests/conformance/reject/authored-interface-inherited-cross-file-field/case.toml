@@ -1,0 +1,7 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0122"
+contains = "field `payload` does not satisfy the `Send` transfer obligation"
+source = "src/base.trn"
+line = "8"
