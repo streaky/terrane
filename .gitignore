@@ -27,8 +27,7 @@ benchmarks/sci-maths/problems/*/rust/benchmark
 /manual/
 
 /projects/
-/packages/*
-!/packages/iced-ui/
+/packages/
 
 .vscode/
 
