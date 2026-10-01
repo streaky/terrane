@@ -9,7 +9,7 @@ impl PairedBaseStorage {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(1_i128);
     }
     #[allow(unsafe_code)]
@@ -26,10 +26,10 @@ impl PairedBase {
     pub fn terrane_construct() -> Self {
         Self::Own(PairedBaseStorage::terrane_construct())
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         match self {
-            Self::Own(value) => value.raw_safe(),
-            Self::SafeOverride(value) => value.raw_safe(),
+            Self::Own(value) => value.raw(),
+            Self::SafeOverride(value) => value.raw(),
         }
     }
     #[allow(unsafe_code)]
@@ -46,7 +46,7 @@ impl SafeOverride {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(3_i128);
     }
     #[allow(unsafe_code)]
@@ -60,7 +60,7 @@ impl SafeBaseStorage {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(4_i128);
     }
 }
@@ -73,10 +73,10 @@ impl SafeBase {
     pub fn terrane_construct() -> Self {
         Self::Own(SafeBaseStorage::terrane_construct())
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         match self {
-            Self::Own(value) => value.raw_safe(),
-            Self::UnsafeAddition(value) => value.raw_safe(),
+            Self::Own(value) => value.raw(),
+            Self::UnsafeAddition(value) => value.raw(),
         }
     }
 }
@@ -86,7 +86,7 @@ impl UnsafeAddition {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(4_i128);
     }
     #[allow(unsafe_code)]
@@ -98,7 +98,7 @@ impl UnsafeAddition {
 pub trait PairedSourceProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn PairedSourceProtocol>;
     fn separate_box(&self) -> Box<dyn PairedSourceProtocol>;
-    fn raw_safe(&self) -> terrane_int_support::Int;
+    fn raw(&self) -> terrane_int_support::Int;
     unsafe fn raw_unsafe(&self) -> terrane_int_support::Int;
 }
 impl Clone for Box<dyn PairedSourceProtocol> {
@@ -114,8 +114,8 @@ impl Clone for PairedSource {
 }
 #[allow(unsafe_code)]
 impl PairedSource {
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
-        self.0.raw_safe()
+    pub fn raw(&self) -> terrane_int_support::Int {
+        self.0.raw()
     }
     pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         unsafe { self.0.raw_unsafe() }
@@ -127,7 +127,7 @@ impl Source {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn raw_safe(&self) -> terrane_int_support::Int {
+    pub fn raw(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(6_i128);
     }
     #[allow(unsafe_code)]
@@ -143,8 +143,8 @@ impl PairedSourceProtocol for Source {
     fn separate_box(&self) -> Box<dyn PairedSourceProtocol> {
         Box::new(self.clone())
     }
-    fn raw_safe(&self) -> terrane_int_support::Int {
-        Source::raw_safe(&*self)
+    fn raw(&self) -> terrane_int_support::Int {
+        Source::raw(&*self)
     }
     unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         unsafe { Source::raw_unsafe(&*self) }
@@ -160,12 +160,12 @@ fn main() {
     let overridden: PairedBase = PairedBase::SafeOverride(
         SafeOverride::terrane_construct(),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&overridden.raw_safe()));
+    println!("{}", terrane_scalar_support::scalar_text(&overridden.raw()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&unsafe { overridden.raw_unsafe() })
     );
     let extended: UnsafeAddition = UnsafeAddition::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&extended.raw_safe()));
+    println!("{}", terrane_scalar_support::scalar_text(&extended.raw()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&unsafe { extended.raw_unsafe() })
     );
@@ -174,14 +174,14 @@ fn main() {
         dyn Fn() -> terrane_int_support::Int + Send + Sync,
     > = {
         let receiver = concrete.clone();
-        std::sync::Arc::new(move || receiver.raw_safe())
+        std::sync::Arc::new(move || receiver.raw())
     };
     let __trn_6162737472616374: PairedSource = <PairedSource>::from(concrete);
     let interface_operation: std::sync::Arc<
         dyn Fn() -> terrane_int_support::Int + Send + Sync,
     > = {
         let receiver = __trn_6162737472616374;
-        std::sync::Arc::new(move || receiver.raw_safe())
+        std::sync::Arc::new(move || receiver.raw())
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&class_operation()),

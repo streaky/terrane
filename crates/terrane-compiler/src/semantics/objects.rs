@@ -999,6 +999,38 @@ pub(super) fn validate_object_conformance(
                         object.span,
                     ));
                 };
+                if package
+                    .projection
+                    .item(&interface_identity.namespace, &interface_identity.name)
+                    .is_none()
+                {
+                    for (obligation, requirement) in [
+                        (AutoTraitObligation::Send, "`Send`"),
+                        (AutoTraitObligation::Sync, "`Sync`"),
+                    ] {
+                        if let Some(field) = effective_object_fields(package, object)
+                            .into_iter()
+                            .find(|field| {
+                                !field.is_static
+                                    && !value_type_satisfies_auto_trait(
+                                        package,
+                                        &field.value_type,
+                                        obligation,
+                                    )
+                            })
+                        {
+                            return Err(failure(
+                                &declaration_unit.source,
+                                "T0122",
+                                format!(
+                                    "class `{}` cannot implement authored interface `{}` because field `{}` does not satisfy the {requirement} transfer obligation",
+                                    object.name, resolved_interface.name, field.name
+                                ),
+                                field.span,
+                            ));
+                        }
+                    }
+                }
                 if let Some(crate::rust_interop::projection::ProjectedKind::Interface(projected)) =
                     package
                         .projection

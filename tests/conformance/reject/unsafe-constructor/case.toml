@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0136"
+contains = "`construct` is invoked through `instance` and cannot declare `unsafe`"

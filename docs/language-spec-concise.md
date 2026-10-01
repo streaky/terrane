@@ -702,9 +702,9 @@ async: invocation produces a task; `await` consumes a task and marks a possible 
 unsafe_declaration: "`unsafe function` and `unsafe interface` make safety part of declaration identity; safe and unsafe same-name declarations may coexist"
 unsafe_invocation: "`unsafe operation; ...` selects only an unsafe declaration and relaxes only that operation's external safety obligation; ordinary calls select only safe declarations"
 unsafe_acknowledgement: declaration and invocation are independent acknowledgements by API author and caller; neither can infer or manufacture the other, so call-site `unsafe` cannot reinterpret a safe declaration and declaration-site `unsafe` cannot authorize an ordinary call
+unsafe_construction: "`construct` cannot be unsafe because `instance` has no independent unsafe acknowledgement; use an explicitly named unsafe factory when construction carries an external obligation"
 unsafe_conformance: "`implements unsafe Interface` selects an unsafe interface; interface safety is independent of each method's own safe/unsafe call contract"
-interface_transfer: authored interface dispatch values are Send and Sync and may be captured by ordinary shared function values; projected interfaces retain separately proven native Send/Sync capabilities
-unsafe_locality: unsafe function bodies still require explicit unsafe calls; ownership, lifetime, cleanup, capability, effect, definite-assignment, and type checks remain active
+interface_transfer: authored interface dispatch values are Send and Sync and may be captured by ordinary shared function values; conformance proves both obligations from every implementing class's complete effective instance-field set, while projected interfaces retain separately proven native Send/Sync capabilities
 unsafe_function_values: unsafe-only declarations cannot become first-class function values; bare references select a coexisting safe declaration or are rejected
 unsafe_boundary: typed unsafe declarations, concrete adapters, and `unsafe rust`; never an untyped generic unsafe block
 derived_facts: suspension points, exact receiver/capture authority, unsafe declarations or `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not interchangeable contracts

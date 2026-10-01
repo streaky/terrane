@@ -1,0 +1,30 @@
+namespace unsafe-method-name-isolation
+
+from /core/errors import throwable
+from /core/logging import log-text
+
+class config-error implements throwable
+  message string = ''
+  function construct; message string
+    this.message = message
+  function render string;
+    return this.message
+
+class item
+  value int = 0
+  function construct; input int
+    this.value = input
+
+class unrelated
+  unsafe function render string;
+    return 'unsafe'
+
+function main;
+  try
+    throw instance config-error; 'caught'
+  catch config-error as failure
+    print; 'caught'
+  ignored = log-text; 'hello'
+  print; 1
+  created = instance item; 4
+  print; created.value

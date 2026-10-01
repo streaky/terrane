@@ -10,7 +10,7 @@ impl BaseStorage {
         Self {}
     }
     #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> terrane_int_support::Int {
+    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(8_i128);
     }
 }
@@ -24,10 +24,10 @@ impl Base {
         Self::Own(BaseStorage::terrane_construct())
     }
     #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> terrane_int_support::Int {
+    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         match self {
-            Self::Own(value) => unsafe { value.raw() }
-            Self::Child(value) => unsafe { value.raw() }
+            Self::Own(value) => unsafe { value.raw_unsafe() }
+            Self::Child(value) => unsafe { value.raw_unsafe() }
         }
     }
 }
@@ -38,12 +38,12 @@ impl Child {
         Self {}
     }
     #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> terrane_int_support::Int {
+    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(8_i128);
     }
 }
 #[allow(unsafe_code)]
 fn main() {
     let value: Base = Base::Child(Child::terrane_construct());
-    println!("{}", terrane_scalar_support::scalar_text(&unsafe { value.raw() }));
+    println!("{}", terrane_scalar_support::scalar_text(&unsafe { value.raw_unsafe() }));
 }

@@ -756,20 +756,14 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
         .filter(|candidate| {
             candidate.name == contract.name
                 && candidate.span != contract.span
-                && candidate.owner.is_some() == contract.owner.is_some()
+                && candidate.owner.is_none()
+                && contract.owner.is_none()
         })
         .collect::<Vec<_>>();
     if contract.owner.is_some() {
         let mut name = rust_name(&contract.name);
-        if duplicates
-            .iter()
-            .any(|candidate| candidate.is_unsafe != contract.is_unsafe)
-        {
-            name.push_str(if contract.is_unsafe {
-                "_unsafe"
-            } else {
-                "_safe"
-            });
+        if contract.is_unsafe {
+            name.push_str("_unsafe");
         }
         return name;
     }

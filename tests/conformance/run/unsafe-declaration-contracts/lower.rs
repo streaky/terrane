@@ -137,7 +137,7 @@ impl From<UnsafeReader> for TerraneNs28UnsafeDeclarationContractsReadableUnsafeC
 pub trait CommandsProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn CommandsProtocol>;
     fn separate_box(&self) -> Box<dyn CommandsProtocol>;
-    unsafe fn raw(&self) -> terrane_int_support::Int;
+    unsafe fn raw_unsafe(&self) -> terrane_int_support::Int;
 }
 impl Clone for Box<dyn CommandsProtocol> {
     fn clone(&self) -> Self {
@@ -152,8 +152,8 @@ impl Clone for Commands {
 }
 #[allow(unsafe_code)]
 impl Commands {
-    pub unsafe fn raw(&self) -> terrane_int_support::Int {
-        unsafe { self.0.raw() }
+    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
+        unsafe { self.0.raw_unsafe() }
     }
 }
 #[derive(Clone)]
@@ -163,7 +163,7 @@ impl Device {
         Self {}
     }
     #[allow(unsafe_code)]
-    pub unsafe fn raw(&self) -> terrane_int_support::Int {
+    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(4_i128);
     }
 }
@@ -175,8 +175,8 @@ impl CommandsProtocol for Device {
     fn separate_box(&self) -> Box<dyn CommandsProtocol> {
         Box::new(self.clone())
     }
-    unsafe fn raw(&self) -> terrane_int_support::Int {
-        unsafe { Device::raw(&*self) }
+    unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
+        unsafe { Device::raw_unsafe(&*self) }
     }
 }
 impl From<Device> for Commands {
@@ -190,7 +190,7 @@ impl MethodOverloads {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn choose_safe(&self) -> terrane_int_support::Int {
+    pub fn choose(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(5_i128);
     }
     #[allow(unsafe_code)]
@@ -216,9 +216,11 @@ fn main() {
             })
         );
         let value: Device = Device::terrane_construct();
-        println!("{}", terrane_scalar_support::scalar_text(&unsafe { value.raw() }));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&unsafe { value.raw_unsafe() })
+        );
         let overloads: MethodOverloads = MethodOverloads::terrane_construct();
-        println!("{}", terrane_scalar_support::scalar_text(&overloads.choose_safe()));
+        println!("{}", terrane_scalar_support::scalar_text(&overloads.choose()));
         println!(
             "{}", terrane_scalar_support::scalar_text(&unsafe { overloads.choose_unsafe()
             })

@@ -500,6 +500,21 @@ pub(super) fn analyze_function_contract(
     });
     let is_destructor = lifecycle_mode == Some(InvocationMode::Consuming)
         && name_node.is_some_and(|name| node_text(&unit.source, name) == "destruct");
+    let is_constructor = lifecycle_mode == Some(InvocationMode::Mutable)
+        && name_node.is_some_and(|name| node_text(&unit.source, name) == "construct");
+    if is_constructor
+        && let Some(qualifier) = node.children.iter().find(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "unsafe"
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0136",
+            "`construct` is invoked through `instance` and cannot declare `unsafe`",
+            qualifier.span,
+        ));
+    }
     if is_destructor {
         for qualifier in node
             .children
