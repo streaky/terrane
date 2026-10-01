@@ -1,12 +1,7 @@
 {
   "dependencies": [
     {
-      "members": {
-        "/deps/witness": [
-          "Widget",
-          "widget"
-        ]
-      },
+      "members": {},
       "name": "witness",
       "version": "0.1.0"
     }

@@ -73,6 +73,13 @@ pub(crate) fn rust_type_constructor(rust: &str) -> Option<String> {
     })
 }
 
+pub(crate) fn rust_type_constructors_match(left: &str, right: &str) -> bool {
+    match (rust_type_constructor(left), rust_type_constructor(right)) {
+        (Some(left), Some(right)) => left == right,
+        _ => left == right,
+    }
+}
+
 pub(crate) fn format_rust_bound(rust: &str) -> String {
     let source = format!("fn __terrane<T>() where T: {rust} {{}}");
     let Ok(file) = syn::parse_file(&source) else {
@@ -927,7 +934,7 @@ mod tests {
     use super::{
         Block, GeneratedModule, Item, Module, ModuleDestination, Program, canonicalize_rust,
         encode_terrane_comments, restore_terrane_comments, restore_terrane_metadata,
-        restore_terrane_module_comments, restore_terrane_site_rows,
+        restore_terrane_module_comments, restore_terrane_site_rows, rust_type_constructors_match,
     };
 
     #[test]
@@ -1129,6 +1136,16 @@ mod tests {
              // Runtime support:\n\
              // Vendored support crates:\n"
         );
+    }
+
+    #[test]
+    fn constructor_comparison_never_equates_distinct_unparsed_types() {
+        assert!(rust_type_constructors_match(
+            "witness::Scoped<'left, Message>",
+            "witness :: Scoped < 'right, Theme >"
+        ));
+        assert!(rust_type_constructors_match("[Message]", "[Message]"));
+        assert!(!rust_type_constructors_match("[Message]", "[Theme]"));
     }
 
     #[test]

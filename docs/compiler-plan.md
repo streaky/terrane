@@ -3429,6 +3429,10 @@ content-origin provenance and reasons, rustdoc format, projection schema, cache 
 hash, and any exact bound-owner dependency added to the generated graph; an exact cache hit does not
 rewrite that origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact
 channel and appear as a recorded skipped source rather than an accidentally absent branch.
+All maintained package, benchmark, and compatibility locks use format 4. The otherwise orphaned
+`tests/conformance/reject/projected-static-associated-decline/terrane-projection.lock` deliberately
+remains at format 3 as the oldest-schema migration sentinel; it has no package manifest and is read
+only by projection-history compatibility coverage.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as

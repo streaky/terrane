@@ -18,6 +18,10 @@ use sha2::{Digest, Sha256};
 
 use crate::{InvocationMode, RustDependency};
 
+mod history;
+#[cfg(test)]
+use history::{ProjectionHistory, apply_projection_history};
+
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
 const PROJECTION_SCHEMA: &str = "190";
@@ -223,66 +227,6 @@ pub struct RemovedItem {
     pub name: String,
     pub previous_version: String,
     pub current_version: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-struct ProjectionHistory {
-    #[serde(default = "projection_history_format")]
-    format: u32,
-    dependencies: Vec<ProjectionHistoryDependency>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    bound_dependencies: Vec<ProjectedBoundDependency>,
-    #[serde(default)]
-    removed: Vec<RemovedItem>,
-    #[serde(default)]
-    cache_identity: Option<String>,
-    #[serde(default)]
-    source: Option<ProjectionSource>,
-    #[serde(default)]
-    rustdoc_format: Option<u32>,
-    #[serde(default)]
-    projection_schema: Option<String>,
-    #[serde(default)]
-    content_hash: Option<String>,
-    #[serde(default)]
-    resolution: Option<ProjectionResolution>,
-}
-
-fn projection_history_format() -> u32 {
-    1
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-struct ProjectionHistoryDependency {
-    name: String,
-    version: String,
-    #[serde(deserialize_with = "deserialize_projection_members")]
-    members: BTreeMap<String, BTreeSet<String>>,
-}
-
-fn deserialize_projection_members<'de, D>(
-    deserializer: D,
-) -> Result<BTreeMap<String, BTreeSet<String>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Members {
-        Grouped(BTreeMap<String, BTreeSet<String>>),
-        Flat(BTreeSet<(String, String)>),
-    }
-
-    Ok(match Members::deserialize(deserializer)? {
-        Members::Grouped(members) => members,
-        Members::Flat(members) => {
-            let mut grouped = BTreeMap::<String, BTreeSet<String>>::new();
-            for (namespace, name) in members {
-                grouped.entry(namespace).or_default().insert(name);
-            }
-            grouped
-        }
-    })
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -3409,7 +3353,7 @@ pub fn resolve(
             &cached.bound_dependencies,
         )?;
         persist_dependency_lock(root, &workspace)?;
-        apply_projection_history(root, &mut cached)?;
+        history::apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
     }
@@ -3444,7 +3388,7 @@ pub fn resolve(
                     message: format!("cannot serialize published dependency projection: {error}"),
                 })?;
             write_if_changed(&cache_path, &bytes)?;
-            apply_projection_history(root, &mut projection)?;
+            history::apply_projection_history(root, &mut projection)?;
             prune_projection_cache(&workspace, &cache_path)?;
             projection
                 .probes
@@ -3685,7 +3629,7 @@ pub fn resolve(
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
-    apply_projection_history(root, &mut projection)?;
+    history::apply_projection_history(root, &mut projection)?;
     prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
 }
@@ -3871,181 +3815,6 @@ fn projection_content_hash(projection: &Projection) -> Result<String, Projection
         message: format!("cannot encode projection content hash: {error}"),
     })?;
     Ok(format!("{:x}", Sha256::digest(payload)))
-}
-
-fn projection_history_members(
-    dependency: &ProjectedDependency,
-) -> BTreeMap<String, BTreeSet<String>> {
-    let mut members = BTreeMap::<String, BTreeSet<String>>::new();
-    for item in &dependency.items {
-        let names = members.entry(item.namespace.clone()).or_default();
-        names.insert(item.name.clone());
-        if let ProjectedKind::ForeignType {
-            methods,
-            static_methods,
-            ..
-        } = &item.kind
-        {
-            names.extend(
-                methods
-                    .iter()
-                    .map(|method| format!("{}.{}", item.name, method.name)),
-            );
-            names.extend(
-                static_methods
-                    .iter()
-                    .map(|method| format!("{}::{}", item.name, method.name)),
-            );
-        }
-    }
-    members
-}
-
-fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, ProjectionError> {
-    match fs::read(path) {
-        Ok(bytes) => {
-            let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
-                ProjectionError {
-                    message: format!("invalid projection history `{}`: {error}", path.display()),
-                }
-            })?;
-            if !matches!(history.format, 1..=4) {
-                return Err(ProjectionError {
-                    message: format!(
-                        "unsupported projection history format {} in `{}`",
-                        history.format,
-                        path.display()
-                    ),
-                });
-            }
-            Ok(Some(history))
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(ProjectionError {
-            message: format!(
-                "cannot read projection history `{}`: {error}",
-                path.display()
-            ),
-        }),
-    }
-}
-
-fn retain_removed_history_members(
-    previous: &[ProjectionHistoryDependency],
-    current: &[ProjectionHistoryDependency],
-    removed: &mut Vec<RemovedItem>,
-) {
-    for old in previous {
-        let Some(current) = current
-            .iter()
-            .find(|dependency| dependency.name == old.name)
-        else {
-            continue;
-        };
-        if old.version == current.version {
-            continue;
-        }
-        for (namespace, old_names) in &old.members {
-            let current_names = current.members.get(namespace);
-            for name in old_names
-                .iter()
-                .filter(|name| current_names.is_none_or(|names| !names.contains(*name)))
-            {
-                let removed_item = RemovedItem {
-                    namespace: namespace.clone(),
-                    name: name.clone(),
-                    previous_version: old.version.clone(),
-                    current_version: current.version.clone(),
-                };
-                if !removed.iter().any(|existing| {
-                    existing.namespace == removed_item.namespace
-                        && existing.name == removed_item.name
-                }) {
-                    removed.push(removed_item);
-                }
-            }
-        }
-    }
-}
-
-fn apply_projection_history(
-    root: &Path,
-    projection: &mut Projection,
-) -> Result<(), ProjectionError> {
-    let path = root.join("terrane-projection.lock");
-    let previous = read_projection_history(&path)?;
-    let dependencies = projection
-        .dependencies
-        .iter()
-        .map(|dependency| ProjectionHistoryDependency {
-            name: dependency.name.clone(),
-            version: dependency.version.clone(),
-            members: projection_history_members(dependency),
-        })
-        .collect::<Vec<_>>();
-    if let Some(previous) = &previous
-        && matches!(previous.format, 2..=4)
-        && previous.dependencies == dependencies
-        && previous.bound_dependencies == projection.bound_dependencies
-        && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
-        && previous.projection_schema.as_deref() == Some(PROJECTION_SCHEMA)
-        && previous.cache_identity.as_deref() == Some(&projection.cache_identity)
-        && previous.content_hash.as_deref() != Some(&projection.content_hash)
-    {
-        return Err(ProjectionError {
-            message: format!(
-                "projection replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`",
-                path.display(),
-                previous.content_hash.as_deref().unwrap_or("missing"),
-                projection.content_hash
-            ),
-        });
-    }
-    let mut removed = previous
-        .as_ref()
-        .map_or_else(Vec::new, |history| history.removed.clone());
-    removed.retain(|removed| {
-        !dependencies.iter().any(|dependency| {
-            dependency
-                .members
-                .get(&removed.namespace)
-                .is_some_and(|names| names.contains(&removed.name))
-        })
-    });
-    if let Some(previous) = &previous {
-        retain_removed_history_members(&previous.dependencies, &dependencies, &mut removed);
-    }
-    removed
-        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
-    projection.removed.clone_from(&removed);
-    let persisted_resolution = previous
-        .as_ref()
-        .filter(|history| {
-            matches!(history.format, 2..=4)
-                && history.bound_dependencies == projection.bound_dependencies
-                && history.cache_identity.as_deref() == Some(&projection.cache_identity)
-                && history.content_hash.as_deref() == Some(&projection.content_hash)
-                && history.source == Some(projection.source)
-        })
-        .and_then(|history| history.resolution.clone())
-        .unwrap_or_else(|| projection.resolution.clone());
-    let history = ProjectionHistory {
-        format: 4,
-        dependencies,
-        bound_dependencies: projection.bound_dependencies.clone(),
-        removed,
-        cache_identity: Some(projection.cache_identity.clone()),
-        source: Some(projection.source),
-        rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
-        projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
-        content_hash: Some(projection.content_hash.clone()),
-        resolution: Some(persisted_resolution),
-    };
-    let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
-        message: format!("cannot serialize projection history: {error}"),
-    })?;
-    bytes.push(b'\n');
-    write_if_changed(&path, &bytes)
 }
 
 fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
@@ -10581,6 +10350,39 @@ fn has_supported_callable_trait_shape(
         })
 }
 
+fn has_callable_blanket(
+    declaration: &rustdoc_types::Trait,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> bool {
+    declaration.implementations.iter().any(|implementation_id| {
+        let Some(Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        }) = index.get(implementation_id)
+        else {
+            return false;
+        };
+        let Type::Generic(self_name) = &implementation.for_ else {
+            return false;
+        };
+        implementation
+            .generics
+            .params
+            .iter()
+            .find(|candidate| candidate.name == *self_name)
+            .is_some_and(|self_parameter| {
+                generic_bounds_from_generics(self_parameter, &implementation.generics)
+                    .iter()
+                    .any(|candidate| {
+                        trait_bound_name(candidate).is_some_and(|(trait_, _)| {
+                            builtin_callable_mode(trait_, paths).is_some()
+                        })
+                    })
+            })
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "callable blanket recipe selection keeps candidate unification and proof metadata together"
@@ -10604,8 +10406,9 @@ fn project_callable_adapter_bounds(
         else {
             continue;
         };
-        let builtin_callable = builtin_callable_mode(requested_trait, paths).is_some();
-        if !builtin_callable && !has_supported_callable_trait_shape(declaration, index) {
+        let unsupported_shape = builtin_callable_mode(requested_trait, paths).is_none()
+            && !has_supported_callable_trait_shape(declaration, index);
+        if unsupported_shape && !has_callable_blanket(declaration, index, paths) {
             continue;
         }
         let native_function = declaration.items.iter().find_map(|item_id| {
@@ -10622,6 +10425,22 @@ fn project_callable_adapter_bounds(
                 || (known.clone(), BTreeMap::new()),
                 |output| apply_terminal_alias_defaults(output, index, paths, known),
             );
+        if unsupported_shape {
+            let invocation_scoped = native_function
+                .as_ref()
+                .and_then(|(_, function)| function.sig.output.as_ref())
+                .and_then(|output| {
+                    project_invocation_scoped_type(output, index, paths, &callback_known).ok()
+                })
+                .is_some_and(|result| matches!(result, ProjectedType::InvocationScoped { .. }));
+            if invocation_scoped {
+                return Err(format!(
+                    "generic input `{parameter_name}` uses unsupported callable trait `{}`",
+                    requested_trait.path
+                ));
+            }
+            continue;
+        }
         let native_method = native_function.as_ref().map(|(name, _)| name.clone());
         let native_result = native_function
             .and_then(|(_, function)| function.sig.output.as_ref())

@@ -467,8 +467,7 @@ impl Emitter<'_> {
                 ..
             }) = self.value_type(node)
             && (expected_family.name == "invocation-scoped-native"
-                || crate::rust_ir::rust_type_constructor(expected)
-                    != crate::rust_ir::rust_type_constructor(&actual))
+                || !crate::rust_ir::rust_type_constructors_match(expected, &actual))
         {
             let expected = crate::rust_ir::rust_lifetimes(expected)
                 .iter()

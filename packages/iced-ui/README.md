@@ -60,9 +60,12 @@ cutover.
 
 ## Verification boundary
 
-`terrane test` compiles the package-owned `render-projected` callback and its generated
-higher-ranked Iced adapter. The native host crate also has a headless test that boots an
-application and invokes the higher-ranked renderer once. Automated tests intentionally stop before
+Run the package verification with
+`cargo run --quiet --bin terrane -- test packages/iced-ui && cargo test --manifest-path
+packages/iced-ui/rust/host/Cargo.toml`. The first command compiles the package-owned
+`render-projected` callback and generated higher-ranked Iced adapter; the second runs the headless
+host test that boots an application and invokes that renderer boundary once. Automation
+intentionally stops before
 `iced::Application::run`: that call owns the real desktop event loop and requires a display and user
 shutdown. A release smoke run therefore launches the maintained example under a real display,
 checks the initial projected view, and closes the window.

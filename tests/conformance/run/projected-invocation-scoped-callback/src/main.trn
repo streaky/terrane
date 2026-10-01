@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, button, into_widget, label, render_default, render_exact, render_scoped, reset_trace, row, traced_label
+from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, borrowed_value, button, into_widget, label, render_default, render_exact, render_scoped, reset_trace, row, traced_label
 from /core/collections import list
 from /core/output import print
 
@@ -13,6 +13,9 @@ function exact-nested host-invocation-scoped-native; state ref string
     first = borrowed_label; state
     second = borrowed_button; state
     return borrowed_group; first, second
+
+function exact-typed host-invocation-scoped-native; state ref string
+    return borrowed_value; state
 
 function exact-recursive host-invocation-scoped-native; state ref string
     if state.length > 100
@@ -43,6 +46,28 @@ function exact-outer-group host-invocation-scoped-native; state ref string
 function exact-forwarded-binding host-invocation-scoped-native; state ref string
     value = exact-inner-label; state
     return value
+
+function exact-reassign-helper-then-producer host-invocation-scoped-native; state ref string
+    value = exact-inner-label; state
+    value = borrowed_label; state
+    return value
+
+function exact-reassign-reverse host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    value = exact-inner-label; state
+    return value
+
+function exact-reassign-conditional host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    if state.length > 0
+        value = exact-inner-label; state
+    return value
+
+function exact-reassign-alias host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    alias = value
+    alias = exact-inner-label; state
+    return alias
 
 function exact-bound-wrapped host-invocation-scoped-native; state ref string
     value = exact-inner-label; state
@@ -102,6 +127,7 @@ function main;
     exact-state string = '40'
     print; (render_scoped; state, 'message', true, direct)
     print; (render_exact; exact-state, 'message', true, exact)
+    print; (render_exact; exact-state, 'message', true, exact-typed)
     print; (render_default; state, direct)
     print; (render_exact; exact-state, 'message', true, exact-nested)
     print; (render_exact; exact-state, 'message', true, exact-branch)
@@ -114,6 +140,10 @@ function main;
     print; (render_exact; exact-state, 'message', true, exact-bound-wrapped)
     print; (render_exact; exact-state, 'message', true, exact-mixed-branch)
     print; (render_exact; exact-state, 'message', true, exact-helper-aggregate)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-helper-then-producer)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-reverse)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-conditional)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-alias)
     offset int64 = 2
     captured = function Label; state ref int64
         return label; state + offset

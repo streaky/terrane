@@ -20,6 +20,11 @@ pub struct BorrowedGroup<'view> {
     marker: std::marker::PhantomData<&'view str>,
 }
 
+pub struct BorrowedValue<'view, Message> {
+    value: &'view str,
+    marker: std::marker::PhantomData<Message>,
+}
+
 
 pub struct Button {
     value: i64,
@@ -102,6 +107,17 @@ impl<'view, Message, Theme> From<BorrowedGroup<'view>>
     }
 }
 
+impl<'view, Message, Theme> From<BorrowedValue<'view, Message>>
+    for ScopedView<'view, Message, Theme>
+{
+    fn from(value: BorrowedValue<'view, Message>) -> Self {
+        Self {
+            value: value.value.len() as i64,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
 impl<'view, Message, Theme> From<Widget> for ScopedView<'view, Message, Theme> {
     fn from(widget: Widget) -> Self {
         Self {
@@ -120,6 +136,13 @@ pub fn borrowed_label(value: &String) -> BorrowedLabel<'_> {
 
 pub fn borrowed_button(value: &String) -> BorrowedButton<'_> {
     BorrowedButton { value }
+}
+
+pub fn borrowed_value(value: &String) -> BorrowedValue<'_, String> {
+    BorrowedValue {
+        value,
+        marker: std::marker::PhantomData,
+    }
 }
 
 pub fn borrowed_group<'view>(

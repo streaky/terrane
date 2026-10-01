@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-invocation-unsafe-trait-witness = { path = "fixture-registry/terrane-invocation-graph-reject-witness-0.1.0" }

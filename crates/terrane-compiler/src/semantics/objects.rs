@@ -3194,8 +3194,7 @@ pub(super) fn same_projected_native_family(
             },
         ) => {
             left_name == right_name
-                && crate::rust_ir::rust_type_constructor(left_rust)
-                    == crate::rust_ir::rust_type_constructor(right_rust)
+                && crate::rust_ir::rust_type_constructors_match(left_rust, right_rust)
         }
         _ => left == right,
     }
