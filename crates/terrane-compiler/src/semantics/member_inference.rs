@@ -29,17 +29,19 @@ pub(super) fn descriptor_protocol_method<'a>(
     object_method_contract(unit, identity, member, false)
 }
 
-pub(super) fn object_method_contract<'a>(
+fn object_method_contract_with_safety<'a>(
     unit: &'a SemanticUnit,
     identity: &ObjectIdentity,
     member: &str,
     is_static: bool,
+    is_unsafe: bool,
 ) -> Option<&'a FunctionContract> {
     fn resolve<'a>(
         unit: &'a SemanticUnit,
         identity: &ObjectIdentity,
         member: &str,
         is_static: bool,
+        is_unsafe: bool,
         visited: &mut BTreeSet<ObjectIdentity>,
     ) -> Option<&'a FunctionContract> {
         if !visited.insert(identity.clone()) {
@@ -54,28 +56,44 @@ pub(super) fn object_method_contract<'a>(
             function.owner_identity.as_ref() == Some(&object.identity)
                 && function.name == member
                 && function.is_static == is_static
+                && function.is_unsafe == is_unsafe
         }) {
             return Some(method);
         }
         object
             .traits
             .iter()
-            .find_map(|used_trait| resolve(unit, used_trait, member, is_static, visited))
+            .find_map(|used_trait| resolve(unit, used_trait, member, is_static, is_unsafe, visited))
             .or_else(|| {
                 object
                     .base
                     .as_ref()
-                    .and_then(|base| resolve(unit, base, member, is_static, visited))
+                    .and_then(|base| resolve(unit, base, member, is_static, is_unsafe, visited))
             })
             .or_else(|| {
-                object
-                    .interfaces
-                    .iter()
-                    .find_map(|interface| resolve(unit, interface, member, is_static, visited))
+                object.interfaces.iter().find_map(|interface| {
+                    resolve(unit, interface, member, is_static, is_unsafe, visited)
+                })
             })
     }
 
-    resolve(unit, identity, member, is_static, &mut BTreeSet::new())
+    resolve(
+        unit,
+        identity,
+        member,
+        is_static,
+        is_unsafe,
+        &mut BTreeSet::new(),
+    )
+}
+
+pub(super) fn object_method_contract<'a>(
+    unit: &'a SemanticUnit,
+    identity: &ObjectIdentity,
+    member: &str,
+    is_static: bool,
+) -> Option<&'a FunctionContract> {
+    object_method_contract_with_safety(unit, identity, member, is_static, false)
 }
 
 pub(super) fn object_field_type(
@@ -123,6 +141,26 @@ fn optional_object_inner_has_member(
         || object_member_type(unit, identity, member, false).is_some()
 }
 
+fn method_value_type(method: &FunctionContract) -> Option<ValueType> {
+    let parameters = method
+        .parameters
+        .iter()
+        .map(ParameterContract::callable_type)
+        .collect::<Option<Vec<_>>>()?;
+    let result = ElementType::new(
+        method
+            .return_type
+            .clone()
+            .unwrap_or(ValueType::Scalar(ScalarType::None)),
+    );
+    let effects = CallableEffects::from_contract(method);
+    Some(if method.is_async {
+        ValueType::AsyncFunction(parameters, result, method.task_transferability, effects)
+    } else {
+        ValueType::Function(parameters, result, effects)
+    })
+}
+
 pub(crate) fn object_member_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
@@ -134,23 +172,7 @@ pub(crate) fn object_member_type(
         return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
-        let parameters = method
-            .parameters
-            .iter()
-            .map(ParameterContract::callable_type)
-            .collect::<Option<Vec<_>>>()?;
-        let result = ElementType::new(
-            method
-                .return_type
-                .clone()
-                .unwrap_or(ValueType::Scalar(ScalarType::None)),
-        );
-        let effects = CallableEffects::from_contract(method);
-        return Some(if method.is_async {
-            ValueType::AsyncFunction(parameters, result, method.task_transferability, effects)
-        } else {
-            ValueType::Function(parameters, result, effects)
-        });
+        return method_value_type(method);
     }
     for used_trait in &object.traits {
         if let Some(trait_object) = unit.descriptors.iter().find(|candidate| {
@@ -476,6 +498,26 @@ pub(super) fn infer_member_value_type(
             }
             member_type => member_type,
         }));
+    }
+    if let Some(ValueType::Object(object_name)) = &receiver_type
+        && crate::syntax::call_is_unsafe(node)
+        && let Some(method) =
+            object_method_contract_with_safety(unit, object_name, member_name, false, true)
+    {
+        return Ok(method_value_type(method));
+    }
+    if let Some(ValueType::Object(object_name)) = &receiver_type
+        && object_method_contract(unit, object_name, member_name, false).is_none()
+        && object_method_contract_with_safety(unit, object_name, member_name, false, true).is_some()
+    {
+        return Err(failure(
+            &unit.source,
+            "T0130",
+            format!(
+                "unsafe method `{member_name}` cannot be used as a function value; invoke it directly with `unsafe`"
+            ),
+            node.span,
+        ));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type
         && let Some(member_type) = object_member_type(unit, object_name, member_name, false)

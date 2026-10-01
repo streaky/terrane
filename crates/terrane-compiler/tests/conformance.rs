@@ -40,6 +40,7 @@ impl ConformanceBuild {
         &self,
         binary_names: &[&str],
         dependencies: &[terrane_compiler::RustDependency],
+        requires_unsafe_code: bool,
     ) {
         let mut manifest = r#"[package]
 name = "terrane_conformance_harness"
@@ -89,6 +90,16 @@ terrane-platform-support = { path = "support/terrane-platform-support" }
             )
             .unwrap();
         }
+        writeln!(
+            manifest,
+            "\n[lints.rust]\nunsafe_code = \"{}\"",
+            if requires_unsafe_code {
+                "deny"
+            } else {
+                "forbid"
+            }
+        )
+        .unwrap();
         manifest.push_str(
             "\n[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true\n\
              \n[profile.test]\ndebug = \"line-tables-only\"\nincremental = true\n\
@@ -216,6 +227,7 @@ struct DeferredGeneratedCase {
     case: PathBuf,
     should_run: bool,
     run_manifest: Option<String>,
+    requires_unsafe_code: bool,
     timing: CaseTiming,
 }
 
@@ -225,6 +237,7 @@ struct PreparedGeneratedCase {
     phase: String,
     manifest: String,
     rust: String,
+    requires_unsafe_code: bool,
     dependencies: Vec<terrane_compiler::RustDependency>,
     timing: CaseTiming,
 }
@@ -236,6 +249,7 @@ impl PreparedGeneratedCase {
             binary_name: self.binary_name,
             case: self.case,
             should_run,
+            requires_unsafe_code: self.requires_unsafe_code,
             run_manifest: should_run.then_some(self.manifest),
             timing: self.timing,
         }
@@ -523,6 +537,7 @@ fn prepare_conformance_case(
                 manifest,
                 rust: compilation.rust,
                 dependencies,
+                requires_unsafe_code: compilation.requires_unsafe_code,
                 timing,
             })
         }
@@ -592,6 +607,7 @@ fn every_manifest_drives_a_conformance_case() {
             manifest,
             rust,
             dependencies,
+            requires_unsafe_code,
             mut timing,
         } = prepared;
         timing.begin_pending_work();
@@ -601,7 +617,7 @@ fn every_manifest_drives_a_conformance_case() {
             &phase,
             &manifest,
             &rust,
-            &dependencies,
+            (&dependencies, requires_unsafe_code),
             &build,
         );
         timing.pass();
@@ -638,9 +654,10 @@ fn stage_generated_binary(
 fn build_generated_binaries(
     binary_names: &[&str],
     dependencies: &[terrane_compiler::RustDependency],
+    requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) -> std::process::Output {
-    build.write_manifest(binary_names, dependencies);
+    build.write_manifest(binary_names, dependencies, requires_unsafe_code);
     Command::new("cargo")
         .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
         .args(["build", "--quiet", "--manifest-path"])
@@ -676,7 +693,8 @@ fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &C
         .map(|case| case.binary_name.as_str())
         .collect::<Vec<_>>();
     let mut build_timing = CaseTiming::named("generated-rust/batched-dependency-free-build");
-    let output = build_generated_binaries(&binary_names, &[], build);
+    let requires_unsafe_code = cases.iter().any(|case| case.requires_unsafe_code);
+    let output = build_generated_binaries(&binary_names, &[], requires_unsafe_code, build);
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let mut mapping = Vec::new();
@@ -718,11 +736,11 @@ fn compile_and_maybe_run(
     phase: &str,
     manifest: &str,
     rust: &str,
-    dependencies: &[terrane_compiler::RustDependency],
+    rust_contract: (&[terrane_compiler::RustDependency], bool),
     build: &ConformanceBuild,
 ) {
     stage_generated_binary(binary_name, case, manifest, rust, build);
-    let output = build_generated_binaries(&[binary_name], dependencies, build);
+    let output = build_generated_binaries(&[binary_name], rust_contract.0, rust_contract.1, build);
     assert!(
         output.status.success(),
         "{} generated Rust failed to compile:\n{}",
@@ -1276,7 +1294,7 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
 #[test]
 fn generated_conformance_workspace_uses_compact_debug_profiles() {
     let build = ConformanceBuild::new();
-    build.write_manifest(&[], &[]);
+    build.write_manifest(&[], &[], false);
     let manifest = fs::read_to_string(build.root.join("Cargo.toml")).unwrap();
     assert!(manifest.contains("[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true"));
     assert!(manifest.contains("[profile.test]\ndebug = \"line-tables-only\"\nincremental = true"));

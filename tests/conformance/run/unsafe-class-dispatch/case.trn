@@ -1,0 +1,11 @@
+namespace unsafe-class-dispatch
+
+class base
+  unsafe function raw int;
+    return 8
+
+class child extends base
+
+function main;
+  value base = instance child;
+  print; (unsafe value.raw;)

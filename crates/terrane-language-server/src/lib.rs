@@ -1197,15 +1197,13 @@ fn collect_document_symbols(
         && let Some(name) = node.children.iter().find(|child| child.field == "name")
         && let Some(name_text) = text.get(name.node.span.start..name.node.span.end)
     {
-        let declaration = text
-            .get(node.span.start..node.span.end)
-            .unwrap_or_default()
-            .trim_start();
+        let is_unsafe = node.children.iter().any(|child| {
+            child.node.kind == "DeclarationQualifier"
+                && text.get(child.node.span.start..child.node.span.end) == Some("unsafe")
+        });
         output.push(DocumentSymbol {
             name: name_text.to_owned(),
-            detail: declaration
-                .starts_with("unsafe ")
-                .then(|| "unsafe contract".to_owned()),
+            detail: is_unsafe.then(|| "unsafe contract".to_owned()),
             kind,
             tags: None,
             deprecated: None,
@@ -1565,7 +1563,7 @@ mod tests {
 
     #[test]
     fn document_symbols_come_from_compiler_snapshot_fields() {
-        let text = "namespace symbols\n\nunsafe function inspect;\n\nasync function main;\n    value int = 1\n";
+        let text = "namespace symbols\n\npublic unsafe function inspect;\n\nasync function main;\n    value int = 1\n";
         let uri = "file:///workspace/symbols.trn";
         let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
         let snapshot = tooling

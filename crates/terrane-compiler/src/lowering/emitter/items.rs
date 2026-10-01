@@ -20,7 +20,9 @@ fn forwarded_method_return_type(
 }
 
 fn contains_unsafe_call(node: &SyntaxNode) -> bool {
-    crate::syntax::call_is_unsafe(node) || node.children.iter().any(contains_unsafe_call)
+    node.kind == SyntaxKind::UnsafeRustBlock
+        || crate::syntax::call_is_unsafe(node)
+        || node.children.iter().any(contains_unsafe_call)
 }
 
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
@@ -932,6 +934,9 @@ impl<'a> Emitter<'a> {
                         .iter()
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
+                        if method.is_unsafe {
+                            self.line("#[allow(unsafe_code)]");
+                        }
                         self.line_start();
                         let receiver = match method.written_invocation_mode {
                             InvocationMode::Consuming => "self",

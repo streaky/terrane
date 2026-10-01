@@ -1,0 +1,4 @@
+namespace unsafe-function-type
+
+function apply int; operation unsafe function to int
+  return 0

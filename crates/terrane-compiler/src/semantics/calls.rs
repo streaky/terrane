@@ -97,10 +97,11 @@ pub(super) fn validate_call_nodes<'a>(
         let opposite =
             function_contract_for_call_with_safety(package, unit, callee, !requested_unsafe);
         if selected.is_none() && (requested_unsafe || opposite.is_some()) {
-            let name = callee.children.last().map_or_else(
-                || node_text(&unit.source, callee),
-                |member| node_text(&unit.source, member),
-            );
+            let invocation = node_text(&unit.source, callee);
+            let name = callee
+                .children
+                .last()
+                .map_or(invocation, |member| node_text(&unit.source, member));
             let (message, help) = if requested_unsafe && opposite.is_some() {
                 (
                     format!("`{name}` has no unsafe function declaration"),
@@ -114,7 +115,7 @@ pub(super) fn validate_call_nodes<'a>(
             } else {
                 (
                     format!("`{name}` is declared only as an unsafe function"),
-                    format!("write `unsafe {name}; ...` to select the unsafe declaration"),
+                    format!("write `unsafe {invocation}; ...` to select the unsafe declaration"),
                 )
             };
             return Err(SemanticFailure {

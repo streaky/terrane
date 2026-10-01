@@ -412,6 +412,17 @@ pub(super) fn declared_value_type_with_visible_objects(
     }
     if shape.kind == SyntaxKind::FunctionType {
         let function = shape;
+        if function.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "unsafe"
+        }) {
+            return Err(failure(
+                &unit.source,
+                "T0130",
+                "unsafe function types are unsupported because unsafe declarations are direct-call contracts",
+                function.span,
+            ));
+        }
         let mut signature = function
             .children
             .iter()
