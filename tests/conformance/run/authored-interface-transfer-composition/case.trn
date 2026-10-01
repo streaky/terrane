@@ -1,0 +1,29 @@
+namespace authored-interface-transfer-composition
+
+interface readable
+  function read int;
+
+class leaf implements readable
+  value int = 3
+  function read int;
+    return this.value
+
+class direct-composite implements readable
+  inner readable = instance leaf;
+  function read int;
+    return this.inner.read;
+
+class holder
+  inner readable = instance leaf;
+  function read int;
+    return this.inner.read;
+
+class nested-composite implements readable
+  inner holder = instance holder;
+  function read int;
+    return this.inner.read;
+
+function main;
+  direct readable = instance direct-composite;
+  nested readable = instance nested-composite;
+  print; (direct.read;), (nested.read;)

@@ -919,19 +919,15 @@ pub(super) fn value_type_satisfies_auto_trait(
                     .iter()
                     .flat_map(|unit| &unit.descriptors)
                     .find(|object| object.identity == *identity)
-                    .is_some_and(|object| {
-                        object.kind == ObjectKind::Class
-                            && effective_object_fields(package, object)
-                                .into_iter()
-                                .all(|field| {
-                                    field.is_static
-                                        || satisfies(
-                                            package,
-                                            &field.value_type,
-                                            obligation,
-                                            visiting,
-                                        )
-                                })
+                    .is_some_and(|object| match object.kind {
+                        ObjectKind::Interface => true,
+                        ObjectKind::Class => effective_object_fields(package, object)
+                            .into_iter()
+                            .all(|field| {
+                                field.is_static
+                                    || satisfies(package, &field.value_type, obligation, visiting)
+                            }),
+                        ObjectKind::Trait | ObjectKind::Type => false,
                     });
                 visiting.remove(&key);
                 result

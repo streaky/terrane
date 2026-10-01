@@ -137,7 +137,7 @@ impl From<UnsafeReader> for TerraneNs28UnsafeDeclarationContractsReadableUnsafeC
 pub trait CommandsProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn CommandsProtocol>;
     fn separate_box(&self) -> Box<dyn CommandsProtocol>;
-    unsafe fn raw_unsafe(&self) -> terrane_int_support::Int;
+    unsafe fn _terrane_unsafe_726177(&self) -> terrane_int_support::Int;
 }
 impl Clone for Box<dyn CommandsProtocol> {
     fn clone(&self) -> Self {
@@ -152,8 +152,8 @@ impl Clone for Commands {
 }
 #[allow(unsafe_code)]
 impl Commands {
-    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
-        unsafe { self.0.raw_unsafe() }
+    pub unsafe fn _terrane_unsafe_726177(&self) -> terrane_int_support::Int {
+        unsafe { self.0._terrane_unsafe_726177() }
     }
 }
 #[derive(Clone)]
@@ -163,7 +163,7 @@ impl Device {
         Self {}
     }
     #[allow(unsafe_code)]
-    pub unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
+    pub unsafe fn _terrane_unsafe_726177(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(4_i128);
     }
 }
@@ -175,8 +175,8 @@ impl CommandsProtocol for Device {
     fn separate_box(&self) -> Box<dyn CommandsProtocol> {
         Box::new(self.clone())
     }
-    unsafe fn raw_unsafe(&self) -> terrane_int_support::Int {
-        unsafe { Device::raw_unsafe(&*self) }
+    unsafe fn _terrane_unsafe_726177(&self) -> terrane_int_support::Int {
+        unsafe { Device::_terrane_unsafe_726177(&*self) }
     }
 }
 impl From<Device> for Commands {
@@ -194,7 +194,7 @@ impl MethodOverloads {
         return terrane_int_support::Int::from(5_i128);
     }
     #[allow(unsafe_code)]
-    pub unsafe fn choose_unsafe(&self) -> terrane_int_support::Int {
+    pub unsafe fn _terrane_unsafe_63686f6f7365(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(6_i128);
     }
 }
@@ -217,13 +217,14 @@ fn main() {
         );
         let value: Device = Device::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&unsafe { value.raw_unsafe() })
+            "{}", terrane_scalar_support::scalar_text(&unsafe { value
+            ._terrane_unsafe_726177() })
         );
         let overloads: MethodOverloads = MethodOverloads::terrane_construct();
         println!("{}", terrane_scalar_support::scalar_text(&overloads.choose()));
         println!(
-            "{}", terrane_scalar_support::scalar_text(&unsafe { overloads.choose_unsafe()
-            })
+            "{}", terrane_scalar_support::scalar_text(&unsafe { overloads
+            ._terrane_unsafe_63686f6f7365() })
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_await(unsafe { later()

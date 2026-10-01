@@ -761,11 +761,14 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
         })
         .collect::<Vec<_>>();
     if contract.owner.is_some() {
-        let mut name = rust_name(&contract.name);
         if contract.is_unsafe {
-            name.push_str("_unsafe");
+            let mut name = String::from("_terrane_unsafe_");
+            for byte in contract.name.bytes() {
+                write!(name, "{byte:02x}").expect("writing to a String cannot fail");
+            }
+            return name;
         }
-        return name;
+        return rust_name(&contract.name);
     }
     if !duplicates.is_empty() && contract.owner.is_none() {
         let namespace = function_namespace_suffix(package, contract);

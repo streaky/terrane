@@ -944,7 +944,7 @@ pub(super) fn validate_object_conformance(
                 .iter()
                 .find(|candidate| candidate.identity == object.identity)
                 .expect("object identity must resolve in its declaration unit");
-            for interface_identity in &object.interfaces {
+            for interface_identity in effective_object_interfaces(package, object) {
                 let lookup_name = if interface_identity.is_unsafe {
                     format!("unsafe::{}", interface_identity.name)
                 } else {

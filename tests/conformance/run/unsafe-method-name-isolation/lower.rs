@@ -512,7 +512,7 @@ impl Unrelated {
         Self {}
     }
     #[allow(unsafe_code)]
-    pub unsafe fn render_unsafe(&self) -> String {
+    pub unsafe fn _terrane_unsafe_72656e646572(&self) -> String {
         return String::from("unsafe");
     }
 }
