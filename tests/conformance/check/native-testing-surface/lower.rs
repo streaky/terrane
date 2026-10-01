@@ -739,7 +739,7 @@ fn test_surface() -> Result<(), TerraneError> {
 }
 // Source: core/testing.trn
 // Namespace: core/testing
-pub trait TestValueProtocol {
+pub trait TestValueProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn TestValueProtocol>;
     fn separate_box(&self) -> Box<dyn TestValueProtocol>;
     fn render(&self) -> String;

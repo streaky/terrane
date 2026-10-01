@@ -1164,7 +1164,7 @@ pub(super) fn infer_value_type(
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
-            && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
+            && let Some(member_type) = infer_member_call_type(unit, callee, bindings)?
         {
             return match member_type {
                 ValueType::Function(_, result, _) => Ok(Some(result.value_type())),

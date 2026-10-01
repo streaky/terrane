@@ -15,7 +15,7 @@ unsafe fn choose_terrane_unsafe_declaration_contracts_unsafe(
 ) -> terrane_int_support::Int {
     return value.clone() + terrane_int_support::Int::from(2_i128);
 }
-pub trait TerraneNs28UnsafeDeclarationContractsReadableProtocol {
+pub trait TerraneNs28UnsafeDeclarationContractsReadableProtocol: Send + Sync {
     fn clone_box(
         &self,
     ) -> Box<dyn TerraneNs28UnsafeDeclarationContractsReadableProtocol>;
@@ -43,7 +43,7 @@ impl TerraneNs28UnsafeDeclarationContractsReadable {
     }
 }
 #[allow(unsafe_code)]
-pub unsafe trait TerraneNs28UnsafeDeclarationContractsReadableUnsafeContractProtocol {
+pub unsafe trait TerraneNs28UnsafeDeclarationContractsReadableUnsafeContractProtocol: Send + Sync {
     fn clone_box(
         &self,
     ) -> Box<dyn TerraneNs28UnsafeDeclarationContractsReadableUnsafeContractProtocol>;
@@ -134,7 +134,7 @@ impl From<UnsafeReader> for TerraneNs28UnsafeDeclarationContractsReadableUnsafeC
     }
 }
 #[allow(unsafe_code)]
-pub trait CommandsProtocol {
+pub trait CommandsProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn CommandsProtocol>;
     fn separate_box(&self) -> Box<dyn CommandsProtocol>;
     unsafe fn raw(&self) -> terrane_int_support::Int;

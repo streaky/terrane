@@ -204,14 +204,31 @@ pub(super) fn infer_receiver_value_type(
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "member inference keeps receiver precedence and diagnostics in one ordered dispatch"
-)]
 pub(super) fn infer_member_value_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    infer_member_type(unit, node, bindings, false)
+}
+
+pub(super) fn infer_member_call_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    infer_member_type(unit, node, bindings, true)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "member inference keeps receiver precedence and diagnostics in one ordered dispatch"
+)]
+fn infer_member_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    is_call_callee: bool,
 ) -> Result<Option<ValueType>, SemanticFailure> {
     let [receiver, member] = node.children.as_slice() else {
         return Ok(None);
@@ -500,13 +517,16 @@ pub(super) fn infer_member_value_type(
         }));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type
-        && crate::syntax::call_is_unsafe(node)
+        && (crate::syntax::call_is_unsafe(node)
+            || is_call_callee
+                && object_method_contract(unit, object_name, member_name, false).is_none())
         && let Some(method) =
             object_method_contract_with_safety(unit, object_name, member_name, false, true)
     {
         return Ok(method_value_type(method));
     }
-    if let Some(ValueType::Object(object_name)) = &receiver_type
+    if !is_call_callee
+        && let Some(ValueType::Object(object_name)) = &receiver_type
         && object_method_contract(unit, object_name, member_name, false).is_none()
         && object_method_contract_with_safety(unit, object_name, member_name, false, true).is_some()
     {

@@ -968,15 +968,16 @@ impl Emitter<'_> {
                         "{{ let {mutable}receiver = {receiver}; {constructor}(move |{declarations}| {body}) }}"
                     );
                 }
+                let method_name = self.contract_for_call(node).map_or_else(
+                    || rust_name(self.text(member)),
+                    |contract| function_name(self.package, contract),
+                );
                 let call = if callable_field && actual_mode != InvocationMode::Shared {
-                    format!(
-                        "receiver.{}.call({tuple_arguments})",
-                        rust_name(self.text(member))
-                    )
+                    format!("receiver.{method_name}.call({tuple_arguments})")
                 } else if callable_field {
-                    format!("(receiver.{})({arguments})", rust_name(self.text(member)))
+                    format!("(receiver.{method_name})({arguments})")
                 } else {
-                    format!("receiver.{}({arguments})", rust_name(self.text(member)))
+                    format!("receiver.{method_name}({arguments})")
                 };
                 let body = if expected_throws && !actual_throws {
                     format!("Ok({call})")

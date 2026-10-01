@@ -1,0 +1,10 @@
+namespace unsafe-method-call-expression
+
+class device
+  unsafe function raw int;
+    return 1
+
+function main;
+  value = instance device;
+  result = value.raw;
+  print; result

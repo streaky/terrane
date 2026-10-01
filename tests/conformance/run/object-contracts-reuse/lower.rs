@@ -3,7 +3,7 @@
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: object-contracts-reuse
-pub trait DescribableProtocol {
+pub trait DescribableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DescribableProtocol>;
     fn separate_box(&self) -> Box<dyn DescribableProtocol>;
     fn describe(&self, prefix: String) -> String;

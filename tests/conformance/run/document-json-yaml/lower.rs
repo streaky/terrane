@@ -866,7 +866,7 @@ impl DocumentDecimal {
         self.text = text;
     }
 }
-pub trait SerializableProtocol {
+pub trait SerializableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn SerializableProtocol>;
     fn separate_box(&self) -> Box<dyn SerializableProtocol>;
     fn to_document(&self) -> DocumentValue;
@@ -887,7 +887,7 @@ impl Serializable {
         self.0.to_document()
     }
 }
-pub trait DeserializableProtocol {
+pub trait DeserializableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DeserializableProtocol>;
     fn separate_box(&self) -> Box<dyn DeserializableProtocol>;
     fn from_document(&self, value: DocumentValue) -> DocumentResult;
@@ -908,7 +908,7 @@ impl Deserializable {
         self.0.from_document(value)
     }
 }
-pub trait DocumentDecodableProtocol {
+pub trait DocumentDecodableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DocumentDecodableProtocol>;
     fn separate_box(&self) -> Box<dyn DocumentDecodableProtocol>;
 }
@@ -928,7 +928,7 @@ impl Clone for DocumentDecodable {
     }
 }
 impl DocumentDecodable {}
-pub trait DocumentValidatableProtocol {
+pub trait DocumentValidatableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
     fn separate_box(&self) -> Box<dyn DocumentValidatableProtocol>;
     fn validate_document(&self) -> Option<String>;

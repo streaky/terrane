@@ -3,7 +3,7 @@
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: interface-value-separation
-pub trait ReadableProtocol {
+pub trait ReadableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ReadableProtocol>;
     fn separate_box(&self) -> Box<dyn ReadableProtocol>;
     fn read(&self) -> terrane_int_support::Int;

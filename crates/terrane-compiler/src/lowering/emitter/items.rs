@@ -441,7 +441,7 @@ impl<'a> Emitter<'a> {
                     .map_or("", |_| "<TerraneAssociated>");
                 let protocol_use = format!("{protocol}{generic_use}");
                 let transfer_bounds = if projected_requirements
-                    .is_some_and(|item| item.send && item.sync)
+                    .is_none_or(|item| item.send && item.sync)
                     || object.identity.namespace == "/core/logging"
                         && object.identity.name == "log-value"
                 {

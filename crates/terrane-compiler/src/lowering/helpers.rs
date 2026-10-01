@@ -754,9 +754,9 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
         .iter()
         .flat_map(|unit| &unit.functions)
         .filter(|candidate| {
-            candidate.owner == contract.owner
-                && candidate.name == contract.name
+            candidate.name == contract.name
                 && candidate.span != contract.span
+                && candidate.owner.is_some() == contract.owner.is_some()
         })
         .collect::<Vec<_>>();
     if contract.owner.is_some() {

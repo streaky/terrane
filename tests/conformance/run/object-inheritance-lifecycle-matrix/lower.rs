@@ -432,7 +432,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: object-inheritance-lifecycle-matrix
-pub trait NamedProtocol {
+pub trait NamedProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn NamedProtocol>;
     fn separate_box(&self) -> Box<dyn NamedProtocol>;
     fn report(&self) -> terrane_int_support::Int;

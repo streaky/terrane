@@ -130,7 +130,7 @@ pub(super) fn validate_call_nodes<'a>(
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
         {
-            infer_member_value_type(unit, callee, scoped_bindings)?;
+            infer_member_call_type(unit, callee, scoped_bindings)?;
         }
     }
     if node.kind == SyntaxKind::CallExpression

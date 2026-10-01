@@ -595,6 +595,7 @@ fn every_manifest_drives_a_conformance_case() {
                 &prepared.case,
                 &prepared.manifest,
                 &prepared.rust,
+                prepared.requires_unsafe_code,
                 &build,
             );
             deferred_generated_cases.push(prepared.into_deferred());
@@ -630,6 +631,7 @@ fn stage_generated_binary(
     case: &Path,
     manifest: &str,
     rust: &str,
+    requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) {
     let fixture_registry = case.join("fixture-registry");
@@ -637,7 +639,7 @@ fn stage_generated_binary(
         copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
         copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
     }
-    let rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
+    let mut rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
         format!(
             "{rust}\n{}",
             fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
@@ -648,6 +650,9 @@ fn stage_generated_binary(
     } else {
         rust.to_owned()
     };
+    if !requires_unsafe_code {
+        rust.insert_str(0, "#![forbid(unsafe_code)]\n");
+    }
     fs::write(build.root.join(format!("src/{binary_name}.rs")), rust).unwrap();
 }
 
@@ -739,7 +744,7 @@ fn compile_and_maybe_run(
     rust_contract: (&[terrane_compiler::RustDependency], bool),
     build: &ConformanceBuild,
 ) {
-    stage_generated_binary(binary_name, case, manifest, rust, build);
+    stage_generated_binary(binary_name, case, manifest, rust, rust_contract.1, build);
     let output = build_generated_binaries(&[binary_name], rust_contract.0, rust_contract.1, build);
     assert!(
         output.status.success(),
