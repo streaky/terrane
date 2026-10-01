@@ -1,0 +1,2 @@
+main:ready:42:owned:7:7:consumed:36
+defaults:none:2

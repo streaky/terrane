@@ -1,5 +1,0 @@
-namespace repro
-from /deps/axum import Router
-
-function main;
-    router Router

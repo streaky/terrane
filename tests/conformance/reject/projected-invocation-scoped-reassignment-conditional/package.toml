@@ -1,0 +1,8 @@
+package = "projected-invocation-scoped-reassignment-conditional"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-invocation-reassignment-witness"
+version = "=0.1.0"

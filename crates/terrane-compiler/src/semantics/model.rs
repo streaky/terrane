@@ -67,7 +67,7 @@ pub struct SemanticPackage {
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
     pub profile: crate::package::CapabilityProfile,
     pub(crate) root: std::path::PathBuf,
-    pub projection: crate::projection::Projection,
+    pub projection: crate::rust_interop::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -319,8 +319,10 @@ pub(super) fn iteration_target_bindings(
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
+    pub is_unsafe: bool,
     pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
+    pub(crate) native_projection: Option<String>,
 }
 
 impl ObjectIdentity {
@@ -328,8 +330,10 @@ impl ObjectIdentity {
         Self {
             namespace: namespace.into(),
             name: name.into(),
+            is_unsafe: false,
             application: None,
             application_key: None,
+            native_projection: None,
         }
     }
 
@@ -338,7 +342,12 @@ impl ObjectIdentity {
     }
 
     pub(crate) fn base(&self) -> Self {
-        Self::new(&self.namespace, &self.name)
+        Self::new(&self.namespace, &self.name).with_safety(self.is_unsafe)
+    }
+
+    pub(crate) fn with_safety(mut self, is_unsafe: bool) -> Self {
+        self.is_unsafe = is_unsafe;
+        self
     }
 
     pub(crate) fn with_application(mut self, application: ValueType) -> Self {
@@ -346,10 +355,18 @@ impl ObjectIdentity {
         self.application = Some(Box::new(application));
         self
     }
+
+    pub(crate) fn with_native_projection(mut self, rust_path: impl Into<String>) -> Self {
+        self.native_projection = Some(rust_path.into());
+        self
+    }
 }
 
 impl std::fmt::Display for ObjectIdentity {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_unsafe {
+            formatter.write_str("unsafe ")?;
+        }
         formatter.write_str(&self.name)?;
         if let Some(application) = &self.application {
             write!(formatter, " of {application}")?;
@@ -360,11 +377,20 @@ impl std::fmt::Display for ObjectIdentity {
 
 impl Ord for ObjectIdentity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (&self.namespace, &self.name, self.application_key.as_deref()).cmp(&(
-            &other.namespace,
-            &other.name,
-            other.application_key.as_deref(),
-        ))
+        (
+            &self.namespace,
+            &self.name,
+            self.application_key.as_deref(),
+            self.is_unsafe,
+            self.native_projection.as_deref(),
+        )
+            .cmp(&(
+                &other.namespace,
+                &other.name,
+                other.application_key.as_deref(),
+                other.is_unsafe,
+                other.native_projection.as_deref(),
+            ))
     }
 }
 
@@ -509,6 +535,13 @@ pub enum ValueType {
     AsyncSinkOutcome,
     ProjectedGeneric(String),
     InlineRust,
+    InvocationScopedNative {
+        rust_type: String,
+        concrete: bool,
+        family: ObjectIdentity,
+        lifetimes: Vec<String>,
+        region: Option<(u32, usize, usize)>,
+    },
     ChannelPair(ElementType),
     ChannelSender(ElementType),
     ChannelReceiver(ElementType),
@@ -643,6 +676,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformUrlResult
         | ValueType::ProjectedAssociated
         | ValueType::ProjectedGeneric(_)
+        | ValueType::InvocationScopedNative { .. }
         | ValueType::InlineRust
         | ValueType::PlatformCapability
         | ValueType::PlatformResourceHandle
@@ -772,6 +806,7 @@ impl std::fmt::Display for ValueType {
                     item.value_type()
                 )
             }
+            Self::InvocationScopedNative { family, .. } => family.fmt(formatter),
             Self::ProjectedAssociated => formatter.write_str("host-projected-associated"),
             Self::InlineRust => formatter.write_str("inline Rust value"),
             Self::ProjectedGeneric(name) => write!(formatter, "projected generic `{name}`"),
@@ -1246,6 +1281,8 @@ pub struct DescriptorContract {
     pub identity: ObjectIdentity,
     pub span: Span,
     pub kind: ObjectKind,
+    /// Implementing this interface asserts invariants outside Terrane's static model.
+    pub is_unsafe: bool,
     pub resource_owning: bool,
     /// Compiler-owned built-in template represented by this same canonical contract.
     pub(crate) builtin: Option<BuiltinDescriptor>,
@@ -1290,6 +1327,8 @@ pub struct FunctionContract {
     pub escaping_throwables: BTreeSet<String>,
     pub throws: bool,
     pub is_async: bool,
+    /// Calling this operation accepts invariants outside Terrane's static model.
+    pub is_unsafe: bool,
     pub task_transferability: TaskTransferability,
     pub is_static: bool,
     pub written_invocation_mode: InvocationMode,
@@ -1390,12 +1429,12 @@ pub(crate) enum ContextualConstant {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProjectedCallSpecialization {
-    pub parameter: String,
-    pub rust_type: String,
-    pub projected_parameters: Vec<crate::projection::ProjectedParameter>,
+    pub substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+    pub generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
+    pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     pub direct_projected_call: bool,
     pub value_parameters: Vec<Option<ValueType>>,
-    pub projected_result: crate::projection::ProjectedType,
+    pub projected_result: crate::rust_interop::projection::ProjectedType,
     pub value_type: ValueType,
 }
 
@@ -1425,10 +1464,12 @@ pub struct SemanticUnit {
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
-    pub(super) projected_removals: Vec<crate::projection::RemovedItem>,
+    pub(super) projected_removals: Vec<crate::rust_interop::projection::RemovedItem>,
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
+    pub(crate) projected_call_result_types: BTreeMap<(u32, usize, usize), ValueType>,
+    pub(crate) invocation_scoped_function_results: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
     /// Explicit source spans that cross into unsafe Rust.
@@ -1470,7 +1511,7 @@ impl SemanticUnit {
         identity: &ObjectIdentity,
         member: &str,
         is_static: bool,
-    ) -> Option<&crate::projection::RemovedItem> {
+    ) -> Option<&crate::rust_interop::projection::RemovedItem> {
         let separator = if is_static { "::" } else { "." };
         let name = format!("{}{separator}{member}", identity.name);
         self.projected_removals

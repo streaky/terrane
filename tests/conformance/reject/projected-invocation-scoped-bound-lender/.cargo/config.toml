@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-invocation-bound-lender-witness = { path = "fixture-registry/terrane-invocation-bound-lender-witness-0.1.0" }

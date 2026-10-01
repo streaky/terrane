@@ -1,44 +1,29 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-reexport-facade-witness",
-          "GeneratedValue"
-        ],
-        [
-          "/deps/terrane-reexport-facade-witness",
-          "GeneratedValue.value"
-        ],
-        [
-          "/deps/terrane-reexport-facade-witness",
+      "members": {
+        "/deps/terrane-reexport-facade-witness": [
+          "GeneratedValue",
+          "GeneratedValue.value",
           "GeneratedValue::standard"
         ]
-      ],
+      },
       "name": "terrane-reexport-facade-witness",
       "version": "0.1.0"
     },
     {
-      "members": [
-        [
-          "/deps/terrane-reexport-owner-witness",
-          "GeneratedValue"
-        ],
-        [
-          "/deps/terrane-reexport-owner-witness",
-          "GeneratedValue.value"
-        ],
-        [
-          "/deps/terrane-reexport-owner-witness",
+      "members": {
+        "/deps/terrane-reexport-owner-witness": [
+          "GeneratedValue",
+          "GeneratedValue.value",
           "GeneratedValue::standard"
         ]
-      ],
+      },
       "name": "terrane-reexport-owner-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-send-witness import Foreign as foreign, foreign as make-foreign
+
+class base-holder
+    item foreign = make-foreign;

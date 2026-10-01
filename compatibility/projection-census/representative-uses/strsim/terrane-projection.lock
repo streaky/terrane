@@ -1,0 +1,54 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "strsim",
+      "version": "0.11.1",
+      "members": {
+        "/deps/strsim": [
+          "HammingResult",
+          "StrSimError",
+          "damerau_levenshtein",
+          "generic_hamming",
+          "generic_jaro",
+          "generic_jaro_winkler",
+          "generic_levenshtein",
+          "hamming",
+          "jaro",
+          "jaro_winkler",
+          "levenshtein",
+          "normalized_damerau_levenshtein",
+          "normalized_levenshtein",
+          "osa_distance",
+          "sorensen_dice"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "cache_identity": "a7a991a30244441ad179089eacc355eda7221113c4b1b0f2f7ff93d68fbb90f3",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "191",
+  "content_hash": "e044ccfc44e975cb96c06e4608dd0a3839de23f57f045b927e3bc99bb2ac77bb",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

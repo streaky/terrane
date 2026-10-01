@@ -1,6 +1,0 @@
-namespace projection-probe/streams
-from /deps/tokio/io import duplex
-
-function in-memory-stream-count int;
-    streams = duplex; 64
-    return streams.length

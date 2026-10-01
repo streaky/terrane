@@ -1,4 +1,7 @@
+mod census_command;
 mod debug_command;
+mod development_fingerprint;
+mod development_provenance;
 mod profile_command;
 mod test_command;
 
@@ -91,6 +94,7 @@ enum CliCommand {
     Query,
     Format,
     Package,
+    ProjectionCensus,
     Toolchains,
     Help,
     Version,
@@ -111,6 +115,7 @@ impl CliCommand {
             "query" => Some(Self::Query),
             "fmt" => Some(Self::Format),
             "package" => Some(Self::Package),
+            "projection-census" => Some(Self::ProjectionCensus),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -120,6 +125,9 @@ impl CliCommand {
 }
 
 fn main() -> ExitCode {
+    if let Some(warning) = development_provenance::warning() {
+        eprint!("{warning}");
+    }
     match run(&std::env::args_os().skip(1).collect::<Vec<_>>()) {
         Ok(code) => code,
         Err(failure) => {
@@ -185,6 +193,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Package => return run_package(arguments),
+        CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
         CliCommand::Profile
@@ -207,6 +216,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         output_path,
         require_canonical_rust,
         lint_name_style,
+        lint_unused_functions,
         release,
         embed_debug_sources,
         embed_generated_sources,
@@ -214,6 +224,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         (
             options.input.clone(),
             None,
+            false,
             false,
             false,
             false,
@@ -263,6 +274,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
             lint_name_style,
+            lint_unused_functions,
             debug_build: match command {
                 CliCommand::Profile if embed_debug_sources => {
                     terrane_compiler::DebugBuild::EmbeddedAllSources
@@ -338,10 +350,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
-            unsafe_code: if package.authored_rust_modules.is_empty() {
-                UnsafeCodePolicy::Forbid
-            } else {
+            unsafe_code: if compilation.requires_unsafe_code
+                || !package.authored_rust_modules.is_empty()
+            {
                 UnsafeCodePolicy::MaintainedModules
+            } else {
+                UnsafeCodePolicy::Forbid
             },
             artifact_profile,
             artifact: package.artifact,
@@ -487,13 +501,14 @@ fn rust_build_identity(
     })
 }
 
-type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool);
+type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool, bool);
 
 fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
+    let mut lint_unused_functions = false;
     let mut release = false;
     let mut embed_debug_sources = false;
     let mut embed_generated_sources = false;
@@ -501,6 +516,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
+            "--lint-unused-functions" => lint_unused_functions = true,
             "--release" => release = true,
             "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
             "--embed-generated-sources" if command == CliCommand::Debug => {
@@ -527,6 +543,14 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
+    if matches!(command, CliCommand::Run | CliCommand::Debug)
+        && arguments.len() >= input_index + 2
+        && arguments[input_index + 1] != "--"
+    {
+        return Err(CliFailure::usage_with(
+            "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)",
+        ));
+    }
     let has_valid_arity = if matches!(command, CliCommand::Run | CliCommand::Debug) {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
@@ -545,6 +569,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         output_path,
         require_canonical_rust,
         lint_name_style,
+        lint_unused_functions,
         release,
         embed_debug_sources,
         embed_generated_sources,
@@ -606,7 +631,7 @@ fn prepare_artifact(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
-    containment: terrane_compiler::projection::Containment,
+    containment: terrane_compiler::rust_interop::projection::Containment,
     artifact_kind: terrane_compiler::ArtifactKind,
     profile: CargoProfile,
 ) -> Result<Option<PathBuf>, CliFailure> {
@@ -742,15 +767,15 @@ fn run_cargo(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
-    containment: terrane_compiler::projection::Containment,
+    containment: terrane_compiler::rust_interop::projection::Containment,
     profile: CargoProfile,
 ) -> Result<(), CliFailure> {
     let rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
-    let contained =
-        has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
+    let contained = has_rust_dependencies
+        && containment == terrane_compiler::rust_interop::projection::Containment::Enforced;
     if has_rust_dependencies {
         let mut fetch = Command::new("cargo");
-        terrane_compiler::cargo_toolchain::configure_cargo_command(&mut fetch);
+        terrane_compiler::rust_interop::configure_cargo_command(&mut fetch);
         configure_generated_toolchain(&mut fetch, crate_dir);
         let fetch = fetch
             .args(["fetch", "--manifest-path"])
@@ -810,7 +835,7 @@ fn run_cargo(
     } else {
         Command::new("cargo")
     };
-    terrane_compiler::cargo_toolchain::configure_cargo_command(&mut cargo);
+    terrane_compiler::rust_interop::configure_cargo_command(&mut cargo);
     configure_generated_toolchain(&mut cargo, crate_dir);
     cargo.args([
         command,
@@ -1301,7 +1326,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),
@@ -1943,7 +1968,7 @@ fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] <file-or-manifest> [-- program arguments]\n\
+     [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
      terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
@@ -1964,9 +1989,13 @@ fn usage() -> String {
      terrane package hash --git <url> --tag <tag>\n\
      terrane package install <relative-directory> [--name <dependency-name>]\n\
      terrane package install --git <url> --tag <tag> [--name <dependency-name>]\n\
+     terrane projection-census <package> <version> --target <triple> --root <directory> \
+     [--alias <name>] [--features <comma-list>] [--no-default-features] \
+     [--target-condition <cargo-cfg>]\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
+     --lint-unused-functions  report authored top-level functions with no resolved references\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
      --embed-sources  include authored source snapshots in debug provenance or profile artifacts\n  \
      --retain-arguments  include profile workload arguments in the artifact (profile record only)\n  \
@@ -1980,6 +2009,8 @@ fn usage() -> String {
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      package  hash or install local and tagged-Git Terrane libraries\n  \
+     projection-census  compare native public surface with real compiler projection admission;\n\
+       versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
      toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }
@@ -2057,9 +2088,10 @@ mod tests {
                 None,
                 false,
                 false,
+                false,
                 true,
                 false,
-                false
+                false,
             )
         );
 
@@ -2069,6 +2101,22 @@ mod tests {
             OsString::from("package.toml"),
         ];
         assert!(parse_input(&check, CliCommand::Check).is_err());
+    }
+
+    #[test]
+    fn run_and_debug_require_program_argument_separator() {
+        for (name, command) in [("run", CliCommand::Run), ("debug", CliCommand::Debug)] {
+            let arguments = [
+                OsString::from(name),
+                OsString::from("package.toml"),
+                OsString::from("argument"),
+            ];
+            let failure = parse_input(&arguments, command).expect_err("separator must be required");
+            assert_eq!(failure.code, 2);
+            assert!(failure.message.contains(
+                "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)"
+            ));
+        }
     }
 
     #[test]
@@ -2119,7 +2167,7 @@ mod tests {
             &rust_files,
             &units,
             false,
-            terrane_compiler::projection::Containment::Unavailable,
+            terrane_compiler::rust_interop::projection::Containment::Unavailable,
             CargoProfile::Debug,
         )
         .unwrap_err();

@@ -1,0 +1,18 @@
+namespace app
+
+from /deps/witness import borrowed_label, render_scoped
+
+function inner host-invocation-scoped-native; state ref string
+    return borrowed_label; state
+
+function wrapped host-invocation-scoped-native; state ref string
+    return inner; state
+
+function outer host-invocation-scoped-native; state ref string
+    local string = 'local'
+    value = wrapped; local
+    return value
+
+function main;
+    state string = 'state'
+    render_scoped; state, outer

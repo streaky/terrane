@@ -1,0 +1,6 @@
+namespace unsafe-call-without-declaration
+
+function safe-only;
+
+function main;
+  unsafe safe-only;

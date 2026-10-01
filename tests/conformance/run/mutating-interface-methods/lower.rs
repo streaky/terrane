@@ -3,7 +3,7 @@
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: mutating-interface-methods
-pub trait AdjustableProtocol {
+pub trait AdjustableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn AdjustableProtocol>;
     fn separate_box(&self) -> Box<dyn AdjustableProtocol>;
     fn increase(&mut self, amount: terrane_int_support::Int) -> terrane_int_support::Int;

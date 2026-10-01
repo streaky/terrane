@@ -1,0 +1,54 @@
+namespace iced-ui
+
+from /core/testing import assert-equal-bool, assert-equal-int, assert-equal-string
+
+function test-view-builders-produce-a-declarative-tree;
+    title = (text; 'Tasks').size; 32
+    action = indexed-button; 'Toggle', 'toggle-task', 3
+    layout = column;
+    layout = layout.append; title
+    layout = layout.append; action
+    layout = layout.spacing; 12
+    layout = layout.padding; 24
+
+    assert-equal-string; layout.kind, 'column'
+    assert-equal-int; layout.children.length, 2
+    assert-equal-int; layout.spacing-value, 12
+    assert-equal-int; layout.padding-value, 24
+    assert-equal-string; layout.children[0].content, 'Tasks'
+    assert-equal-int; layout.children[0].text-size, 32
+    assert-equal-string; layout.children[1].event-name, 'toggle-task'
+    index = layout.children[1].event-index
+    assert-equal-bool; index != none, true
+    if index != none
+        assert-equal-int; index, 3
+
+    picker = file-picker; 'Open trace', 'trace-selected'
+    assert-equal-string; picker.kind, 'file-picker'
+    assert-equal-string; picker.event-name, 'trace-selected'
+
+    headers = row;
+    headers = headers.append; (text; 'Name')
+    rows = column;
+    table-row = row;
+    table-row = table-row.append; (text; 'value')
+    rows = rows.append; table-row
+    grid = table; headers, rows
+    assert-equal-string; grid.kind, 'table'
+    assert-equal-int; grid.children.length, 2
+    virtual-grid = virtual-table; headers, rows, 1000000, 420, 44, 'viewport-changed'
+    assert-equal-string; virtual-grid.kind, 'virtual-table'
+    assert-equal-int; virtual-grid.virtual-total-rows, 1000000
+    assert-equal-int; virtual-grid.virtual-first-row, 420
+    assert-equal-int; virtual-grid.virtual-row-height, 44
+    assert-equal-string; virtual-grid.event-name, 'viewport-changed'
+
+function test-events-retain-typed-payloads;
+    text-event = instance Event; 'draft-changed', 'next task', none, none
+    state-event = instance Event; 'toggled', none, true, none
+    index-event = instance Event; 'selected', none, none, 4
+
+    assert-equal-string; text-event.name, 'draft-changed'
+    assert-equal-bool; text-event.text != none, true
+    assert-equal-bool; state-event.state != none, true
+    assert-equal-bool; index-event.index != none, true

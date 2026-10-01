@@ -144,6 +144,28 @@ impl Emitter<'_> {
                     )
                 }
             }
+            Some(ValueType::List(item))
+                if matches!(
+                    item.value_type_ref(),
+                    ValueType::InvocationScopedNative { .. }
+                ) =>
+            {
+                let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
+                    let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+                    self.fallible(
+                        format!("terrane_collection_support::index_from_int(&({index_value}))"),
+                        node,
+                    )
+                } else {
+                    format!("({}) as usize", self.expression(index))
+                };
+                self.fallible(
+                    format!(
+                        "({receiver}).into_unique_vec().into_iter().nth({index}).ok_or_else(|| terrane_collection_support::IndexError::from_usize({index}))"
+                    ),
+                    node,
+                )
+            }
             Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -196,6 +218,16 @@ impl Emitter<'_> {
             Some(ValueType::Reference(_)) => format!("({}).clone()", self.expression(receiver)),
             _ => self.expression(receiver),
         }
+    }
+
+    pub(super) fn mutable_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
+            return format!(
+                "{}.as_mut().expect(\"semantic optional narrowing\")",
+                self.raw_storage_name(receiver)
+            );
+        }
+        format!("&mut {}", self.receiver_expression(receiver))
     }
 
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
@@ -286,6 +318,14 @@ impl Emitter<'_> {
             return String::new();
         };
         let member_name = self.text(member);
+        if let Some(constant) = self.package.projection.constant_for_native(
+            &object.identity.namespace,
+            &object.identity.name,
+            object.identity.native_projection.as_deref(),
+            member_name,
+        ) {
+            return constant.rust_path.clone();
+        }
         if effective_object_fields(self.package, object)
             .iter()
             .any(|field| field.is_static && field.name == member_name)

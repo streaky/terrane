@@ -1,0 +1,48 @@
+namespace unsafe-declaration-contracts
+
+function choose int; value int
+  return value + 1
+
+unsafe function choose int; value int
+  return value + 2
+
+interface readable
+  function value int;
+
+unsafe interface readable
+  function value int;
+
+class safe-reader implements readable
+  function value int;
+    return 1
+
+class unsafe-reader implements unsafe readable
+  function value int;
+    return 2
+
+interface commands
+  unsafe function raw int;
+
+class device implements commands
+  unsafe function raw int;
+    return 4
+
+class method-overloads
+  function choose int;
+    return 5
+  unsafe function choose int;
+    return 6
+
+unsafe async function later int;
+  return 7
+
+async function main;
+  print; (choose; 1)
+  print; (unsafe choose; 1)
+  value = instance device;
+  print; (unsafe value.raw;)
+  overloads = instance method-overloads;
+  print; (overloads.choose;)
+  print; (unsafe overloads.choose;)
+  print; await unsafe later;
+  print; 'ok'

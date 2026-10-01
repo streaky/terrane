@@ -1,0 +1,7 @@
+package = "projected-deferred-callback-template-reject"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-deferred-callback-witness]
+version = "=0.1.0"

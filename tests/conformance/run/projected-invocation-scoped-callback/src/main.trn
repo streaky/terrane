@@ -1,0 +1,157 @@
+namespace app
+
+from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, borrowed_value, button, into_widget, label, render_default, render_exact, render_scoped, reset_trace, row, traced_label
+from /core/collections import list
+from /core/output import print
+
+function exact-label host-invocation-scoped-native; state ref string
+    return borrowed_label; state
+
+function exact host-invocation-scoped-native; state ref string
+    return exact-label; state
+function exact-nested host-invocation-scoped-native; state ref string
+    first = borrowed_label; state
+    second = borrowed_button; state
+    return borrowed_group; first, second
+
+function exact-typed host-invocation-scoped-native; state ref string
+    return borrowed_value; state
+
+function exact-recursive host-invocation-scoped-native; state ref string
+    if state.length > 100
+        return exact-recursive; state
+    value = borrowed_label; state
+    return value
+
+function exact-wrapped-binding host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    return borrowed_label_group; value
+
+function exact-ping host-invocation-scoped-native; state ref string
+    if state.length > 100
+        return exact-pong; state
+    return borrowed_label; state
+
+function exact-pong host-invocation-scoped-native; state ref string
+    if state.length > 100
+        return exact-ping; state
+    return borrowed_label; state
+
+function exact-inner-label host-invocation-scoped-native; state ref string
+    return borrowed_label; state
+
+function exact-outer-group host-invocation-scoped-native; state ref string
+    return borrowed_label_group; (exact-inner-label; state)
+
+function exact-forwarded-binding host-invocation-scoped-native; state ref string
+    value = exact-inner-label; state
+    return value
+
+function exact-reassign-helper-then-producer host-invocation-scoped-native; state ref string
+    value = exact-inner-label; state
+    value = borrowed_label; state
+    return value
+
+function exact-reassign-reverse host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    value = exact-inner-label; state
+    return value
+
+function exact-reassign-conditional host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    if state.length > 0
+        value = exact-inner-label; state
+    return value
+
+function exact-reassign-alias host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    alias = value
+    alias = exact-inner-label; state
+    return alias
+
+function exact-bound-wrapped host-invocation-scoped-native; state ref string
+    value = exact-inner-label; state
+    return borrowed_label_group; value
+
+function exact-mixed-branch host-invocation-scoped-native; state ref string
+    if state.length > 1
+        value = exact-inner-label; state
+        return value
+    return borrowed_label; state
+
+function exact-helper-aggregate host-invocation-scoped-native; state ref string
+    children list of host-invocation-scoped-native = list;
+    children.append; (exact-inner-label; state)
+    children.append; (borrowed_label; state)
+    return borrowed_row; children
+
+function exact-branch host-invocation-scoped-native; state ref string
+    if state.length > 1
+        intermediate = borrowed_label; state
+        return borrowed_label_group; intermediate
+    button-intermediate = borrowed_button; state
+    return borrowed_button_group; button-intermediate
+
+function exact-aggregate host-invocation-scoped-native; state ref string
+    children list of host-invocation-scoped-native = list;
+    children.append; (borrowed_label; state)
+    children.append; (borrowed_label; state)
+    return borrowed_row; children
+
+function direct Label; state ref int64
+    return label; state + 1
+
+function helper Label; value int64
+    return label; value
+
+function through-helper Label; state ref int64
+    return helper; state + 1
+
+function nested Widget; state ref int64
+    return into_widget; (button; state + 1)
+
+function branch Widget; state ref int64
+    if state > 0
+        return into_widget; (label; state + 0)
+    return into_widget; (button; state + 7)
+
+function aggregate Widget; state ref int64
+    children list of Widget = list;
+    children.append; (into_widget; (traced_label; 1))
+    children.append; (into_widget; (traced_label; 2))
+    children.append; (into_widget; (traced_label; 3))
+    return into_widget; (row; children)
+
+function main;
+    state int64 = 40
+    exact-state string = '40'
+    print; (render_scoped; state, 'message', true, direct)
+    print; (render_exact; exact-state, 'message', true, exact)
+    print; (render_exact; exact-state, 'message', true, exact-typed)
+    print; (render_default; state, direct)
+    print; (render_exact; exact-state, 'message', true, exact-nested)
+    print; (render_exact; exact-state, 'message', true, exact-branch)
+    print; (render_exact; exact-state, 'message', true, exact-aggregate)
+    print; (render_exact; exact-state, 'message', true, exact-recursive)
+    print; (render_exact; exact-state, 'message', true, exact-wrapped-binding)
+    print; (render_exact; exact-state, 'message', true, exact-ping)
+    print; (render_exact; exact-state, 'message', true, exact-outer-group)
+    print; (render_exact; exact-state, 'message', true, exact-forwarded-binding)
+    print; (render_exact; exact-state, 'message', true, exact-bound-wrapped)
+    print; (render_exact; exact-state, 'message', true, exact-mixed-branch)
+    print; (render_exact; exact-state, 'message', true, exact-helper-aggregate)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-helper-then-producer)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-reverse)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-conditional)
+    print; (render_exact; exact-state, 'message', true, exact-reassign-alias)
+    offset int64 = 2
+    captured = function Label; state ref int64
+        return label; state + offset
+    print; (render_scoped; state, 'message', true, captured)
+    print; (render_scoped; state, 'message', true, through-helper)
+    print; (render_scoped; state, 'message', true, nested)
+    print; (render_scoped; state, 'message', true, branch)
+    zero int64 = 0
+    print; (render_scoped; zero, 'message', true, branch)
+    reset_trace;
+    print; (render_scoped; state, 'message', true, aggregate)

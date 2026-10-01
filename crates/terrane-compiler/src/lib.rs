@@ -1,5 +1,4 @@
 mod bundled;
-pub mod cargo_toolchain;
 mod compiler;
 pub mod debugging;
 pub mod diagnostic;
@@ -11,8 +10,8 @@ mod lowering;
 pub mod package;
 pub mod parser;
 pub mod profiling;
-pub mod projection;
 pub mod provenance;
+pub mod rust_interop;
 pub mod rust_ir;
 pub mod semantics;
 pub mod source;
@@ -22,7 +21,6 @@ pub mod tokens;
 pub mod tooling;
 pub mod types;
 
-mod projection_oracle;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,
@@ -36,10 +34,6 @@ pub use package::{
     PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, TerraneDependency,
     TerraneDependencySource, git_library_metadata, git_source_tree_hash, source_tree_hash,
     with_tokio_runtime,
-};
-pub use projection_oracle::{
-    BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,
-    ProbeReport, ProjectionOracle,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, EvaluationKind, EvaluationStep,

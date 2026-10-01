@@ -1,13 +1,12 @@
 {
   "dependencies": [
     {
-      "members": [],
+      "members": {},
       "name": "terrane-bad-supertrait-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

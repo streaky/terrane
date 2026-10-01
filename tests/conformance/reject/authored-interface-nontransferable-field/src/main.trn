@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/witness import NonSend, make_non_send
+
+interface shape
+  function value int;
+
+class wrapped implements shape
+  payload NonSend = make_non_send;
+  function value int;
+    return 3
+
+function main;
+  value = instance wrapped;
+  print; (value.value;)

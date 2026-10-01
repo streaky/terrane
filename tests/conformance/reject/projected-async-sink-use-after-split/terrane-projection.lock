@@ -1,102 +1,37 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-sink-witness",
-          "Duplex"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Duplex.split"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Incoming"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Incoming.close"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Incoming.next"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Outgoing"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Outgoing.close"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Outgoing.flush"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "Outgoing.send"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "QueueSink"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "QueueSink.close"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "QueueSink.flush"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "QueueSink.send"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "SinkError"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "SplitEndpoints"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "SplitEndpoints.take_incoming"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "SplitEndpoints.take_outgoing"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "blocked_sink"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "drain_slowly"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "duplex"
-        ],
-        [
-          "/deps/terrane-sink-witness",
-          "queue_sink"
-        ],
-        [
-          "/deps/terrane-sink-witness",
+      "members": {
+        "/deps/terrane-sink-witness": [
+          "Duplex",
+          "Duplex.split",
+          "Incoming",
+          "Incoming.close",
+          "Incoming.next",
+          "Outgoing",
+          "Outgoing.close",
+          "Outgoing.flush",
+          "Outgoing.send",
+          "QueueSink",
+          "QueueSink.close",
+          "QueueSink.flush",
+          "QueueSink.send",
+          "SinkError",
+          "SplitEndpoints",
+          "SplitEndpoints.take_incoming",
+          "SplitEndpoints.take_outgoing",
+          "blocked_sink",
+          "drain_slowly",
+          "duplex",
+          "queue_sink",
           "remotely_closed_sink"
         ]
-      ],
+      },
       "name": "terrane-sink-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

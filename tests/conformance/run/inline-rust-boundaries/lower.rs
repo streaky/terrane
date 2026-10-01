@@ -15,6 +15,7 @@ fn add(
     };
     return result.clone();
 }
+#[allow(unsafe_code)]
 fn inspect_pointer() -> u8 {
     let value: u8 = unsafe { *(&7u8 as *const u8) };
     return value;

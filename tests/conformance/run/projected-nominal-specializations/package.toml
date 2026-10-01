@@ -1,0 +1,9 @@
+package = "projected-nominal-specializations"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-point-witness]
+package = "terrane-point-witness"
+version = "=0.1.0"
+effects = ["build"]

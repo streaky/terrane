@@ -454,6 +454,10 @@ impl StreamOwner {
         Self { input: stdin() }
     }
 }
+fn finish(owner: StreamOwner) {
+    let _ = &owner;
+    return ();
+}
 fn main() {
     let source: StreamOwner = StreamOwner::terrane_construct();
     let destination: StreamOwner = source;
@@ -461,6 +465,7 @@ fn main() {
         .input
         .read(terrane_int_support::Int::from(1_i128));
     println!("{}", terrane_scalar_support::scalar_text(&result.completed));
+    finish(destination);
 }
 // Source: core/streams.trn
 // Namespace: core/streams

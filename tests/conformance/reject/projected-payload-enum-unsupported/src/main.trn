@@ -1,6 +1,0 @@
-namespace app
-
-from /deps/terrane-payload-enum-witness import Event
-
-function main;
-  _ = Event::Pair; 1, 2

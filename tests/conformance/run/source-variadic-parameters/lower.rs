@@ -432,7 +432,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: source-variadic-parameters
-pub trait SummerProtocol {
+pub trait SummerProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn SummerProtocol>;
     fn separate_box(&self) -> Box<dyn SummerProtocol>;
     fn sum(

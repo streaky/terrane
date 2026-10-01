@@ -1,0 +1,73 @@
+namespace unsafe-method-family-naming
+
+class paired-base
+  function raw int;
+    return 1
+  unsafe function raw int;
+    return 2
+
+class safe-override extends paired-base
+  function raw int;
+    return 3
+
+class safe-base
+  function raw int;
+    return 4
+
+class unsafe-addition extends safe-base
+  unsafe function raw int;
+    return 5
+
+interface paired-source
+  function raw int;
+  unsafe function raw int;
+
+class source implements paired-source
+  function raw int;
+    return 6
+  unsafe function raw int;
+    return 7
+
+class same-owner-collision
+  function raw-unsafe int;
+    return 8
+  unsafe function raw int;
+    return 9
+
+class inherited-collision-base
+  function raw-unsafe int;
+    return 10
+
+class inherited-collision extends inherited-collision-base
+  unsafe function raw int;
+    return 11
+
+interface interface-collision
+  function raw-unsafe int;
+  unsafe function raw int;
+
+class interface-collision-source implements interface-collision
+  function raw-unsafe int;
+    return 12
+  unsafe function raw int;
+    return 13
+
+function main;
+  overridden paired-base = instance safe-override;
+  print; (overridden.raw;)
+  print; (unsafe overridden.raw;)
+  extended = instance unsafe-addition;
+  print; (extended.raw;)
+  print; (unsafe extended.raw;)
+  concrete = instance source;
+  class-operation = concrete.raw
+  abstract paired-source = concrete
+  interface-operation = abstract.raw
+  print; (class-operation;), (interface-operation;)
+  same-owner = instance same-owner-collision;
+  print; (same-owner.raw-unsafe;), (unsafe same-owner.raw;)
+  inherited = instance inherited-collision;
+  print; (inherited.raw-unsafe;), (unsafe inherited.raw;)
+  interface-concrete = instance interface-collision-source;
+  interface-value interface-collision = interface-concrete
+  print; (interface-value.raw-unsafe;), (unsafe interface-value.raw;)

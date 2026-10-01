@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-namespace-value-witness import launch
+from /deps/terrane-namespace-value-witness/launch import nested
+from /core/output import print
+
+function main;
+    print; (launch;)
+    print; (nested;)

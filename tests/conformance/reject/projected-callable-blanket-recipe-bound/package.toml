@@ -1,0 +1,7 @@
+package = "projected-callable-blanket-recipe-bound"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callable-recipe-bound-witness]
+version = "=0.1.0"

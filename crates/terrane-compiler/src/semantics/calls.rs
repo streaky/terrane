@@ -88,13 +88,49 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression {
         validate_projected_generic_arguments(package, unit, node, scoped_bindings)?;
     }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+    {
+        let requested_unsafe = crate::syntax::call_is_unsafe(node);
+        let selected =
+            function_contract_for_call_with_safety(package, unit, callee, requested_unsafe);
+        let opposite =
+            function_contract_for_call_with_safety(package, unit, callee, !requested_unsafe);
+        if selected.is_none() && (requested_unsafe || opposite.is_some()) {
+            let invocation = node_text(&unit.source, callee);
+            let name = callee
+                .children
+                .last()
+                .map_or(invocation, |member| node_text(&unit.source, member));
+            let (message, help) = if requested_unsafe && opposite.is_some() {
+                (
+                    format!("`{name}` has no unsafe function declaration"),
+                    format!("remove `unsafe` to call the safe `{name}` declaration"),
+                )
+            } else if requested_unsafe {
+                (
+                    format!("unsafe call `{name}` has no matching unsafe function declaration"),
+                    format!("declare `unsafe function {name}` before calling it as unsafe"),
+                )
+            } else {
+                (
+                    format!("`{name}` is declared only as an unsafe function"),
+                    format!("write `unsafe {invocation}; ...` to select the unsafe declaration"),
+                )
+            };
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![Diagnostic::error("T0130", message, node.span).with_help(help)],
+            });
+        }
+    }
     if node.kind == SyntaxKind::CallExpression {
         let inferred = infer_value_type(unit, node, scoped_bindings)?;
         if inferred.is_none()
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
         {
-            infer_member_value_type(unit, callee, scoped_bindings)?;
+            infer_member_call_type(unit, callee, scoped_bindings)?;
         }
     }
     if node.kind == SyntaxKind::CallExpression
@@ -213,44 +249,25 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
-        let contract = match callee.kind {
-            SyntaxKind::Name => package
-                .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-                .filter(|symbol| symbol.kind == SymbolKind::Function)
-                .and_then(|symbol| symbol.declaration_span)
-                .and_then(|declaration_span| {
-                    contracts
-                        .get(&(
-                            declaration_span.file,
-                            declaration_span.start,
-                            declaration_span.end,
-                        ))
-                        .copied()
-                }),
-            SyntaxKind::MemberExpression => match callee.children.as_slice() {
-                [receiver, member] => infer_value_type(unit, receiver, scoped_bindings)
-                    .ok()
-                    .flatten()
-                    .and_then(|value_type| {
-                        let ValueType::Object(identity) = value_type else {
-                            return None;
-                        };
-                        method_contract(package, &identity, node_text(&unit.source, member), false)
-                    }),
-                _ => None,
-            },
-            SyntaxKind::StaticMemberExpression => match callee.children.as_slice() {
-                [receiver, member] => {
-                    class_designator_identity(unit, receiver).and_then(|identity| {
-                        method_contract(package, &identity, node_text(&unit.source, member), true)
-                    })
-                }
-                _ => None,
-            },
-            SyntaxKind::ConstructionExpression => construction_contract(package, unit, callee),
-            _ => None,
-        };
-        if let Some(contract) = contract {
+        let contract = function_contract_for_call(package, unit, callee);
+        let specialized_contract = contract.and_then(|contract| {
+            unit.projected_call_specializations
+                .get(&(node.span.file, node.span.start, node.span.end))
+                .map(|specialization| {
+                    let mut contract = contract.clone();
+                    for (parameter, value_type) in contract
+                        .parameters
+                        .iter_mut()
+                        .zip(&specialization.value_parameters)
+                    {
+                        if let Some(value_type) = value_type {
+                            parameter.value_type = Some(value_type.clone());
+                        }
+                    }
+                    contract
+                })
+        });
+        if let Some(contract) = specialized_contract.as_ref().or(contract) {
             validate_call_arguments(unit, arguments, contract, scoped_bindings)?;
         }
     }
@@ -347,7 +364,7 @@ fn validate_projected_generic_arguments(
             || (parameter.generic_interface.is_none()
                 && !matches!(
                     parameter.ty,
-                    crate::projection::ProjectedType::BoxedInterface { .. }
+                    crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
                 ))
         {
             continue;
@@ -376,9 +393,9 @@ fn validate_projected_generic_arguments(
             ));
         };
         let expected_rust_path = match &parameter.ty {
-            crate::projection::ProjectedType::BoxedInterface { trait_path, .. } => {
-                trait_path.clone()
-            }
+            crate::rust_interop::projection::ProjectedType::BoxedInterface {
+                trait_path, ..
+            } => trait_path.clone(),
             _ => parameter.ty.rust_type(),
         };
         let expected_base = expected_rust_path
@@ -391,12 +408,15 @@ fn validate_projected_generic_arguments(
             .flat_map(|dependency| &dependency.items)
             .find(|item| {
                 item.rust_path == expected_base
-                    && matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                    && matches!(
+                        item.kind,
+                        crate::rust_interop::projection::ProjectedKind::Interface(_)
+                    )
             });
         let required = required_item.map(|item| ObjectIdentity::new(&item.namespace, &item.name));
         let boxed_interface = matches!(
             parameter.ty,
-            crate::projection::ProjectedType::BoxedInterface { .. }
+            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
         );
         let interface_matches_required = required.as_ref().is_some_and(|required| {
             boxed_interface
@@ -422,7 +442,7 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         }
-        if let Some(crate::projection::ProjectedKind::Interface(interface)) =
+        if let Some(crate::rust_interop::projection::ProjectedKind::Interface(interface)) =
             required_item.map(|item| &item.kind)
             && let Some(associated) = &interface.associated_type
             && let Some(expected) = parameter.associated_type.as_ref()
@@ -468,8 +488,10 @@ fn validate_projected_generic_arguments(
             ));
         }
         if implementor.kind == ObjectKind::Interface
-            && let crate::projection::ProjectedType::BoxedInterface { auto_traits, .. } =
-                &parameter.ty
+            && let crate::rust_interop::projection::ProjectedType::BoxedInterface {
+                auto_traits,
+                ..
+            } = &parameter.ty
             && let Some((send, sync)) = package
                 .projection
                 .foreign_auto_traits(&implementor.identity.namespace, &implementor.identity.name)
@@ -648,14 +670,21 @@ pub(super) fn bind_projected_generics(
         return Ok(());
     }
     match (expected, actual) {
-        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
-            bind_projected_generics(expected, actual, bindings)
-        }
-        (ValueType::List(expected), ValueType::List(actual))
+        (
+            ValueType::Reference(expected) | ValueType::SharedReference(expected),
+            ValueType::Reference(actual) | ValueType::SharedReference(actual),
+        )
+        | (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual)) => {
             bind_projected_generics(expected.value_type_ref(), actual.value_type_ref(), bindings)
+        }
+        (ValueType::Reference(expected) | ValueType::SharedReference(expected), actual) => {
+            bind_projected_generics(expected.value_type_ref(), actual, bindings)
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            bind_projected_generics(expected, actual, bindings)
         }
         (
             ValueType::Map(expected_key, expected_value),
@@ -752,6 +781,12 @@ pub(super) fn substitute_projected_value_generics(
             .get(name)
             .cloned()
             .unwrap_or_else(|| value_type.clone()),
+        ValueType::Reference(inner) => ValueType::Reference(ElementType::new(
+            substitute_projected_value_generics(inner.value_type_ref(), bindings),
+        )),
+        ValueType::SharedReference(inner) => ValueType::SharedReference(ElementType::new(
+            substitute_projected_value_generics(inner.value_type_ref(), bindings),
+        )),
         ValueType::Optional(inner) => ValueType::Optional(Box::new(
             substitute_projected_value_generics(inner, bindings),
         )),
@@ -946,6 +981,30 @@ fn resolve_call_parameter<'a>(
     Ok(parameter)
 }
 
+fn bind_destination_selected_callback(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<bool, String> {
+    let (
+        ValueType::Function(_, expected_result, _)
+        | ValueType::AsyncFunction(_, expected_result, _, _),
+        ValueType::Function(_, actual_result, _) | ValueType::AsyncFunction(_, actual_result, _, _),
+    ) = (expected, actual)
+    else {
+        return Ok(false);
+    };
+    if projected_generic_name(expected_result.value_type_ref()).is_none() {
+        return Ok(false);
+    }
+    bind_projected_generics(
+        expected_result.value_type_ref(),
+        actual_result.value_type_ref(),
+        bindings,
+    )?;
+    Ok(true)
+}
+
 pub(super) fn validate_call_arguments(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
@@ -988,6 +1047,23 @@ pub(super) fn validate_call_arguments(
                     bindings,
                 )?;
             } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                if bind_destination_selected_callback(
+                    &expected,
+                    &actual,
+                    &mut generic_bindings,
+                )
+                .map_err(|generic| {
+                    failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "projected generic `{generic}` is inferred as incompatible argument types"
+                        ),
+                        value.span,
+                    )
+                })? {
+                    continue;
+                }
                 if let Err(generic) =
                     bind_projected_generics(&expected, &actual, &mut generic_bindings)
                 {
@@ -1000,11 +1076,21 @@ pub(super) fn validate_call_arguments(
                         value.span,
                     ));
                 }
+                let validation_expected = match (&expected, &actual) {
+                    (
+                        ValueType::Reference(_) | ValueType::SharedReference(_),
+                        ValueType::Reference(_) | ValueType::SharedReference(_),
+                    ) => expected.clone(),
+                    (ValueType::Reference(inner) | ValueType::SharedReference(inner), _) => {
+                        inner.value_type()
+                    }
+                    _ => expected.clone(),
+                };
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,
                     &parameter.name,
-                    expected,
+                    validation_expected,
                     actual,
                     value,
                     "T0012",

@@ -1047,6 +1047,7 @@ impl Emitter<'_> {
             .filter(|binding| {
                 binding.scope.is_some()
                     && binding.is_visible_at(self.unit.source.id(), node.span.start)
+                    && !matches!(binding.value_type, ValueType::Reference(_))
                     && !rust_value_is_copy(&binding.value_type)
                     && identifiers.contains(&rust_name(&binding.name))
             })

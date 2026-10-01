@@ -506,7 +506,9 @@ fn main() {
         2 /* terrane-site: src/main.trn:9:17-9:38 */,
     );
     let data: Category = __terrane_raised(
-        match std::panic::catch_unwind(|| serde_json::error::Category::Data) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| serde_json::error::Category::Data),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(
@@ -521,7 +523,9 @@ fn main() {
         3 /* terrane-site: src/main.trn:10:12-10:27 */,
     );
     let io: Category = __terrane_raised(
-        match std::panic::catch_unwind(|| serde_json::error::Category::Io) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| serde_json::error::Category::Io),
+        ) {
             Ok(value) => Ok(value),
             Err(payload) => {
                 Err(

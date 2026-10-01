@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-deferred-callback-witness = { path = "fixture-registry/terrane-deferred-callback-witness-0.1.0" }

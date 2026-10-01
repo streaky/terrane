@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-invocation-multi-method-witness = { path = "fixture-registry/terrane-invocation-multi-method-witness-0.1.0" }

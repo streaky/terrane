@@ -212,11 +212,9 @@ pub(super) fn infer_value_type(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
         }
-        if let Some(contract) = unit
-            .functions
-            .iter()
-            .find(|contract| contract.owner.is_none() && contract.name == name)
-        {
+        if let Some(contract) = unit.functions.iter().find(|contract| {
+            contract.owner.is_none() && contract.name == name && !contract.is_unsafe
+        }) {
             let parameters = contract
                 .parameters
                 .iter()
@@ -267,6 +265,16 @@ pub(super) fn infer_value_type(
                     ValueType::Function(parameters, result, effects)
                 }));
             }
+        }
+        if resolved_function_contract(unit, &format!("unsafe::{name}"), node.span.start).is_some() {
+            return Err(failure(
+                &unit.source,
+                "T0130",
+                format!(
+                    "unsafe function `{name}` cannot be used as a function value; invoke it directly with `unsafe`"
+                ),
+                node.span,
+            ));
         }
         let resolved_symbol = lexical_scope_chain(unit, node.span.start).find_map(|scope| {
             scope.symbols.get(name)?.iter().rev().find(|symbol| {
@@ -381,6 +389,12 @@ pub(super) fn infer_value_type(
             node.span.end,
         )) {
             return Ok(Some(specialization.value_type.clone()));
+        }
+        if let Some(value_type) =
+            unit.projected_call_result_types
+                .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            return Ok(Some(value_type.clone()));
         }
         if is_destination_directed_projected_call(unit, node, bindings)? {
             return Ok(None);
@@ -1150,7 +1164,7 @@ pub(super) fn infer_value_type(
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
-            && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
+            && let Some(member_type) = infer_member_call_type(unit, callee, bindings)?
         {
             return match member_type {
                 ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
@@ -1187,13 +1201,27 @@ pub(super) fn infer_value_type(
                     callee.span,
                 ));
             }
-            if let Some(contract) = resolved_function_contract(unit, name, callee.span.start) {
-                let result = ElementType::new(
-                    contract
-                        .return_type
-                        .clone()
-                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
-                );
+            let lookup_name = if crate::syntax::call_is_unsafe(node) {
+                format!("unsafe::{name}")
+            } else {
+                name.to_owned()
+            };
+            if let Some(contract) =
+                resolved_function_contract(unit, &lookup_name, callee.span.start)
+            {
+                let mut result_type = unit
+                    .invocation_scoped_function_results
+                    .get(&(contract.span.file, contract.span.start, contract.span.end))
+                    .cloned()
+                    .or_else(|| contract.return_type.clone())
+                    .unwrap_or(ValueType::Scalar(ScalarType::None));
+                if let ValueType::InvocationScopedNative { region, .. } = &mut result_type
+                    && let Some(Some(function_span)) =
+                        unit.enclosing_function_spans.get(&node.span.start)
+                {
+                    *region = Some((function_span.file, function_span.start, function_span.end));
+                }
+                let result = ElementType::new(result_type);
                 return Ok(Some(if contract.is_async {
                     ValueType::Task(result, contract.task_transferability)
                 } else {

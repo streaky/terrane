@@ -1,34 +1,20 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-into-future-witness",
-          "ReadyResult"
-        ],
-        [
-          "/deps/terrane-into-future-witness",
-          "construction_count"
-        ],
-        [
-          "/deps/terrane-into-future-witness",
-          "conversion_count"
-        ],
-        [
-          "/deps/terrane-into-future-witness",
-          "ready_result"
-        ],
-        [
-          "/deps/terrane-into-future-witness",
+      "members": {
+        "/deps/terrane-into-future-witness": [
+          "ReadyResult",
+          "construction_count",
+          "conversion_count",
+          "ready_result",
           "ready_value"
         ]
-      ],
+      },
       "name": "terrane-into-future-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

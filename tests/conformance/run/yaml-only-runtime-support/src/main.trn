@@ -1,0 +1,9 @@
+namespace app
+
+from /core/documents/yaml import parse-yaml, default-yaml-options
+from /core/output import print
+
+function main;
+    parsed = parse-yaml; 'name: Terrane', (default-yaml-options;)
+    name = parsed.value.field; 'name'
+    print; name.value.scalar

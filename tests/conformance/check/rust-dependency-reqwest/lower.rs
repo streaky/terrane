@@ -446,9 +446,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/reqwest::Error",
     ];
 }
 mod __terrane_trace {
@@ -490,18 +491,18 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     let mut response: Response = __terrane_raised(
-        match std::panic::catch_unwind(|| reqwest::blocking::get(
-            String::from("http://127.0.0.1:38125/"),
-        )) {
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| reqwest::blocking::get(
+                String::from("http://127.0.0.1:38125/"),
+            )),
+        ) {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(error)) => {
                 Err(
                     crate::TerraneForeignError(
                         crate::TerraneError::custom_raised(
-                            crate::TERRANE_DEPENDENCY_ERROR,
-                            format!(
-                                "Rust dependency `reqwest` member `reqwest::blocking::get` failed: {error}"
-                            ),
+                            crate::DescriptorId(2),
+                            error.to_string(),
                             crate::TERRANE_NO_SITE,
                         ),
                     ),
@@ -571,10 +572,8 @@ fn main() {
                 Err(
                     crate::TerraneForeignError(
                         crate::TerraneError::custom_raised(
-                            crate::TERRANE_DEPENDENCY_ERROR,
-                            format!(
-                                "Rust dependency `reqwest` member `reqwest::blocking::Response::text` failed: {error}"
-                            ),
+                            crate::DescriptorId(2),
+                            error.to_string(),
                             crate::TERRANE_NO_SITE,
                         ),
                     ),

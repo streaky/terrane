@@ -1,2 +1,2 @@
 [patch.crates-io]
-terrane-owner-witness = { path = "fixture-registry/terrane-owner-witness-0.1.0" }
+terrane-owner-witness = { path = "fixture-registry/terrane-owner-witness-0.1.1" }

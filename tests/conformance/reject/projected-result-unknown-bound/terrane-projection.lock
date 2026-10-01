@@ -1,18 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
           "hidden_value"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.2"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

@@ -48,7 +48,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     ) -> bool {
         matches!(
             &unit.typed_bindings[binding].value_type,
-            ValueType::Task(_, _) | ValueType::ScopedTask(_, _) | ValueType::Iterator(_)
+            ValueType::Task(_, _)
+                | ValueType::ScopedTask(_, _)
+                | ValueType::Iterator(_)
+                | ValueType::InvocationScopedNative { .. }
         ) || matches!(
             &unit.typed_bindings[binding].value_type,
             ValueType::Function(_, _, effects)
@@ -75,7 +78,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 false,
             )
             .is_some_and(|method| {
-                matches!(method.receiver, Some(crate::projection::Receiver::Move))
+                matches!(
+                    method.receiver,
+                    Some(crate::rust_interop::projection::Receiver::Move)
+                )
             })
             || method_contract(package, object_identity, method_name, false)
                 .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
@@ -386,6 +392,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                     | ValueType::Object(_)
                                     | ValueType::Function(_, _, _)
                                     | ValueType::AsyncFunction(_, _, _, _)
+                                    | ValueType::InvocationScopedNative { .. }
                             )
                         })
                         .and_then(|_| argument.children.last())
@@ -1368,8 +1375,11 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             SyntaxKind::Name => {
                 let name = node_text(&unit.source, node);
                 let resolved = package.resolve_name_at(unit, node.span.start, name);
+                let unsafe_name = format!("unsafe::{name}");
+                let unsafe_resolved = package.resolve_name_at(unit, node.span.start, &unsafe_name);
                 let implicit_receiver = is_implicit_object_receiver(unit, node.span.start, name);
                 if resolved.is_none()
+                    && unsafe_resolved.is_none()
                     && !package.descriptor_constructs.contains_key(name)
                     && !implicit_receiver
                 {

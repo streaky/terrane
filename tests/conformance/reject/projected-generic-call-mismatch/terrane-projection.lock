@@ -1,18 +1,17 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-generic-mismatch-witness",
+      "members": {
+        "/deps/terrane-generic-mismatch-witness": [
+          "compose",
           "open_callback"
         ]
-      ],
+      },
       "name": "terrane-generic-mismatch-witness",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

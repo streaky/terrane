@@ -1,0 +1,2078 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "iced",
+      "version": "0.14.0",
+      "members": {
+        "/deps/iced": [
+          "Alignment",
+          "Application-of-Program-State-Instant-Theme",
+          "Application-of-Program-State-Instant-Theme.antialiasing",
+          "Application-of-Program-State-Instant-Theme.centered",
+          "Application-of-Program-State-Instant-Theme.decorations",
+          "Application-of-Program-State-Instant-Theme.default_font",
+          "Application-of-Program-State-Instant-Theme.executor",
+          "Application-of-Program-State-Instant-Theme.exit_on_close_request",
+          "Application-of-Program-State-Instant-Theme.font",
+          "Application-of-Program-State-Instant-Theme.level",
+          "Application-of-Program-State-Instant-Theme.position",
+          "Application-of-Program-State-Instant-Theme.presets",
+          "Application-of-Program-State-Instant-Theme.resizable",
+          "Application-of-Program-State-Instant-Theme.run",
+          "Application-of-Program-State-Instant-Theme.scale_factor",
+          "Application-of-Program-State-Instant-Theme.settings",
+          "Application-of-Program-State-Instant-Theme.style",
+          "Application-of-Program-State-Instant-Theme.subscription",
+          "Application-of-Program-State-Instant-Theme.theme",
+          "Application-of-Program-State-Instant-Theme.title",
+          "Application-of-Program-State-Instant-Theme.transparent",
+          "Application-of-Program-State-Instant-Theme.window",
+          "Application-of-Program-State-Instant-Theme.window_size",
+          "Application-of-Program-State-Message-Theme",
+          "Application-of-Program-State-Message-Theme.antialiasing",
+          "Application-of-Program-State-Message-Theme.centered",
+          "Application-of-Program-State-Message-Theme.decorations",
+          "Application-of-Program-State-Message-Theme.default_font",
+          "Application-of-Program-State-Message-Theme.executor",
+          "Application-of-Program-State-Message-Theme.exit_on_close_request",
+          "Application-of-Program-State-Message-Theme.font",
+          "Application-of-Program-State-Message-Theme.level",
+          "Application-of-Program-State-Message-Theme.position",
+          "Application-of-Program-State-Message-Theme.presets",
+          "Application-of-Program-State-Message-Theme.resizable",
+          "Application-of-Program-State-Message-Theme.run",
+          "Application-of-Program-State-Message-Theme.scale_factor",
+          "Application-of-Program-State-Message-Theme.settings",
+          "Application-of-Program-State-Message-Theme.style",
+          "Application-of-Program-State-Message-Theme.subscription",
+          "Application-of-Program-State-Message-Theme.theme",
+          "Application-of-Program-State-Message-Theme.title",
+          "Application-of-Program-State-Message-Theme.transparent",
+          "Application-of-Program-State-Message-Theme.window",
+          "Application-of-Program-State-Message-Theme.window_size",
+          "Background",
+          "Border",
+          "Border.color",
+          "Border.rounded",
+          "Border.width",
+          "Color",
+          "Color.inverse",
+          "Color.invert",
+          "Color.is_readable_on",
+          "Color.relative_contrast",
+          "Color.relative_luminance",
+          "Color.scale_alpha",
+          "Color::from_linear_rgba",
+          "Color::from_rgb",
+          "Color::from_rgb8",
+          "Color::from_rgba",
+          "Color::from_rgba8",
+          "ContentFit",
+          "Daemon-of-Program-State-Message-Theme",
+          "Daemon-of-Program-State-Message-Theme.antialiasing",
+          "Daemon-of-Program-State-Message-Theme.default_font",
+          "Daemon-of-Program-State-Message-Theme.executor",
+          "Daemon-of-Program-State-Message-Theme.font",
+          "Daemon-of-Program-State-Message-Theme.presets",
+          "Daemon-of-Program-State-Message-Theme.run",
+          "Daemon-of-Program-State-Message-Theme.scale_factor",
+          "Daemon-of-Program-State-Message-Theme.settings",
+          "Daemon-of-Program-State-Message-Theme.style",
+          "Daemon-of-Program-State-Message-Theme.subscription",
+          "Daemon-of-Program-State-Message-Theme.theme",
+          "Daemon-of-Program-State-Message-Theme.title",
+          "Degrees",
+          "Error",
+          "Event",
+          "Font",
+          "Font::with_name",
+          "Gradient",
+          "Length",
+          "Padding",
+          "Padding.bottom",
+          "Padding.fit",
+          "Padding.horizontal",
+          "Padding.left",
+          "Padding.right",
+          "Padding.top",
+          "Padding.vertical",
+          "Padding.x",
+          "Padding.y",
+          "Padding::new",
+          "Pixels",
+          "Point",
+          "Point.distance",
+          "Point.snap",
+          "Point::new",
+          "Radians",
+          "Radians.to_distance",
+          "Rectangle",
+          "Rectangle.anchor",
+          "Rectangle.area",
+          "Rectangle.center",
+          "Rectangle.center_x",
+          "Rectangle.center_y",
+          "Rectangle.contains",
+          "Rectangle.distance",
+          "Rectangle.expand",
+          "Rectangle.intersection",
+          "Rectangle.intersects",
+          "Rectangle.is_within",
+          "Rectangle.offset",
+          "Rectangle.position",
+          "Rectangle.rotate",
+          "Rectangle.shrink",
+          "Rectangle.size",
+          "Rectangle.snap",
+          "Rectangle.union",
+          "Rectangle.zoom",
+          "Rectangle::new",
+          "Rectangle::with_radius",
+          "Rectangle::with_size",
+          "Renderer",
+          "Result",
+          "Rotation",
+          "Settings",
+          "Shadow",
+          "Size",
+          "Size.expand",
+          "Size.is_void",
+          "Size.max",
+          "Size.min",
+          "Size.ratio",
+          "Size.rotate",
+          "Size::new",
+          "Theme",
+          "Transformation",
+          "Transformation.inverse",
+          "Transformation.scale_factor",
+          "Transformation.translation",
+          "Transformation::orthographic",
+          "Transformation::scale",
+          "Transformation::translate",
+          "Vector",
+          "Vector::new",
+          "application",
+          "daemon",
+          "exit",
+          "never",
+          "run"
+        ],
+        "/deps/iced/alignment": [
+          "Horizontal",
+          "Vertical"
+        ],
+        "/deps/iced/application": [
+          "timed"
+        ],
+        "/deps/iced/border": [
+          "Radius",
+          "Radius.bottom",
+          "Radius.bottom_left",
+          "Radius.bottom_right",
+          "Radius.left",
+          "Radius.right",
+          "Radius.top",
+          "Radius.top_left",
+          "Radius.top_right",
+          "Radius::new",
+          "bottom",
+          "bottom_left",
+          "bottom_right",
+          "clone",
+          "color",
+          "default",
+          "eq",
+          "left",
+          "radius",
+          "right",
+          "rounded",
+          "top",
+          "top_left",
+          "top_right",
+          "width"
+        ],
+        "/deps/iced/border/radius": [
+          "clone",
+          "default",
+          "eq",
+          "mul"
+        ],
+        "/deps/iced/border/radius/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/iced/border/radius/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/iced/border/radius/trait/core/convert/from-iced/border/radius": [
+          "from"
+        ],
+        "/deps/iced/border/radius/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/iced/border/radius/trait/core/convert/from-u8": [
+          "from"
+        ],
+        "/deps/iced/clipboard": [
+          "read",
+          "read_primary",
+          "write",
+          "write_primary"
+        ],
+        "/deps/iced/color": [
+          "clone",
+          "default",
+          "eq",
+          "from",
+          "from_str"
+        ],
+        "/deps/iced/debug": [
+          "Span",
+          "Span.finish",
+          "time",
+          "time_with"
+        ],
+        "/deps/iced/degrees": [
+          "add",
+          "clone",
+          "from_f64",
+          "from_i64",
+          "from_u64",
+          "mul"
+        ],
+        "/deps/iced/degrees/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/iced/degrees/trait/core/cmp/partialeq-f32": [
+          "eq"
+        ],
+        "/deps/iced/degrees/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/iced/degrees/trait/core/cmp/partialord-f32": [
+          "partial_cmp"
+        ],
+        "/deps/iced/degrees/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/iced/degrees/trait/core/convert/from-u8": [
+          "from"
+        ],
+        "/deps/iced/event": [
+          "Status",
+          "listen"
+        ],
+        "/deps/iced/executor": [
+          "Default"
+        ],
+        "/deps/iced/font": [
+          "Error",
+          "Family",
+          "Stretch",
+          "Style",
+          "Weight",
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "eq",
+          "load"
+        ],
+        "/deps/iced/gradient": [
+          "ColorStop",
+          "Linear",
+          "Linear.add_stop",
+          "Linear.add_stops",
+          "Linear.scale_alpha",
+          "Linear::new"
+        ],
+        "/deps/iced/gradient/colorstop": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/gradient/linear": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/keyboard": [
+          "Event",
+          "Event-KeyPressed",
+          "Event-KeyReleased",
+          "Location",
+          "Modifiers",
+          "Modifiers.alt",
+          "Modifiers.bits",
+          "Modifiers.command",
+          "Modifiers.complement",
+          "Modifiers.contains",
+          "Modifiers.control",
+          "Modifiers.difference",
+          "Modifiers.insert",
+          "Modifiers.intersection",
+          "Modifiers.intersects",
+          "Modifiers.is_all",
+          "Modifiers.is_empty",
+          "Modifiers.jump",
+          "Modifiers.logo",
+          "Modifiers.macos_command",
+          "Modifiers.remove",
+          "Modifiers.set",
+          "Modifiers.shift",
+          "Modifiers.symmetric_difference",
+          "Modifiers.toggle",
+          "Modifiers.union",
+          "Modifiers::all",
+          "Modifiers::empty",
+          "Modifiers::from_bits",
+          "Modifiers::from_bits_retain",
+          "Modifiers::from_bits_truncate",
+          "Modifiers::from_name",
+          "listen"
+        ],
+        "/deps/iced/keyboard/key": [
+          "Code",
+          "Named",
+          "NativeCode",
+          "Physical"
+        ],
+        "/deps/iced/keyboard/modifiers": [
+          "all_named",
+          "assert_fields_are_eq",
+          "bitand",
+          "bitand_assign",
+          "bitor",
+          "bitor_assign",
+          "bits",
+          "bitxor",
+          "bitxor_assign",
+          "clone",
+          "cmp",
+          "default",
+          "eq",
+          "extend",
+          "from_bits_retain",
+          "from_iter",
+          "not",
+          "partial_cmp",
+          "sub",
+          "sub_assign"
+        ],
+        "/deps/iced/mouse": [
+          "Button",
+          "Cursor",
+          "Event",
+          "Event-CursorMoved",
+          "Event-WheelScrolled",
+          "Interaction",
+          "ScrollDelta",
+          "ScrollDelta-Lines",
+          "ScrollDelta-Pixels"
+        ],
+        "/deps/iced/overlay/menu": [
+          "State",
+          "State::new",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/overlay/menu/state": [
+          "default"
+        ],
+        "/deps/iced/overlay/menu/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/padding": [
+          "all",
+          "bottom",
+          "clone",
+          "default",
+          "eq",
+          "horizontal",
+          "left",
+          "right",
+          "top",
+          "vertical"
+        ],
+        "/deps/iced/padding/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/iced/padding/trait/core/convert/from-iced/padding": [
+          "from"
+        ],
+        "/deps/iced/padding/trait/core/convert/from-iced/pixels": [
+          "from"
+        ],
+        "/deps/iced/padding/trait/core/convert/from-u16": [
+          "from"
+        ],
+        "/deps/iced/pixels": [
+          "clone",
+          "default",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/pixels/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/iced/pixels/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/add": [
+          "add"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/add-f32": [
+          "add"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/div": [
+          "div"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/div-f32": [
+          "div"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/div-u32": [
+          "div"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/mul": [
+          "mul"
+        ],
+        "/deps/iced/pixels/trait/core/ops/arith/mul-f32": [
+          "mul"
+        ],
+        "/deps/iced/point": [
+          "add",
+          "add_assign",
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "eq",
+          "from",
+          "mul",
+          "sub_assign"
+        ],
+        "/deps/iced/point/trait/core/ops/arith/sub": [
+          "sub"
+        ],
+        "/deps/iced/point/trait/core/ops/arith/sub-iced/vector-f32": [
+          "sub"
+        ],
+        "/deps/iced/radians": [
+          "add_assign",
+          "clone",
+          "from_f64",
+          "from_i64",
+          "from_u64",
+          "rem",
+          "sub",
+          "sub_assign"
+        ],
+        "/deps/iced/radians/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/iced/radians/trait/core/cmp/partialeq-f32": [
+          "eq"
+        ],
+        "/deps/iced/radians/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/iced/radians/trait/core/cmp/partialord-f32": [
+          "partial_cmp"
+        ],
+        "/deps/iced/radians/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/iced/radians/trait/core/convert/from-iced/degrees": [
+          "from"
+        ],
+        "/deps/iced/radians/trait/core/convert/from-u8": [
+          "from"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/add": [
+          "add"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/add-iced/degrees": [
+          "add"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/div": [
+          "div"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/div-f32": [
+          "div"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/mul": [
+          "mul"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/mul-f32": [
+          "mul"
+        ],
+        "/deps/iced/radians/trait/core/ops/arith/mul-iced/radians": [
+          "mul"
+        ],
+        "/deps/iced/rectangle": [
+          "add",
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "eq",
+          "from",
+          "sub"
+        ],
+        "/deps/iced/rectangle/trait/core/ops/arith/mul-f32": [
+          "mul"
+        ],
+        "/deps/iced/rectangle/trait/core/ops/arith/mul-iced/transformation": [
+          "mul"
+        ],
+        "/deps/iced/settings": [
+          "clone",
+          "default"
+        ],
+        "/deps/iced/shadow": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/size": [
+          "add",
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "div",
+          "eq",
+          "sub"
+        ],
+        "/deps/iced/size/trait/core/convert/from-f32-f32": [
+          "from"
+        ],
+        "/deps/iced/size/trait/core/convert/from-iced/padding": [
+          "from"
+        ],
+        "/deps/iced/size/trait/core/convert/from-iced/vector-f32": [
+          "from"
+        ],
+        "/deps/iced/size/trait/core/convert/from-u32-u32": [
+          "from"
+        ],
+        "/deps/iced/size/trait/core/ops/arith/mul-f32": [
+          "mul"
+        ],
+        "/deps/iced/size/trait/core/ops/arith/mul-iced/transformation": [
+          "mul"
+        ],
+        "/deps/iced/size/trait/core/ops/arith/mul-iced/vector-f32": [
+          "mul"
+        ],
+        "/deps/iced/system": [
+          "theme",
+          "theme_changes"
+        ],
+        "/deps/iced/task": [
+          "Handle",
+          "Handle.abort",
+          "Handle.abort_on_drop",
+          "Handle.is_aborted"
+        ],
+        "/deps/iced/task/handle": [
+          "clone",
+          "drop"
+        ],
+        "/deps/iced/theme": [
+          "Custom",
+          "Custom::new",
+          "Custom::with_fn",
+          "Mode",
+          "Palette",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/theme/custom": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette": [
+          "Background",
+          "Background::new",
+          "Danger",
+          "Danger::generate",
+          "Extended",
+          "Extended::generate",
+          "Pair",
+          "Pair::new",
+          "Primary",
+          "Primary::generate",
+          "Secondary",
+          "Secondary::generate",
+          "Success",
+          "Success::generate",
+          "Warning",
+          "Warning::generate",
+          "clone",
+          "darken",
+          "deviate",
+          "eq",
+          "is_dark",
+          "lighten",
+          "mix",
+          "readable"
+        ],
+        "/deps/iced/theme/palette/background": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/danger": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/extended": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/pair": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/primary": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/secondary": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/success": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/palette/warning": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/theme/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/time": [
+          "days",
+          "hours",
+          "milliseconds",
+          "minutes",
+          "now",
+          "seconds"
+        ],
+        "/deps/iced/touch": [
+          "Event",
+          "Event-FingerLifted",
+          "Event-FingerLost",
+          "Event-FingerMoved",
+          "Event-FingerPressed",
+          "Finger"
+        ],
+        "/deps/iced/touch/finger": [
+          "assert_fields_are_eq",
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/transformation": [
+          "clone",
+          "default",
+          "eq",
+          "from"
+        ],
+        "/deps/iced/transformation/trait/core/ops/arith/mul": [
+          "mul"
+        ],
+        "/deps/iced/vector": [
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "div",
+          "div_assign",
+          "eq",
+          "mul_assign",
+          "neg"
+        ],
+        "/deps/iced/vector/trait/core/convert/from-iced/size-f32": [
+          "from"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/add": [
+          "add"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/add-iced/vector": [
+          "add"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/addassign": [
+          "add_assign"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/addassign-iced/vector-f32": [
+          "add_assign"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/mul-f32": [
+          "mul"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/mul-iced/transformation": [
+          "mul"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/mul-iced/vector-f32": [
+          "mul"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/sub": [
+          "sub"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/sub-iced/vector": [
+          "sub"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/subassign": [
+          "sub_assign"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/subassign-iced/vector-f32": [
+          "sub_assign"
+        ],
+        "/deps/iced/wgpu": [
+          "AccelerationStructureFlags",
+          "AccelerationStructureGeometryFlags",
+          "AccelerationStructureUpdateMode",
+          "Adapter",
+          "Adapter.features",
+          "Adapter.get_downlevel_capabilities",
+          "Adapter.get_info",
+          "Adapter.get_presentation_timestamp",
+          "Adapter.get_texture_format_features",
+          "Adapter.limits",
+          "BindGroup",
+          "BindGroupLayout",
+          "Blas",
+          "Blas.handle",
+          "Blas.prepare_compaction_async",
+          "Blas.ready_for_compaction",
+          "BlasAsyncError",
+          "BlasGeometrySizeDescriptors",
+          "BlasTriangleGeometrySizeDescriptor",
+          "Buffer",
+          "Buffer.as_entire_binding",
+          "Buffer.as_entire_buffer_binding",
+          "Buffer.destroy",
+          "Buffer.get_mapped_range",
+          "Buffer.get_mapped_range_mut",
+          "Buffer.map_async",
+          "Buffer.size",
+          "Buffer.slice",
+          "Buffer.unmap",
+          "Buffer.usage",
+          "BufferAsyncError",
+          "BufferView",
+          "BufferViewMut",
+          "CommandBuffer",
+          "CommandBuffer.map_buffer_on_submit",
+          "CommandBuffer.on_submitted_work_done",
+          "CommandEncoder",
+          "CommandEncoder.as_hal_mut",
+          "CommandEncoder.build_acceleration_structures",
+          "CommandEncoder.clear_buffer",
+          "CommandEncoder.clear_texture",
+          "CommandEncoder.copy_buffer_to_buffer",
+          "CommandEncoder.finish",
+          "CommandEncoder.insert_debug_marker",
+          "CommandEncoder.map_buffer_on_submit",
+          "CommandEncoder.mark_acceleration_structures_built",
+          "CommandEncoder.on_submitted_work_done",
+          "CommandEncoder.pop_debug_group",
+          "CommandEncoder.push_debug_group",
+          "CommandEncoder.resolve_query_set",
+          "CommandEncoder.transition_resources",
+          "CommandEncoder.write_timestamp",
+          "CompilationInfo",
+          "CompilationMessage",
+          "CompilationMessageType",
+          "ComputePipeline",
+          "ComputePipeline.get_bind_group_layout",
+          "CreateSurfaceError",
+          "Device",
+          "Device.destroy",
+          "Device.features",
+          "Device.generate_allocator_report",
+          "Device.get_internal_counters",
+          "Device.limits",
+          "Device.push_error_scope",
+          "Device.set_device_lost_callback",
+          "Device.start_graphics_debugger_capture",
+          "Device.stop_graphics_debugger_capture",
+          "Error",
+          "ErrorFilter",
+          "ExternalTexture",
+          "ExternalTexture.destroy",
+          "Instance",
+          "Instance.as_hal",
+          "Instance.create_adapter_from_hal",
+          "Instance.create_surface",
+          "Instance.create_surface_unsafe",
+          "Instance.enumerate_adapters",
+          "Instance.generate_report",
+          "Instance.poll_all",
+          "Instance.wgsl_language_features",
+          "Instance::enabled_backend_features",
+          "Instance::from_core",
+          "Instance::from_hal",
+          "Instance::new",
+          "MapMode",
+          "PipelineCache",
+          "PipelineCache.get_data",
+          "PipelineLayout",
+          "PollType",
+          "QuerySet",
+          "Queue",
+          "Queue.compact_blas",
+          "Queue.get_timestamp_period",
+          "Queue.on_submitted_work_done",
+          "Queue.submit",
+          "Queue.write_buffer_with",
+          "QueueWriteBufferView",
+          "RenderBundle",
+          "RenderPipeline",
+          "RenderPipeline.get_bind_group_layout",
+          "RequestDeviceError",
+          "Sampler",
+          "ShaderModule",
+          "SourceLocation",
+          "SubmissionIndex",
+          "SurfaceConfiguration",
+          "SurfaceError",
+          "SurfaceTargetUnsafe",
+          "SurfaceTargetUnsafe-Drm",
+          "SurfaceTargetUnsafe-RawHandle",
+          "SurfaceTexture",
+          "SurfaceTexture.present",
+          "Texture",
+          "Texture.as_image_copy",
+          "Texture.depth_or_array_layers",
+          "Texture.destroy",
+          "Texture.dimension",
+          "Texture.format",
+          "Texture.height",
+          "Texture.mip_level_count",
+          "Texture.sample_count",
+          "Texture.size",
+          "Texture.usage",
+          "Texture.width",
+          "TextureView",
+          "TextureView.texture",
+          "Tlas",
+          "Tlas.as_binding",
+          "Tlas.get_mut_single",
+          "TlasInstance",
+          "TlasInstance.set_blas",
+          "WgslLanguageFeatures",
+          "WgslLanguageFeatures.bits",
+          "WgslLanguageFeatures.complement",
+          "WgslLanguageFeatures.contains",
+          "WgslLanguageFeatures.difference",
+          "WgslLanguageFeatures.insert",
+          "WgslLanguageFeatures.intersection",
+          "WgslLanguageFeatures.intersects",
+          "WgslLanguageFeatures.is_all",
+          "WgslLanguageFeatures.is_empty",
+          "WgslLanguageFeatures.remove",
+          "WgslLanguageFeatures.set",
+          "WgslLanguageFeatures.symmetric_difference",
+          "WgslLanguageFeatures.toggle",
+          "WgslLanguageFeatures.union",
+          "WgslLanguageFeatures::all",
+          "WgslLanguageFeatures::empty",
+          "WgslLanguageFeatures::from_bits",
+          "WgslLanguageFeatures::from_bits_retain",
+          "WgslLanguageFeatures::from_bits_truncate",
+          "WgslLanguageFeatures::from_name"
+        ],
+        "/deps/iced/wgpu/adapter": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/bindgroup": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/bindgrouplayout": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/blas": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/blasasyncerror": [
+          "assert_fields_are_eq",
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/wgpu/buffer": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/bufferasyncerror": [
+          "assert_fields_are_eq",
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/wgpu/bufferview": [
+          "drop"
+        ],
+        "/deps/iced/wgpu/bufferviewmut": [
+          "drop"
+        ],
+        "/deps/iced/wgpu/commandencoder": [
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/compilationinfo": [
+          "clone"
+        ],
+        "/deps/iced/wgpu/compilationinfo/trait/core/convert/from-naga/error/shadererror-naga/front/wgsl/error/parseerror": [
+          "from"
+        ],
+        "/deps/iced/wgpu/compilationinfo/trait/core/convert/from-naga/error/shadererror-naga/span/withspan-naga/valid/validationerror": [
+          "from"
+        ],
+        "/deps/iced/wgpu/compilationinfo/trait/core/convert/from-wgpu-core/pipeline/createshadermoduleerror": [
+          "from"
+        ],
+        "/deps/iced/wgpu/compilationmessage": [
+          "clone"
+        ],
+        "/deps/iced/wgpu/computepipeline": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/createsurfaceerror": [
+          "clone",
+          "from"
+        ],
+        "/deps/iced/wgpu/device": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/externaltexture": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/instance": [
+          "clone",
+          "cmp",
+          "default",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/pipelinecache": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/pipelinelayout": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/queryset": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/queue": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/queuewritebufferview": [
+          "drop"
+        ],
+        "/deps/iced/wgpu/renderbundle": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/renderpipeline": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/requestdeviceerror": [
+          "clone",
+          "from"
+        ],
+        "/deps/iced/wgpu/sampler": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/shadermodule": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/sourcelocation": [
+          "assert_fields_are_eq",
+          "clone",
+          "eq",
+          "from"
+        ],
+        "/deps/iced/wgpu/submissionindex": [
+          "clone"
+        ],
+        "/deps/iced/wgpu/surfacetexture": [
+          "clone",
+          "cmp",
+          "drop",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/texture": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/textureview": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/tlas": [
+          "clone",
+          "cmp",
+          "eq",
+          "index",
+          "partial_cmp"
+        ],
+        "/deps/iced/wgpu/tlasinstance": [
+          "clone"
+        ],
+        "/deps/iced/wgpu/util": [
+          "DownloadBuffer",
+          "StagingBelt",
+          "StagingBelt.allocate",
+          "StagingBelt.finish",
+          "StagingBelt.recall",
+          "StagingBelt.write_buffer",
+          "StagingBelt::new",
+          "TextureBlitter",
+          "TextureBlitter.copy",
+          "TextureBlitter::new",
+          "is_browser_webgpu_supported",
+          "new_instance_with_webgpu_detection",
+          "pipeline_cache_key"
+        ],
+        "/deps/iced/wgpu/wgsllanguagefeatures": [
+          "all_named",
+          "assert_fields_are_eq",
+          "bitand",
+          "bitand_assign",
+          "bitor",
+          "bitor_assign",
+          "bits",
+          "bitxor",
+          "bitxor_assign",
+          "clone",
+          "cmp",
+          "eq",
+          "extend",
+          "from_bits_retain",
+          "from_iter",
+          "not",
+          "partial_cmp",
+          "sub",
+          "sub_assign"
+        ],
+        "/deps/iced/widget": [
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.clip",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.height",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.on_press",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.on_press_maybe",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.on_press_with",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.padding",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.style",
+          "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.width",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.font",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.icon",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.label",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.on_toggle",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.on_toggle_maybe",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.size",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.spacing",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.style",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.text_line_height",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.text_shaping",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.text_size",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.text_wrapping",
+          "Checkbox-hash-hbd21b930a7f7bf78beb117f1dbdf1a973a5279a877f640955eee79af000e5d4d.width",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.align_x",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.clip",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.extend",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.height",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.max_width",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.padding",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.push",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.spacing",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.width",
+          "Column-hash-h28200d88de85ff47d5f32a8bc270be301fb46605e60f115d8380a9941585e2b9.wrap",
+          "Float-hash-h9b866ff86e6f262de01f6e2ff7bf5016c503a61fe17d394b59b1c0ff1278f603",
+          "Float-hash-h9b866ff86e6f262de01f6e2ff7bf5016c503a61fe17d394b59b1c0ff1278f603.scale",
+          "Float-hash-h9b866ff86e6f262de01f6e2ff7bf5016c503a61fe17d394b59b1c0ff1278f603.style",
+          "Float-hash-h9b866ff86e6f262de01f6e2ff7bf5016c503a61fe17d394b59b1c0ff1278f603.translate",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.columns",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.extend",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.fluid",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.height",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.push",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.push_maybe",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.spacing",
+          "Grid-hash-h29a3e222a3d73ffd7603efe343f030d180d0335f69ab41f3eb103eb0355d60f8.width",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.interaction",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_double_click",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_enter",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_exit",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_middle_press",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_middle_release",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_move",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_press",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_release",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_right_press",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_right_release",
+          "MouseArea-hash-hf3d3da34d5c26f6cff8b936915a8d39762f0dcc8307eaef7dc00e4e62eedf3bb.on_scroll",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.height",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.min_size",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.on_click",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.on_drag",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.on_resize",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.spacing",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.style",
+          "PaneGrid-hash-h0899f7b09f950da304ceac92a02f0a5af756621ec3f49e29920b29cb9158e120.width",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.font",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.handle",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.menu_height",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.menu_style",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.on_close",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.on_open",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.padding",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.placeholder",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.style",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.text_line_height",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.text_shaping",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.text_size",
+          "PickList-hash-h877a7718911ccbe98a43858d667320f4ef8aa15e36cbd454207b08871c968cb1.width",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277.height",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277.position",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277.width",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277.x",
+          "Pin-hash-h02caf8dc868501e6401a185b2345d1adb96b2b52df5ab5a5b42b42ce12520277.y",
+          "ProgressBar-hash-hfb80c776c5fe823109dfae5c66be90914f5e188c5256b4cbb2200cecb6f97a24",
+          "ProgressBar-hash-hfb80c776c5fe823109dfae5c66be90914f5e188c5256b4cbb2200cecb6f97a24.girth",
+          "ProgressBar-hash-hfb80c776c5fe823109dfae5c66be90914f5e188c5256b4cbb2200cecb6f97a24.length",
+          "ProgressBar-hash-hfb80c776c5fe823109dfae5c66be90914f5e188c5256b4cbb2200cecb6f97a24.style",
+          "ProgressBar-hash-hfb80c776c5fe823109dfae5c66be90914f5e188c5256b4cbb2200cecb6f97a24.vertical",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.font",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.size",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.spacing",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.style",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.text_line_height",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.text_shaping",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.text_size",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.text_wrapping",
+          "Radio-hash-hf80bb67b9916a4e70ebdf2a069c93a25c423a641c21313f7ac2e620459fb2475.width",
+          "Responsive-hash-h5e7ac202b52191178c3df5b75c75ba91e015b1e570ba868338e2c2ca2940bee0",
+          "Responsive-hash-h5e7ac202b52191178c3df5b75c75ba91e015b1e570ba868338e2c2ca2940bee0.height",
+          "Responsive-hash-h5e7ac202b52191178c3df5b75c75ba91e015b1e570ba868338e2c2ca2940bee0.width",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.align_y",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.clip",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.extend",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.height",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.padding",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.push",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.spacing",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.width",
+          "Row-hash-ha759b3159a69a54382c4535e0684b62bf366fd4bed408923960e392ee20871c7.wrap",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_bottom",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_left",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_right",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_top",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_x",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.anchor_y",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.auto_scroll",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.direction",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.height",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.horizontal",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.id",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.on_scroll",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.spacing",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.style",
+          "Scrollable-hash-hffe419b29c9d638fa1c54b7b99eeeb959b340e3536749087c5b6486e8311f1c8.width",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.anticipate",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.delay",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.key_ref",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_hide",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_resize",
+          "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_show",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.default",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.height",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.on_release",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.shift_step",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.step",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.style",
+          "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.width",
+          "Space",
+          "Space.height",
+          "Space.width",
+          "Space::new",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.clip",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.extend",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.height",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.push",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.push_under",
+          "Stack-hash-h59d3901154a908a2988d280233b5272354a80fbdf3bb369308d27f1c99ab03b3.width",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.font",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.height",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.id",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.key_binding",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.line_height",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.max_height",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.min_height",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.on_action",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.padding",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.placeholder",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.size",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.style",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.width",
+          "TextEditor-hash-h66579f351247e8402093253740f671f44ce70e9833c0cbaa14ad0b8e1f940c30.wrapping",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.align_x",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.font",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.icon",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.id",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.line_height",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_input",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_input_maybe",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_paste",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_paste_maybe",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_submit",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.on_submit_maybe",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.padding",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.secure",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.size",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.style",
+          "TextInput-hash-h095d60bfea721ca1da72c57abcb6cd9d831f3da3bf5decc15e5ccc3a7eb6230a.width",
+          "Themer-hash-h7abdc8b02ca342e7221341f878c8377785b5c16036ed3c871dfeec5c7c920418",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.font",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.label",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.on_toggle",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.on_toggle_maybe",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.size",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.spacing",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.style",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.text_alignment",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.text_line_height",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.text_shaping",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.text_size",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.text_wrapping",
+          "Toggler-hash-hfd3fe79c1d73dc0dddd6d6d9918c266500a71d287a083e79dde05b7f67ad6aaa.width",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8.delay",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8.gap",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8.padding",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8.snap_within_viewport",
+          "Tooltip-hash-h5f9dec0b4a660fc6cbbe3ff23c24aa7753b92022fc950c9c166dd5845a8cd3b8.style",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.default",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.height",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.on_release",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.shift_step",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.step",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.style",
+          "VerticalSlider-hash-h9fd92a1e5d9b575862d35b9dd975509cbbd64b87e9e264d9110d322ba404264e.width",
+          "bottom",
+          "bottom_center",
+          "bottom_right",
+          "button",
+          "center",
+          "center_x",
+          "center_y",
+          "checkbox",
+          "column",
+          "container",
+          "float",
+          "grid",
+          "hover",
+          "iced",
+          "mouse_area",
+          "opaque",
+          "pane_grid",
+          "pick_list",
+          "pin",
+          "progress_bar",
+          "radio",
+          "responsive",
+          "rich_text",
+          "right",
+          "right_center",
+          "row",
+          "scrollable",
+          "sensor",
+          "shader",
+          "slider",
+          "space",
+          "span",
+          "stack",
+          "table",
+          "text",
+          "text_editor",
+          "text_input",
+          "themer",
+          "toggler",
+          "tooltip",
+          "value",
+          "vertical_slider"
+        ],
+        "/deps/iced/widget/button": [
+          "Status",
+          "Style",
+          "Style.with_background",
+          "background",
+          "danger",
+          "primary",
+          "secondary",
+          "subtle",
+          "success",
+          "text",
+          "warning"
+        ],
+        "/deps/iced/widget/button/style": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/widget/checkbox": [
+          "Status",
+          "Status-Active",
+          "Status-Disabled",
+          "Status-Hovered",
+          "Style",
+          "danger",
+          "primary",
+          "secondary",
+          "success"
+        ],
+        "/deps/iced/widget/checkbox/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/container": [
+          "Style",
+          "Style.background",
+          "Style.border",
+          "Style.color",
+          "Style.shadow",
+          "background",
+          "bordered_box",
+          "danger",
+          "dark",
+          "layout",
+          "primary",
+          "rounded_box",
+          "secondary",
+          "success",
+          "transparent",
+          "warning"
+        ],
+        "/deps/iced/widget/container/style": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/widget/container/style/trait/core/convert/from-iced-core/color/color": [
+          "from"
+        ],
+        "/deps/iced/widget/container/style/trait/core/convert/from-iced-core/gradient/gradient": [
+          "from"
+        ],
+        "/deps/iced/widget/container/style/trait/core/convert/from-iced-core/gradient/linear": [
+          "from"
+        ],
+        "/deps/iced/widget/container/style/trait/core/convert/from-iced/widget/container/style": [
+          "from"
+        ],
+        "/deps/iced/widget/float": [
+          "Style"
+        ],
+        "/deps/iced/widget/float/style": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/widget/grid": [
+          "Sizing",
+          "aspect_ratio"
+        ],
+        "/deps/iced/widget/operation": [
+          "focus",
+          "focus_next",
+          "focus_previous",
+          "is_focused",
+          "move_cursor_to",
+          "move_cursor_to_end",
+          "move_cursor_to_front",
+          "scroll_by",
+          "scroll_to",
+          "select_all",
+          "select_range",
+          "snap_to",
+          "snap_to_end"
+        ],
+        "/deps/iced/widget/pane-grid": [
+          "Axis",
+          "Direction",
+          "DragEvent",
+          "DragEvent-Canceled",
+          "DragEvent-Dropped",
+          "DragEvent-Picked",
+          "Edge",
+          "Highlight",
+          "Line",
+          "Node",
+          "Pane",
+          "Region",
+          "ResizeEvent",
+          "Split",
+          "Style",
+          "Target",
+          "Target-Pane",
+          "default"
+        ],
+        "/deps/iced/widget/pane-grid/highlight": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/pane-grid/line": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/pane-grid/pane": [
+          "assert_fields_are_eq",
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/widget/pane-grid/resizeevent": [
+          "clone"
+        ],
+        "/deps/iced/widget/pane-grid/split": [
+          "assert_fields_are_eq",
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/widget/pane-grid/state": [
+          "Action",
+          "Action-Dragging",
+          "Action-Resizing",
+          "Internal"
+        ],
+        "/deps/iced/widget/pane-grid/state/internal": [
+          "clone"
+        ],
+        "/deps/iced/widget/pane-grid/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/pick-list": [
+          "Status",
+          "Status-Opened",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/widget/pick-list/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/progress-bar": [
+          "Style",
+          "danger",
+          "primary",
+          "secondary",
+          "success",
+          "warning"
+        ],
+        "/deps/iced/widget/progress-bar/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/radio": [
+          "Status",
+          "Status-Active",
+          "Status-Hovered",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/widget/radio/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/rule": [
+          "FillMode",
+          "FillMode-AsymmetricPadding",
+          "Style",
+          "default",
+          "horizontal",
+          "vertical",
+          "weak"
+        ],
+        "/deps/iced/widget/rule/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable": [
+          "Anchor",
+          "AutoScroll",
+          "Direction",
+          "Direction-Both",
+          "Rail",
+          "Scrollbar",
+          "Scrollbar.anchor",
+          "Scrollbar.margin",
+          "Scrollbar.scroller_width",
+          "Scrollbar.spacing",
+          "Scrollbar.width",
+          "Scrollbar::hidden",
+          "Scrollbar::new",
+          "Scroller",
+          "Status",
+          "Status-Active",
+          "Status-Dragged",
+          "Status-Hovered",
+          "Style",
+          "Viewport",
+          "Viewport.absolute_offset",
+          "Viewport.absolute_offset_reversed",
+          "Viewport.bounds",
+          "Viewport.content_bounds",
+          "Viewport.relative_offset",
+          "default"
+        ],
+        "/deps/iced/widget/scrollable/autoscroll": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable/rail": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable/scrollbar": [
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable/scroller": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/scrollable/viewport": [
+          "clone"
+        ],
+        "/deps/iced/widget/slider": [
+          "Handle",
+          "HandleShape",
+          "HandleShape-Circle",
+          "HandleShape-Rectangle",
+          "Rail",
+          "Status",
+          "Style",
+          "Style.with_circular_handle",
+          "default"
+        ],
+        "/deps/iced/widget/slider/handle": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/slider/rail": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/slider/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/space": [
+          "default",
+          "horizontal",
+          "size",
+          "vertical"
+        ],
+        "/deps/iced/widget/table": [
+          "Column-hash-h7cd42f587a271b056ee682de320d4dc51f92cdce92c5dbae6e44b56e03a7efbe",
+          "Column-hash-h7cd42f587a271b056ee682de320d4dc51f92cdce92c5dbae6e44b56e03a7efbe.align_x",
+          "Column-hash-h7cd42f587a271b056ee682de320d4dc51f92cdce92c5dbae6e44b56e03a7efbe.align_y",
+          "Column-hash-h7cd42f587a271b056ee682de320d4dc51f92cdce92c5dbae6e44b56e03a7efbe.width",
+          "Style",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.padding",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.padding_x",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.padding_y",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.separator",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.separator_x",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.separator_y",
+          "Table-hash-h12caba90777d6ef668cd7ac5766166399b41591312047a96e45a7d3962ddec8b.width",
+          "column",
+          "default"
+        ],
+        "/deps/iced/widget/table/style": [
+          "clone",
+          "from"
+        ],
+        "/deps/iced/widget/text": [
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.align_x",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.align_y",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.center",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.color",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.color_maybe",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.font",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.height",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.line_height",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.on_link_click",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.size",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.style",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.width",
+          "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.wrapping"
+        ],
+        "/deps/iced/widget/text-editor": [
+          "Content",
+          "Content.cursor",
+          "Content.is_empty",
+          "Content.line",
+          "Content.line_count",
+          "Content.line_ending",
+          "Content.move_to",
+          "Content.perform",
+          "Content.selection",
+          "Content.text",
+          "Content::new",
+          "Content::with_text",
+          "KeyPress",
+          "Status",
+          "Status-Focused",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/widget/text-editor/content": [
+          "clone",
+          "default"
+        ],
+        "/deps/iced/widget/text-editor/keypress": [
+          "assert_fields_are_eq",
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/text-editor/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/text-input": [
+          "Cursor",
+          "Cursor.selection",
+          "Cursor.state",
+          "Side",
+          "Status",
+          "Status-Focused",
+          "Style",
+          "Value",
+          "Value.insert",
+          "Value.insert_many",
+          "Value.is_empty",
+          "Value.len",
+          "Value.next_end_of_word",
+          "Value.previous_start_of_word",
+          "Value.remove",
+          "Value.remove_many",
+          "Value.secure",
+          "Value.select",
+          "Value.until",
+          "Value::new",
+          "default"
+        ],
+        "/deps/iced/widget/text-input/cursor": [
+          "State",
+          "State-Selection",
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "eq"
+        ],
+        "/deps/iced/widget/text-input/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/text-input/value": [
+          "clone"
+        ],
+        "/deps/iced/widget/toggler": [
+          "Status",
+          "Status-Active",
+          "Status-Disabled",
+          "Status-Hovered",
+          "Style",
+          "default"
+        ],
+        "/deps/iced/widget/toggler/style": [
+          "clone",
+          "eq"
+        ],
+        "/deps/iced/widget/tooltip": [
+          "Position"
+        ],
+        "/deps/iced/window": [
+          "Action",
+          "Action-DragResize",
+          "Action-GetMaximized",
+          "Action-GetMinimized",
+          "Action-GetMode",
+          "Action-GetMonitorSize",
+          "Action-GetPosition",
+          "Action-GetRawId",
+          "Action-GetScaleFactor",
+          "Action-GetSize",
+          "Action-Maximize",
+          "Action-Minimize",
+          "Action-Move",
+          "Action-Open",
+          "Action-RequestUserAttention",
+          "Action-Resize",
+          "Action-Screenshot",
+          "Action-SetIcon",
+          "Action-SetLevel",
+          "Action-SetMaxSize",
+          "Action-SetMinSize",
+          "Action-SetMode",
+          "Action-SetResizable",
+          "Action-SetResizeIncrements",
+          "Direction",
+          "Event",
+          "Event-Opened",
+          "Icon",
+          "Id",
+          "Id::unique",
+          "Level",
+          "Mode",
+          "Position",
+          "RedrawRequest",
+          "Screenshot",
+          "Screenshot.crop",
+          "Screenshot::new",
+          "Settings",
+          "UserAttention",
+          "allow_automatic_tabbing",
+          "close",
+          "close_events",
+          "close_requests",
+          "disable_mouse_passthrough",
+          "drag",
+          "drag_resize",
+          "enable_mouse_passthrough",
+          "frames",
+          "gain_focus",
+          "is_maximized",
+          "is_minimized",
+          "latest",
+          "maximize",
+          "minimize",
+          "mode",
+          "monitor_size",
+          "move_to",
+          "oldest",
+          "open_events",
+          "position",
+          "raw_id",
+          "request_user_attention",
+          "resize",
+          "scale_factor",
+          "screenshot",
+          "set_icon",
+          "set_level",
+          "set_max_size",
+          "set_min_size",
+          "set_mode",
+          "set_resizable",
+          "set_resize_increments",
+          "show_system_menu",
+          "size",
+          "toggle_decorations",
+          "toggle_maximize"
+        ],
+        "/deps/iced/window/icon": [
+          "Error",
+          "Error-ByteCountNotDivisibleBy4",
+          "Error-DimensionsVsPixelCount",
+          "clone",
+          "from_rgba"
+        ],
+        "/deps/iced/window/id": [
+          "assert_fields_are_eq",
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/iced/window/screenshot": [
+          "CropError",
+          "clone",
+          "from"
+        ],
+        "/deps/iced/window/settings": [
+          "PlatformSpecific",
+          "clone",
+          "default"
+        ],
+        "/deps/iced/window/settings/platformspecific": [
+          "assert_fields_are_eq",
+          "clone",
+          "default",
+          "eq"
+        ]
+      }
+    },
+    {
+      "name": "iced-ui-host",
+      "version": "0.1.13",
+      "members": {
+        "/deps/iced-ui-host": [
+          "Application",
+          "Event",
+          "View",
+          "launch"
+        ],
+        "/deps/iced-ui-host/event": [
+          "clone"
+        ],
+        "/deps/iced-ui-host/view": [
+          "clone",
+          "default"
+        ]
+      }
+    },
+    {
+      "name": "rfd",
+      "version": "0.15.4",
+      "members": {
+        "/deps/rfd": [
+          "AsyncFileDialog",
+          "AsyncFileDialog.set_can_create_directories",
+          "AsyncFileDialog.set_directory",
+          "AsyncFileDialog.set_file_name",
+          "AsyncFileDialog.set_parent",
+          "AsyncFileDialog.set_title",
+          "AsyncFileDialog::new",
+          "AsyncMessageDialog",
+          "AsyncMessageDialog.set_buttons",
+          "AsyncMessageDialog.set_description",
+          "AsyncMessageDialog.set_level",
+          "AsyncMessageDialog.set_parent",
+          "AsyncMessageDialog.set_title",
+          "AsyncMessageDialog::new",
+          "FileDialog",
+          "FileDialog.pick_file",
+          "FileDialog.pick_files",
+          "FileDialog.pick_folder",
+          "FileDialog.pick_folders",
+          "FileDialog.save_file",
+          "FileDialog.set_can_create_directories",
+          "FileDialog.set_directory",
+          "FileDialog.set_file_name",
+          "FileDialog.set_parent",
+          "FileDialog.set_title",
+          "FileDialog::new",
+          "FileHandle",
+          "FileHandle.file_name",
+          "FileHandle.path",
+          "FileHandle.read",
+          "MessageButtons",
+          "MessageButtons-OkCancelCustom",
+          "MessageButtons-YesNoCancelCustom",
+          "MessageDialog",
+          "MessageDialog.set_buttons",
+          "MessageDialog.set_description",
+          "MessageDialog.set_level",
+          "MessageDialog.set_parent",
+          "MessageDialog.set_title",
+          "MessageDialog.show",
+          "MessageDialog::new",
+          "MessageDialogResult",
+          "MessageLevel"
+        ],
+        "/deps/rfd/asyncfiledialog": [
+          "clone",
+          "default"
+        ],
+        "/deps/rfd/asyncmessagedialog": [
+          "clone",
+          "default"
+        ],
+        "/deps/rfd/filedialog": [
+          "clone",
+          "default"
+        ],
+        "/deps/rfd/filehandle": [
+          "clone"
+        ],
+        "/deps/rfd/filehandle/trait/core/convert/from-std/path/pathbuf": [
+          "from"
+        ],
+        "/deps/rfd/messagedialog": [
+          "clone",
+          "default"
+        ]
+      }
+    }
+  ],
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_futures_channel",
+      "package": "futures-channel",
+      "version": "=0.3.34"
+    },
+    {
+      "name": "__terrane_recursive_iced_core",
+      "package": "iced_core",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_futures",
+      "package": "iced_futures",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_graphics",
+      "package": "iced_graphics",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_renderer",
+      "package": "iced_renderer",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_runtime",
+      "package": "iced_runtime",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_naga",
+      "package": "naga",
+      "version": "=27.0.3"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_core",
+      "package": "wgpu-core",
+      "version": "=27.0.3"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_hal",
+      "package": "wgpu-hal",
+      "version": "=27.0.4"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_types",
+      "package": "wgpu-types",
+      "version": "=27.0.1"
+    },
+    {
+      "name": "bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
+      "name": "iced_program",
+      "package": "iced_program",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "raw_window_handle",
+      "package": "raw-window-handle",
+      "version": "=0.6.2"
+    }
+  ],
+  "removed": [
+    {
+      "namespace": "/deps/iced-ui-host",
+      "name": "render_children",
+      "previous_version": "0.1.12",
+      "current_version": "0.1.13"
+    }
+  ],
+  "cache_identity": "b4747ee8c4f188b975c5ff8422e6cb4a00c478f6b0b908e8064b8ecba2a165b3",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "191",
+  "content_hash": "dd63b3d095764d18e4b2ec0f5c853e3401e8a3c13b1edbd946efa8d2feb8b997",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

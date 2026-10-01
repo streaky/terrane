@@ -1,5 +1,0 @@
-phase = "check"
-status = "reject"
-entrypoint = "package.toml"
-code = "T0105"
-contains = "payload enum variant has multiple tuple fields"

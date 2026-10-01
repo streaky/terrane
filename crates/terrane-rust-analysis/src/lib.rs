@@ -12,8 +12,9 @@ use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, ItemKind, Visibil
 pub use cargo_toolchain::{configure_cargo_command, configure_projection_cargo_command};
 pub use oracle::*;
 pub use survey::{
-    StableProbeReport, SurveyDeclaration, SurveyDiscoveryFailure, SurveyPackage,
-    SurveyProbeExecution, SurveyProbeRequest, SurveyReport, survey_package,
+    StableProbeReport, SurveyDeclaration, SurveyDeclarationMember, SurveyDiscoveryFailure,
+    SurveyPackage, SurveyProbeExecution, SurveyProbeRequest, SurveyPublicApiItem, SurveyReport,
+    survey_complete_package_for_target, survey_core_declarations, survey_package,
     survey_package_for_target, survey_package_for_target_with_probes, survey_package_with_policy,
 };
 

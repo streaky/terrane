@@ -1,18 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-render-witness",
+      "members": {
+        "/deps/terrane-render-witness": [
           "AssociatedValue"
         ]
-      ],
+      },
       "name": "terrane-render-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

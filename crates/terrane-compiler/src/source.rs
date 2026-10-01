@@ -54,6 +54,10 @@ impl SourceFile {
 
     #[must_use]
     pub fn line_column(&self, offset: usize) -> (usize, usize) {
+        let mut offset = offset.min(self.text.len());
+        while !self.text.is_char_boundary(offset) {
+            offset -= 1;
+        }
         let line_index = self
             .line_starts
             .partition_point(|start| *start <= offset)
@@ -63,5 +67,17 @@ impl SourceFile {
             line_index + 1,
             self.text[line_start..offset].chars().count() + 1,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_columns_bound_invalid_offsets_to_source_text() {
+        let source = SourceFile::new(1, PathBuf::from("source.trn"), "a🙂\nnext".to_owned());
+        assert_eq!(source.line_column(2), (1, 2));
+        assert_eq!(source.line_column(usize::MAX), (2, 5));
     }
 }

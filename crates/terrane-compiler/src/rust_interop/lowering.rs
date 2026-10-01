@@ -1,0 +1,1568 @@
+use super::prelude::*;
+use std::collections::BTreeMap;
+
+pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<String>, bool)>;
+
+fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&ObjectIdentity)) {
+    match value_type {
+        ValueType::Object(identity) => visit(identity),
+        ValueType::Optional(inner) => visit_value_type_objects(inner, visit),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::AsyncIterationStep(item)
+        | ValueType::ChannelPair(item)
+        | ValueType::ChannelSender(item)
+        | ValueType::ChannelReceiver(item)
+        | ValueType::ChannelSendOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::DocumentDecodeOutcome(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item, _)
+        | ValueType::ScopedTask(item, _)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => {
+            visit_value_type_objects(item.value_type_ref(), visit);
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            visit_value_type_objects(key.value_type_ref(), visit);
+            visit_value_type_objects(value.value_type_ref(), visit);
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            for parameter in parameters {
+                visit_value_type_objects(parameter.value_type_ref(), visit);
+            }
+            visit_value_type_objects(result.value_type_ref(), visit);
+        }
+        _ => {}
+    }
+}
+
+fn value_type_mentions_object(value_type: &ValueType, target: &ObjectIdentity) -> bool {
+    let mut mentions = false;
+    visit_value_type_objects(value_type, &mut |identity| {
+        mentions |= identity == target;
+    });
+    mentions
+}
+
+fn collect_value_type_objects(value_type: &ValueType, objects: &mut BTreeSet<ObjectIdentity>) {
+    visit_value_type_objects(value_type, &mut |identity| {
+        objects.insert(identity.clone());
+    });
+}
+
+fn unit_references_object(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+    static_method_references: &StaticMethodReferences,
+) -> bool {
+    unit.functions.iter().any(|function| {
+        if function.is_static {
+            let Some(owner) = &function.owner_identity else {
+                return false;
+            };
+            if !static_method_references.contains(&(
+                owner.namespace.clone(),
+                owner.name.clone(),
+                function.name.clone(),
+            )) {
+                return false;
+            }
+            if owner == identity {
+                return true;
+            }
+        } else if function.owner_identity.as_ref() == Some(identity) {
+            return true;
+        }
+        function
+            .return_type
+            .as_ref()
+            .is_some_and(|return_type| value_type_mentions_object(return_type, identity))
+            || function.parameters.iter().any(|parameter| {
+                parameter
+                    .value_type
+                    .as_ref()
+                    .is_some_and(|value_type| value_type_mentions_object(value_type, identity))
+            })
+    })
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "cross-unit import ownership is one deterministic indexing pass"
+)]
+pub(super) fn index_dependency_import_owners(
+    package: &SemanticPackage,
+    static_method_references: &StaticMethodReferences,
+) -> DependencyImportOwners {
+    let mut owners = BTreeMap::new();
+    for unit in &package.units {
+        if !unit.bundled || !unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for object in &unit.descriptors {
+            if object.kind == ObjectKind::Interface {
+                continue;
+            }
+            if object.identity.namespace != unit.namespace
+                || !unit_references_object(unit, &object.identity, static_method_references)
+                || package
+                    .projection
+                    .item(&object.identity.namespace, &object.identity.name)
+                    .is_some_and(|item| {
+                        matches!(
+                            item.kind,
+                            crate::rust_interop::projection::ProjectedKind::Interface(_)
+                        )
+                    })
+            {
+                continue;
+            }
+            let projected = package
+                .projection
+                .projected_type(&object.identity.namespace, &object.identity.name);
+            if projected
+                .as_ref()
+                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
+            {
+                continue;
+            }
+            let path = package
+                .projection
+                .foreign_rust_path(&object.identity.namespace, &object.identity.name)
+                .map(str::to_owned)
+                .or_else(|| {
+                    projected
+                        .as_ref()
+                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                });
+            let Some(path) = path else {
+                continue;
+            };
+            let rust_name = rust_object_type_name(package, &object.identity);
+            let generic_parameters = projected
+                .as_ref()
+                .map(projected_generic_names)
+                .unwrap_or_default();
+            owners
+                .entry(rust_name)
+                .and_modify(
+                    |(owner, selected_path, selected_parameters, canonical): &mut (
+                        String,
+                        String,
+                        Vec<String>,
+                        bool,
+                    )| {
+                        if unit.namespace < *owner {
+                            owner.clone_from(&unit.namespace);
+                        }
+                        if !*canonical {
+                            selected_path.clone_from(&path);
+                            selected_parameters.clone_from(&generic_parameters);
+                            *canonical = true;
+                        }
+                    },
+                )
+                .or_insert_with(|| (unit.namespace.clone(), path, generic_parameters, true));
+        }
+        for (name, path) in package.projection.foreign_imports(&unit.namespace) {
+            let rust_name = rust_object_name(&name);
+            if !unit.descriptors.iter().any(|object| {
+                object.kind != ObjectKind::Interface
+                    && rust_object_type_name(package, &object.identity) == rust_name
+                    && unit_references_object(unit, &object.identity, static_method_references)
+            }) {
+                continue;
+            }
+            let projected = package.projection.projected_type(&unit.namespace, &name);
+            if projected
+                .as_ref()
+                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
+            {
+                continue;
+            }
+            let generic_parameters = projected
+                .as_ref()
+                .map(projected_generic_names)
+                .unwrap_or_default();
+            owners
+                .entry(rust_name)
+                .and_modify(
+                    |(owner, _, _, _): &mut (String, String, Vec<String>, bool)| {
+                        if unit.namespace < *owner {
+                            owner.clone_from(&unit.namespace);
+                        }
+                    },
+                )
+                .or_insert_with(|| (unit.namespace.clone(), path, generic_parameters, false));
+        }
+    }
+    let Some(emission_namespace) = package
+        .units
+        .iter()
+        .filter(|unit| unit.bundled && unit.namespace.starts_with("/deps/"))
+        .map(|unit| unit.namespace.as_str())
+        .min()
+    else {
+        return owners;
+    };
+    let mut source_objects = BTreeSet::new();
+    for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for binding in &unit.typed_bindings {
+            collect_value_type_objects(&binding.value_type, &mut source_objects);
+        }
+        for function in &unit.functions {
+            if let Some(return_type) = &function.return_type {
+                collect_value_type_objects(return_type, &mut source_objects);
+            }
+            for parameter in &function.parameters {
+                if let Some(value_type) = &parameter.value_type {
+                    collect_value_type_objects(value_type, &mut source_objects);
+                }
+            }
+        }
+    }
+    let specialized_nominals = source_objects
+        .iter()
+        .filter_map(|identity| {
+            let native = identity.native_projection.as_deref()?;
+            let (base, _) = native.split_once('<')?;
+            (base.rsplit("::").next() == Some(identity.name.as_str()))
+                .then(|| (identity.namespace.clone(), identity.name.clone()))
+        })
+        .collect::<BTreeSet<_>>();
+    for identity in source_objects
+        .into_iter()
+        .filter(|identity| identity.namespace.starts_with("/deps/"))
+    {
+        if identity.native_projection.is_some()
+            && specialized_nominals.contains(&(identity.namespace.clone(), identity.name.clone()))
+        {
+            continue;
+        }
+        if package.units.iter().any(|unit| {
+            unit.descriptors
+                .iter()
+                .any(|object| object.identity == identity && object.kind == ObjectKind::Interface)
+        }) {
+            continue;
+        }
+        let projected = package
+            .projection
+            .projected_type(&identity.namespace, &identity.name);
+        let path = package
+            .projection
+            .foreign_rust_path(&identity.namespace, &identity.name)
+            .map(str::to_owned)
+            .or_else(|| {
+                projected
+                    .as_ref()
+                    .map(crate::rust_interop::projection::ProjectedType::rust_type)
+            })
+            .map(|path| {
+                if specialized_nominals
+                    .contains(&(identity.namespace.clone(), identity.name.clone()))
+                {
+                    path.split_once('<')
+                        .map_or(path.clone(), |(base, _)| base.to_owned())
+                } else {
+                    path
+                }
+            });
+        let Some(path) = path else {
+            continue;
+        };
+        let rust_name = rust_object_type_name(package, &identity);
+        let generic_parameters = projected
+            .as_ref()
+            .map(projected_generic_names)
+            .unwrap_or_default();
+        owners
+            .entry(rust_name)
+            .and_modify(|(_, existing_path, _, from_source)| {
+                if specialized_nominals
+                    .contains(&(identity.namespace.clone(), identity.name.clone()))
+                {
+                    existing_path.clone_from(&path);
+                    *from_source = true;
+                }
+            })
+            .or_insert_with(|| {
+                (
+                    emission_namespace.to_owned(),
+                    path,
+                    generic_parameters,
+                    true,
+                )
+            });
+    }
+    owners
+}
+
+pub(super) fn emit_dependency_imports(
+    package: &SemanticPackage,
+    import_owners: &DependencyImportOwners,
+    unit: &SemanticUnit,
+    output: &mut String,
+) {
+    let first_namespace = import_owners.values().map(|(owner, _, _, _)| owner).min();
+    if first_namespace.is_some_and(|namespace| namespace == &unit.namespace) {
+        for (rust_name, (_, path, generic_parameters, _)) in import_owners {
+            if let Some((native_path, fields)) = package.projection.borrowed_struct_view(path) {
+                write_owned_borrowed_struct(output, rust_name, native_path, fields);
+            } else if let Some((_, fields)) = package.projection.enum_payload(path) {
+                write_enum_payload(output, rust_name, path, fields);
+            } else {
+                write_foreign_import(output, path, rust_name, generic_parameters);
+            }
+        }
+    }
+}
+
+fn projected_owned_field_type(ty: &crate::rust_interop::projection::ProjectedType) -> String {
+    ty.rust_type()
+}
+
+pub(super) fn projected_field_abi_type(
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    use crate::rust_interop::projection::ProjectedType;
+    match ty {
+        ProjectedType::String => "String".to_owned(),
+        ProjectedType::Bool => "bool".to_owned(),
+        ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
+        ProjectedType::Float => "f64".to_owned(),
+        ProjectedType::Float32 => "f32".to_owned(),
+        ProjectedType::Sequence { item, .. } => format!(
+            "terrane_collection_support::List<{}>",
+            projected_field_abi_type(item)
+        ),
+        ProjectedType::Optional(inner) => {
+            format!("impl Into<Option<{}>>", projected_field_abi_type(inner))
+        }
+        _ => ty.rust_type(),
+    }
+}
+
+fn write_owned_borrowed_struct(
+    output: &mut String,
+    rust_name_: &str,
+    native_path: &str,
+    fields: &[crate::rust_interop::projection::ProjectedField],
+) {
+    use crate::rust_interop::projection::ProjectedFieldConversion;
+    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    for field in fields {
+        writeln!(
+            output,
+            "    {}: {},",
+            rust_name(&field.name),
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "{}: {}",
+            rust_name(&field.name),
+            projected_field_abi_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, ") -> Self {{ Self {{").expect("writing cannot fail");
+    for field in fields {
+        let name = rust_name(&field.name);
+        let value = match field.conversion {
+            ProjectedFieldConversion::SliceBorrow => format!("{name}.into_vec()"),
+            ProjectedFieldConversion::OptionalOwned
+            | ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
+            ProjectedFieldConversion::OptionalSliceBorrow => {
+                format!("{name}.into().map(|value| value.into_vec())")
+            }
+            _ => name,
+        };
+        writeln!(output, "        {}: {value},", rust_name(&field.name))
+            .expect("writing cannot fail");
+    }
+    writeln!(output, "    }} }}").expect("writing cannot fail");
+    let native_constructor = native_path
+        .split_once('<')
+        .map_or(native_path, |(base, _)| base);
+    writeln!(
+        output,
+        "    fn terrane_native_view(&self) -> {native_path} {{ {native_constructor} {{"
+    )
+    .expect("writing cannot fail");
+    for field in fields {
+        let source = format!("self.{}", rust_name(&field.name));
+        let value = match field.conversion {
+            ProjectedFieldConversion::Identity | ProjectedFieldConversion::OptionalOwned => source,
+            ProjectedFieldConversion::StringBorrow => format!("&{source}"),
+            ProjectedFieldConversion::SliceBorrow => format!("{source}.as_slice()"),
+            ProjectedFieldConversion::OptionalStringBorrow => format!("{source}.as_deref()"),
+            ProjectedFieldConversion::OptionalSliceBorrow => {
+                format!("{source}.as_deref()")
+            }
+        };
+        writeln!(output, "        {}: {value},", field.rust_name).expect("writing cannot fail");
+    }
+    writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
+}
+
+pub(super) fn enum_payload_constructor_name(path: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut encoded = String::with_capacity(path.len() * 2);
+    for byte in path.as_bytes() {
+        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    format!("__terrane_enum_payload_{encoded}")
+}
+
+fn write_enum_payload(
+    output: &mut String,
+    rust_name_: &str,
+    path: &str,
+    fields: &[crate::rust_interop::projection::ProjectedField],
+) {
+    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    for field in fields {
+        writeln!(
+            output,
+            "    {}: {},",
+            rust_name(&field.name),
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "{}: {}",
+            rust_name(&field.name),
+            projected_field_abi_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    write!(output, ") -> Self {{ Self {{ ").expect("writing cannot fail");
+    for field in fields {
+        let name = rust_name(&field.name);
+        let value = match field.conversion {
+            crate::rust_interop::projection::ProjectedFieldConversion::OptionalOwned => {
+                format!("{name}.into()")
+            }
+            _ => name.clone(),
+        };
+        write!(output, "{name}: {value}, ").expect("writing cannot fail");
+    }
+    writeln!(output, "}} }}").expect("writing cannot fail");
+    write!(output, "    fn terrane_into_fields(self) -> (").expect("writing cannot fail");
+    for field in fields {
+        write!(output, "{},", projected_owned_field_type(&field.ty)).expect("writing cannot fail");
+    }
+    write!(output, ") {{ (").expect("writing cannot fail");
+    for field in fields {
+        write!(output, "self.{},", rust_name(&field.name)).expect("writing cannot fail");
+    }
+    writeln!(output, ") }}\n}}\n").expect("writing cannot fail");
+    let constructor = enum_payload_constructor_name(path);
+    write!(output, "fn {constructor}(").expect("writing cannot fail");
+    for (index, field) in fields.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(
+            output,
+            "field_{index}: {}",
+            projected_owned_field_type(&field.ty)
+        )
+        .expect("writing cannot fail");
+    }
+    write!(
+        output,
+        ") -> {rust_name_} {{ {rust_name_}::terrane_construct("
+    )
+    .expect("writing cannot fail");
+    for index in 0..fields.len() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        write!(output, "field_{index}").expect("writing cannot fail");
+    }
+    writeln!(output, ") }}\n").expect("writing cannot fail");
+}
+
+fn projected_generic_names(ty: &crate::rust_interop::projection::ProjectedType) -> Vec<String> {
+    fn collect(ty: &crate::rust_interop::projection::ProjectedType, names: &mut BTreeSet<String>) {
+        use crate::rust_interop::projection::ProjectedType;
+        match ty {
+            ProjectedType::Generic(name) => {
+                names.insert(name.clone());
+            }
+            ProjectedType::Sequence { item, .. }
+            | ProjectedType::Set { item, .. }
+            | ProjectedType::AsyncIterationStep(item)
+            | ProjectedType::Optional(item) => collect(item, names),
+            ProjectedType::Mapping { key, value, .. } => {
+                collect(key, names);
+                collect(value, names);
+            }
+            ProjectedType::Tuple(items) => {
+                for item in items {
+                    collect(item, names);
+                }
+            }
+            ProjectedType::Foreign { arguments, .. } => {
+                for argument in arguments {
+                    collect(argument, names);
+                }
+            }
+            ProjectedType::BoxedInterface {
+                associated_type: Some(associated),
+                ..
+            } => collect(&associated.ty, names),
+            ProjectedType::Callback {
+                parameters, result, ..
+            } => {
+                for parameter in parameters {
+                    collect(parameter, names);
+                }
+                collect(result, names);
+            }
+            _ => {}
+        }
+    }
+    let mut names = BTreeSet::new();
+    collect(ty, &mut names);
+    names.into_iter().collect()
+}
+
+fn canonical_foreign_import_path(path: &str) -> std::borrow::Cow<'_, str> {
+    if path == "std::io::error::Error" {
+        "std::io::Error".into()
+    } else if let Some(suffix) = path.strip_prefix("core::net::socket_addr::") {
+        format!("std::net::{suffix}").into()
+    } else {
+        path.into()
+    }
+}
+
+pub(super) fn write_foreign_import(
+    output: &mut String,
+    path: &str,
+    rust_name: &str,
+    generic_parameters: &[String],
+) {
+    let path = canonical_foreign_import_path(path);
+    if path.contains("<'_>") {
+        return;
+    }
+    if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
+        let parameters = if generic_parameters.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", generic_parameters.join(", "))
+        };
+        writeln!(output, "pub type {rust_name}{parameters} = {path};")
+            .expect("writing to a string cannot fail");
+    } else if path.rsplit("::").next() == Some(rust_name) {
+        writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
+    } else {
+        writeln!(output, "pub use {path} as {rust_name};")
+            .expect("writing to a string cannot fail");
+    }
+}
+
+fn projected_type_is_identity(ty: &crate::rust_interop::projection::ProjectedType) -> bool {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
+            projected_type_is_identity(inner)
+        }
+        crate::rust_interop::projection::ProjectedType::None
+        | crate::rust_interop::projection::ProjectedType::Bool
+        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+        | crate::rust_interop::projection::ProjectedType::Float
+        | crate::rust_interop::projection::ProjectedType::Float32
+        | crate::rust_interop::projection::ProjectedType::String
+        | crate::rust_interop::projection::ProjectedType::Bytes
+        | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+        | crate::rust_interop::projection::ProjectedType::Foreign { .. } => true,
+        _ => false,
+    }
+}
+
+fn projected_sequence_is_vec(path: &str) -> bool {
+    path.starts_with("alloc::vec::Vec<") || path.starts_with("std::vec::Vec<")
+}
+
+pub(super) fn projected_callback_input_expression(
+    value: &str,
+    ty: &crate::rust_interop::projection::ProjectedType,
+    rust_type: &str,
+) -> String {
+    let borrowed = rust_type.trim_start().starts_with('&');
+    match ty {
+        crate::rust_interop::projection::ProjectedType::Int => {
+            let value = if borrowed {
+                format!("*{value}")
+            } else {
+                value.to_owned()
+            };
+            format!("terrane_int_support::Int::from(i128::from({value}))")
+        }
+        crate::rust_interop::projection::ProjectedType::String
+        | crate::rust_interop::projection::ProjectedType::Bytes
+            if borrowed =>
+        {
+            format!("(*{value}).clone()")
+        }
+        _ => projected_result_expression(value, ty),
+    }
+}
+fn callback_parameter_rust_type(rust_type: &str) -> String {
+    let mut output = String::with_capacity(rust_type.len());
+    let mut characters = rust_type.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character != '\'' {
+            output.push(character);
+            continue;
+        }
+        let mut lifetime = String::new();
+        while characters
+            .peek()
+            .is_some_and(|character| character.is_ascii_alphanumeric() || *character == '_')
+        {
+            lifetime.push(characters.next().expect("peeked lifetime character"));
+        }
+        if lifetime == "static" {
+            output.push_str("'static");
+        } else {
+            output.push_str("'_");
+        }
+    }
+    output
+}
+
+pub(super) fn projected_callback_output_expression(
+    value: &str,
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::Int => format!(
+            "terrane_int_support::coerce::<i64>(&{value}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
+        ),
+        crate::rust_interop::projection::ProjectedType::InvocationScoped { .. } => {
+            format!("{value}.into()")
+        }
+        _ => projected_argument_expression(value, ty),
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "callback ABI conversion and invocation-mode lowering form one emission path"
+)]
+fn projected_callback_argument(
+    name: &str,
+    parameters: &[crate::rust_interop::projection::ProjectedType],
+    parameter_rust_types: &[String],
+    parameter_borrows: &[bool],
+    result: &crate::rust_interop::projection::ProjectedType,
+    invocation_mode: InvocationMode,
+    is_async: bool,
+) -> String {
+    let rust_parameters = parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| {
+            let rust_type = callback_parameter_rust_type(
+                parameter_rust_types
+                    .get(index)
+                    .map_or_else(|| parameter.rust_type(), Clone::clone)
+                    .as_str(),
+            );
+            format!("callback_argument_{index}: {rust_type}")
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let terrane_arguments = parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| {
+            let rust_type = parameter_rust_types
+                .get(index)
+                .map_or_else(|| parameter.rust_type(), Clone::clone);
+            if parameter_borrows.get(index) == Some(&true)
+                && rust_type.trim_start().starts_with('&')
+                && matches!(
+                    parameter,
+                    crate::rust_interop::projection::ProjectedType::String
+                        | crate::rust_interop::projection::ProjectedType::Bytes
+                        | crate::rust_interop::projection::ProjectedType::Bool
+                        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+                        | crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                )
+            {
+                format!("*callback_argument_{index}")
+            } else {
+                projected_callback_input_expression(
+                    &format!("callback_argument_{index}"),
+                    parameter,
+                    &rust_type,
+                )
+            }
+        })
+        .collect::<Vec<_>>();
+    let call_arguments = terrane_arguments
+        .iter()
+        .enumerate()
+        .map(|(index, argument)| {
+            if parameter_borrows.get(index) == Some(&true) {
+                format!("&{argument}")
+            } else {
+                argument.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+    let direct_arguments = call_arguments.join(", ");
+    let tuple_arguments = match call_arguments.as_slice() {
+        [] => "()".to_owned(),
+        [argument] => format!("({argument},)"),
+        _ => format!("({direct_arguments})"),
+    };
+    let converted_result = projected_callback_output_expression("callback_value", result);
+    let invoke = if invocation_mode == InvocationMode::Shared {
+        format!("(callback)({direct_arguments})")
+    } else {
+        format!("callback.call({tuple_arguments})")
+    };
+    let body = if !is_async
+        && matches!(
+            result,
+            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+        ) {
+        format!("let callback_value = {invoke}; callback_value.into()")
+    } else {
+        let fallible_body = if is_async {
+            format!(
+                "async {{ let callback_value = callback_future.await; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
+            )
+        } else {
+            format!(
+                "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}; Ok({converted_result}) }})()"
+            )
+        };
+        format!(
+            "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
+        )
+    };
+    let capture = if invocation_mode == InvocationMode::Consuming {
+        name.to_owned()
+    } else {
+        format!("{name}.clone()")
+    };
+    if is_async {
+        if invocation_mode == InvocationMode::Shared {
+            format!(
+                "{{ let callback = {capture}; move |{rust_parameters}| {{ let callback = callback.clone(); let callback_future = callback({direct_arguments}); Box::pin(async move {{ {body} }}) }} }}"
+            )
+        } else {
+            format!(
+                "{{ let callback = {capture}; move |{rust_parameters}| {{ let callback_future = {invoke}; Box::pin(async move {{ {body} }}) }} }}"
+            )
+        }
+    } else {
+        format!("{{ let callback = {capture}; move |{rust_parameters}| {{ {body} }} }}")
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "projected argument conversion remains one exhaustive type dispatch"
+)]
+pub(super) fn projected_argument_expression(
+    name: &str,
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::Int => format!(
+            "terrane_int_support::coerce::<i64>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
+        ),
+        crate::rust_interop::projection::ProjectedType::RustInt(rust_type) => format!(
+            "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
+        ),
+        crate::rust_interop::projection::ProjectedType::Char => format!(
+            "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
+        ),
+        crate::rust_interop::projection::ProjectedType::BoxedInterface { .. } => {
+            format!("Box::new({name})")
+        }
+        crate::rust_interop::projection::ProjectedType::Callback {
+            parameters,
+            parameter_rust_types,
+            parameter_borrows,
+            result,
+            invocation_mode,
+            is_async,
+            ..
+        } => projected_callback_argument(
+            name,
+            parameters,
+            parameter_rust_types,
+            parameter_borrows,
+            result,
+            *invocation_mode,
+            *is_async,
+        ),
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
+            if projected_type_is_identity(inner) {
+                name.to_owned()
+            } else {
+                let converted = projected_argument_expression("value", inner);
+                format!(
+                    "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
+                )
+            }
+        }
+        crate::rust_interop::projection::ProjectedType::Sequence { rust_path, item } => {
+            if projected_sequence_is_vec(rust_path) {
+                let consume = if matches!(
+                    item.as_ref(),
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                ) {
+                    "into_unique_vec"
+                } else {
+                    "into_vec"
+                };
+                if projected_type_is_identity(item) {
+                    format!("{name}.{consume}()")
+                } else {
+                    let converted = projected_argument_expression("item", item);
+                    format!(
+                        "{name}.{consume}().into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+                    )
+                }
+            } else {
+                let converted = projected_argument_expression("item", item);
+                format!(
+                    "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+                )
+            }
+        }
+        crate::rust_interop::projection::ProjectedType::Set {
+            rust_path, item, ..
+        } => {
+            let converted = projected_argument_expression("item", item);
+            format!(
+                "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+            )
+        }
+        crate::rust_interop::projection::ProjectedType::Mapping {
+            rust_path,
+            key,
+            value,
+            ..
+        } => {
+            let key = projected_argument_expression("entry.key", key);
+            let value = projected_argument_expression("entry.value", value);
+            format!(
+                "terrane_collection_support::Iterable::terrane_iterator(&{name}).map(|entry| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
+            )
+        }
+        crate::rust_interop::projection::ProjectedType::Tuple(items) => {
+            let converted = items
+                .iter()
+                .map(|item| {
+                    projected_argument_expression(
+                        "tuple_items.next().ok_or_else(|| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple length did not match its checked type\", crate::TERRANE_NO_SITE)))?",
+                        item,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "{{ let mut tuple_items = {name}.try_into_iter().map_err(|_| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple cannot move shared elements\", crate::TERRANE_NO_SITE)))?; ({converted},) }}"
+            )
+        }
+        _ => name.to_owned(),
+    }
+}
+
+pub(super) fn projected_chain_argument_expression(
+    name: &str,
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    if projected_type_is_identity(ty) {
+        return name.to_owned();
+    }
+    let converted = projected_argument_expression(name, ty);
+    format!(
+        "match (|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error) }}"
+    )
+}
+
+pub(super) fn projected_result_expression(
+    value: &str,
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> String {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::Int => {
+            format!("terrane_int_support::Int::from(i128::from({value}))")
+        }
+        crate::rust_interop::projection::ProjectedType::RustInt(rust_type)
+            if rust_type.starts_with('u') =>
+        {
+            format!("terrane_int_support::Int::from_u128({value} as u128)")
+        }
+        crate::rust_interop::projection::ProjectedType::RustInt(_) => {
+            format!("terrane_int_support::Int::from({value} as i128)")
+        }
+        crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),
+        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
+            if projected_type_is_identity(inner) {
+                value.to_owned()
+            } else {
+                let converted = projected_result_expression("value", inner);
+                format!("{value}.map(|value| {converted})")
+            }
+        }
+        crate::rust_interop::projection::ProjectedType::AsyncIterationStep(item) => {
+            let converted = projected_result_expression("item", item);
+            format!(
+                "match {value} {{ Some(item) => terrane_collection_support::AsyncIterationStep::item({converted}), None => terrane_collection_support::AsyncIterationStep::end() }}"
+            )
+        }
+        crate::rust_interop::projection::ProjectedType::AsyncSinkOutcome => {
+            format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
+        }
+        crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
+            if projected_type_is_identity(item) {
+                format!("terrane_collection_support::List::new({value})")
+            } else {
+                let converted = projected_result_expression("item", item);
+                format!(
+                    "terrane_collection_support::List::new({value}.into_iter().map(|item| {converted}).collect())"
+                )
+            }
+        }
+        crate::rust_interop::projection::ProjectedType::Mapping {
+            key,
+            value: item,
+            ordered,
+            ..
+        } => {
+            let key = projected_result_expression("key", key);
+            let item = projected_result_expression("item", item);
+            let collection = if *ordered { "Map" } else { "UnorderedMap" };
+            format!(
+                "terrane_collection_support::{collection}::new({value}.into_iter().map(|(key, item)| terrane_collection_support::Entry::new({key}, {item})).collect())"
+            )
+        }
+        crate::rust_interop::projection::ProjectedType::Set { item, ordered, .. } => {
+            let converted = projected_result_expression("item", item);
+            let collection = if *ordered { "Set" } else { "UnorderedSet" };
+            format!(
+                "terrane_collection_support::{collection}::new({value}.into_iter().map(|item| {converted}).collect())"
+            )
+        }
+        crate::rust_interop::projection::ProjectedType::Tuple(items) => format!(
+            "terrane_collection_support::Tuple::new(vec![{}])",
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    projected_result_expression(&format!("{value}.{index}"), item)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        _ => value.to_owned(),
+    }
+}
+
+pub(super) type StaticMethodReferences = BTreeSet<(String, String, String)>;
+
+pub(super) fn index_projected_static_method_references(
+    package: &SemanticPackage,
+) -> StaticMethodReferences {
+    fn collect(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        references: &mut StaticMethodReferences,
+    ) {
+        if node.kind == SyntaxKind::StaticMemberExpression
+            && let [receiver, member] = node.children.as_slice()
+            && let Some(symbol) = package.resolve_name_at(
+                unit,
+                receiver.span.start,
+                &unit.source.text()[receiver.span.start..receiver.span.end],
+            )
+        {
+            references.insert((
+                symbol.namespace.clone(),
+                symbol.name.clone(),
+                unit.source.text()[member.span.start..member.span.end].to_owned(),
+            ));
+        }
+        for child in &node.children {
+            collect(package, unit, child, references);
+        }
+    }
+
+    let mut references = BTreeSet::new();
+    for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        collect(package, unit, &unit.tree.root, &mut references);
+    }
+    references
+}
+
+fn invocation_scoped_rust_type(
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> Option<String> {
+    match ty {
+        crate::rust_interop::projection::ProjectedType::InvocationScoped {
+            rust_type,
+            lifetimes,
+            ..
+        } => Some(lifetimes.iter().fold(rust_type.clone(), |ty, lifetime| {
+            ty.replace(lifetime, "'view")
+        })),
+        crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
+            invocation_scoped_rust_type(item)
+                .map(|item| format!("terrane_collection_support::List<{item}>"))
+        }
+        _ => None,
+    }
+}
+#[expect(
+    clippy::too_many_lines,
+    reason = "dependency shim emission keeps each generated branch beside the shared call contract"
+)]
+pub(super) fn emit_dependency_unit(
+    package: &SemanticPackage,
+    registry: &LoweringRegistry,
+    unit: &SemanticUnit,
+    static_method_references: &StaticMethodReferences,
+    import_owners: &DependencyImportOwners,
+) -> String {
+    let mut output = String::new();
+    emit_dependency_imports(package, import_owners, unit, &mut output);
+    for contract in &unit.functions {
+        let (item, projected, static_owner) = if let Some(owner) =
+            contract.owner.as_deref().filter(|_| contract.is_static)
+        {
+            let Some(identity) = contract.owner_identity.as_ref() else {
+                continue;
+            };
+            if !static_method_references.contains(&(
+                identity.namespace.clone(),
+                identity.name.clone(),
+                contract.name.clone(),
+            )) {
+                continue;
+            }
+            let type_name = unit
+                .descriptors
+                .iter()
+                .find(|object| object.identity.name == owner)
+                .map_or(owner, |object| object.name.as_str());
+            let Some(item) = package.projection.item(&unit.namespace, type_name) else {
+                continue;
+            };
+            let crate::rust_interop::projection::ProjectedKind::ForeignType {
+                static_methods, ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            let Some(projected) = static_methods
+                .iter()
+                .find(|method| method.name == contract.name)
+            else {
+                continue;
+            };
+            (item, projected, Some(type_name))
+        } else {
+            let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
+                continue;
+            };
+            let crate::rust_interop::projection::ProjectedKind::Function(projected) = &item.kind
+            else {
+                continue;
+            };
+            (item, projected, None)
+        };
+        if projected
+            .generic_parameters
+            .iter()
+            .any(|generic| generic.input_selected)
+        {
+            continue;
+        }
+        if projected.chain_role == Some(crate::rust_interop::projection::ChainRole::Root) {
+            continue;
+        }
+        let invocation_scoped = matches!(
+            projected.result,
+            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+        );
+        let dependency_name = unit
+            .namespace
+            .strip_prefix("/deps/")
+            .and_then(|namespace| namespace.split('/').next())
+            .unwrap_or("dependency");
+        let parameters = contract
+            .parameters
+            .iter()
+            .zip(&projected.parameters)
+            .map(|(parameter, projected)| {
+                let value_type = if matches!(
+                    &projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_bound: Some(_),
+                        ..
+                    }
+                ) {
+                    "TerraneNativeCallback".to_owned()
+                } else if let Some(value_type) = invocation_scoped_rust_type(&projected.ty) {
+                    value_type
+                } else {
+                    projected.generic_parameter.clone().unwrap_or_else(|| {
+                        parameter.value_type.clone().map_or_else(
+                            || "()".to_owned(),
+                            |value_type| rust_value_type(package, value_type),
+                        )
+                    })
+                };
+                let value_type = if invocation_scoped
+                    && projected.borrowed
+                    && let Some(rest) = value_type.strip_prefix('&')
+                {
+                    format!("&'view {}", rest.trim_start())
+                } else {
+                    value_type
+                };
+                let preserves_identity = projected.borrowed
+                    && matches!(
+                        projected.ty,
+                        crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                    );
+                format!(
+                    "{}: {}{value_type}",
+                    rust_name(&parameter.name),
+                    if preserves_identity {
+                        if projected.mutable_borrow {
+                            "&mut "
+                        } else {
+                            "&"
+                        }
+                    } else {
+                        ""
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut argument_conversions = Vec::new();
+        let mut arguments = Vec::new();
+        for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
+            let name = rust_name(&parameter.name);
+            if matches!(
+                &projected.ty,
+                crate::rust_interop::projection::ProjectedType::Callback {
+                    native_bound: Some(_),
+                    ..
+                }
+            ) {
+                arguments.push(name);
+                continue;
+            }
+            if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
+                &projected.ty
+                && package.projection.borrowed_struct_view(rust_path).is_some()
+            {
+                let view = format!("{name}.terrane_native_view()");
+                arguments.push(if projected.borrowed {
+                    format!("&{view}")
+                } else {
+                    view
+                });
+                continue;
+            }
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                )
+            {
+                arguments.push(name);
+                continue;
+            }
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::String
+                        | crate::rust_interop::projection::ProjectedType::Bytes
+                        | crate::rust_interop::projection::ProjectedType::Bool
+                        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
+                )
+            {
+                arguments.push(if invocation_scoped {
+                    name
+                } else {
+                    format!("&{name}")
+                });
+                continue;
+            }
+            let source = if projected.borrowed
+                && matches!(
+                    parameter.binding_value_type(),
+                    Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                ) {
+                format!("*{name}")
+            } else {
+                name.clone()
+            };
+            let value = projected_argument_expression(&source, &projected.ty);
+            argument_conversions.push(format!(
+                "    let {}{name} = {value};",
+                if projected.mutable_borrow { "mut " } else { "" }
+            ));
+            arguments.push(if projected.mutable_borrow {
+                format!("&mut {name}")
+            } else if projected.borrowed {
+                format!("&{name}")
+            } else {
+                name
+            });
+        }
+        let arguments = arguments.join(", ");
+        let value = match &projected.result {
+            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                rust_type,
+                lifetimes,
+                ..
+            } => lifetimes.iter().fold(rust_type.clone(), |ty, lifetime| {
+                ty.replace(lifetime, "'view")
+            }),
+            crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. }
+                if rust_path.contains('<') =>
+            {
+                rust_path.clone()
+            }
+            _ => projected.destination_result.as_ref().map_or_else(
+                || {
+                    contract.return_type.clone().map_or_else(
+                        || "()".to_owned(),
+                        |value_type| rust_value_type(package, value_type),
+                    )
+                },
+                |_| projected.result.rust_type(),
+            ),
+        };
+        let result = format!("Result<{value}, crate::TerraneForeignError>");
+        let (error_kind, error_message) = projected
+            .error
+            .as_deref()
+            .and_then(|rust_path| {
+                package
+                    .projection
+                    .projected_identity_for_rust_path(rust_path)
+                    .map(|(namespace, name)| (format!("{namespace}::{name}"), name.to_owned()))
+            })
+            .map_or_else(
+                || {
+                    (
+                        "TERRANE_DEPENDENCY_ERROR".to_owned(),
+                        format!(
+                            "format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\")",
+                            item.rust_path
+                        ),
+                    )
+                },
+                |(identity, name)| {
+                    let descriptor = registry.register_descriptor(&identity, &name);
+                    (
+                        format!("DescriptorId({descriptor})"),
+                        "error.to_string()".to_owned(),
+                    )
+                },
+            );
+        let converted_value = if projected.destination_result.is_some() {
+            "value".to_owned()
+        } else {
+            projected_result_expression("value", &projected.result)
+        };
+        let nested_converted_value = match &projected.result {
+            crate::rust_interop::projection::ProjectedType::Optional(inner)
+                if projected.error_optional_depth == 1 =>
+            {
+                projected_result_expression("value", inner)
+            }
+            _ => converted_value.clone(),
+        };
+        let unit_variant = package.projection.is_unit_variant(item);
+        if unit_variant {
+            writeln!(
+                output,
+                "/// Projected enum variant constructor for `{}`.",
+                item.rust_path
+            )
+            .expect("writing to a string cannot fail");
+        }
+        let mut generic_parameters = Vec::new();
+        let mut generic_parameter_names = BTreeSet::new();
+        if invocation_scoped {
+            generic_parameters.push("'view".to_owned());
+        }
+        for parameter in &projected.parameters {
+            let Some(name) = &parameter.generic_parameter else {
+                continue;
+            };
+            if !generic_parameter_names.insert(name.clone()) {
+                continue;
+            }
+            generic_parameters.push(if parameter.generic_bounds.is_empty() {
+                name.clone()
+            } else {
+                format!("{name}: {}", parameter.generic_bounds.join(" + "))
+            });
+        }
+        if let Some(native_bound) = projected.parameters.iter().find_map(|parameter| {
+            let crate::rust_interop::projection::ProjectedType::Callback {
+                native_bound: Some(native_bound),
+                ..
+            } = &parameter.ty
+            else {
+                return None;
+            };
+            Some(native_bound)
+        }) {
+            generic_parameters.push(format!("TerraneNativeCallback: {native_bound}"));
+        }
+        if let Some(destination) = &projected.destination_result {
+            for parameter in &destination.parameters {
+                if !generic_parameter_names.insert(parameter.name.clone()) {
+                    continue;
+                }
+                generic_parameters.push(if parameter.rust_bounds.is_empty() {
+                    parameter.name.clone()
+                } else {
+                    format!("{}: {}", parameter.name, parameter.rust_bounds.join(" + "))
+                });
+            }
+        }
+        let generic_declaration = if generic_parameters.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", generic_parameters.join(", "))
+        };
+        if projected.is_unsafe {
+            writeln!(output, "#[allow(unsafe_code)]").expect("writing to a string cannot fail");
+        }
+        writeln!(
+            output,
+            "pub {}{}fn {}{generic_declaration}({}) -> {result} {{",
+            if projected.is_async { "async " } else { "" },
+            if projected.is_unsafe { "unsafe " } else { "" },
+            static_owner.map_or_else(
+                || function_name(package, contract),
+                |owner| projected_static_shim_name(owner, &contract.name),
+            ),
+            parameters.join(", ")
+        )
+        .expect("writing to a string cannot fail");
+        for conversion in argument_conversions {
+            writeln!(output, "{conversion}").expect("writing to a string cannot fail");
+        }
+        let value_path = static_owner.map_or_else(
+            || rust_value_path(&item.rust_path),
+            |_| {
+                format!(
+                    "{}::{}",
+                    rust_value_path(&item.rust_path),
+                    rust_name(&projected.name)
+                )
+            },
+        );
+        let call = if unit_variant {
+            value_path
+        } else {
+            let generic_arguments =
+                projected
+                    .destination_result
+                    .as_ref()
+                    .map_or_else(String::new, |destination| {
+                        format!(
+                            "::<{}>",
+                            destination
+                                .parameters
+                                .iter()
+                                .map(|parameter| parameter.name.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    });
+            let call = format!("{value_path}{generic_arguments}({arguments})");
+            if projected.is_unsafe {
+                format!("unsafe {{ {call} }}")
+            } else {
+                call
+            }
+        };
+        let invocation = if projected.into_future {
+            format!("std::future::IntoFuture::into_future({call}).await")
+        } else if projected.is_async {
+            format!("{call}.await")
+        } else {
+            call.clone()
+        };
+        let caught = if projected.into_future {
+            format!(
+                "crate::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future({call})).await"
+            )
+        } else if projected.is_async {
+            format!("crate::__terrane_dependency_await_unwind({call}).await")
+        } else {
+            format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
+        };
+        if package.profile.panic == crate::package::PanicProfile::Abort {
+            if projected.error_optional_depth == 1 {
+                writeln!(
+                    output,
+                    "    match {invocation} {{\n        None => Ok(None),\n        Some(Ok(value)) => Ok(Some({nested_converted_value})),\n        Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))),\n    }}",
+                )
+                .expect("writing to a string cannot fail");
+            } else if projected.error.is_some() {
+                writeln!(
+                    output,
+                    "    match {invocation} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))),\n    }}",
+                )
+                .expect("writing to a string cannot fail");
+            } else {
+                writeln!(
+                    output,
+                    "    let value = {invocation};\n    Ok({converted_value})",
+                )
+                .expect("writing to a string cannot fail");
+            }
+        } else if projected.error_optional_depth == 1 {
+            writeln!(
+                output,
+                "    match {caught} {{\n        Ok(None) => Ok(None),\n        Ok(Some(Ok(value))) => Ok(Some({nested_converted_value})),\n        Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
+        } else if projected.error.is_some() {
+            writeln!(
+                output,
+                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
+        } else {
+            writeln!(
+                output,
+                "    match {caught} {{\n        Ok(value) => Ok({converted_value}),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
+        }
+
+        output.push_str("}\n");
+    }
+    output
+}
+pub(super) fn projected_static_shim_name(owner: &str, method: &str) -> String {
+    format!(
+        "terrane_static_{}_{}",
+        rust_name(owner).trim_start_matches('_'),
+        rust_name(method)
+    )
+}
+pub(super) fn rust_value_path(path: &str) -> String {
+    if path.starts_with('<') {
+        return path.to_owned();
+    }
+    path.find('<').map_or_else(
+        || path.to_owned(),
+        |arguments| format!("{}::{}", &path[..arguments], &path[arguments..]),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{rust_value_path, write_foreign_import};
+
+    #[test]
+    fn instantiated_foreign_import_is_a_type_alias() {
+        let mut output = String::new();
+        write_foreign_import(&mut output, "witness::Wrapper<u8>", "Wrapper_abcd", &[]);
+        assert_eq!(output, "pub type Wrapper_abcd = witness::Wrapper<u8>;\n");
+    }
+
+    #[test]
+    fn open_foreign_import_declares_its_type_parameters() {
+        let mut output = String::new();
+        write_foreign_import(
+            &mut output,
+            "witness::Wrapper<T>",
+            "Wrapper_open",
+            &["T".to_owned()],
+        );
+        assert_eq!(output, "pub type Wrapper_open<T> = witness::Wrapper<T>;\n");
+    }
+
+    #[test]
+    fn private_standard_library_paths_use_public_reexports() {
+        let mut output = String::new();
+        write_foreign_import(&mut output, "std::io::error::Error", "Error", &[]);
+        write_foreign_import(
+            &mut output,
+            "core::net::socket_addr::SocketAddr",
+            "SocketAddr",
+            &[],
+        );
+        assert_eq!(
+            output,
+            "pub use std::io::Error;\npub use std::net::SocketAddr;\n"
+        );
+    }
+
+    #[test]
+    fn instantiated_foreign_value_paths_use_turbofish_syntax() {
+        assert_eq!(
+            rust_value_path(
+                "tower_http::services::ServeDir<tower_http::services::fs::DefaultServeDirFallback>"
+            ),
+            "tower_http::services::ServeDir::<tower_http::services::fs::DefaultServeDirFallback>"
+        );
+    }
+}

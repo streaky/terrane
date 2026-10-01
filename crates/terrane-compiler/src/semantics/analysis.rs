@@ -12,7 +12,7 @@ fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
 type ProjectedOwner = (String, String);
 
 fn imported_projected_types(
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
     imports: &BTreeMap<String, BTreeSet<String>>,
 ) -> BTreeMap<String, ProjectedOwner> {
     imports
@@ -41,7 +41,7 @@ fn projected_expression_owners(
     node: &SyntaxNode,
     imported: &BTreeMap<String, ProjectedOwner>,
     bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
 ) -> BTreeSet<ProjectedOwner> {
     if node.kind == SyntaxKind::Name {
         let name = &source.text()[node.span.start..node.span.end];
@@ -89,7 +89,7 @@ fn collect_projected_binding_owners(
     node: &SyntaxNode,
     imported: &BTreeMap<String, ProjectedOwner>,
     bindings: &mut BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
 ) {
     if matches!(
         node.kind,
@@ -123,6 +123,66 @@ fn collect_projected_binding_owners(
         collect_projected_binding_owners(source, child, imported, bindings, projection);
     }
 }
+fn collect_name_demand_sites(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    alias: &str,
+    sites: &mut BTreeSet<String>,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::ImportDeclaration
+            | SyntaxKind::ObjectImport
+            | SyntaxKind::ImportSelection
+            | SyntaxKind::ImportAlias
+            | SyntaxKind::NamespaceDeclaration
+    ) {
+        return;
+    }
+    if node.kind == SyntaxKind::Name && &source.text()[node.span.start..node.span.end] == alias {
+        let (line, column) = source.line_column(node.span.start);
+        sites.insert(format!("{}:{line}:{column}", source.path().display()));
+    }
+    for (index, child) in node.children.iter().enumerate() {
+        if node.kind.child_field(index, child.kind) != "name" {
+            collect_name_demand_sites(source, child, alias, sites);
+        }
+    }
+}
+
+fn first_name_demand_span(source: &SourceFile, node: &SyntaxNode, alias: &str) -> Option<Span> {
+    if matches!(
+        node.kind,
+        SyntaxKind::ImportDeclaration
+            | SyntaxKind::ObjectImport
+            | SyntaxKind::ImportSelection
+            | SyntaxKind::ImportAlias
+            | SyntaxKind::NamespaceDeclaration
+    ) {
+        return None;
+    }
+    if node.kind == SyntaxKind::Name && &source.text()[node.span.start..node.span.end] == alias {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .enumerate()
+        .filter(|(index, child)| node.kind.child_field(*index, child.kind) != "name")
+        .find_map(|(_, child)| first_name_demand_span(source, child, alias))
+}
+
+fn name_demand_span(units: &[SemanticUnit], source_id: u32, alias: &str) -> Option<Span> {
+    let unit = units.iter().find(|unit| unit.source.id() == source_id)?;
+    first_name_demand_span(&unit.source, &unit.tree.root, alias)
+}
+
+fn name_demand_sites(units: &[SemanticUnit], source_id: u32, alias: &str) -> BTreeSet<String> {
+    let mut sites = BTreeSet::new();
+    if let Some(unit) = units.iter().find(|unit| unit.source.id() == source_id) {
+        collect_name_demand_sites(&unit.source, &unit.tree.root, alias, &mut sites);
+    }
+    sites
+}
 
 fn collect_demanded_projected_members(
     source: &SourceFile,
@@ -130,7 +190,8 @@ fn collect_demanded_projected_members(
     imported: &BTreeMap<String, ProjectedOwner>,
     bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
     demanded: &mut BTreeMap<ProjectedOwner, BTreeSet<String>>,
-    projection: &crate::projection::Projection,
+    demand_sites: &mut crate::rust_interop::projection::ProjectionDemandSites,
+    projection: &crate::rust_interop::projection::Projection,
 ) {
     if matches!(
         node.kind,
@@ -138,13 +199,30 @@ fn collect_demanded_projected_members(
     ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
     {
         let owners = projected_expression_owners(source, receiver, imported, bindings, projection);
-        let member = source.text()[member.span.start..member.span.end].to_owned();
+        let member_name = source.text()[member.span.start..member.span.end].to_owned();
+        let (line, column) = source.line_column(member.span.start);
+        let site = format!("{}:{line}:{column}", source.path().display());
         for owner in owners {
-            demanded.entry(owner).or_default().insert(member.clone());
+            demanded
+                .entry(owner.clone())
+                .or_default()
+                .insert(member_name.clone());
+            demand_sites
+                .entry((owner.0, owner.1, Some(member_name.clone())))
+                .or_default()
+                .insert(site.clone());
         }
     }
     for child in &node.children {
-        collect_demanded_projected_members(source, child, imported, bindings, demanded, projection);
+        collect_demanded_projected_members(
+            source,
+            child,
+            imported,
+            bindings,
+            demanded,
+            demand_sites,
+            projection,
+        );
     }
 }
 
@@ -228,6 +306,8 @@ pub(super) fn parse_unit(
         projected_removals: Vec::new(),
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
+        projected_call_result_types: BTreeMap::new(),
+        invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
         unreachable_spans: Vec::new(),
@@ -252,6 +332,106 @@ fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, Semantic
         })
         .collect()
 }
+fn validate_generated_projection_units(
+    package: &Package,
+    inventory: &str,
+) -> Result<(), SemanticFailure> {
+    let units = crate::rust_interop::projection::generated_projection_units(inventory).map_err(
+        |message| {
+            failure(
+                &package.units[0].source,
+                "S2028",
+                format!("cannot materialize generated projection source units: {message}"),
+                Span::new(package.units[0].source.id(), 0, 0),
+            )
+        },
+    )?;
+    let mut source_id = package
+        .units
+        .iter()
+        .map(|unit| unit.source.id())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    for unit in units {
+        let source = SourceFile::new(
+            source_id,
+            package
+                .root
+                .join(crate::rust_interop::projection::GENERATED_PROJECTION_FILE),
+            unit.source,
+        );
+        parse_unit(
+            &source,
+            format!(
+                "{}#{}",
+                crate::rust_interop::projection::GENERATED_PROJECTION_FILE,
+                unit.namespace
+            ),
+            Some(&unit.namespace),
+            package.prelude,
+            false,
+            crate::package::SourceRole::Production,
+        )
+        .map_err(|failure| {
+            let diagnostics = failure
+                .diagnostics
+                .into_iter()
+                .map(|diagnostic| {
+                    let detail = diagnostic.primary.map_or_else(String::new, |span| {
+                        let (line, column) = source.line_column(span.start);
+                        let source_line = source
+                            .text()
+                            .lines()
+                            .nth(line.saturating_sub(1))
+                            .unwrap_or_default();
+                        format!(" at {line}:{column}: `{source_line}`")
+                    });
+                    Diagnostic::error(
+                        "S2028",
+                        format!(
+                            "generated projection source unit `{}` is invalid{detail}: {}",
+                            unit.namespace, diagnostic.message
+                        ),
+                        Span::new(package.units[0].source.id(), 0, 0),
+                    )
+                })
+                .collect();
+            SemanticFailure {
+                source: package.units[0].source.clone(),
+                diagnostics,
+            }
+        })?;
+        source_id = source_id.saturating_add(1);
+    }
+    Ok(())
+}
+
+fn persist_projection_inventory(
+    package: &Package,
+    projection: &crate::rust_interop::projection::Projection,
+    demand_sites: &crate::rust_interop::projection::ProjectionDemandSites,
+) -> Result<(), SemanticFailure> {
+    let inventory = projection.documented_inventory(demand_sites);
+    validate_generated_projection_units(package, &inventory)?;
+    let path = package
+        .root
+        .join(crate::rust_interop::projection::GENERATED_PROJECTION_FILE);
+    if std::fs::read_to_string(&path).ok().as_deref() == Some(&inventory) {
+        return Ok(());
+    }
+    std::fs::write(&path, inventory).map_err(|error| {
+        failure(
+            &package.units[0].source,
+            "S2028",
+            format!(
+                "cannot write complete dependency projection inventory `{}`: {error}",
+                path.display()
+            ),
+            Span::new(package.units[0].source.id(), 0, 0),
+        )
+    })
+}
 
 #[expect(
     clippy::too_many_lines,
@@ -259,14 +439,16 @@ fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, Semantic
 )]
 fn augment_units_with_projection(
     package: &Package,
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
     mut units: Vec<SemanticUnit>,
+    persist_inventory: bool,
 ) -> Result<Vec<SemanticUnit>, SemanticFailure> {
     let mut loaded = units
         .iter()
         .map(|unit| unit.namespace.clone())
         .collect::<BTreeSet<_>>();
     let mut next_source_id = package.next_source_id();
+    let mut demand_sites = crate::rust_interop::projection::ProjectionDemandSites::new();
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     let mut imported_aliases = BTreeMap::<String, ProjectedOwner>::new();
     for unit in &units {
@@ -290,6 +472,10 @@ fn augment_units_with_projection(
             {
                 imported_aliases.insert(import.alias.clone(), owner);
             }
+            demand_sites
+                .entry((import.target.clone(), import.object.clone(), None))
+                .or_default()
+                .extend(name_demand_sites(&units, import.source.id(), &import.alias));
             dependency_imports
                 .entry(import.target)
                 .or_default()
@@ -316,8 +502,12 @@ fn augment_units_with_projection(
             &imported_types,
             &binding_owners,
             &mut demanded_members,
+            &mut demand_sites,
             projection,
         );
+    }
+    if persist_inventory {
+        persist_projection_inventory(package, projection, &demand_sites)?;
     }
     let projected_sources = projection
         .source_for_imports_with_members(&dependency_imports, &demanded_members)
@@ -382,12 +572,12 @@ fn augment_units_with_projection(
     for dependency in &projection.dependencies {
         for item in &dependency.items {
             match &item.kind {
-                crate::projection::ProjectedKind::Function(function)
+                crate::rust_interop::projection::ProjectedKind::Function(function)
                     if function.destination_result.is_some() =>
                 {
                     destination_functions.insert(format!("{}::{}", item.namespace, item.name));
                 }
-                crate::projection::ProjectedKind::ForeignType {
+                crate::rust_interop::projection::ProjectedKind::ForeignType {
                     methods,
                     static_methods,
                     ..
@@ -414,7 +604,7 @@ fn augment_units_with_projection(
 }
 pub(super) fn apply_projected_method_contracts(
     units: &mut [SemanticUnit],
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
 ) {
     for unit in units {
         if !unit.namespace.starts_with("/deps/") {
@@ -446,8 +636,10 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.throws = method.error.is_some();
             let invocation_mode = match method.receiver {
-                Some(crate::projection::Receiver::Move) => InvocationMode::Consuming,
-                Some(crate::projection::Receiver::MutableBorrow) => InvocationMode::Mutable,
+                Some(crate::rust_interop::projection::Receiver::Move) => InvocationMode::Consuming,
+                Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
+                    InvocationMode::Mutable
+                }
                 _ => InvocationMode::Shared,
             };
             contract.written_invocation_mode = invocation_mode;
@@ -529,18 +721,17 @@ pub fn dependency_projection_demands(
 
 fn dependency_projection(
     package: &Package,
-    demands: &BTreeSet<(String, String)>,
-) -> Result<crate::projection::Projection, SemanticFailure> {
-    crate::projection::resolve(&package.root, &package.rust_dependencies, Some(demands)).map_err(
-        |error| {
+    _demands: &BTreeSet<(String, String)>,
+) -> Result<crate::rust_interop::projection::Projection, SemanticFailure> {
+    crate::rust_interop::projection::resolve(&package.root, &package.rust_dependencies, None)
+        .map_err(|error| {
             failure(
                 &package.units[0].source,
                 "S2028",
                 error.message,
                 Span::new(package.units[0].source.id(), 0, 0),
             )
-        },
-    )
+        })
 }
 
 /// Builds the complete namespace tree, then resolves declarations and imports.
@@ -555,16 +746,16 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
     let demands = dependency_demands_from_units(&units)?;
     let projection = dependency_projection(package, &demands)?;
-    analyze_parsed_with_projection(package, projection, units)
+    analyze_parsed_with_projection(package, projection, units, true)
 }
 
 #[cfg(test)]
 pub(super) fn analyze_with_projection(
     package: &Package,
-    projection: crate::projection::Projection,
+    projection: crate::rust_interop::projection::Projection,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    analyze_parsed_with_projection(package, projection, units)
+    analyze_parsed_with_projection(package, projection, units, false)
 }
 
 #[expect(
@@ -573,17 +764,19 @@ pub(super) fn analyze_with_projection(
 )]
 fn analyze_parsed_with_projection(
     package: &Package,
-    projection: crate::projection::Projection,
+    projection: crate::rust_interop::projection::Projection,
     units: Vec<SemanticUnit>,
+    persist_inventory: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
-    let mut units = augment_units_with_projection(package, &projection, units)?;
+    let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
     let nonclone_foreign_objects = projection
         .dependencies
         .iter()
         .flat_map(|dependency| &dependency.items)
         .filter_map(|item| match &item.kind {
-            crate::projection::ProjectedKind::ForeignType {
-                cloneable: false, ..
+            crate::rust_interop::projection::ProjectedKind::ForeignType {
+                cloneable: false,
+                ..
             } => Some(ObjectIdentity::new(&item.namespace, &item.name)),
             _ => None,
         })
@@ -596,7 +789,7 @@ fn analyze_parsed_with_projection(
             .filter(|item| {
                 matches!(
                     item.kind,
-                    crate::projection::ProjectedKind::Enum {
+                    crate::rust_interop::projection::ProjectedKind::Enum {
                         data_carrying: false,
                         comparable: true,
                         ..
@@ -612,7 +805,7 @@ fn analyze_parsed_with_projection(
             .iter()
             .flat_map(|dependency| &dependency.items)
             .filter_map(|item| match &item.kind {
-                crate::projection::ProjectedKind::Interface(interface)
+                crate::rust_interop::projection::ProjectedKind::Interface(interface)
                     if interface.associated_type.is_some() =>
                 {
                     Some(ObjectIdentity::new(&item.namespace, &item.name))
@@ -767,6 +960,7 @@ fn analyze_parsed_with_projection(
             ));
         }
     }
+    let mut unused_unavailable_imports = BTreeSet::new();
     for import in &discovered_imports {
         let Some(dependency) = import
             .target
@@ -788,6 +982,16 @@ fn analyze_parsed_with_projection(
             ));
         }
         if projection.item(&import.target, &import.object).is_none() {
+            let Some(demand_span) = name_demand_span(&units, import.source.id(), &import.alias)
+            else {
+                unused_unavailable_imports.insert((
+                    import.source.id(),
+                    import.span.start,
+                    import.target.clone(),
+                    import.object.clone(),
+                ));
+                continue;
+            };
             if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
                 return Err(failure(
                     &import.source,
@@ -796,7 +1000,7 @@ fn analyze_parsed_with_projection(
                         "Rust dependency member `{}` in `{}` is ambiguous: {details}",
                         import.object, import.target
                     ),
-                    import.span,
+                    demand_span,
                 ));
             }
             if let Some(removed) = projection
@@ -814,13 +1018,15 @@ fn analyze_parsed_with_projection(
                         removed.previous_version,
                         removed.current_version
                     ),
-                    import.span,
+                    demand_span,
                 ));
             }
             let reason = projection.dependencies.iter().find_map(|dependency| {
                 dependency.declined.iter().find_map(|declined| {
-                    (crate::projection::namespace_for_rust_path(dependency, &declined.rust_path)
-                        == import.target
+                    (crate::rust_interop::projection::namespace_for_rust_path(
+                        dependency,
+                        &declined.rust_path,
+                    ) == import.target
                         && declined.rust_path.rsplit("::").next() == Some(import.object.as_str()))
                     .then_some(declined.reason.as_str())
                 })
@@ -828,20 +1034,32 @@ fn analyze_parsed_with_projection(
             let message = reason.map_or_else(
                 || {
                     format!(
-                        "Rust dependency projection has no member `{}` in `{}`",
-                        import.object, import.target
+                        "Rust dependency projection has no member `{}` in `{}`; see `{}` for the complete projection inventory and current demand",
+                        import.object,
+                        import.target,
+                        crate::rust_interop::projection::GENERATED_PROJECTION_FILE,
                     )
                 },
                 |reason| {
                     format!(
-                        "Rust dependency member `{}` in `{}` is not projected: {reason}",
-                        import.object, import.target
+                        "Rust dependency member `{}` in `{}` is not projected: {reason}; see `{}` for the complete projection inventory and current demand",
+                        import.object,
+                        import.target,
+                        crate::rust_interop::projection::GENERATED_PROJECTION_FILE,
                     )
                 },
             );
-            return Err(failure(&import.source, "S2029", message, import.span));
+            return Err(failure(&import.source, "S2029", message, demand_span));
         }
     }
+    imports.retain(|import| {
+        !unused_unavailable_imports.contains(&(
+            import.source.id(),
+            import.span.start,
+            import.target.clone(),
+            import.object.clone(),
+        ))
+    });
     let prelude_namespaces = units
         .iter()
         .filter(|unit| unit.prelude)

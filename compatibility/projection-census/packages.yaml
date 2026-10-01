@@ -1,0 +1,48 @@
+schema: 1
+targets:
+  linux-x86-64:
+    triple: x86_64-unknown-linux-gnu
+    timeout-seconds: 1800
+packages:
+  high-priority:
+    hashbrown: { version: 0.17.1 }
+    iced:
+      version: 0.14.0
+      default-features: false
+      features: [wgpu, tokio, wayland, x11]
+      representative-workflows:
+        - name: application-widget-graph
+          evidence: projects/gui-test/docs/projection-gap.md
+          status: context-only
+          reason: Existing application uses maintained Rust support, so it is not compiler-admission evidence.
+        - name: direct-application-constructor
+          package: compatibility/projection-census/representative-uses/iced-application
+    memchr: { version: 2.8.3 }
+    strsim:
+      version: 0.11.1
+      representative-workflows:
+        - name: levenshtein-call
+          package: compatibility/projection-census/representative-uses/strsim
+    http: { version: 1.5.0 }
+    h2: { version: 0.4.19 }
+    uuid: { version: 1.26.1 }
+    form_urlencoded: { version: 1.2.2 }
+    reqwest: { version: 0.13.5 }
+    lru: { version: 0.18.5 }
+    axum: { version: 0.8.9 }
+    backtrace: { version: 0.3.76 }
+  mid-priority:
+    bindgen: { version: 0.73.2 }
+  low-priority:
+    libc:
+      version: 0.2.189
+      note: System libc dependency handling.
+    linux-raw-sys:
+      version: 0.12.1
+      note: Linux system-level surface.
+    serde:
+      version: 1.0.22
+      note: Serialization is also a candidate for native Terrane support.
+    tokio:
+      version: 1.53.1
+      note: Terrane already owns related asynchronous runtime facilities.

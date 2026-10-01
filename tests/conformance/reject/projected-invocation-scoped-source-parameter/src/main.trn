@@ -1,0 +1,6 @@
+namespace app
+
+function consume; value host-invocation-scoped-native
+
+function main;
+    print; 'unreachable'

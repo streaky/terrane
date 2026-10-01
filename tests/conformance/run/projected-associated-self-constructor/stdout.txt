@@ -1,4 +1,4 @@
-plaindefault<table>
+plaindefault42<table>
 <thead>
 <tr>
 <th>a</th>

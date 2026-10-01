@@ -45,7 +45,12 @@ fn operation_kind(
             .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
             .and_then(|symbol| symbol.identity.rsplit_once("::"))
             .and_then(|(namespace, name)| package.projection.item(namespace, name))
-            .is_some_and(|item| matches!(&item.kind, crate::projection::ProjectedKind::Function(_)))
+            .is_some_and(|item| {
+                matches!(
+                    &item.kind,
+                    crate::rust_interop::projection::ProjectedKind::Function(_)
+                )
+            })
     {
         return SelectionOperationKind::Projected;
     }

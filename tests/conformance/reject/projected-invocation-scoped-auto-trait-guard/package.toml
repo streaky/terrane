@@ -1,0 +1,8 @@
+package = "projected-invocation-scoped-auto-trait-guard"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-invocation-auto-trait-witness"
+version = "=0.1.0"

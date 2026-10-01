@@ -1,7 +1,8 @@
 use super::prelude::*;
-use crate::projection::{
-    Containment, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem, ProjectedKind,
-    Projection, ProjectionResolution, ProjectionSource,
+use crate::package::RustDependency;
+use crate::rust_interop::projection::{
+    Containment, DeclinedItem, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem,
+    ProjectedKind, Projection, ProjectionResolution, ProjectionSource,
 };
 
 fn ambiguous_projection() -> Projection {
@@ -17,14 +18,20 @@ fn ambiguous_projection() -> Projection {
             kind: ProjectedKind::ForeignType {
                 methods: Vec::new(),
                 static_methods: Vec::new(),
+                constants: Vec::new(),
                 cloneable: false,
                 send,
                 sync: false,
                 boundary: ProjectedBoundaryCapabilities::default(),
+                fields: Vec::new(),
+                borrowed_view: false,
+                native_view_type: None,
+                enum_payload: None,
                 displayable: false,
             },
         }],
         declined: Vec::new(),
+        partial_declines: Vec::new(),
     };
     Projection {
         cache_identity: "ambiguous-semantics".to_owned(),
@@ -79,6 +86,70 @@ fn ambiguous_projected_destination_names_every_rust_identity() {
     );
 }
 
+fn unavailable_projection() -> Projection {
+    Projection {
+        cache_identity: "unavailable-semantics".to_owned(),
+        content_hash: String::new(),
+        dependencies: vec![ProjectedDependency {
+            name: "shared".to_owned(),
+            package: "shared".to_owned(),
+            version: "1.0.0".to_owned(),
+            items: Vec::new(),
+            declined: vec![DeclinedItem {
+                rust_path: "shared::Missing".to_owned(),
+                reason: "requires a compiler capability".to_owned(),
+            }],
+            partial_declines: Vec::new(),
+        }],
+        bound_dependencies: Vec::new(),
+        containment: Containment::Enforced,
+        source: ProjectionSource::default(),
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution::default(),
+        removed: Vec::new(),
+    }
+}
+
+fn package_with_unavailable_import(source: &str) -> Package {
+    let mut package = Package::implicit("main.trn", source.to_owned());
+    package.rust_dependencies.push(RustDependency {
+        name: "shared".to_owned(),
+        package: "shared".to_owned(),
+        version: "=1.0.0".to_owned(),
+        features: Vec::new(),
+        default_features: false,
+        target: None,
+        effects: Vec::new(),
+    });
+    package
+}
+
+#[test]
+fn unused_unavailable_projected_import_does_not_fail_analysis() {
+    let package = package_with_unavailable_import(
+        "namespace app\nfrom /deps/shared import Missing\nfunction main;\n    return\n",
+    );
+
+    analyze_with_projection(&package, unavailable_projection()).unwrap();
+}
+
+#[test]
+fn demanded_unavailable_projected_import_fails_at_the_demand() {
+    let package = package_with_unavailable_import(
+        "namespace app\nfrom /deps/shared import Missing\nfunction main;\n    print; Missing\n",
+    );
+
+    let failure = analyze_with_projection(&package, unavailable_projection()).unwrap_err();
+
+    assert_eq!(failure.diagnostics[0].code, "S2029");
+    let primary = failure.diagnostics[0].primary.unwrap();
+    assert_eq!(
+        &package.units[0].source.text()[primary.start..primary.end],
+        "Missing"
+    );
+}
+
 #[test]
 fn compiler_owned_declarations_require_kebab_case() {
     let package = Package::implicit(
@@ -104,13 +175,32 @@ fn authored_name_style_is_an_opt_in_warning() {
     );
     let semantic = analyze(&package).unwrap();
 
-    assert!(warnings(&semantic, false).is_empty());
-    let diagnostics = warnings(&semantic, true);
+    assert!(warnings(&semantic, false, false).is_empty());
+    let diagnostics = warnings(&semantic, true, false);
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "S2018"
             && diagnostic.message == "declared name `Answer` is not kebab-case"
             && diagnostic.severity == crate::Severity::Warning
     }));
+}
+
+#[test]
+fn unused_top_level_function_warning_is_opt_in() {
+    let package = Package::implicit(
+        "main.trn",
+        "namespace app\nfunction helper;\n  print; 1\nfunction main;\n  print; 2\n".to_owned(),
+    );
+    let semantic = analyze(&package).unwrap();
+
+    assert!(warnings(&semantic, false, false).is_empty());
+    let diagnostics = warnings(&semantic, false, true);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect::<Vec<_>>(),
+        vec!["W4005"]
+    );
 }
 
 #[test]

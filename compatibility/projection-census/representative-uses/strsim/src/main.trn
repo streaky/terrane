@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/strsim import levenshtein
+from /core/output import print
+
+function main;
+  distance int = levenshtein; 'terrane', 'terrain'
+  print; distance

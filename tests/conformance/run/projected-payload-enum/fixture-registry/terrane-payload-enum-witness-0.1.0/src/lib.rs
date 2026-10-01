@@ -5,6 +5,10 @@ pub enum Event {
     Ping,
     Pair(i64, i64),
     Named { value: i64 },
+    Optional {
+        value: Option<u32>,
+        label: Option<String>,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]

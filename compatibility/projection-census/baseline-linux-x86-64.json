@@ -1,0 +1,2236 @@
+{
+  "manifest": "compatibility/projection-census/packages.yaml",
+  "packages": [
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 3,
+          "unsupported-capability": 53
+        },
+        "declined-operations": 58,
+        "discovered-declarations": 56,
+        "discovered-public-paths": 56,
+        "discovery-failures": 0,
+        "projected-operations": 22,
+        "structural-causes": [
+          {
+            "affected-operations": 35,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `K` has no default instantiation"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'map` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has named fields"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "hashbrown",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.17.1"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "deferred-contextual": 13,
+          "namespace-path": 2,
+          "projectable": 48,
+          "unsupported-capability": 59
+        },
+        "declined-operations": 793,
+        "discovered-declarations": 122,
+        "discovered-public-paths": 122,
+        "discovery-failures": 0,
+        "projected-operations": 1737,
+        "structural-causes": [
+          {
+            "affected-operations": 146,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 103,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 100,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 87,
+            "classification": "unsupported-capability",
+            "reason": "generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 78,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 42,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has named fields"
+          },
+          {
+            "affected-operations": 34,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: projected result depends on multiple caller-chosen types"
+          },
+          {
+            "affected-operations": 31,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 26,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has multiple tuple fields"
+          },
+          {
+            "affected-operations": 24,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          },
+          {
+            "affected-operations": 15,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 13,
+            "classification": "unsupported-capability",
+            "reason": "trait has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 11,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "associated type `Class` is generic"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `core::marker::Sized` does not resolve to a trait"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: unbounded generic `Message`"
+          },
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "projected signature references unreachable crate `bitflags` at resolved version `1.3.2, 2.13.2`; the defining trait or helper is not public through a declared dependency"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "generic input requires one projectable interface bound"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "projected output: unresolved associated type `Self::Target`"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: unbounded generic `T`"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Font` has no default instantiation"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `P` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: callback generic `impl BootFn<State, Message>` has no concrete call signature"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Message` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'encoder` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'tex` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "nested borrowed parameter cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected output: unresolved associated type `Self::Output`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `raw_window_handle::borrowed::HasWindowHandle` does not resolve to a trait"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait has no projectable receiver methods"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `Renderer`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic input bound is not a projectable interface"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: callback generic `impl application::BootFn<State, Message>` has no concrete call signature"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: callback generic `impl application::UpdateFn<State, Message> + 'static` has no concrete call signature"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Highlighter` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `State` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'window` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "map key is not a Terrane scalar"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected error `__terrane_recursive_wgpu_types::PollError` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `core::ops::function::Fn` does not resolve to a trait"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `iced_core::theme::Base` does not resolve to a trait"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `can_be_dragged_at`: lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `create_buffer_init`: lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `default` is an associated function"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `eq`: required borrowed parameters are deferred"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `from_storage_format` is an associated function"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "iced",
+      "priority": "high-priority",
+      "representative-workflows": [
+        {
+          "evidence": "projects/gui-test/docs/projection-gap.md",
+          "name": "application-widget-graph",
+          "reason": "Existing application uses maintained Rust support, so it is not compiler-admission evidence.",
+          "status": "context-only"
+        },
+        {
+          "diagnostic": "representative-use/iced/direct-application-constructor/src/main.trn:3:24: error[S2029]: Rust dependency member `application` in `/deps/iced` is not projected: generic selection: callback generic `impl BootFn<State, Message>` has no concrete call signature",
+          "exit-code": 3,
+          "name": "direct-application-constructor",
+          "package": "compatibility/projection-census/representative-uses/iced-application",
+          "status": "compiler-declined"
+        }
+      ],
+      "version": "=0.14.0"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 21,
+          "unsupported-capability": 51
+        },
+        "declined-operations": 160,
+        "discovered-declarations": 72,
+        "discovered-public-paths": 72,
+        "discovery-failures": 0,
+        "projected-operations": 69,
+        "structural-causes": [
+          {
+            "affected-operations": 73,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 30,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          },
+          {
+            "affected-operations": 25,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 16,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'h` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'n` requires non-escaping chain projection"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "memchr",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=2.8.3"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 15,
+          "unsupported-capability": 1
+        },
+        "declined-operations": 2,
+        "discovered-declarations": 16,
+        "discovered-public-paths": 16,
+        "discovery-failures": 0,
+        "projected-operations": 16,
+        "structural-causes": [
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "strsim",
+      "priority": "high-priority",
+      "representative-workflows": [
+        {
+          "diagnostic": "",
+          "exit-code": 0,
+          "name": "levenshtein-call",
+          "package": "compatibility/projection-census/representative-uses/strsim",
+          "status": "admitted-concrete-use"
+        }
+      ],
+      "version": "=0.11.1"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "deferred-contextual": 1,
+          "projectable": 25,
+          "unsupported-capability": 108
+        },
+        "declined-operations": 300,
+        "discovered-declarations": 134,
+        "discovered-public-paths": 134,
+        "discovery-failures": 0,
+        "projected-operations": 220,
+        "structural-causes": [
+          {
+            "affected-operations": 100,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 89,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 36,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 16,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          },
+          {
+            "affected-operations": 15,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 13,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "trait has no projectable receiver methods"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "borrowed result values cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `K`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `T`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: unbounded generic `T`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "http",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=1.5.0"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 15,
+          "unsupported-capability": 13
+        },
+        "declined-operations": 58,
+        "discovered-declarations": 28,
+        "discovered-public-paths": 28,
+        "discovery-failures": 0,
+        "projected-operations": 121,
+        "structural-causes": [
+          {
+            "affected-operations": 17,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 16,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `B` has no default instantiation"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has multiple tuple fields"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "receiver is not plain `self`, `&self`, or `&mut self`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected result value: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "h2",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.4.19"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 13,
+          "unsupported-capability": 7
+        },
+        "declined-operations": 98,
+        "discovered-declarations": 20,
+        "discovered-public-paths": 20,
+        "discovery-failures": 0,
+        "projected-operations": 137,
+        "structural-causes": [
+          {
+            "affected-operations": 38,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 17,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 10,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 7,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic argument has no stable Rust type spelling"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `C` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "uuid",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=1.26.1"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "unsupported-capability": 8
+        },
+        "declined-operations": 9,
+        "discovered-declarations": 8,
+        "discovered-public-paths": 8,
+        "discovery-failures": 0,
+        "projected-operations": 0,
+        "structural-causes": [
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `finish`: projected output: unresolved associated type `Self::Finished`"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "form_urlencoded",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=1.2.2"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 26,
+          "unsupported-capability": 12
+        },
+        "declined-operations": 312,
+        "discovered-declarations": 38,
+        "discovered-public-paths": 38,
+        "discovery-failures": 0,
+        "projected-operations": 282,
+        "structural-causes": [
+          {
+            "affected-operations": 97,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 87,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 35,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 15,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 14,
+            "classification": "unsupported-capability",
+            "reason": "generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 12,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "receiver is not plain `self`, `&self`, or `&mut self`"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "nested borrowed parameter cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "projected error `__terrane_recursive_url::parser::ParseError` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic input bound is not a projectable interface"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected error `__terrane_recursive_http::status::InvalidStatusCode` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait has a non-trait supertrait"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait has no projectable receiver methods"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `into_url`: required Result-returning methods are deferred"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `try_entry`: open generic `T`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `try_insert`: open generic `T`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `T`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `into_proxy`: required Result-returning methods are deferred"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `resolve`: projected output: generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `url`: projected output: receiver type used outside receiver position"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "reqwest",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.13.5"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 1,
+          "unsupported-capability": 4
+        },
+        "declined-operations": 5,
+        "discovered-declarations": 5,
+        "discovered-public-paths": 5,
+        "discovery-failures": 0,
+        "projected-operations": 1,
+        "structural-causes": [
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `K` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "lru",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.18.5"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "deferred-contextual": 3,
+          "namespace-path": 1,
+          "projectable": 80,
+          "unsupported-capability": 80
+        },
+        "declined-operations": 548,
+        "discovered-declarations": 164,
+        "discovered-public-paths": 164,
+        "discovery-failures": 0,
+        "projected-operations": 569,
+        "structural-causes": [
+          {
+            "affected-operations": 148,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 107,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 88,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 22,
+            "classification": "unsupported-capability",
+            "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+          },
+          {
+            "affected-operations": 22,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 16,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 15,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          },
+          {
+            "affected-operations": 11,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `S` has no default instantiation"
+          },
+          {
+            "affected-operations": 11,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 11,
+            "classification": "unsupported-capability",
+            "reason": "trait has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 10,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `F` has no default instantiation"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "receiver is not plain `self`, `&self`, or `&mut self`"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `S`"
+          },
+          {
+            "affected-operations": 7,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has named fields"
+          },
+          {
+            "affected-operations": 7,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `T`"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `L` has no default instantiation"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "projected output: unbounded generic `T`"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "borrowed result values cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `B`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `B` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `E` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected error `__terrane_recursive_axum_core::error::Error` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait has a non-trait supertrait"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait has no projectable receiver methods"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `try_entry`: open generic `T`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `try_insert`: open generic `T`"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "unbounded generic `K`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "Result has no value type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "destination-result bound owner `__terrane_recursive_axum_core` is not a resolved package"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic selection: unbounded generic `T`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Fut` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `H` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `I` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "only owning projected interface boxes are supported"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected error `axum::body::Bytes` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected error `axum::routing::method_filter::NoMatchingMethodFilter` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: trait objects require an owning `Box<dyn Trait>` parameter"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: unresolved associated type `Self::Future`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected output: unresolved associated type `Self::Target`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait closure contains more than one associated type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `into_response_parts`: required Result-returning methods are deferred"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `into_response`: projected output: unbounded generic `T`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "axum",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.8.9"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 9,
+          "unsupported-capability": 8
+        },
+        "declined-operations": 28,
+        "discovered-declarations": 17,
+        "discovered-public-paths": 17,
+        "discovery-failures": 0,
+        "projected-operations": 30,
+        "structural-causes": [
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 7,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 4,
+            "classification": "unsupported-capability",
+            "reason": "projected optional value: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'fmt` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "backtrace",
+      "priority": "high-priority",
+      "representative-workflows": [],
+      "version": "=0.3.76"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 31,
+          "unsupported-capability": 9
+        },
+        "declined-operations": 64,
+        "discovered-declarations": 40,
+        "discovered-public-paths": 40,
+        "discovery-failures": 0,
+        "projected-operations": 331,
+        "structural-causes": [
+          {
+            "affected-operations": 23,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 13,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has named fields"
+          },
+          {
+            "affected-operations": 9,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "mutable borrowed primitive parameters are not representable"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic input bound is not a projectable interface"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic input has an unresolved interface bound"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "nested borrowed parameter cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "payload enum variant has multiple tuple fields"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "projected error `bindgen::features::InvalidRustTarget` has no canonical displayable type"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `core::fmt::Debug` does not resolve to a trait"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "bindgen",
+      "priority": "mid-priority",
+      "representative-workflows": [],
+      "version": "=0.73.2"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "deferred-contextual": 14,
+          "projectable": 399,
+          "unsupported-capability": 6571
+        },
+        "declined-operations": 6902,
+        "discovered-declarations": 6984,
+        "discovered-public-paths": 6984,
+        "discovery-failures": 0,
+        "projected-operations": 701,
+        "structural-causes": [
+          {
+            "affected-operations": 5628,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 891,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          },
+          {
+            "affected-operations": 310,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 70,
+            "classification": "unsupported-capability",
+            "reason": "type alias target has no projectable foreign identity"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "libc",
+      "priority": "low-priority",
+      "representative-workflows": [],
+      "version": "=0.2.189"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "namespace-path": 1,
+          "projectable": 177,
+          "unsupported-capability": 1970
+        },
+        "declined-operations": 2088,
+        "discovered-declarations": 2148,
+        "discovered-public-paths": 2148,
+        "discovery-failures": 0,
+        "projected-operations": 328,
+        "structural-causes": [
+          {
+            "affected-operations": 1954,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 102,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 18,
+            "classification": "unsupported-capability",
+            "reason": "unsafe function"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "projected output: type has no stable Rust path"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "type alias target has no projectable foreign identity"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Storage` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `T` has no default instantiation"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "linux-raw-sys",
+      "priority": "low-priority",
+      "representative-workflows": [],
+      "version": "=0.12.1"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "projectable": 2,
+          "unsupported-capability": 52
+        },
+        "declined-operations": 60,
+        "discovered-declarations": 54,
+        "discovered-public-paths": 54,
+        "discovery-failures": 0,
+        "projected-operations": 21,
+        "structural-causes": [
+          {
+            "affected-operations": 17,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `E` has no default instantiation"
+          },
+          {
+            "affected-operations": 10,
+            "classification": "unsupported-capability",
+            "reason": "trait has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 8,
+            "classification": "unsupported-capability",
+            "reason": "trait closure contains more than one associated type"
+          },
+          {
+            "affected-operations": 5,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'de` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 3,
+            "classification": "unsupported-capability",
+            "reason": "supertrait `core::marker::Sized` does not resolve to a trait"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `A` has no default instantiation"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `I` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "generic type parameter `Ok` has no default instantiation"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane method projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `fmt`: lifetime-bearing foreign type cannot cross a projected boundary"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `serialize`: open generic `S`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has generic or lifetime parameters"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "type has no stable Rust path"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "serde",
+      "priority": "low-priority",
+      "representative-workflows": [],
+      "version": "=1.0.22"
+    },
+    {
+      "assessment": {
+        "classifications": {
+          "deferred-contextual": 4,
+          "unsupported-capability": 11
+        },
+        "declined-operations": 12,
+        "discovered-declarations": 15,
+        "discovered-public-paths": 15,
+        "discovery-failures": 0,
+        "projected-operations": 1,
+        "structural-causes": [
+          {
+            "affected-operations": 6,
+            "classification": "unsupported-capability",
+            "reason": "item kind has no Terrane projection"
+          },
+          {
+            "affected-operations": 2,
+            "classification": "unsupported-capability",
+            "reason": "trait member `poll_read`: receiver is not plain `self`, `&self`, or `&mut self`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait has an unresolved supertrait"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `poll_write`: receiver is not plain `self`, `&self`, or `&mut self`"
+          },
+          {
+            "affected-operations": 1,
+            "classification": "unsupported-capability",
+            "reason": "trait member `start_seek`: receiver is not plain `self`, `&self`, or `&mut self`"
+          }
+        ]
+      },
+      "outcome": "assessed",
+      "package": "tokio",
+      "priority": "low-priority",
+      "representative-workflows": [],
+      "version": "=1.53.1"
+    }
+  ],
+  "schema": 1,
+  "summary": {
+    "confidence": "static compiler admission; concrete generic and composition-sensitive uses require representative workflows",
+    "configuration-coverage": {
+      "assessed": 17,
+      "requested": 17
+    },
+    "declaration-classifications": {
+      "deferred-contextual": 35,
+      "namespace-path": 4,
+      "projectable": 865,
+      "unsupported-capability": 9017
+    },
+    "package-outcomes": {
+      "assessed": 17
+    },
+    "ranked-structural-causes": [
+      {
+        "affected-operations": 8018,
+        "classification": "unsupported-capability",
+        "reason": "item kind has no Terrane projection"
+      },
+      {
+        "affected-operations": 969,
+        "classification": "unsupported-capability",
+        "reason": "unsafe function"
+      },
+      {
+        "affected-operations": 790,
+        "classification": "unsupported-capability",
+        "reason": "lifetime-bearing foreign type cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 481,
+        "classification": "unsupported-capability",
+        "reason": "item kind has no Terrane method projection"
+      },
+      {
+        "affected-operations": 205,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'a` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 188,
+        "classification": "unsupported-capability",
+        "reason": "type has no stable Rust path"
+      },
+      {
+        "affected-operations": 105,
+        "classification": "unsupported-capability",
+        "reason": "generic input has an unresolved interface bound"
+      },
+      {
+        "affected-operations": 72,
+        "classification": "unsupported-capability",
+        "reason": "type alias target has no projectable foreign identity"
+      },
+      {
+        "affected-operations": 66,
+        "classification": "unsupported-capability",
+        "reason": "mutable borrowed primitive parameters are not representable"
+      },
+      {
+        "affected-operations": 63,
+        "classification": "unsupported-capability",
+        "reason": "payload enum variant has named fields"
+      },
+      {
+        "affected-operations": 56,
+        "classification": "unsupported-capability",
+        "reason": "trait method conflicts within its concrete owner and trait-qualified namespace"
+      },
+      {
+        "affected-operations": 47,
+        "classification": "unsupported-capability",
+        "reason": "projected output: type has no stable Rust path"
+      },
+      {
+        "affected-operations": 35,
+        "classification": "unsupported-capability",
+        "reason": "trait has generic or lifetime parameters"
+      },
+      {
+        "affected-operations": 34,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: projected result depends on multiple caller-chosen types"
+      },
+      {
+        "affected-operations": 34,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `T` has no default instantiation"
+      },
+      {
+        "affected-operations": 30,
+        "classification": "unsupported-capability",
+        "reason": "payload enum variant has multiple tuple fields"
+      },
+      {
+        "affected-operations": 19,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `E` has no default instantiation"
+      },
+      {
+        "affected-operations": 19,
+        "classification": "unsupported-capability",
+        "reason": "type has generic or lifetime parameters"
+      },
+      {
+        "affected-operations": 16,
+        "classification": "unsupported-capability",
+        "reason": "receiver is not plain `self`, `&self`, or `&mut self`"
+      },
+      {
+        "affected-operations": 15,
+        "classification": "unsupported-capability",
+        "reason": "projected optional value: trait objects require an owning `Box<dyn Trait>` parameter"
+      },
+      {
+        "affected-operations": 12,
+        "classification": "unsupported-capability",
+        "reason": "supertrait `core::marker::Sized` does not resolve to a trait"
+      },
+      {
+        "affected-operations": 11,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `S` has no default instantiation"
+      },
+      {
+        "affected-operations": 10,
+        "classification": "unsupported-capability",
+        "reason": "projected output: heterogeneous tuple has no Terrane tuple representation"
+      },
+      {
+        "affected-operations": 10,
+        "classification": "unsupported-capability",
+        "reason": "trait has no projectable receiver methods"
+      },
+      {
+        "affected-operations": 10,
+        "classification": "unsupported-capability",
+        "reason": "unbounded generic `T`"
+      },
+      {
+        "affected-operations": 9,
+        "classification": "unsupported-capability",
+        "reason": "associated type `Class` is generic"
+      },
+      {
+        "affected-operations": 9,
+        "classification": "unsupported-capability",
+        "reason": "trait closure contains more than one associated type"
+      },
+      {
+        "affected-operations": 8,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `F` has no default instantiation"
+      },
+      {
+        "affected-operations": 8,
+        "classification": "unsupported-capability",
+        "reason": "projected optional value: type has no stable Rust path"
+      },
+      {
+        "affected-operations": 8,
+        "classification": "unsupported-capability",
+        "reason": "unbounded generic `S`"
+      },
+      {
+        "affected-operations": 7,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `B` has no default instantiation"
+      },
+      {
+        "affected-operations": 7,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `K` has no default instantiation"
+      },
+      {
+        "affected-operations": 7,
+        "classification": "unsupported-capability",
+        "reason": "nested borrowed parameter cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 6,
+        "classification": "unsupported-capability",
+        "reason": "borrowed result values cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 6,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: unbounded generic `Message`"
+      },
+      {
+        "affected-operations": 6,
+        "classification": "unsupported-capability",
+        "reason": "projected signature references unreachable crate `bitflags` at resolved version `1.3.2, 2.13.2`; the defining trait or helper is not public through a declared dependency"
+      },
+      {
+        "affected-operations": 5,
+        "classification": "unsupported-capability",
+        "reason": "generic input bound is not a projectable interface"
+      },
+      {
+        "affected-operations": 5,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: unbounded generic `T`"
+      },
+      {
+        "affected-operations": 5,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'h` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 5,
+        "classification": "unsupported-capability",
+        "reason": "projected output: unresolved associated type `Self::Target`"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "generic input requires one projectable interface bound"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `L` has no default instantiation"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "projected error `__terrane_recursive_url::parser::ParseError` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "projected output: unbounded generic `T`"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "trait has a non-trait supertrait"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "trait member `try_entry`: open generic `T`"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "trait member `try_insert`: open generic `T`"
+      },
+      {
+        "affected-operations": 4,
+        "classification": "unsupported-capability",
+        "reason": "unbounded generic `K`"
+      },
+      {
+        "affected-operations": 3,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Font` has no default instantiation"
+      },
+      {
+        "affected-operations": 3,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `P` has no default instantiation"
+      },
+      {
+        "affected-operations": 3,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'de` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 3,
+        "classification": "unsupported-capability",
+        "reason": "unbounded generic `B`"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "generic argument has no stable Rust type spelling"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: callback generic `impl BootFn<State, Message>` has no concrete call signature"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `A` has no default instantiation"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `I` has no default instantiation"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Message` has no default instantiation"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'encoder` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'n` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'tex` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "projected error `__terrane_recursive_axum_core::error::Error` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "projected error `__terrane_recursive_http::status::InvalidStatusCode` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "projected output: trait objects require an owning `Box<dyn Trait>` parameter"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "projected output: unresolved associated type `Self::Output`"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "supertrait `raw_window_handle::borrowed::HasWindowHandle` does not resolve to a trait"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "trait member `into_url`: required Result-returning methods are deferred"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "trait member `poll_read`: receiver is not plain `self`, `&self`, or `&mut self`"
+      },
+      {
+        "affected-operations": 2,
+        "classification": "unsupported-capability",
+        "reason": "unbounded generic `Renderer`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "Result has no value type"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "destination-result bound owner `__terrane_recursive_axum_core` is not a resolved package"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: callback generic `impl application::BootFn<State, Message>` has no concrete call signature"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: callback generic `impl application::UpdateFn<State, Message> + 'static` has no concrete call signature"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic selection: trait objects require an owning `Box<dyn Trait>` parameter"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `C` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Fut` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `H` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Highlighter` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Ok` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `State` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "generic type parameter `Storage` has no default instantiation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'fmt` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'map` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "lifetime parameter `'window` requires non-escaping chain projection"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "map key is not a Terrane scalar"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "only owning projected interface boxes are supported"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected error `__terrane_recursive_wgpu_types::PollError` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected error `axum::body::Bytes` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected error `axum::routing::method_filter::NoMatchingMethodFilter` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected error `bindgen::features::InvalidRustTarget` has no canonical displayable type"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected output: generic input has an unresolved interface bound"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected output: unresolved associated type `Self::Future`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "projected result value: heterogeneous tuple has no Terrane tuple representation"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "supertrait `core::fmt::Debug` does not resolve to a trait"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "supertrait `core::ops::function::Fn` does not resolve to a trait"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "supertrait `iced_core::theme::Base` does not resolve to a trait"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait has an unresolved supertrait"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `can_be_dragged_at`: lifetime-bearing foreign type cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `create_buffer_init`: lifetime-bearing foreign type cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `default` is an associated function"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `eq`: required borrowed parameters are deferred"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `finish`: projected output: unresolved associated type `Self::Finished`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `fmt`: lifetime-bearing foreign type cannot cross a projected boundary"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `from_storage_format` is an associated function"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `into_proxy`: required Result-returning methods are deferred"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `into_response_parts`: required Result-returning methods are deferred"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `into_response`: projected output: unbounded generic `T`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `poll_write`: receiver is not plain `self`, `&self`, or `&mut self`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `resolve`: projected output: generic input has an unresolved interface bound"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `serialize`: open generic `S`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `start_seek`: receiver is not plain `self`, `&self`, or `&mut self`"
+      },
+      {
+        "affected-operations": 1,
+        "classification": "unsupported-capability",
+        "reason": "trait member `url`: projected output: receiver type used outside receiver position"
+      }
+    ],
+    "representative-workflow-statuses": {
+      "admitted-concrete-use": 1,
+      "compiler-declined": 1,
+      "context-only": 1
+    },
+    "surface-denominators": {
+      "declined-operations": 11497,
+      "discovered-declarations": 9921,
+      "projected-operations": 4586
+    }
+  },
+  "target": {
+    "name": "linux-x86-64",
+    "triple": "x86_64-unknown-linux-gnu"
+  }
+}

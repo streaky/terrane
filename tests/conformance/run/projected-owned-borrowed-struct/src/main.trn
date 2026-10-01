@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-borrowed-struct-witness import Descriptor, Owned, consume, summarize, summarize_owned
+from /core/collections import list
+from /core/output import print
+
+function main;
+    descriptor Descriptor = instance Descriptor; native-label = 'main', note = 'ready', values = (list; 'ab', 'c'), extra = (list; 'five'), offset = 35
+    owned Owned = instance Owned; native-label = 'owned', count = 7
+    first string = summarize; descriptor
+    descriptor.offset = 36
+    print; first, ':', (summarize_owned; owned), ':', owned.count, ':', (consume; descriptor)
+    defaults Descriptor = instance Descriptor; native-label = 'defaults', values = (list; 'x'), offset = 1
+    print; (summarize; defaults)

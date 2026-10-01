@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-payload-enum-witness import Event, NonClonePayload, OpenEvent, OwnedEvent, consume_payload, future_event, non_clone_payload
+from /deps/terrane-payload-enum-witness import Event, Event-Named, Event-Optional, Event-Pair, NonClonePayload, OpenEvent, OwnedEvent, consume_payload, future_event, non_clone_payload
 from /core/output import print
 
 function main;
@@ -16,6 +16,23 @@ function main;
     print; binary-value.length
   ping = Event::Ping;
   print; (ping.variant-name;)
+  pair-payload Event-Pair = instance Event-Pair; item-n0 = 20, item-n1 = 22
+  print; pair-payload.item-n0 + pair-payload.item-n1
+  pair Event = Event::Pair; pair-payload
+  pair-value Event-Pair|none = pair.into-Pair;
+  if pair-value != none
+    print; 'pair'
+  named-payload Event-Named = instance Event-Named; value = 42
+  print; named-payload.value
+  named Event = Event::Named; named-payload
+  named-value Event-Named|none = named.into-Named;
+  if named-value != none
+    print; 'named'
+  optional-payload Event-Optional = instance Event-Optional; value = 42, label = 'ok'
+  optional Event = Event::Optional; optional-payload
+  optional-value Event-Optional|none = optional.into-Optional;
+  if optional-value != none
+    print; 'optional'
   owned OwnedEvent|none = OwnedEvent::Payload; (non_clone_payload; 'owned')
   if owned != none
     payload NonClonePayload|none = (move owned).into-Payload;

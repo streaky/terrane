@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/terrane-native-bound-witness import Border, make_border
+
+function main;
+    initial Border = make_border;
+    _ = initial.rounded; 'invalid'

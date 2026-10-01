@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-point-witness import Point
+from /core/output import print
+
+function main;
+    point = Point::new; 3.4, 4.6
+    snapped = point.snap;
+    print; (snapped.total;)

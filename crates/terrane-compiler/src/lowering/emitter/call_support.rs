@@ -553,20 +553,31 @@ impl Emitter<'_> {
         })
     }
 
+    fn callee_is_unsafe(callee: &SyntaxNode) -> bool {
+        crate::syntax::call_is_unsafe(callee)
+    }
+
     pub(super) fn projected_function_for_call(
         &self,
         callee: &SyntaxNode,
-    ) -> Option<&crate::projection::ProjectedFunction> {
+    ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
         if callee.kind == SyntaxKind::Name {
+            let lookup_name = if Self::callee_is_unsafe(callee) {
+                format!("unsafe::{}", self.text(callee))
+            } else {
+                self.text(callee).to_owned()
+            };
             let symbol =
                 self.package
-                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+                    .resolve_name_at(self.unit, callee.span.start, &lookup_name)?;
             return self
                 .package
                 .projection
                 .item(&symbol.namespace, &symbol.name)
                 .and_then(|item| match &item.kind {
-                    crate::projection::ProjectedKind::Function(function) => Some(function),
+                    crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                        Some(function)
+                    }
                     _ => None,
                 });
         }
@@ -581,11 +592,13 @@ impl Emitter<'_> {
             };
             (identity, false)
         };
-        self.package.projection.method(
+        self.package.projection.method_for_native(
             &identity.namespace,
             &identity.name,
+            identity.native_projection.as_deref(),
             self.text(member),
             is_static,
+            Self::callee_is_unsafe(callee),
         )
     }
 
@@ -613,7 +626,9 @@ impl Emitter<'_> {
             return effective_object_methods(self.unit, object)
                 .into_iter()
                 .find(|contract| {
-                    contract.name == self.text(member) && contract.is_static == is_static
+                    contract.name == self.text(member)
+                        && contract.is_static == is_static
+                        && contract.is_unsafe == Self::callee_is_unsafe(callee)
                 });
         }
         if callee.kind == SyntaxKind::ConstructionExpression {
@@ -628,9 +643,14 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::Name {
             return None;
         }
-        let symbol =
-            self.package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+        let lookup_name = if Self::callee_is_unsafe(callee) {
+            format!("unsafe::{}", self.text(callee))
+        } else {
+            self.text(callee).to_owned()
+        };
+        let symbol = self
+            .package
+            .resolve_name_at(self.unit, callee.span.start, &lookup_name)?;
         let span = symbol.declaration_span?;
         self.package
             .units

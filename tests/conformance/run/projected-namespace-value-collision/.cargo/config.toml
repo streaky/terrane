@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-namespace-value-witness = { path = "fixture-registry/terrane-namespace-value-witness-0.1.0" }

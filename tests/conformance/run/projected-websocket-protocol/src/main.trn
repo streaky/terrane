@@ -51,13 +51,16 @@ async function socket-session; socket WebSocket
 async function health string;
   return 'ok'
 
-async function upgrade-handler Response; request WebSocketUpgrade
-  return request.on_upgrade; socket-session
+
+function websocket-route Router; router Router, path string, handler async function from WebSocket to none
+  callback = async function Response; request WebSocketUpgrade
+    return request.on_upgrade; handler
+  return router.route; path, (get; move callback)
 
 async function run-server;
   router = Router::new;
   router = router.route; '/health', (get; health)
-  router = router.route; '/ws', (get; upgrade-handler)
+  router = websocket-route; move router, '/ws', socket-session
   listener = await TcpListener::bind; '127.0.0.1:38765'
   await (serve; move listener, move router)
 

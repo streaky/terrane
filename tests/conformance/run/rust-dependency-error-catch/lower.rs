@@ -526,7 +526,6 @@ fn main() {
 // Namespace: deps/httpdate
 pub use std::time::SystemTime;
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignError> {
-    let s = s;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),
     ) {

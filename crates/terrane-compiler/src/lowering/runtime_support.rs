@@ -204,14 +204,16 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
             || contains(package, unit, &unit.tree.root)
     }) || package.projection.dependencies.iter().any(|dependency| {
         dependency.items.iter().any(|item| match &item.kind {
-            crate::projection::ProjectedKind::Function(_) => true,
-            crate::projection::ProjectedKind::ForeignType {
+            crate::rust_interop::projection::ProjectedKind::Function(_) => true,
+            crate::rust_interop::projection::ProjectedKind::ForeignType {
                 methods,
                 static_methods,
                 ..
             } => !methods.is_empty() || !static_methods.is_empty(),
-            crate::projection::ProjectedKind::Interface(interface) => !interface.methods.is_empty(),
-            crate::projection::ProjectedKind::Enum { .. } => false,
+            crate::rust_interop::projection::ProjectedKind::Interface(interface) => {
+                !interface.methods.is_empty()
+            }
+            crate::rust_interop::projection::ProjectedKind::Enum { .. } => false,
         })
     })
 }

@@ -206,18 +206,857 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
+### Milestone 31 — Scalable Rust binding synthesis and generated host integration
+
+**Status:** partially delivered. The bounded capabilities identified below are implemented; the
+remaining requirements in this milestone are planned work, not currently supported syntax.
+
+**Outcome:** adding an ordinary new package through `[rust-dependencies]` on the pinned Rust
+language/toolchain must not require a package-specific compiler change, handwritten Rust adapter,
+AI-assisted generation, or prior catalog entry. Automatically compose Terrane-generated Rust with
+the package's public native API, retaining its type and ownership obligations until the exact
+composition is checked. Package authors need not have anticipated Terrane.
+
+Iced, Godot and SQLx are mandatory regression witnesses, not the scope or definition of success.
+The deliverable is an ecosystem-scale deterministic analysis and binding-synthesis facility in
+the core Terrane CLI, together with the source-language expressiveness needed to use it.
+
+#### Scope, evidence, and reconciliation
+
+This milestone is the implementation home for
+[Iced's projection gaps](../projects/gui-test/docs/projection-gap.md),
+[S1](dump/adapt-crate.md#132-s1--separate-spec-first-iteratorstreamsink-extension), and
+[H1](dump/adapt-crate.md#133-h1--separate-typed-host-registration-program).
+The earlier automatic-binding plan remains architectural background; its completed M0–M8
+extraction and adapter-retirement work must not be repeated. S1 and H1 remain separate
+specification gates inside this milestone, not competing binding engines.
+
+| Requirement and witness | Shared work owner | Distinct acceptance obligation |
+| --- | --- | --- |
+| Iced `BootFn`, `UpdateFn`, higher-ranked `ViewFn` | Contextual constraints and callback generation | Concrete state/message/theme/renderer selection and a view result tied to each state borrow |
+| Iced lifetime-bearing `Element`, widgets, fluent builders and terminal `run` | Scoped native composition and demanded member graph | Nested widget construction and application execution without escaping open intermediates |
+| S1 consuming iterator/stream/sink projection | Scoped ownership plus native protocol mapping | Incremental non-Clone items, polling/backpressure, failure and cancellation-safe release |
+| H1 Godot declarations, macros and entrypoint | Typed host profiles and generated registration | Host loads and calls Terrane-defined classes, methods, properties and lifecycle bodies |
+| Repeated package integration maintenance | One binding contract, declarative profiles, proof and cache lifecycle | Unknown/private packages work locally; reviewed metadata is portable and reusable |
+
+Preserve existing concrete callback, destination-selected generic, expression-local chain,
+public-reexport, trait-implementation, `Future`/`IntoFuture`, and exact-graph oracle machinery.
+Existing projected async `next`/`send`/`close` patterns are useful building blocks, not proof of
+arbitrary Rust `Iterator`, `Stream`, or `Sink` support. Byte/text streams are not generic item
+streams. Godot public API discovery already works; generating host declarations is the remaining
+different problem. Do not count discovery, a compiling native probe, or a collected list as
+completion of these source-language capabilities.
+
+#### First deliverable: compiler-backed projection gap census
+
+**Status:** complete on `feature/projection-gap-census`; the architectural decision gate remains
+open and no downstream representation choice is implied.
+
+
+Measure the breadth and causes of ordinary package incompatibility before deciding the scale of
+architectural change. Build a small assessment tool on the existing native survey and compiler
+projection machinery, not a parallel implementation of projection rules. First establish what
+existing survey output already provides; add only the missing compiler admission, explanation
+and source-use evidence. This deliverable does not depend on implementing the proposed shared IR.
+
+Accept a declarative package list with pinned versions, features, targets and reproducible Cargo
+graphs. Begin with a manageable cross-domain sample of common real packages, including Iced,
+then add independently selected packages. The package list and batch runner belong to the
+separate compatibility infrastructure; reusable analysis/reporting hooks belong to the compiler
+and core CLI. Keep broad builds outside ordinary compiler tests and run without AI.
+
+For each public operation or type, retain canonical identity, public access paths, native shape,
+source location and the current compiler's actual result. Separate discovered/projectable surface,
+admitted concrete use, deferred generic/contextual obligations, unsupported capability, invalid
+test use, missing metadata, environment failure, resource-limited unproven results and engine
+defects. Deduplicate reexports while retaining their paths. Do not count every unspecialized
+generic signature as unsupported, omit declined items, or call a package usable from import
+success alone.
+
+Use two evidence levels: broad static surface assessment, followed by small representative
+Terrane consumer programs for important deferred or composition-sensitive APIs. Generate concrete
+probes only where selections are justified by available evidence; otherwise report the missing
+usage context rather than guessing. The census cannot prove all possible generic uses. Preserve
+denominators, configuration coverage and which operations were actually exercised.
+
+Group failures by structural cause and dependency, not package name or raw diagnostic count.
+Report both affected public surface and blocked representative workflows: one missing callback/
+region capability can prevent a large widget surface from being used. Trace a sample from each
+major cluster through admission and lowering, and retain minimal reproducers for engine defects.
+Export machine-readable reports plus a concise ranked summary of capability gaps, confidence
+and unclassified results.
+
+Treat Godot's unsafe extension entrypoint, registration macros and host lifecycle as an explicitly
+separate host-integration cohort. Its ordinary API still participates in the ordinary projection
+census. A reviewed reusable Rust host-support surface is a legitimate candidate for H1 and must
+not, by itself, be treated as evidence that ordinary projection needs a redesign. Decide its
+packaging/generation boundary separately; application behavior must remain Terrane.
+
+The first decision gate consumes the census and representative-use evidence. Determine whether
+the dominant failures are a small number of missing composable capabilities, inconsistent
+representations across existing stages, or genuinely exceptional host contracts. If focused
+generic extensions suffice, choose them. If duplicated models prevent clean composition,
+justify consolidation with specific traces. Revise and approve the downstream implementation
+scope on that evidence rather than assuming a rewrite or assuming the last gaps are already known.
+Deliver the runnable assessment workflow, pinned corpus, reproducible report and recommended
+next work units before committing to a new core representation.
+
+**Delivered evidence (2026-09-24):**
+
+- `terrane projection-census` composes shared native discovery with the compiler's real projection
+  resolver and emits native identity, public paths, package-relative source locations, signatures,
+  exact compiler results, explanations and structural classifications in machine-readable form.
+  It directly surveys exact resolved closure owners, parent enum members and pinned `core`/`std`
+  evidence for external public declarations while retaining admission through the original facade;
+  unresolved and ambiguous owners remain explicit report evidence.
+- `compatibility/projection-census/packages.yaml` pins 17 configurations across the proposed three
+  priority bands without adding them to compiler dependencies or test corpora.
+  `tools/run-projection-census.py` retains exact graph workspaces and full reports only under
+  ignored `target/projection-census/`; the reviewed portable summary is
+  `compatibility/projection-census/baseline-linux-x86-64.json`.
+- All 17 Linux x86-64 configurations completed. Thirty-nine additional closure-owner surveys,
+  parent-enum recovery, 16 requested pinned-`core` definitions and three pinned-`std` summaries
+  reduce selected public paths with missing metadata from 132 to zero. This recovers, for example,
+  `axum::body::HttpBody` from `http-body@1.1.0`, Iced's externally owned enum variants, libc's C
+  primitive aliases, and Tokio's IO reexports. The report retains separate denominators of 9,921
+  discovered declarations, 4,586 projected operations and 11,497 declined operations; it does not
+  turn those unlike units into a usability percentage. The four intentionally difficult
+  low-priority packages account for 8,604 of 9,017 unsupported declarations, so system/runtime
+  volume is kept separate from ordinary-package conclusions.
+- Ordinary package compilation now persists the complete resolved Rust graph in
+  `terrane-dependencies.lock`. Projection can privately inject a unique exact recursive owner from
+  that graph without creating a Terrane import root or widening features. Across the census, 21
+  private edges remove 266 of 272 recursive-owner declines and add 242 projected operations.
+  The remaining six Iced operations refer to a crate root with two locked `bitflags` versions and
+  remain declined rather than selecting an identity heuristically.
+- Representative source evidence admits a concrete Strsim call through checking and lowering and
+  reproduces Iced's direct `application` decline at the unresolved `BootFn` callback context.
+  The maintained-Rust GUI remains explicitly context-only rather than being counted as direct
+  admission evidence.
+- `terrane-projection.generated.trn` materializes the otherwise ephemeral projection beside each
+  package manifest. It orders currently required unavailable declarations and the required-admitted
+  index first, active projected Terrane source second, and unreachable unavailable declarations
+  last. Report comments retain every exact decline, demand site, partial function/callback contract,
+  and transitive requirement. Deterministic `Generated source unit` markers split the physical
+  artifact into independently validated units even when projected namespaces are cyclic. Authored
+  files retain `S2002`; this is a generated-container rule rather than a
+  general multi-namespace language change. Native identity and Terrane source naming are separate:
+  canonical public re-exports and repeated observations of one exact Rust type share one readable
+  Terrane nominal declaration. A unique closed generic therefore uses its constructor name, while
+  actual collisions first gain deterministic path-derived qualifiers and use a short digest only
+  when those qualifiers still collide. Closed numeric specializations of one Rust type constructor
+  likewise share one public declaration: `Point<f32>`, `Point<u32>`, and `iced::Point` appear as
+  `Point`, while exact native arguments and provider paths remain compiler-owned semantic metadata
+  used for member selection and generic Rust lowering. Universal panic translation is implicit and
+  omitted from generated declarations; projected `Result` errors retain
+  `throws dependency-error`. Other generic shapes retain distinct internal identities until
+  equivalent correlation is proven. Admitted nominal classes contain the union of methods,
+  associated constants, and enum constructors whose rendered declarations are syntax-valid
+  Terrane source, independently of current imports. Associated constants render as
+  `constant` and are selected with `Type::CONSTANT`. Rustdoc determines visibility and
+  type; missing value text is recovered from the Cargo-resolved source file through a
+  per-projection parsed-file cache. Exactly translatable literal, tuple, array, and arithmetic
+  expressions become Terrane initializers. Other constants remain compiler-backed and lower
+  directly to their canonical Rust associated-constant paths. Projection parses each candidate
+  declaration before admitting it to the generated unit; admitted members whose
+  rendering is not yet syntax-valid remain inert comments with the exact parser rejection.
+  Unsupported public members remain inert comments inside the owning class with native path,
+  recoverable signature, and exact decline, while their complete records remain in the unavailable
+  section.
+  Recoverable unavailable non-generic structs, enums, aliases, and traits additionally receive active
+  class or interface skeletons under their public `/deps/<package>` namespace. Parameterized native
+  traits retain their generic/lifetime template only in inventory metadata and emit no misleading
+  parameterless Terrane interface. Unexpressed native obligations do not turn a decline into success.
+  Successfully admitted named Rust structs with complete public fields expose those fields directly.
+  Owned structs lower construction to native Rust literals. Lifetime-parameterized structs are
+  admitted only with complete owned string, optional-string, slice, optional-slice, and copy-field
+  recipes; lowering stores owned values and reconstructs the exact temporary native view around
+  shared-borrowed or consuming calls. Private, stripped, tuple, non-exhaustive, mutable-borrowed,
+  and borrowed-result shapes remain opaque or unavailable rather than gaining inferred ownership.
+  Representable value-style `impl Trait` inputs remain caller-selected synthetic generics with
+  their complete canonical Rust bounds. Call analysis infers an exact Rust witness from the written
+  Terrane argument, substitutes related generics, and batch-proves the full bound conjunction
+  through the existing projection oracle. Successful calls lower directly to the native operation;
+  failed or unknown proof is `T0119`. This admits Iced `Border::rounded`, `Border::color`,
+  `Border::width`, and the analogous `Radius` methods without selecting one `Into<T>` implementation
+  during projection or adding Iced-specific compiler behavior.
+  Rust modules are structural namespace segments rather than projected value declarations or
+  unavailable API members, so a module and value may share one public path segment. Value imports
+  select the value declaration while nested `/deps` traversal retains the module. Opaque chain-owner
+  identity includes retained witness bounds, and generated import closure follows the producer's
+  exact projected owner rather than the first owner sharing a native base path. Output aliases are
+  expanded before `Option`/`Result` classification, including `Result<(), E>` terminal methods.
+  Producer-selected return-position `impl Trait` results retain an owned opaque witness recursively
+  inside their named outer type, including every canonical trait bound and associated-type equality.
+  Such values are expression-local chain state: a terminal member must consume or close the chain in
+  the same expression. Lowering omits generated aliases and explicit signatures containing the
+  witness, emits the producer/member calls directly, and lets Rust infer the hidden concrete type.
+  Binding, returning, capturing, collecting, or suspending the intermediate remains unavailable.
+  Direct `Fn`, `FnMut`, and `FnOnce` callback inputs may retain open generic types recursively in
+  callback parameters and exact results. Parameterized native adapter-trait inputs inspect blanket
+  implementations whose generic `Self` has one parenthesized callable bound. Projection substitutes
+  the adapter's trait arguments, rejects recipes whose callable parameters remain open, follows a
+  generic native future to its exact `Output`, retains every implementation-local result bound, and
+  requires one unique recipe. A clone-required `FnOnce` adapter projects a reusable Terrane function
+  so independently cloned native handlers remain callable. Call analysis jointly infers callback
+  parameters and result from the written callable and ordinary arguments, then proves the complete
+  substituted result-bound conjunction. Lowering passes a fresh concrete Rust closure rather than
+  Terrane's reusable `Arc<dyn Fn...>` representation. This generically admits callable adapter
+  traits such as Axum's zero-argument `Handler`, while leaving extractor-bearing recipes open until
+  their input types have an exact Terrane representation. Omitted Rust generic defaults are expanded
+  before projected nominal identity is selected, and static calls on instantiated owners use
+  turbofish syntax.
+  Every native declaration referenced by a required partial contract is marked required recursively
+  by stable Rustdoc identity: unavailable
+  dependencies move into the required section with the requiring contract, while admitted
+  dependencies appear in a required-admitted index. A demanded residual still fails at application
+  source and points to the generated artifact; subsequent builds replace demand annotations.
+- `compatibility/projection-census/findings.md` records representative traces, confidence limits,
+  cohort interpretation and recommended next work. The census selected compiler-owned native
+  conversion metadata rather than a second binding engine: source types remain ordinary Terrane
+  values while exact Rust identity, specialization, borrowing, and field conversion remain hidden
+  lowering contracts.
+- Higher-ranked callback recipes now retain two terminal paths. The preferred owned-result path
+  proves one external `for<'a> Owned: Into<Terminal<'a, ...>>` conversion. When the callback
+  itself must return a lifetime-bearing producer result, projection admits that producer only as
+  an invocation-scoped semantic value selected by the exact callback use; semantics rejects
+  ordinary storage, and lowering emits a statically typed callback adapter carrying the invocation
+  lifetime, correlated native parameters, owned captures, and external terminal conversion.
+  Package-independent executable evidence covers direct and captured exact callbacks without
+  source lifetime syntax, erased result storage, dynamic dispatch, or `'static` promotion.
+  Receiver-tied outputs, mutable borrowed descriptors, and consuming collection protocols remain
+  explicit subsequent capability gaps.
+
+
+#### Architectural simplification gate
+
+Increase capability by simplifying the integration model, not by accumulating special cases.
+Repeated failure on ordinary APIs is a reason to challenge the abstraction itself. Extending
+every existing mechanism until the examples pass is not sufficient; moving those mechanisms
+into a catalog of package recipes is not simplification.
+
+After the projection census, and before committing to additional machinery:
+
+1. Trace working and failing compositions through discovery, admission, specialization, proof
+   and lowering. Establish which decisions and native facts are duplicated.
+2. Identify where eager convenience conversion or closed representations lose usable native
+   relationships, and where parallel inference/admission paths can disagree.
+3. Prototype a smaller faithful native-composition path against difficult combinations of
+   borrowing, generics, callbacks and ownership, including unrelated-package witnesses.
+4. Compare capability, correctness, diagnostics and maintenance structure with the current path.
+   Decide what Terrane must understand to preserve source semantics and what it can retain as
+   an obligation for Rust rather than reconstructing approximately.
+5. Select the architecture from that evidence, revise the downstream work breakdown, then
+   migrate callers and delete superseded paths rather than retaining a second binding engine.
+
+The target is fewer authoritative representations and independent decisions with broader native
+composition. Reuse code where it serves that target; replacing the current approach is explicitly
+allowed. The mechanisms below are requirements and candidate design directions, not a mandate
+to preserve today's internal architecture.
+
+Exit evidence must name mechanisms consolidated or removed, show the same path handling
+previously failing combinations, and account for new complexity introduced. Line count alone
+is not evidence. Do not weaken ownership, effects, safety, diagnostics or existing supported
+behavior to make the implementation appear smaller.
+
+#### Candidate core: shared package semantic interface IR
+
+Evaluate a versioned semantic interface IR as a leading candidate for the common representation,
+not as a predetermined additional abstraction. It would describe a package's public contract once
+so the compiler, language server, debugger and other tools consume consistent identities and facts.
+Its success criterion is replacing duplicated discovery, projection models and interpretation,
+not adding a serialization layer over several disagreeing implementations.
+
+Model canonical item identity and public paths; types, fields and enum variants; functions,
+constructors and methods with receiver modes; traits/interfaces, implementations and associated
+items; generic/const parameters and constraints; callback signatures, invocation modes and lifetime
+binders; ownership, borrowing, async and native error contracts; visibility, documentation and
+source provenance; and feature/target conditions. Retain structural relationships and unresolved
+obligations rather than reducing contracts to display strings or currently admitted signatures.
+Separate extracted facts, derived facts, reviewed external assumptions and unknown information.
+The IR must not invent effects, retention guarantees or host invariants absent from its evidence.
+
+Distinguish three connected layers with stable identity links:
+
+- **Package interface graph:** configuration-specific native contracts, including open generic
+  APIs, independent of one application's selections or today's projection coverage.
+- **Contextual binding/proof graph:** selected source-visible names and representations, concrete
+  substitutions, region/conversion decisions, admission or decline reasons, and exact proof
+  evidence for a particular Terrane demand.
+- **Build/debug provenance:** the mapping from those identities and selected bindings to emitted
+  Rust, monomorphized symbols, source locations, native debug information and runtime layouts.
+  Static package metadata alone cannot establish runtime layout, optimized variable availability
+  or a safe debugger evaluation.
+
+Use these layers to give the compiler one semantic input, the language server accurate
+completions/signatures/navigation and contextual availability explanations, and the debugger
+consistent source/native identities and proved representation mappings. Tools may render
+different views, but must not independently re-infer compatibility or falsely advertise deferred
+items as usable. Incremental editor queries must not require rebuilding an entire package graph.
+
+The connecting contract must support access **through Terrane and lowering from Terrane**, not
+merely describe Rust APIs. Evaluate an authoritative typed binding contract linking native
+interface facts to source-visible operations and their checked realization:
+
+- what source code can name: types, constructors, members, traits and callbacks;
+- what each operation means: receiver authority, argument passing, moves, borrows, result
+  relationships, effects and selected conversions;
+- what remains to be established: generic selections, lifetime relationships and native trait
+  obligations;
+- how an admitted use lowers: the exact native item, selected representations and calling form;
+- how tools explain it: source identity, contextual signatures, availability, diagnostics and
+  generated/native provenance.
+
+The intended flow is native interface facts to Terrane binding contract to checked source use
+to Rust lowering. The language server presents the contract, semantic analysis checks its use,
+and lowering realizes that same checked contract rather than independently rediscovering what
+the call means. Debugging follows its identities and representation mappings into the artifact.
+Describe typed operations and obligations with compiler-owned lowering rules, not arbitrary
+Rust templates. This is the operational role of the contextual binding/proof graph above, not
+an additional competing IR or a subsystem coordinating several incompatible models.
+
+Investigate whether the missing ingredient is an authoritative connection between existing
+discovery, source expressibility, admission and emission rather than more individual projection
+features. Treat this as a hypothesis to test against the implementation, not an established
+diagnosis. At the architectural gate, trace every representative exposed operation through one
+binding identity, one explicit set of obligations and one checked lowering decision; account for
+any subsystem that reconstructs them. Consolidate the substantial existing machinery around
+that contract where the evidence supports it.
+
+Keep the logical schema separate from its YAML/JSON transport and indexed in-memory form.
+Require exact configuration/provenance keys, explicit schema compatibility, bounded validation,
+deterministic normalization and incremental invalidation. Reuse existing canonical identities,
+native analysis artifacts and compiler/debug provenance where sound. Package documents from the
+external infrastructure should encode this shared contract rather than a separate metadata model.
+An IR records constraints and proof results; it is not another approximate Rust trait solver.
+
+At the simplification gate, prototype one difficult generic/borrowed callback API through
+extraction, source binding and proof, language-server presentation, and build/debug identity
+mapping using the same graph. Include unresolved and rejected usage, not only a successful call.
+Compare the resulting architecture with improving existing representations directly; identify
+which representations, translators and independent decisions can actually be removed. Adopt,
+revise or reject the candidate on that evidence before freezing its schema.
+
+#### Governing contract: native composition before convenience projection
+
+Both sides compile as Rust. Preserve native types, generic/associated constraints, moves, borrows,
+callable families and trait obligations through the generated composition instead of requiring
+every API to fit an eagerly closed Terrane convenience type. Rust checks that exact composition;
+Terrane checks faithful source lowering and guarantees not established by Rust. Compilation
+proves static compatibility, not arbitrary behavior or external unsafe invariants.
+
+Provide faithful native composition and ergonomic convenience projection as two views of the
+same binding plan. An unavailable convenience conversion must not hide a usable native operation.
+A newly selected ordinary package must support representative use without a compiler patch merely
+for exposing generic, borrowing or async Rust APIs. Do not require familiar API naming, eager
+List conversion, Clone, a synthetic close operation, or a package recipe. Report real runtime/
+system dependencies separately from language support.
+
+Necessary analysis time, specialization, support artifacts and justified runtime representation
+cost are acceptable. Establish correct coverage before optimization; a cheap heuristic decline
+is not preferable to a sound buildable integration. This permits neither hidden copies nor changes
+to ownership, lifetime or observable semantics. Explicitly justified allocation or dynamic dispatch
+may implement an approved source contract; zero-cost lowering is not an admission requirement.
+
+Freeze a pinned-Rust capability matrix, not a list of successful packages. Cover public data and
+enum operations; moves and receiver modes; generics and const parameters; traits, coherence,
+associated types and GATs; impl/dyn Trait and dispatch; closures, higher-ranked and dependent
+lifetimes; borrowing/pinning; futures, iterators/streams; cfg/features, generated public APIs,
+macros and unsafe boundaries. Each cell needs a source representation, exact proof mechanism,
+composition constraints and explicit supported or exceptional boundary. Missing ordinary
+expressiveness is milestone work, not a permanent package-profile escape.
+
+#### Source-language expressiveness is in scope
+
+Review and extend Terrane syntax/semantics where necessary for explicit generic/associated
+selections, native trait implementations, payload-bearing native enums, consuming move-only
+operations, scoped shared/mutable native borrows, and region-dependent callable results.
+Consider a general scoped native-composition construct instead of repeated expression-pattern
+exceptions. These must be typed Terrane operations, not embedded Rust strings.
+
+Specify which obligations Terrane checks and which it defers to the pinned Rust compiler; carry
+source spans through generated constraints and translate native failures into actionable source
+diagnostics. An approximate duplicate trait solver must not veto an exact provable composition.
+Approve syntax through the manual/conformance process, preserving existing source meaning but
+not treating today's projection representation or absence of borrow syntax as an immutable ceiling.
+
+#### Automated CLI and ecosystem artifact pipeline
+
+Extend existing survey/projection machinery into a documented core-CLI workflow for analysis,
+application-demand specialization, generation/proof, explanation and artifact export/import.
+Ordinary builds invoke the same engine automatically. Every stage runs non-interactively with
+stable machine-readable results and distinct exit categories; final command spelling is a CLI
+design decision.
+
+An infrastructure worker must be able to analyze every package version/configuration and produce
+a versioned YAML or JSON document containing discovered public facts, deferred generic constraints,
+coverage, proof evidence, declines and provenance. Mechanically derive ordinary package data;
+do not manually author one recipe per package. Package-wide capability evidence is distinct from
+proof of a particular application use. Uninstantiated generics remain deferred, and an unsupported
+unrelated export must not poison usable operations.
+
+Precompute stable native facts; finish unbounded generic instantiations and source callback/borrow
+obligations locally. Key artifacts by exact graph/source, features/cfg, target, toolchain and schema,
+not version alone. Declare sampled configurations rather than claiming exhaustive feature coverage
+from a default build. 31 owns local analysis/export/import/proof; 32.1 owns remote distribution.
+
+Discovery, synthesis, validation and builds require no AI. Optional AI assistance may propose a
+reviewed engine change or exceptional host contract, never certify correctness or supply a build
+dependency. Separate compiler proofs, reviewed external assumptions and runtime evidence.
+A cache miss triggers local automated analysis, not a request for a handwritten adapter.
+
+#### Design principle: one synthesis pipeline, two kinds of extension
+
+There is no sound universal inference of arbitrary procedural-macro semantics or foreign ABI
+invariants. The practical unification is one checked pipeline with reusable structural rules and
+explicit host contracts, not a promise that JSON can make every Rust API safe:
+
+1. Resolve the exact Cargo graph and discover canonical public items through the existing
+   `terrane-rust-analysis` metadata and public-path index.
+2. Retain deferred candidates, including generic, associated, callback and lifetime constraints;
+   an initially open signature is not a permanently missing import.
+3. Combine actual Terrane receiver/argument/callback/destination/terminal demand with optional
+   validated profile facts. Solve only the demanded connected constraint graph.
+4. Produce one compiler-owned binding plan with substitutions, conversion selections, borrow
+   regions, ownership transfers, callback/effect contracts, cleanup and native proof obligations.
+5. Prove the exact proposed calls, impls and generated host declarations against the resolved
+   graph. Native proof and Terrane ownership/effect/capability checks must both succeed.
+6. Lower that admitted plan, retaining source/native provenance. Semantics, lowering, LSP,
+   explanations and durable locks consume the same selected facts.
+
+Evolve the existing `ProjectedFunction`, `ProjectedType`, chain roles and per-call specialization
+representations where sound; replace insufficient closed representations when the capability
+matrix requires it. Avoid parallel resolvers or approximate Rust solvers. Native facts and
+`Yes`/`No`/`Unknown` probes remain in `terrane-rust-analysis`; source meaning, region/escape checks,
+source declarations and lowering remain in `terrane-compiler`. Generated glue is build output.
+
+Ordinary binding rules dispatch on proven Rust shapes, never on `iced`, `godot`, or another
+package name. An explicitly selected host profile may name its real macro/ABI provider: that is
+a framework contract, not a secret exception in ordinary call projection. A new structural
+capability may require a compiler change once; a new package using it must not.
+
+#### A. Specification and evidence baseline
+
+Before implementation, freeze a requirement ledger with stable shape-oriented keys, each mapped
+to a source demand, native obligation, current admission/decline, owning work unit, regression
+witness and removal criterion. Snapshot both public applications and their maintained Rust
+boundaries. Use Iced `=0.14.0`, default features disabled, with `wgpu`, `tokio`, `wayland`, and
+`x11` as the initial GUI profile; read Godot's exact version/features from its checked-in manifest
+and lock rather than choosing a nearby release.
+
+Approve source contracts in the authoritative manual and concise reference before implementing:
+
+- region-scoped foreign values and lifetime-dependent callback results, including the distinction
+  between a retained callback environment and a result borrowed only during one invocation;
+- consuming iteration and native asynchronous item/sink mapping, including item/error/end states;
+- typed host declarations and profile selection, with lifecycle, thread, ABI and unsafe policy.
+
+Specify how engineers explicitly choose otherwise ambiguous state, message, associated types,
+theme, renderer, host base and exported identity in Terrane. Prefer existing declarations and
+written destinations; any new syntax requires the normal language review. Do not silently select
+the first Rust implementation or introduce unreviewed recipe-only source syntax.
+
+#### B. Contextual constraints, callback families, and scoped native composition
+
+Generalize contextual closure across free, static, instance and trait calls in one path. Solve
+receiver, argument, repeated generic occurrences, associated equalities, callback input/output,
+written destination and terminal constraints together to a bounded fixed point. Preserve
+canonical aliases, defaults and public reexports; defaults apply only where the Rust contract
+allows them and cannot resolve a genuine user choice by guesswork.
+
+Recognize callback-bearing custom traits through their actual required operations and selected
+impl obligations, not only the spelling `Fn`. Distinguish an existing blanket implementation
+satisfied by a generated closure from a trait requiring an emitted implementation. Generate the
+minimum appropriate closure or nominal shim and prove the complete selected contract, including
+supertraits, associated outputs, invocation authority and coherence constraints. Do not assume
+every one-method trait is callable or forge implementations prohibited by Rust coherence.
+
+Implemented foundation: projected blanket callable recipes may retain correlated open generics.
+Compatible recipe families whose invocation/result obligations agree but whose callback parameter
+shapes differ are represented as destination-selected; the supplied Terrane callable chooses the
+shape. Semantics jointly unifies every callback argument and reports incompatible correlations
+before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are the executable
+ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
+and source `ref` parameters receive invocation-local converted values.
+
+Implemented: a selected blanket callback recipe may retain an invocation-lifetime-dependent
+terminal entirely in its result obligation. Call analysis jointly selects the owned Terrane callback
+result and every correlated native parameter, then the projection oracle proves the complete
+`for<'view> OwnedResult: Into<ScopedTerminal<'view, ...>>` contract. All owner paths inside that
+higher-ranked bound are rewritten to the declared manifest alias before the proof crate is emitted.
+Lowering supplies one fresh concrete closure; the native blanket implementation performs the
+terminal conversion inside the invocation and is therefore the terminal export authority. The
+scoped nominal never enters the Terrane value model, so binding, field storage, return, collection,
+capture, and suspension of that value are impossible rather than temporarily admitted.
+`projected-invocation-scoped-callback` proves direct callback use, an owned capture, an ordinary
+Terrane helper call, three correlated native parameters, execution, and canonical Rust.
+`projected-invocation-scoped-nominal-escape` proves that the underlying lifetime-bearing producer
+remains unavailable outside that authorized callback recipe.
+Implemented: expression-scoped composition also retains destination-selected existential
+parameters that cannot be named independently of their producer call. Semantic bound probes do
+not extract such a producer into a standalone Rust type assertion; lowering emits the complete
+nested producer/consumer expression once and Rust jointly resolves hidden closure, extractor
+tuple, service, renderer, and comparable parameters. Bare return-position `impl Trait` producers
+may be anonymous chain roots without a fabricated foreign owner. The Axum
+`from_fn(access_middleware(...)) -> Router::layer` cutover is the ecosystem witness.
+
+For native contracts with a callable result generic under a higher-ranked conversion obligation,
+retain the binder and complete input/output relationship in the selected blanket recipe. Prove one
+owned callback result converts for every permitted invocation lifetime; specializing a single
+lifetime or promoting it to `'static` is not sufficient. Prefer the native blanket implementation
+as the terminal authority when it already owns that conversion: this preserves the analyzed
+Terrane callable, recursion, helpers, captures, diagnostics, and static result type without a
+second compiler representation.
+
+Implemented for the bounded exact-result subset: projection retains invocation-scoped native inputs,
+producer results, and homogeneous sequence elements. Semantic values carry the enclosing
+scoped-function span as a stable region identity; each dynamic callback invocation is represented
+by that same static identity because values cannot escape or cross invocations. Same-type
+region-local bindings, nested projected calls, branches, and scoped child lists are legal; ordinary
+storage, local lenders, aggregate escape, capture, suspension, incompatible native producer
+contracts, and cross-region flow are rejected. Scoped values use ordinary move checking and are
+never implicitly cloned.
+
+The currently implemented exact-result subset is deliberately narrower than the full design above.
+A named Terrane callback may return one exact lifetime-dependent native producer type per scoped
+function. Semantic analysis resolves each scoped function's direct returns, local-binding aliases,
+and return-forwarding edges, converges recursive components without merging nested callees into
+their callers, records the resulting native `ValueType` against that function's source identity,
+and attaches that typed plan to the analyzed unit. Authored calls consume that plan during semantic
+type inference, including region rebinding to the caller invocation. Projected consumers compare
+those concrete producer families before lowering, so a bound helper cannot hide an incompatible
+native argument until rustc. Lowering consumes the same plan directly; it does not walk return
+syntax or re-infer producer types. The named function is passed directly to a proven native callback
+blanket, leaving terminal conversion to the native implementation and avoiding a compiler-forged
+implementation of an external trait. All explicit returns from one function must currently
+converge on that function's producer type.
+
+That producer may flow through same-type local bindings, projected calls, ordinary helpers,
+branches, and homogeneous scoped child lists inside one invocation. It may borrow the callback's
+lender parameter but not an ordinary callback-local value. The source spelling
+`host-invocation-scoped-native` explicitly requests this compiler-managed, non-storable native
+value category until destination-driven result inference is available. Unresolved source parameter
+types, mixed native list elements, storage escape, capture, suspension, region mixing, and
+unauthorized return are source errors. Distinct native return types and exact higher-ranked
+anonymous or capturing callbacks remain open work; the compiler declines them rather than
+inferring a helper ABI or cloning an environment on every invocation.
+
+`projected-invocation-scoped-callback` exercises the supported direct, nested, same-type branching,
+helper, bound-and-wrapped return, bound helper-return forwarding, distinct nested-callee producer,
+direct recursion, mutual recursion, aggregate, and defaulted-terminal paths. Focused rejection
+fixtures cover nested and bound local lenders, unresolved source parameters, heterogeneous scoped
+lists, restrictive native callback traits, incompatible bound projected consumers, escape,
+capture, suspension, invalid reuse, and incompatible recursive graphs.
+The maintained
+`packages/iced-ui` renderer executes the supported projected Iced widget operations through named
+callbacks. A narrow host crate still owns Iced's event-loop entrypoint, while a package-local Rust
+module converts the public Terrane `View`/`Event` data-transfer objects.
+
+Preserve independent `Fn`/`FnMut`/`FnOnce`, native `Result`, source `throws`, retention,
+`Send`/`Sync`, thread affinity, and asynchronous obligations. A retained environment may be
+`'static` without making each borrowed result `'static`.
+
+Implemented for result-generic blanket recipes: the callback constructs an ordinary owned operation
+graph before the native terminal conversion. `projected-invocation-scoped-callback` now exercises
+projected constructors nested as arguments, multiple owned intermediates, branches that converge to
+one owned `Widget`, an ordered child collection, an ordinary Terrane helper, and an owned capture.
+A traced aggregate proves exact-once source-order evaluation. The selected native blanket recipe
+then converts that one owned graph result into the invocation-scoped terminal.
+`projected-invocation-scoped-owned-blanket-bound` rejects an owned graph result that does not
+satisfy the complete higher-ranked terminal bound before Rust lowering.
+
+The owned blanket-recipe path deliberately reuses ordinary Terrane control flow, collection
+ownership, move/borrow rules, projected generic specialization, and the terminal authority
+established above. It does not introduce a second scoped graph representation: its intermediate
+nodes are ordinary owned values, so mixed invocation regions and escaping scoped aggregates are
+structurally impossible on that path. The exact callback-result path described above separately
+admits lifetime-bearing nodes under the enclosing scoped-function region and applies its region,
+lender, and escape checks. No lifetime erasure, `transmute`, forced cloning, leaked allocation, or
+universal boxed value.
+Box only where the native public API requires it or the reviewed representation contract
+explicitly justifies it.
+
+Discover and materialize demanded widget constructors, methods and recursively reachable types
+through the existing public-path machinery. Do not broadly admit every member in `iced::widget`.
+Resolve demanded mutually dependent declarations as a graph with canonical identities rather
+than relying on accidental generated-source order; retain precise per-member declines.
+
+#### C. S1: consuming iteration, native streams, and sinks
+
+Compare existing core stream and projected async endpoint contracts first. Reuse matching
+operations and runtime machinery; add a distinct typed item protocol only for semantics the
+existing byte/text contracts cannot express. Specify all of the following before lowering:
+
+- consuming `Iterator`/`IntoIterator` ownership, move-only items, exhaustion, `break`, error and
+  destruction; collection traversal must not clone a non-Clone element to simulate consumption;
+- canonical `Stream` and `Sink` trait identities from the resolved graph, associated item/error
+  closure, pinned owner lifetime, `Poll`/wake registration and executor compatibility;
+- item versus end versus failure, preserving nested `Option`/`Result` order rather than
+  flattening an item that is itself optional or fallible;
+- sink readiness before send, backpressure, flush and close, remote closure only when supported
+  by the native contract, and partial progress when failure or cancellation interrupts a send;
+- early stop, cancellation, task-transfer and local-executor restrictions, receiver reborrow,
+  destructor order and release of borrowed connections/resources on every exit path.
+
+Do not infer that arbitrary `Sink` has the current boolean remote-closed outcome, that dropping
+a future flushes a sink, or that asynchronous cleanup can happen in ordinary Rust `Drop`.
+Connect explicit asynchronous close/finalization to Terrane's existing cancellation-scoped
+runtime; do not add a hidden task, second executor, eager collection or busy polling.
+
+Keep borrowed owners alive throughout native stream use. Distinguish a stream borrowing its
+connection from an item borrowing the stream: the SQLx row-stream gate requires the former.
+Specify a scoped per-item no-escape rule for supported lending items, and explicit diagnostics
+for remaining unrepresentable lending/GAT shapes; never silently turn borrowed items into owned
+ones. The bounded supported set must be listed in the specification, not widened by name matching.
+
+Acceptance includes the proposed `projected-sqlx-row-stream` fixture: consume distinct rows
+incrementally, stop early, observe a real failure, then demonstrate connection reuse/release.
+Add independent consuming non-Clone iterator, stream and sink witnesses, including a genuinely
+pending/woken producer, bounded backpressure, cancellation and exactly-once drop.
+
+#### D. H1: typed host declarations and generated registration
+
+Design a host-neutral declaration model for exported classes, native base selection, methods,
+properties, lifecycle callbacks, extension entrypoints and supported value conversions.
+Applications declare these identities and write all bodies in Terrane. The Godot profile maps
+these declarations to the exact `GodotClass`, `godot_api`, `gdextension`, base-handle and
+`ExtensionLibrary` contracts; it must not generate N-body simulation or rendering policy.
+
+Validate signature and property compatibility, initialization/destruction ordering, base access,
+host-owned versus Terrane-owned handles, thread affinity, reentrant callbacks and mutable
+exclusivity. Define failure/panic handling at each host boundary; unwinding into an incompatible
+ABI is forbidden, and a profile cannot invent a successful default return after failure.
+Host registration names and duplicate exports require deterministic source diagnostics.
+
+Keep ordinary generated application code under its existing unsafe prohibition. Before emitting
+Godot registration, approve a narrow separately generated host-support crate/module boundary
+whose lint policy, macro expansion, unsafe operations and safety invariants are explicitly
+reviewed. Choose the containment design at the specification gate, including how typed calls
+cross back to Terrane code without a dependency cycle. Metadata cannot grant arbitrary unsafe
+authority or suppress compiler checks; compile-only macro acceptance cannot establish thread,
+reentrancy or lifetime safety.
+
+The real Godot gate removes `rust/godot_bridge.rs` and its manifest entry. Initialization, frame
+updates, drawing and exported queries run through Terrane declarations and generic projected
+operations. Migrate the bridge's current drawing loop into Terrane rather than encoding it in
+the host profile. Exercise a property round trip and teardown in addition to today's method and
+lifecycle witness. Preserve dynamic-library packaging and host loading through the existing
+artifact pipeline.
+
+#### E. Declarative integration profiles, not executable adapter recipes
+
+Introduce a versioned, schema-validated normalized JSON profile format only for facts not
+reliably derivable from the public native API. Separate three artifacts: discovered native facts,
+authored supplemental/host contracts, and derived compiler binding/proof artifacts. A catalog
+entry is not evidence that a binding has been proved.
+
+The minimal profile contract includes:
+
+- format and capability versions, stable profile identity and exact provider/source identity;
+- supported package/version/feature/target selectors, canonical item identities and signature
+  fingerprints; a compatibility range selects a candidate but never substitutes for exact proof;
+- named associated-type/role selections and references to compiler-owned structural operations,
+  callback/region contracts or host-declaration forms;
+- for host profiles, typed macro/attribute identities and parameter schemas, entrypoint/lifecycle/
+  conversion contracts, required capabilities, safety assumptions and reviewed support boundary;
+- provenance, content hash, compatibility evidence and named conformance/runtime witnesses.
+
+Use typed structural operations, not interpolated Rust strings, embedded scripts, downloadable
+plugins, arbitrary command hooks or executable templates. Macro names refer only to actual
+resolved dependencies; invocation still requires the ordinary build capability and containment.
+A profile may supply an explicitly reviewed host invariant rustdoc cannot express, but cannot
+override a contradictory signature, manufacture `Send`/`Sync`, claim a borrow is owned, or turn
+an unproven call into an admission. Separate native compiler proofs from externally reviewed
+host assumptions in explanations and artifacts.
+
+Prototype the vocabulary against a shape-driven corpus across independent package families before
+freezing it; Iced and Godot cannot determine the schema. Iced should need no profile where native
+evidence suffices. Godot's macro contract is a legitimate explicit profile, also exercised through
+unrelated host witnesses. Missing ordinary pinned-language capabilities are engine coverage defects,
+not routine package onboarding. Do not conceal them in an executable recipe language.
+
+Allow identical profiles from project-local, dependency-shipped and optionally curated central
+sources. Explicit project selection pins one content hash; conflicting automatic candidates
+produce an ambiguity rather than precedence-dependent semantics. Local/private packages must
+work without publication, accounts, network lookup or central approval.
+
+A central repository is an optional distribution and review mechanism for the same data, not a
+runtime dependency or a resurrection of `terrane-integration-adapters`. Reuse Milestone 32.1's
+artifact envelope, hash validation, vendoring/offline and distribution ownership. Milestone 31
+owns profile semantics, local loading, pinning and generation; 32.1 owns release bundling and
+remote transport. Local generation and both application gates must not wait for a hosted service.
+
+#### F. Determinism, diagnostics, and maintenance workflow
+
+Extend existing identities with the profile content hash, structural-rule version, demanded
+source contracts, region/callback specialization and host ABI policy wherever they affect output.
+Retain exact Cargo source/version/checksum or path/Git content, features, target, toolchains,
+rustdoc schema and containment. Native discovery/probe caches remain distinct from contextual
+source plans. Update projection schemas and locks explicitly when semantic representation changes.
+
+Bound graph expansion and proof work; share native indexing, batch equivalent obligations and
+cache exact reusable proofs. Budgets yield retryable **unproven**, never false rejection.
+Keep **needs selection**, **unsupported shape**, **rejected use**, **unproven** and **engine
+error** distinct. Explanations identify the demanded operation, failed obligation, relevant source
+span, selected profile/provenance and whether a type choice, profile update or engine rule is
+needed. Tooling exposes deferred members without falsely advertising them as admitted.
+
+For upgrades, regenerate from the exact changed graph, compare used contracts and generated
+plans, and rerun the profile's witnesses. Stale signatures or host ABI policy fail closed.
+Ordinary compatible packages should need no profile edits; a reusable profile correction is
+reviewed once, not copied into every application. Test unrelated-package renames and new
+private/path packages so supported shapes cannot accidentally require a registry entry.
+
+Record cold/warm indexing, proof count, cache reuse, source-edit invalidation and generated
+allocation/dispatch costs on the same pinned profiles before and after each work unit. No
+eager ecosystem monomorphization, repeated owner rustdoc per call, or added runtime overhead
+merely to simplify the binding engine.
+
+#### Implementation sequence and reviewable work units
+
+1. **Census, decision and baseline (A):** deliver the compiler-backed projection gap census first.
+   Use its structural clusters and representative-use evidence to choose focused extensions or
+   justified consolidation at the architectural simplification gate. Then settle the shared
+   representation/proof boundary, any replacement/deletion plan, and approved source/unsafe
+   contracts. Reconcile the following work units with that decision before implementing them;
+   neither a new IR nor broad reengineering is a prerequisite for the census.
+2. **Shared contextual plan (B):** carry binder/associated/region facts through the existing
+   pipeline and prove one unrelated custom callback plus higher-ranked borrowed-result witness.
+3. **Scoped composition (B):** admit nested demanded builders and per-invocation result regions;
+   prove escape/alias/suspension rejections and cycle-safe demanded declarations.
+4. **Native iteration and protocols (C):** land consuming iteration, then incremental stream and
+   sink slices, each with its own runtime and failure/cleanup proof. Share B's ownership machinery,
+   but do not wait for Iced rendering or host registration.
+5. **Profiles and host generation (D/E):** settle the data schema with real prototypes, implement
+   deterministic local loading and validation, then generated host registration and its isolated
+   safety boundary. H1's declaration design can proceed alongside B/C after A; host implementation
+   consumes the shared contract rather than forking it.
+6. **Iced cutover:** application state, event handling, and widget/view composition now live in
+   Terrane; the maintained renderer invokes projected Iced widget operations and returns through
+   the selected higher-ranked terminal conversion. Keep the remaining host crate and
+   `packages/iced-ui/rust/iced_ui.rs` limited to event-loop startup and `View`/`Event` DTO
+   conversion. Remove those boundaries only when projected host entrypoints and cross-package
+   native DTO representation make that deletion real; do not move rendering back behind them.
+7. **Godot cutover:** remove the registration bridge only after generated extension loading,
+   lifecycle, drawing, exports/properties and shutdown succeed in `projects/godot-test`.
+8. **Cross-package hardening:** prove metadata-independent new-package use, profile pin/replay/
+   corruption/conflict behavior, upgrade invalidation, performance and all release gates below.
+
+Each work unit lands coherent source-to-runtime evidence and an independently reviewable commit.
+Do not bundle new schema semantics with unrelated extraction or formatting. Delete obsolete
+projection branches and application Rust modules as their replacements pass, without aliases or
+compatibility wrappers. The finite GUI protocol is not the final generic Iced API.
+
+#### Acceptance and exit criteria
+
+Completion requires ecosystem automation and the capability matrix, not just the named applications.
+Before implementation approve corpus size/configurations, required ordinary capability cells and
+explicit exceptional boundaries; do not choose coverage targets retrospectively to fit successes.
+The simplification gate also requires demonstrable closeout: identify eliminated duplicate
+decisions and superseded paths, justify remaining mechanisms, and show capability gains through
+the selected common path rather than accumulated package-specific exceptions.
+
+
+- Select real packages independently of the implementation's design witnesses, including common
+  packages across several domains and a rotating held-out set not used to tune the engine.
+  Pin each run's versions/features/targets for reproducibility. Representative Terrane applications
+  must execute without package-specific compiler changes, authored Rust adapters, ordinary-package
+  recipes or AI. No particular database client or newly invented package is a required witness.
+- Test compositions of supported capabilities, not only isolated shapes. Report operation-level
+  coverage with denominators, deferred obligations and infrastructure failures. Discovery alone
+  does not establish usability.
+- Exercise core-CLI package export/import and local demand proof with and without cached artifacts.
+  Distinguish invalid use, missing selection, unsupported capability, unavailable environment,
+  budget exhaustion and engine defect. Reproduce semantic results for fixed inputs; inconclusive
+  proof is never promoted to incompatibility. No AI or remote service is required.
+
+- Focused accepted/rejected conformance demonstrates generic/HRTB callbacks, region-safe nested
+  composition, direct widget imports, explicit terminal selections, consuming non-Clone iteration,
+  stream/sink lifecycle, and generated host declarations. Negative cases reject lifetime escape,
+  invalid thread transfer, reentrant mutable aliasing, wrong associated selections and unsupported
+  ABI/signature shapes before invalid generated Rust.
+- `projects/gui-test` runs a native Iced application with its state, view composition and handlers
+  authored in Terrane: visibly create/update/remove tasks and observe changed state and summary.
+  No Rust renderer, authored inline Rust substitute, precompiled application facade, or
+  package-specific convenience adapter may supply the missing behavior.
+- `projects/godot-test` loads the generated extension in the real host, runs initialization,
+  simulation updates and drawing, exercises exported methods and a property, and tears down
+  correctly without an authored Rust registration/behavior bridge.
+- SQLx and independent iterator/stream/sink programs establish incremental observation, real
+  errors, early stop, readiness/backpressure, cancellation and resource release/reuse. Whole-result
+  collection, sleep-only polling or compile-only native witnesses cannot satisfy this gate.
+- Every new general rule has a minimal adversarial witness and unrelated-package evidence.
+  A new local package with supported shapes binds with the central catalog unavailable; a local
+  supported host profile generates the same reviewed result without central approval.
+- Identical inputs reproduce normalized plans and generated Rust; corrupt/stale/conflicting
+  profiles reject, exact pinned local artifacts replay offline, and changed source/feature/target/
+  toolchain/profile inputs invalidate affected proofs. No private source is uploaded.
+- Existing conformance, strict workspace Clippy and the measured workspace suite pass. Dedicated
+  GUI/Godot environments record actual runtime evidence; an unavailable host is explicitly
+  unavailable and blocks milestone completion, not silently counted as passed. Wider ecosystem
+  survey runs stay on dedicated infrastructure rather than ordinary per-change CI.
+
+#### Separate ecosystem compatibility infrastructure
+
+Keep broad package testing in an independently operated CI project, outside the core compiler
+test architecture and ordinary developer test loop. It consumes a pinned Terrane CLI build and
+its machine-readable analysis/proof interfaces; the compiler must not contain the ecosystem
+runner, package inventory, service orchestration or a dependency on that infrastructure.
+
+Run scheduled, release-candidate and explicitly requested campaigns against common real packages
+and independently selected held-out packages. Preserve a stable regression cohort while rotating
+new coverage. Record the compiler revision, package locks, features, targets and test-program
+versions so every failure is replayable locally through the normal CLI. Use meaningful Terrane
+consumer programs, not import-only success, and separate build/runtime/environment failures from
+semantic incompatibility. Report unsupported operations rather than silently removing difficult
+packages from coverage.
+
+The external harness owns large downloads/build matrices, databases and other services, graphical
+hosts, platform workers, timeouts, isolation, artifact retention and compatibility dashboards.
+Treat dependency builds as untrusted execution and isolate workers accordingly. Full ecosystem
+campaigns must not run as part of `cargo test --workspace`, ordinary per-change conformance, or
+the compiler's measured workspace suite.
+
+When a campaign exposes a compiler defect, minimize it into a small deterministic structural
+regression for the core suite where practical, while retaining the real-package case externally.
+Core tests protect language/interop contracts; the external corpus measures ecosystem coverage
+and catches combinations the design did not anticipate. Milestone acceptance consumes a recorded
+campaign result, but everyday compiler development must not wait for that campaign.
+
+Update the manual's package, projection, stream and host contracts, the concise specification,
+integration pages, gap/removal records and language scoreboard as each capability actually lands.
+Record generated-code quality and warm/cold measurements with the final evidence. Preserve
+honest declines at approved exceptional boundaries; the named applications passing cannot excuse
+ordinary supported Rust capabilities still requiring package-by-package compiler intervention.
+New Rust language/toolchain capabilities may require engine work; new package names must not.
+
 ### Milestone 32 — First-version hardening and release gate
 
 Deliver:
 
 - complete CLI help and documented exit codes, including a stable distinct code for uncaught source-language runtime failures;
 - stable build-directory and cache behavior;
+- repository-local binaries under `target/` embed their Git commit and a fast fingerprint of the
+  modification times of dirty Rust and Cargo inputs, then issue a convenience warning when the
+  checkout has changed since that binary was built; copied and installed binaries do not inspect
+  a working tree;
 - interruption and subprocess cleanup;
 - Windows/macOS/Linux path handling where CI is available;
 - deterministic tests and generated artifacts;
 - parser/lexer fuzz targets seeded from conformance cases;
 - performance baselines for cold check, warm check, build, and run;
 - compiler self-diagnostics for unsupported draft features;
+- make backend-validation failures directly actionable: the ordinary diagnostic identifies the
+  generated artifact and offers an explicit CLI rerun switch such as
+  `--write-bug-report <report.md>`; that opt-in rerun writes a self-contained, human-readable
+  Markdown report containing the exact invocation, compiler/toolchain/target versions, relevant
+  package and dependency metadata, complete raw backend diagnostic, implicated Terrane source
+  with stable file/span context, and the corresponding generated Rust with source mappings.
+  Preserve both complete source forms when minimization would hide the lowering defect, format
+  each with correctly labelled fenced blocks, normalize incidental machine-local paths, and
+  record hashes for separately attached oversized artifacts. Never upload a report, include
+  unrelated environment variables, or collect source without that explicit user action; make
+  redaction and report-size limits visible rather than silently omitting diagnostic material;
 - `when build` compile-time selection over the documented literal, immutable manifest/target/
   capability, Boolean/comparison, and pure-query inputs; selection occurs before ordinary
   semantic analysis, inactive branches are excluded from validation and lowering, and every
@@ -226,7 +1065,12 @@ Deliver:
 - runnable `examples/` that all compile in CI;
 - no test or release command that treats `demos/` as supported source.
 
-Exit criterion: the clean-checkout release scenario below passes on supported platforms and the implemented-subset document agrees with executable conformance tests.
+Exit criterion: the clean-checkout release scenario below passes on supported platforms, no
+semantically accepted conformance case emits backend-invalid Rust, and the implemented-subset
+document agrees with executable conformance tests. A fault-injected lowering regression must also
+produce the opt-in Markdown report, and that report plus declared attachments must contain enough
+Terrane and generated Rust context to reproduce and diagnose the failure without access to the
+reporter's build directory.
 
 ### Milestone 32.1 — Finish projection artifact distribution
 
@@ -619,9 +1463,11 @@ expression, and generated-module-wide canonical foreign imports.
 
 Projection must preserve enough shape to compose dependency protocols in Terrane rather than in
 dependency-specific Rust helpers. A data-carrying Rust enum projects one nominal class with exact
-unit and supported single-payload constructors, shared `variant-name` inspection, and consuming
-`into-<Variant>` extraction. Extraction moves rather than clones the payload. Unsupported
-multi-field, named-field, borrowed, open-generic, or unrepresentable variants remain visible as
+unit and supported payload constructors, shared `variant-name` inspection, and consuming
+`into-<Variant>` extraction. Single-field tuple payloads cross directly. Representable named-field
+and multi-field tuple variants use synthesized owned payload classes, preserving named fields and
+stable positional fields respectively. Construction and extraction move every field without
+cloning. Stripped, borrowed, open-generic, or otherwise unrepresentable fields remain visible as
 per-variant declines, and non-exhaustive inspection yields `unknown`.
 
 The result projector must distinguish `Option<Result<T, E>>` from `Result<Option<T>, E>` even though
@@ -1064,6 +1910,11 @@ W4006 underscore-prefixed binding marked intentionally unused is read
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
 codes: retired warning codes remain unavailable and are never reassigned.
+
+`W4005` is an explicit higher-noise lint rather than a normal compiler warning. Ordinary
+compilation remains silent for unreferenced authored functions; `--lint-unused-functions` requests
+the package-wide reference inventory when it is useful. This avoids treating public package
+surface, callbacks, or staged functions as routine problems.
 
 ### Milestone 4 — Types, calls, and control-flow semantics
 
@@ -2429,7 +3280,7 @@ Three small items are carried out of milestone 25 rather than blocking it. None 
 contract, and each is cheap to take whenever its file is next open:
 
 - **`cargo_manifest_table` is a stringly-typed discriminator.** It returns a `String`, and six call
-  sites in `terrane-cli/src/main.rs`, `terrane-compiler/src/projection.rs`, and
+  sites in `terrane-cli/src/main.rs`, `terrane-compiler/src/rust_interop/projection.rs`, and
   `terrane-compiler/tests/conformance.rs` compare it against the literal `"dependencies"` to decide
   whether an entry belongs in the default Cargo table — over information `RustDependency::target`
   already carries as an `Option`. Returning `Option<String>`, with `None` meaning the default table,
@@ -2573,11 +3424,15 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
 Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
 local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
-outcome. History format 3 persists stable content-origin provenance and reasons, rustdoc format,
-projection schema, cache identity, content hash, and any exact bound-owner dependency added to the
-generated graph; an exact cache hit does not rewrite that origin. Bundled artifacts are explicitly
-deferred until Terrane has a release artifact channel and appear as a recorded skipped source rather
-than an accidentally absent branch.
+outcome. History format 4 groups projected member names by namespace while persisting stable
+content-origin provenance and reasons, rustdoc format, projection schema, cache identity, content
+hash, and any exact bound-owner dependency added to the generated graph; an exact cache hit does not
+rewrite that origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact
+channel and appear as a recorded skipped source rather than an accidentally absent branch.
+All maintained package, benchmark, and compatibility locks use format 4. The otherwise orphaned
+`tests/conformance/reject/projected-static-associated-decline/terrane-projection.lock` deliberately
+remains at format 3 as the oldest-schema migration sentinel; it has no package manifest and is read
+only by projection-history compatibility coverage.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -2688,15 +3543,21 @@ neither crate shape defines the implementation. Generated Rust names every concr
 explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
 already does.
 
-Status: implemented on `destination-directed-projected-results`. Projection schema 25 retains one
-result-only generic template and complete rendered bounds; semantic analysis selects it only from a
-written binding, argument, field, or return destination and records exact cached oracle evidence.
-Projection-history format 3 also records any exact, lock-resolved crates.io bound-owner dependency
-added to the generated graph. `projected-serde-json-result` exercises `serde_json::from_str` with an
+Status: implemented on `destination-directed-projected-results` and generalized on
+`feature/projection-gap-census`. Projection metadata retains a correlated set of result-only
+generic parameters, one recursive result template, and complete per-parameter rendered bounds;
+semantic analysis structurally selects the complete substitution only from a written binding,
+argument, field, or return destination and records exact cached oracle evidence.
+Projection-history format 4 also records any exact, lock-resolved crates.io bound-owner dependency
+added to the generated graph and groups member names by namespace to bound lock-file size and churn.
+`projected-serde-json-result` exercises `serde_json::from_str` with an
 argument-bearing `int64` destination and a lock-pinned transitive `serde_core` bound.
 `projected-destination-results` exercises a renamed higher-ranked lifetime-bound owner, a nested
 `BTreeMap<String, T>` template, and nonempty scalar, optional, bytes, list, map, and set conversion
-with canonical generated Rust. `projected-result-without-destination`,
+with canonical generated Rust. `projected-correlated-destination-results` executes a
+three-parameter nested aggregate result and proves that generated wrapper declarations, native
+turbofish arguments, semantic substitutions, and result conversion preserve one jointly selected
+parameter order. `projected-result-without-destination`,
 `projected-result-incompatible-template`, `projected-result-conflicting-destinations`,
 `projected-result-unsatisfied-bound`, `projected-result-unknown-bound`, and
 `projected-result-borrowed` cover the destination, proof, and ownership declines;
@@ -4077,14 +4938,15 @@ panic contracts. An unresolved, ambiguous, borrowed-escape, or genuinely open ge
 targeted decline; the compiler must not erase it, guess an instantiation, or carry an opaque
 unnameable value outside the existing chain-only boundary.
 
-Implement the specified concrete `unsafe rust` block/expression and maintained authored-`.rs`
-escape hatches. They participate in the manifest and locked crate graph, build-capability and
-profile checks, deterministic generated-artifact identity, source associations, diagnostics,
-ownership/effect declarations, panic and error translation, and editor dependency intelligence.
-`unsafe rust` relaxes Rust-operation safety only inside the concrete boundary; it does not bypass
-Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. Generated and
-authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
-qualifier remains invalid.
+Typed unsafe declaration support now preserves Rust's explicit safety obligations without turning
+ordinary projected application code into an unchecked region. `unsafe function` and `unsafe
+interface` participate in exact declaration identity; `unsafe` call syntax and `implements unsafe`
+select only the matching safety class, with no cross-safety fallback. Generated Rust preserves
+unsafe function and trait declarations, implementation obligations, and local unsafe call sites.
+The explicit boundary relaxes only the selected operation's external obligation; Terrane definite
+assignment, cleanup, lifetime, capability, ownership, effect, and type checks continue normally.
+The maintained authored-`.rs` and concrete `unsafe rust` escape hatches remain available for native
+contracts that still cannot be represented as typed projected declarations.
 
 Raw SQLx `Query<'q, DB, A>` values remain unnameable as free-standing Terrane values. Generic
 projection may nevertheless carry their database, argument, associated-output, and borrow state

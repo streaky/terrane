@@ -1,62 +1,27 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/async-witness",
-          "ValidationError"
-        ],
-        [
-          "/deps/async-witness",
-          "checked_echo"
-        ],
-        [
-          "/deps/async-witness",
-          "echo_after_yield"
-        ],
-        [
-          "/deps/async-witness",
-          "operation_drop_count"
-        ],
-        [
-          "/deps/async-witness",
-          "ready_after_yield"
-        ],
-        [
-          "/deps/async-witness",
-          "reset_operation_state"
-        ],
-        [
-          "/deps/async-witness",
-          "signal_sibling"
-        ],
-        [
-          "/deps/async-witness",
-          "socket_round_trip"
-        ],
-        [
-          "/deps/async-witness",
-          "timer_poll_count"
-        ],
-        [
-          "/deps/async-witness",
-          "wait_for_sibling"
-        ],
-        [
-          "/deps/async-witness",
-          "wait_forever"
-        ],
-        [
-          "/deps/async-witness",
+      "members": {
+        "/deps/async-witness": [
+          "ValidationError",
+          "checked_echo",
+          "echo_after_yield",
+          "operation_drop_count",
+          "ready_after_yield",
+          "reset_operation_state",
+          "signal_sibling",
+          "socket_round_trip",
+          "timer_poll_count",
+          "wait_for_sibling",
+          "wait_forever",
           "wait_until_operation_started"
         ]
-      ],
+      },
       "name": "async-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

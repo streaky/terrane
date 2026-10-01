@@ -19,6 +19,12 @@ fn forwarded_method_return_type(
     }
 }
 
+fn contains_unsafe_call(node: &SyntaxNode) -> bool {
+    node.kind == SyntaxKind::UnsafeRustBlock
+        || crate::syntax::call_is_unsafe(node)
+        || node.children.iter().any(contains_unsafe_call)
+}
+
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match canonical_default(value_type)? {
         CanonicalDefault::BoolFalse => Some("false".to_owned()),
@@ -410,7 +416,9 @@ impl<'a> Emitter<'a> {
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
                     .and_then(|item| match &item.kind {
-                        crate::projection::ProjectedKind::Interface(interface) => Some(interface),
+                        crate::rust_interop::projection::ProjectedKind::Interface(interface) => {
+                            Some(interface)
+                        }
                         _ => None,
                     });
                 let associated_bounds = projected_requirements
@@ -433,7 +441,7 @@ impl<'a> Emitter<'a> {
                     .map_or("", |_| "<TerraneAssociated>");
                 let protocol_use = format!("{protocol}{generic_use}");
                 let transfer_bounds = if projected_requirements
-                    .is_some_and(|item| item.send && item.sync)
+                    .is_none_or(|item| item.send && item.sync)
                     || object.identity.namespace == "/core/logging"
                         && object.identity.name == "log-value"
                 {
@@ -445,8 +453,13 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
+                let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
+                if object.is_unsafe || has_unsafe_methods {
+                    self.line("#[allow(unsafe_code)]");
+                }
                 self.line(&format!(
-                    "pub trait {protocol}{generic_declaration}{transfer_bounds} {{"
+                    "pub {}trait {protocol}{generic_declaration}{transfer_bounds} {{",
+                    if object.is_unsafe { "unsafe " } else { "" }
                 ));
                 self.indent += 1;
                 self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol_use}>;"));
@@ -460,7 +473,13 @@ impl<'a> Emitter<'a> {
                         InvocationMode::Mutable => "&mut self",
                         InvocationMode::Shared => "&self",
                     };
-                    write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                    write!(
+                        self.output,
+                        "{}fn {}({receiver}",
+                        if method.is_unsafe { "unsafe " } else { "" },
+                        function_name(self.package, method)
+                    )
+                    .unwrap();
                     for parameter in &method.parameters {
                         let ty = parameter.binding_value_type().map_or_else(
                             || "i128".to_owned(),
@@ -508,6 +527,9 @@ impl<'a> Emitter<'a> {
                         "impl{generic_declaration} Drop for {name}{generic_use} {{ fn drop(&mut self) {{}} }}"
                     ));
                 }
+                if has_unsafe_methods {
+                    self.line("#[allow(unsafe_code)]");
+                }
                 self.line(&format!("impl{generic_declaration} {name}{generic_use} {{"));
                 self.indent += 1;
                 for method in &methods {
@@ -519,9 +541,10 @@ impl<'a> Emitter<'a> {
                     };
                     write!(
                         self.output,
-                        "pub {}fn {}({receiver}",
+                        "pub {}{}fn {}({receiver}",
                         if method.is_async { "async " } else { "" },
-                        rust_name(&method.name)
+                        if method.is_unsafe { "unsafe " } else { "" },
+                        function_name(self.package, method)
                     )
                     .unwrap();
                     for parameter in &method.parameters {
@@ -543,11 +566,16 @@ impl<'a> Emitter<'a> {
                         .map(|parameter| rust_name(&parameter.name))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    self.line(&format!(
+                    let forwarded = format!(
                         "self.0.{}({arguments}){}",
-                        rust_name(&method.name),
+                        function_name(self.package, method),
                         if method.is_async { ".await" } else { "" }
-                    ));
+                    );
+                    self.line(&if method.is_unsafe {
+                        format!("unsafe {{ {forwarded} }}")
+                    } else {
+                        forwarded
+                    });
                     self.indent -= 1;
                     self.line("}");
                 }
@@ -560,7 +588,7 @@ impl<'a> Emitter<'a> {
                     .package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
-                    && let crate::projection::ProjectedKind::Interface(interface) =
+                    && let crate::rust_interop::projection::ProjectedKind::Interface(interface) =
                         &projected_item.kind
                 {
                     if interface.associated_type.is_some() {
@@ -906,14 +934,22 @@ impl<'a> Emitter<'a> {
                         .iter()
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
+                        if method.is_unsafe {
+                            self.line("#[allow(unsafe_code)]");
+                        }
                         self.line_start();
                         let receiver = match method.written_invocation_mode {
                             InvocationMode::Consuming => "self",
                             InvocationMode::Mutable => "&mut self",
                             InvocationMode::Shared => "&self",
                         };
-                        write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
-                            .unwrap();
+                        write!(
+                            self.output,
+                            "pub {}fn {}({receiver}",
+                            if method.is_unsafe { "unsafe " } else { "" },
+                            function_name(self.package, method)
+                        )
+                        .unwrap();
                         for parameter in &method.parameters {
                             let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
@@ -943,16 +979,24 @@ impl<'a> Emitter<'a> {
                         {
                             receiver_binding.push('_');
                         }
+                        let method_name = function_name(self.package, method);
+                        let forward = |target: String| {
+                            if method.is_unsafe {
+                                format!("unsafe {{ {target} }}")
+                            } else {
+                                target
+                            }
+                        };
                         self.line(&format!(
-                            "Self::Own({receiver_binding}) => {receiver_binding}.{}({arguments}),",
-                            rust_name(&method.name)
+                            "Self::Own({receiver_binding}) => {},",
+                            forward(format!("{receiver_binding}.{method_name}({arguments})"))
                         ));
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
                             self.line(&format!(
-                                "Self::{descendant_type}({receiver_binding}) => {receiver_binding}.{}({arguments}),",
-                                rust_name(&method.name)
+                                "Self::{descendant_type}({receiver_binding}) => {},",
+                                forward(format!("{receiver_binding}.{method_name}({arguments})"))
                             ));
                         }
                         self.indent -= 1;
@@ -1032,7 +1076,10 @@ impl<'a> Emitter<'a> {
                         .projection
                         .item(&interface_identity.namespace, &interface_identity.name)
                         .is_some_and(|item| {
-                            matches!(item.kind, crate::projection::ProjectedKind::Interface(_))
+                            matches!(
+                                item.kind,
+                                crate::rust_interop::projection::ProjectedKind::Interface(_)
+                            )
                         });
                     if object.resource_owning && projected_interface {
                         self.projected_interface_implementation(object, interface_identity);
@@ -1063,7 +1110,17 @@ impl<'a> Emitter<'a> {
                         )
                     );
                     let class_type = rust_object_type_name(self.package, &object.identity);
-                    self.line(&format!("impl {protocol} for {class_type} {{"));
+                    if interface.is_unsafe
+                        || effective_object_methods(interface_unit, interface)
+                            .iter()
+                            .any(|method| method.is_unsafe)
+                    {
+                        self.line("#[allow(unsafe_code)]");
+                    }
+                    self.line(&format!(
+                        "{}impl {protocol} for {class_type} {{",
+                        if interface.is_unsafe { "unsafe " } else { "" }
+                    ));
                     self.indent += 1;
                     self.line(&format!(
                         "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
@@ -1090,7 +1147,9 @@ impl<'a> Emitter<'a> {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
                             .find(|candidate| {
-                                candidate.name == method.name && !candidate.is_static
+                                candidate.name == method.name
+                                    && !candidate.is_static
+                                    && candidate.is_unsafe == method.is_unsafe
                             });
                         self.line_start();
                         let implementation_mode = implementation
@@ -1105,7 +1164,13 @@ impl<'a> Emitter<'a> {
                             (InvocationMode::Mutable, _) => "&mut self",
                             (InvocationMode::Shared, _) => "&self",
                         };
-                        write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                        write!(
+                            self.output,
+                            "{}fn {}({receiver}",
+                            if method.is_unsafe { "unsafe " } else { "" },
+                            function_name(self.package, method)
+                        )
+                        .unwrap();
                         for parameter in &method.parameters {
                             let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
@@ -1154,10 +1219,18 @@ impl<'a> Emitter<'a> {
                                     "*self"
                                 }
                             };
+                            let call = format!(
+                                "{class_type}::{}({receiver}, {arguments})",
+                                function_name(self.package, implementation),
+                            );
+                            let call = if implementation.is_unsafe {
+                                format!("unsafe {{ {call} }}")
+                            } else {
+                                call
+                            };
                             write!(
                                 self.output,
-                                "{class_type}::{}({receiver}, {arguments}){}",
-                                rust_name(&implementation.name),
+                                "{call}{}",
                                 if method.is_async { ".await" } else { "" }
                             )
                             .unwrap();
@@ -1210,6 +1283,11 @@ impl<'a> Emitter<'a> {
                                 "<{class_type} as {owner_rust_path}>::{}({receiver}, {rust_arguments})",
                                 rust_name(&method.name)
                             );
+                            let call = if projected_method.function.is_unsafe {
+                                format!("unsafe {{ {call} }}")
+                            } else {
+                                call
+                            };
                             let call = if method.is_async {
                                 format!("{call}.await")
                             } else {
@@ -1226,6 +1304,7 @@ impl<'a> Emitter<'a> {
                             let converted = projected_callback_input_expression(
                                 "__terrane_default",
                                 &projected_method.function.result,
+                                &projected_method.function.result.rust_type(),
                             );
                             let result_type = method.return_type.clone().map_or_else(
                                 || "()".to_owned(),
@@ -1336,7 +1415,9 @@ impl<'a> Emitter<'a> {
         else {
             return;
         };
-        let crate::projection::ProjectedKind::Interface(interface) = &projected_item.kind else {
+        let crate::rust_interop::projection::ProjectedKind::Interface(interface) =
+            &projected_item.kind
+        else {
             return;
         };
         let trait_path = projected_item.rust_path.clone();
@@ -1400,7 +1481,7 @@ impl<'a> Emitter<'a> {
             {
                 let application = associated_application.as_ref().map_or_else(
                     || "TerraneAssociated".to_owned(),
-                    crate::projection::ProjectedType::rust_type,
+                    crate::rust_interop::projection::ProjectedType::rust_type,
                 );
                 self.line(&format!("type {} = {application};", associated.name));
             }
@@ -1427,11 +1508,14 @@ impl<'a> Emitter<'a> {
                     self.output.push_str("async ");
                 }
                 let receiver = match (method.receiver, implementation.written_invocation_mode) {
-                    (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => {
-                        "mut self"
+                    (
+                        Some(crate::rust_interop::projection::Receiver::Move),
+                        InvocationMode::Mutable,
+                    ) => "mut self",
+                    (Some(crate::rust_interop::projection::Receiver::Move), _) => "self",
+                    (Some(crate::rust_interop::projection::Receiver::MutableBorrow), _) => {
+                        "&mut self"
                     }
-                    (Some(crate::projection::Receiver::Move), _) => "self",
-                    (Some(crate::projection::Receiver::MutableBorrow), _) => "&mut self",
                     _ => "&self",
                 };
                 write!(self.output, "fn {}({receiver}", rust_name(&method.name))
@@ -1450,7 +1534,7 @@ impl<'a> Emitter<'a> {
                 }
                 self.output.push(')');
                 let rust_result = method.result.rust_type();
-                if method.result != crate::projection::ProjectedType::None {
+                if method.result != crate::rust_interop::projection::ProjectedType::None {
                     write!(self.output, " -> {rust_result}")
                         .expect("writing to a string cannot fail");
                 }
@@ -1463,16 +1547,24 @@ impl<'a> Emitter<'a> {
                         projected_callback_input_expression(
                             &rust_name(&parameter.name),
                             &parameter.ty,
+                            &parameter.ty.rust_type(),
                         )
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
                 let receiver = match (method.receiver, implementation.written_invocation_mode) {
-                    (Some(crate::projection::Receiver::Move), InvocationMode::Shared) => "&self",
-                    (Some(crate::projection::Receiver::Move), InvocationMode::Mutable) => {
-                        "&mut self"
-                    }
-                    (Some(crate::projection::Receiver::Move), InvocationMode::Consuming) => "self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::Move),
+                        InvocationMode::Shared,
+                    ) => "&self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::Move),
+                        InvocationMode::Mutable,
+                    ) => "&mut self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::Move),
+                        InvocationMode::Consuming,
+                    ) => "self",
                     (_, InvocationMode::Shared) => "&*self",
                     (_, InvocationMode::Mutable) => "&mut *self",
                     (_, InvocationMode::Consuming) => {
@@ -1486,15 +1578,15 @@ impl<'a> Emitter<'a> {
                 );
                 let terrane_call = if method.is_async && interface.send {
                     match method.receiver {
-                        Some(crate::projection::Receiver::Borrow) => format!(
+                        Some(crate::rust_interop::projection::Receiver::Borrow) => format!(
                             "{{ let __terrane_receiver = self.clone(); __terrane_projected_async_entry(async move {{ <{class_type}>::{}(&__terrane_receiver, {arguments}).await }}).await }}",
                             rust_name(&method.name)
                         ),
-                        Some(crate::projection::Receiver::MutableBorrow) => format!(
+                        Some(crate::rust_interop::projection::Receiver::MutableBorrow) => format!(
                             "{{ let mut __terrane_receiver = self.clone(); let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {{ let __terrane_output = <{class_type}>::{}(&mut __terrane_receiver, {arguments}).await; (__terrane_output, __terrane_receiver) }}).await; *self = __terrane_receiver; __terrane_output }}",
                             rust_name(&method.name)
                         ),
-                        Some(crate::projection::Receiver::Move) => format!(
+                        Some(crate::rust_interop::projection::Receiver::Move) => format!(
                             "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
                         ),
                         None => terrane_call,
@@ -1528,21 +1620,48 @@ impl<'a> Emitter<'a> {
         self.emit_function(node, None);
     }
 
-    fn moves_instance_field(&self, node: &SyntaxNode) -> bool {
+    fn consuming_method_needs_mutable_self(&self, node: &SyntaxNode) -> bool {
+        fn rooted_in_this(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
+            if node.kind == SyntaxKind::Name {
+                return emitter.text(node) == "this";
+            }
+            node.kind == SyntaxKind::MemberExpression
+                && node
+                    .children
+                    .first()
+                    .is_some_and(|receiver| rooted_in_this(emitter, receiver))
+        }
+        if node.kind == SyntaxKind::Assignment
+            && node
+                .children
+                .first()
+                .is_some_and(|target| rooted_in_this(self, target))
+        {
+            return true;
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && self.unary_operator(node).as_deref() == Some("move")
-            && node.children.last().is_some_and(|operand| {
-                operand.kind == SyntaxKind::MemberExpression
-                    && operand.children.first().is_some_and(|receiver| {
-                        receiver.kind == SyntaxKind::Name && self.text(receiver) == "this"
-                    })
+            && node
+                .children
+                .last()
+                .is_some_and(|operand| rooted_in_this(self, operand))
+        {
+            return true;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::MemberExpression
+                    && callee
+                        .children
+                        .first()
+                        .is_some_and(|receiver| rooted_in_this(self, receiver))
             })
         {
             return true;
         }
         node.children
             .iter()
-            .any(|child| self.moves_instance_field(child))
+            .any(|child| self.consuming_method_needs_mutable_self(child))
     }
 
     pub(super) fn object_method(&mut self, node: &SyntaxNode) {
@@ -1560,7 +1679,9 @@ impl<'a> Emitter<'a> {
             }
         } else {
             match contract.written_invocation_mode {
-                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
+                InvocationMode::Consuming if self.consuming_method_needs_mutable_self(node) => {
+                    "mut self"
+                }
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
@@ -1597,7 +1718,9 @@ impl<'a> Emitter<'a> {
             }
         } else {
             match contract.written_invocation_mode {
-                InvocationMode::Consuming if self.moves_instance_field(node) => "mut self",
+                InvocationMode::Consuming if self.consuming_method_needs_mutable_self(node) => {
+                    "mut self"
+                }
                 InvocationMode::Consuming => "self",
                 InvocationMode::Mutable => "&mut self",
                 InvocationMode::Shared => "&self",
@@ -1632,6 +1755,111 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    pub(super) fn invocation_scoped_type_generics(
+        &self,
+        node: &SyntaxNode,
+        rust_type: &str,
+        lifetimes: &[String],
+    ) -> Vec<String> {
+        let mut declarations = Vec::new();
+        if node.kind == SyntaxKind::CallExpression
+            && self.unit.projected_call_result_types.contains_key(&(
+                node.span.file,
+                node.span.start,
+                node.span.end,
+            ))
+            && let Some(callee) = node.children.first()
+            && let Some(symbol) = self.package.resolve_name_at(
+                self.unit,
+                callee.span.start,
+                &self.unit.source.text()[callee.span.start..callee.span.end],
+            )
+            && let Some(item) = self
+                .package
+                .projection
+                .item(&symbol.namespace, &symbol.name)
+            && let crate::rust_interop::projection::ProjectedKind::Function(function) = &item.kind
+        {
+            declarations.extend(
+                function
+                    .generic_parameters
+                    .iter()
+                    .filter(|parameter| {
+                        rust_type
+                            .split(|character: char| {
+                                !character.is_ascii_alphanumeric() && character != '_'
+                            })
+                            .any(|token| token == parameter.name)
+                    })
+                    .map(|parameter| {
+                        (
+                            parameter.name.clone(),
+                            parameter
+                                .rust_bounds
+                                .iter()
+                                .map(|bound| {
+                                    lifetimes.iter().enumerate().fold(
+                                        bound.clone(),
+                                        |bound, (index, lifetime)| {
+                                            let binder = format!("for<{lifetime}>");
+                                            let marker =
+                                                format!("__terrane_lifetime_binder_{index}");
+                                            bound
+                                                .replace(&binder, &marker)
+                                                .replace(lifetime, "'view")
+                                                .replace(&marker, &binder)
+                                        },
+                                    )
+                                })
+                                .collect::<Vec<_>>(),
+                        )
+                    }),
+            );
+        }
+        for child in &node.children {
+            declarations.extend(
+                self.invocation_scoped_type_generics(child, rust_type, lifetimes)
+                    .into_iter()
+                    .map(|declaration| {
+                        if let Some((name, bounds)) = declaration.split_once(':') {
+                            (
+                                name.trim().to_owned(),
+                                bounds
+                                    .split(" + ")
+                                    .map(str::trim)
+                                    .map(str::to_owned)
+                                    .collect(),
+                            )
+                        } else {
+                            (declaration, Vec::new())
+                        }
+                    }),
+            );
+        }
+        let mut merged =
+            std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+        for (name, bounds) in declarations {
+            merged.entry(name).or_default().extend(bounds);
+        }
+        if !lifetimes.is_empty() {
+            for bounds in merged.values_mut() {
+                bounds.insert("'view".to_owned());
+            }
+        }
+        merged
+            .into_iter()
+            .map(|(name, bounds)| {
+                if bounds.is_empty() {
+                    name
+                } else {
+                    format!(
+                        "{name}: {}",
+                        bounds.into_iter().collect::<Vec<_>>().join(" + ")
+                    )
+                }
+            })
+            .collect()
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
@@ -1643,13 +1871,14 @@ impl<'a> Emitter<'a> {
         name_override: Option<&str>,
     ) {
         self.fresh_empty_lists.clear();
+
         let contract = self
             .unit
             .functions
             .iter()
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
-        let return_type = contract.return_type.clone().map(|return_type| {
+        let mut return_type = contract.return_type.clone().map(|return_type| {
             if contract.is_static
                 && let ValueType::Object(returned) = &return_type
                 && contract.owner.as_deref() == Some(returned.name.as_str())
@@ -1660,11 +1889,65 @@ impl<'a> Emitter<'a> {
                 return_type
             }
         });
+        if matches!(
+            return_type,
+            Some(ValueType::InvocationScopedNative {
+                concrete: false,
+                ..
+            })
+        ) {
+            return_type = self
+                .unit
+                .invocation_scoped_function_results
+                .get(&(contract.span.file, contract.span.start, contract.span.end))
+                .cloned();
+        }
+        let scoped_lifetime = if let Some(ValueType::InvocationScopedNative {
+            rust_type,
+            lifetimes,
+            ..
+        }) = &mut return_type
+        {
+            for lifetime in lifetimes.iter() {
+                *rust_type = rust_type.replace(lifetime, "'view");
+            }
+            Some("'view")
+        } else {
+            None
+        };
         let reference_lender = self
             .unit
             .reference_return_lenders
             .get(&(contract.span.file, contract.span.start, contract.span.end))
             .copied();
+        let scoped_type_generics = return_type
+            .as_ref()
+            .and_then(|return_type| match return_type {
+                ValueType::InvocationScopedNative {
+                    rust_type,
+                    lifetimes,
+                    ..
+                } => Some(self.invocation_scoped_type_generics(node, rust_type, lifetimes)),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let function_generics = if reference_lender.is_some() {
+            "<'a>".to_owned()
+        } else {
+            let mut generics = Vec::new();
+            if scoped_lifetime == Some("'view") {
+                generics.push("'view".to_owned());
+            }
+            generics.extend(scoped_type_generics);
+            if generics.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", generics.join(", "))
+            }
+        };
+        if contract.is_unsafe || contains_unsafe_call(node) {
+            self.line("#[allow(unsafe_code)]");
+        }
         if receiver.is_none()
             && contract.owner.is_none()
             && (contract.name != "main"
@@ -1683,7 +1966,7 @@ impl<'a> Emitter<'a> {
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}{}fn {name}{}(",
+            "{}{}{}fn {name}{}(",
             if contract.owner.is_some() || (receiver.is_none() && self.unit.bundled) {
                 "pub "
             } else {
@@ -1694,11 +1977,8 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             },
-            if reference_lender.is_some() {
-                "<'a>"
-            } else {
-                ""
-            },
+            if contract.is_unsafe { "unsafe " } else { "" },
+            function_generics,
         )
         .unwrap();
         if let Some(receiver) = receiver {
@@ -1712,6 +1992,9 @@ impl<'a> Emitter<'a> {
             let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), true) => {
                     format!("&'a {}", rust_element_type(self.package, item.clone()))
+                }
+                (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
+                    format!("&'view {}", rust_element_type(self.package, item.clone()))
                 }
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),

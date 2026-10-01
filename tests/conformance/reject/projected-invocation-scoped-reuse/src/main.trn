@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import borrowed_label, consume_label
+
+function reuses host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    first = consume_label; value
+    return consume_label; value
+
+function main;

@@ -509,7 +509,7 @@ fn main() {
         3 /* terrane-site: src/main.trn:11:17-11:63 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | plain.label())) {
         Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_owner_witness",
@@ -518,7 +518,9 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | defaulted.label())) {
         Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_owner_witness",
-        "terrane_owner_witness::DefaultOwner<String>::label")) }, 5 /* terrane-site: src/main.trn:12:27-12:43 */)), terrane_scalar_support::scalar_text(&html)
+        "terrane_owner_witness::DefaultOwner<String>::label")) }, 5 /* terrane-site: src/main.trn:12:27-12:43 */)), terrane_scalar_support::scalar_text(&<
+        terrane_owner_witness::DefaultOwner < std::string::String > > ::CODE),
+        terrane_scalar_support::scalar_text(&html)
     );
 }
 // Source: <terrane>/projected/deps/markdown.trn
@@ -549,7 +551,6 @@ pub fn to_html_with_options(
     value: String,
     options: &Options,
 ) -> Result<String, crate::TerraneForeignError> {
-    let value = value;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| markdown::to_html_with_options(&value, options)),
     ) {
@@ -579,7 +580,7 @@ pub fn to_html_with_options(
 // Source: <terrane>/projected/deps/terrane-owner-witness.trn
 // Namespace: deps/terrane-owner-witness
 pub fn terrane_static_trn_44656661756c744f776e6572_standard() -> Result<
-    DefaultOwner,
+    terrane_owner_witness::DefaultOwner<String>,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(

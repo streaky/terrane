@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/witness import first_widget, render_scoped, second_widget
+
+function view host-invocation-scoped-native; state ref string
+    value = first_widget; state
+    value = second_widget; state
+    return value
+
+
+function main;
+    state string = 'state'
+    result = render_scoped; state, view
+    print; result

@@ -40,6 +40,7 @@ impl ConformanceBuild {
         &self,
         binary_names: &[&str],
         dependencies: &[terrane_compiler::RustDependency],
+        requires_unsafe_code: bool,
     ) {
         let mut manifest = r#"[package]
 name = "terrane_conformance_harness"
@@ -89,6 +90,16 @@ terrane-platform-support = { path = "support/terrane-platform-support" }
             )
             .unwrap();
         }
+        writeln!(
+            manifest,
+            "\n[lints.rust]\nunsafe_code = \"{}\"",
+            if requires_unsafe_code {
+                "deny"
+            } else {
+                "forbid"
+            }
+        )
+        .unwrap();
         manifest.push_str(
             "\n[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true\n\
              \n[profile.test]\ndebug = \"line-tables-only\"\nincremental = true\n\
@@ -216,6 +227,7 @@ struct DeferredGeneratedCase {
     case: PathBuf,
     should_run: bool,
     run_manifest: Option<String>,
+    requires_unsafe_code: bool,
     timing: CaseTiming,
 }
 
@@ -225,6 +237,7 @@ struct PreparedGeneratedCase {
     phase: String,
     manifest: String,
     rust: String,
+    requires_unsafe_code: bool,
     dependencies: Vec<terrane_compiler::RustDependency>,
     timing: CaseTiming,
 }
@@ -236,6 +249,7 @@ impl PreparedGeneratedCase {
             binary_name: self.binary_name,
             case: self.case,
             should_run,
+            requires_unsafe_code: self.requires_unsafe_code,
             run_manifest: should_run.then_some(self.manifest),
             timing: self.timing,
         }
@@ -480,6 +494,7 @@ fn prepare_conformance_case(
     let options = terrane_compiler::CompilerOptions {
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
         lint_name_style: false,
+        lint_unused_functions: boolean_field(&manifest, "lint-unused-functions").unwrap_or(false),
         debug_build: terrane_compiler::DebugBuild::Disabled,
     };
 
@@ -522,30 +537,31 @@ fn prepare_conformance_case(
                 manifest,
                 rust: compilation.rust,
                 dependencies,
+                requires_unsafe_code: compilation.requires_unsafe_code,
                 timing,
             })
         }
         ("check", "reject") => {
             let code = field(&manifest, "code").unwrap();
-            let diagnostics = if package_case {
+            let failure = if package_case {
                 let package = terrane_compiler::Package::load(&source_path).unwrap();
                 let result = terrane_compiler::compile_package(&package);
                 verify_reviewed_projection(case, &source_path, update_goldens);
-                result.unwrap_err().diagnostics
+                result.unwrap_err()
             } else {
                 let source = fs::read_to_string(&source_path).unwrap();
-                terrane_compiler::compile(&source_path, source)
-                    .unwrap_err()
-                    .diagnostics
+                terrane_compiler::compile(&source_path, source).unwrap_err()
             };
+            let diagnostics = &failure.diagnostics;
             let expected = field(&manifest, "contains");
             let expected_help = field(&manifest, "help");
-            let reported = reports(&diagnostics, code, expected, expected_help);
+            let reported = reports(diagnostics, code, expected, expected_help);
             assert!(
                 reported,
                 "{} did not report {code} matching {expected:?} with help {expected_help:?}: {diagnostics:?}",
                 case.display()
             );
+            assert_diagnostic_location(case, &manifest, &failure, code);
             timing.pass();
             None
         }
@@ -553,6 +569,39 @@ fn prepare_conformance_case(
             "unsupported conformance manifest {}: phase={phase}, status={status}",
             manifest_path.display()
         ),
+    }
+}
+
+fn assert_diagnostic_location(
+    case: &Path,
+    manifest: &str,
+    failure: &terrane_compiler::CompilationFailure,
+    code: &str,
+) {
+    if let Some(expected_source) = field(manifest, "source") {
+        assert!(
+            failure.source.path().ends_with(expected_source),
+            "{} reported {code} against {} instead of {expected_source}",
+            case.display(),
+            failure.source.path().display()
+        );
+    }
+    if let Some(expected_line) = field(manifest, "line") {
+        let expected_line = expected_line.parse::<usize>().unwrap();
+        let diagnostic = failure
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == code)
+            .expect("the reported diagnostic was checked before its location");
+        let span = diagnostic
+            .primary
+            .expect("a diagnostic with an expected line must have a primary span");
+        assert_eq!(
+            failure.source.line_column(span.start).0,
+            expected_line,
+            "{} reported {code} on the wrong line",
+            case.display()
+        );
     }
 }
 
@@ -579,6 +628,7 @@ fn every_manifest_drives_a_conformance_case() {
                 &prepared.case,
                 &prepared.manifest,
                 &prepared.rust,
+                prepared.requires_unsafe_code,
                 &build,
             );
             deferred_generated_cases.push(prepared.into_deferred());
@@ -591,6 +641,7 @@ fn every_manifest_drives_a_conformance_case() {
             manifest,
             rust,
             dependencies,
+            requires_unsafe_code,
             mut timing,
         } = prepared;
         timing.begin_pending_work();
@@ -600,7 +651,7 @@ fn every_manifest_drives_a_conformance_case() {
             &phase,
             &manifest,
             &rust,
-            &dependencies,
+            (&dependencies, requires_unsafe_code),
             &build,
         );
         timing.pass();
@@ -613,6 +664,7 @@ fn stage_generated_binary(
     case: &Path,
     manifest: &str,
     rust: &str,
+    requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) {
     let fixture_registry = case.join("fixture-registry");
@@ -620,7 +672,7 @@ fn stage_generated_binary(
         copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
         copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
     }
-    let rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
+    let mut rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
         format!(
             "{rust}\n{}",
             fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
@@ -631,15 +683,19 @@ fn stage_generated_binary(
     } else {
         rust.to_owned()
     };
+    if !requires_unsafe_code {
+        rust.insert_str(0, "#![forbid(unsafe_code)]\n");
+    }
     fs::write(build.root.join(format!("src/{binary_name}.rs")), rust).unwrap();
 }
 
 fn build_generated_binaries(
     binary_names: &[&str],
     dependencies: &[terrane_compiler::RustDependency],
+    requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) -> std::process::Output {
-    build.write_manifest(binary_names, dependencies);
+    build.write_manifest(binary_names, dependencies, requires_unsafe_code);
     Command::new("cargo")
         .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
         .args(["build", "--quiet", "--manifest-path"])
@@ -675,7 +731,8 @@ fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &C
         .map(|case| case.binary_name.as_str())
         .collect::<Vec<_>>();
     let mut build_timing = CaseTiming::named("generated-rust/batched-dependency-free-build");
-    let output = build_generated_binaries(&binary_names, &[], build);
+    let requires_unsafe_code = cases.iter().any(|case| case.requires_unsafe_code);
+    let output = build_generated_binaries(&binary_names, &[], requires_unsafe_code, build);
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let mut mapping = Vec::new();
@@ -717,11 +774,11 @@ fn compile_and_maybe_run(
     phase: &str,
     manifest: &str,
     rust: &str,
-    dependencies: &[terrane_compiler::RustDependency],
+    rust_contract: (&[terrane_compiler::RustDependency], bool),
     build: &ConformanceBuild,
 ) {
-    stage_generated_binary(binary_name, case, manifest, rust, build);
-    let output = build_generated_binaries(&[binary_name], dependencies, build);
+    stage_generated_binary(binary_name, case, manifest, rust, rust_contract.1, build);
+    let output = build_generated_binaries(&[binary_name], rust_contract.0, rust_contract.1, build);
     assert!(
         output.status.success(),
         "{} generated Rust failed to compile:\n{}",
@@ -817,8 +874,11 @@ fn stable_projection_history(path: &Path) -> serde_json::Value {
     let object = history
         .as_object_mut()
         .unwrap_or_else(|| panic!("projection {} must contain a JSON object", path.display()));
+    // Reviewed history compares projected semantics, not cache serialization metadata. Schema-only
+    // migrations are covered by cache regeneration tests and must not rewrite every semantic lock.
     object.remove("cache_identity");
     object.remove("content_hash");
+    object.remove("projection_schema");
     history
 }
 
@@ -983,7 +1043,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         document.join("Cargo.toml"),
-        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n",
+        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\n# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n",
     )
     .unwrap();
     fs::write(
@@ -1272,7 +1332,7 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
 #[test]
 fn generated_conformance_workspace_uses_compact_debug_profiles() {
     let build = ConformanceBuild::new();
-    build.write_manifest(&[], &[]);
+    build.write_manifest(&[], &[], false);
     let manifest = fs::read_to_string(build.root.join("Cargo.toml")).unwrap();
     assert!(manifest.contains("[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true"));
     assert!(manifest.contains("[profile.test]\ndebug = \"line-tables-only\"\nincremental = true"));

@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-opaque-result-witness import choose, consume, make, serve
+from /core/output import print
+
+function identity int; value int
+    return value
+function main;
+    print; ((make; 42).value;)
+    print; (consume; (make; 43))
+    print; (serve; (choose; identity))

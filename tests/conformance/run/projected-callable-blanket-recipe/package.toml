@@ -1,0 +1,17 @@
+package = "projected-callable-blanket-recipe"
+executor = "threaded"
+
+[profile]
+name = "projected-callable-blanket-recipe"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callable-recipe-witness]
+version = "=0.1.9"
+
+[rust-dependencies.tokio]
+version = "=1.53.0"
+features = ["rt"]
+effects = ["build", "threads"]

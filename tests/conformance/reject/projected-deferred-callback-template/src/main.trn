@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-deferred-callback-witness import produce
+
+function message string;
+    return 'deferred'
+
+function main;
+    value int = produce; message

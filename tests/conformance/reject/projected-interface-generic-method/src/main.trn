@@ -1,2 +1,5 @@
 namespace app
 from /deps/terrane-render-witness import GenericMethod
+
+function main;
+    print; GenericMethod

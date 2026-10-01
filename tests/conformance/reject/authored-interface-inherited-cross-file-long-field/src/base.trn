@@ -1,0 +1,48 @@
+namespace app
+
+from /deps/witness import NonSend, make_non_send
+
+class holder
+  stored-value int = 3
+  filler-aa int = 1
+  filler-ab int = 2
+  filler-ac int = 3
+  filler-ad int = 4
+  filler-ae int = 5
+  filler-af int = 6
+  filler-ag int = 7
+  filler-ah int = 8
+  filler-ai int = 9
+  filler-aj int = 10
+  filler-ak int = 11
+  filler-al int = 12
+  filler-am int = 13
+  filler-an int = 14
+  filler-ao int = 15
+  filler-ap int = 16
+  filler-aq int = 17
+  filler-ar int = 18
+  filler-as int = 19
+  filler-at int = 20
+  filler-au int = 21
+  filler-av int = 22
+  filler-aw int = 23
+  filler-ax int = 24
+  filler-ay int = 25
+  filler-az int = 26
+  filler-ba int = 27
+  filler-bb int = 28
+  filler-bc int = 29
+  filler-bd int = 30
+  filler-be int = 31
+  filler-bf int = 32
+  filler-bg int = 33
+  filler-bh int = 34
+  filler-bi int = 35
+  filler-bj int = 36
+  filler-bk int = 37
+  filler-bl int = 38
+  filler-bm int = 39
+  filler-bn int = 40
+
+  payload NonSend = make_non_send;

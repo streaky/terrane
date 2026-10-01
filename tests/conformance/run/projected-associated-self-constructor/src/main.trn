@@ -9,4 +9,4 @@ function main;
   defaulted = DefaultOwner::standard;
   options = Options::gfm;
   html string = to_html_with_options; '|a|\n|-|\n|b|', options
-  print; (plain.label;), (defaulted.label;), html
+  print; (plain.label;), (defaulted.label;), DefaultOwner::CODE, html

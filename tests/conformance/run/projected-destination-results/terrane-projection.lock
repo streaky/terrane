@@ -1,52 +1,31 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/factory",
-          "default_value"
-        ],
-        [
-          "/deps/factory",
-          "renamed_bound_value"
-        ],
-        [
-          "/deps/factory",
-          "sample_numeric_rows"
-        ],
-        [
-          "/deps/factory",
-          "sample_rows"
-        ],
-        [
-          "/deps/factory",
+      "members": {
+        "/deps/factory": [
+          "default_value",
+          "renamed_bound_value",
+          "sample_numeric_rows",
+          "sample_rows",
           "sample_value"
         ]
-      ],
+      },
       "name": "factory",
       "version": "0.1.3"
     },
     {
-      "members": [
-        [
-          "/deps/terrane-generic-row-witness",
-          "Row"
-        ],
-        [
-          "/deps/terrane-generic-row-witness",
-          "Row.decoded"
-        ],
-        [
-          "/deps/terrane-generic-row-witness",
+      "members": {
+        "/deps/terrane-generic-row-witness": [
+          "Row",
+          "Row.decoded",
           "row"
         ]
-      ],
+      },
       "name": "terrane-generic-row-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [
     {
       "current_version": "0.1.1",

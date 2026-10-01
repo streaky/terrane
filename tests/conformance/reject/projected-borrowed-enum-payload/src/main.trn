@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-unrepresentable-enum-payload-witness import Event
+
+function main;
+  _ = Event::Unsupported; 1, 2

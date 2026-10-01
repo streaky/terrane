@@ -1,18 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
           "same_mapping"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

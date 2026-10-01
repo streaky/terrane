@@ -73,7 +73,9 @@ impl Parser<'_> {
             "public" | "private" | "protected" if self.peek_text(1) == Some("class") => {
                 self.parse_object_declaration(SyntaxKind::ClassDeclaration)
             }
-            "public" | "private" | "protected" if self.peek_text(1) == Some("interface") => {
+            "unsafe" | "public" | "private" | "protected"
+                if self.peek_text(1) == Some("interface") =>
+            {
                 self.parse_object_declaration(SyntaxKind::InterfaceDeclaration)
             }
             "public" | "private" | "protected" if self.peek_text(1) == Some("trait") => {
@@ -104,7 +106,9 @@ impl Parser<'_> {
             "try" => self.parse_try(),
             "break" => self.parse_bare_statement(SyntaxKind::BreakStatement),
             "continue" => self.parse_bare_statement(SyntaxKind::ContinueStatement),
-            "await" => self.parse_expression_statement(),
+            "await" | "unsafe" if self.peek_text(1) != Some("rust") => {
+                self.parse_expression_statement()
+            }
             "from" => self.parse_import_declaration(),
             "import"
                 if self.peek_kind(1) == Some(TokenKind::Assign)
@@ -125,8 +129,8 @@ impl Parser<'_> {
             }
             "rust" => self.parse_rust_block(false),
             "unsafe" if self.peek_text(1) == Some("rust") => self.parse_rust_block(true),
-            "yield" | "match" | "unsafe" | "label" | "goto" | "when" | "use" | "catch"
-            | "finally" | "case" => self.parse_unsupported(),
+            "yield" | "match" | "label" | "goto" | "when" | "use" | "catch" | "finally"
+            | "case" => self.parse_unsupported(),
             _ if self.looks_like_binding() => self.parse_binding(),
             _ => self.parse_expression_statement(),
         }
@@ -188,6 +192,9 @@ impl Parser<'_> {
     fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
+        if self.at_text("unsafe") {
+            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+        }
         self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
@@ -197,6 +204,7 @@ impl Parser<'_> {
             self.error_here("S1034", "object declaration requires a name");
         }
         while !self.at_line_end() {
+            let clause_start = self.position;
             let clause_kind = match self.text() {
                 "extends" => SyntaxKind::ExtendsClause,
                 "implements" => SyntaxKind::ImplementsClause,
@@ -210,9 +218,15 @@ impl Parser<'_> {
                     break;
                 }
             };
-            let clause_start = self.position;
             self.bump();
             let mut names = Vec::new();
+            if matches!(
+                clause_kind,
+                SyntaxKind::ImplementsClause | SyntaxKind::ExtendsClause
+            ) && self.at_text("unsafe")
+            {
+                names.push(self.leaf(SyntaxKind::DeclarationQualifier));
+            }
             loop {
                 if self.at(TokenKind::Identifier) {
                     names.push(if clause_kind == SyntaxKind::ImplementsClause {
@@ -393,15 +407,10 @@ impl Parser<'_> {
             if qualifier == "static" && self.block_depth != self.class_body_depth {
                 self.error_here("S1029", "`static` bindings are only valid in class bodies");
             }
-            if qualifiers.len() > 1 && qualifiers.contains("static") {
+            if qualifiers.len() > 1 {
                 self.error_here(
                     "S1029",
-                    "`static` cannot be combined with `global` or `constant`",
-                );
-            } else if qualifiers.contains("global") && qualifiers.contains("constant") {
-                self.error_here(
-                    "S1029",
-                    "a binding may have only one of `global` or `constant`",
+                    "a binding may have only one of `global`, `constant`, or `static`",
                 );
             }
             children.push(self.leaf(SyntaxKind::DeclarationQualifier));
@@ -518,21 +527,24 @@ impl Parser<'_> {
         let mut children = Vec::new();
         let mut qualifiers = std::collections::BTreeSet::new();
         let mut previous_rank = 0;
-        while matches!(self.text(), "static" | "mutable" | "consuming" | "async")
-            && (allow_static || self.text() != "static")
+        while matches!(
+            self.text(),
+            "unsafe" | "static" | "mutable" | "consuming" | "async"
+        ) && (allow_static || self.text() != "static")
         {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
             let rank = match qualifier.as_str() {
-                "static" => 0,
-                "mutable" | "consuming" => 1,
-                "async" => 2,
+                "unsafe" => 0,
+                "static" => 1,
+                "mutable" | "consuming" => 2,
+                "async" => 3,
                 _ => unreachable!("matched function qualifier"),
             };
             if rank < previous_rank {
                 self.error_here(
                     "S1029",
-                    "function qualifiers must be ordered `static`, invocation mode, then `async`",
+                    "function qualifiers must be ordered `unsafe`, `static`, invocation mode, then `async`",
                 );
             }
             previous_rank = rank;
@@ -1186,6 +1198,31 @@ impl Parser<'_> {
     }
 
     fn parse_prefix(&mut self, allow_call: bool) -> SyntaxNode {
+        if self.at_text("unsafe") && self.peek_text(1) != Some("rust") {
+            let start = self.position;
+            self.bump();
+            let call = self.parse_postfix(true);
+            if call.kind != SyntaxKind::CallExpression {
+                self.error_here_with_help(
+                    "S1090",
+                    "`unsafe` must select exactly one function call",
+                    "write `unsafe operation; arguments`",
+                );
+                return self.node(SyntaxKind::Error, start, self.position, vec![call]);
+            }
+            let mut call = self.node(
+                SyntaxKind::CallExpression,
+                start,
+                self.position,
+                call.children,
+            );
+            call.is_unsafe_call = true;
+            call.children
+                .first_mut()
+                .expect("a parsed call has a callee")
+                .is_unsafe_call = true;
+            return call;
+        }
         if matches!(self.text(), "not" | "ref" | "move" | "await")
             || (self.text() == "shared" && self.peek_text(1) == Some("ref"))
             || (self.at(TokenKind::Operator) && matches!(self.text(), "-" | "~"))
@@ -1202,7 +1239,7 @@ impl Parser<'_> {
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
             let operand = if operator_text == "await" {
-                self.parse_postfix(true)
+                self.parse_prefix(true)
             } else if matches!(operator_text.as_str(), "ref" | "move" | "shared ref") {
                 self.parse_postfix(false)
             } else {
@@ -1505,6 +1542,11 @@ impl Parser<'_> {
 
     fn parse_prefix_type(&mut self) -> SyntaxNode {
         let start = self.position;
+        if self.at_text("unsafe") && self.peek_text(1) != Some("function") {
+            self.bump();
+            let inner = self.parse_prefix_type();
+            return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
         if self.at_text("shared") && self.peek_text(1) == Some("ref") {
             self.bump();
             self.bump();
@@ -1749,7 +1791,7 @@ impl Parser<'_> {
         }
         loop {
             match self.peek_text(offset) {
-                Some("static" | "mutable" | "consuming" | "async") => offset += 1,
+                Some("unsafe" | "static" | "mutable" | "consuming" | "async") => offset += 1,
                 Some("throws") => {
                     offset += 1;
                     if self.peek_text(offset) != Some("function") {

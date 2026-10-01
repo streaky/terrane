@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import borrowed_label
+
+function main;
+    value = borrowed_label; 'escape'

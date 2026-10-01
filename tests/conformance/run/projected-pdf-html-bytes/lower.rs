@@ -502,11 +502,10 @@ fn main() {
                 match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | document
                 .save_to_bytes())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
                 Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                ::TERRANE_DEPENDENCY_ERROR,
-                format!("Rust dependency `pdf_oxide` member `pdf_oxide::api::Pdf::save_to_bytes` failed: {error}"),
-                crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                ::__terrane_dependency_panic(payload, "pdf_oxide",
-                "pdf_oxide::api::Pdf::save_to_bytes")) }, 1 /* terrane-site: src/main.trn:10:18-10:41 */
+                ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+                Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                "pdf_oxide", "pdf_oxide::api::Pdf::save_to_bytes")) },
+                1 /* terrane-site: src/main.trn:10:18-10:41 */
             );
             println!(
                 "{}",
@@ -571,7 +570,6 @@ pub use pdf_oxide::api::Pdf;
 pub fn terrane_static_trn_506466_from_html(
     content: String,
 ) -> Result<Pdf, crate::TerraneForeignError> {
-    let content = content;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| pdf_oxide::api::Pdf::from_html(&content)),
     ) {
@@ -580,10 +578,8 @@ pub fn terrane_static_trn_506466_from_html(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `pdf-oxide` member `pdf_oxide::api::Pdf` failed: {error}"
-                        ),
+                        crate::DescriptorId(2),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

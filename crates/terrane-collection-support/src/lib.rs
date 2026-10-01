@@ -221,6 +221,26 @@ impl<T> List<T> {
     {
         Arc::unwrap_or_clone(self.0)
     }
+    /// Consumes a list whose scoped element type cannot be cloned.
+    ///
+    /// Invocation-scoped lists cannot be duplicated, so their backing vector is uniquely owned.
+    ///
+    /// # Panics
+    ///
+    /// Panics if compiler lowering violated the invocation-region uniqueness invariant.
+    #[must_use]
+    pub fn into_unique_vec(self) -> Vec<T> {
+        Arc::try_unwrap(self.0).unwrap_or_else(|_| {
+            panic!("invocation-scoped list backing storage must be uniquely owned")
+        })
+    }
+    /// Appends to an invocation-scoped list whose backing storage is uniquely owned.
+    #[doc(hidden)]
+    pub fn push_unique(&mut self, value: T) {
+        Arc::get_mut(&mut self.0)
+            .expect("invocation-scoped list backing storage must be uniquely owned")
+            .push(value);
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
@@ -1365,5 +1385,20 @@ mod tests {
         assert!(large_comparisons <= 4_096 * 20);
         assert_eq!(small_clones, 0);
         assert_eq!(large_clones, 0);
+    }
+    #[test]
+    #[should_panic(expected = "invocation-scoped list backing storage must be uniquely owned")]
+    fn scoped_list_consumption_rejects_shared_storage() {
+        let list = List::new(vec![String::from("value")]);
+        let _shared = list.clone();
+        let _ = list.into_unique_vec();
+    }
+
+    #[test]
+    #[should_panic(expected = "invocation-scoped list backing storage must be uniquely owned")]
+    fn scoped_list_append_rejects_shared_storage() {
+        let mut list = List::new(vec![String::from("first")]);
+        let _shared = list.clone();
+        list.push_unique(String::from("second"));
     }
 }

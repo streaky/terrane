@@ -197,6 +197,7 @@ pub struct SyntaxNode {
     pub span: Span,
     pub token_range: std::ops::Range<usize>,
     pub children: Vec<SyntaxNode>,
+    pub(crate) is_unsafe_call: bool,
 }
 
 impl SyntaxNode {
@@ -211,8 +212,15 @@ impl SyntaxNode {
             span,
             token_range,
             children,
+            is_unsafe_call: false,
         }
     }
+}
+
+/// Returns whether the parser marked this node as an unsafe call or its callee.
+#[must_use]
+pub(crate) fn call_is_unsafe(node: &SyntaxNode) -> bool {
+    node.is_unsafe_call
 }
 
 #[derive(Clone, Debug)]

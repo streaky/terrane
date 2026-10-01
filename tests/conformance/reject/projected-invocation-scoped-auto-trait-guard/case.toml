@@ -1,0 +1,7 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+
+[diagnostics]
+code = "S2029"
+contains = "render_send"

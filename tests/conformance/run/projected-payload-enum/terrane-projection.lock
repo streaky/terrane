@@ -1,46 +1,28 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-payload-enum-witness",
-          "Event"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
-          "NonClonePayload"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
-          "OpenEvent"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
-          "OwnedEvent"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
-          "consume_payload"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
-          "future_event"
-        ],
-        [
-          "/deps/terrane-payload-enum-witness",
+      "members": {
+        "/deps/terrane-payload-enum-witness": [
+          "Event",
+          "Event-Named",
+          "Event-Optional",
+          "Event-Pair",
+          "NonClonePayload",
+          "OpenEvent",
+          "OwnedEvent",
+          "consume_payload",
+          "future_event",
           "non_clone_payload"
         ],
-        [
-          "/deps/terrane-payload-enum-witness/nonclonepayload",
+        "/deps/terrane-payload-enum-witness/nonclonepayload": [
           "eq"
         ]
-      ],
+      },
       "name": "terrane-payload-enum-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
-  "projection_schema": "63",
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

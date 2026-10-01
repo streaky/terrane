@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/witness import borrowed_view, render_unsafe, unchecked_add
+from /core/output import print
+
+function view host-invocation-scoped-native; state ref string
+    return borrowed_view; state
+
+function main;
+    state string = 'unsafe'
+    print; (unsafe unchecked_add; 20, 22)
+    print; (render_unsafe; state, view)

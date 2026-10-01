@@ -36,7 +36,7 @@ impl ProtectedClass {
         }
     }
 }
-pub trait PublicInterfaceProtocol {
+pub trait PublicInterfaceProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn PublicInterfaceProtocol>;
     fn separate_box(&self) -> Box<dyn PublicInterfaceProtocol>;
     fn value(&self) -> terrane_int_support::Int;
@@ -57,7 +57,7 @@ impl PublicInterface {
         self.0.value()
     }
 }
-pub trait PrivateInterfaceProtocol {
+pub trait PrivateInterfaceProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn PrivateInterfaceProtocol>;
     fn separate_box(&self) -> Box<dyn PrivateInterfaceProtocol>;
     fn value(&self) -> terrane_int_support::Int;
@@ -78,7 +78,7 @@ impl PrivateInterface {
         self.0.value()
     }
 }
-pub trait ProtectedInterfaceProtocol {
+pub trait ProtectedInterfaceProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ProtectedInterfaceProtocol>;
     fn separate_box(&self) -> Box<dyn ProtectedInterfaceProtocol>;
     fn value(&self) -> terrane_int_support::Int;

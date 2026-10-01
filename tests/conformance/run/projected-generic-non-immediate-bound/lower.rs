@@ -495,9 +495,8 @@ fn main() {
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(| | terrane_render_witness::render_many(match | | ->
-        Result < _, crate ::TerraneForeignError > { Ok(values.into_vec()) } () {
-        Ok(value) => value, Err(error) => std::panic::panic_any(error) })) { Ok(value) =>
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_render_witness::render_many(values.into_vec()))) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-render-witness",
         "terrane_render_witness::render_many")) }, 2 /* terrane-site: src/main.trn:6:13-6:32 */))

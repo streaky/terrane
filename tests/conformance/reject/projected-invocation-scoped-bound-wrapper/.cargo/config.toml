@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-invocation-bound-wrapper-witness = { path = "fixture-registry/terrane-invocation-bound-wrapper-witness-0.1.0" }

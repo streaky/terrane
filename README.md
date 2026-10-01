@@ -178,6 +178,12 @@ cargo build --release -p terrane-cli
 ./target/release/terrane --version
 ```
 
+Repository-local binaries under `target/` record the Git commit and a fast fingerprint of the
+modification times of changed Rust and Cargo inputs at build time. On later invocations they warn
+when the checkout has moved or that fingerprint has changed; installed or copied binaries do not
+inspect a working tree. Rebuild with the same Cargo command when this development-only warning
+appears.
+
 Terrane uses iterator-backed bulk construction when the compiler proves a fresh, append-only
 bounded list builder with canonical unit-step induction, one append per iteration, and no relevant
 early exit. Runtime ranges whose exact allocation would exceed the existing 256 MiB preallocation

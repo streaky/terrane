@@ -1,0 +1,10 @@
+namespace unsafe-conformance-safe-interface
+
+interface readable
+  function value int;
+
+class reader implements unsafe readable
+  function value int;
+    return 1
+
+function main;

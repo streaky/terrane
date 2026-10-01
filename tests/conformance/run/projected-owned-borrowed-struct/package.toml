@@ -1,0 +1,7 @@
+package = "projected-owned-borrowed-struct"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-borrowed-struct-witness]
+version = "=0.1.5"

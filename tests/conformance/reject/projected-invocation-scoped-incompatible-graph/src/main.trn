@@ -1,0 +1,16 @@
+namespace app
+
+from /deps/witness import first_widget, second_widget, render_scoped
+
+function incompatible host-invocation-scoped-native; state ref string
+    first = first_widget; state
+    second = second_widget; state
+    if state.length > 1
+        return incompatible; state
+    if state.length > 0
+        return first
+    return second
+
+function main;
+    state string = '40'
+    result = render_scoped; state, incompatible

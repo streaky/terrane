@@ -205,7 +205,11 @@ fn collect_unused_top_level_function_warnings(
     }
 }
 
-pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
+pub(crate) fn warnings(
+    package: &SemanticPackage,
+    lint_name_style: bool,
+    lint_unused_functions: bool,
+) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     warnings.extend(package.import_warnings.iter().cloned());
 
@@ -214,7 +218,9 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
             collect_name_style_warnings(unit, &mut warnings);
         }
         collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
-        collect_unused_top_level_function_warnings(package, unit, &mut warnings);
+        if lint_unused_functions {
+            collect_unused_top_level_function_warnings(package, unit, &mut warnings);
+        }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {
@@ -347,7 +353,7 @@ pub(super) fn object_method_mutates(
         .is_some_and(|method| {
             matches!(
                 method.receiver,
-                Some(crate::projection::Receiver::MutableBorrow)
+                Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             )
         })
 }
@@ -464,7 +470,10 @@ pub(crate) fn member_invocation_mode(
                 .projection
                 .method(&identity.namespace, &identity.name, member_name, false)
                 .is_some_and(|method| {
-                    matches!(method.receiver, Some(crate::projection::Receiver::Move))
+                    matches!(
+                        method.receiver,
+                        Some(crate::rust_interop::projection::Receiver::Move)
+                    )
                 })
         {
             return InvocationMode::Consuming;
@@ -554,6 +563,29 @@ fn projected_call_mutates_binding(
     })
 }
 
+fn object_mutation_root<'a>(unit: &SemanticUnit, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
+    match node.kind {
+        SyntaxKind::Name => Some(node),
+        SyntaxKind::MemberExpression
+            if node.children.first().is_some_and(|receiver| {
+                matches!(
+                    unit.inferred_value_type(receiver),
+                    Some(ValueType::Object(_))
+                )
+            }) =>
+        {
+            node.children
+                .first()
+                .and_then(|receiver| object_mutation_root(unit, receiver))
+        }
+        SyntaxKind::GroupExpression => node
+            .children
+            .first()
+            .and_then(|child| object_mutation_root(unit, child)),
+        _ => None,
+    }
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -573,11 +605,12 @@ pub(crate) fn binding_span_is_mutated(
             return 0;
         }
         let resolves_to_binding = |target: &SyntaxNode| {
-            target.kind == SyntaxKind::Name
-                && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
-                && package
-                    .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
-                    .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+            object_mutation_root(unit, target).is_some_and(|root| {
+                !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, root))
+                    && package
+                        .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                        .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+            })
         };
         let direct_write = matches!(
             node.kind,
@@ -779,6 +812,11 @@ pub(super) fn failure(
     message: impl Into<String>,
     span: Span,
 ) -> SemanticFailure {
+    debug_assert_eq!(
+        source.id(),
+        span.file,
+        "diagnostic {code} span belongs to a different source file"
+    );
     SemanticFailure {
         source: source.clone(),
         diagnostics: vec![Diagnostic::error(code, message, span)],

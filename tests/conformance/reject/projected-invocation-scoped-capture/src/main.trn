@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import borrowed_label
+
+function captures host-invocation-scoped-native; state ref string
+    value = borrowed_label; state
+    callback = function;
+        return value
+    callback;
+    return value

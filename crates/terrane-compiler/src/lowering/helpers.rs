@@ -236,7 +236,9 @@ pub(super) fn effective_object_methods<'a>(
             .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
         {
             if let Some(index) = methods.iter().position(|existing| {
-                existing.name == method.name && existing.is_static == method.is_static
+                existing.name == method.name
+                    && existing.is_static == method.is_static
+                    && existing.is_unsafe == method.is_unsafe
             }) {
                 methods[index] = method;
             } else {
@@ -598,6 +600,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::Reference(item) => {
             format!("&{}", rust_element_type(package, item))
         }
+        ValueType::InvocationScopedNative {
+            concrete: false, ..
+        } => "_".to_owned(),
+        ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
         ValueType::InlineRust => unreachable!("inline Rust values require a source destination"),
         ValueType::ProjectedGeneric(name) => name.clone(),
         ValueType::ProjectedAssociated => "TerraneAssociated".to_owned(),
@@ -748,14 +754,35 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
         .iter()
         .flat_map(|unit| &unit.functions)
         .filter(|candidate| {
-            candidate.owner.is_none()
-                && candidate.name == contract.name
+            candidate.name == contract.name
                 && candidate.span != contract.span
+                && candidate.owner.is_none()
+                && contract.owner.is_none()
         })
         .collect::<Vec<_>>();
+    if contract.owner.is_some() {
+        if contract.is_unsafe {
+            let mut name = String::from("_terrane_unsafe_");
+            for byte in contract.name.bytes() {
+                write!(name, "{byte:02x}").expect("writing to a String cannot fail");
+            }
+            return name;
+        }
+        return rust_name(&contract.name);
+    }
     if !duplicates.is_empty() && contract.owner.is_none() {
         let namespace = function_namespace_suffix(package, contract);
         let mut name = format!("{}_terrane_{namespace}", rust_name(&contract.name));
+        if duplicates.iter().any(|candidate| {
+            function_namespace_suffix(package, candidate) == namespace
+                && candidate.is_unsafe != contract.is_unsafe
+        }) {
+            name.push_str(if contract.is_unsafe {
+                "_unsafe"
+            } else {
+                "_safe"
+            });
+        }
         let first_normalized_namespace = duplicates
             .iter()
             .filter(|candidate| function_namespace_suffix(package, candidate) == namespace)
@@ -803,7 +830,7 @@ pub(super) fn rust_object_name(name: &str) -> String {
 ///
 /// Counting the source segment keeps the encoding injective when case conversion erases spelling
 /// differences; the following CamelCase letter also makes adjacent decimal lengths unambiguous.
-pub(super) fn rust_object_type_name(
+pub(crate) fn rust_object_type_name(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> String {
@@ -816,7 +843,7 @@ pub(super) fn rust_object_type_name(
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         > 1;
-    let base = if collides {
+    let mut base = if collides {
         let mut namespace = String::new();
         for segment in identity.namespace.trim_start_matches('/').split('/') {
             write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
@@ -826,6 +853,14 @@ pub(super) fn rust_object_type_name(
     } else {
         rust_object_name(&identity.name)
     };
+    if identity.is_unsafe {
+        base.push_str("UnsafeContract");
+    }
+    if let Some(native_projection) = &identity.native_projection
+        && let Some((_, arguments)) = native_projection.split_once('<')
+    {
+        return format!("{base}<{arguments}");
+    }
     identity
         .application
         .as_deref()

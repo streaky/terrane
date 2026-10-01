@@ -3,3 +3,4 @@ namespace app
 from /deps/terrane-bad-supertrait-witness import InvalidChild as invalid-child
 
 function main;
+    print; invalid-child

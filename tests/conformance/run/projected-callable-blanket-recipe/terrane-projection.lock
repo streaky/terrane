@@ -1,0 +1,198 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/terrane-callable-recipe-witness": [
+          "MethodRouter",
+          "accept",
+          "accepts_handler",
+          "blank",
+          "compose",
+          "install",
+          "invoke",
+          "mutate",
+          "render",
+          "run_correlated",
+          "transform"
+        ]
+      },
+      "name": "terrane-callable-recipe-witness",
+      "version": "0.1.9"
+    },
+    {
+      "members": {
+        "/deps/tokio": [
+          "spawn"
+        ],
+        "/deps/tokio/net/addr/sealed": [
+          "Internal"
+        ],
+        "/deps/tokio/runtime": [
+          "Builder",
+          "Builder.build",
+          "Builder.build_local",
+          "Builder.enable_all",
+          "Builder.event_interval",
+          "Builder.global_queue_interval",
+          "Builder.max_blocking_threads",
+          "Builder.name",
+          "Builder.on_thread_park",
+          "Builder.on_thread_start",
+          "Builder.on_thread_stop",
+          "Builder.on_thread_unpark",
+          "Builder.thread_keep_alive",
+          "Builder.thread_name",
+          "Builder.thread_name_fn",
+          "Builder.thread_stack_size",
+          "Builder.worker_threads",
+          "Builder::new_current_thread",
+          "Handle",
+          "Handle.block_on",
+          "Handle.enter",
+          "Handle.id",
+          "Handle.metrics",
+          "Handle.name",
+          "Handle.runtime_flavor",
+          "Handle.spawn",
+          "Handle.spawn_blocking",
+          "Handle::current",
+          "Handle::try_current",
+          "Id",
+          "LocalOptions",
+          "LocalRuntime",
+          "LocalRuntime.block_on",
+          "LocalRuntime.enter",
+          "LocalRuntime.handle",
+          "LocalRuntime.metrics",
+          "LocalRuntime.shutdown_background",
+          "LocalRuntime.shutdown_timeout",
+          "LocalRuntime.spawn_blocking",
+          "LocalRuntime.spawn_local",
+          "LocalRuntime::new",
+          "Runtime",
+          "Runtime.block_on",
+          "Runtime.enter",
+          "Runtime.handle",
+          "Runtime.metrics",
+          "Runtime.shutdown_background",
+          "Runtime.shutdown_timeout",
+          "Runtime.spawn",
+          "Runtime.spawn_blocking",
+          "RuntimeFlavor",
+          "RuntimeMetrics",
+          "RuntimeMetrics.global_queue_depth",
+          "RuntimeMetrics.num_alive_tasks",
+          "RuntimeMetrics.num_workers",
+          "RuntimeMetrics.worker_park_count",
+          "RuntimeMetrics.worker_park_unpark_count",
+          "RuntimeMetrics.worker_total_busy_duration",
+          "TryCurrentError",
+          "TryCurrentError.is_missing_context",
+          "TryCurrentError.is_thread_local_destroyed",
+          "is_rt_shutdown_err"
+        ],
+        "/deps/tokio/runtime/handle": [
+          "clone"
+        ],
+        "/deps/tokio/runtime/id": [
+          "clone",
+          "eq"
+        ],
+        "/deps/tokio/runtime/localoptions": [
+          "default"
+        ],
+        "/deps/tokio/runtime/localruntime": [
+          "drop"
+        ],
+        "/deps/tokio/runtime/runtime": [
+          "drop"
+        ],
+        "/deps/tokio/runtime/runtimemetrics": [
+          "clone"
+        ],
+        "/deps/tokio/task": [
+          "AbortHandle",
+          "AbortHandle.abort",
+          "AbortHandle.id",
+          "AbortHandle.is_finished",
+          "Id",
+          "JoinError",
+          "JoinError.id",
+          "JoinError.is_cancelled",
+          "JoinError.is_panic",
+          "LocalEnterGuard",
+          "LocalSet",
+          "LocalSet.block_on",
+          "LocalSet.enter",
+          "LocalSet.id",
+          "LocalSet.run_until",
+          "LocalSet.spawn_local",
+          "id",
+          "spawn_blocking",
+          "spawn_local",
+          "try_id",
+          "yield_now"
+        ],
+        "/deps/tokio/task/aborthandle": [
+          "clone",
+          "drop"
+        ],
+        "/deps/tokio/task/coop": [
+          "RestoreOnPending",
+          "RestoreOnPending.made_progress",
+          "consume_budget",
+          "cooperative",
+          "has_budget_remaining",
+          "unconstrained"
+        ],
+        "/deps/tokio/task/coop/restoreonpending": [
+          "drop"
+        ],
+        "/deps/tokio/task/id": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
+        "/deps/tokio/task/joinerror": [
+          "from"
+        ],
+        "/deps/tokio/task/localenterguard": [
+          "drop"
+        ],
+        "/deps/tokio/task/localset": [
+          "drop"
+        ],
+        "/deps/tokio/task/task-local": [
+          "AccessError"
+        ]
+      },
+      "name": "tokio",
+      "version": "1.53.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

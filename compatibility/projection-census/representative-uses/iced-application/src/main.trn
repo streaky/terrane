@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/iced import application
+
+function main;
+  none

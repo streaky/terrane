@@ -499,9 +499,11 @@ fn main() {
             0 /* terrane-site: src/main.trn:10:13-10:40 */,
         );
         let chosen: String = __terrane_raised(
-            match std::panic::catch_unwind(|| terrane_static_witness::GenericFactory::open(
-                address,
-            )) {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| terrane_static_witness::GenericFactory::open(
+                    address,
+                )),
+            ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
                     Err(

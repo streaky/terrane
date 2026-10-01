@@ -1,0 +1,12 @@
+namespace app
+
+interface shape
+  function value int;
+
+class wrapped extends holder implements shape
+  function value int;
+    return this.stored-value
+
+function main;
+  value = instance wrapped;
+  print; (value.value;)

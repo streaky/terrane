@@ -3,5 +3,10 @@ hello
 Binary
 2
 Ping
+42
+pair
+42
+named
+optional
 owned
 unknown

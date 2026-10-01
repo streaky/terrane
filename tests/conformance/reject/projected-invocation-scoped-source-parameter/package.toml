@@ -1,0 +1,4 @@
+package = "projected-invocation-scoped-source-parameter"
+
+[namespaces]
+app = "src"

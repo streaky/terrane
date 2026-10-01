@@ -1,0 +1,7 @@
+namespace unsafe-constructor
+
+class item
+  unsafe function construct; value int
+
+function main;
+  value = instance item; 1

@@ -1,0 +1,6 @@
+namespace unsafe-function-called-safely
+
+unsafe function unsafe-only;
+
+function main;
+  unsafe-only;

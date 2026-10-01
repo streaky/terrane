@@ -1,0 +1,8 @@
+package = "projected-invocation-scoped-owned-blanket-bound"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-invocation-graph-reject-witness"
+version = "=0.1.0"

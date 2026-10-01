@@ -270,7 +270,7 @@ fn lower_with_tests(
         dependency.items.iter().any(|item| {
             matches!(
                 &item.kind,
-                crate::projection::ProjectedKind::Interface(interface)
+                crate::rust_interop::projection::ProjectedKind::Interface(interface)
                     if interface.send
                         && interface.methods.iter().any(|method| method.function.is_async)
             )
@@ -544,7 +544,7 @@ fn lower_with_tests(
             )));
             source_files.push("platform_documents.rs");
         }
-        if uses_json {
+        if uses_json || uses_yaml {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_json.rs"
             )));

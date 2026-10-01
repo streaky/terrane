@@ -359,6 +359,39 @@ pub(super) fn declared_value_type_with_visible_objects(
     if shape.kind == SyntaxKind::PrefixType
         && let Some(inner) = shape.children.first()
     {
+        if node_text(&unit.source, shape).split_whitespace().next() == Some("unsafe") {
+            let resolved =
+                declared_value_type_with_visible_objects(unit, inner, aliases, visible_objects)?;
+            let ValueType::Object(identity) = resolved else {
+                return Err(failure(
+                    &unit.source,
+                    "T0131",
+                    "`unsafe` type selection requires an unsafe interface",
+                    shape.span,
+                ));
+            };
+            let unsafe_identity = identity.with_safety(true);
+            let exists = visible_objects
+                .get(&format!("unsafe::{}", unsafe_identity.name))
+                .is_some()
+                || unit.descriptors.iter().any(|descriptor| {
+                    descriptor.identity.namespace == unsafe_identity.namespace
+                        && descriptor.identity.name == unsafe_identity.name
+                        && descriptor.is_unsafe
+                });
+            if !exists {
+                return Err(failure(
+                    &unit.source,
+                    "T0131",
+                    format!(
+                        "`{}` has no unsafe interface declaration",
+                        unsafe_identity.name
+                    ),
+                    shape.span,
+                ));
+            }
+            return Ok(ValueType::Object(unsafe_identity));
+        }
         let inner = ElementType::new(declared_value_type_with_visible_objects(
             unit,
             inner,
@@ -379,6 +412,17 @@ pub(super) fn declared_value_type_with_visible_objects(
     }
     if shape.kind == SyntaxKind::FunctionType {
         let function = shape;
+        if function.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "unsafe"
+        }) {
+            return Err(failure(
+                &unit.source,
+                "T0130",
+                "unsafe function types are unsupported because unsafe declarations are direct-call contracts",
+                function.span,
+            ));
+        }
         let mut signature = function
             .children
             .iter()
@@ -645,6 +689,18 @@ pub(super) fn declared_value_type_with_visible_objects(
     }
     match type_name {
         "host-projected-associated" => return Ok(ValueType::ProjectedAssociated),
+        "host-invocation-scoped-native" => {
+            return Ok(ValueType::InvocationScopedNative {
+                rust_type: "host-invocation-scoped-native".to_owned(),
+                concrete: false,
+                family: ObjectIdentity::new(
+                    "/deps".to_owned(),
+                    "invocation-scoped-native".to_owned(),
+                ),
+                lifetimes: Vec::new(),
+                region: None,
+            });
+        }
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
         "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
         "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
@@ -1199,6 +1255,10 @@ pub(super) fn object_types_compatible(
         })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "compatibility exhaustively covers the recursive semantic value type model"
+)]
 pub(super) fn value_types_compatible(
     objects: &[DescriptorContract],
     expected: &ValueType,
@@ -1226,7 +1286,30 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
-        (ValueType::ProjectedGeneric(_), _)
+        (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
+            if expected.name == actual.name =>
+        {
+            true
+        }
+        (
+            ValueType::InvocationScopedNative {
+                concrete: false, ..
+            },
+            ValueType::InvocationScopedNative { .. },
+        )
+        | (
+            ValueType::InvocationScopedNative { .. },
+            ValueType::InvocationScopedNative {
+                concrete: false, ..
+            },
+        )
+        | (
+            ValueType::InvocationScopedNative { region: None, .. },
+            ValueType::InvocationScopedNative {
+                region: Some(_), ..
+            },
+        )
+        | (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
         | (ValueType::IterationStep(_), ValueType::IterationEnd)
         | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,

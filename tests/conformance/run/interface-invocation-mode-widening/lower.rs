@@ -3,7 +3,7 @@
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: interface-invocation-mode-widening
-pub trait MutableCounterProtocol {
+pub trait MutableCounterProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn MutableCounterProtocol>;
     fn separate_box(&self) -> Box<dyn MutableCounterProtocol>;
     fn value(&mut self, offset: terrane_int_support::Int) -> terrane_int_support::Int;
@@ -27,7 +27,7 @@ impl MutableCounter {
         self.0.value(offset)
     }
 }
-pub trait ConsumingLabelProtocol {
+pub trait ConsumingLabelProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ConsumingLabelProtocol>;
     fn separate_box(&self) -> Box<dyn ConsumingLabelProtocol>;
     fn label(self: Box<Self>) -> String;
@@ -48,7 +48,7 @@ impl ConsumingLabel {
         self.0.label()
     }
 }
-pub trait ConsumingCounterProtocol {
+pub trait ConsumingCounterProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ConsumingCounterProtocol>;
     fn separate_box(&self) -> Box<dyn ConsumingCounterProtocol>;
     fn redeem(self: Box<Self>) -> terrane_int_support::Int;

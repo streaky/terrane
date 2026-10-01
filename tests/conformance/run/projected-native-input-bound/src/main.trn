@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-native-bound-witness import Border, Radius, make_border, radius_value
+from /core/output import print
+
+function main;
+    initial Border = make_border;
+    radius Radius = instance Radius; value = 4.0
+    first Border = initial.rounded; radius
+    eight float32 = 8.0
+    second Border = first.rounded; eight
+    print; (radius_value; second)

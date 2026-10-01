@@ -39,9 +39,14 @@ impl DebugBuild {
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
+    pub lint_unused_functions: bool,
     pub debug_build: DebugBuild,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "compilation requirements are independent build facts"
+)]
 #[derive(Clone, Debug)]
 pub struct Compilation {
     pub source: SourceFile,
@@ -58,9 +63,10 @@ pub struct Compilation {
     entry_span: Span,
     pub requires_platform_support: bool,
     pub requires_async_runtime: bool,
+    pub requires_unsafe_code: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
-    pub dependency_containment: crate::projection::Containment,
+    pub dependency_containment: crate::rust_interop::projection::Containment,
     debug_symbols: Option<crate::debugging::DebugSymbols>,
     authored_rust_modules: Vec<AuthoredRustModule>,
 }
@@ -301,7 +307,7 @@ fn lowering_failure(
 
 fn compilation_rust_dependencies(
     package: &Package,
-    projection: &crate::projection::Projection,
+    projection: &crate::rust_interop::projection::Projection,
 ) -> Vec<RustDependency> {
     let mut dependencies = package
         .rust_dependencies
@@ -423,6 +429,31 @@ fn package_entry<'a>(
         .unwrap_or(&semantic.units[0]);
     Ok((&unit.source, entry_span))
 }
+fn collect_warnings(
+    semantic: &crate::SemanticPackage,
+    options: CompilerOptions,
+) -> Vec<Diagnostic> {
+    semantics::warnings(
+        semantic,
+        options.lint_name_style,
+        options.lint_unused_functions,
+    )
+}
+fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
+    fn contains_unsafe_rust(node: &crate::syntax::SyntaxNode) -> bool {
+        node.kind == crate::syntax::SyntaxKind::UnsafeRustBlock
+            || node.children.iter().any(contains_unsafe_rust)
+    }
+
+    semantic.units.iter().any(|unit| {
+        unit.functions.iter().any(|function| function.is_unsafe)
+            || unit
+                .descriptors
+                .iter()
+                .any(|descriptor| descriptor.is_unsafe)
+            || contains_unsafe_rust(&unit.tree.root)
+    })
+}
 
 /// Compiles every manifest-discovered source unit with explicit
 /// compiler-development options.
@@ -441,7 +472,7 @@ pub fn compile_package_with_options(
     })?;
     let (source, entry_span) = package_entry(&semantic, package)?;
     let sources = compilation_sources(&semantic, package);
-    let warnings = semantics::warnings(&semantic, options.lint_name_style)
+    let warnings = collect_warnings(&semantic, options)
         .into_iter()
         .filter(|warning| {
             let dependency_warning = warning
@@ -484,6 +515,7 @@ pub fn compile_package_with_options(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
@@ -681,7 +713,7 @@ fn discover_test_tier(
         .iter()
         .map(|unit| unit.source.clone())
         .collect();
-    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let warnings = collect_warnings(&semantic, options);
     Ok(TestTierDiscovery {
         tier,
         cases,
@@ -735,7 +767,7 @@ pub fn compile_discovered_test_tier(
             || semantic.units[0].source.clone(),
             |unit| unit.source.clone(),
         );
-    let warnings = semantics::warnings(&semantic, options.lint_name_style);
+    let warnings = collect_warnings(&semantic, options);
     let rust_ir =
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;
@@ -770,6 +802,7 @@ pub fn compile_discovered_test_tier(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
         warnings,
         rust_dependencies: compilation_rust_dependencies(&package, &semantic.projection),
         dependency_containment: semantic.projection.containment,

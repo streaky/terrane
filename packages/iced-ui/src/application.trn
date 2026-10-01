@@ -1,0 +1,177 @@
+namespace iced-ui
+
+from /core/collections import list
+
+from /deps/iced/widget import button as iced-button, column as iced-column, container as iced-container, row as iced-row, scrollable as iced-scrollable, text as iced-text
+from /deps/iced-ui-host import Event as iced-event, View as iced-view
+
+public class Event
+    name string = ''
+    text string|none = none
+    state bool|none = none
+    index int|none = none
+
+    function construct; name string, payload-text string|none, payload-state bool|none, payload-index int|none
+        this.name = name
+        this.text = payload-text
+        this.state = payload-state
+        this.index = payload-index
+
+public class View
+    kind string = ''
+    content string = ''
+    value string = ''
+    checked bool = false
+    event-name string = ''
+    submit-event-name string = ''
+    event-index int|none = none
+    children list of View = list
+    spacing-value int = 0
+    padding-value int = 0
+    text-size int = 0
+    fill-width-value bool = false
+    fill-height-value bool = false
+    center-horizontal-value bool = false
+    virtual-total-rows int = 0
+    virtual-first-row int = 0
+    virtual-row-height int = 0
+
+    function construct; kind string
+        this.kind = kind
+
+    consuming function append View; child View
+        this.children.append; child
+        return this
+
+    consuming function spacing View; amount int
+        this.spacing-value = amount
+        return this
+
+    consuming function padding View; amount int
+        this.padding-value = amount
+        return this
+
+    consuming function size View; amount int
+        this.text-size = amount
+        return this
+
+    consuming function fill-width View;
+        this.fill-width-value = true
+        return this
+
+    consuming function fill-height View;
+        this.fill-height-value = true
+        return this
+
+    consuming function center-horizontal View;
+        this.center-horizontal-value = true
+        return this
+
+public function text View; content string
+    view = instance View; 'text'
+    view.content = content
+    return view
+
+public function button View; label string, event-name string
+    view = instance View; 'button'
+    view.content = label
+    view.event-name = event-name
+    return view
+
+public function indexed-button View; label string, event-name string, index int|none
+    view = button; label, event-name
+    view.event-index = index
+    return view
+
+public function file-picker View; label string, event-name string
+    view = instance View; 'file-picker'
+    view.content = label
+    view.event-name = event-name
+    return view
+
+public function checkbox View; label string, checked bool, event-name string
+    view = instance View; 'checkbox'
+    view.content = label
+    view.checked = checked
+    view.event-name = event-name
+    return view
+
+public function indexed-checkbox View; label string, checked bool, event-name string, index int|none
+    view = checkbox; label, checked, event-name
+    view.event-index = index
+    return view
+
+public function text-input View; placeholder string, value string, event-name string
+    view = instance View; 'text-input'
+    view.content = placeholder
+    view.value = value
+    view.event-name = event-name
+    return view
+
+public function text-input-with-submit View; placeholder string, value string, event-name string, submit-event-name string
+    view = text-input; placeholder, value, event-name
+    view.submit-event-name = submit-event-name
+    return view
+
+public function column View;
+    return instance View; 'column'
+
+public function row View;
+    return instance View; 'row'
+
+public function table View; headers View, rows View
+    view = instance View; 'table'
+    view.children.append; headers
+    for table-row in rows.children
+        view.children.append; table-row
+    return view
+
+public function virtual-table View; headers View, rows View, total-rows int, first-row int, row-height int, event-name string
+    view = instance View; 'virtual-table'
+    view.children.append; headers
+    for table-row in rows.children
+        view.children.append; table-row
+    view.virtual-total-rows = total-rows
+    view.virtual-first-row = first-row
+    view.virtual-row-height = row-height
+    view.event-name = event-name
+    return view
+
+public function scroll View; child View
+    view = instance View; 'scroll'
+    view.children.append; child
+    return view
+
+public function container View; child View
+    view = instance View; 'container'
+    view.children.append; child
+    return view
+
+public interface Application
+    function title string;
+    function view View;
+    mutable function handle; event Event
+
+function render-projected host-invocation-scoped-native; view ref iced-view
+    if view.kind == 'text'
+        return iced-container; (iced-text; view.content)
+    if view.kind == 'button'
+        message = instance iced-event; view.event-name, none, none, view.event-index
+        return iced-container; ((iced-button; (iced-text; view.content)).on_press; message)
+    children list of host-invocation-scoped-native = rust
+        terrane_collection_support::List::new(view.children.iter().map(crate::render_projected).collect())
+    if view.kind == 'row'
+        return iced-container; (iced-row; children)
+    if view.kind == 'container'
+        if children.length == 0
+            return iced-container; (iced-text; '')
+        return iced-container; children[0]
+    if view.kind == 'scroll'
+        if children.length == 0
+            return iced-container; (iced-scrollable; (iced-text; ''))
+        return iced-container; (iced-scrollable; children[0])
+    return iced-container; (iced-column; children)
+
+public function launch throws dependency-error; application Application
+    rust
+        crate::iced_ui::launch(application);

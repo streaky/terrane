@@ -1,0 +1,8 @@
+package = "projected-unsafe-rust-contracts"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-unsafe-contract-witness"
+version = "=0.1.0"
