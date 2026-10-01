@@ -1,0 +1,45 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "terrane-send-witness",
+      "version": "0.1.0",
+      "members": {
+        "/deps/terrane-send-witness": [
+          "Foreign",
+          "Worker",
+          "foreign"
+        ],
+        "/deps/terrane-send-witness/foreign": [
+          "clone"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "cache_identity": "9710ad9ef685615f3db1b4e5d337eabf6216d13375c984d3144de88adcca5967",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "191",
+  "content_hash": "628a29a74fa97f295282110a23bdee8e674f7f76890fb34a5892de7b5c009aa7",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}
