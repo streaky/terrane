@@ -1,2 +1,0 @@
-[patch.crates-io]
-iced-ui-host = { path = "rust/host" }
