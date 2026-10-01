@@ -1,12 +1,7 @@
 namespace app
 
-from /deps/terrane-send-witness import Foreign as foreign, Worker as worker, foreign as make-foreign
+from /deps/terrane-send-witness import Worker as worker
 
-class nested-holder
-    item foreign = make-foreign;
-
-class unsafe-worker implements worker
-    nested nested-holder = instance nested-holder;
-
+class unsafe-worker extends base-holder implements worker
     function value int;
         return 1

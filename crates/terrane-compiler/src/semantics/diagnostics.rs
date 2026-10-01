@@ -812,6 +812,11 @@ pub(super) fn failure(
     message: impl Into<String>,
     span: Span,
 ) -> SemanticFailure {
+    debug_assert_eq!(
+        source.id(),
+        span.file,
+        "diagnostic {code} span belongs to a different source file"
+    );
     SemanticFailure {
         source: source.clone(),
         diagnostics: vec![Diagnostic::error(code, message, span)],

@@ -1166,7 +1166,7 @@ pub(super) fn validate_object_conformance(
                                 })
                         {
                             return Err(failure(
-                                &declaration_unit.source,
+                                &field.unit.source,
                                 "T0122",
                                 format!(
                                     "class `{}` cannot implement `{}` because field `{}` does not satisfy the projected {requirement} obligation",
