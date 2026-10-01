@@ -1,50 +1,32 @@
 {
   "dependencies": [
     {
-      "members": [],
+      "members": {},
       "name": "terrane-trait-collision-contract",
       "version": "0.1.0"
     },
     {
-      "members": [
-        [
-          "/deps/terrane-trait-collision-impls",
-          "First"
-        ],
-        [
-          "/deps/terrane-trait-collision-impls",
-          "First.value"
-        ],
-        [
-          "/deps/terrane-trait-collision-impls",
-          "Second"
-        ],
-        [
-          "/deps/terrane-trait-collision-impls",
-          "Second.value"
-        ],
-        [
-          "/deps/terrane-trait-collision-impls",
-          "first"
-        ],
-        [
-          "/deps/terrane-trait-collision-impls",
+      "members": {
+        "/deps/terrane-trait-collision-impls": [
+          "First",
+          "First.value",
+          "Second",
+          "Second.value",
+          "first",
           "second"
         ],
-        [
-          "/deps/terrane-trait-collision-impls/first",
+        "/deps/terrane-trait-collision-impls/first": [
           "transform"
         ],
-        [
-          "/deps/terrane-trait-collision-impls/second",
+        "/deps/terrane-trait-collision-impls/second": [
           "transform"
         ]
-      ],
+      },
       "name": "terrane-trait-collision-impls",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

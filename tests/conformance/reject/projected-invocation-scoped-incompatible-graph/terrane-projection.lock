@@ -1,33 +1,20 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
-          "FirstWidget"
-        ],
-        [
-          "/deps/witness",
-          "SecondWidget"
-        ],
-        [
-          "/deps/witness",
-          "first_widget"
-        ],
-        [
-          "/deps/witness",
-          "render_scoped"
-        ],
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
+          "FirstWidget",
+          "SecondWidget",
+          "first_widget",
+          "render_scoped",
           "second_widget"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

@@ -2114,7 +2114,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
         serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
             .unwrap();
     assert_eq!(history.resolution, Some(generated));
-    assert_eq!(history.format, 3);
+    assert_eq!(history.format, 4);
     assert_eq!(history.bound_dependencies, projection.bound_dependencies);
     fs::remove_dir_all(directory).unwrap();
 }
@@ -2149,7 +2149,7 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
     let migrated: ProjectionHistory =
         serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
             .unwrap();
-    assert_eq!(migrated.format, 3);
+    assert_eq!(migrated.format, 4);
     assert_eq!(migrated.source, Some(ProjectionSource::Local));
     assert_eq!(migrated.rustdoc_format, Some(rustdoc_types::FORMAT_VERSION));
     assert_eq!(

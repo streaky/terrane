@@ -1,125 +1,57 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
-          "BorrowedButton"
-        ],
-        [
-          "/deps/witness",
-          "BorrowedLabel"
-        ],
-        [
-          "/deps/witness",
-          "Button"
-        ],
-        [
-          "/deps/witness",
-          "Label"
-        ],
-        [
-          "/deps/witness",
-          "Row"
-        ],
-        [
-          "/deps/witness",
-          "Widget"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_button"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_button_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_label"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_label_group"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_row"
-        ],
-        [
-          "/deps/witness",
-          "button"
-        ],
-        [
-          "/deps/witness",
-          "into_widget"
-        ],
-        [
-          "/deps/witness",
-          "label"
-        ],
-        [
-          "/deps/witness",
-          "render_default"
-        ],
-        [
-          "/deps/witness",
-          "render_exact"
-        ],
-        [
-          "/deps/witness",
-          "render_scoped"
-        ],
-        [
-          "/deps/witness",
-          "reset_trace"
-        ],
-        [
-          "/deps/witness",
-          "row"
-        ],
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
+          "BorrowedButton",
+          "BorrowedLabel",
+          "Button",
+          "Label",
+          "Row",
+          "Widget",
+          "borrowed_button",
+          "borrowed_button_group",
+          "borrowed_group",
+          "borrowed_label",
+          "borrowed_label_group",
+          "borrowed_row",
+          "button",
+          "into_widget",
+          "label",
+          "render_default",
+          "render_exact",
+          "render_scoped",
+          "reset_trace",
+          "row",
           "traced_label"
         ],
-        [
-          "/deps/witness/button",
+        "/deps/witness/button": [
           "from"
         ],
-        [
-          "/deps/witness/row",
+        "/deps/witness/row": [
           "from"
         ],
-        [
-          "/deps/witness/widget",
+        "/deps/witness/widget": [
           "clone"
         ],
-        [
-          "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/button",
+        "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/button": [
           "from"
         ],
-        [
-          "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/label",
+        "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/label": [
           "from"
         ],
-        [
-          "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/row",
+        "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/row": [
           "from"
         ],
-        [
-          "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/widget",
+        "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/widget": [
           "from"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

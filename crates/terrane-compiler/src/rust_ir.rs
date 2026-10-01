@@ -72,6 +72,7 @@ pub(crate) fn rust_type_constructor(rust: &str) -> Option<String> {
             .join("::")
     })
 }
+
 pub(crate) fn format_rust_bound(rust: &str) -> String {
     let source = format!("fn __terrane<T>() where T: {rust} {{}}");
     let Ok(file) = syn::parse_file(&source) else {

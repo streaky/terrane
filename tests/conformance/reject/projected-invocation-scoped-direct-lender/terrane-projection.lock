@@ -1,25 +1,18 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
-          "BorrowedLabel"
-        ],
-        [
-          "/deps/witness",
-          "borrowed_label"
-        ],
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
+          "BorrowedLabel",
+          "borrowed_label",
           "render_scoped"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

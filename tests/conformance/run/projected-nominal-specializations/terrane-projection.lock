@@ -1,29 +1,19 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-point-witness",
-          "Point"
-        ],
-        [
-          "/deps/terrane-point-witness",
-          "Point.snap"
-        ],
-        [
-          "/deps/terrane-point-witness",
-          "Point.total"
-        ],
-        [
-          "/deps/terrane-point-witness",
+      "members": {
+        "/deps/terrane-point-witness": [
+          "Point",
+          "Point.snap",
+          "Point.total",
           "Point::new"
         ]
-      ],
+      },
       "name": "terrane-point-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

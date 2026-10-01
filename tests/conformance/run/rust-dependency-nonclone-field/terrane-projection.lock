@@ -1,25 +1,18 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-nonclone-witness",
-          "NonClone"
-        ],
-        [
-          "/deps/terrane-nonclone-witness",
-          "NonClone.value"
-        ],
-        [
-          "/deps/terrane-nonclone-witness",
+      "members": {
+        "/deps/terrane-nonclone-witness": [
+          "NonClone",
+          "NonClone.value",
           "make_non_clone"
         ]
-      ],
+      },
       "name": "terrane-nonclone-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

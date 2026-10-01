@@ -1,41 +1,24 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-associated-reject-witness",
-          "NonSend"
-        ],
-        [
-          "/deps/terrane-associated-reject-witness",
-          "SendItem"
-        ],
-        [
-          "/deps/terrane-associated-reject-witness",
-          "Sequence"
-        ],
-        [
-          "/deps/terrane-associated-reject-witness",
-          "erased_borrowed"
-        ],
-        [
-          "/deps/terrane-associated-reject-witness",
-          "non_send"
-        ],
-        [
-          "/deps/terrane-associated-reject-witness",
+      "members": {
+        "/deps/terrane-associated-reject-witness": [
+          "NonSend",
+          "SendItem",
+          "Sequence",
+          "erased_borrowed",
+          "non_send",
           "sequence_total"
         ],
-        [
-          "/deps/terrane-associated-reject-witness/nonsend",
+        "/deps/terrane-associated-reject-witness/nonsend": [
           "clone"
         ]
-      ],
+      },
       "name": "terrane-associated-reject-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

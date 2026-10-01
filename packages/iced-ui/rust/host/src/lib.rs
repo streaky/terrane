@@ -87,3 +87,42 @@ where
     .run()
     .map(|()| true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    struct Witness;
+
+    impl Application for Witness {
+        fn title(&self) -> String {
+            "witness".to_owned()
+        }
+
+        fn view(&self) -> View {
+            View {
+                content: "projected".to_owned(),
+                ..View::default()
+            }
+        }
+
+        fn handle(&mut self, _event: Event) {}
+    }
+
+    #[test]
+    fn boot_invokes_the_higher_ranked_renderer_without_a_window() {
+        let invocations = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&invocations);
+        let (app, _) = App::boot(Box::new(Witness), move |view: &View| {
+            observed.fetch_add(1, Ordering::Relaxed);
+            iced::widget::text(&view.content).into()
+        });
+
+        let _: Element<'_, Event> = app.view();
+        assert_eq!(invocations.load(Ordering::Relaxed), 1);
+    }
+}

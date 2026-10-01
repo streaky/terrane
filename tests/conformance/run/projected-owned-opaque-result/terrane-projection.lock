@@ -1,41 +1,22 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-opaque-result-witness",
-          "Value"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "Wrapper-of-Value-u32"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "Wrapper-of-Value-u32.value"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "choose"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "consume"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
-          "make"
-        ],
-        [
-          "/deps/terrane-opaque-result-witness",
+      "members": {
+        "/deps/terrane-opaque-result-witness": [
+          "Value",
+          "Wrapper-of-Value-u32",
+          "Wrapper-of-Value-u32.value",
+          "choose",
+          "consume",
+          "make",
           "serve"
         ]
-      ],
+      },
       "name": "terrane-opaque-result-witness",
       "version": "0.1.2"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

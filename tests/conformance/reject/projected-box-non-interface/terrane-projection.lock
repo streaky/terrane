@@ -1,49 +1,26 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "AsyncWorker"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "DropWorker"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "LocalWorker"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "NonSend"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "UniqueToken"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "non_send"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
-          "retain_local"
-        ],
-        [
-          "/deps/terrane-boundary-reject-witness",
+      "members": {
+        "/deps/terrane-boundary-reject-witness": [
+          "AsyncWorker",
+          "DropWorker",
+          "LocalWorker",
+          "NonSend",
+          "UniqueToken",
+          "non_send",
+          "retain_local",
           "unique_token"
         ],
-        [
-          "/deps/terrane-boundary-reject-witness/nonsend",
+        "/deps/terrane-boundary-reject-witness/nonsend": [
           "clone"
         ]
-      ],
+      },
       "name": "terrane-boundary-reject-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

@@ -1,17 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-callable-recipe-bound-witness",
+      "members": {
+        "/deps/terrane-callable-recipe-bound-witness": [
           "invoke"
         ]
-      ],
+      },
       "name": "terrane-callable-recipe-bound-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

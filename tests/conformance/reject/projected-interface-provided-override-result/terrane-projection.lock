@@ -1,17 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-provided-witness",
+      "members": {
+        "/deps/terrane-provided-witness": [
           "Parser"
         ]
-      ],
+      },
       "name": "terrane-provided-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

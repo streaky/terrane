@@ -1,17 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-deferred-callback-witness",
+      "members": {
+        "/deps/terrane-deferred-callback-witness": [
           "produce"
         ]
-      ],
+      },
       "name": "terrane-deferred-callback-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

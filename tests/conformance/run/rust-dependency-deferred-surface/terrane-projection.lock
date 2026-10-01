@@ -8,783 +8,352 @@
   ],
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/bytes",
-          "Bytes"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.clear"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.is_empty"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.is_unique"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.len"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.slice"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.split_off"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.split_to"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes.truncate"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes::from_owner"
-        ],
-        [
-          "/deps/bytes",
-          "Bytes::new"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.capacity"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.clear"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.freeze"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.is_empty"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.len"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.reserve"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.resize"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.split"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.split_off"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.split_to"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.truncate"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.try_reclaim"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut.unsplit"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut::new"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut::with_capacity"
-        ],
-        [
-          "/deps/bytes",
-          "BytesMut::zeroed"
-        ],
-        [
-          "/deps/bytes",
+      "members": {
+        "/deps/bytes": [
+          "Bytes",
+          "Bytes.clear",
+          "Bytes.is_empty",
+          "Bytes.is_unique",
+          "Bytes.len",
+          "Bytes.slice",
+          "Bytes.split_off",
+          "Bytes.split_to",
+          "Bytes.truncate",
+          "Bytes::from_owner",
+          "Bytes::new",
+          "BytesMut",
+          "BytesMut.capacity",
+          "BytesMut.clear",
+          "BytesMut.freeze",
+          "BytesMut.is_empty",
+          "BytesMut.len",
+          "BytesMut.reserve",
+          "BytesMut.resize",
+          "BytesMut.split",
+          "BytesMut.split_off",
+          "BytesMut.split_to",
+          "BytesMut.truncate",
+          "BytesMut.try_reclaim",
+          "BytesMut.unsplit",
+          "BytesMut::new",
+          "BytesMut::with_capacity",
+          "BytesMut::zeroed",
           "TryGetError"
         ],
-        [
-          "/deps/bytes/buf",
-          "UninitSlice"
-        ],
-        [
-          "/deps/bytes/buf",
-          "UninitSlice.len"
-        ],
-        [
-          "/deps/bytes/buf",
+        "/deps/bytes/buf": [
+          "UninitSlice",
+          "UninitSlice.len",
           "UninitSlice.write_byte"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/range-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/range-usize": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefrom-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefrom-usize": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefull",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangefull": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeinclusive-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeinclusive-usize": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeto-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangeto-usize": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangetoinclusive-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/rangetoinclusive-usize": [
           "index"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/range-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/range-usize": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefrom-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefrom-usize": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefull",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangefull": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeinclusive-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeinclusive-usize": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeto-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangeto-usize": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize",
+        "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
-        [
-          "/deps/bytes/bytes",
-          "advance"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "clone"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "cmp"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "copy_to_bytes"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "default"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "drop"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "extend"
-        ],
-        [
-          "/deps/bytes/bytes",
-          "from_iter"
-        ],
-        [
-          "/deps/bytes/bytes",
+        "/deps/bytes/bytes": [
+          "advance",
+          "clone",
+          "cmp",
+          "copy_to_bytes",
+          "default",
+          "drop",
+          "extend",
+          "from_iter",
           "remaining"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialeq",
+        "/deps/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialeq-bytes/bytesmut",
+        "/deps/bytes/bytes/trait/core/cmp/partialeq-bytes/bytesmut": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialeq-std/string/string",
+        "/deps/bytes/bytes/trait/core/cmp/partialeq-std/string/string": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialeq-std/vec/vec-u8",
+        "/deps/bytes/bytes/trait/core/cmp/partialeq-std/vec/vec-u8": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialeq-str",
+        "/deps/bytes/bytes/trait/core/cmp/partialeq-str": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialord",
+        "/deps/bytes/bytes/trait/core/cmp/partialord": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialord-std/string/string",
+        "/deps/bytes/bytes/trait/core/cmp/partialord-std/string/string": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialord-std/vec/vec-u8",
+        "/deps/bytes/bytes/trait/core/cmp/partialord-std/vec/vec-u8": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/cmp/partialord-str",
+        "/deps/bytes/bytes/trait/core/cmp/partialord-str": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut",
+        "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/convert/from-static-str",
+        "/deps/bytes/bytes/trait/core/convert/from-static-str": [
           "from"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/convert/from-std/string/string",
+        "/deps/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
-        [
-          "/deps/bytes/bytes/trait/core/convert/from-std/vec/vec-u8",
+        "/deps/bytes/bytes/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
-        [
-          "/deps/bytes/bytesmut",
-          "advance"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "chunk_mut"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "clone"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "cmp"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "copy_to_bytes"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "default"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "drop"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "put"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "put_bytes"
-        ],
-        [
-          "/deps/bytes/bytesmut",
-          "remaining"
-        ],
-        [
-          "/deps/bytes/bytesmut",
+        "/deps/bytes/bytesmut": [
+          "advance",
+          "chunk_mut",
+          "clone",
+          "cmp",
+          "copy_to_bytes",
+          "default",
+          "drop",
+          "put",
+          "put_bytes",
+          "remaining",
           "remaining_mut"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialeq",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialeq": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-bytes/bytes",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialeq-bytes/bytes": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/string/string",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/string/string": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/vec/vec-u8",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialeq-std/vec/vec-u8": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialeq-str",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialeq-str": [
           "eq"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialord",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialord": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/string/string",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/string/string": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/vec/vec-u8",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialord-std/vec/vec-u8": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/cmp/partialord-str",
+        "/deps/bytes/bytesmut/trait/core/cmp/partialord-str": [
           "partial_cmp"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/convert/from-a-str",
+        "/deps/bytes/bytesmut/trait/core/convert/from-a-str": [
           "from"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/convert/from-bytes/bytes",
+        "/deps/bytes/bytesmut/trait/core/convert/from-bytes/bytes": [
           "from"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-a-u8",
+        "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-a-u8": [
           "extend"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-bytes/bytes",
+        "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-bytes/bytes": [
           "extend"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-u8",
+        "/deps/bytes/bytesmut/trait/core/iter/traits/collect/extend-u8": [
           "extend"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-a-u8",
+        "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-a-u8": [
           "from_iter"
         ],
-        [
-          "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8",
+        "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8": [
           "from_iter"
         ],
-        [
-          "/deps/bytes/trygeterror",
-          "eq"
-        ],
-        [
-          "/deps/bytes/trygeterror",
+        "/deps/bytes/trygeterror": [
+          "eq",
           "from"
         ]
-      ],
+      },
       "name": "bytes",
       "version": "1.10.1"
     },
     {
-      "members": [
-        [
-          "/deps/serde-json",
-          "Error"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.classify"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.column"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.io_error_kind"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.is_data"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.is_eof"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.is_io"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.is_syntax"
-        ],
-        [
-          "/deps/serde-json",
-          "Error.line"
-        ],
-        [
-          "/deps/serde-json",
-          "Number"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.as_f64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.as_i128"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.as_i64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.as_u128"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.as_u64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.is_f64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.is_i64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number.is_u64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number::from_f64"
-        ],
-        [
-          "/deps/serde-json",
-          "Number::from_i128"
-        ],
-        [
-          "/deps/serde-json",
-          "Number::from_u128"
-        ],
-        [
-          "/deps/serde-json",
-          "Value"
-        ],
-        [
-          "/deps/serde-json",
-          "from_reader"
-        ],
-        [
-          "/deps/serde-json",
-          "from_str"
-        ],
-        [
-          "/deps/serde-json",
-          "to_string"
-        ],
-        [
-          "/deps/serde-json",
-          "to_string_pretty"
-        ],
-        [
-          "/deps/serde-json",
-          "to_vec"
-        ],
-        [
-          "/deps/serde-json",
-          "to_vec_pretty"
-        ],
-        [
-          "/deps/serde-json",
-          "to_writer"
-        ],
-        [
-          "/deps/serde-json",
+      "members": {
+        "/deps/serde-json": [
+          "Error",
+          "Error.classify",
+          "Error.column",
+          "Error.io_error_kind",
+          "Error.is_data",
+          "Error.is_eof",
+          "Error.is_io",
+          "Error.is_syntax",
+          "Error.line",
+          "Number",
+          "Number.as_f64",
+          "Number.as_i128",
+          "Number.as_i64",
+          "Number.as_u128",
+          "Number.as_u64",
+          "Number.is_f64",
+          "Number.is_i64",
+          "Number.is_u64",
+          "Number::from_f64",
+          "Number::from_i128",
+          "Number::from_u128",
+          "Value",
+          "from_reader",
+          "from_str",
+          "to_string",
+          "to_string_pretty",
+          "to_vec",
+          "to_vec_pretty",
+          "to_writer",
           "to_writer_pretty"
         ],
-        [
-          "/deps/serde-json/error",
-          "Category"
-        ],
-        [
-          "/deps/serde-json/error",
+        "/deps/serde-json/error": [
+          "Category",
           "from"
         ],
-        [
-          "/deps/serde-json/error/trait/serde-core/de/error",
+        "/deps/serde-json/error/trait/serde-core/de/error": [
           "custom"
         ],
-        [
-          "/deps/serde-json/error/trait/serde-core/ser/error",
+        "/deps/serde-json/error/trait/serde-core/ser/error": [
           "custom"
         ],
-        [
-          "/deps/serde-json/map",
-          "IntoIter"
-        ],
-        [
-          "/deps/serde-json/map",
+        "/deps/serde-json/map": [
+          "IntoIter",
           "IntoValues"
         ],
-        [
-          "/deps/serde-json/map/intoiter",
+        "/deps/serde-json/map/intoiter": [
           "len"
         ],
-        [
-          "/deps/serde-json/map/intovalues",
-          "len"
-        ],
-        [
-          "/deps/serde-json/map/intovalues",
+        "/deps/serde-json/map/intovalues": [
+          "len",
           "next"
         ],
-        [
-          "/deps/serde-json/number",
-          "clone"
-        ],
-        [
-          "/deps/serde-json/number",
-          "deserialize"
-        ],
-        [
-          "/deps/serde-json/number",
-          "eq"
-        ],
-        [
-          "/deps/serde-json/number",
-          "from_str"
-        ],
-        [
-          "/deps/serde-json/number",
+        "/deps/serde-json/number": [
+          "clone",
+          "deserialize",
+          "eq",
+          "from_str",
           "serialize"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-i16",
+        "/deps/serde-json/number/trait/core/convert/from-i16": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-i32",
+        "/deps/serde-json/number/trait/core/convert/from-i32": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-i64",
+        "/deps/serde-json/number/trait/core/convert/from-i64": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-i8",
+        "/deps/serde-json/number/trait/core/convert/from-i8": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-isize",
+        "/deps/serde-json/number/trait/core/convert/from-isize": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-serde-json/number",
+        "/deps/serde-json/number/trait/core/convert/from-serde-json/number": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-u16",
+        "/deps/serde-json/number/trait/core/convert/from-u16": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-u32",
+        "/deps/serde-json/number/trait/core/convert/from-u32": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-u64",
+        "/deps/serde-json/number/trait/core/convert/from-u64": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-u8",
+        "/deps/serde-json/number/trait/core/convert/from-u8": [
           "from"
         ],
-        [
-          "/deps/serde-json/number/trait/core/convert/from-usize",
+        "/deps/serde-json/number/trait/core/convert/from-usize": [
           "from"
         ],
-        [
-          "/deps/serde-json/read",
+        "/deps/serde-json/read": [
           "Position"
         ],
-        [
-          "/deps/serde-json/ser",
-          "CharEscape"
-        ],
-        [
-          "/deps/serde-json/ser",
+        "/deps/serde-json/ser": [
+          "CharEscape",
           "CompactFormatter"
         ],
-        [
-          "/deps/serde-json/ser/compactformatter",
-          "clone"
-        ],
-        [
-          "/deps/serde-json/ser/compactformatter",
+        "/deps/serde-json/ser/compactformatter": [
+          "clone",
           "default"
         ],
-        [
-          "/deps/serde-json/value",
+        "/deps/serde-json/value": [
           "Serializer"
         ],
-        [
-          "/deps/serde-json/value/ser",
-          "SerializeMap"
-        ],
-        [
-          "/deps/serde-json/value/ser",
-          "SerializeMap-Map"
-        ],
-        [
-          "/deps/serde-json/value/ser",
-          "SerializeStructVariant"
-        ],
-        [
-          "/deps/serde-json/value/ser",
-          "SerializeTupleVariant"
-        ],
-        [
-          "/deps/serde-json/value/ser",
+        "/deps/serde-json/value/ser": [
+          "SerializeMap",
+          "SerializeMap-Map",
+          "SerializeStructVariant",
+          "SerializeTupleVariant",
           "SerializeVec"
         ],
-        [
-          "/deps/serde-json/value/serializer",
-          "collect_str"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_bool"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_char"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_f32"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_f64"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_i128"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_i16"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_i32"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_i64"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_i8"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_map"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_newtype_struct"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_newtype_variant"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_none"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_seq"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_some"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_str"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_struct"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_struct_variant"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_tuple"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_tuple_struct"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_tuple_variant"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_u128"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_u16"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_u32"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_u64"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_u8"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_unit"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
-          "serialize_unit_struct"
-        ],
-        [
-          "/deps/serde-json/value/serializer",
+        "/deps/serde-json/value/serializer": [
+          "collect_str",
+          "serialize_bool",
+          "serialize_char",
+          "serialize_f32",
+          "serialize_f64",
+          "serialize_i128",
+          "serialize_i16",
+          "serialize_i32",
+          "serialize_i64",
+          "serialize_i8",
+          "serialize_map",
+          "serialize_newtype_struct",
+          "serialize_newtype_variant",
+          "serialize_none",
+          "serialize_seq",
+          "serialize_some",
+          "serialize_str",
+          "serialize_struct",
+          "serialize_struct_variant",
+          "serialize_tuple",
+          "serialize_tuple_struct",
+          "serialize_tuple_variant",
+          "serialize_u128",
+          "serialize_u16",
+          "serialize_u32",
+          "serialize_u64",
+          "serialize_u8",
+          "serialize_unit",
+          "serialize_unit_struct",
           "serialize_unit_variant"
         ]
-      ],
+      },
       "name": "serde-json",
       "version": "1.0.143"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

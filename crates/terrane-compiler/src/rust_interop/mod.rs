@@ -34,6 +34,7 @@
 //! the remaining named-function Rust specialization described in phase 4. No other compiler phase
 //! may create a second callback-recipe, obligation, or scoped-value model.
 pub mod census;
+mod generated_projection;
 pub mod projection;
 
 pub(crate) use terrane_rust_analysis::configure_projection_cargo_command;

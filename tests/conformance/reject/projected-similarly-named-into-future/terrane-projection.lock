@@ -1,29 +1,21 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-fake-into-future",
-          "Immediate"
-        ],
-        [
-          "/deps/terrane-fake-into-future",
-          "IntoFuture"
-        ],
-        [
-          "/deps/terrane-fake-into-future",
+      "members": {
+        "/deps/terrane-fake-into-future": [
+          "Immediate",
+          "IntoFuture",
           "immediate"
         ],
-        [
-          "/deps/terrane-fake-into-future/immediate",
+        "/deps/terrane-fake-into-future/immediate": [
           "into_future"
         ]
-      ],
+      },
       "name": "terrane-fake-into-future",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

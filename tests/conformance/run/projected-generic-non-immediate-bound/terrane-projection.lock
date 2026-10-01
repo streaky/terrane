@@ -1,41 +1,24 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-render-witness",
-          "Renderable"
-        ],
-        [
-          "/deps/terrane-render-witness",
-          "Widget"
-        ],
-        [
-          "/deps/terrane-render-witness",
-          "render_many"
-        ],
-        [
-          "/deps/terrane-render-witness",
-          "render_value"
-        ],
-        [
-          "/deps/terrane-render-witness",
+      "members": {
+        "/deps/terrane-render-witness": [
+          "Renderable",
+          "Widget",
+          "render_many",
+          "render_value",
           "widget"
         ],
-        [
-          "/deps/terrane-render-witness/widget",
-          "clone"
-        ],
-        [
-          "/deps/terrane-render-witness/widget",
+        "/deps/terrane-render-witness/widget": [
+          "clone",
           "render"
         ]
-      ],
+      },
       "name": "terrane-render-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

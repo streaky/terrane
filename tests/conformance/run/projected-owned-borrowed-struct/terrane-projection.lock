@@ -1,33 +1,20 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-borrowed-struct-witness",
-          "Descriptor"
-        ],
-        [
-          "/deps/terrane-borrowed-struct-witness",
-          "Owned"
-        ],
-        [
-          "/deps/terrane-borrowed-struct-witness",
-          "consume"
-        ],
-        [
-          "/deps/terrane-borrowed-struct-witness",
-          "summarize"
-        ],
-        [
-          "/deps/terrane-borrowed-struct-witness",
+      "members": {
+        "/deps/terrane-borrowed-struct-witness": [
+          "Descriptor",
+          "Owned",
+          "consume",
+          "summarize",
           "summarize_owned"
         ]
-      ],
+      },
       "name": "terrane-borrowed-struct-witness",
       "version": "0.1.5"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

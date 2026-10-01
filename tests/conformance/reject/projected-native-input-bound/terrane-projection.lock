@@ -1,41 +1,26 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-native-bound-witness",
-          "Border"
-        ],
-        [
-          "/deps/terrane-native-bound-witness",
-          "Border.rounded"
-        ],
-        [
-          "/deps/terrane-native-bound-witness",
-          "Radius"
-        ],
-        [
-          "/deps/terrane-native-bound-witness",
+      "members": {
+        "/deps/terrane-native-bound-witness": [
+          "Border",
+          "Border.rounded",
+          "Radius",
           "make_border"
         ],
-        [
-          "/deps/terrane-native-bound-witness/border",
+        "/deps/terrane-native-bound-witness/border": [
           "clone"
         ],
-        [
-          "/deps/terrane-native-bound-witness/radius",
-          "clone"
-        ],
-        [
-          "/deps/terrane-native-bound-witness/radius",
+        "/deps/terrane-native-bound-witness/radius": [
+          "clone",
           "from"
         ]
-      ],
+      },
       "name": "terrane-native-bound-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

@@ -1,49 +1,24 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-supertrait-witness",
-          "Base"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "Child"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "Diamond"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "Left"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "Middle"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "Right"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "child_total"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
-          "diamond_total"
-        ],
-        [
-          "/deps/terrane-supertrait-witness",
+      "members": {
+        "/deps/terrane-supertrait-witness": [
+          "Base",
+          "Child",
+          "Diamond",
+          "Left",
+          "Middle",
+          "Right",
+          "child_total",
+          "diamond_total",
           "erased_child_total"
         ]
-      ],
+      },
       "name": "terrane-supertrait-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

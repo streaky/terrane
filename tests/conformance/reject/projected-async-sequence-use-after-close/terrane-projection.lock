@@ -1,93 +1,35 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-sequence-witness",
-          "BorrowedSequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "BorrowedSequence.close"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "QueueSequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "QueueSequence.close"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "QueueSequence.next"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "SequenceError"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TcpSequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TcpSequence.close"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TcpSequence.next"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TokioSequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TokioSequence.close"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "TokioSequence.next"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_borrowed_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_failing_queue_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_failing_tokio_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_pending_queue_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_pending_tokio_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_queue_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
-          "make_tcp_sequence"
-        ],
-        [
-          "/deps/terrane-sequence-witness",
+      "members": {
+        "/deps/terrane-sequence-witness": [
+          "BorrowedSequence",
+          "BorrowedSequence.close",
+          "QueueSequence",
+          "QueueSequence.close",
+          "QueueSequence.next",
+          "SequenceError",
+          "TcpSequence",
+          "TcpSequence.close",
+          "TcpSequence.next",
+          "TokioSequence",
+          "TokioSequence.close",
+          "TokioSequence.next",
+          "make_borrowed_sequence",
+          "make_failing_queue_sequence",
+          "make_failing_tokio_sequence",
+          "make_pending_queue_sequence",
+          "make_pending_tokio_sequence",
+          "make_queue_sequence",
+          "make_tcp_sequence",
           "make_tokio_sequence"
         ]
-      ],
+      },
       "name": "terrane-sequence-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

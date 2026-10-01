@@ -1,25 +1,18 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
-          "Widget"
-        ],
-        [
-          "/deps/witness",
-          "render_multi"
-        ],
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
+          "Widget",
+          "render_multi",
           "widget"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

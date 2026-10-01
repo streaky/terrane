@@ -58,5 +58,14 @@ compiler capability should remove a native item only when its replacement preser
 lifecycle, ownership, and callback contract; this list is the reconciliation baseline for that
 cutover.
 
+## Verification boundary
+
+`terrane test` compiles the package-owned `render-projected` callback and its generated
+higher-ranked Iced adapter. The native host crate also has a headless test that boots an
+application and invokes the higher-ranked renderer once. Automated tests intentionally stop before
+`iced::Application::run`: that call owns the real desktop event loop and requires a display and user
+shutdown. A release smoke run therefore launches the maintained example under a real display,
+checks the initial projected view, and closes the window.
+
 
 Raw Iced widget types, renderer lifetimes, subscriptions, commands, themes, and advanced styling are not exposed through this initial surface. Extend the Terrane `View` and `Event` contracts first when adding generally useful controls; keep direct Rust adapters for host behavior that cannot yet be represented by projected Terrane APIs.

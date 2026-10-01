@@ -1,675 +1,289 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/markdown",
-          "CompileOptions"
-        ],
-        [
-          "/deps/markdown",
-          "CompileOptions::gfm"
-        ],
-        [
-          "/deps/markdown",
-          "Constructs"
-        ],
-        [
-          "/deps/markdown",
-          "Constructs::gfm"
-        ],
-        [
-          "/deps/markdown",
-          "Constructs::mdx"
-        ],
-        [
-          "/deps/markdown",
-          "LineEnding"
-        ],
-        [
-          "/deps/markdown",
-          "MdxExpressionKind"
-        ],
-        [
-          "/deps/markdown",
-          "MdxSignal"
-        ],
-        [
-          "/deps/markdown",
-          "Options"
-        ],
-        [
-          "/deps/markdown",
-          "Options::gfm"
-        ],
-        [
-          "/deps/markdown",
-          "ParseOptions"
-        ],
-        [
-          "/deps/markdown",
-          "ParseOptions::gfm"
-        ],
-        [
-          "/deps/markdown",
-          "ParseOptions::mdx"
-        ],
-        [
-          "/deps/markdown",
-          "to_html"
-        ],
-        [
-          "/deps/markdown",
-          "to_html_with_options"
-        ],
-        [
-          "/deps/markdown",
+      "members": {
+        "/deps/markdown": [
+          "CompileOptions",
+          "CompileOptions::gfm",
+          "Constructs",
+          "Constructs::gfm",
+          "Constructs::mdx",
+          "LineEnding",
+          "MdxExpressionKind",
+          "MdxSignal",
+          "Options",
+          "Options::gfm",
+          "ParseOptions",
+          "ParseOptions::gfm",
+          "ParseOptions::mdx",
+          "to_html",
+          "to_html_with_options",
           "to_mdast"
         ],
-        [
-          "/deps/markdown/compileoptions",
-          "clone"
-        ],
-        [
-          "/deps/markdown/compileoptions",
+        "/deps/markdown/compileoptions": [
+          "clone",
           "default"
         ],
-        [
-          "/deps/markdown/constructs",
-          "clone"
-        ],
-        [
-          "/deps/markdown/constructs",
-          "default"
-        ],
-        [
-          "/deps/markdown/constructs",
+        "/deps/markdown/constructs": [
+          "clone",
+          "default",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast",
-          "AlignKind"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "AttributeContent"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "AttributeValue"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "AttributeValueExpression"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Blockquote"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Break"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Code"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Definition"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Delete"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Emphasis"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "FootnoteDefinition"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "FootnoteReference"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Heading"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Html"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Image"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "ImageReference"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "InlineCode"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "InlineMath"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Link"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "LinkReference"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "List"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "ListItem"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Math"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxFlowExpression"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxJsxAttribute"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxJsxExpressionAttribute"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxJsxFlowElement"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxJsxTextElement"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxTextExpression"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "MdxjsEsm"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Node"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Paragraph"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "ReferenceKind"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Root"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Strong"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Table"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "TableCell"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "TableRow"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Text"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "ThematicBreak"
-        ],
-        [
-          "/deps/markdown/mdast",
-          "Toml"
-        ],
-        [
-          "/deps/markdown/mdast",
+        "/deps/markdown/mdast": [
+          "AlignKind",
+          "AttributeContent",
+          "AttributeValue",
+          "AttributeValueExpression",
+          "Blockquote",
+          "Break",
+          "Code",
+          "Definition",
+          "Delete",
+          "Emphasis",
+          "FootnoteDefinition",
+          "FootnoteReference",
+          "Heading",
+          "Html",
+          "Image",
+          "ImageReference",
+          "InlineCode",
+          "InlineMath",
+          "Link",
+          "LinkReference",
+          "List",
+          "ListItem",
+          "Math",
+          "MdxFlowExpression",
+          "MdxJsxAttribute",
+          "MdxJsxExpressionAttribute",
+          "MdxJsxFlowElement",
+          "MdxJsxTextElement",
+          "MdxTextExpression",
+          "MdxjsEsm",
+          "Node",
+          "Paragraph",
+          "ReferenceKind",
+          "Root",
+          "Strong",
+          "Table",
+          "TableCell",
+          "TableRow",
+          "Text",
+          "ThematicBreak",
+          "Toml",
           "Yaml"
         ],
-        [
-          "/deps/markdown/mdast/attributevalueexpression",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/attributevalueexpression",
+        "/deps/markdown/mdast/attributevalueexpression": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/blockquote",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/blockquote",
+        "/deps/markdown/mdast/blockquote": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/break",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/break",
+        "/deps/markdown/mdast/break": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/code",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/code",
+        "/deps/markdown/mdast/code": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/definition",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/definition",
+        "/deps/markdown/mdast/definition": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/delete",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/delete",
+        "/deps/markdown/mdast/delete": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/emphasis",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/emphasis",
+        "/deps/markdown/mdast/emphasis": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/footnotedefinition",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/footnotedefinition",
+        "/deps/markdown/mdast/footnotedefinition": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/footnotereference",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/footnotereference",
+        "/deps/markdown/mdast/footnotereference": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/heading",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/heading",
+        "/deps/markdown/mdast/heading": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/html",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/html",
+        "/deps/markdown/mdast/html": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/image",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/image",
+        "/deps/markdown/mdast/image": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/imagereference",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/imagereference",
+        "/deps/markdown/mdast/imagereference": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/inlinecode",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/inlinecode",
+        "/deps/markdown/mdast/inlinecode": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/inlinemath",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/inlinemath",
+        "/deps/markdown/mdast/inlinemath": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/link",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/link",
+        "/deps/markdown/mdast/link": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/linkreference",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/linkreference",
+        "/deps/markdown/mdast/linkreference": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/list",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/list",
+        "/deps/markdown/mdast/list": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/listitem",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/listitem",
+        "/deps/markdown/mdast/listitem": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/math",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/math",
+        "/deps/markdown/mdast/math": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxflowexpression",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxflowexpression",
+        "/deps/markdown/mdast/mdxflowexpression": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxjsesm",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxjsesm",
+        "/deps/markdown/mdast/mdxjsesm": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxjsxattribute",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxjsxattribute",
+        "/deps/markdown/mdast/mdxjsxattribute": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxjsxexpressionattribute",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxjsxexpressionattribute",
+        "/deps/markdown/mdast/mdxjsxexpressionattribute": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxjsxflowelement",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxjsxflowelement",
+        "/deps/markdown/mdast/mdxjsxflowelement": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxjsxtextelement",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxjsxtextelement",
+        "/deps/markdown/mdast/mdxjsxtextelement": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/mdxtextexpression",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/mdxtextexpression",
+        "/deps/markdown/mdast/mdxtextexpression": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/paragraph",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/paragraph",
+        "/deps/markdown/mdast/paragraph": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/root",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/root",
+        "/deps/markdown/mdast/root": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/strong",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/strong",
+        "/deps/markdown/mdast/strong": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/table",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/table",
+        "/deps/markdown/mdast/table": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/tablecell",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/tablecell",
+        "/deps/markdown/mdast/tablecell": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/tablerow",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/tablerow",
+        "/deps/markdown/mdast/tablerow": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/text",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/text",
+        "/deps/markdown/mdast/text": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/thematicbreak",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/thematicbreak",
+        "/deps/markdown/mdast/thematicbreak": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/toml",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/toml",
+        "/deps/markdown/mdast/toml": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/mdast/yaml",
-          "clone"
-        ],
-        [
-          "/deps/markdown/mdast/yaml",
+        "/deps/markdown/mdast/yaml": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/message",
-          "Message"
-        ],
-        [
-          "/deps/markdown/message",
+        "/deps/markdown/message": [
+          "Message",
           "Place"
         ],
-        [
-          "/deps/markdown/message/message",
-          "clone"
-        ],
-        [
-          "/deps/markdown/message/message",
+        "/deps/markdown/message/message": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/options",
+        "/deps/markdown/options": [
           "default"
         ],
-        [
-          "/deps/markdown/parseoptions",
+        "/deps/markdown/parseoptions": [
           "default"
         ],
-        [
-          "/deps/markdown/unist",
-          "Point"
-        ],
-        [
-          "/deps/markdown/unist",
-          "Point::new"
-        ],
-        [
-          "/deps/markdown/unist",
-          "Position"
-        ],
-        [
-          "/deps/markdown/unist",
+        "/deps/markdown/unist": [
+          "Point",
+          "Point::new",
+          "Position",
           "Position::new"
         ],
-        [
-          "/deps/markdown/unist/point",
-          "clone"
-        ],
-        [
-          "/deps/markdown/unist/point",
+        "/deps/markdown/unist/point": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/unist/position",
-          "clone"
-        ],
-        [
-          "/deps/markdown/unist/position",
+        "/deps/markdown/unist/position": [
+          "clone",
           "eq"
         ],
-        [
-          "/deps/markdown/util/character-reference",
-          "decode_named"
-        ],
-        [
-          "/deps/markdown/util/character-reference",
+        "/deps/markdown/util/character-reference": [
+          "decode_named",
           "decode_numeric"
         ],
-        [
-          "/deps/markdown/util/identifier",
-          "id_cont"
-        ],
-        [
-          "/deps/markdown/util/identifier",
+        "/deps/markdown/util/identifier": [
+          "id_cont",
           "id_start"
         ],
-        [
-          "/deps/markdown/util/location",
-          "Location"
-        ],
-        [
-          "/deps/markdown/util/location",
+        "/deps/markdown/util/location": [
+          "Location",
           "Location.to_point"
         ],
-        [
-          "/deps/markdown/util/sanitize-uri",
+        "/deps/markdown/util/sanitize-uri": [
           "sanitize"
         ]
-      ],
+      },
       "name": "markdown",
       "version": "1.0.0"
     },
     {
-      "members": [
-        [
-          "/deps/terrane-owner-witness",
-          "DefaultOwner"
-        ],
-        [
-          "/deps/terrane-owner-witness",
-          "DefaultOwner.label"
-        ],
-        [
-          "/deps/terrane-owner-witness",
-          "DefaultOwner::standard"
-        ],
-        [
-          "/deps/terrane-owner-witness",
-          "PlainOwner"
-        ],
-        [
-          "/deps/terrane-owner-witness",
-          "PlainOwner.label"
-        ],
-        [
-          "/deps/terrane-owner-witness",
+      "members": {
+        "/deps/terrane-owner-witness": [
+          "DefaultOwner",
+          "DefaultOwner.label",
+          "DefaultOwner::standard",
+          "PlainOwner",
+          "PlainOwner.label",
           "PlainOwner::standard"
         ]
-      ],
+      },
       "name": "terrane-owner-witness",
       "version": "0.1.1"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

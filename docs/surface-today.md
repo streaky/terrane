@@ -1242,10 +1242,10 @@ annotations rather than accumulating them.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` format 3 separately retains machine-independent top-level members,
-instance members as `Type.member`, static members as `Type::member`, exact injected private owner
-dependencies, dependency versions, source, rustdoc format, projection schema, exact cache
-identity, content hash, and resolution events. A single admitted
+`terrane-projection.lock` format 4 separately retains machine-independent top-level, instance, and
+static member names grouped by namespace, exact injected private owner dependencies, dependency
+versions, source, rustdoc format, projection schema, exact cache identity, content hash, and
+resolution events. Formats 1-3 remain readable and migrate on write. A single admitted
 concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
 multiple admitted instantiations. `S2031` names removed members and their version change; a changed
 payload under one exact cache identity is rejected as replay drift. Completion, signature help, and

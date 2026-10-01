@@ -2466,6 +2466,7 @@ struct PendingProjectedBound {
 struct PendingProjectedSpecialization {
     unit: usize,
     span: Span,
+    operation_name: String,
     substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
     projected_result: crate::rust_interop::projection::ProjectedType,
@@ -2666,11 +2667,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 inferred_parameters: bound.inferred_parameters.clone(),
             };
             let unit = &package.units[specialization.unit];
-            let call_name = find_node_by_span(&unit.tree.root, specialization.span)
-                .and_then(|call| call.children.first())
-                .map_or("projected operation", |callee| {
-                    node_text(&unit.source, callee)
-                });
+            let call_name = &specialization.operation_name;
             let native_name = crate::rust_ir::rust_type_constructor(&bound.direct_rust_type)
                 .and_then(|path| path.rsplit("::").next().map(str::to_owned))
                 .unwrap_or_else(|| bound.direct_rust_type.clone());
@@ -3355,29 +3352,11 @@ fn substitute_native_type_parameters(
     let ValueType::InvocationScopedNative { rust_type, .. } = value_type else {
         return;
     };
-    let mut rendered = String::with_capacity(rust_type.len());
-    let mut token = String::new();
-    let flush = |token: &mut String, rendered: &mut String| {
-        if token.is_empty() {
-            return;
-        }
-        if let Some(binding) = bindings.get(token) {
-            rendered.push_str(&binding.rust_type());
-        } else {
-            rendered.push_str(token);
-        }
-        token.clear();
-    };
-    for character in rust_type.chars() {
-        if character.is_ascii_alphanumeric() || character == '_' {
-            token.push(character);
-        } else {
-            flush(&mut token, &mut rendered);
-            rendered.push(character);
-        }
-    }
-    flush(&mut token, &mut rendered);
-    *rust_type = rendered;
+    let replacements = bindings
+        .iter()
+        .map(|(name, projected)| (name.clone(), projected.rust_type()))
+        .collect();
+    *rust_type = crate::rust_ir::instantiate_rust_generics(rust_type, &replacements);
 }
 
 fn bind_projected_native_generics(
@@ -4093,6 +4072,7 @@ fn collect_projected_destinations(
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
+            operation_name: function.name.clone(),
             generic_arguments,
             substitutions: specialization_substitutions,
             projected_result,
@@ -4174,11 +4154,24 @@ fn collect_projected_destinations(
                 }),
             &expected_projected,
         );
+        let generic_arguments = destination_result
+            .parameters
+            .iter()
+            .map(|parameter| substitutions.get(&parameter.name).cloned())
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0119",
+                    "projected result specialization did not resolve every correlated parameter",
+                    node.span,
+                )
+            })?;
         let bounds = destination_result
             .parameters
             .iter()
-            .flat_map(|parameter| {
-                let projected = &substitutions[&parameter.name];
+            .zip(&generic_arguments)
+            .flat_map(|(parameter, projected)| {
                 parameter
                     .rust_bounds
                     .iter()
@@ -4197,11 +4190,8 @@ fn collect_projected_destinations(
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
-            generic_arguments: destination_result
-                .parameters
-                .iter()
-                .map(|parameter| substitutions[&parameter.name].clone())
-                .collect(),
+            operation_name: function.name.clone(),
+            generic_arguments,
             substitutions,
             projected_result,
             value_type: destination,

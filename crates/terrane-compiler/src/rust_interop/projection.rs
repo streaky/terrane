@@ -18,64 +18,12 @@ use sha2::{Digest, Sha256};
 
 use crate::{InvocationMode, RustDependency};
 
+pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
 const PROJECTION_SCHEMA: &str = "190";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
-const GENERATED_SOURCE_UNIT_MARKER: &str = "# Generated source unit: ";
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GeneratedProjectionUnit {
-    pub namespace: String,
-    pub source: String,
-    pub start: usize,
-}
-
-/// Splits the compiler-owned projection artifact into ordinary one-namespace source units.
-///
-/// Text before the first generated-unit marker is report metadata and residual-obligation
-/// documentation. It is intentionally not a source unit.
-///
-/// # Errors
-///
-/// Returns an error when a generated-unit marker has no body or its declared namespace does not
-/// match the first non-comment declaration in that body.
-pub fn generated_projection_units(document: &str) -> Result<Vec<GeneratedProjectionUnit>, String> {
-    let mut units = Vec::new();
-    let mut cursor = 0;
-    while let Some(relative_start) = document[cursor..].find(GENERATED_SOURCE_UNIT_MARKER) {
-        let marker_start = cursor + relative_start;
-        let namespace_start = marker_start + GENERATED_SOURCE_UNIT_MARKER.len();
-        let namespace_end = document[namespace_start..]
-            .find('\n')
-            .map(|offset| namespace_start + offset)
-            .ok_or_else(|| "generated source-unit marker has no source body".to_owned())?;
-        let namespace = document[namespace_start..namespace_end].trim().to_owned();
-        let source_start = namespace_end + 1;
-        let source_end = document[source_start..]
-            .find(GENERATED_SOURCE_UNIT_MARKER)
-            .map_or(document.len(), |offset| source_start + offset);
-        let source = document[source_start..source_end].trim_end().to_owned();
-        let expected = format!("namespace {}", namespace.trim_start_matches('/'));
-        let first_declaration = source
-            .lines()
-            .map(str::trim)
-            .find(|line| !line.is_empty() && !line.starts_with('#'));
-        if first_declaration != Some(expected.as_str()) {
-            return Err(format!(
-                "generated source unit `{namespace}` does not begin with `{expected}`",
-            ));
-        }
-        units.push(GeneratedProjectionUnit {
-            namespace,
-            source,
-            start: source_start,
-        });
-        cursor = source_end;
-    }
-    Ok(units)
-}
 
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 const MAX_OWNER_RUSTDOC_CACHE_RECORDS: usize = 16;
@@ -308,7 +256,33 @@ fn projection_history_format() -> u32 {
 struct ProjectionHistoryDependency {
     name: String,
     version: String,
-    members: BTreeSet<(String, String)>,
+    #[serde(deserialize_with = "deserialize_projection_members")]
+    members: BTreeMap<String, BTreeSet<String>>,
+}
+
+fn deserialize_projection_members<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, BTreeSet<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Members {
+        Grouped(BTreeMap<String, BTreeSet<String>>),
+        Flat(BTreeSet<(String, String)>),
+    }
+
+    Ok(match Members::deserialize(deserializer)? {
+        Members::Grouped(members) => members,
+        Members::Flat(members) => {
+            let mut grouped = BTreeMap::<String, BTreeSet<String>>::new();
+            for (namespace, name) in members {
+                grouped.entry(namespace).or_default().insert(name);
+            }
+            grouped
+        }
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1466,11 +1440,7 @@ impl Projection {
         }
 
         for (namespace, source) in sources {
-            writeln!(
-                output,
-                "{GENERATED_SOURCE_UNIT_MARKER}{namespace}\n{source}"
-            )
-            .expect("writing to a string cannot fail");
+            super::generated_projection::write_source_unit(&mut output, &namespace, &source);
         }
 
         output.push_str(
@@ -3903,28 +3873,29 @@ fn projection_content_hash(projection: &Projection) -> Result<String, Projection
     Ok(format!("{:x}", Sha256::digest(payload)))
 }
 
-fn projection_history_members(dependency: &ProjectedDependency) -> BTreeSet<(String, String)> {
-    let mut members = BTreeSet::new();
+fn projection_history_members(
+    dependency: &ProjectedDependency,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut members = BTreeMap::<String, BTreeSet<String>>::new();
     for item in &dependency.items {
-        members.insert((item.namespace.clone(), item.name.clone()));
+        let names = members.entry(item.namespace.clone()).or_default();
+        names.insert(item.name.clone());
         if let ProjectedKind::ForeignType {
             methods,
             static_methods,
             ..
         } = &item.kind
         {
-            members.extend(methods.iter().map(|method| {
-                (
-                    item.namespace.clone(),
-                    format!("{}.{}", item.name, method.name),
-                )
-            }));
-            members.extend(static_methods.iter().map(|method| {
-                (
-                    item.namespace.clone(),
-                    format!("{}::{}", item.name, method.name),
-                )
-            }));
+            names.extend(
+                methods
+                    .iter()
+                    .map(|method| format!("{}.{}", item.name, method.name)),
+            );
+            names.extend(
+                static_methods
+                    .iter()
+                    .map(|method| format!("{}::{}", item.name, method.name)),
+            );
         }
     }
     members
@@ -3938,7 +3909,7 @@ fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, Pro
                     message: format!("invalid projection history `{}`: {error}", path.display()),
                 }
             })?;
-            if !matches!(history.format, 1..=3) {
+            if !matches!(history.format, 1..=4) {
                 return Err(ProjectionError {
                     message: format!(
                         "unsupported projection history format {} in `{}`",
@@ -3959,6 +3930,44 @@ fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, Pro
     }
 }
 
+fn retain_removed_history_members(
+    previous: &[ProjectionHistoryDependency],
+    current: &[ProjectionHistoryDependency],
+    removed: &mut Vec<RemovedItem>,
+) {
+    for old in previous {
+        let Some(current) = current
+            .iter()
+            .find(|dependency| dependency.name == old.name)
+        else {
+            continue;
+        };
+        if old.version == current.version {
+            continue;
+        }
+        for (namespace, old_names) in &old.members {
+            let current_names = current.members.get(namespace);
+            for name in old_names
+                .iter()
+                .filter(|name| current_names.is_none_or(|names| !names.contains(*name)))
+            {
+                let removed_item = RemovedItem {
+                    namespace: namespace.clone(),
+                    name: name.clone(),
+                    previous_version: old.version.clone(),
+                    current_version: current.version.clone(),
+                };
+                if !removed.iter().any(|existing| {
+                    existing.namespace == removed_item.namespace
+                        && existing.name == removed_item.name
+                }) {
+                    removed.push(removed_item);
+                }
+            }
+        }
+    }
+}
+
 fn apply_projection_history(
     root: &Path,
     projection: &mut Projection,
@@ -3975,7 +3984,7 @@ fn apply_projection_history(
         })
         .collect::<Vec<_>>();
     if let Some(previous) = &previous
-        && matches!(previous.format, 2 | 3)
+        && matches!(previous.format, 2..=4)
         && previous.dependencies == dependencies
         && previous.bound_dependencies == projection.bound_dependencies
         && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
@@ -3999,35 +4008,12 @@ fn apply_projection_history(
         !dependencies.iter().any(|dependency| {
             dependency
                 .members
-                .contains(&(removed.namespace.clone(), removed.name.clone()))
+                .get(&removed.namespace)
+                .is_some_and(|names| names.contains(&removed.name))
         })
     });
     if let Some(previous) = &previous {
-        for old in &previous.dependencies {
-            let Some(current) = dependencies
-                .iter()
-                .find(|dependency| dependency.name == old.name)
-            else {
-                continue;
-            };
-            if old.version == current.version {
-                continue;
-            }
-            for (namespace, name) in old.members.difference(&current.members) {
-                let removed_item = RemovedItem {
-                    namespace: namespace.clone(),
-                    name: name.clone(),
-                    previous_version: old.version.clone(),
-                    current_version: current.version.clone(),
-                };
-                if !removed.iter().any(|existing| {
-                    existing.namespace == removed_item.namespace
-                        && existing.name == removed_item.name
-                }) {
-                    removed.push(removed_item);
-                }
-            }
-        }
+        retain_removed_history_members(&previous.dependencies, &dependencies, &mut removed);
     }
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
@@ -4035,7 +4021,7 @@ fn apply_projection_history(
     let persisted_resolution = previous
         .as_ref()
         .filter(|history| {
-            matches!(history.format, 2 | 3)
+            matches!(history.format, 2..=4)
                 && history.bound_dependencies == projection.bound_dependencies
                 && history.cache_identity.as_deref() == Some(&projection.cache_identity)
                 && history.content_hash.as_deref() == Some(&projection.content_hash)
@@ -4044,7 +4030,7 @@ fn apply_projection_history(
         .and_then(|history| history.resolution.clone())
         .unwrap_or_else(|| projection.resolution.clone());
     let history = ProjectionHistory {
-        format: 3,
+        format: 4,
         dependencies,
         bound_dependencies: projection.bound_dependencies.clone(),
         removed,

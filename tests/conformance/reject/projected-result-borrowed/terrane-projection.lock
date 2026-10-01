@@ -1,12 +1,12 @@
 {
   "dependencies": [
     {
-      "members": [],
+      "members": {},
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

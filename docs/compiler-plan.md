@@ -3424,11 +3424,11 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
 Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
 local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
-outcome. History format 3 persists stable content-origin provenance and reasons, rustdoc format,
-projection schema, cache identity, content hash, and any exact bound-owner dependency added to the
-generated graph; an exact cache hit does not rewrite that origin. Bundled artifacts are explicitly
-deferred until Terrane has a release artifact channel and appear as a recorded skipped source rather
-than an accidentally absent branch.
+outcome. History format 4 groups projected member names by namespace while persisting stable
+content-origin provenance and reasons, rustdoc format, projection schema, cache identity, content
+hash, and any exact bound-owner dependency added to the generated graph; an exact cache hit does not
+rewrite that origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact
+channel and appear as a recorded skipped source rather than an accidentally absent branch.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -3544,8 +3544,9 @@ Status: implemented on `destination-directed-projected-results` and generalized 
 generic parameters, one recursive result template, and complete per-parameter rendered bounds;
 semantic analysis structurally selects the complete substitution only from a written binding,
 argument, field, or return destination and records exact cached oracle evidence.
-Projection-history format 3 also records any exact, lock-resolved crates.io bound-owner dependency
-added to the generated graph. `projected-serde-json-result` exercises `serde_json::from_str` with an
+Projection-history format 4 also records any exact, lock-resolved crates.io bound-owner dependency
+added to the generated graph and groups member names by namespace to bound lock-file size and churn.
+`projected-serde-json-result` exercises `serde_json::from_str` with an
 argument-bearing `int64` destination and a lock-pinned transitive `serde_core` bound.
 `projected-destination-results` exercises a renamed higher-ranked lifetime-bound owner, a nested
 `BTreeMap<String, T>` template, and nonempty scalar, optional, bytes, list, map, and set conversion

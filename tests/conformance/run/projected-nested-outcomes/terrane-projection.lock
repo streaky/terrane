@@ -1,37 +1,21 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-nested-outcome-witness",
-          "Channel"
-        ],
-        [
-          "/deps/terrane-nested-outcome-witness",
-          "Channel.next"
-        ],
-        [
-          "/deps/terrane-nested-outcome-witness",
-          "Channel.outer"
-        ],
-        [
-          "/deps/terrane-nested-outcome-witness",
-          "Channel::new"
-        ],
-        [
-          "/deps/terrane-nested-outcome-witness",
-          "Fault"
-        ],
-        [
-          "/deps/terrane-nested-outcome-witness",
+      "members": {
+        "/deps/terrane-nested-outcome-witness": [
+          "Channel",
+          "Channel.next",
+          "Channel.outer",
+          "Channel::new",
+          "Fault",
           "channel"
         ]
-      ],
+      },
       "name": "terrane-nested-outcome-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

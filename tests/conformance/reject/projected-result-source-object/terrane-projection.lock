@@ -1,17 +1,16 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/witness",
+      "members": {
+        "/deps/witness": [
           "default_value"
         ]
-      ],
+      },
       "name": "witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [

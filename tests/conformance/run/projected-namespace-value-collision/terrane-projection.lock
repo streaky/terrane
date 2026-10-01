@@ -1,21 +1,19 @@
 {
   "dependencies": [
     {
-      "members": [
-        [
-          "/deps/terrane-namespace-value-witness",
+      "members": {
+        "/deps/terrane-namespace-value-witness": [
           "launch"
         ],
-        [
-          "/deps/terrane-namespace-value-witness/launch",
+        "/deps/terrane-namespace-value-witness/launch": [
           "nested"
         ]
-      ],
+      },
       "name": "terrane-namespace-value-witness",
       "version": "0.1.0"
     }
   ],
-  "format": 3,
+  "format": 4,
   "removed": [],
   "resolution": {
     "events": [
