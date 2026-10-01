@@ -1210,12 +1210,18 @@ impl Parser<'_> {
                 );
                 return self.node(SyntaxKind::Error, start, self.position, vec![call]);
             }
-            return self.node(
+            let mut call = self.node(
                 SyntaxKind::CallExpression,
                 start,
                 self.position,
                 call.children,
             );
+            call.is_unsafe_call = true;
+            call.children
+                .first_mut()
+                .expect("a parsed call has a callee")
+                .is_unsafe_call = true;
+            return call;
         }
         if matches!(self.text(), "not" | "ref" | "move" | "await")
             || (self.text() == "shared" && self.peek_text(1) == Some("ref"))
@@ -1233,7 +1239,7 @@ impl Parser<'_> {
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
             let operand = if operator_text == "await" {
-                self.parse_postfix(true)
+                self.parse_prefix(true)
             } else if matches!(operator_text.as_str(), "ref" | "move" | "shared ref") {
                 self.parse_postfix(false)
             } else {

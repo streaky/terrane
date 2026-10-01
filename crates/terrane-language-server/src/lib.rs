@@ -973,6 +973,9 @@ fn semantic_hover(
     if let terrane_compiler::tooling::Availability::Known(value_type) = object.value_type {
         let _ = write!(content, "\n\nType: `{value_type}`");
     }
+    if let terrane_compiler::tooling::Availability::Known(safety) = object.safety {
+        let _ = write!(content, "\n\nSafety: {safety}");
+    }
     if let terrane_compiler::tooling::Availability::Known(ownership) = object.ownership {
         let _ = write!(content, "\n\nOwnership: {ownership}");
     }
@@ -1194,9 +1197,15 @@ fn collect_document_symbols(
         && let Some(name) = node.children.iter().find(|child| child.field == "name")
         && let Some(name_text) = text.get(name.node.span.start..name.node.span.end)
     {
+        let declaration = text
+            .get(node.span.start..node.span.end)
+            .unwrap_or_default()
+            .trim_start();
         output.push(DocumentSymbol {
             name: name_text.to_owned(),
-            detail: None,
+            detail: declaration
+                .starts_with("unsafe ")
+                .then(|| "unsafe contract".to_owned()),
             kind,
             tags: None,
             deprecated: None,
@@ -1556,7 +1565,7 @@ mod tests {
 
     #[test]
     fn document_symbols_come_from_compiler_snapshot_fields() {
-        let text = "namespace symbols\n\nasync function main;\n    value int = 1\n";
+        let text = "namespace symbols\n\nunsafe function inspect;\n\nasync function main;\n    value int = 1\n";
         let uri = "file:///workspace/symbols.trn";
         let mut tooling = terrane_compiler::tooling::ToolingEngine::default();
         let snapshot = tooling
@@ -1584,6 +1593,9 @@ mod tests {
         assert!(symbols.iter().any(|symbol| symbol.name == "main"));
         assert!(symbols.iter().any(|symbol| symbol.name == "value"));
         assert!(!symbols.iter().any(|symbol| symbol.name == "async"));
+        assert!(symbols.iter().any(|symbol| {
+            symbol.name == "inspect" && symbol.detail.as_deref() == Some("unsafe contract")
+        }));
     }
 
     #[test]

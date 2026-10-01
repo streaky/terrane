@@ -1,0 +1,8 @@
+namespace unsafe-function-value
+
+unsafe function inspect int; value int
+  return value
+
+function main;
+  operation = inspect
+  print; (operation; 1)

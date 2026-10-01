@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
+// Runtime support: async.rs, executor_parallel.rs
 // Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: unsafe-declaration-contracts
@@ -133,6 +133,7 @@ impl From<UnsafeReader> for TerraneNs28UnsafeDeclarationContractsReadableUnsafeC
         Self(Box::new(value))
     }
 }
+#[allow(unsafe_code)]
 pub trait CommandsProtocol {
     fn clone_box(&self) -> Box<dyn CommandsProtocol>;
     fn separate_box(&self) -> Box<dyn CommandsProtocol>;
@@ -149,6 +150,7 @@ impl Clone for Commands {
         Self(self.0.clone())
     }
 }
+#[allow(unsafe_code)]
 impl Commands {
     pub unsafe fn raw(&self) -> terrane_int_support::Int {
         unsafe { self.0.raw() }
@@ -165,6 +167,7 @@ impl Device {
         return terrane_int_support::Int::from(4_i128);
     }
 }
+#[allow(unsafe_code)]
 impl CommandsProtocol for Device {
     fn clone_box(&self) -> Box<dyn CommandsProtocol> {
         Box::new(self.clone())
@@ -181,18 +184,49 @@ impl From<Device> for Commands {
         Self(Box::new(value))
     }
 }
+#[derive(Clone)]
+pub struct MethodOverloads {}
+impl MethodOverloads {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn choose_safe(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(5_i128);
+    }
+    #[allow(unsafe_code)]
+    pub unsafe fn choose_unsafe(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(6_i128);
+    }
+}
+#[allow(unsafe_code)]
+#[allow(dead_code)]
+async unsafe fn later() -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(7_i128);
+}
 #[allow(unsafe_code)]
 fn main() {
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&choose_terrane_unsafe_declaration_contracts_safe(terrane_int_support::Int::from(1_i128)))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&unsafe {
-        choose_terrane_unsafe_declaration_contracts_unsafe(terrane_int_support::Int::from(1_i128))
-        })
-    );
-    let value: Device = Device::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&unsafe { value.raw() }));
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("ok")));
+    __terrane_run(async move {
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&choose_terrane_unsafe_declaration_contracts_safe(terrane_int_support::Int::from(1_i128)))
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&unsafe {
+            choose_terrane_unsafe_declaration_contracts_unsafe(terrane_int_support::Int::from(1_i128))
+            })
+        );
+        let value: Device = Device::terrane_construct();
+        println!("{}", terrane_scalar_support::scalar_text(&unsafe { value.raw() }));
+        let overloads: MethodOverloads = MethodOverloads::terrane_construct();
+        println!("{}", terrane_scalar_support::scalar_text(&overloads.choose_safe()));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&unsafe { overloads.choose_unsafe()
+            })
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_await(unsafe { later()
+            }). await)
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("ok")));
+    });
 }

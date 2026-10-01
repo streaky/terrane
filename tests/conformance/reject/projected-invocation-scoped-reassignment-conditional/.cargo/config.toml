@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-invocation-reassignment-witness = { path = "fixture-registry/terrane-invocation-reassignment-witness-0.1.0" }

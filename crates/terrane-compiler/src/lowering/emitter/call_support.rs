@@ -553,14 +553,8 @@ impl Emitter<'_> {
         })
     }
 
-    fn callee_is_unsafe(&self, callee: &SyntaxNode) -> bool {
-        let prefix = self.unit.source.text()[..callee.span.start].trim_end();
-        prefix.strip_suffix("unsafe").is_some_and(|before| {
-            before
-                .chars()
-                .next_back()
-                .is_none_or(|character| !character.is_alphanumeric() && character != '-')
-        })
+    fn callee_is_unsafe(callee: &SyntaxNode) -> bool {
+        crate::syntax::call_is_unsafe(callee)
     }
 
     pub(super) fn projected_function_for_call(
@@ -568,7 +562,7 @@ impl Emitter<'_> {
         callee: &SyntaxNode,
     ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
         if callee.kind == SyntaxKind::Name {
-            let lookup_name = if self.callee_is_unsafe(callee) {
+            let lookup_name = if Self::callee_is_unsafe(callee) {
                 format!("unsafe::{}", self.text(callee))
             } else {
                 self.text(callee).to_owned()
@@ -604,7 +598,7 @@ impl Emitter<'_> {
             identity.native_projection.as_deref(),
             self.text(member),
             is_static,
-            self.callee_is_unsafe(callee),
+            Self::callee_is_unsafe(callee),
         )
     }
 
@@ -634,7 +628,7 @@ impl Emitter<'_> {
                 .find(|contract| {
                     contract.name == self.text(member)
                         && contract.is_static == is_static
-                        && contract.is_unsafe == self.callee_is_unsafe(callee)
+                        && contract.is_unsafe == Self::callee_is_unsafe(callee)
                 });
         }
         if callee.kind == SyntaxKind::ConstructionExpression {
@@ -649,7 +643,7 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::Name {
             return None;
         }
-        let lookup_name = if self.callee_is_unsafe(callee) {
+        let lookup_name = if Self::callee_is_unsafe(callee) {
             format!("unsafe::{}", self.text(callee))
         } else {
             self.text(callee).to_owned()

@@ -1885,13 +1885,7 @@ pub(super) fn projected_function_for_call<'a>(
     unit: &SemanticUnit,
     callee: &SyntaxNode,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
-    let prefix = unit.source.text()[..callee.span.start].trim_end();
-    let is_unsafe = prefix.strip_suffix("unsafe").is_some_and(|before| {
-        before
-            .chars()
-            .next_back()
-            .is_none_or(|character| !character.is_alphanumeric() && character != '-')
-    });
+    let is_unsafe = crate::syntax::call_is_unsafe(callee);
     if callee.kind == SyntaxKind::Name {
         let lookup_name = if is_unsafe {
             format!("unsafe::{}", node_text(&unit.source, callee))

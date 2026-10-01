@@ -19,15 +19,8 @@ fn forwarded_method_return_type(
     }
 }
 
-fn contains_unsafe_call(source: &crate::SourceFile, node: &SyntaxNode) -> bool {
-    (node.kind == SyntaxKind::CallExpression
-        && source.text()[node.span.start..node.span.end]
-            .trim_start()
-            .starts_with("unsafe "))
-        || node
-            .children
-            .iter()
-            .any(|child| contains_unsafe_call(source, child))
+fn contains_unsafe_call(node: &SyntaxNode) -> bool {
+    crate::syntax::call_is_unsafe(node) || node.children.iter().any(contains_unsafe_call)
 }
 
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
@@ -458,7 +451,8 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
-                if object.is_unsafe {
+                let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
+                if object.is_unsafe || has_unsafe_methods {
                     self.line("#[allow(unsafe_code)]");
                 }
                 self.line(&format!(
@@ -481,7 +475,7 @@ impl<'a> Emitter<'a> {
                         self.output,
                         "{}fn {}({receiver}",
                         if method.is_unsafe { "unsafe " } else { "" },
-                        rust_name(&method.name)
+                        function_name(self.package, method)
                     )
                     .unwrap();
                     for parameter in &method.parameters {
@@ -531,6 +525,9 @@ impl<'a> Emitter<'a> {
                         "impl{generic_declaration} Drop for {name}{generic_use} {{ fn drop(&mut self) {{}} }}"
                     ));
                 }
+                if has_unsafe_methods {
+                    self.line("#[allow(unsafe_code)]");
+                }
                 self.line(&format!("impl{generic_declaration} {name}{generic_use} {{"));
                 self.indent += 1;
                 for method in &methods {
@@ -545,7 +542,7 @@ impl<'a> Emitter<'a> {
                         "pub {}{}fn {}({receiver}",
                         if method.is_async { "async " } else { "" },
                         if method.is_unsafe { "unsafe " } else { "" },
-                        rust_name(&method.name)
+                        function_name(self.package, method)
                     )
                     .unwrap();
                     for parameter in &method.parameters {
@@ -569,7 +566,7 @@ impl<'a> Emitter<'a> {
                         .join(", ");
                     let forwarded = format!(
                         "self.0.{}({arguments}){}",
-                        rust_name(&method.name),
+                        function_name(self.package, method),
                         if method.is_async { ".await" } else { "" }
                     );
                     self.line(&if method.is_unsafe {
@@ -941,8 +938,13 @@ impl<'a> Emitter<'a> {
                             InvocationMode::Mutable => "&mut self",
                             InvocationMode::Shared => "&self",
                         };
-                        write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
-                            .unwrap();
+                        write!(
+                            self.output,
+                            "pub {}fn {}({receiver}",
+                            if method.is_unsafe { "unsafe " } else { "" },
+                            function_name(self.package, method)
+                        )
+                        .unwrap();
                         for parameter in &method.parameters {
                             let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
@@ -972,16 +974,24 @@ impl<'a> Emitter<'a> {
                         {
                             receiver_binding.push('_');
                         }
+                        let method_name = function_name(self.package, method);
+                        let forward = |target: String| {
+                            if method.is_unsafe {
+                                format!("unsafe {{ {target} }}")
+                            } else {
+                                target
+                            }
+                        };
                         self.line(&format!(
-                            "Self::Own({receiver_binding}) => {receiver_binding}.{}({arguments}),",
-                            rust_name(&method.name)
+                            "Self::Own({receiver_binding}) => {},",
+                            forward(format!("{receiver_binding}.{method_name}({arguments})"))
                         ));
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
                             self.line(&format!(
-                                "Self::{descendant_type}({receiver_binding}) => {receiver_binding}.{}({arguments}),",
-                                rust_name(&method.name)
+                                "Self::{descendant_type}({receiver_binding}) => {},",
+                                forward(format!("{receiver_binding}.{method_name}({arguments})"))
                             ));
                         }
                         self.indent -= 1;
@@ -1095,7 +1105,11 @@ impl<'a> Emitter<'a> {
                         )
                     );
                     let class_type = rust_object_type_name(self.package, &object.identity);
-                    if interface.is_unsafe {
+                    if interface.is_unsafe
+                        || effective_object_methods(interface_unit, interface)
+                            .iter()
+                            .any(|method| method.is_unsafe)
+                    {
                         self.line("#[allow(unsafe_code)]");
                     }
                     self.line(&format!(
@@ -1149,7 +1163,7 @@ impl<'a> Emitter<'a> {
                             self.output,
                             "{}fn {}({receiver}",
                             if method.is_unsafe { "unsafe " } else { "" },
-                            rust_name(&method.name)
+                            function_name(self.package, method)
                         )
                         .unwrap();
                         for parameter in &method.parameters {
@@ -1202,7 +1216,7 @@ impl<'a> Emitter<'a> {
                             };
                             let call = format!(
                                 "{class_type}::{}({receiver}, {arguments})",
-                                rust_name(&implementation.name),
+                                function_name(self.package, implementation),
                             );
                             let call = if implementation.is_unsafe {
                                 format!("unsafe {{ {call} }}")
@@ -1926,7 +1940,7 @@ impl<'a> Emitter<'a> {
                 format!("<{}>", generics.join(", "))
             }
         };
-        if contract.is_unsafe || contains_unsafe_call(&self.unit.source, node) {
+        if contract.is_unsafe || contains_unsafe_call(node) {
             self.line("#[allow(unsafe_code)]");
         }
         if receiver.is_none()

@@ -91,9 +91,7 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
     {
-        let requested_unsafe = node_text(&unit.source, node)
-            .trim_start()
-            .starts_with("unsafe ");
+        let requested_unsafe = crate::syntax::call_is_unsafe(node);
         let selected =
             function_contract_for_call_with_safety(package, unit, callee, requested_unsafe);
         let opposite =

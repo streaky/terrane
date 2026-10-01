@@ -780,14 +780,8 @@ fn method_contract_with_safety<'a>(
         })
 }
 
-fn callee_is_unsafe(unit: &SemanticUnit, callee: &SyntaxNode) -> bool {
-    let prefix = unit.source.text()[..callee.span.start].trim_end();
-    prefix.strip_suffix("unsafe").is_some_and(|before| {
-        before
-            .chars()
-            .next_back()
-            .is_none_or(|character| !character.is_alphanumeric() && character != '-')
-    })
+fn callee_is_unsafe(callee: &SyntaxNode) -> bool {
+    crate::syntax::call_is_unsafe(callee)
 }
 
 pub(super) fn construction_contract<'a>(
@@ -808,7 +802,7 @@ pub(super) fn function_contract_for_call<'a>(
     unit: &'a SemanticUnit,
     callee: &SyntaxNode,
 ) -> Option<&'a FunctionContract> {
-    function_contract_for_call_with_safety(package, unit, callee, callee_is_unsafe(unit, callee))
+    function_contract_for_call_with_safety(package, unit, callee, callee_is_unsafe(callee))
 }
 
 pub(super) fn function_contract_for_call_with_safety<'a>(

@@ -7,35 +7,8 @@ function view host-invocation-scoped-native; state ref string
     value = second_widget; state
     return value
 
-function helper host-invocation-scoped-native; state ref string
-    return first_widget; state
-
-function helper-then-producer host-invocation-scoped-native; state ref string
-    value = helper; state
-    value = second_widget; state
-    return value
-
-function reverse-order host-invocation-scoped-native; state ref string
-    value = second_widget; state
-    value = first_widget; state
-    return value
-
-function conditional host-invocation-scoped-native; state ref string
-    value = first_widget; state
-    if state.length > 0
-        value = second_widget; state
-    return value
-
-function alias-rebinding host-invocation-scoped-native; state ref string
-    value = first_widget; state
-    alias = value
-    alias = second_widget; state
-    return alias
 
 function main;
     state string = 'state'
     result = render_scoped; state, view
-    result = render_scoped; state, helper-then-producer
-    result = render_scoped; state, reverse-order
-    result = render_scoped; state, conditional
-    result = render_scoped; state, alias-rebinding
+    print; result

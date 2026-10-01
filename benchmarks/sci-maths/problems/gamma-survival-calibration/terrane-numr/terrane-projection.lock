@@ -1047,10 +1047,16 @@
           "eq"
         ],
         "/deps/numr/runtime/noopcommunicator": [
+          "all_gather",
+          "all_reduce",
           "barrier",
+          "broadcast",
           "clone",
           "default",
           "rank",
+          "recv",
+          "reduce_scatter",
+          "send",
           "sync",
           "world_size"
         ],
@@ -1151,11 +1157,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "70d3a41c4ef065a490410369364e51bf06af34042e0e0d1d05d171faf2784114",
+  "cache_identity": "9e14f4c469eacfb51188eb5f9e082fc86f4d3c01139ed30d6e29b6874352d398",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "190",
-  "content_hash": "c0e3b8bb7e4738a11ec57a8456ccf7598945e632ea7de20805c2751fe083fc99",
+  "projection_schema": "191",
+  "content_hash": "8a82b3d7c964c4cf30c3006e257754c5191f64a9b83cd64ec08d359ce07d40b7",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

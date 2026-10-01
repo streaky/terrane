@@ -1876,7 +1876,7 @@ impl Emitter<'_> {
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
-            && let [receiver, member] = callee.children.as_slice()
+            && let [receiver, _member] = callee.children.as_slice()
         {
             let contract = contract.as_ref().expect("method contract exists");
             let projected_receiver = self
@@ -1929,7 +1929,7 @@ impl Emitter<'_> {
             } else {
                 receiver_expression
             };
-            format!("({receiver}).{}", rust_name(self.text(member)))
+            format!("({receiver}).{}", function_name(self.package, contract))
         } else {
             self.expression(callee)
         };

@@ -765,6 +765,7 @@
           "CommandBuffer.map_buffer_on_submit",
           "CommandBuffer.on_submitted_work_done",
           "CommandEncoder",
+          "CommandEncoder.as_hal_mut",
           "CommandEncoder.build_acceleration_structures",
           "CommandEncoder.clear_buffer",
           "CommandEncoder.clear_texture",
@@ -772,6 +773,7 @@
           "CommandEncoder.finish",
           "CommandEncoder.insert_debug_marker",
           "CommandEncoder.map_buffer_on_submit",
+          "CommandEncoder.mark_acceleration_structures_built",
           "CommandEncoder.on_submitted_work_done",
           "CommandEncoder.pop_debug_group",
           "CommandEncoder.push_debug_group",
@@ -792,17 +794,24 @@
           "Device.limits",
           "Device.push_error_scope",
           "Device.set_device_lost_callback",
+          "Device.start_graphics_debugger_capture",
+          "Device.stop_graphics_debugger_capture",
           "Error",
           "ErrorFilter",
           "ExternalTexture",
           "ExternalTexture.destroy",
           "Instance",
+          "Instance.as_hal",
+          "Instance.create_adapter_from_hal",
           "Instance.create_surface",
+          "Instance.create_surface_unsafe",
           "Instance.enumerate_adapters",
           "Instance.generate_report",
           "Instance.poll_all",
           "Instance.wgsl_language_features",
           "Instance::enabled_backend_features",
+          "Instance::from_core",
+          "Instance::from_hal",
           "Instance::new",
           "MapMode",
           "PipelineCache",
@@ -2008,6 +2017,11 @@
       "version": "=27.0.3"
     },
     {
+      "name": "__terrane_recursive_wgpu_hal",
+      "package": "wgpu-hal",
+      "version": "=27.0.4"
+    },
+    {
       "name": "__terrane_recursive_wgpu_types",
       "package": "wgpu-types",
       "version": "=27.0.1"
@@ -2036,11 +2050,11 @@
       "current_version": "0.1.13"
     }
   ],
-  "cache_identity": "ba8ea94b7ef260f2c54c5057ff44d68cd9ebabe5c707eb181e4d7f2d1fb6c1e3",
+  "cache_identity": "b4747ee8c4f188b975c5ff8422e6cb4a00c478f6b0b908e8064b8ecba2a165b3",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "190",
-  "content_hash": "f1f5e6fe02e3c4749e8046fbc2debcd6ea1a40d897b28c1e04a5e3aa95292c7a",
+  "projection_schema": "191",
+  "content_hash": "dd63b3d095764d18e4b2ec0f5c853e3401e8a3c13b1edbd946efa8d2feb8b997",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

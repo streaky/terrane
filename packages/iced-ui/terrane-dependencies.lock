@@ -2966,6 +2966,7 @@ dependencies = [
  "raw-window-handle",
  "rfd",
  "wgpu-core",
+ "wgpu-hal",
  "wgpu-types",
 ]
 

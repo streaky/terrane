@@ -27,9 +27,22 @@ class device implements commands
   unsafe function raw int;
     return 4
 
-function main;
+class method-overloads
+  function choose int;
+    return 5
+  unsafe function choose int;
+    return 6
+
+unsafe async function later int;
+  return 7
+
+async function main;
   print; (choose; 1)
   print; (unsafe choose; 1)
   value = instance device;
   print; (unsafe value.raw;)
+  overloads = instance method-overloads;
+  print; (overloads.choose;)
+  print; (unsafe overloads.choose;)
+  print; await unsafe later;
   print; 'ok'

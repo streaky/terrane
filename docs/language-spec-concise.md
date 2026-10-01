@@ -703,6 +703,7 @@ unsafe_declaration: "`unsafe function` and `unsafe interface` make safety part o
 unsafe_invocation: "`unsafe operation; ...` selects only an unsafe declaration and relaxes only that operation's external safety obligation; ordinary calls select only safe declarations"
 unsafe_conformance: "`implements unsafe Interface` selects an unsafe interface; interface safety is independent of each method's own safe/unsafe call contract"
 unsafe_locality: unsafe function bodies still require explicit unsafe calls; ownership, lifetime, cleanup, capability, effect, definite-assignment, and type checks remain active
+unsafe_function_values: unsafe-only declarations cannot become first-class function values; bare references select a coexisting safe declaration or are rejected
 unsafe_boundary: typed unsafe declarations, concrete adapters, and `unsafe rust`; never an untyped generic unsafe block
 derived_facts: suspension points, exact receiver/capture authority, unsafe declarations or `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not interchangeable contracts
 foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never transitive to ordinary callers

@@ -236,7 +236,9 @@ pub(super) fn effective_object_methods<'a>(
             .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
         {
             if let Some(index) = methods.iter().position(|existing| {
-                existing.name == method.name && existing.is_static == method.is_static
+                existing.name == method.name
+                    && existing.is_static == method.is_static
+                    && existing.is_unsafe == method.is_unsafe
             }) {
                 methods[index] = method;
             } else {
@@ -752,11 +754,25 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
         .iter()
         .flat_map(|unit| &unit.functions)
         .filter(|candidate| {
-            candidate.owner.is_none()
+            candidate.owner == contract.owner
                 && candidate.name == contract.name
                 && candidate.span != contract.span
         })
         .collect::<Vec<_>>();
+    if contract.owner.is_some() {
+        let mut name = rust_name(&contract.name);
+        if duplicates
+            .iter()
+            .any(|candidate| candidate.is_unsafe != contract.is_unsafe)
+        {
+            name.push_str(if contract.is_unsafe {
+                "_unsafe"
+            } else {
+                "_safe"
+            });
+        }
+        return name;
+    }
     if !duplicates.is_empty() && contract.owner.is_none() {
         let namespace = function_namespace_suffix(package, contract);
         let mut name = format!("{}_terrane_{namespace}", rust_name(&contract.name));

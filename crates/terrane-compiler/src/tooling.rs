@@ -195,6 +195,7 @@ pub struct SemanticObject {
     pub descriptor_identity: Availability<String>,
     pub value_type: Availability<String>,
     pub ownership: Availability<String>,
+    pub safety: Availability<String>,
     pub effects: Availability<Vec<String>>,
     pub capabilities: Availability<Vec<String>>,
     pub declaration: Availability<Location>,
@@ -1809,6 +1810,19 @@ fn semantic_object(
             .as_ref()
             .map(|function| format!("{:?}", function.exact_invocation_mode).to_lowercase())
     });
+    let safety = target.as_ref().and_then(|target| {
+        target
+            .function
+            .as_ref()
+            .map(|function| function.is_unsafe)
+            .or_else(|| {
+                target
+                    .descriptor
+                    .as_ref()
+                    .map(|descriptor| descriptor.identity.is_unsafe)
+            })
+            .map(|is_unsafe| if is_unsafe { "unsafe" } else { "safe" }.to_owned())
+    });
     let members = target
         .as_ref()
         .and_then(|target| target.descriptor.as_ref())
@@ -1861,6 +1875,7 @@ fn semantic_object(
         ),
         value_type: known_or_unavailable(value_type.as_ref().map(ToString::to_string)),
         ownership: Availability::Unsupported,
+        safety: semantic_optional_fact(snapshot, safety),
         effects: semantic_optional_fact(snapshot, effects),
         capabilities: semantic_optional_fact(snapshot, capabilities),
         declaration,
@@ -3656,7 +3671,7 @@ mod tests {
     fn semantic_objects_report_callable_and_descriptor_facts() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/facts.trn";
-        let text = "namespace facts\n\nfrom /core/errors import coercion-error\nfrom /core/types import int as number\n\nclass base\n    value number = 1\n\nclass child extends base\n    async function compute number throws coercion-error;\n        throw coercion-error\n\nasync function main;\n    item = instance child;\n    descriptor = item.type\n    result number = await item.compute;\n";
+        let text = "namespace facts\n\nfrom /core/errors import coercion-error\nfrom /core/types import int as number\n\nclass base\n    value number = 1\n\nclass child extends base\n    unsafe async function compute number throws coercion-error;\n        throw coercion-error\n\nasync function main;\n    item = instance child;\n    descriptor = item.type\n    result number = await unsafe item.compute;\n";
         let metadata = open(
             &mut engine,
             uri,
@@ -3675,6 +3690,7 @@ mod tests {
             object.invocation_mode,
             Availability::Known("shared".to_owned())
         );
+        assert_eq!(object.safety, Availability::Known("unsafe".to_owned()));
         let Availability::Known(effects) = object.effects else {
             panic!("function effects should be known");
         };

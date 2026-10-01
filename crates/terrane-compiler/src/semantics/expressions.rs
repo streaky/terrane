@@ -212,11 +212,9 @@ pub(super) fn infer_value_type(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
         }
-        if let Some(contract) = unit
-            .functions
-            .iter()
-            .find(|contract| contract.owner.is_none() && contract.name == name)
-        {
+        if let Some(contract) = unit.functions.iter().find(|contract| {
+            contract.owner.is_none() && contract.name == name && !contract.is_unsafe
+        }) {
             let parameters = contract
                 .parameters
                 .iter()
@@ -267,6 +265,16 @@ pub(super) fn infer_value_type(
                     ValueType::Function(parameters, result, effects)
                 }));
             }
+        }
+        if resolved_function_contract(unit, &format!("unsafe::{name}"), node.span.start).is_some() {
+            return Err(failure(
+                &unit.source,
+                "T0130",
+                format!(
+                    "unsafe function `{name}` cannot be used as a function value; invoke it directly with `unsafe`"
+                ),
+                node.span,
+            ));
         }
         let resolved_symbol = lexical_scope_chain(unit, node.span.start).find_map(|scope| {
             scope.symbols.get(name)?.iter().rev().find(|symbol| {
@@ -1193,10 +1201,7 @@ pub(super) fn infer_value_type(
                     callee.span,
                 ));
             }
-            let lookup_name = if node_text(&unit.source, node)
-                .trim_start()
-                .starts_with("unsafe ")
-            {
+            let lookup_name = if crate::syntax::call_is_unsafe(node) {
                 format!("unsafe::{name}")
             } else {
                 name.to_owned()
