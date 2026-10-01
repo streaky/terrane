@@ -760,6 +760,16 @@ pub(super) fn function_name(package: &SemanticPackage, contract: &FunctionContra
     if !duplicates.is_empty() && contract.owner.is_none() {
         let namespace = function_namespace_suffix(package, contract);
         let mut name = format!("{}_terrane_{namespace}", rust_name(&contract.name));
+        if duplicates.iter().any(|candidate| {
+            function_namespace_suffix(package, candidate) == namespace
+                && candidate.is_unsafe != contract.is_unsafe
+        }) {
+            name.push_str(if contract.is_unsafe {
+                "_unsafe"
+            } else {
+                "_safe"
+            });
+        }
         let first_normalized_namespace = duplicates
             .iter()
             .filter(|candidate| function_namespace_suffix(package, candidate) == namespace)
@@ -820,7 +830,7 @@ pub(crate) fn rust_object_type_name(
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         > 1;
-    let base = if collides {
+    let mut base = if collides {
         let mut namespace = String::new();
         for segment in identity.namespace.trim_start_matches('/').split('/') {
             write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
@@ -830,6 +840,9 @@ pub(crate) fn rust_object_type_name(
     } else {
         rust_object_name(&identity.name)
     };
+    if identity.is_unsafe {
+        base.push_str("UnsafeContract");
+    }
     if let Some(native_projection) = &identity.native_projection
         && let Some((_, arguments)) = native_projection.split_once('<')
     {

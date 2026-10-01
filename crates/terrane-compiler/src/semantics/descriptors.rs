@@ -339,6 +339,7 @@ fn contract(
         identity: identity(namespace, name),
         span: Span::new(0, 0, 0),
         kind: ObjectKind::Type,
+        is_unsafe: false,
         resource_owning: false,
         builtin: Some(builtin),
         categories,

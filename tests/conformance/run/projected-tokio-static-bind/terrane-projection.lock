@@ -214,6 +214,7 @@
         "/deps/tokio/net/tcpsocket": [
           "as_fd",
           "as_raw_fd",
+          "from_raw_fd",
           "into_raw_fd"
         ],
         "/deps/tokio/net/tcpstream": [
@@ -320,6 +321,7 @@
         "/deps/tokio/net/unixsocket": [
           "as_fd",
           "as_raw_fd",
+          "from_raw_fd",
           "into_raw_fd"
         ],
         "/deps/tokio/net/unixstream": [

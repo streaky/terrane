@@ -1217,6 +1217,17 @@ fn projected_item_detail(
     if matches!(
         &item.kind,
         terrane_compiler::rust_interop::projection::ProjectedKind::Function(function)
+            if function.is_unsafe
+    ) || matches!(
+        &item.kind,
+        terrane_compiler::rust_interop::projection::ProjectedKind::Interface(interface)
+            if interface.is_unsafe
+    ) {
+        details.push("unsafe contract; explicit acknowledgement required".to_owned());
+    }
+    if matches!(
+        &item.kind,
+        terrane_compiler::rust_interop::projection::ProjectedKind::Function(function)
             if function.chain_role.is_some()
     ) || matches!(
         &item.kind,
@@ -1620,6 +1631,7 @@ mod tests {
                 destination_result: None,
                 error: None,
                 is_async: true,
+                is_unsafe: false,
                 into_future: false,
                 execution_requirements: Some(ProjectedExecutionRequirements {
                     runtime_context: RequirementKnowledge::Unknown,
@@ -1636,6 +1648,43 @@ mod tests {
         assert_eq!(
             projected_item_detail(&item),
             "witness::wait — async Terrane task; runtime context unknown; wake support required; transfer unknown"
+        );
+    }
+
+    #[test]
+    fn projected_unsafe_completion_exposes_call_contract() {
+        use terrane_compiler::rust_interop::projection::{
+            ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
+        };
+
+        let item = ProjectedItem {
+            namespace: "/deps/witness".to_owned(),
+            name: "unchecked".to_owned(),
+            rust_path: "witness::unchecked".to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                native_owner: None,
+                name: "unchecked".to_owned(),
+                parameters: Vec::new(),
+                generic_parameters: Vec::new(),
+                rust_generic_arguments: Vec::new(),
+                result: ProjectedType::None,
+                destination_result: None,
+                error: None,
+                is_async: false,
+                is_unsafe: true,
+                into_future: false,
+                execution_requirements: None,
+                enum_operation: None,
+                error_optional_depth: 0,
+                chain_role: None,
+                receiver: None,
+            }),
+        };
+
+        assert_eq!(
+            projected_item_detail(&item),
+            "witness::unchecked — unsafe contract; explicit acknowledgement required"
         );
     }
 
@@ -1660,6 +1709,7 @@ mod tests {
                 destination_result: None,
                 error: None,
                 is_async: false,
+                is_unsafe: false,
                 into_future: false,
                 execution_requirements: None,
                 enum_operation: None,

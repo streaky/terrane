@@ -84,6 +84,7 @@
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
           "HeaderValue::from_maybe_shared",
+          "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
           "HeaderValue::from_static",
           "HeaderValue::from_str",

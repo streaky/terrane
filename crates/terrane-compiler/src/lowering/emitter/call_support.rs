@@ -553,14 +553,29 @@ impl Emitter<'_> {
         })
     }
 
+    fn callee_is_unsafe(&self, callee: &SyntaxNode) -> bool {
+        let prefix = self.unit.source.text()[..callee.span.start].trim_end();
+        prefix.strip_suffix("unsafe").is_some_and(|before| {
+            before
+                .chars()
+                .next_back()
+                .is_none_or(|character| !character.is_alphanumeric() && character != '-')
+        })
+    }
+
     pub(super) fn projected_function_for_call(
         &self,
         callee: &SyntaxNode,
     ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
         if callee.kind == SyntaxKind::Name {
+            let lookup_name = if self.callee_is_unsafe(callee) {
+                format!("unsafe::{}", self.text(callee))
+            } else {
+                self.text(callee).to_owned()
+            };
             let symbol =
                 self.package
-                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+                    .resolve_name_at(self.unit, callee.span.start, &lookup_name)?;
             return self
                 .package
                 .projection
@@ -589,6 +604,7 @@ impl Emitter<'_> {
             identity.native_projection.as_deref(),
             self.text(member),
             is_static,
+            self.callee_is_unsafe(callee),
         )
     }
 
@@ -616,7 +632,9 @@ impl Emitter<'_> {
             return effective_object_methods(self.unit, object)
                 .into_iter()
                 .find(|contract| {
-                    contract.name == self.text(member) && contract.is_static == is_static
+                    contract.name == self.text(member)
+                        && contract.is_static == is_static
+                        && contract.is_unsafe == self.callee_is_unsafe(callee)
                 });
         }
         if callee.kind == SyntaxKind::ConstructionExpression {
@@ -631,9 +649,14 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::Name {
             return None;
         }
-        let symbol =
-            self.package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+        let lookup_name = if self.callee_is_unsafe(callee) {
+            format!("unsafe::{}", self.text(callee))
+        } else {
+            self.text(callee).to_owned()
+        };
+        let symbol = self
+            .package
+            .resolve_name_at(self.unit, callee.span.start, &lookup_name)?;
         let span = symbol.declaration_span?;
         self.package
             .units

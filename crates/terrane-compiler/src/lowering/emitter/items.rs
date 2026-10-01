@@ -19,6 +19,17 @@ fn forwarded_method_return_type(
     }
 }
 
+fn contains_unsafe_call(source: &crate::SourceFile, node: &SyntaxNode) -> bool {
+    (node.kind == SyntaxKind::CallExpression
+        && source.text()[node.span.start..node.span.end]
+            .trim_start()
+            .starts_with("unsafe "))
+        || node
+            .children
+            .iter()
+            .any(|child| contains_unsafe_call(source, child))
+}
+
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match canonical_default(value_type)? {
         CanonicalDefault::BoolFalse => Some("false".to_owned()),
@@ -447,8 +458,12 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
+                if object.is_unsafe {
+                    self.line("#[allow(unsafe_code)]");
+                }
                 self.line(&format!(
-                    "pub trait {protocol}{generic_declaration}{transfer_bounds} {{"
+                    "pub {}trait {protocol}{generic_declaration}{transfer_bounds} {{",
+                    if object.is_unsafe { "unsafe " } else { "" }
                 ));
                 self.indent += 1;
                 self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol_use}>;"));
@@ -462,7 +477,13 @@ impl<'a> Emitter<'a> {
                         InvocationMode::Mutable => "&mut self",
                         InvocationMode::Shared => "&self",
                     };
-                    write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                    write!(
+                        self.output,
+                        "{}fn {}({receiver}",
+                        if method.is_unsafe { "unsafe " } else { "" },
+                        rust_name(&method.name)
+                    )
+                    .unwrap();
                     for parameter in &method.parameters {
                         let ty = parameter.binding_value_type().map_or_else(
                             || "i128".to_owned(),
@@ -521,8 +542,9 @@ impl<'a> Emitter<'a> {
                     };
                     write!(
                         self.output,
-                        "pub {}fn {}({receiver}",
+                        "pub {}{}fn {}({receiver}",
                         if method.is_async { "async " } else { "" },
+                        if method.is_unsafe { "unsafe " } else { "" },
                         rust_name(&method.name)
                     )
                     .unwrap();
@@ -545,11 +567,16 @@ impl<'a> Emitter<'a> {
                         .map(|parameter| rust_name(&parameter.name))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    self.line(&format!(
+                    let forwarded = format!(
                         "self.0.{}({arguments}){}",
                         rust_name(&method.name),
                         if method.is_async { ".await" } else { "" }
-                    ));
+                    );
+                    self.line(&if method.is_unsafe {
+                        format!("unsafe {{ {forwarded} }}")
+                    } else {
+                        forwarded
+                    });
                     self.indent -= 1;
                     self.line("}");
                 }
@@ -1068,7 +1095,13 @@ impl<'a> Emitter<'a> {
                         )
                     );
                     let class_type = rust_object_type_name(self.package, &object.identity);
-                    self.line(&format!("impl {protocol} for {class_type} {{"));
+                    if interface.is_unsafe {
+                        self.line("#[allow(unsafe_code)]");
+                    }
+                    self.line(&format!(
+                        "{}impl {protocol} for {class_type} {{",
+                        if interface.is_unsafe { "unsafe " } else { "" }
+                    ));
                     self.indent += 1;
                     self.line(&format!(
                         "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
@@ -1095,7 +1128,9 @@ impl<'a> Emitter<'a> {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
                             .find(|candidate| {
-                                candidate.name == method.name && !candidate.is_static
+                                candidate.name == method.name
+                                    && !candidate.is_static
+                                    && candidate.is_unsafe == method.is_unsafe
                             });
                         self.line_start();
                         let implementation_mode = implementation
@@ -1110,7 +1145,13 @@ impl<'a> Emitter<'a> {
                             (InvocationMode::Mutable, _) => "&mut self",
                             (InvocationMode::Shared, _) => "&self",
                         };
-                        write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                        write!(
+                            self.output,
+                            "{}fn {}({receiver}",
+                            if method.is_unsafe { "unsafe " } else { "" },
+                            rust_name(&method.name)
+                        )
+                        .unwrap();
                         for parameter in &method.parameters {
                             let ty = parameter.binding_value_type().map_or_else(
                                 || "i128".to_owned(),
@@ -1159,10 +1200,18 @@ impl<'a> Emitter<'a> {
                                     "*self"
                                 }
                             };
+                            let call = format!(
+                                "{class_type}::{}({receiver}, {arguments})",
+                                rust_name(&implementation.name),
+                            );
+                            let call = if implementation.is_unsafe {
+                                format!("unsafe {{ {call} }}")
+                            } else {
+                                call
+                            };
                             write!(
                                 self.output,
-                                "{class_type}::{}({receiver}, {arguments}){}",
-                                rust_name(&implementation.name),
+                                "{call}{}",
                                 if method.is_async { ".await" } else { "" }
                             )
                             .unwrap();
@@ -1215,6 +1264,11 @@ impl<'a> Emitter<'a> {
                                 "<{class_type} as {owner_rust_path}>::{}({receiver}, {rust_arguments})",
                                 rust_name(&method.name)
                             );
+                            let call = if projected_method.function.is_unsafe {
+                                format!("unsafe {{ {call} }}")
+                            } else {
+                                call
+                            };
                             let call = if method.is_async {
                                 format!("{call}.await")
                             } else {
@@ -1872,6 +1926,9 @@ impl<'a> Emitter<'a> {
                 format!("<{}>", generics.join(", "))
             }
         };
+        if contract.is_unsafe || contains_unsafe_call(&self.unit.source, node) {
+            self.line("#[allow(unsafe_code)]");
+        }
         if receiver.is_none()
             && contract.owner.is_none()
             && (contract.name != "main"
@@ -1890,7 +1947,7 @@ impl<'a> Emitter<'a> {
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}{}fn {name}{}(",
+            "{}{}{}fn {name}{}(",
             if contract.owner.is_some() || (receiver.is_none() && self.unit.bundled) {
                 "pub "
             } else {
@@ -1901,6 +1958,7 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             },
+            if contract.is_unsafe { "unsafe " } else { "" },
             function_generics,
         )
         .unwrap();

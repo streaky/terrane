@@ -22,6 +22,7 @@
           "BytesMut.len",
           "BytesMut.reserve",
           "BytesMut.resize",
+          "BytesMut.set_len",
           "BytesMut.split",
           "BytesMut.split_off",
           "BytesMut.split_to",
@@ -126,6 +127,7 @@
         ],
         "/deps/bytes/bytesmut": [
           "advance",
+          "advance_mut",
           "chunk_mut",
           "clone",
           "cmp",

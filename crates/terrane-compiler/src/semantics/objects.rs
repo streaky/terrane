@@ -221,10 +221,18 @@ pub(super) fn analyze_descriptor_contracts(
             let Some(clause) = node.children.iter().find(|child| child.kind == clause_kind) else {
                 return Ok(Vec::new());
             };
+            let is_unsafe = matches!(
+                clause_kind,
+                SyntaxKind::ImplementsClause | SyntaxKind::ExtendsClause
+            ) && clause.children.iter().any(|child| {
+                child.kind == SyntaxKind::DeclarationQualifier
+                    && node_text(&unit.source, child) == "unsafe"
+            });
             clause
-                    .children
-                    .iter()
-                    .map(|type_node| {
+                .children
+                .iter()
+                .filter(|type_node| type_node.kind != SyntaxKind::DeclarationQualifier)
+                .map(|type_node| {
                         if type_node.kind == SyntaxKind::AppliedType {
                             let [base, argument] = type_node.children.as_slice() else {
                                 return Err(failure(
@@ -235,9 +243,17 @@ pub(super) fn analyze_descriptor_contracts(
                                 ));
                             };
                             let base_name = node_text(&unit.source, base);
-                            let identity =
-                                visible_objects.get(base_name).cloned().unwrap_or_else(|| {
+                            let lookup_name = if is_unsafe {
+                                format!("unsafe::{base_name}")
+                            } else {
+                                base_name.to_owned()
+                            };
+                            let identity = visible_objects
+                                .get(&lookup_name)
+                                .cloned()
+                                .unwrap_or_else(|| {
                                     ObjectIdentity::new(&unit.namespace, base_name)
+                                        .with_safety(is_unsafe)
                                 });
                             let application = declared_value_type_with_visible_objects(
                                 unit,
@@ -248,11 +264,17 @@ pub(super) fn analyze_descriptor_contracts(
                             Ok(identity.with_application(application))
                         } else {
                             let name = node_text(&unit.source, type_node);
-                            Ok(visible_objects.get(name).cloned().unwrap_or_else(|| {
+                            let lookup_name = if is_unsafe {
+                                format!("unsafe::{name}")
+                            } else {
+                                name.to_owned()
+                            };
+                            Ok(visible_objects.get(&lookup_name).cloned().unwrap_or_else(|| {
                                 if name == "throwable" {
                                     ObjectIdentity::new("/core/errors", name)
                                 } else {
                                     ObjectIdentity::new(&unit.namespace, name)
+                                        .with_safety(is_unsafe)
                                 }
                             }))
                         }
@@ -396,11 +418,17 @@ pub(super) fn analyze_descriptor_contracts(
             .map(|field| field.name.clone())
             .collect::<BTreeSet<_>>();
         static_members.extend(static_methods.iter().cloned());
+        let is_unsafe = kind == ObjectKind::Interface
+            && node.children.iter().any(|child| {
+                child.kind == SyntaxKind::DeclarationQualifier
+                    && node_text(&unit.source, child) == "unsafe"
+            });
         descriptors.push(DescriptorContract {
-            identity: ObjectIdentity::new(&unit.namespace, &name),
+            identity: ObjectIdentity::new(&unit.namespace, &name).with_safety(is_unsafe),
             name,
             span: node.span,
             kind,
+            is_unsafe,
             resource_owning,
             builtin: None,
             categories: vec![TypeCategory::Value, TypeCategory::Object],
@@ -429,17 +457,36 @@ pub(super) fn analyze_descriptor_contracts(
                     && visible_objects
                         .values()
                         .any(|visible| visible == &base_identity);
-            valid.then_some(()).ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0054",
+            if valid {
+                return Ok(());
+            }
+            let opposite_exists = expected == ObjectKind::Interface
+                && (descriptors.iter().any(|candidate| {
+                    candidate.identity.namespace == base_identity.namespace
+                        && candidate.identity.name == base_identity.name
+                        && candidate.identity.is_unsafe != base_identity.is_unsafe
+                        && candidate.kind == ObjectKind::Interface
+                }) || visible_objects.values().any(|visible| {
+                    visible.namespace == base_identity.namespace
+                        && visible.name == base_identity.name
+                        && visible.is_unsafe != base_identity.is_unsafe
+                }));
+            Err(failure(
+                &unit.source,
+                if opposite_exists { "T0131" } else { "T0054" },
+                if opposite_exists {
+                    format!(
+                        "interface `{}` has the opposite safety contract",
+                        base_identity.name
+                    )
+                } else {
                     format!(
                         "`{}` does not resolve to a {role}",
                         diagnostic_object_identity(&descriptors, identity)
-                    ),
-                    object.span,
-                )
-            })
+                    )
+                },
+                object.span,
+            ))
         };
         if let Some(base) = &object.base {
             require_kind(base, ObjectKind::Class, "class")?;
@@ -859,11 +906,14 @@ pub(super) fn validate_object_conformance(
         unit: &'a SemanticUnit,
         object: &'a DescriptorContract,
         name: &str,
+        is_unsafe: bool,
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
             .find(|method| {
-                method.owner_identity.as_ref() == Some(&object.identity) && method.name == name
+                method.owner_identity.as_ref() == Some(&object.identity)
+                    && method.name == name
+                    && method.is_unsafe == is_unsafe
             })
             .or_else(|| {
                 object
@@ -874,7 +924,7 @@ pub(super) fn validate_object_conformance(
                             .iter()
                             .find(|candidate| candidate.identity == *base)
                     })
-                    .and_then(|base| effective_method(unit, base, name))
+                    .and_then(|base| effective_method(unit, base, name, is_unsafe))
             })
     }
 
@@ -895,9 +945,46 @@ pub(super) fn validate_object_conformance(
                 .find(|candidate| candidate.identity == object.identity)
                 .expect("object identity must resolve in its declaration unit");
             for interface_identity in &object.interfaces {
+                let lookup_name = if interface_identity.is_unsafe {
+                    format!("unsafe::{}", interface_identity.name)
+                } else {
+                    interface_identity.name.clone()
+                };
                 let Some(resolved_interface) =
-                    package.resolve_name(&interface_identity.namespace, &interface_identity.name)
+                    package.resolve_name(&interface_identity.namespace, &lookup_name)
                 else {
+                    let opposite_name = if interface_identity.is_unsafe {
+                        interface_identity.name.clone()
+                    } else {
+                        format!("unsafe::{}", interface_identity.name)
+                    };
+                    if package
+                        .resolve_name(&interface_identity.namespace, &opposite_name)
+                        .is_some()
+                    {
+                        let relation = if interface_identity.is_unsafe {
+                            format!(
+                                "remove `unsafe` after `implements` before `{}`",
+                                interface_identity.name
+                            )
+                        } else {
+                            format!("write `implements unsafe {}`", interface_identity.name)
+                        };
+                        return Err(SemanticFailure {
+                            source: declaration_unit.source.clone(),
+                            diagnostics: vec![
+                                Diagnostic::error(
+                                    "T0131",
+                                    format!(
+                                        "interface `{}` has the opposite safety contract",
+                                        interface_identity.name
+                                    ),
+                                    object.span,
+                                )
+                                .with_help(relation),
+                            ],
+                        });
+                    }
                     return Err(failure(
                         &declaration_unit.source,
                         "T0001",
@@ -913,10 +1000,9 @@ pub(super) fn validate_object_conformance(
                     ));
                 };
                 if let Some(crate::rust_interop::projection::ProjectedKind::Interface(projected)) =
-                    resolved_interface
-                        .identity
-                        .rsplit_once("::")
-                        .and_then(|(namespace, name)| package.projection.item(namespace, name))
+                    package
+                        .projection
+                        .item(&interface_identity.namespace, &interface_identity.name)
                         .map(|item| &item.kind)
                 {
                     match (
@@ -1069,7 +1155,7 @@ pub(super) fn validate_object_conformance(
                         _ => None,
                     })
                     == Some(true)
-                    && effective_method(declaration_unit, object, "destruct").is_none()
+                    && effective_method(declaration_unit, object, "destruct", false).is_none()
                 {
                     return Err(failure(
                         &declaration_unit.source,
@@ -1149,7 +1235,8 @@ pub(super) fn validate_object_conformance(
                             object.span,
                         ));
                     }
-                    let Some(render) = effective_method(declaration_unit, object, "render") else {
+                    let Some(render) = effective_method(declaration_unit, object, "render", false)
+                    else {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0062",
@@ -1178,6 +1265,7 @@ pub(super) fn validate_object_conformance(
                         execution_requirements: crate::execution::ExecutionRequirements::default(),
                         throws: false,
                         is_async: false,
+                        is_unsafe: false,
                         written_invocation_mode: InvocationMode::Shared,
                         exact_invocation_mode: InvocationMode::Shared,
                     };
@@ -1200,7 +1288,7 @@ pub(super) fn validate_object_conformance(
                     .find(|candidate| {
                         candidate.namespace == resolved_interface.namespace
                             && candidate.descriptors.iter().any(|candidate| {
-                                candidate.name == resolved_interface.name
+                                candidate.identity == *interface_identity
                                     && candidate.kind == ObjectKind::Interface
                             })
                     })
@@ -1208,7 +1296,7 @@ pub(super) fn validate_object_conformance(
                 let interface = interface_unit
                     .descriptors
                     .iter()
-                    .find(|candidate| candidate.name == resolved_interface.name)
+                    .find(|candidate| candidate.identity == *interface_identity)
                     .expect("resolved interface must have an object contract");
                 let requirements = interface_unit
                     .functions
@@ -1222,8 +1310,30 @@ pub(super) fn validate_object_conformance(
                     })
                     .collect::<Vec<_>>();
                 for required in &requirements {
-                    let Some(actual) = effective_method(declaration_unit, object, &required.name)
-                    else {
+                    let Some(actual) = effective_method(
+                        declaration_unit,
+                        object,
+                        &required.name,
+                        required.is_unsafe,
+                    ) else {
+                        if effective_method(
+                            declaration_unit,
+                            object,
+                            &required.name,
+                            !required.is_unsafe,
+                        )
+                        .is_some()
+                        {
+                            return Err(failure(
+                                &declaration_unit.source,
+                                "T0131",
+                                format!(
+                                    "class `{}` implements `{}.{}` with the opposite safety contract",
+                                    object.name, interface.name, required.name
+                                ),
+                                object.span,
+                            ));
+                        }
                         if required.projected_provided
                             || package
                                 .projection
@@ -2005,6 +2115,10 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                     let inherited = ObjectIdentity {
                         namespace: item.namespace.clone(),
                         name: item.name.clone(),
+                        is_unsafe: matches!(
+                            &item.kind,
+                            crate::rust_interop::projection::ProjectedKind::Interface(interface) if interface.is_unsafe
+                        ),
                         application: interface_identity.application.clone(),
                         application_key: interface_identity.application_key.clone(),
                         native_projection: interface_identity.native_projection.clone(),
@@ -2043,6 +2157,15 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
             .map(|supertrait| ObjectIdentity {
                 namespace: supertrait.namespace.clone(),
                 name: supertrait.name.clone(),
+                is_unsafe: package
+                    .projection
+                    .item(&supertrait.namespace, &supertrait.name)
+                    .is_some_and(|item| {
+                        matches!(
+                            &item.kind,
+                            crate::rust_interop::projection::ProjectedKind::Interface(interface) if interface.is_unsafe
+                        )
+                    }),
                 application: identity.application.clone(),
                 application_key: identity.application_key.clone(),
                 native_projection: identity.native_projection.clone(),
@@ -2122,9 +2245,10 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                     )
                 })
                 .map(|(visible_name, symbol)| {
+                    let is_unsafe = visible_name.starts_with("unsafe::");
                     (
                         visible_name.clone(),
-                        ObjectIdentity::new(&symbol.namespace, &symbol.name),
+                        ObjectIdentity::new(&symbol.namespace, &symbol.name).with_safety(is_unsafe),
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
@@ -2155,6 +2279,21 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
             &mut functions,
             None,
         )?;
+        for function in &mut functions {
+            if let Some(identity) = unit
+                .descriptors
+                .iter()
+                .filter(|descriptor| {
+                    descriptor.span.file == function.span.file
+                        && descriptor.span.start <= function.span.start
+                        && descriptor.span.end >= function.span.end
+                })
+                .min_by_key(|descriptor| descriptor.span.end - descriptor.span.start)
+                .map(|descriptor| descriptor.identity.clone())
+            {
+                function.owner_identity = Some(identity);
+            }
+        }
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }

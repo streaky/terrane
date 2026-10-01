@@ -486,6 +486,7 @@
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
           "HeaderValue::from_maybe_shared",
+          "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
           "HeaderValue::from_static",
           "HeaderValue::from_str",
@@ -1229,6 +1230,7 @@
           "BytesMut.len",
           "BytesMut.reserve",
           "BytesMut.resize",
+          "BytesMut.set_len",
           "BytesMut.split",
           "BytesMut.split_off",
           "BytesMut.split_to",
@@ -1333,6 +1335,7 @@
         ],
         "/deps/bytes/bytesmut": [
           "advance",
+          "advance_mut",
           "chunk_mut",
           "clone",
           "cmp",
@@ -1453,6 +1456,7 @@
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
           "HeaderValue::from_maybe_shared",
+          "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
           "HeaderValue::from_static",
           "HeaderValue::from_str",
@@ -2159,6 +2163,7 @@
         "/deps/tokio/net/tcpsocket": [
           "as_fd",
           "as_raw_fd",
+          "from_raw_fd",
           "into_raw_fd"
         ],
         "/deps/tokio/net/tcpstream": [
@@ -2265,6 +2270,7 @@
         "/deps/tokio/net/unixsocket": [
           "as_fd",
           "as_raw_fd",
+          "from_raw_fd",
           "into_raw_fd"
         ],
         "/deps/tokio/net/unixstream": [

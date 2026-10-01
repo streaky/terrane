@@ -1381,10 +1381,14 @@ pub(super) fn emit_dependency_unit(
         } else {
             format!("<{}>", generic_parameters.join(", "))
         };
+        if projected.is_unsafe {
+            writeln!(output, "#[allow(unsafe_code)]").expect("writing to a string cannot fail");
+        }
         writeln!(
             output,
-            "pub {}fn {}{generic_declaration}({}) -> {result} {{",
+            "pub {}{}fn {}{generic_declaration}({}) -> {result} {{",
             if projected.is_async { "async " } else { "" },
+            if projected.is_unsafe { "unsafe " } else { "" },
             static_owner.map_or_else(
                 || function_name(package, contract),
                 |owner| projected_static_shim_name(owner, &contract.name),
@@ -1423,7 +1427,12 @@ pub(super) fn emit_dependency_unit(
                                 .join(", ")
                         )
                     });
-            format!("{value_path}{generic_arguments}({arguments})")
+            let call = format!("{value_path}{generic_arguments}({arguments})");
+            if projected.is_unsafe {
+                format!("unsafe {{ {call} }}")
+            } else {
+                call
+            }
         };
         let invocation = if projected.into_future {
             format!("std::future::IntoFuture::into_future({call}).await")

@@ -1,6 +1,0 @@
-namespace app
-
-from /deps/witness import render_unsafe
-
-function main;
-    print; render_unsafe

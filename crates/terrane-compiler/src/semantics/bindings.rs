@@ -1885,9 +1885,20 @@ pub(super) fn projected_function_for_call<'a>(
     unit: &SemanticUnit,
     callee: &SyntaxNode,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
+    let prefix = unit.source.text()[..callee.span.start].trim_end();
+    let is_unsafe = prefix.strip_suffix("unsafe").is_some_and(|before| {
+        before
+            .chars()
+            .next_back()
+            .is_none_or(|character| !character.is_alphanumeric() && character != '-')
+    });
     if callee.kind == SyntaxKind::Name {
-        let symbol =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+        let lookup_name = if is_unsafe {
+            format!("unsafe::{}", node_text(&unit.source, callee))
+        } else {
+            node_text(&unit.source, callee).to_owned()
+        };
+        let symbol = package.resolve_name_at(unit, callee.span.start, &lookup_name)?;
         return package
             .projection
             .item(&symbol.namespace, &symbol.name)
@@ -1922,6 +1933,7 @@ pub(super) fn projected_function_for_call<'a>(
         identity.native_projection.as_deref(),
         node_text(&unit.source, member),
         is_static,
+        is_unsafe,
     )
 }
 

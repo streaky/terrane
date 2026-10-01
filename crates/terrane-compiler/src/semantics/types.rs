@@ -359,6 +359,39 @@ pub(super) fn declared_value_type_with_visible_objects(
     if shape.kind == SyntaxKind::PrefixType
         && let Some(inner) = shape.children.first()
     {
+        if node_text(&unit.source, shape).split_whitespace().next() == Some("unsafe") {
+            let resolved =
+                declared_value_type_with_visible_objects(unit, inner, aliases, visible_objects)?;
+            let ValueType::Object(identity) = resolved else {
+                return Err(failure(
+                    &unit.source,
+                    "T0131",
+                    "`unsafe` type selection requires an unsafe interface",
+                    shape.span,
+                ));
+            };
+            let unsafe_identity = identity.with_safety(true);
+            let exists = visible_objects
+                .get(&format!("unsafe::{}", unsafe_identity.name))
+                .is_some()
+                || unit.descriptors.iter().any(|descriptor| {
+                    descriptor.identity.namespace == unsafe_identity.namespace
+                        && descriptor.identity.name == unsafe_identity.name
+                        && descriptor.is_unsafe
+                });
+            if !exists {
+                return Err(failure(
+                    &unit.source,
+                    "T0131",
+                    format!(
+                        "`{}` has no unsafe interface declaration",
+                        unsafe_identity.name
+                    ),
+                    shape.span,
+                ));
+            }
+            return Ok(ValueType::Object(unsafe_identity));
+        }
         let inner = ElementType::new(declared_value_type_with_visible_objects(
             unit,
             inner,

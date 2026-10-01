@@ -2349,6 +2349,11 @@ impl Emitter<'_> {
         } else {
             call
         };
+        let call = if contract.as_ref().is_some_and(|contract| contract.is_unsafe) {
+            format!("unsafe {{ {call} }}")
+        } else {
+            call
+        };
         let function_value_call = contract.is_none()
             && matches!(
                 self.value_type(callee),

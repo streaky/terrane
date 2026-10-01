@@ -350,10 +350,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             uses_async_runtime,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
-            unsafe_code: if package.authored_rust_modules.is_empty() {
-                UnsafeCodePolicy::Forbid
-            } else {
+            unsafe_code: if compilation.requires_unsafe_code
+                || !package.authored_rust_modules.is_empty()
+            {
                 UnsafeCodePolicy::MaintainedModules
+            } else {
+                UnsafeCodePolicy::Forbid
             },
             artifact_profile,
             artifact: package.artifact,

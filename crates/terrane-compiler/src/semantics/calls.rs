@@ -88,6 +88,43 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression {
         validate_projected_generic_arguments(package, unit, node, scoped_bindings)?;
     }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+    {
+        let requested_unsafe = node_text(&unit.source, node)
+            .trim_start()
+            .starts_with("unsafe ");
+        let selected =
+            function_contract_for_call_with_safety(package, unit, callee, requested_unsafe);
+        let opposite =
+            function_contract_for_call_with_safety(package, unit, callee, !requested_unsafe);
+        if selected.is_none() && (requested_unsafe || opposite.is_some()) {
+            let name = callee.children.last().map_or_else(
+                || node_text(&unit.source, callee),
+                |member| node_text(&unit.source, member),
+            );
+            let (message, help) = if requested_unsafe && opposite.is_some() {
+                (
+                    format!("`{name}` has no unsafe function declaration"),
+                    format!("remove `unsafe` to call the safe `{name}` declaration"),
+                )
+            } else if requested_unsafe {
+                (
+                    format!("unsafe call `{name}` has no matching unsafe function declaration"),
+                    format!("declare `unsafe function {name}` before calling it as unsafe"),
+                )
+            } else {
+                (
+                    format!("`{name}` is declared only as an unsafe function"),
+                    format!("write `unsafe {name}; ...` to select the unsafe declaration"),
+                )
+            };
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![Diagnostic::error("T0130", message, node.span).with_help(help)],
+            });
+        }
+    }
     if node.kind == SyntaxKind::CallExpression {
         let inferred = infer_value_type(unit, node, scoped_bindings)?;
         if inferred.is_none()
@@ -213,43 +250,7 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
-        let contract = match callee.kind {
-            SyntaxKind::Name => package
-                .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-                .filter(|symbol| symbol.kind == SymbolKind::Function)
-                .and_then(|symbol| symbol.declaration_span)
-                .and_then(|declaration_span| {
-                    contracts
-                        .get(&(
-                            declaration_span.file,
-                            declaration_span.start,
-                            declaration_span.end,
-                        ))
-                        .copied()
-                }),
-            SyntaxKind::MemberExpression => match callee.children.as_slice() {
-                [receiver, member] => infer_value_type(unit, receiver, scoped_bindings)
-                    .ok()
-                    .flatten()
-                    .and_then(|value_type| {
-                        let ValueType::Object(identity) = value_type else {
-                            return None;
-                        };
-                        method_contract(package, &identity, node_text(&unit.source, member), false)
-                    }),
-                _ => None,
-            },
-            SyntaxKind::StaticMemberExpression => match callee.children.as_slice() {
-                [receiver, member] => {
-                    class_designator_identity(unit, receiver).and_then(|identity| {
-                        method_contract(package, &identity, node_text(&unit.source, member), true)
-                    })
-                }
-                _ => None,
-            },
-            SyntaxKind::ConstructionExpression => construction_contract(package, unit, callee),
-            _ => None,
-        };
+        let contract = function_contract_for_call(package, unit, callee);
         let specialized_contract = contract.and_then(|contract| {
             unit.projected_call_specializations
                 .get(&(node.span.file, node.span.start, node.span.end))

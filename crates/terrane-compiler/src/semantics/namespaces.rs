@@ -151,6 +151,10 @@ pub(super) fn collect_nested_declarations(
     Ok(())
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "declaration spelling retains independent source qualifiers"
+)]
 #[derive(Clone, Debug)]
 pub(super) struct Declaration {
     pub(super) name: String,
@@ -159,6 +163,7 @@ pub(super) struct Declaration {
     pub(super) global: bool,
     pub(super) constant: bool,
     pub(super) kind: SymbolKind,
+    pub(super) unsafe_: bool,
 }
 
 pub(super) fn declaration_from_syntax(
@@ -200,6 +205,7 @@ pub(super) fn declaration_from_syntax(
         explicit_visibility: visibility_node.is_some(),
         global: qualifier("global"),
         constant: qualifier("constant"),
+        unsafe_: qualifier("unsafe"),
         kind,
     })
 }
@@ -234,6 +240,15 @@ pub(super) fn collect_declaration(
             node.span,
         ));
     }
+    let symbol_key = if declaration.unsafe_
+        && matches!(
+            declaration.kind,
+            SymbolKind::Function | SymbolKind::Interface
+        ) {
+        format!("unsafe::{}", declaration.name)
+    } else {
+        declaration.name.clone()
+    };
     let identity = if declaration.global {
         format!("global::{}", declaration.name)
     } else {
@@ -260,7 +275,7 @@ pub(super) fn collect_declaration(
         .expect("every source-unit namespace is assembled before declarations")
         .symbols;
     if node.kind == SyntaxKind::Assignment
-        && table.get(&declaration.name).is_some_and(|existing| {
+        && table.get(&symbol_key).is_some_and(|existing| {
             existing
                 .declaration_span
                 .is_some_and(|span| span.file == node.span.file)
@@ -268,7 +283,7 @@ pub(super) fn collect_declaration(
     {
         return Ok(());
     }
-    if table.contains_key(&declaration.name) {
+    if table.contains_key(&symbol_key) {
         let test_identity = unit.role != crate::SourceRole::Production
             && unit.role != crate::SourceRole::Bundled
             && declaration.kind == SymbolKind::Function
@@ -287,7 +302,7 @@ pub(super) fn collect_declaration(
             node.span,
         ));
     }
-    table.insert(declaration.name, symbol);
+    table.insert(symbol_key, symbol);
     Ok(())
 }
 
@@ -414,47 +429,55 @@ pub(super) fn imports_in_tree(unit: &SemanticUnit) -> Result<Vec<Import>, Semant
     collect(unit, &unit.tree.root, &mut imports)?;
     Ok(imports)
 }
-pub(super) fn imported_object(
-    import: &Import,
-    namespaces: &BTreeMap<String, Namespace>,
-) -> Result<Symbol, SemanticFailure> {
-    let export = namespaces
-        .get(&import.target)
-        .and_then(|namespace| namespace.symbols.get(&import.object))
-        .ok_or_else(|| {
-            failure(
-                &import.source,
-                "S2009",
-                format!("unresolved name `{}` in `{}`", import.object, import.target),
-                import.span,
-            )
-        })?;
-    if !visible_from(export, &import.namespace) {
-        return Err(failure(
-            &import.source,
-            "S2010",
-            format!("name `{}` is inaccessible", import.object),
-            import.span,
-        ));
-    }
-    if !export.available_in_function_body() {
-        return Err(namespace_variable_import_failure(
-            &import.source,
-            &import.object,
-            import.span,
-        ));
-    }
-    Ok(export.clone())
-}
 pub(super) fn imported_objects(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
 ) -> Result<Vec<(String, Symbol)>, SemanticFailure> {
     if !import.namespace_wide {
-        return Ok(vec![(
-            import.alias.clone(),
-            imported_object(import, namespaces)?,
-        )]);
+        let namespace = namespaces.get(&import.target);
+        let mut imported = Vec::new();
+        if let Some(namespace) = namespace {
+            for (unsafe_, key) in [
+                (false, import.object.clone()),
+                (true, format!("unsafe::{}", import.object)),
+            ] {
+                let Some(symbol) = namespace.symbols.get(&key) else {
+                    continue;
+                };
+                if !visible_from(symbol, &import.namespace) {
+                    return Err(failure(
+                        &import.source,
+                        "S2010",
+                        format!("name `{}` is inaccessible", import.object),
+                        import.span,
+                    ));
+                }
+                if !symbol.available_in_function_body() {
+                    return Err(namespace_variable_import_failure(
+                        &import.source,
+                        &import.object,
+                        import.span,
+                    ));
+                }
+                imported.push((
+                    if unsafe_ {
+                        format!("unsafe::{}", import.alias)
+                    } else {
+                        import.alias.clone()
+                    },
+                    symbol.clone(),
+                ));
+            }
+        }
+        if imported.is_empty() {
+            return Err(failure(
+                &import.source,
+                "S2009",
+                format!("unresolved name `{}` in `{}`", import.object, import.target),
+                import.span,
+            ));
+        }
+        return Ok(imported);
     }
     let namespace = namespaces.get(&import.target).ok_or_else(|| {
         failure(
@@ -475,11 +498,11 @@ pub(super) fn imported_objects(
     }
     Ok(namespace
         .symbols
-        .values()
-        .filter(|symbol| {
+        .iter()
+        .filter(|(_, symbol)| {
             symbol.visibility == Visibility::Public && symbol.available_in_function_body()
         })
-        .map(|symbol| (symbol.name.clone(), symbol.clone()))
+        .map(|(name, symbol)| (name.clone(), symbol.clone()))
         .collect())
 }
 
@@ -704,11 +727,22 @@ pub(super) fn method_contract<'a>(
     method_name: &str,
     is_static: bool,
 ) -> Option<&'a FunctionContract> {
+    method_contract_with_safety(package, object_identity, method_name, is_static, false)
+}
+
+fn method_contract_with_safety<'a>(
+    package: &'a SemanticPackage,
+    object_identity: &ObjectIdentity,
+    method_name: &str,
+    is_static: bool,
+    is_unsafe: bool,
+) -> Option<&'a FunctionContract> {
     fn contract<'a>(
         unit: &'a SemanticUnit,
         object_identity: &ObjectIdentity,
         method_name: &str,
         is_static: bool,
+        is_unsafe: bool,
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
@@ -716,13 +750,14 @@ pub(super) fn method_contract<'a>(
                 method.owner_identity.as_ref() == Some(object_identity)
                     && method.name == method_name
                     && method.is_static == is_static
+                    && method.is_unsafe == is_unsafe
             })
             .or_else(|| {
                 unit.descriptors
                     .iter()
                     .find(|object| object.identity == *object_identity)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| contract(unit, base, method_name, is_static))
+                    .and_then(|base| contract(unit, base, method_name, is_static, is_unsafe))
             })
     }
     let object = package
@@ -734,7 +769,25 @@ pub(super) fn method_contract<'a>(
         .units
         .iter()
         .find(|candidate| candidate.source.id() == object.span.file)
-        .and_then(|candidate| contract(candidate, &object.identity, method_name, is_static))
+        .and_then(|candidate| {
+            contract(
+                candidate,
+                &object.identity,
+                method_name,
+                is_static,
+                is_unsafe,
+            )
+        })
+}
+
+fn callee_is_unsafe(unit: &SemanticUnit, callee: &SyntaxNode) -> bool {
+    let prefix = unit.source.text()[..callee.span.start].trim_end();
+    prefix.strip_suffix("unsafe").is_some_and(|before| {
+        before
+            .chars()
+            .next_back()
+            .is_none_or(|character| !character.is_alphanumeric() && character != '-')
+    })
 }
 
 pub(super) fn construction_contract<'a>(
@@ -755,6 +808,15 @@ pub(super) fn function_contract_for_call<'a>(
     unit: &'a SemanticUnit,
     callee: &SyntaxNode,
 ) -> Option<&'a FunctionContract> {
+    function_contract_for_call_with_safety(package, unit, callee, callee_is_unsafe(unit, callee))
+}
+
+pub(super) fn function_contract_for_call_with_safety<'a>(
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    callee: &SyntaxNode,
+    is_unsafe: bool,
+) -> Option<&'a FunctionContract> {
     if matches!(
         callee.kind,
         SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
@@ -770,25 +832,30 @@ pub(super) fn function_contract_for_call<'a>(
             };
             object_identity
         };
-        return method_contract(
+        return method_contract_with_safety(
             package,
             &object_identity,
             node_text(&unit.source, member),
             callee.kind == SyntaxKind::StaticMemberExpression,
+            is_unsafe,
         );
     }
     if callee.kind == SyntaxKind::ConstructionExpression {
         return construction_contract(package, unit, callee);
     }
-    (callee.kind == SyntaxKind::Name)
-        .then(|| {
-            super::analysis::resolved_function_contract(
-                unit,
-                node_text(&unit.source, callee),
-                callee.span.start,
-            )
-        })
-        .flatten()
+    if callee.kind != SyntaxKind::Name {
+        return None;
+    }
+    if is_unsafe {
+        let name = format!("unsafe::{}", node_text(&unit.source, callee));
+        super::analysis::resolved_function_contract(unit, &name, callee.span.start)
+    } else {
+        super::analysis::resolved_function_contract(
+            unit,
+            node_text(&unit.source, callee),
+            callee.span.start,
+        )
+    }
 }
 
 pub(super) fn function_parameters<'a>(

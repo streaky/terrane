@@ -319,6 +319,7 @@ pub(super) fn iteration_target_bindings(
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
+    pub is_unsafe: bool,
     pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
     pub(crate) native_projection: Option<String>,
@@ -329,6 +330,7 @@ impl ObjectIdentity {
         Self {
             namespace: namespace.into(),
             name: name.into(),
+            is_unsafe: false,
             application: None,
             application_key: None,
             native_projection: None,
@@ -340,7 +342,12 @@ impl ObjectIdentity {
     }
 
     pub(crate) fn base(&self) -> Self {
-        Self::new(&self.namespace, &self.name)
+        Self::new(&self.namespace, &self.name).with_safety(self.is_unsafe)
+    }
+
+    pub(crate) fn with_safety(mut self, is_unsafe: bool) -> Self {
+        self.is_unsafe = is_unsafe;
+        self
     }
 
     pub(crate) fn with_application(mut self, application: ValueType) -> Self {
@@ -357,6 +364,9 @@ impl ObjectIdentity {
 
 impl std::fmt::Display for ObjectIdentity {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_unsafe {
+            formatter.write_str("unsafe ")?;
+        }
         formatter.write_str(&self.name)?;
         if let Some(application) = &self.application {
             write!(formatter, " of {application}")?;
@@ -371,12 +381,14 @@ impl Ord for ObjectIdentity {
             &self.namespace,
             &self.name,
             self.application_key.as_deref(),
+            self.is_unsafe,
             self.native_projection.as_deref(),
         )
             .cmp(&(
                 &other.namespace,
                 &other.name,
                 other.application_key.as_deref(),
+                other.is_unsafe,
                 other.native_projection.as_deref(),
             ))
     }
@@ -1269,6 +1281,8 @@ pub struct DescriptorContract {
     pub identity: ObjectIdentity,
     pub span: Span,
     pub kind: ObjectKind,
+    /// Implementing this interface asserts invariants outside Terrane's static model.
+    pub is_unsafe: bool,
     pub resource_owning: bool,
     /// Compiler-owned built-in template represented by this same canonical contract.
     pub(crate) builtin: Option<BuiltinDescriptor>,
@@ -1313,6 +1327,8 @@ pub struct FunctionContract {
     pub escaping_throwables: BTreeSet<String>,
     pub throws: bool,
     pub is_async: bool,
+    /// Calling this operation accepts invariants outside Terrane's static model.
+    pub is_unsafe: bool,
     pub task_transferability: TaskTransferability,
     pub is_static: bool,
     pub written_invocation_mode: InvocationMode,

@@ -1193,7 +1193,17 @@ pub(super) fn infer_value_type(
                     callee.span,
                 ));
             }
-            if let Some(contract) = resolved_function_contract(unit, name, callee.span.start) {
+            let lookup_name = if node_text(&unit.source, node)
+                .trim_start()
+                .starts_with("unsafe ")
+            {
+                format!("unsafe::{name}")
+            } else {
+                name.to_owned()
+            };
+            if let Some(contract) =
+                resolved_function_contract(unit, &lookup_name, callee.span.start)
+            {
                 let mut result_type = unit
                     .invocation_scoped_function_results
                     .get(&(contract.span.file, contract.span.start, contract.span.end))

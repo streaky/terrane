@@ -4938,14 +4938,15 @@ panic contracts. An unresolved, ambiguous, borrowed-escape, or genuinely open ge
 targeted decline; the compiler must not erase it, guess an instantiation, or carry an opaque
 unnameable value outside the existing chain-only boundary.
 
-Implement the specified concrete `unsafe rust` block/expression and maintained authored-`.rs`
-escape hatches. They participate in the manifest and locked crate graph, build-capability and
-profile checks, deterministic generated-artifact identity, source associations, diagnostics,
-ownership/effect declarations, panic and error translation, and editor dependency intelligence.
-`unsafe rust` relaxes Rust-operation safety only inside the concrete boundary; it does not bypass
-Terrane definite assignment, cleanup, lifetime, capability, or ownership rules. Generated and
-authored Rust may call each other through explicit typed adapters, but a bare `rust` or `unsafe`
-qualifier remains invalid.
+Typed unsafe declaration support now preserves Rust's explicit safety obligations without turning
+ordinary projected application code into an unchecked region. `unsafe function` and `unsafe
+interface` participate in exact declaration identity; `unsafe` call syntax and `implements unsafe`
+select only the matching safety class, with no cross-safety fallback. Generated Rust preserves
+unsafe function and trait declarations, implementation obligations, and local unsafe call sites.
+The explicit boundary relaxes only the selected operation's external obligation; Terrane definite
+assignment, cleanup, lifetime, capability, ownership, effect, and type checks continue normally.
+The maintained authored-`.rs` and concrete `unsafe rust` escape hatches remain available for native
+contracts that still cannot be represented as typed projected declarations.
 
 Raw SQLx `Query<'q, DB, A>` values remain unnameable as free-standing Terrane values. Generic
 projection may nevertheless carry their database, argument, associated-output, and borrow state

@@ -43,6 +43,10 @@ pub struct CompilerOptions {
     pub debug_build: DebugBuild,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "compilation requirements are independent build facts"
+)]
 #[derive(Clone, Debug)]
 pub struct Compilation {
     pub source: SourceFile,
@@ -59,6 +63,7 @@ pub struct Compilation {
     entry_span: Span,
     pub requires_platform_support: bool,
     pub requires_async_runtime: bool,
+    pub requires_unsafe_code: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
     pub dependency_containment: crate::rust_interop::projection::Containment,
@@ -495,6 +500,13 @@ pub fn compile_package_with_options(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_unsafe_code: semantic.units.iter().any(|unit| {
+            unit.functions.iter().any(|function| function.is_unsafe)
+                || unit
+                    .descriptors
+                    .iter()
+                    .any(|descriptor| descriptor.is_unsafe)
+        }),
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
@@ -781,6 +793,13 @@ pub fn compile_discovered_test_tier(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_unsafe_code: semantic.units.iter().any(|unit| {
+            unit.functions.iter().any(|function| function.is_unsafe)
+                || unit
+                    .descriptors
+                    .iter()
+                    .any(|descriptor| descriptor.is_unsafe)
+        }),
         warnings,
         rust_dependencies: compilation_rust_dependencies(&package, &semantic.projection),
         dependency_containment: semantic.projection.containment,

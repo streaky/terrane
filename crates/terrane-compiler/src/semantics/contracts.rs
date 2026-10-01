@@ -565,6 +565,10 @@ pub(super) fn analyze_function_contract(
         escaping_throwables: BTreeSet::new(),
         throws,
         is_async,
+        is_unsafe: node.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "unsafe"
+        }),
         task_transferability: if unit.namespace.starts_with("/deps/") {
             TaskTransferability::Local
         } else {

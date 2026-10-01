@@ -24,7 +24,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "190";
+const PROJECTION_SCHEMA: &str = "191";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -337,8 +337,14 @@ pub struct ProjectedSupertrait {
     pub rust_path: String,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "interface safety, auto traits, and drop behavior are independent Rust facts"
+)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedInterface {
+    #[serde(default)]
+    pub is_unsafe: bool,
     pub methods: Vec<ProjectedInterfaceMethod>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub associated_type: Option<ProjectedAssociatedType>,
@@ -445,6 +451,8 @@ pub struct ProjectedFunction {
     pub destination_result: Option<ProjectedDestinationResult>,
     pub error: Option<String>,
     pub is_async: bool,
+    #[serde(default)]
+    pub is_unsafe: bool,
     #[serde(default)]
     pub into_future: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1796,7 +1804,7 @@ impl Projection {
         method_name: &str,
         is_static: bool,
     ) -> Option<&ProjectedFunction> {
-        self.method_for_native(namespace, type_name, None, method_name, is_static)
+        self.method_for_native(namespace, type_name, None, method_name, is_static, false)
     }
 
     pub(crate) fn method_for_native(
@@ -1806,6 +1814,7 @@ impl Projection {
         native_projection: Option<&str>,
         method_name: &str,
         is_static: bool,
+        is_unsafe: bool,
     ) -> Option<&ProjectedFunction> {
         let rust_path =
             native_projection.or_else(|| self.foreign_rust_path(namespace, type_name))?;
@@ -1841,6 +1850,7 @@ impl Projection {
                     let candidates = if is_static { static_methods } else { methods };
                     candidates.iter().find(|method| {
                         method.name == method_name
+                            && method.is_unsafe == is_unsafe
                             && native_projection.is_none_or(|owner| {
                                 method.native_owner.as_deref().is_none_or(|native| {
                                     let native =
@@ -1856,7 +1866,10 @@ impl Projection {
                 ProjectedKind::Interface(interface) if !is_static => interface
                     .methods
                     .iter()
-                    .find(|method| method.function.name == method_name)
+                    .find(|method| {
+                        method.function.name == method_name
+                            && method.function.is_unsafe == is_unsafe
+                    })
                     .map(|method| &method.function),
                 _ => None,
             })
@@ -2748,7 +2761,12 @@ fn render_foreign_declaration(
     }
     match projected_item.map(|item| &item.kind) {
         Some(ProjectedKind::Interface(interface)) => {
-            writeln!(output, "interface {name}").expect("writing to a string cannot fail");
+            writeln!(
+                output,
+                "{}interface {name}",
+                if interface.is_unsafe { "unsafe " } else { "" }
+            )
+            .expect("writing to a string cannot fail");
             for method in &interface.methods {
                 render_interface_method(output, method, aliases);
             }
@@ -3007,6 +3025,7 @@ fn render_function(
 ) {
     let prefix = " ".repeat(indent);
     let visibility = if public { "public " } else { "" };
+    let unsafe_ = if function.is_unsafe { "unsafe " } else { "" };
     let static_ = if static_owner.is_some() {
         "static "
     } else {
@@ -3015,7 +3034,7 @@ fn render_function(
     let asynchronous = if function.is_async { "async " } else { "" };
     write!(
         output,
-        "{prefix}{visibility}{static_}{asynchronous}function {}",
+        "{prefix}{visibility}{unsafe_}{static_}{asynchronous}function {}",
         function.name
     )
     .expect("writing to a string cannot fail");
@@ -6102,9 +6121,6 @@ fn project_interface_inner(
     paths: &HashMap<Id, ItemSummary>,
     rust_path: &str,
 ) -> Result<ProjectedInterface, String> {
-    if declaration.is_unsafe {
-        return Err("unsafe trait".to_owned());
-    }
     if !declaration.generics.params.is_empty() {
         return Err("trait has generic or lifetime parameters".to_owned());
     }
@@ -6318,6 +6334,7 @@ fn project_interface_inner(
         return Err("trait has no projectable receiver methods".to_owned());
     }
     Ok(ProjectedInterface {
+        is_unsafe: declaration.is_unsafe,
         methods,
         associated_type,
         supertraits,
@@ -7826,6 +7843,7 @@ fn project_rustdoc(
                             destination_result: None,
                             error: None,
                             is_async: false,
+                            is_unsafe: false,
                             into_future: false,
                             execution_requirements: None,
                             enum_operation: Some(ProjectedEnumOperation::Construct {
@@ -7852,6 +7870,7 @@ fn project_rustdoc(
                                 destination_result: None,
                                 error: None,
                                 is_async: false,
+                                is_unsafe: false,
                                 into_future: false,
                                 execution_requirements: None,
                                 enum_operation: Some(ProjectedEnumOperation::Extract {
@@ -7877,6 +7896,7 @@ fn project_rustdoc(
                             destination_result: None,
                             error: None,
                             is_async: false,
+                            is_unsafe: false,
                             into_future: false,
                             execution_requirements: None,
                             enum_operation: Some(ProjectedEnumOperation::VariantName {
@@ -9175,9 +9195,6 @@ fn project_function_inner(
     supplied_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
-    if function.header.is_unsafe {
-        return Err("unsafe function".to_owned());
-    }
     let open_chain = open_chain_generics(function, index);
     let GenericMonomorphisations {
         types: generic_types,
@@ -9710,6 +9727,7 @@ fn project_function_inner(
         destination_result,
         error,
         is_async: function.header.is_async || returns_future,
+        is_unsafe: function.header.is_unsafe,
         into_future,
         execution_requirements: (function.header.is_async || returns_future).then_some(
             ProjectedExecutionRequirements {
@@ -10339,7 +10357,6 @@ fn has_supported_callable_trait_shape(
     index: &HashMap<Id, Item>,
 ) -> bool {
     !declaration.is_auto
-        && !declaration.is_unsafe
         && declaration.bounds.is_empty()
         && declaration.items.len() == 1
         && declaration.items.first().is_some_and(|item_id| {

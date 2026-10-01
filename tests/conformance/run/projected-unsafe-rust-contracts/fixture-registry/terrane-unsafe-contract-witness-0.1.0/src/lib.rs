@@ -1,5 +1,26 @@
+use std::fmt;
+
+pub unsafe fn unchecked_add(left: i64, right: i64) -> i64 {
+    left + right
+}
+
+
 pub struct ScopedView<'view> {
+    value: i64,
     marker: std::marker::PhantomData<&'view str>,
+}
+
+impl fmt::Display for ScopedView<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.value)
+    }
+}
+
+pub fn borrowed_view(value: &str) -> ScopedView<'_> {
+    ScopedView {
+        value: value.len() as i64,
+        marker: std::marker::PhantomData,
+    }
 }
 
 pub unsafe trait UnsafeView<'view> {
@@ -18,6 +39,6 @@ where
 pub fn render_unsafe(
     state: &String,
     view: impl for<'view> UnsafeView<'view>,
-) -> ScopedView<'_> {
-    view.view(state)
+) -> i64 {
+    view.view(state).value
 }

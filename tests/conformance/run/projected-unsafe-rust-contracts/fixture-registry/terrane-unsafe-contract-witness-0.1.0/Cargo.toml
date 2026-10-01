@@ -1,5 +1,5 @@
 [package]
-name = "terrane-invocation-unsafe-trait-witness"
+name = "terrane-unsafe-contract-witness"
 version = "0.1.0"
 edition = "2024"
 publish = false

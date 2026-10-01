@@ -112,7 +112,7 @@ fn parses_callable_invocation_modes_in_class_fields() {
 #[test]
 fn removed_effect_words_are_not_function_qualifiers() {
     for word in [
-        "pure", "io", "blocks", "mutating", "mutates", "awaits", "unsafe", "foreign",
+        "pure", "io", "blocks", "mutating", "mutates", "awaits", "foreign",
     ] {
         let source = SourceFile::new(
             0,

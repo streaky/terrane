@@ -1375,8 +1375,11 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             SyntaxKind::Name => {
                 let name = node_text(&unit.source, node);
                 let resolved = package.resolve_name_at(unit, node.span.start, name);
+                let unsafe_name = format!("unsafe::{name}");
+                let unsafe_resolved = package.resolve_name_at(unit, node.span.start, &unsafe_name);
                 let implicit_receiver = is_implicit_object_receiver(unit, node.span.start, name);
                 if resolved.is_none()
+                    && unsafe_resolved.is_none()
                     && !package.descriptor_constructs.contains_key(name)
                     && !implicit_receiver
                 {
