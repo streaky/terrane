@@ -1406,6 +1406,8 @@ pub(super) fn validate_object_conformance(
                                 Some("borrowed parameters are deferred")
                             } else if method.function.error.is_some() {
                                 Some("Result-returning methods are deferred")
+                            } else if method.function.result.contains_borrowed_result() {
+                                Some("borrowed results require native default implementation")
                             } else {
                                 None
                             }
@@ -2442,6 +2444,7 @@ fn collect_projected_call_result_types(
             concrete: true,
             family,
             lifetimes,
+            expression_scoped,
             region,
         }) = infer_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
@@ -2479,6 +2482,7 @@ fn collect_projected_call_result_types(
                 concrete: true,
                 family,
                 lifetimes,
+                expression_scoped,
                 region,
             },
         ));
@@ -2490,7 +2494,8 @@ fn collect_projected_call_result_types(
             rust_type,
             name,
             lifetimes,
-            owned: _,
+            expression_scoped,
+            owned,
         } => {
             let region = package.units[unit_index]
                 .enclosing_function_spans
@@ -2507,12 +2512,28 @@ fn collect_projected_call_result_types(
                     })
                 })
                 .map(|span| (span.file, span.start, span.end));
-            let family_namespace = package
-                .projection
-                .item_named(name)
-                .map_or(package.units[unit_index].namespace.as_str(), |item| {
-                    item.namespace.as_str()
-                });
+            let region = (!expression_scoped).then_some(region).flatten();
+            let family_namespace = package.projection.borrowed_scope_owner(owned).map_or_else(
+                || {
+                    callee
+                        .children
+                        .first()
+                        .and_then(|receiver| {
+                            infer_value_type(unit, receiver, &unit.typed_bindings)
+                                .ok()
+                                .flatten()
+                        })
+                        .and_then(|value| match value {
+                            ValueType::Object(identity)
+                            | ValueType::InvocationScopedNative {
+                                family: identity, ..
+                            } => Some(identity.namespace),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| package.units[unit_index].namespace.clone())
+                },
+                |(namespace, _)| namespace,
+            );
             additions.push((
                 unit_index,
                 (node.span.file, node.span.start, node.span.end),
@@ -2521,11 +2542,20 @@ fn collect_projected_call_result_types(
                     concrete: true,
                     family: ObjectIdentity::new(family_namespace, name.clone())
                         .with_native_projection(
-                            rust_type
-                                .split_once('<')
-                                .map_or(rust_type.as_str(), |(base, _)| base),
+                            if matches!(
+                                owned.as_ref(),
+                                crate::rust_interop::projection::ProjectedType::Optional(_)
+                            ) {
+                                "std::option::Option".to_owned()
+                            } else {
+                                owned
+                                    .rust_type()
+                                    .split_once('<')
+                                    .map_or(owned.rust_type(), |(base, _)| base.to_owned())
+                            },
                         ),
                     lifetimes: lifetimes.clone(),
+                    expression_scoped: *expression_scoped,
                     region,
                 },
             ));
@@ -2615,6 +2645,7 @@ fn collect_projected_generic_names(
         | ProjectedType::Float32
         | ProjectedType::Char
         | ProjectedType::String
+        | ProjectedType::BorrowedString
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
         | ProjectedType::BoxedInterface {
@@ -3042,12 +3073,14 @@ fn merge_projected_callback_value_shape(
             rust_type,
             name,
             lifetimes,
+            expression_scoped,
             ..
         }) => Some(ElementType::new(ValueType::InvocationScopedNative {
             rust_type: rust_type.clone(),
             concrete: true,
             family: ObjectIdentity::new(namespace.to_owned(), name.clone()),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             region,
         })),
         _ => None,
@@ -3948,7 +3981,7 @@ fn collect_projected_destinations(
                     substitute_projected_generic(&specialized, generic, projected)
                 })
         };
-        let projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter> =
+        let mut projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter> =
             function
                 .parameters
                 .iter()
@@ -3978,6 +4011,54 @@ fn collect_projected_destinations(
                     parameter
                 })
                 .collect();
+        if function.native_owner.as_deref() == Some("std::option::Option")
+            && let Some(receiver) = callee.children.first()
+            && let Some(rust_type) = {
+                let mut receiver = receiver;
+                while receiver.kind == SyntaxKind::GroupExpression
+                    && let [inner] = receiver.children.as_slice()
+                {
+                    receiver = inner;
+                }
+                projected_function_for_call(package, unit, receiver)
+                    .map(|function| function.result.rust_type())
+                    .or_else(|| {
+                        match infer_value_type(unit, receiver, &unit.typed_bindings)
+                            .ok()
+                            .flatten()
+                        {
+                            Some(ValueType::InvocationScopedNative { rust_type, .. }) => {
+                                Some(rust_type)
+                            }
+                            _ => None,
+                        }
+                    })
+            }
+            && let Ok(syn::Type::Path(receiver_type)) = syn::parse_str::<syn::Type>(&rust_type)
+            && let Some(segment) = receiver_type.path.segments.last()
+            && let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
+            && let Some(syn::GenericArgument::Type(syn::Type::Reference(referent))) =
+                arguments.args.first()
+            && referent.mutability.is_some()
+        {
+            for parameter in &mut projected_parameters {
+                if let crate::rust_interop::projection::ProjectedType::Callback {
+                    parameter_rust_types,
+                    native_bound,
+                    ..
+                } = &mut parameter.ty
+                {
+                    for rust_type in parameter_rust_types {
+                        if let Some(referent) = rust_type.strip_prefix('&') {
+                            *rust_type = format!("&mut {}", referent.trim_start());
+                        }
+                    }
+                    if let Some(bound) = native_bound {
+                        *bound = bound.replacen('&', "&mut ", 1);
+                    }
+                }
+            }
+        }
         let value_parameters = contract
             .parameters
             .iter()
@@ -4008,6 +4089,7 @@ fn collect_projected_destinations(
                                 concrete: false,
                                 family: ObjectIdentity::new("/deps", name.clone()),
                                 lifetimes: lifetimes.clone(),
+                                expression_scoped: false,
                                 region: None,
                             },
                         )))
@@ -4066,6 +4148,9 @@ fn collect_projected_destinations(
             {
                 for (name, projected) in &substitutions {
                     rust_replacements.insert(name.clone(), projected.rust_type());
+                    for parameter in &mut projected_parameters {
+                        parameter.ty = substitute_projected_generic(&parameter.ty, name, projected);
+                    }
                 }
                 projected_result = align_projected_result_representation(
                     &substitutions
@@ -4366,6 +4451,47 @@ fn collect_projected_destinations(
                     })
             })
             .collect();
+        let value_type = match &projected_result {
+            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                rust_type,
+                name,
+                lifetimes,
+                expression_scoped: true,
+                owned,
+            } => {
+                let namespace = package
+                    .projection
+                    .borrowed_scope_owner(owned)
+                    .map(|(namespace, _)| namespace)
+                    .or_else(|| {
+                        callee
+                            .children
+                            .first()
+                            .and_then(|receiver| {
+                                infer_value_type(unit, receiver, &unit.typed_bindings)
+                                    .ok()
+                                    .flatten()
+                            })
+                            .and_then(|value| match value {
+                                ValueType::Object(identity)
+                                | ValueType::InvocationScopedNative {
+                                    family: identity, ..
+                                } => Some(identity.namespace),
+                                _ => None,
+                            })
+                    })
+                    .unwrap_or_else(|| unit.namespace.clone());
+                ValueType::InvocationScopedNative {
+                    rust_type: rust_type.clone(),
+                    concrete: true,
+                    family: ObjectIdentity::new(namespace, name.clone()),
+                    lifetimes: lifetimes.clone(),
+                    expression_scoped: true,
+                    region: None,
+                }
+            }
+            _ => destination.clone(),
+        };
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
@@ -4373,7 +4499,7 @@ fn collect_projected_destinations(
             generic_arguments,
             substitutions,
             projected_result,
-            value_type: destination,
+            value_type,
             value_parameters: function.parameters.iter().map(|_| None).collect(),
             bounds,
             projected_parameters: function.parameters.clone(),
@@ -4470,15 +4596,34 @@ fn collect_projected_destinations(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
-        collect_projected_destinations(
-            package,
-            unit,
-            callee,
-            None,
-            function_return,
-            unit_index,
-            pending,
-        )?;
+        if let Some(receiver) = callee.children.first()
+            && let Some(selected) = pending
+                .iter()
+                .rev()
+                .find(|selected| selected.span == node.span)
+            && let Some(destination) =
+                borrowed_receiver_destination(package, unit, receiver, &selected.substitutions)
+        {
+            collect_projected_destinations(
+                package,
+                unit,
+                receiver,
+                Some(&destination),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        } else {
+            collect_projected_destinations(
+                package,
+                unit,
+                callee,
+                None,
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
         let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
             Ok(Some(
                 ValueType::Function(parameters, _, _)
@@ -4527,6 +4672,54 @@ fn collect_projected_destinations(
 }
 
 type DestinationProjectionError = std::borrow::Cow<'static, str>;
+
+fn borrowed_receiver_destination(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut receiver: &SyntaxNode,
+    substitutions: &BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+) -> Option<ValueType> {
+    while receiver.kind == SyntaxKind::GroupExpression {
+        receiver = receiver.children.first()?;
+    }
+    let function = projected_function_for_call(package, unit, receiver.children.first()?)?;
+    let crate::rust_interop::projection::ProjectedType::InvocationScoped { owned, .. } =
+        &function.result
+    else {
+        return None;
+    };
+    let projected = substitutions
+        .iter()
+        .fold(owned.as_ref().clone(), |result, (name, selected)| {
+            substitute_projected_generic(&result, name, selected)
+        });
+    closed_projected_value_type(package, &projected)
+}
+
+fn closed_projected_value_type(
+    package: &SemanticPackage,
+    projected: &crate::rust_interop::projection::ProjectedType,
+) -> Option<ValueType> {
+    use crate::rust_interop::projection::ProjectedType;
+    Some(match projected {
+        ProjectedType::Optional(inner) => {
+            ValueType::Optional(Box::new(closed_projected_value_type(package, inner)?))
+        }
+        ProjectedType::Foreign { rust_path, .. } => {
+            let (namespace, name) = package.projection.owner_for_projected_type(projected)?;
+            ValueType::Object(
+                ObjectIdentity::new(namespace, name).with_native_projection(rust_path.clone()),
+            )
+        }
+        ProjectedType::String | ProjectedType::BorrowedString => {
+            ValueType::Scalar(ScalarType::String)
+        }
+        ProjectedType::Bool => ValueType::Scalar(ScalarType::Bool),
+        ProjectedType::Int => ValueType::Scalar(ScalarType::Int),
+        ProjectedType::FixedInt(name) => ValueType::Scalar(ScalarType::from_source_name(name)?),
+        _ => return None,
+    })
+}
 
 #[expect(
     clippy::too_many_lines,
@@ -4612,11 +4805,13 @@ pub(crate) fn destination_projected_type(
             concrete: true,
             family,
             lifetimes,
+            expression_scoped,
             ..
         } => ProjectedType::InvocationScoped {
             rust_type: rust_type.clone(),
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
@@ -4631,11 +4826,13 @@ pub(crate) fn destination_projected_type(
             concrete: false,
             family,
             lifetimes,
+            expression_scoped,
             ..
         } => ProjectedType::InvocationScoped {
             rust_type: rust_type.clone(),
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
@@ -4851,6 +5048,14 @@ fn select_projected_generic_destinations(
     ) -> Result<bool, String> {
         use crate::rust_interop::projection::ProjectedType;
         match (template, expected) {
+            (
+                ProjectedType::InvocationScoped {
+                    owned,
+                    expression_scoped: true,
+                    ..
+                },
+                expected,
+            ) => collect(owned, parameters, expected, destinations),
             (ProjectedType::Generic(name), expected) if parameters.contains(name) => {
                 if let Some(previous) = destinations.get(name) {
                     return if previous == expected {

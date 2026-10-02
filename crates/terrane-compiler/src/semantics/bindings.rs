@@ -1792,36 +1792,20 @@ fn projected_chain_role(
     let [callee, _] = node.children.as_slice() else {
         return None;
     };
-    if callee.kind == SyntaxKind::Name {
-        let symbol =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
-        let crate::rust_interop::projection::ProjectedKind::Function(function) = &package
-            .projection
-            .item(&symbol.namespace, &symbol.name)?
-            .kind
-        else {
-            return None;
-        };
-        return function.chain_role;
-    }
-    let [receiver, member] = callee.children.as_slice() else {
-        return None;
-    };
-    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
-        .ok()
-        .flatten()
-    else {
-        return None;
-    };
-    package
-        .projection
-        .method(
-            &identity.namespace,
-            &identity.name,
-            node_text(&unit.source, member),
-            false,
+    let function = projected_function_for_call(package, unit, callee)?;
+    function.chain_role.or_else(|| {
+        let receiver = callee.children.first()?;
+        matches!(
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten(),
+            Some(ValueType::InvocationScopedNative {
+                expression_scoped: true,
+                ..
+            })
         )
-        .and_then(|method| method.chain_role)
+        .then_some(crate::rust_interop::projection::ChainRole::Terminal)
+    })
 }
 
 fn collect_chain_receivers(
@@ -1830,6 +1814,29 @@ fn collect_chain_receivers(
     node: &SyntaxNode,
     receivers: &mut BTreeSet<(u32, usize, usize)>,
 ) {
+    if node.kind == SyntaxKind::Block {
+        for statement in &node.children {
+            let mut value = statement;
+            while value.kind == SyntaxKind::GroupExpression
+                && let [inner] = value.children.as_slice()
+            {
+                value = inner;
+            }
+            if value.kind == SyntaxKind::CallExpression
+                && matches!(
+                    infer_value_type(unit, value, &unit.typed_bindings)
+                        .ok()
+                        .flatten(),
+                    Some(ValueType::InvocationScopedNative {
+                        expression_scoped: true,
+                        ..
+                    })
+                )
+            {
+                receivers.insert(span_key(value.span));
+            }
+        }
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, _] = node.children.as_slice()
         && callee.kind == SyntaxKind::MemberExpression
@@ -1908,12 +1915,18 @@ pub(super) fn projected_function_for_call<'a>(
         let receiver_type = infer_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
             .flatten()?;
-        let (ValueType::Object(identity)
-        | ValueType::InvocationScopedNative {
-            family: identity, ..
-        }) = receiver_type
-        else {
-            return None;
+        let identity = match receiver_type {
+            ValueType::Object(identity)
+            | ValueType::InvocationScopedNative {
+                family: identity, ..
+            } => identity,
+            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                let ValueType::Object(identity) = inner.value_type() else {
+                    return None;
+                };
+                identity
+            }
+            _ => return None,
         };
         (identity, false)
     };
@@ -1930,11 +1943,16 @@ pub(super) fn projected_function_for_call<'a>(
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum InvocationScopedRegion {
     Unbound,
+    Expression,
     Bound((u32, usize, usize)),
 }
 
 fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRegion> {
     match value_type {
+        ValueType::InvocationScopedNative {
+            expression_scoped: true,
+            ..
+        } => Some(InvocationScopedRegion::Expression),
         ValueType::InvocationScopedNative { region, .. } => Some(region.map_or(
             InvocationScopedRegion::Unbound,
             InvocationScopedRegion::Bound,
@@ -2247,6 +2265,7 @@ fn validate_invocation_scoped_node(
         });
         if matches!(region, InvocationScopedRegion::Bound(region) if local_region != Some(region))
             || (region == InvocationScopedRegion::Unbound && !region_local_function)
+            || region == InvocationScopedRegion::Expression
         {
             return Err(failure(
                 &unit.source,

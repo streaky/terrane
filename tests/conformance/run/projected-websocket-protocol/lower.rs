@@ -1,5 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: consuming_callable.rs, async_native.rs, executor_parallel.rs, async_dependency.rs, tasks_native_parallel.rs, time_inactive.rs
+// Runtime support: async_native.rs, executor_parallel.rs, async_dependency.rs, tasks_native_parallel.rs, time_inactive.rs, consuming_callable.rs
 // Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;

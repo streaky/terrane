@@ -338,7 +338,7 @@ pub(super) fn projected_field_abi_type(
 ) -> String {
     use crate::rust_interop::projection::ProjectedType;
     match ty {
-        ProjectedType::String => "String".to_owned(),
+        ProjectedType::String | ProjectedType::BorrowedString => "String".to_owned(),
         ProjectedType::Bool => "bool".to_owned(),
         ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
         ProjectedType::Float => "f64".to_owned(),
@@ -937,6 +937,9 @@ pub(super) fn projected_result_expression(
         }
         crate::rust_interop::projection::ProjectedType::RustInt(_) => {
             format!("terrane_int_support::Int::from({value} as i128)")
+        }
+        crate::rust_interop::projection::ProjectedType::BorrowedString => {
+            format!("{value}.to_owned()")
         }
         crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {

@@ -501,7 +501,10 @@ fn infer_member_type(
         && let Some(resolved_family) = unit
             .descriptors
             .iter()
-            .find(|descriptor| descriptor.identity.name == family.name)
+            .find(|descriptor| {
+                descriptor.identity.namespace == family.namespace
+                    && descriptor.identity.name == family.name
+            })
             .map(|descriptor| &descriptor.identity)
         && let Some(member_type) = object_member_type(unit, resolved_family, member_name, false)
     {

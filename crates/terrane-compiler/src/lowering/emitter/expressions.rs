@@ -42,11 +42,17 @@ fn callable_adapter_parameters(
     (closure_parameters, names.join(", "), tuple_names)
 }
 
-fn callable_constructor(mode: InvocationMode) -> &'static str {
+fn callable_constructor(registry: &LoweringRegistry, mode: InvocationMode) -> &'static str {
     match mode {
         InvocationMode::Shared => "std::sync::Arc::new",
-        InvocationMode::Mutable => "TerraneMutableCallable::new",
-        InvocationMode::Consuming => "TerraneConsumingCallable::new",
+        InvocationMode::Mutable => {
+            registry.uses_mutable_callable.set(true);
+            "TerraneMutableCallable::new"
+        }
+        InvocationMode::Consuming => {
+            registry.uses_consuming_callable.set(true);
+            "TerraneConsumingCallable::new"
+        }
     }
 }
 
@@ -787,7 +793,7 @@ impl Emitter<'_> {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(expected_mode);
+                let constructor = callable_constructor(self.registry, expected_mode);
                 let send = if transferability == TaskTransferability::Local {
                     ""
                 } else {
@@ -863,7 +869,7 @@ impl Emitter<'_> {
                 });
                 let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(expected_mode);
+                let constructor = callable_constructor(self.registry, expected_mode);
                 let send = if transferability == TaskTransferability::Local {
                     ""
                 } else {
@@ -943,7 +949,7 @@ impl Emitter<'_> {
                 let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>();
-                let constructor = callable_constructor(expected_mode);
+                let constructor = callable_constructor(self.registry, expected_mode);
                 let mutable = if actual_mode == InvocationMode::Mutable {
                     "mut "
                 } else {
@@ -994,7 +1000,7 @@ impl Emitter<'_> {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(expected_mode);
+                let constructor = callable_constructor(self.registry, expected_mode);
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
                 let (actual_mode, value_requires_throwing_abi) = match &actual {
@@ -1067,7 +1073,7 @@ impl Emitter<'_> {
                 } else {
                     let (declarations, arguments, tuple_arguments) =
                         callable_adapter_parameters(self.package, &parameters, expected_mode);
-                    let constructor = callable_constructor(expected_mode);
+                    let constructor = callable_constructor(self.registry, expected_mode);
                     let capture = if actual_mode == InvocationMode::Consuming {
                         callable
                     } else {
@@ -1111,7 +1117,7 @@ impl Emitter<'_> {
                 } else {
                     let (declarations, arguments, tuple_arguments) =
                         callable_adapter_parameters(self.package, &parameters, expected_mode);
-                    let constructor = callable_constructor(expected_mode);
+                    let constructor = callable_constructor(self.registry, expected_mode);
                     let capture = if actual_mode == InvocationMode::Consuming {
                         callable
                     } else {

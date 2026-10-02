@@ -821,10 +821,18 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
         let object_identity = if callee.kind == SyntaxKind::StaticMemberExpression {
             class_designator_identity(unit, receiver)?
         } else {
-            let ValueType::Object(object_identity) = unit.inferred_value_type(receiver)? else {
-                return None;
-            };
-            object_identity
+            match unit.inferred_value_type(receiver)? {
+                ValueType::Object(identity) => identity,
+                ValueType::InvocationScopedNative {
+                    mut family,
+                    expression_scoped: true,
+                    ..
+                } => {
+                    family.native_projection = None;
+                    family
+                }
+                _ => return None,
+            }
         };
         return method_contract_with_safety(
             package,

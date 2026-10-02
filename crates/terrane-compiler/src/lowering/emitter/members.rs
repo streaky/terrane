@@ -220,6 +220,43 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn native_receiver_expression(
+        &mut self,
+        receiver: &SyntaxNode,
+        mutable: bool,
+    ) -> String {
+        if let [holder, member] = receiver.children.as_slice()
+            && receiver.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
+            && let Some(crate::rust_interop::projection::ProjectedItem {
+                kind: crate::rust_interop::projection::ProjectedKind::ForeignType { fields, .. },
+                ..
+            }) = self
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+            && let Some(field) = fields.iter().find(|field| field.name == self.text(member))
+        {
+            let field = field.rust_name.clone();
+            let holder = self.native_receiver_expression(holder, mutable);
+            return format!("({holder}).{field}");
+        }
+        if receiver.kind == SyntaxKind::Name
+            && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
+            && self.reference_backed_name(receiver).is_none()
+        {
+            if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
+                let access = if mutable { "as_mut" } else { "as_ref" };
+                return format!(
+                    "{}.{access}().expect(\"semantic optional narrowing\")",
+                    self.raw_storage_name(receiver)
+                );
+            }
+            return self.raw_storage_name(receiver);
+        }
+        self.receiver_guard_expression(receiver)
+    }
+
     pub(super) fn mutable_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
             return format!(

@@ -879,6 +879,8 @@ fn stable_projection_history(path: &Path) -> serde_json::Value {
     object.remove("cache_identity");
     object.remove("content_hash");
     object.remove("projection_schema");
+    // Cache hits and local regeneration must expose the same reviewed API.
+    object.remove("resolution");
     history
 }
 

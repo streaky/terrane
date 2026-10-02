@@ -646,6 +646,12 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
             }
         }
 
+        ProjectedType::InvocationScoped { owned, name, .. } => {
+            if name == "borrowed-option" {
+                foreign.insert("std::option::Option".to_owned(), name.clone());
+            }
+            collect_foreign_type(owned, foreign);
+        }
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
@@ -1033,6 +1039,18 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             .get(rust_path)
             .cloned()
             .unwrap_or_else(|| name.clone()),
+        ProjectedType::InvocationScoped {
+            owned,
+            name,
+            expression_scoped: true,
+            ..
+        } => {
+            if matches!(owned.as_ref(), ProjectedType::Optional(_)) {
+                name.clone()
+            } else {
+                projected_type_name(owned, foreign_aliases)
+            }
+        }
         ProjectedType::InvocationScoped { .. } => "host-invocation-scoped-native".to_owned(),
         ProjectedType::BoxedInterface {
             trait_path,

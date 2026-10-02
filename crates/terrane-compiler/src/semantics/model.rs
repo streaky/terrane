@@ -540,6 +540,7 @@ pub enum ValueType {
         concrete: bool,
         family: ObjectIdentity,
         lifetimes: Vec<String>,
+        expression_scoped: bool,
         region: Option<(u32, usize, usize)>,
     },
     ChannelPair(ElementType),

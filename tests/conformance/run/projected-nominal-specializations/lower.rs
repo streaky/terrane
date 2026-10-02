@@ -462,9 +462,13 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 1] = [
+    pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:33) */
         { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 33 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:15-8:26) */
+        { Site { function: 0, file: 0, line: 8, column: 15, end_line: 8, end_column: 26 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:9:13-9:27) */
+        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 27 } },
     ];
     #[cold]
     #[inline(never)]
@@ -485,8 +489,28 @@ fn main() {
         terrane_static_trn_506f696e74_new(3.4_f32, 4.6_f32),
         0 /* terrane-site: src/main.trn:7:13-7:33 */,
     );
-    let snapped: Point<u32> = point.snap();
-    println!("{}", terrane_scalar_support::scalar_text(&snapped.total()));
+    let snapped: Point<u32> = __terrane_raised(
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| point.snap())) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "terrane_point_witness",
+                        "terrane_point_witness::Point<f32>::snap",
+                    ),
+                )
+            }
+        },
+        1 /* terrane-site: src/main.trn:8:15-8:26 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | snapped.total())) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload)
+        => Err(crate ::__terrane_dependency_panic(payload, "terrane_point_witness",
+        "terrane_point_witness::Point<f32>::total")) }, 2 /* terrane-site: src/main.trn:9:13-9:27 */))
+    );
 }
 // Source: <terrane>/projected/deps/terrane-point-witness.trn
 // Namespace: deps/terrane-point-witness

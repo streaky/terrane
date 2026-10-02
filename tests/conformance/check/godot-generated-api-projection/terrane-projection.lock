@@ -31035,12 +31035,21 @@
           "IoError.into",
           "RpcError",
           "StringError",
-          "StringError.into"
+          "StringError.into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/godot/meta/error/strat": [
           "Unexpected",
+          "Unexpected.downcast_ref",
           "Unexpected.into",
-          "Unexpected::new"
+          "Unexpected::new",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/godot/meta/inspect": [
           "ElementScript",

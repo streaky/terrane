@@ -1,0 +1,10 @@
+namespace app
+from /deps/witness import BorrowingDefault
+
+class Item implements BorrowingDefault
+    function label string;
+        return 'owned'
+
+function main;
+    item = instance Item;
+    print; (item.label;)

@@ -587,8 +587,18 @@ impl Emitter<'_> {
         let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
             (self.class_designator(receiver)?.identity.clone(), true)
         } else {
-            let ValueType::Object(identity) = self.value_type(receiver)? else {
-                return None;
+            let identity = match self.value_type(receiver)? {
+                ValueType::Object(identity)
+                | ValueType::InvocationScopedNative {
+                    family: identity, ..
+                } => identity,
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    let ValueType::Object(identity) = item.value_type() else {
+                        return None;
+                    };
+                    identity
+                }
+                _ => return None,
             };
             (identity, false)
         };
@@ -614,13 +624,20 @@ impl Emitter<'_> {
                 self.class_designator(receiver)
             } else {
                 self.receiver_value_type(receiver).and_then(|value_type| {
-                    let ValueType::Object(identity) = value_type else {
-                        return None;
+                    let identity = match value_type {
+                        ValueType::Object(identity) => identity,
+                        ValueType::InvocationScopedNative {
+                            family,
+                            expression_scoped: true,
+                            ..
+                        } => family,
+                        _ => return None,
                     };
-                    self.unit
-                        .descriptors
-                        .iter()
-                        .find(|object| object.identity == identity)
+                    self.unit.descriptors.iter().find(|object| {
+                        object.identity.namespace == identity.namespace
+                            && object.identity.name == identity.name
+                            && object.identity.application == identity.application
+                    })
                 })
             }?;
             return effective_object_methods(self.unit, object)

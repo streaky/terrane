@@ -1215,7 +1215,11 @@ pub(super) fn infer_value_type(
                     .cloned()
                     .or_else(|| contract.return_type.clone())
                     .unwrap_or(ValueType::Scalar(ScalarType::None));
-                if let ValueType::InvocationScopedNative { region, .. } = &mut result_type
+                if let ValueType::InvocationScopedNative {
+                    region,
+                    expression_scoped: false,
+                    ..
+                } = &mut result_type
                     && let Some(Some(function_span)) =
                         unit.enclosing_function_spans.get(&node.span.start)
                 {

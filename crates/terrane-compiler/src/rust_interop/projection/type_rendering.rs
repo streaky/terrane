@@ -64,6 +64,8 @@ pub(super) fn canonicalize_rust_path(path: &str) -> String {
         "core::ops::function::Fn" => "std::ops::Fn".to_owned(),
         "core::ops::function::FnMut" => "std::ops::FnMut".to_owned(),
         "core::ops::function::FnOnce" => "std::ops::FnOnce".to_owned(),
+        "core::ops::deref::Deref" | "core::ops::Deref" => "std::ops::Deref".to_owned(),
+        "core::ops::deref::DerefMut" | "core::ops::DerefMut" => "std::ops::DerefMut".to_owned(),
         "core::str::traits::FromStr" | "std::str::traits::FromStr" => {
             "std::str::FromStr".to_owned()
         }

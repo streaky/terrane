@@ -1989,7 +1989,28 @@ impl<'a> Emitter<'a> {
                 self.output.push_str(", ");
             }
             let binding_type = parameter.binding_value_type();
+            let native_mutable_reference = self
+                .registry
+                .mutable_native_callback_parameters
+                .borrow()
+                .contains(&(
+                    (contract.span.file, contract.span.start, contract.span.end),
+                    index,
+                ));
             let ty = match (&binding_type, reference_lender == Some(index)) {
+                (Some(ValueType::Reference(item)), _) if native_mutable_reference => {
+                    format!(
+                        "&{}mut {}",
+                        if reference_lender == Some(index) {
+                            "'a "
+                        } else if scoped_lifetime == Some("'view") {
+                            "'view "
+                        } else {
+                            ""
+                        },
+                        rust_element_type(self.package, item.clone()),
+                    )
+                }
                 (Some(ValueType::Reference(item)), true) => {
                     format!("&'a {}", rust_element_type(self.package, item.clone()))
                 }
@@ -2001,7 +2022,11 @@ impl<'a> Emitter<'a> {
                     |value_type| rust_value_type(self.package, value_type),
                 ),
             };
-            let mutable = if parameter.mutable { "mut " } else { "" };
+            let mutable = if parameter.mutable && !native_mutable_reference {
+                "mut "
+            } else {
+                ""
+            };
             write!(self.output, "{mutable}{}: {ty}", rust_name(&parameter.name)).unwrap();
         }
         self.output.push(')');
@@ -2235,8 +2260,14 @@ impl<'a> Emitter<'a> {
             };
         let constructor = match contract.written_invocation_mode {
             InvocationMode::Shared => "std::sync::Arc::new",
-            InvocationMode::Mutable => "TerraneMutableCallable::new",
-            InvocationMode::Consuming => "TerraneConsumingCallable::new",
+            InvocationMode::Mutable => {
+                self.registry.uses_mutable_callable.set(true);
+                "TerraneMutableCallable::new"
+            }
+            InvocationMode::Consuming => {
+                self.registry.uses_consuming_callable.set(true);
+                "TerraneConsumingCallable::new"
+            }
         };
         let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
             parameters

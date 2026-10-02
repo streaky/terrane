@@ -21,6 +21,65 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
 }
 
 impl Emitter<'_> {
+    fn borrowed_native_callback_adapter(
+        &self,
+        value: &SyntaxNode,
+        projected: &crate::rust_interop::projection::ProjectedType,
+    ) -> Option<String> {
+        let crate::rust_interop::projection::ProjectedType::Callback {
+            parameters,
+            parameter_rust_types,
+            parameter_borrows,
+            result,
+            retained: false,
+            is_async: false,
+            ..
+        } = projected
+        else {
+            return None;
+        };
+        if value.kind != SyntaxKind::Name
+            || !parameter_borrows.iter().any(|borrowed| *borrowed)
+            || matches!(
+                result.as_ref(),
+                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+            )
+            || parameter_rust_types.iter().any(|ty| ty.contains('\''))
+        {
+            return None;
+        }
+        let contract = self.contract_for_call(value)?;
+        let function = function_name(self.package, contract);
+        let declarations = parameter_rust_types
+            .iter()
+            .enumerate()
+            .map(|(index, _)| format!("borrowed_argument_{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let arguments = parameters
+            .iter()
+            .enumerate()
+            .map(|(index, ty)| {
+                projected_callback_input_expression(
+                    &format!("borrowed_argument_{index}"),
+                    ty,
+                    &parameter_rust_types[index],
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let call = format!("{function}({arguments})");
+        let call = if self.contract_requires_throwing_abi(contract, false) {
+            format!("{call}.map_err(crate::TerraneForeignError)?")
+        } else {
+            call
+        };
+        let result = projected_callback_output_expression("callback_value", result);
+        Some(format!(
+            "move |{declarations}| {{ match (|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {call}; Ok({result}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }} }}"
+        ))
+    }
+
     fn invocation_scoped_callback_adapter(
         &mut self,
         value: &SyntaxNode,
@@ -1603,6 +1662,13 @@ impl Emitter<'_> {
                             &projected,
                             specialization.map(|specialization| &specialization.substitutions),
                         )
+                    })
+                    .or_else(|| {
+                        projected_parameter
+                            .map(|parameter| parameter.ty.clone())
+                            .and_then(|projected| {
+                                self.borrowed_native_callback_adapter(value, &projected)
+                            })
                     });
                 let has_invocation_callback = invocation_callback.is_some();
                 let expression = if let Some(expression) = invocation_callback {
@@ -1881,15 +1947,31 @@ impl Emitter<'_> {
         {
             let receiver = match projected.receiver {
                 Some(crate::rust_interop::projection::Receiver::Borrow) => {
-                    format!("&{}", self.receiver_guard_expression(receiver))
+                    format!("&{}", self.native_receiver_expression(receiver, false))
                 }
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
-                    format!("&mut {}", self.mutable_receiver_expression(receiver))
+                    format!("&mut {}", self.native_receiver_expression(receiver, true))
                 }
                 _ => self.receiver_expression(receiver),
             };
             native_member_receiver = Some(receiver);
             native_path.clone()
+        } else if let [receiver, _member] = callee.children.as_slice()
+            && let Some(projected) = projected_function.as_ref()
+            && matches!(
+                self.value_type(receiver),
+                Some(ValueType::InvocationScopedNative {
+                    expression_scoped: true,
+                    ..
+                })
+            )
+        {
+            let mutable = matches!(
+                projected.receiver,
+                Some(crate::rust_interop::projection::Receiver::MutableBorrow)
+            );
+            let receiver = self.native_receiver_expression(receiver, mutable);
+            format!("({receiver}).{}", projected.name)
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -1922,7 +2004,13 @@ impl Emitter<'_> {
                             | crate::rust_interop::projection::Receiver::MutableBorrow
                     )
                 ) {
-                self.receiver_guard_expression(receiver)
+                self.native_receiver_expression(
+                    receiver,
+                    matches!(
+                        projected_receiver,
+                        Some(crate::rust_interop::projection::Receiver::MutableBorrow)
+                    ),
+                )
             } else {
                 self.receiver_expression(receiver)
             };
@@ -1952,7 +2040,18 @@ impl Emitter<'_> {
         };
         let native_path_generics = projected_function
             .as_ref()
-            .and_then(|projected| projected.native_path.as_ref().map(|path| (projected, path)))
+            .and_then(|projected| {
+                projected
+                    .native_path
+                    .as_ref()
+                    .or_else(|| {
+                        projected
+                            .native_owner
+                            .as_ref()
+                            .filter(|owner| owner.contains('<'))
+                    })
+                    .map(|path| (projected, path))
+            })
             .map_or_else(Vec::new, |(projected, path)| {
                 projected
                     .generic_parameters
@@ -2211,6 +2310,7 @@ impl Emitter<'_> {
                             };
                             Some(identity.clone())
                         }
+                        ValueType::InvocationScopedNative { family, .. } => Some(family),
                         _ => None,
                     })?;
                 if projected_interface_dispatch {
@@ -2316,6 +2416,7 @@ impl Emitter<'_> {
                     .map(|object| object.identity.clone())
                     .or_else(|| match self.value_type(receiver)? {
                         ValueType::Object(identity) => Some(identity),
+                        ValueType::InvocationScopedNative { family, .. } => Some(family),
                         ValueType::Reference(item) | ValueType::SharedReference(item) => {
                             let ValueType::Object(identity) = item.value_type() else {
                                 return None;

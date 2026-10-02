@@ -204,6 +204,72 @@ fn lower_with_tests(
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
+    for unit in &package.units {
+        let emitter = Emitter::new(&registry, package, unit, false);
+        for ((file, start, end), specialization) in &unit.projected_call_specializations {
+            let Some(call) = find_node_by_span(
+                &unit.tree.root,
+                crate::Span {
+                    file: *file,
+                    start: *start,
+                    end: *end,
+                },
+            ) else {
+                continue;
+            };
+            for (argument, parameter) in call
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::ArgumentList)
+                .flat_map(|arguments| &arguments.children)
+                .map(|argument| argument.children.last().unwrap_or(argument))
+                .zip(&specialization.projected_parameters)
+            {
+                let crate::rust_interop::projection::ProjectedType::Callback {
+                    parameter_rust_types,
+                    ..
+                } = &parameter.ty
+                else {
+                    continue;
+                };
+                if argument.kind != SyntaxKind::Name {
+                    continue;
+                }
+                let Some(contract) = emitter.contract_for_call(argument) else {
+                    continue;
+                };
+                let contract = package
+                    .units
+                    .iter()
+                    .filter(|owner| owner.source.id() == contract.span.file)
+                    .flat_map(|owner| &owner.functions)
+                    .find(|function| function.span == contract.span)
+                    .unwrap_or(contract);
+                for (index, (parameter, rust_type)) in contract
+                    .parameters
+                    .iter()
+                    .zip(parameter_rust_types)
+                    .enumerate()
+                {
+                    if parameter.mutable
+                        && matches!(
+                            parameter.binding_value_type(),
+                            Some(ValueType::Reference(_))
+                        )
+                        && matches!(syn::parse_str::<syn::Type>(rust_type), Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
+                    {
+                        registry
+                            .mutable_native_callback_parameters
+                            .borrow_mut()
+                            .insert((
+                                (contract.span.file, contract.span.start, contract.span.end),
+                                index,
+                            ));
+                    }
+                }
+            }
+        }
+    }
     let uses_errors = tests.is_some()
         || package_uses_structured_errors(package)
         || package_uses_task_scope(package);
@@ -227,28 +293,34 @@ fn lower_with_tests(
             .iter()
             .flat_map(|unit| &unit.functions)
             .any(|function| function.name == "main" && function.is_async);
-    let package_has_callable = |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
-        package.units.iter().any(|unit| {
-            unit.typed_bindings
+    let package_has_callable =
+        |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
+            package
+                .units
                 .iter()
-                .any(|binding| value_type_contains_callable(&binding.value_type, &predicate))
-                || unit.descriptors.iter().any(|descriptor| {
-                    descriptor
-                        .fields
-                        .iter()
-                        .any(|field| value_type_contains_callable(&field.value_type, &predicate))
-                })
-                || unit.functions.iter().any(|function| {
-                    function.parameters.iter().any(|parameter| {
-                        parameter.value_type.as_ref().is_some_and(|value_type| {
-                            value_type_contains_callable(value_type, &predicate)
+                .filter(|unit| unit.namespace != "/deps" && !unit.namespace.starts_with("/deps/"))
+                .any(|unit| {
+                    unit.typed_bindings.iter().any(|binding| {
+                        value_type_contains_callable(&binding.value_type, &predicate)
+                    }) || unit.descriptors.iter().any(|descriptor| {
+                        descriptor.fields.iter().any(|field| {
+                            value_type_contains_callable(&field.value_type, &predicate)
                         })
-                    }) || function.return_type.as_ref().is_some_and(|value_type| {
-                        value_type_contains_callable(value_type, &predicate)
-                    })
+                    }) || unit
+                        .functions
+                        .iter()
+                        .filter(|function| function.span.file == unit.source.id())
+                        .any(|function| {
+                            function.parameters.iter().any(|parameter| {
+                                parameter.value_type.as_ref().is_some_and(|value_type| {
+                                    value_type_contains_callable(value_type, &predicate)
+                                })
+                            }) || function.return_type.as_ref().is_some_and(|value_type| {
+                                value_type_contains_callable(value_type, &predicate)
+                            })
+                        })
                 })
-        })
-    };
+        };
     let has_mutable_callables =
         package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Mutable);
     let has_consuming_callables =
@@ -308,15 +380,6 @@ fn lower_with_tests(
             source_files: vec!["async_mutable_state.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/async_mutable_state.rs"
-            ))],
-        });
-    }
-    if has_consuming_callables {
-        runtime.push(GeneratedModule {
-            name: "consuming-callable",
-            source_files: vec!["consuming_callable.rs"],
-            items: vec![Item::generated(include_str!(
-                "../../runtime/consuming_callable.rs"
             ))],
         });
     }
@@ -750,6 +813,24 @@ fn lower_with_tests(
             })
         })
         .collect::<Result<Vec<_>, LoweringFailure>>()?;
+    if !has_mutable_callables && registry.uses_mutable_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "mutable-callable",
+            source_files: vec!["mutable_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/mutable_callable.rs"
+            ))],
+        });
+    }
+    if has_consuming_callables || registry.uses_consuming_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "consuming-callable",
+            source_files: vec!["consuming_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/consuming_callable.rs"
+            ))],
+        });
+    }
     if let Some(tests) = tests {
         modules.push(Module {
             source_path: "<compiler-generated test registry>".to_owned(),

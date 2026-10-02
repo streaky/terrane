@@ -216,7 +216,11 @@
           "WebSocketUpgrade.set_selected_protocol",
           "WebSocketUpgrade.try_into",
           "WebSocketUpgrade.vzip",
-          "WebSocketUpgrade.write_buffer_size"
+          "WebSocketUpgrade.write_buffer_size",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/extract/path": [
           "ErrorKind",
@@ -451,7 +455,11 @@
           "WebSocket.recv",
           "WebSocket.send",
           "WebSocket.try_into",
-          "WebSocket.vzip"
+          "WebSocket.vzip",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/extract/ws/message/trait/core/convert/from-axum/extract/ws/message": [
           "from"
@@ -591,7 +599,11 @@
           "Extensions.clear",
           "Extensions.clone",
           "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
           "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
           "Extensions.insert",
           "Extensions.into",
           "Extensions.is_empty",
@@ -718,7 +730,11 @@
           "Version.into",
           "Version.partial_cmp",
           "Version.try_into",
-          "Version::default"
+          "Version::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/error/trait/core/convert/from-axum/http/header/invalidheadername": [
           "from"
@@ -903,7 +919,11 @@
           "Parts",
           "Parts.clone",
           "Parts.into",
-          "Parts.try_into"
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/response": [
           "Builder",
@@ -923,7 +943,11 @@
           "Parts",
           "Parts.clone",
           "Parts.into",
-          "Parts.try_into"
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/status": [
           "InvalidStatusCode",
@@ -1005,7 +1029,11 @@
           "Scheme.into",
           "Scheme.try_into",
           "Scheme::from_str",
-          "Scheme::try_from"
+          "Scheme::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/uri/authority/trait/core/cmp/partialeq": [
           "eq"
@@ -1362,7 +1390,27 @@
           "DefaultBodyLimit.try_into",
           "DefaultBodyLimit::disable",
           "DefaultBodyLimit::max",
-          "Request"
+          "Request",
+          "Request.body",
+          "Request.body_mut",
+          "Request.clone",
+          "Request.extensions",
+          "Request.extensions_mut",
+          "Request.headers",
+          "Request.headers_mut",
+          "Request.into",
+          "Request.into_body",
+          "Request.map",
+          "Request.method",
+          "Request.method_mut",
+          "Request.try_into",
+          "Request.uri",
+          "Request.uri_mut",
+          "Request.version",
+          "Request.version_mut",
+          "Request::default",
+          "Request::from_parts",
+          "Request::new"
         ],
         "/deps/axum-core/extract/private": [
           "ViaParts",
@@ -1408,6 +1456,24 @@
           "ErrorResponse.into",
           "ErrorResponse.try_into",
           "Response",
+          "Response.body",
+          "Response.body_mut",
+          "Response.clone",
+          "Response.extensions",
+          "Response.extensions_mut",
+          "Response.headers",
+          "Response.headers_mut",
+          "Response.into",
+          "Response.into_body",
+          "Response.map",
+          "Response.status",
+          "Response.status_mut",
+          "Response.try_into",
+          "Response.version",
+          "Response.version_mut",
+          "Response::default",
+          "Response::from_parts",
+          "Response::new",
           "ResponseParts",
           "ResponseParts.extensions",
           "ResponseParts.extensions_mut",
@@ -1627,7 +1693,11 @@
           "Extensions.clear",
           "Extensions.clone",
           "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
           "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
           "Extensions.insert",
           "Extensions.into",
           "Extensions.is_empty",
@@ -1750,7 +1820,11 @@
           "Version.into",
           "Version.partial_cmp",
           "Version.try_into",
-          "Version::default"
+          "Version::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
           "from"
@@ -1935,7 +2009,11 @@
           "Parts",
           "Parts.clone",
           "Parts.into",
-          "Parts.try_into"
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/response": [
           "Builder",
@@ -1955,7 +2033,11 @@
           "Parts",
           "Parts.clone",
           "Parts.into",
-          "Parts.try_into"
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/status": [
           "InvalidStatusCode",
@@ -2037,7 +2119,11 @@
           "Scheme.into",
           "Scheme.try_into",
           "Scheme::from_str",
-          "Scheme::try_from"
+          "Scheme::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/uri/authority/trait/core/cmp/partialeq": [
           "eq"
@@ -2453,7 +2539,11 @@
           "UCred.into",
           "UCred.pid",
           "UCred.try_into",
-          "UCred.uid"
+          "UCred.uid",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/tokio/net/unix/pipe": [
           "OpenOptions",
@@ -2590,6 +2680,10 @@
           "TryCurrentError.is_missing_context",
           "TryCurrentError.is_thread_local_destroyed",
           "TryCurrentError.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
           "is_rt_shutdown_err"
         ],
         "/deps/tokio/sync": [

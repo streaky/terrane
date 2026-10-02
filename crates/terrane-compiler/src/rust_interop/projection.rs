@@ -18,6 +18,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{InvocationMode, RustDependency};
 
+mod aliases;
+mod borrowed_graph;
 mod cache_identity;
 mod callable;
 use cache_identity::cache_identity;
@@ -68,7 +70,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "212";
+const PROJECTION_SCHEMA: &str = "226";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -596,6 +598,7 @@ pub enum ProjectedType {
     Float32,
     Char,
     String,
+    BorrowedString,
     Bytes,
     Sequence {
         rust_path: String,
@@ -627,6 +630,8 @@ pub enum ProjectedType {
         rust_type: String,
         name: String,
         lifetimes: Vec<String>,
+        #[serde(default)]
+        expression_scoped: bool,
         owned: Box<ProjectedType>,
     },
     BoxedInterface {
@@ -704,6 +709,7 @@ impl ProjectedType {
             Self::Float32 => "f32".to_owned(),
             Self::Char => "char".to_owned(),
             Self::String => "String".to_owned(),
+            Self::BorrowedString => "&str".to_owned(),
             Self::Bytes => "Vec<u8>".to_owned(),
             Self::Sequence { rust_path, .. }
             | Self::Mapping { rust_path, .. }
@@ -862,7 +868,7 @@ impl ProjectedType {
             .to_owned(),
             Self::Float => "float64".to_owned(),
             Self::Float32 => "float32".to_owned(),
-            Self::Char | Self::String => "string".to_owned(),
+            Self::Char | Self::String | Self::BorrowedString => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
             Self::BoxedInterface { name, .. }
             | Self::Foreign { name, .. }
@@ -920,6 +926,28 @@ impl ProjectedType {
             }
             Self::AsyncSinkOutcome => "async-sink-outcome".to_owned(),
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
+        }
+    }
+
+    pub(crate) fn contains_borrowed_result(&self) -> bool {
+        match self {
+            Self::BorrowedString
+            | Self::InvocationScoped {
+                expression_scoped: true,
+                ..
+            } => true,
+            Self::Optional(inner)
+            | Self::Sequence { item: inner, .. }
+            | Self::Set { item: inner, .. }
+            | Self::AsyncIterationStep(inner) => inner.contains_borrowed_result(),
+            Self::Tuple(items)
+            | Self::Foreign {
+                arguments: items, ..
+            } => items.iter().any(Self::contains_borrowed_result),
+            Self::Mapping { key, value, .. } => {
+                key.contains_borrowed_result() || value.contains_borrowed_result()
+            }
+            _ => false,
         }
     }
 }
@@ -1690,11 +1718,24 @@ impl Projection {
                 .find(|function| function.name == member)?,
             _ => return None,
         };
+        let result = match &function.result {
+            ProjectedType::InvocationScoped {
+                owned,
+                expression_scoped: true,
+                ..
+            } => {
+                if matches!(owned.as_ref(), ProjectedType::Optional(_)) {
+                    return self.borrowed_scope_owner(owned);
+                }
+                owned.as_ref()
+            }
+            result => result,
+        };
         let ProjectedType::Foreign {
             rust_path,
             base_rust_path,
             ..
-        } = &function.result
+        } = result
         else {
             return None;
         };
@@ -1825,6 +1866,17 @@ impl Projection {
             .iter()
             .flat_map(|dependency| &dependency.items)
             .find(|item| projected_owner_path_matches(&item.rust_path, owner))
+            .map(|item| (item.namespace.clone(), item.name.clone()))
+    }
+
+    pub(crate) fn borrowed_scope_owner(&self, owned: &ProjectedType) -> Option<(String, String)> {
+        if !matches!(owned, ProjectedType::Optional(_)) {
+            return self.owner_for_projected_type(owned);
+        }
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| item.name == "borrowed-option" && item.rust_path == "std::option::Option")
             .map(|item| (item.namespace.clone(), item.name.clone()))
     }
 
@@ -2457,6 +2509,15 @@ pub fn resolve(
         }
     }
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
+    aliases::project_closed_alias_members(
+        &mut projected,
+        &rustdocs,
+        &reexport_rustdocs,
+        &declared_public_paths,
+    );
+    for dependency in &mut projected {
+        borrowed_graph::add_optional_owners(&mut dependency.items);
+    }
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
     for dependency in dependencies {
@@ -3675,7 +3736,9 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
         }
         ProjectedType::InvocationScoped { name, owned, .. } => {
             canonicalize_projected_type_name(owned, names);
-            *name = owned.terrane_name();
+            if !matches!(owned.as_ref(), ProjectedType::Optional(_)) {
+                *name = owned.terrane_name();
+            }
         }
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
@@ -4968,6 +5031,7 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
         | ProjectedType::Float32
         | ProjectedType::Char
         | ProjectedType::String
+        | ProjectedType::BorrowedString
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
         | ProjectedType::Associated(_) => {}
@@ -5289,6 +5353,17 @@ fn project_interface_inner(
             }
             Err(reason) => return Err(format!("trait member `{name}`: {reason}")),
         };
+        if !provided
+            && function
+                .sig
+                .output
+                .as_ref()
+                .is_some_and(type_contains_borrowed_ref)
+        {
+            return Err(format!(
+                "trait member `{name}`: required borrowed results cannot be implemented by an owned source result"
+            ));
+        }
         if !provided && projected.error.is_some() {
             return Err(format!(
                 "trait member `{name}`: required Result-returning methods are deferred"
@@ -6494,6 +6569,7 @@ fn project_rustdoc(
                         rust_type,
                         name: candidate_result.terrane_name(),
                         lifetimes,
+                        expression_scoped: false,
                         owned: Box::new(candidate_result.clone()),
                     };
                 }
@@ -7135,6 +7211,7 @@ fn project_rustdoc(
         }
     }
     items.extend(enum_payload_items);
+    borrowed_graph::add_optional_owners(&mut items);
     projected_associated_items.sort_by(|left, right| {
         (&left.namespace, &left.name, &left.rust_path).cmp(&(
             &right.namespace,
@@ -7358,13 +7435,19 @@ fn project_methods(
             continue;
         }
         let inherent = implementation.trait_.is_none();
-        let native_owner = render_rust_type(&implementation.for_, index, paths, owner_generics)
-            .unwrap_or_else(|_| owner_rust_path.to_owned());
+        let native_owner = if matches!(implementation.for_, Type::Generic(_))
+            && implementation.blanket_impl.is_some()
+        {
+            owner_rust_path.to_owned()
+        } else {
+            render_rust_type(&implementation.for_, index, paths, owner_generics)
+                .unwrap_or_else(|_| owner_rust_path.to_owned())
+        };
         let mut implementation_generics = owner_generics.clone();
         if let Some(Type::Generic(generic)) = &implementation.blanket_impl
-            && let Ok(owner) = project_type(&implementation.for_, index, paths, owner_generics)
+            && let Some(owner) = owner_generics.get("Self")
         {
-            implementation_generics.insert(generic.clone(), owner);
+            implementation_generics.insert(generic.clone(), owner.clone());
         }
         for item_id in &implementation.items {
             let Some(Item {
@@ -7965,13 +8048,19 @@ fn project_function_inner(
         generic_monomorphisations(function, index, paths, supplied_generics)
             .map_err(|reason| format!("generic selection: {reason}"))?
     };
-    if destination_result.is_some()
-        && function.sig.output.as_ref().is_some_and(|output| {
-            render_rust_type(output, index, paths, &generic_types)
-                .is_ok_and(|rendered| rendered.contains('&'))
-        })
+    let borrows_input = function
+        .sig
+        .inputs
+        .iter()
+        .any(|(_, ty)| matches!(ty, Type::BorrowedRef { .. }));
+    if function
+        .sig
+        .output
+        .as_ref()
+        .is_some_and(type_contains_borrowed_ref)
+        && !borrows_input
     {
-        return Err("borrowed result values cannot cross a projected boundary".to_owned());
+        return Err("borrowed result values require an invocation-scoped lender".to_owned());
     }
     let mut parameters: Vec<ProjectedParameter> = Vec::new();
     let mut receiver = None;
@@ -8299,6 +8388,9 @@ fn project_function_inner(
     let mut error = None;
     let mut error_optional_depth = 0;
     let project_output = |ty: &Type| {
+        if type_contains_borrowed_ref(ty) {
+            return project_borrowed_graph_type(ty, index, paths, &output_generic_types);
+        }
         if allow_lifetime_output && type_contains_lifetime_argument(ty) {
             project_invocation_scoped_type(ty, index, paths, &output_generic_types)
         } else {
@@ -8315,7 +8407,15 @@ fn project_function_inner(
                 .ok_or_else(|| "Result has no value type".to_owned())?;
             let projected = project_output(value)
                 .map_err(|reason| format!("projected result value: {reason}"))?;
-            if projected.rust_type().contains('&') {
+            if projected.rust_type().contains('&')
+                && !matches!(
+                    projected,
+                    ProjectedType::InvocationScoped {
+                        expression_scoped: true,
+                        ..
+                    } | ProjectedType::BorrowedString
+                )
+            {
                 return Err("borrowed result values cannot cross a projected boundary".to_owned());
             }
             error = arguments
@@ -8323,6 +8423,8 @@ fn project_function_inner(
                 .and_then(|ty| projected_error_name(ty, output, paths))
                 .or_else(|| Some("Error".to_owned()));
             projected
+        } else if type_contains_borrowed_ref(output) {
+            project_output(output)?
         } else if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Option") || name == "Option")
         {
@@ -8481,6 +8583,14 @@ fn project_function_inner(
             _ => None,
         })
         .collect();
+    let chain_role = matches!(
+        &result,
+        ProjectedType::InvocationScoped {
+            expression_scoped: true,
+            ..
+        }
+    )
+    .then_some(ChainRole::Root);
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,
@@ -8503,7 +8613,7 @@ fn project_function_inner(
         ),
         enum_operation: None,
         error_optional_depth,
-        chain_role: None,
+        chain_role,
         receiver,
     })
 }
@@ -8693,6 +8803,47 @@ fn structural_impl_trait_input(
     }
 }
 
+fn project_borrowed_graph_type(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    let projected = project_type(ty, index, paths, generics)?;
+    if matches!(projected, ProjectedType::String) {
+        return Ok(ProjectedType::BorrowedString);
+    }
+    let rust_type = if let Type::BorrowedRef {
+        type_,
+        lifetime,
+        is_mutable,
+    } = ty
+        && matches!(type_.as_ref(), Type::QualifiedPath { .. })
+    {
+        format!(
+            "&{}{}{}",
+            lifetime
+                .as_ref()
+                .map_or(String::new(), |lifetime| format!("{lifetime} ")),
+            if *is_mutable { "mut " } else { "" },
+            projected.rust_type()
+        )
+    } else {
+        render_rust_type(ty, index, paths, generics)?
+    };
+    Ok(ProjectedType::InvocationScoped {
+        name: if matches!(projected, ProjectedType::Optional(_)) {
+            "borrowed-option".to_owned()
+        } else {
+            projected.terrane_name()
+        },
+        lifetimes: rust_lifetimes(&rust_type),
+        rust_type,
+        expression_scoped: true,
+        owned: Box::new(projected),
+    })
+}
+
 fn project_invocation_scoped_type(
     ty: &Type,
     index: &HashMap<Id, Item>,
@@ -8719,6 +8870,7 @@ fn project_invocation_scoped_type(
         name: projected.terrane_name(),
         rust_type,
         lifetimes,
+        expression_scoped: false,
         owned: Box::new(projected),
     })
 }
