@@ -4,6 +4,8 @@
       "members": {
         "/deps/async-witness": [
           "ValidationError",
+          "ValidationError.into",
+          "ValidationError.try_into",
           "checked_echo",
           "echo_after_yield",
           "operation_drop_count",

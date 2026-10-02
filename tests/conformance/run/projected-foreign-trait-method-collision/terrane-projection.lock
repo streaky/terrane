@@ -9,17 +9,17 @@
       "members": {
         "/deps/terrane-trait-collision-impls": [
           "First",
+          "First.into",
+          "First.transform",
+          "First.try_into",
           "First.value",
           "Second",
+          "Second.into",
+          "Second.transform",
+          "Second.try_into",
           "Second.value",
           "first",
           "second"
-        ],
-        "/deps/terrane-trait-collision-impls/first": [
-          "transform"
-        ],
-        "/deps/terrane-trait-collision-impls/second": [
-          "transform"
         ]
       },
       "name": "terrane-trait-collision-impls",

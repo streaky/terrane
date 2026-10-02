@@ -5,6 +5,9 @@
         "/deps/terrane-core-witness": [
           "IpAddr",
           "Ipv4Addr",
+          "Ipv4Addr.clone",
+          "Ipv4Addr.cmp",
+          "Ipv4Addr.into",
           "Ipv4Addr.is_benchmarking",
           "Ipv4Addr.is_broadcast",
           "Ipv4Addr.is_documentation",
@@ -19,14 +22,15 @@
           "Ipv4Addr.to_bits",
           "Ipv4Addr.to_ipv6_compatible",
           "Ipv4Addr.to_ipv6_mapped",
+          "Ipv4Addr.try_into",
+          "Ipv4Addr::backward_checked",
+          "Ipv4Addr::backward_unchecked",
+          "Ipv4Addr::forward_checked",
+          "Ipv4Addr::forward_unchecked",
           "Ipv4Addr::from_bits",
+          "Ipv4Addr::from_str",
           "Ipv4Addr::new",
           "is_loopback"
-        ],
-        "/deps/terrane-core-witness/ipaddr": [
-          "clone",
-          "cmp",
-          "from_str"
         ],
         "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq": [
           "eq"
@@ -51,15 +55,6 @@
         ],
         "/deps/terrane-core-witness/ipaddr/trait/core/convert/from-terrane-core-witness/ipv4addr": [
           "from"
-        ],
-        "/deps/terrane-core-witness/ipv4addr": [
-          "backward_checked",
-          "backward_unchecked",
-          "clone",
-          "cmp",
-          "forward_checked",
-          "forward_unchecked",
-          "from_str"
         ],
         "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq": [
           "eq"

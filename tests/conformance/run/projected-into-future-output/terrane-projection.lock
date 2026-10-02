@@ -4,6 +4,8 @@
       "members": {
         "/deps/terrane-into-future-witness": [
           "ReadyResult",
+          "ReadyResult.into",
+          "ReadyResult.try_into",
           "construction_count",
           "conversion_count",
           "ready_result",

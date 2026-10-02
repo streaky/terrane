@@ -463,16 +463,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 5] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:14-7:40) */
-        { Site { function: 0, file: 0, line: 7, column: 14, end_line: 7, end_column: 40 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:17-8:38) */
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:14-6:40) */
+        { Site { function: 0, file: 0, line: 6, column: 14, end_line: 6, end_column: 40 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:17-7:38) */
+        { Site { function: 0, file: 0, line: 7, column: 17, end_line: 7, end_column: 38 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:17-8:38) */
         { Site { function: 0, file: 0, line: 8, column: 17, end_line: 8, end_column: 38 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:9:17-9:38) */
-        { Site { function: 0, file: 0, line: 9, column: 17, end_line: 9, end_column: 38 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:10:12-10:27) */
-        { Site { function: 0, file: 0, line: 10, column: 12, end_line: 10, end_column: 27 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:11:10-11:23) */
-        { Site { function: 0, file: 0, line: 11, column: 10, end_line: 11, end_column: 23 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:9:12-9:27) */
+        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 27 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:10:10-10:23) */
+        { Site { function: 0, file: 0, line: 10, column: 10, end_line: 10, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]
@@ -493,17 +493,32 @@ fn main() {
         terrane_static_trn_42797465734d7574_with_capacity(
             terrane_int_support::Int::from(8_i128),
         ),
-        0 /* terrane-site: src/main.trn:7:14-7:40 */,
+        0 /* terrane-site: src/main.trn:6:14-6:40 */,
     );
     let remaining: terrane_int_support::Int = __terrane_raised(
-        remaining_mut(&buffer),
-        1 /* terrane-site: src/main.trn:8:17-8:38 */,
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
+                &buffer,
+            )),
+        ) {
+            Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "bytes",
+                        "bytes::BytesMut::remaining_mut",
+                    ),
+                )
+            }
+        },
+        1 /* terrane-site: src/main.trn:7:17-7:38 */,
     );
     let candidate: Option<Number> = __terrane_raised(
         terrane_static_trn_4e756d626572_from_u128(
             terrane_int_support::Int::from(42_i128),
         ),
-        2 /* terrane-site: src/main.trn:9:17-9:38 */,
+        2 /* terrane-site: src/main.trn:8:17-8:38 */,
     );
     let data: Category = __terrane_raised(
         match std::panic::catch_unwind(
@@ -520,7 +535,7 @@ fn main() {
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:10:12-10:27 */,
+        3 /* terrane-site: src/main.trn:9:12-9:27 */,
     );
     let io: Category = __terrane_raised(
         match std::panic::catch_unwind(
@@ -537,7 +552,7 @@ fn main() {
                 )
             }
         },
-        4 /* terrane-site: src/main.trn:11:10-11:23 */,
+        4 /* terrane-site: src/main.trn:10:10-10:23 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
@@ -564,28 +579,6 @@ pub fn terrane_static_trn_42797465734d7574_with_capacity(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(crate::__terrane_dependency_panic(payload, "bytes", "bytes::BytesMut"))
-        }
-    }
-}
-// Source: <terrane>/projected/deps/bytes/bytesmut.trn
-// Namespace: deps/bytes/bytesmut
-pub fn remaining_mut(
-    receiver: &BytesMut,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
-            receiver,
-        )),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "bytes",
-                    "<bytes::BytesMut as bytes::BufMut>::remaining_mut",
-                ),
-            )
         }
     }
 }

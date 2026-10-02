@@ -1,13 +1,11 @@
 namespace app
 
 from /deps/terrane-trait-collision-impls import first, second
-from /deps/terrane-trait-collision-impls/first import transform as transform_first
-from /deps/terrane-trait-collision-impls/second import transform as transform_second
 from /core/output import print
 
 function main;
     first = first; 1
     second = second; 2
-    first_value int = transform_first; first, 11
-    second_value int = transform_second; second, 22
+    first_value int = first.transform; 11
+    second_value int = second.transform; 22
     print; first_value, ' ', second_value

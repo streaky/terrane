@@ -4,6 +4,8 @@
       "members": {
         "/deps/witness": [
           "BadWidget",
+          "BadWidget.into",
+          "BadWidget.try_into",
           "bad_widget",
           "render_scoped"
         ]

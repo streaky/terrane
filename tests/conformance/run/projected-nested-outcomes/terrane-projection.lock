@@ -4,8 +4,10 @@
       "members": {
         "/deps/terrane-nested-outcome-witness": [
           "Channel",
+          "Channel.into",
           "Channel.next",
           "Channel.outer",
+          "Channel.try_into",
           "Channel::new",
           "Fault",
           "channel"

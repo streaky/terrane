@@ -4,10 +4,10 @@
       "members": {
         "/deps/witness": [
           "NonSend",
+          "NonSend.clone",
+          "NonSend.into",
+          "NonSend.try_into",
           "make_non_send"
-        ],
-        "/deps/witness/nonsend": [
-          "clone"
         ]
       },
       "name": "witness",

@@ -4,8 +4,10 @@
       "members": {
         "/deps/terrane-point-witness": [
           "Point",
+          "Point.into",
           "Point.snap",
           "Point.total",
+          "Point.try_into",
           "Point::new"
         ]
       },

@@ -4,6 +4,8 @@
       "members": {
         "/deps/terrane-reexport-facade-witness": [
           "GeneratedValue",
+          "GeneratedValue.into",
+          "GeneratedValue.try_into",
           "GeneratedValue.value",
           "GeneratedValue::standard"
         ]
@@ -15,6 +17,8 @@
       "members": {
         "/deps/terrane-reexport-owner-witness": [
           "GeneratedValue",
+          "GeneratedValue.into",
+          "GeneratedValue.try_into",
           "GeneratedValue.value",
           "GeneratedValue::standard"
         ]

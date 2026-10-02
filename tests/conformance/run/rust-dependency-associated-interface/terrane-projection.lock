@@ -5,6 +5,9 @@
         "/deps/terrane-associated-witness": [
           "NamedSequence",
           "Nested",
+          "Nested.clone",
+          "Nested.into",
+          "Nested.try_into",
           "Nested.value",
           "Sequence",
           "erased_total",
@@ -12,9 +15,6 @@
           "named_total",
           "nested_total",
           "sequence_total"
-        ],
-        "/deps/terrane-associated-witness/nested": [
-          "clone"
         ]
       },
       "name": "terrane-associated-witness",

@@ -18,6 +18,8 @@
         "/deps/terrane-generic-row-witness": [
           "Row",
           "Row.decoded",
+          "Row.into",
+          "Row.try_into",
           "row"
         ]
       },

@@ -4,19 +4,19 @@
       "members": {
         "/deps/date-codec": [
           "Error",
+          "Error.into",
+          "Error.try_into",
+          "Error::from",
           "HttpDate",
+          "HttpDate.clone",
+          "HttpDate.cmp",
+          "HttpDate.eq",
+          "HttpDate.into",
+          "HttpDate.partial_cmp",
+          "HttpDate.try_into",
+          "HttpDate::from_str",
           "fmt_http_date",
           "parse_http_date"
-        ],
-        "/deps/date-codec/error": [
-          "from"
-        ],
-        "/deps/date-codec/httpdate": [
-          "clone",
-          "cmp",
-          "eq",
-          "from_str",
-          "partial_cmp"
         ],
         "/deps/date-codec/httpdate/trait/core/convert/from-httpdate/httpdate": [
           "from"

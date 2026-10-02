@@ -5,6 +5,8 @@
         "/deps/terrane-borrowed-struct-witness": [
           "Descriptor",
           "Owned",
+          "Owned.into",
+          "Owned.try_into",
           "consume",
           "summarize",
           "summarize_owned"

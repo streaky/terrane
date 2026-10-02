@@ -463,14 +463,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 4] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:9:13-9:21) */
-        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 21 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:10:14-10:23) */
-        { Site { function: 0, file: 0, line: 10, column: 14, end_line: 10, end_column: 23 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:11:23-11:49) */
-        { Site { function: 0, file: 0, line: 11, column: 23, end_line: 11, end_column: 49 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:12:24-12:52) */
-        { Site { function: 0, file: 0, line: 12, column: 24, end_line: 12, end_column: 52 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:21) */
+        { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 21 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:14-8:23) */
+        { Site { function: 0, file: 0, line: 8, column: 14, end_line: 8, end_column: 23 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:9:23-9:42) */
+        { Site { function: 0, file: 0, line: 9, column: 23, end_line: 9, end_column: 42 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:10:24-10:44) */
+        { Site { function: 0, file: 0, line: 10, column: 24, end_line: 10, end_column: 44 } },
     ];
     #[cold]
     #[inline(never)]
@@ -489,25 +489,75 @@ mod __terrane_trace {
 fn main() {
     let first: First = __terrane_raised(
         first(terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: src/main.trn:9:13-9:21 */,
+        0 /* terrane-site: src/main.trn:7:13-7:21 */,
     );
     let second: Second = __terrane_raised(
         second(terrane_int_support::Int::from(2_i128)),
-        1 /* terrane-site: src/main.trn:10:14-10:23 */,
+        1 /* terrane-site: src/main.trn:8:14-8:23 */,
     );
     let first_value: terrane_int_support::Int = __terrane_raised(
-        transform_terrane_deps_terrane_trait_collision_impls_first(
-            &first,
-            terrane_int_support::Int::from(11_i128),
-        ),
-        2 /* terrane-site: src/main.trn:11:23-11:49 */,
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| <terrane_trait_collision_impls::First as terrane_trait_collision_contract::ops::Transform>::transform(
+                &first,
+                match || -> Result<_, crate::TerraneForeignError> {
+                    Ok(
+                        terrane_int_support::coerce::<
+                            i64,
+                        >(&terrane_int_support::Int::from(11_i128))
+                            .map_err(|error| crate::TerraneForeignError(
+                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                            ))?,
+                    )
+                }() {
+                    Ok(value) => value,
+                    Err(error) => std::panic::panic_any(error),
+                },
+            )),
+        ) {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "terrane_trait_collision_impls",
+                        "terrane_trait_collision_impls::First::transform",
+                    ),
+                )
+            }
+        },
+        2 /* terrane-site: src/main.trn:9:23-9:42 */,
     );
     let second_value: terrane_int_support::Int = __terrane_raised(
-        transform_terrane_deps_terrane_trait_collision_impls_second(
-            &second,
-            terrane_int_support::Int::from(22_i128),
-        ),
-        3 /* terrane-site: src/main.trn:12:24-12:52 */,
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| <terrane_trait_collision_impls::Second as terrane_trait_collision_contract::ops::Transform>::transform(
+                &second,
+                match || -> Result<_, crate::TerraneForeignError> {
+                    Ok(
+                        terrane_int_support::coerce::<
+                            i64,
+                        >(&terrane_int_support::Int::from(22_i128))
+                            .map_err(|error| crate::TerraneForeignError(
+                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                            ))?,
+                    )
+                }() {
+                    Ok(value) => value,
+                    Err(error) => std::panic::panic_any(error),
+                },
+            )),
+        ) {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "terrane_trait_collision_impls",
+                        "terrane_trait_collision_impls::Second::transform",
+                    ),
+                )
+            }
+        },
+        3 /* terrane-site: src/main.trn:10:24-10:44 */,
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&first_value),
@@ -558,62 +608,6 @@ pub fn second(
                     payload,
                     "terrane-trait-collision-impls",
                     "terrane_trait_collision_impls::second",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/terrane-trait-collision-impls/first.trn
-// Namespace: deps/terrane-trait-collision-impls/first
-pub fn transform_terrane_deps_terrane_trait_collision_impls_first(
-    receiver: &First,
-    value: terrane_int_support::Int,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = terrane_int_support::coerce::<i64>(&value)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| <terrane_trait_collision_impls::First as terrane_trait_collision_contract::ops::Transform>::transform(
-            receiver,
-            value,
-        )),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-trait-collision-impls",
-                    "<terrane_trait_collision_impls::First as terrane_trait_collision_contract::ops::Transform>::transform",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/terrane-trait-collision-impls/second.trn
-// Namespace: deps/terrane-trait-collision-impls/second
-pub fn transform_terrane_deps_terrane_trait_collision_impls_second(
-    receiver: &Second,
-    value: terrane_int_support::Int,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = terrane_int_support::coerce::<i64>(&value)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| <terrane_trait_collision_impls::Second as terrane_trait_collision_contract::ops::Transform>::transform(
-            receiver,
-            value,
-        )),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-trait-collision-impls",
-                    "<terrane_trait_collision_impls::Second as terrane_trait_collision_contract::ops::Transform>::transform",
                 ),
             )
         }

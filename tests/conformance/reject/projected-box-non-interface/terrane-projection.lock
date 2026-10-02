@@ -7,13 +7,15 @@
           "DropWorker",
           "LocalWorker",
           "NonSend",
+          "NonSend.clone",
+          "NonSend.into",
+          "NonSend.try_into",
           "UniqueToken",
+          "UniqueToken.into",
+          "UniqueToken.try_into",
           "non_send",
           "retain_local",
           "unique_token"
-        ],
-        "/deps/terrane-boundary-reject-witness/nonsend": [
-          "clone"
         ]
       },
       "name": "terrane-boundary-reject-witness",

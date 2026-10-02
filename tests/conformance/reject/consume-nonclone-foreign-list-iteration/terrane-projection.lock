@@ -4,6 +4,8 @@
       "members": {
         "/deps/terrane-nonclone-list-witness": [
           "Row",
+          "Row.into",
+          "Row.try_into",
           "Row.value",
           "rows"
         ]

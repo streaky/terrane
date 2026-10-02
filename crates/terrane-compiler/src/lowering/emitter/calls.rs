@@ -1807,6 +1807,7 @@ impl Emitter<'_> {
                     .map_or(owner, |object| object.name.as_str()),
             )
         });
+        let mut native_member_receiver = None;
         let name = if callee.kind == SyntaxKind::ConstructionExpression {
             callee
                 .children
@@ -1830,11 +1831,15 @@ impl Emitter<'_> {
                     .item(&object.identity.namespace, &object.identity.name)
                 && let Some(projected) = self.projected_function_for_call(callee)
             {
-                format!(
-                    "{}::{}",
-                    crate::lowering::dependencies::rust_value_path(&item.rust_path),
-                    rust_name(&projected.name)
-                )
+                projected.native_path.clone().unwrap_or_else(|| {
+                    format!(
+                        "{}::{}",
+                        crate::lowering::dependencies::rust_value_path(
+                            projected.native_owner.as_deref().unwrap_or(&item.rust_path),
+                        ),
+                        rust_name(&projected.name)
+                    )
+                })
             } else if let Some(owner) = projected_static_owner {
                 crate::lowering::dependencies::projected_static_shim_name(owner, self.text(member))
             } else {
@@ -1870,6 +1875,21 @@ impl Emitter<'_> {
                 self.expression(receiver),
                 rust_name(self.text(member))
             )
+        } else if let [receiver, _member] = callee.children.as_slice()
+            && let Some(projected) = projected_function.as_ref()
+            && let Some(native_path) = &projected.native_path
+        {
+            let receiver = match projected.receiver {
+                Some(crate::rust_interop::projection::Receiver::Borrow) => {
+                    format!("&{}", self.receiver_guard_expression(receiver))
+                }
+                Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
+                    format!("&mut {}", self.mutable_receiver_expression(receiver))
+                }
+                _ => self.receiver_expression(receiver),
+            };
+            native_member_receiver = Some(receiver);
+            native_path.clone()
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -1930,6 +1950,34 @@ impl Emitter<'_> {
         } else {
             self.expression(callee)
         };
+        let native_path_generics = projected_function
+            .as_ref()
+            .and_then(|projected| projected.native_path.as_ref().map(|path| (projected, path)))
+            .map_or_else(Vec::new, |(projected, path)| {
+                projected
+                    .generic_parameters
+                    .iter()
+                    .filter(|parameter| {
+                        path.split(|character: char| {
+                            !(character.is_alphanumeric() || character == '_')
+                        })
+                        .any(|segment| segment == parameter.name)
+                    })
+                    .map(|parameter| parameter.name.clone())
+                    .collect()
+            });
+        let name = if let Some(specialization) = specialization
+            && !native_path_generics.is_empty()
+        {
+            let replacements = specialization
+                .substitutions
+                .iter()
+                .map(|(name, projected)| (name.clone(), projected.rust_type()))
+                .collect();
+            crate::rust_ir::instantiate_rust_generics(&name, &replacements)
+        } else {
+            name
+        };
         // Projected specialization records attach only to free/static paths or projected
         // member access. Each branch above ends in a callable Rust path/member segment, so an
         // explicit turbofish is syntactically valid here; arbitrary callee expressions never
@@ -1953,7 +2001,14 @@ impl Emitter<'_> {
             let mut generic_arguments = specialization
                 .generic_arguments
                 .iter()
-                .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                .enumerate()
+                .filter(|(index, _)| {
+                    projected_function
+                        .as_ref()
+                        .and_then(|projected| projected.generic_parameters.get(*index))
+                        .is_none_or(|parameter| !native_path_generics.contains(&parameter.name))
+                })
+                .map(|(_, argument)| argument.rust_type())
                 .collect::<Vec<_>>();
             if let Some(projected) = projected_function.as_ref() {
                 for (argument, template) in generic_arguments
@@ -2007,10 +2062,17 @@ impl Emitter<'_> {
                     }
                 }
             }
-            format!("{name}::<{}>", generic_arguments.join(", "))
+            if generic_arguments.is_empty() {
+                name
+            } else {
+                format!("{name}::<{}>", generic_arguments.join(", "))
+            }
         } else {
             name
         };
+        if let Some(receiver) = native_member_receiver {
+            values.insert(0, receiver);
+        }
         let callable_mode =
             self.value_type(callee)
                 .and_then(|value_type| match value_type {

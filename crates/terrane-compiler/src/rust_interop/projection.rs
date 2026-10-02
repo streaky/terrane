@@ -68,7 +68,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "201";
+const PROJECTION_SCHEMA: &str = "212";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -484,6 +484,8 @@ pub struct ProjectedBoundaryCapabilities {
 pub struct ProjectedFunction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_owner: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_path: Option<String>,
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2015,9 +2017,13 @@ impl Projection {
         self.item(namespace, name).is_some_and(|item| {
             matches!(
                 &item.kind,
-                ProjectedKind::ForeignType { methods, .. }
-                    if methods.iter().any(|method| {
-                        method.is_async || matches!(method.receiver, Some(Receiver::Move))
+                ProjectedKind::ForeignType {
+                    methods, cloneable, ..
+                } if !cloneable
+                    && methods.iter().any(|method| {
+                        method.is_async
+                            || (matches!(method.receiver, Some(Receiver::Move))
+                                && method.native_path.is_none())
                     })
             )
         })
@@ -5464,6 +5470,60 @@ fn trait_operation_docs(rust_path: &str, docs: Option<&str>) -> String {
     docs.map_or(provenance.clone(), |docs| format!("{provenance}\n\n{docs}"))
 }
 
+fn attach_unique_trait_operation(
+    items: &mut [ProjectedItem],
+    operation: &ProjectedTraitOperation,
+    primary_counts: &BTreeMap<(String, String), usize>,
+) -> bool {
+    let key = (
+        operation.item.namespace.clone(),
+        operation.item.name.clone(),
+    );
+    if primary_counts.get(&key).copied().unwrap_or_default() != 1 {
+        return false;
+    }
+    let ProjectedKind::Function(function) = &operation.item.kind else {
+        return false;
+    };
+    let Some((methods, static_methods)) = items.iter_mut().find_map(|item| {
+        if owner_trait_namespace(&item.namespace, &item.name) != operation.item.namespace {
+            return None;
+        }
+        match &mut item.kind {
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+                ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
+            } => Some((methods, static_methods)),
+            _ => None,
+        }
+    }) else {
+        return false;
+    };
+    let candidates = if function.receiver.is_some() {
+        methods
+    } else {
+        static_methods
+    };
+    if candidates
+        .iter()
+        .any(|candidate| candidate.name == function.name)
+    {
+        return false;
+    }
+    let mut function = function.clone();
+    if function.native_path.is_none() {
+        function.native_path = Some(operation.item.rust_path.clone());
+    }
+    candidates.push(function);
+    true
+}
+
 fn merge_projected_trait_operations(
     items: &mut Vec<ProjectedItem>,
     declined: &mut Vec<DeclinedItem>,
@@ -5482,6 +5542,14 @@ fn merge_projected_trait_operations(
             ))
             .or_insert(0usize) += 1;
     }
+    let mut remaining = Vec::new();
+    for operation in operations {
+        if attach_unique_trait_operation(items, &operation, &primary_counts) {
+            continue;
+        }
+        remaining.push(operation);
+    }
+    let operations = remaining;
     let (primary, mut fallback): (Vec<_>, Vec<_>) = operations.into_iter().partition(|operation| {
         let key = (
             operation.item.namespace.clone(),
@@ -5497,6 +5565,34 @@ fn merge_projected_trait_operations(
         items.push(operation.item);
     }
     for operation in &mut fallback {
+        if let ProjectedKind::Function(function) = &mut operation.item.kind
+            && let Some(receiver) = function.receiver.take()
+            && let Some(owner) = function.native_owner.as_deref()
+        {
+            let base_rust_path = owner.split_once('<').map_or(owner, |(base, _)| base);
+            function.parameters.insert(
+                0,
+                ProjectedParameter {
+                    name: "receiver".to_owned(),
+                    ty: ProjectedType::Foreign {
+                        rust_path: owner.to_owned(),
+                        name: base_rust_path
+                            .rsplit("::")
+                            .next()
+                            .unwrap_or(base_rust_path)
+                            .to_owned(),
+                        base_rust_path: base_rust_path.to_owned(),
+                        arguments: Vec::new(),
+                    },
+                    generic_parameter: None,
+                    generic_interface: None,
+                    generic_bounds: Vec::new(),
+                    associated_type: None,
+                    borrowed: receiver != Receiver::Move,
+                    mutable_borrow: receiver == Receiver::MutableBorrow,
+                },
+            );
+        }
         operation
             .item
             .namespace
@@ -6662,22 +6758,16 @@ fn project_rustdoc(
                     };
                     let owner_generics = BTreeMap::from([("Self".to_owned(), enum_type.clone())]);
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
-                        if canonical_rust_path.starts_with("core::")
-                            || canonical_rust_path.starts_with("alloc::")
-                        {
-                            project_methods(
-                                &enumeration.impls,
-                                index,
-                                paths,
-                                public_paths,
-                                &rust_path,
-                                &owner_generics,
-                                false,
-                                &mut source_constants,
-                            )
-                        } else {
-                            (Vec::new(), Vec::new(), Vec::new(), Vec::new())
-                        };
+                        project_methods(
+                            &enumeration.impls,
+                            index,
+                            paths,
+                            public_paths,
+                            &rust_path,
+                            &owner_generics,
+                            false,
+                            &mut source_constants,
+                        );
                     let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
                         .into_iter()
                         .partition(|method| method.receiver.is_some());
@@ -6869,6 +6959,7 @@ fn project_rustdoc(
                         });
                         static_methods.push(ProjectedFunction {
                             native_owner: None,
+                            native_path: None,
                             name: variant_name.to_owned(),
                             parameters: (constructor_type != ProjectedType::None)
                                 .then(|| ProjectedParameter {
@@ -6908,6 +6999,7 @@ fn project_rustdoc(
                         {
                             methods.push(ProjectedFunction {
                                 native_owner: None,
+                                native_path: None,
                                 name: format!("into-{variant_name}"),
                                 parameters: Vec::new(),
                                 generic_parameters: Vec::new(),
@@ -6934,6 +7026,7 @@ fn project_rustdoc(
                     if data_carrying {
                         methods.push(ProjectedFunction {
                             native_owner: None,
+                            native_path: None,
                             name: "variant-name".to_owned(),
                             parameters: Vec::new(),
                             generic_parameters: Vec::new(),
@@ -7261,16 +7354,18 @@ fn project_methods(
         else {
             continue;
         };
-        if implementation.is_negative
-            || implementation.is_synthetic
-            || implementation.blanket_impl.is_some()
-        {
+        if implementation.is_negative || implementation.is_synthetic {
             continue;
         }
         let inherent = implementation.trait_.is_none();
         let native_owner = render_rust_type(&implementation.for_, index, paths, owner_generics)
             .unwrap_or_else(|_| owner_rust_path.to_owned());
         let mut implementation_generics = owner_generics.clone();
+        if let Some(Type::Generic(generic)) = &implementation.blanket_impl
+            && let Ok(owner) = project_type(&implementation.for_, index, paths, owner_generics)
+        {
+            implementation_generics.insert(generic.clone(), owner);
+        }
         for item_id in &implementation.items {
             let Some(Item {
                 name: Some(name),
@@ -7342,6 +7437,24 @@ fn project_methods(
                 ));
                 continue;
             };
+            let mut enriched_function = function.clone();
+            if implementation.blanket_impl.is_some() {
+                for parameter in &implementation.generics.params {
+                    if !enriched_function
+                        .generics
+                        .params
+                        .iter()
+                        .any(|candidate| candidate.name == parameter.name)
+                    {
+                        enriched_function.generics.params.push(parameter.clone());
+                    }
+                }
+                enriched_function
+                    .generics
+                    .where_predicates
+                    .extend(implementation.generics.where_predicates.iter().cloned());
+            }
+            let function = &enriched_function;
             if !inherent {
                 let Some(trait_) = implementation.trait_.as_ref() else {
                     continue;
@@ -7358,8 +7471,16 @@ fn project_methods(
                     .get(&trait_.id)
                     .cloned()
                     .unwrap_or_else(|| trait_path.clone());
+                let mut trait_render_generics = implementation_generics.clone();
+                for parameter in &implementation.generics.params {
+                    if matches!(parameter.kind, GenericParamDefKind::Type { .. }) {
+                        trait_render_generics
+                            .entry(parameter.name.clone())
+                            .or_insert_with(|| ProjectedType::Generic(parameter.name.clone()));
+                    }
+                }
                 let rendered_trait =
-                    render_resolved_path(trait_, index, paths, &implementation_generics)
+                    render_resolved_path(trait_, index, paths, &trait_render_generics)
                         .unwrap_or_else(|_| trait_path.clone());
                 let trait_implementation_path = rendered_trait.find('<').map_or_else(
                     || trait_path.clone(),
@@ -7376,37 +7497,30 @@ fn project_methods(
                 ) {
                     Ok(mut method) => {
                         method.native_owner = Some(native_owner.clone());
-                        if let Some(receiver) = method.receiver.take() {
-                            method.parameters.insert(
-                                0,
-                                ProjectedParameter {
-                                    name: "receiver".to_owned(),
-                                    ty: implementation_generics
-                                        .get("Self")
-                                        .cloned()
-                                        .unwrap_or_else(|| {
-                                            let base_rust_path = owner_rust_path
-                                                .split_once('<')
-                                                .map_or(owner_rust_path, |(base, _)| base);
-                                            ProjectedType::Foreign {
-                                                rust_path: owner_rust_path.to_owned(),
-                                                name: base_rust_path
-                                                    .rsplit("::")
-                                                    .next()
-                                                    .unwrap_or(base_rust_path)
-                                                    .to_owned(),
-                                                base_rust_path: base_rust_path.to_owned(),
-                                                arguments: Vec::new(),
-                                            }
-                                        }),
-                                    generic_parameter: None,
-                                    generic_interface: None,
-                                    generic_bounds: Vec::new(),
-                                    associated_type: None,
-                                    borrowed: receiver != Receiver::Move,
-                                    mutable_borrow: receiver == Receiver::MutableBorrow,
-                                },
-                            );
+                        let trait_rust_path = if local_trait {
+                            let package_root = trait_implementation_path
+                                .split("::")
+                                .next()
+                                .unwrap_or_default();
+                            let dependency_root =
+                                owner_rust_path.split("::").next().unwrap_or_default();
+                            rewrite_rust_bound_root(
+                                &trait_implementation_path,
+                                package_root,
+                                dependency_root,
+                            )
+                        } else {
+                            trait_implementation_path.replace('-', "_")
+                        };
+                        let trait_rust_path = canonicalize_rust_path(&trait_rust_path);
+                        method.native_path =
+                            Some(format!("<{owner_rust_path} as {trait_rust_path}>::{name}"));
+                        if implementation.blanket_impl.is_some()
+                            && !(method.destination_result.is_some()
+                                && method.receiver == Some(Receiver::Move)
+                                && method.parameters.is_empty())
+                        {
+                            continue;
                         }
                         trait_methods.push((
                             trait_implementation_path,
@@ -7417,7 +7531,9 @@ fn project_methods(
                         ));
                     }
                     Err(reason) => {
-                        if !is_internal_rust_protocol_method(&trait_path, name) {
+                        if implementation.blanket_impl.is_none()
+                            && !is_internal_rust_protocol_method(&trait_path, name)
+                        {
                             declined.push((name.to_owned(), reason));
                         }
                     }
@@ -8368,6 +8484,7 @@ fn project_function_inner(
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,
+        native_path: None,
         parameters,
         result,
         generic_parameters,

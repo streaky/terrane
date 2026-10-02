@@ -1650,6 +1650,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "wait".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
@@ -1691,6 +1692,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "unchecked".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
@@ -1728,6 +1730,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "builder".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),

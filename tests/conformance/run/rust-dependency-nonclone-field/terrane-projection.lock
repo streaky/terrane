@@ -4,6 +4,8 @@
       "members": {
         "/deps/terrane-nonclone-witness": [
           "NonClone",
+          "NonClone.into",
+          "NonClone.try_into",
           "NonClone.value",
           "make_non_clone"
         ]

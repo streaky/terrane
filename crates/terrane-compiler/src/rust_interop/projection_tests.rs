@@ -164,6 +164,7 @@ fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> Proj
         docs: None,
         kind: ProjectedKind::Function(ProjectedFunction {
             native_owner: None,
+            native_path: None,
             name: name.to_owned(),
             generic_parameters: Vec::new(),
             rust_generic_arguments: Vec::new(),
@@ -1082,6 +1083,7 @@ fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
                     native_owner: None,
+                    native_path: None,
                     name: "rejected_total".to_owned(),
                     generic_parameters: Vec::new(),
                     rust_generic_arguments: Vec::new(),
@@ -1551,6 +1553,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "status".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),
@@ -2005,6 +2008,7 @@ fn projection_history_retains_removed_members_across_checks() {
             displayable: false,
             methods: vec![ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "read".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),
@@ -2023,6 +2027,7 @@ fn projection_history_retains_removed_members_across_checks() {
             }],
             static_methods: vec![ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "create".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),

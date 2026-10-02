@@ -4,250 +4,250 @@
       "members": {
         "/deps/markdown": [
           "CompileOptions",
+          "CompileOptions.clone",
+          "CompileOptions.into",
+          "CompileOptions.try_into",
+          "CompileOptions::default",
           "CompileOptions::gfm",
           "Constructs",
+          "Constructs.clone",
+          "Constructs.eq",
+          "Constructs.into",
+          "Constructs.try_into",
+          "Constructs::default",
           "Constructs::gfm",
           "Constructs::mdx",
           "LineEnding",
           "MdxExpressionKind",
           "MdxSignal",
           "Options",
+          "Options.into",
+          "Options.try_into",
+          "Options::default",
           "Options::gfm",
           "ParseOptions",
+          "ParseOptions.into",
+          "ParseOptions.try_into",
+          "ParseOptions::default",
           "ParseOptions::gfm",
           "ParseOptions::mdx",
           "to_html",
           "to_html_with_options",
           "to_mdast"
         ],
-        "/deps/markdown/compileoptions": [
-          "clone",
-          "default"
-        ],
-        "/deps/markdown/constructs": [
-          "clone",
-          "default",
-          "eq"
-        ],
         "/deps/markdown/mdast": [
           "AlignKind",
           "AttributeContent",
           "AttributeValue",
           "AttributeValueExpression",
+          "AttributeValueExpression.clone",
+          "AttributeValueExpression.eq",
+          "AttributeValueExpression.into",
+          "AttributeValueExpression.try_into",
           "Blockquote",
+          "Blockquote.clone",
+          "Blockquote.eq",
+          "Blockquote.into",
+          "Blockquote.try_into",
           "Break",
+          "Break.clone",
+          "Break.eq",
+          "Break.into",
+          "Break.try_into",
           "Code",
+          "Code.clone",
+          "Code.eq",
+          "Code.into",
+          "Code.try_into",
           "Definition",
+          "Definition.clone",
+          "Definition.eq",
+          "Definition.into",
+          "Definition.try_into",
           "Delete",
+          "Delete.clone",
+          "Delete.eq",
+          "Delete.into",
+          "Delete.try_into",
           "Emphasis",
+          "Emphasis.clone",
+          "Emphasis.eq",
+          "Emphasis.into",
+          "Emphasis.try_into",
           "FootnoteDefinition",
+          "FootnoteDefinition.clone",
+          "FootnoteDefinition.eq",
+          "FootnoteDefinition.into",
+          "FootnoteDefinition.try_into",
           "FootnoteReference",
+          "FootnoteReference.clone",
+          "FootnoteReference.eq",
+          "FootnoteReference.into",
+          "FootnoteReference.try_into",
           "Heading",
+          "Heading.clone",
+          "Heading.eq",
+          "Heading.into",
+          "Heading.try_into",
           "Html",
+          "Html.clone",
+          "Html.eq",
+          "Html.into",
+          "Html.try_into",
           "Image",
+          "Image.clone",
+          "Image.eq",
+          "Image.into",
+          "Image.try_into",
           "ImageReference",
+          "ImageReference.clone",
+          "ImageReference.eq",
+          "ImageReference.into",
+          "ImageReference.try_into",
           "InlineCode",
+          "InlineCode.clone",
+          "InlineCode.eq",
+          "InlineCode.into",
+          "InlineCode.try_into",
           "InlineMath",
+          "InlineMath.clone",
+          "InlineMath.eq",
+          "InlineMath.into",
+          "InlineMath.try_into",
           "Link",
+          "Link.clone",
+          "Link.eq",
+          "Link.into",
+          "Link.try_into",
           "LinkReference",
+          "LinkReference.clone",
+          "LinkReference.eq",
+          "LinkReference.into",
+          "LinkReference.try_into",
           "List",
+          "List.clone",
+          "List.eq",
+          "List.into",
+          "List.try_into",
           "ListItem",
+          "ListItem.clone",
+          "ListItem.eq",
+          "ListItem.into",
+          "ListItem.try_into",
           "Math",
+          "Math.clone",
+          "Math.eq",
+          "Math.into",
+          "Math.try_into",
           "MdxFlowExpression",
+          "MdxFlowExpression.clone",
+          "MdxFlowExpression.eq",
+          "MdxFlowExpression.into",
+          "MdxFlowExpression.try_into",
           "MdxJsxAttribute",
+          "MdxJsxAttribute.clone",
+          "MdxJsxAttribute.eq",
+          "MdxJsxAttribute.into",
+          "MdxJsxAttribute.try_into",
           "MdxJsxExpressionAttribute",
+          "MdxJsxExpressionAttribute.clone",
+          "MdxJsxExpressionAttribute.eq",
+          "MdxJsxExpressionAttribute.into",
+          "MdxJsxExpressionAttribute.try_into",
           "MdxJsxFlowElement",
+          "MdxJsxFlowElement.clone",
+          "MdxJsxFlowElement.eq",
+          "MdxJsxFlowElement.into",
+          "MdxJsxFlowElement.try_into",
           "MdxJsxTextElement",
+          "MdxJsxTextElement.clone",
+          "MdxJsxTextElement.eq",
+          "MdxJsxTextElement.into",
+          "MdxJsxTextElement.try_into",
           "MdxTextExpression",
+          "MdxTextExpression.clone",
+          "MdxTextExpression.eq",
+          "MdxTextExpression.into",
+          "MdxTextExpression.try_into",
           "MdxjsEsm",
+          "MdxjsEsm.clone",
+          "MdxjsEsm.eq",
+          "MdxjsEsm.into",
+          "MdxjsEsm.try_into",
           "Node",
           "Paragraph",
+          "Paragraph.clone",
+          "Paragraph.eq",
+          "Paragraph.into",
+          "Paragraph.try_into",
           "ReferenceKind",
           "Root",
+          "Root.clone",
+          "Root.eq",
+          "Root.into",
+          "Root.try_into",
           "Strong",
+          "Strong.clone",
+          "Strong.eq",
+          "Strong.into",
+          "Strong.try_into",
           "Table",
+          "Table.clone",
+          "Table.eq",
+          "Table.into",
+          "Table.try_into",
           "TableCell",
+          "TableCell.clone",
+          "TableCell.eq",
+          "TableCell.into",
+          "TableCell.try_into",
           "TableRow",
+          "TableRow.clone",
+          "TableRow.eq",
+          "TableRow.into",
+          "TableRow.try_into",
           "Text",
+          "Text.clone",
+          "Text.eq",
+          "Text.into",
+          "Text.try_into",
           "ThematicBreak",
+          "ThematicBreak.clone",
+          "ThematicBreak.eq",
+          "ThematicBreak.into",
+          "ThematicBreak.try_into",
           "Toml",
-          "Yaml"
-        ],
-        "/deps/markdown/mdast/attributevalueexpression": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/blockquote": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/break": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/code": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/definition": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/delete": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/emphasis": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/footnotedefinition": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/footnotereference": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/heading": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/html": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/image": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/imagereference": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/inlinecode": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/inlinemath": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/link": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/linkreference": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/list": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/listitem": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/math": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxflowexpression": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxjsesm": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxjsxattribute": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxjsxexpressionattribute": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxjsxflowelement": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxjsxtextelement": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/mdxtextexpression": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/paragraph": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/root": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/strong": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/table": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/tablecell": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/tablerow": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/text": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/thematicbreak": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/toml": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/mdast/yaml": [
-          "clone",
-          "eq"
+          "Toml.clone",
+          "Toml.eq",
+          "Toml.into",
+          "Toml.try_into",
+          "Yaml",
+          "Yaml.clone",
+          "Yaml.eq",
+          "Yaml.into",
+          "Yaml.try_into"
         ],
         "/deps/markdown/message": [
           "Message",
+          "Message.clone",
+          "Message.eq",
+          "Message.into",
+          "Message.try_into",
           "Place"
-        ],
-        "/deps/markdown/message/message": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/options": [
-          "default"
-        ],
-        "/deps/markdown/parseoptions": [
-          "default"
         ],
         "/deps/markdown/unist": [
           "Point",
+          "Point.clone",
+          "Point.eq",
+          "Point.into",
+          "Point.try_into",
           "Point::new",
           "Position",
+          "Position.clone",
+          "Position.eq",
+          "Position.into",
+          "Position.try_into",
           "Position::new"
-        ],
-        "/deps/markdown/unist/point": [
-          "clone",
-          "eq"
-        ],
-        "/deps/markdown/unist/position": [
-          "clone",
-          "eq"
         ],
         "/deps/markdown/util/character-reference": [
           "decode_named",
@@ -259,7 +259,9 @@
         ],
         "/deps/markdown/util/location": [
           "Location",
-          "Location.to_point"
+          "Location.into",
+          "Location.to_point",
+          "Location.try_into"
         ],
         "/deps/markdown/util/sanitize-uri": [
           "sanitize"
@@ -272,10 +274,14 @@
       "members": {
         "/deps/terrane-owner-witness": [
           "DefaultOwner",
+          "DefaultOwner.into",
           "DefaultOwner.label",
+          "DefaultOwner.try_into",
           "DefaultOwner::standard",
           "PlainOwner",
+          "PlainOwner.into",
           "PlainOwner.label",
+          "PlainOwner.try_into",
           "PlainOwner::standard"
         ]
       },

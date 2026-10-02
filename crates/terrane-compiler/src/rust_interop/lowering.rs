@@ -1094,15 +1094,18 @@ pub(super) fn emit_dependency_unit(
             let Some(item) = package.projection.item(&unit.namespace, type_name) else {
                 continue;
             };
-            let crate::rust_interop::projection::ProjectedKind::ForeignType {
-                static_methods, ..
-            } = &item.kind
+            let (crate::rust_interop::projection::ProjectedKind::ForeignType {
+                static_methods,
+                ..
+            }
+            | crate::rust_interop::projection::ProjectedKind::Enum { static_methods, .. }) =
+                &item.kind
             else {
                 continue;
             };
             let Some(projected) = static_methods
                 .iter()
-                .find(|method| method.name == contract.name)
+                .find(|method| method.name == contract.name && method.enum_operation.is_none())
             else {
                 continue;
             };
@@ -1410,15 +1413,20 @@ pub(super) fn emit_dependency_unit(
         for conversion in argument_conversions {
             writeln!(output, "{conversion}").expect("writing to a string cannot fail");
         }
-        let value_path = static_owner.map_or_else(
-            || rust_value_path(&item.rust_path),
-            |_| {
-                format!(
-                    "{}::{}",
-                    rust_value_path(&item.rust_path),
-                    rust_name(&projected.name)
+        let value_path = projected.native_path.as_deref().map_or_else(
+            || {
+                static_owner.map_or_else(
+                    || rust_value_path(&item.rust_path),
+                    |_| {
+                        format!(
+                            "{}::{}",
+                            rust_value_path(&item.rust_path),
+                            rust_name(&projected.name)
+                        )
+                    },
                 )
             },
+            rust_value_path,
         );
         let call = if unit_variant {
             value_path

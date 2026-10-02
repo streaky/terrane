@@ -4,11 +4,11 @@
       "members": {
         "/deps/terrane-fake-into-future": [
           "Immediate",
+          "Immediate.into",
+          "Immediate.into_future",
+          "Immediate.try_into",
           "IntoFuture",
           "immediate"
-        ],
-        "/deps/terrane-fake-into-future/immediate": [
-          "into_future"
         ]
       },
       "name": "terrane-fake-into-future",

@@ -4,28 +4,25 @@ from /deps/sqlx-core import Error
 from /deps/sqlx-core/query import query
 from /deps/sqlx-sqlite import SqliteConnectOptions
 from /deps/sqlx-sqlite import SqliteRow
-from /deps/sqlx-sqlite/sqliteconnection import close
-from /deps/sqlx-sqlite/sqliteconnectoptions import connect
-from /deps/sqlx-sqlite/sqliterow import try_get
 from /core/output import print
 
 async function main;
   options = SqliteConnectOptions::new;
   options = options.filename; ':memory:'
   options = options.create_if_missing; true
-  connection = await connect; options
+  connection = await options.connect;
   select_sql = 'select cast(char(1,2) as blob) as body, 42 as count'
   row SqliteRow = await (query; select_sql).fetch_one; ref connection
-  body bytes = try_get; row, 'body'
+  body bytes = SqliteRow::try_get; row, 'body'
   print; body.length, body[0], body[1]
   try
-    missing bytes = try_get; row, 'missing'
+    missing bytes = SqliteRow::try_get; row, 'missing'
     print; missing.length
   catch Error as failure
     print; failure.message
   try
-    incompatible bytes = try_get; row, 'count'
+    incompatible bytes = SqliteRow::try_get; row, 'count'
     print; incompatible.length
   catch Error as failure
     print; failure.message
-  await (close; move connection)
+  await connection.close;

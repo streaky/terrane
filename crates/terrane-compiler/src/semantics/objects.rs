@@ -3888,17 +3888,26 @@ fn collect_projected_destinations(
             let projected = if let Some(projected) = native_bindings.get(&generic.name) {
                 projected.clone()
             } else if let Some(actual) = value_bindings.get(&generic.name) {
-                destination_projected_type(package, actual).map_err(|reason| {
-                    failure(
-                        &unit.source,
-                        "T0129",
-                        format!(
-                            "projected generic `{}` cannot use `{actual}`: {reason}",
-                            generic.name
-                        ),
-                        node.span,
-                    )
-                })?
+                let (actual_projection, reference) = match actual {
+                    ValueType::Reference(inner) => (inner.value_type_ref(), Some(true)),
+                    ValueType::SharedReference(inner) => (inner.value_type_ref(), Some(false)),
+                    actual => (actual, None),
+                };
+                let projected =
+                    destination_projected_type(package, actual_projection).map_err(|reason| {
+                        failure(
+                            &unit.source,
+                            "T0129",
+                            format!(
+                                "projected generic `{}` cannot use `{actual}`: {reason}",
+                                generic.name
+                            ),
+                            node.span,
+                        )
+                    })?;
+                reference.map_or(projected.clone(), |mutable| {
+                    projected_reference_type(projected, mutable)
+                })
             } else if matches!(
                 &function.result,
                 crate::rust_interop::projection::ProjectedType::InvocationScoped {
@@ -4640,6 +4649,32 @@ pub(crate) fn destination_projected_type(
         }
         _ => return Err("the destination is outside the closed projected result set".into()),
     })
+}
+
+fn projected_reference_type(
+    projected: crate::rust_interop::projection::ProjectedType,
+    mutable: bool,
+) -> crate::rust_interop::projection::ProjectedType {
+    let rust_path = format!(
+        "&{}{}",
+        if mutable { "mut " } else { "" },
+        projected.rust_type()
+    );
+    let (name, base_rust_path, arguments) = match projected {
+        crate::rust_interop::projection::ProjectedType::Foreign {
+            name,
+            base_rust_path,
+            arguments,
+            ..
+        } => (name, base_rust_path, arguments),
+        projected => (projected.rust_type(), projected.rust_type(), Vec::new()),
+    };
+    crate::rust_interop::projection::ProjectedType::Foreign {
+        rust_path,
+        name,
+        base_rust_path,
+        arguments,
+    }
 }
 
 fn destination_projected_object(

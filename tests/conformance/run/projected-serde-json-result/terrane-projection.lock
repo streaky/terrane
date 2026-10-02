@@ -13,23 +13,33 @@
           "Error",
           "Error.classify",
           "Error.column",
+          "Error.into",
           "Error.io_error_kind",
           "Error.is_data",
           "Error.is_eof",
           "Error.is_io",
           "Error.is_syntax",
           "Error.line",
+          "Error.try_into",
+          "Error::from",
           "Number",
           "Number.as_f64",
           "Number.as_i128",
           "Number.as_i64",
           "Number.as_u128",
           "Number.as_u64",
+          "Number.clone",
+          "Number.eq",
+          "Number.into",
           "Number.is_f64",
           "Number.is_i64",
           "Number.is_u64",
+          "Number.serialize",
+          "Number.try_into",
+          "Number::deserialize",
           "Number::from_f64",
           "Number::from_i128",
+          "Number::from_str",
           "Number::from_u128",
           "Value",
           "from_reader",
@@ -42,8 +52,7 @@
           "to_writer_pretty"
         ],
         "/deps/serde-json/error": [
-          "Category",
-          "from"
+          "Category"
         ],
         "/deps/serde-json/error/trait/serde-core/de/error": [
           "custom"
@@ -53,21 +62,14 @@
         ],
         "/deps/serde-json/map": [
           "IntoIter",
-          "IntoValues"
-        ],
-        "/deps/serde-json/map/intoiter": [
-          "len"
-        ],
-        "/deps/serde-json/map/intovalues": [
-          "len",
-          "next"
-        ],
-        "/deps/serde-json/number": [
-          "clone",
-          "deserialize",
-          "eq",
-          "from_str",
-          "serialize"
+          "IntoIter.into",
+          "IntoIter.len",
+          "IntoIter.try_into",
+          "IntoValues",
+          "IntoValues.into",
+          "IntoValues.len",
+          "IntoValues.next",
+          "IntoValues.try_into"
         ],
         "/deps/serde-json/number/trait/core/convert/from-i16": [
           "from"
@@ -107,14 +109,46 @@
         ],
         "/deps/serde-json/ser": [
           "CharEscape",
-          "CompactFormatter"
-        ],
-        "/deps/serde-json/ser/compactformatter": [
-          "clone",
-          "default"
+          "CompactFormatter",
+          "CompactFormatter.clone",
+          "CompactFormatter.into",
+          "CompactFormatter.try_into",
+          "CompactFormatter::default"
         ],
         "/deps/serde-json/value": [
-          "Serializer"
+          "Serializer",
+          "Serializer.collect_str",
+          "Serializer.into",
+          "Serializer.serialize_bool",
+          "Serializer.serialize_char",
+          "Serializer.serialize_f32",
+          "Serializer.serialize_f64",
+          "Serializer.serialize_i128",
+          "Serializer.serialize_i16",
+          "Serializer.serialize_i32",
+          "Serializer.serialize_i64",
+          "Serializer.serialize_i8",
+          "Serializer.serialize_map",
+          "Serializer.serialize_newtype_struct",
+          "Serializer.serialize_newtype_variant",
+          "Serializer.serialize_none",
+          "Serializer.serialize_seq",
+          "Serializer.serialize_some",
+          "Serializer.serialize_str",
+          "Serializer.serialize_struct",
+          "Serializer.serialize_struct_variant",
+          "Serializer.serialize_tuple",
+          "Serializer.serialize_tuple_struct",
+          "Serializer.serialize_tuple_variant",
+          "Serializer.serialize_u128",
+          "Serializer.serialize_u16",
+          "Serializer.serialize_u32",
+          "Serializer.serialize_u64",
+          "Serializer.serialize_u8",
+          "Serializer.serialize_unit",
+          "Serializer.serialize_unit_struct",
+          "Serializer.serialize_unit_variant",
+          "Serializer.try_into"
         ],
         "/deps/serde-json/value/ser": [
           "SerializeMap",
@@ -123,37 +157,65 @@
           "SerializeTupleVariant",
           "SerializeVec"
         ],
-        "/deps/serde-json/value/serializer": [
-          "collect_str",
-          "serialize_bool",
-          "serialize_char",
-          "serialize_f32",
-          "serialize_f64",
-          "serialize_i128",
-          "serialize_i16",
-          "serialize_i32",
-          "serialize_i64",
-          "serialize_i8",
-          "serialize_map",
-          "serialize_newtype_struct",
-          "serialize_newtype_variant",
-          "serialize_none",
-          "serialize_seq",
-          "serialize_some",
-          "serialize_str",
-          "serialize_struct",
-          "serialize_struct_variant",
-          "serialize_tuple",
-          "serialize_tuple_struct",
-          "serialize_tuple_variant",
-          "serialize_u128",
-          "serialize_u16",
-          "serialize_u32",
-          "serialize_u64",
-          "serialize_u8",
-          "serialize_unit",
-          "serialize_unit_struct",
-          "serialize_unit_variant"
+        "/deps/serde-json/value/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/serde-json/value/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-bool": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-f32": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-f64": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-i16": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-i64": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-i8": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-isize": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-serde-json/map-std/string/string-serde-json/value": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-serde-json/number": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-std/string/string": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-str": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-u16": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-u64": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-u8": [
+          "from"
+        ],
+        "/deps/serde-json/value/trait/core/convert/from-usize": [
+          "from"
         ]
       },
       "name": "serde-json",

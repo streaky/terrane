@@ -5,13 +5,13 @@
         "/deps/terrane-render-witness": [
           "Renderable",
           "Widget",
+          "Widget.clone",
+          "Widget.into",
+          "Widget.render",
+          "Widget.try_into",
           "render_many",
           "render_value",
           "widget"
-        ],
-        "/deps/terrane-render-witness/widget": [
-          "clone",
-          "render"
         ]
       },
       "name": "terrane-render-witness",

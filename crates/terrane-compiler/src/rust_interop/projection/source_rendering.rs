@@ -974,7 +974,8 @@ pub(super) fn render_function(
     .expect("writing to a string cannot fail");
     if function.result != ProjectedType::None
         && (function.destination_result.is_none()
-            || matches!(function.result, ProjectedType::InvocationScoped { .. }))
+            || matches!(function.result, ProjectedType::InvocationScoped { .. })
+            || function.receiver.is_some())
         && !(function.chain_role == Some(ChainRole::Root)
             && matches!(
                 function.result,

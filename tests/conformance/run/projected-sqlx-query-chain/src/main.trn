@@ -4,16 +4,13 @@ from /deps/sqlx-core import Error
 from /deps/sqlx-core/query import query
 from /deps/sqlx-sqlite import SqliteConnectOptions
 from /deps/sqlx-sqlite import SqliteRow
-from /deps/sqlx-sqlite/sqliterow import try_get
-from /deps/sqlx-sqlite/sqliteconnection import close
-from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 from /core/output import print
 
 async function main;
   options = SqliteConnectOptions::new;
   options = options.filename; ':memory:'
   options = options.create_if_missing; true
-  connection = await connect; options
+  connection = await options.connect;
   create_sql = 'CREATE TABLE records (body BLOB NOT NULL)'
   insert_sql = 'INSERT INTO records (body) VALUES (?)'
   select_sql = 'SELECT body FROM records ORDER BY body'
@@ -25,14 +22,14 @@ async function main;
   rows list of SqliteRow = await (query; select_sql).fetch_all; ref connection
   print; rows.length
   row SqliteRow = await (query; select_sql).fetch_one; ref connection
-  body bytes = try_get; row, 'body'
+  body bytes = SqliteRow::try_get; row, 'body'
   print; body[0]
   second_row SqliteRow = await (query; second_sql).fetch_one; ref connection
-  second_body bytes = try_get; second_row, 'body'
+  second_body bytes = SqliteRow::try_get; second_row, 'body'
   print; second_body[0]
   try
     await (query; invalid_sql).execute; ref connection
   catch Error
     print; 'query-error'
-  await (close; move connection)
+  await connection.close;
   print; 'complete'

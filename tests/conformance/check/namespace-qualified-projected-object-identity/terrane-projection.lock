@@ -41,17 +41,29 @@
       "members": {
         "/deps/reqwest": [
           "Body",
+          "Body.into",
+          "Body.is_end_stream",
+          "Body.size_hint",
+          "Body.try_into",
+          "Body::default",
           "Body::wrap",
           "Certificate",
+          "Certificate.clone",
+          "Certificate.into",
+          "Certificate.try_into",
           "Client",
+          "Client.clone",
           "Client.delete",
           "Client.get",
           "Client.head",
+          "Client.into",
           "Client.patch",
           "Client.post",
           "Client.put",
           "Client.request",
+          "Client.try_into",
           "Client::builder",
+          "Client::default",
           "Client::new",
           "ClientBuilder",
           "ClientBuilder.add_crl",
@@ -74,6 +86,7 @@
           "ClientBuilder.https_only",
           "ClientBuilder.identity",
           "ClientBuilder.interface",
+          "ClientBuilder.into",
           "ClientBuilder.local_address",
           "ClientBuilder.max_tls_version",
           "ClientBuilder.min_tls_version",
@@ -101,12 +114,16 @@
           "ClientBuilder.tls_built_in_webpki_certs",
           "ClientBuilder.tls_info",
           "ClientBuilder.tls_sni",
+          "ClientBuilder.try_into",
           "ClientBuilder.unix_socket",
           "ClientBuilder.use_preconfigured_tls",
           "ClientBuilder.use_rustls_tls",
           "ClientBuilder.user_agent",
+          "ClientBuilder::default",
+          "ClientBuilder::from",
           "ClientBuilder::new",
           "Error",
+          "Error.into",
           "Error.is_body",
           "Error.is_builder",
           "Error.is_connect",
@@ -116,23 +133,45 @@
           "Error.is_status",
           "Error.is_timeout",
           "Error.status",
+          "Error.try_into",
           "Error.url",
           "Error.url_mut",
           "Error.with_url",
           "Error.without_url",
           "Identity",
+          "Identity.clone",
+          "Identity.into",
+          "Identity.try_into",
           "Method",
+          "Method.as_ref",
           "Method.as_str",
+          "Method.assert_fields_are_eq",
+          "Method.clone",
+          "Method.cmp",
+          "Method.into",
           "Method.is_idempotent",
           "Method.is_safe",
+          "Method.partial_cmp",
+          "Method.try_into",
+          "Method::default",
+          "Method::from",
+          "Method::from_str",
+          "Method::try_from",
           "NoProxy",
+          "NoProxy.clone",
+          "NoProxy.into",
+          "NoProxy.try_into",
+          "NoProxy::default",
           "NoProxy::from_env",
           "NoProxy::from_string",
           "Proxy",
           "Proxy.basic_auth",
+          "Proxy.clone",
           "Proxy.custom_http_auth",
           "Proxy.headers",
+          "Proxy.into",
           "Proxy.no_proxy",
+          "Proxy.try_into",
           "Proxy::all",
           "Proxy::custom",
           "Proxy::http",
@@ -142,16 +181,19 @@
           "Request.body_mut",
           "Request.headers",
           "Request.headers_mut",
+          "Request.into",
           "Request.method",
           "Request.method_mut",
           "Request.timeout",
           "Request.timeout_mut",
           "Request.try_clone",
+          "Request.try_into",
           "Request.url",
           "Request.url_mut",
           "Request.version",
           "Request.version_mut",
           "Request::new",
+          "Request::try_from",
           "RequestBuilder",
           "RequestBuilder.basic_auth",
           "RequestBuilder.bearer_auth",
@@ -160,9 +202,11 @@
           "RequestBuilder.form",
           "RequestBuilder.header",
           "RequestBuilder.headers",
+          "RequestBuilder.into",
           "RequestBuilder.query",
           "RequestBuilder.timeout",
           "RequestBuilder.try_clone",
+          "RequestBuilder.try_into",
           "RequestBuilder.version",
           "RequestBuilder::from_parts",
           "Response",
@@ -175,37 +219,56 @@
           "Response.extensions_mut",
           "Response.headers",
           "Response.headers_mut",
+          "Response.into",
           "Response.remote_addr",
           "Response.status",
           "Response.text",
+          "Response.try_into",
           "Response.upgrade",
           "Response.url",
           "Response.version",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
+          "StatusCode.assert_fields_are_eq",
           "StatusCode.canonical_reason",
+          "StatusCode.clone",
+          "StatusCode.cmp",
+          "StatusCode.into",
           "StatusCode.is_client_error",
           "StatusCode.is_informational",
           "StatusCode.is_redirection",
           "StatusCode.is_server_error",
           "StatusCode.is_success",
+          "StatusCode.partial_cmp",
+          "StatusCode.try_into",
+          "StatusCode::default",
           "Upgraded",
+          "Upgraded.into",
+          "Upgraded.is_write_vectored",
+          "Upgraded.try_into",
+          "Upgraded::from",
           "Url",
+          "Url.as_ref",
           "Url.as_str",
           "Url.authority",
           "Url.cannot_be_a_base",
           "Url.check_invariants",
+          "Url.clone",
+          "Url.cmp",
           "Url.domain",
+          "Url.eq",
           "Url.fragment",
           "Url.has_authority",
           "Url.has_host",
           "Url.host",
           "Url.host_str",
+          "Url.into",
           "Url.into_string",
           "Url.is_special",
           "Url.make_relative",
           "Url.origin",
+          "Url.partial_cmp",
           "Url.password",
           "Url.path",
           "Url.path_segments",
@@ -223,11 +286,22 @@
           "Url.set_username",
           "Url.socket_addrs",
           "Url.to_file_path",
+          "Url.try_into",
           "Url.username",
+          "Url::from",
           "Url::from_directory_path",
           "Url::from_file_path",
           "Url::options",
+          "Url::try_from",
           "Version",
+          "Version.assert_fields_are_eq",
+          "Version.clone",
+          "Version.cmp",
+          "Version.eq",
+          "Version.into",
+          "Version.partial_cmp",
+          "Version.try_into",
+          "Version::default",
           "get"
         ],
         "/deps/reqwest/async-impl/client": [
@@ -235,18 +309,24 @@
         ],
         "/deps/reqwest/blocking": [
           "Body",
+          "Body.into",
+          "Body.try_into",
           "Body::new",
           "Body::sized",
           "Client",
+          "Client.clone",
           "Client.delete",
           "Client.execute",
           "Client.get",
           "Client.head",
+          "Client.into",
           "Client.patch",
           "Client.post",
           "Client.put",
           "Client.request",
+          "Client.try_into",
           "Client::builder",
+          "Client::default",
           "Client::new",
           "ClientBuilder",
           "ClientBuilder.add_crl",
@@ -268,6 +348,7 @@
           "ClientBuilder.https_only",
           "ClientBuilder.identity",
           "ClientBuilder.interface",
+          "ClientBuilder.into",
           "ClientBuilder.local_address",
           "ClientBuilder.max_tls_version",
           "ClientBuilder.min_tls_version",
@@ -295,21 +376,26 @@
           "ClientBuilder.tls_built_in_webpki_certs",
           "ClientBuilder.tls_info",
           "ClientBuilder.tls_sni",
+          "ClientBuilder.try_into",
           "ClientBuilder.unix_socket",
           "ClientBuilder.use_preconfigured_tls",
           "ClientBuilder.use_rustls_tls",
           "ClientBuilder.user_agent",
+          "ClientBuilder::default",
+          "ClientBuilder::from",
           "ClientBuilder::new",
           "Request",
           "Request.body",
           "Request.body_mut",
           "Request.headers",
           "Request.headers_mut",
+          "Request.into",
           "Request.method",
           "Request.method_mut",
           "Request.timeout",
           "Request.timeout_mut",
           "Request.try_clone",
+          "Request.try_into",
           "Request.url",
           "Request.url_mut",
           "Request.version",
@@ -323,10 +409,12 @@
           "RequestBuilder.form",
           "RequestBuilder.header",
           "RequestBuilder.headers",
+          "RequestBuilder.into",
           "RequestBuilder.query",
           "RequestBuilder.send",
           "RequestBuilder.timeout",
           "RequestBuilder.try_clone",
+          "RequestBuilder.try_into",
           "RequestBuilder.version",
           "RequestBuilder::from_parts",
           "Response",
@@ -338,9 +426,11 @@
           "Response.extensions_mut",
           "Response.headers",
           "Response.headers_mut",
+          "Response.into",
           "Response.remote_addr",
           "Response.status",
           "Response.text",
+          "Response.try_into",
           "Response.url",
           "Response.version",
           "get"
@@ -360,19 +450,6 @@
         "/deps/reqwest/blocking/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
-        "/deps/reqwest/blocking/client": [
-          "clone",
-          "default"
-        ],
-        "/deps/reqwest/blocking/clientbuilder": [
-          "default",
-          "from"
-        ],
-        "/deps/reqwest/body": [
-          "default",
-          "is_end_stream",
-          "size_hint"
-        ],
         "/deps/reqwest/body/trait/core/convert/from-bytes/bytes/bytes": [
           "from"
         ],
@@ -388,17 +465,6 @@
         "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
-        "/deps/reqwest/certificate": [
-          "clone"
-        ],
-        "/deps/reqwest/client": [
-          "clone",
-          "default"
-        ],
-        "/deps/reqwest/clientbuilder": [
-          "default",
-          "from"
-        ],
         "/deps/reqwest/connect/sealed": [
           "Conn",
           "Unnameable"
@@ -408,76 +474,58 @@
         ],
         "/deps/reqwest/dns": [
           "Name",
-          "Name.as_str"
-        ],
-        "/deps/reqwest/dns/name": [
-          "from_str"
+          "Name.as_str",
+          "Name.into",
+          "Name.try_into",
+          "Name::from_str"
         ],
         "/deps/reqwest/dns/resolve/sealed": [
           "InvalidNameError"
         ],
         "/deps/reqwest/header": [
           "InvalidHeaderName",
+          "InvalidHeaderName.into",
+          "InvalidHeaderName.try_into",
+          "InvalidHeaderName::from",
           "InvalidHeaderValue",
+          "InvalidHeaderValue.into",
+          "InvalidHeaderValue.try_into",
+          "InvalidHeaderValue::from",
           "MaxSizeReached",
-          "ToStrError"
-        ],
-        "/deps/reqwest/header/invalidheadername": [
-          "from"
-        ],
-        "/deps/reqwest/header/invalidheadervalue": [
-          "from"
+          "MaxSizeReached.into",
+          "MaxSizeReached.try_into",
+          "MaxSizeReached::from",
+          "ToStrError",
+          "ToStrError.into",
+          "ToStrError.try_into"
         ],
         "/deps/reqwest/header/map/as-header-name": [
           "TryEntryError"
         ],
-        "/deps/reqwest/header/maxsizereached": [
-          "from"
-        ],
-        "/deps/reqwest/identity": [
-          "clone"
-        ],
-        "/deps/reqwest/method": [
-          "as_ref",
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "from",
-          "from_str",
-          "partial_cmp",
-          "try_from"
-        ],
         "/deps/reqwest/method/trait/core/cmp/partialeq": [
           "eq"
         ],
-        "/deps/reqwest/noproxy": [
-          "clone",
-          "default"
-        ],
-        "/deps/reqwest/proxy": [
-          "clone"
-        ],
         "/deps/reqwest/redirect": [
           "Action",
+          "Action.into",
+          "Action.try_into",
           "Policy",
+          "Policy.into",
+          "Policy.try_into",
           "Policy::custom",
+          "Policy::default",
           "Policy::limited",
           "Policy::none"
-        ],
-        "/deps/reqwest/redirect/policy": [
-          "default"
-        ],
-        "/deps/reqwest/request": [
-          "try_from"
         ],
         "/deps/reqwest/retry": [
           "Builder",
           "Builder.classify",
           "Builder.classify_fn",
+          "Builder.into",
           "Builder.max_extra_load",
           "Builder.max_retries_per_request",
           "Builder.no_budget",
+          "Builder.try_into",
           "Builder::scoped",
           "for_host",
           "never"
@@ -485,17 +533,7 @@
         "/deps/reqwest/retry/classify": [
           "Action"
         ],
-        "/deps/reqwest/statuscode": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "partial_cmp"
-        ],
         "/deps/reqwest/statuscode/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/reqwest/statuscode/trait/core/cmp/partialeq-reqwest/statuscode": [
           "eq"
         ],
         "/deps/reqwest/statuscode/trait/core/cmp/partialeq-u16": [
@@ -509,30 +547,19 @@
         ],
         "/deps/reqwest/tls": [
           "CertificateRevocationList",
+          "CertificateRevocationList.into",
+          "CertificateRevocationList.try_into",
           "TlsInfo",
-          "Version"
-        ],
-        "/deps/reqwest/tls/tlsinfo": [
-          "clone"
-        ],
-        "/deps/reqwest/tls/version": [
-          "clone",
-          "cmp",
-          "eq",
-          "partial_cmp"
-        ],
-        "/deps/reqwest/upgraded": [
-          "from",
-          "is_write_vectored"
-        ],
-        "/deps/reqwest/url": [
-          "as_ref",
-          "clone",
-          "cmp",
-          "eq",
-          "from",
-          "partial_cmp",
-          "try_from"
+          "TlsInfo.clone",
+          "TlsInfo.into",
+          "TlsInfo.try_into",
+          "Version",
+          "Version.clone",
+          "Version.cmp",
+          "Version.eq",
+          "Version.into",
+          "Version.partial_cmp",
+          "Version.try_into"
         ],
         "/deps/reqwest/url/trait/core/ops/index/index-core/ops/range/range-url/slicing/position": [
           "index"
@@ -545,14 +572,6 @@
         ],
         "/deps/reqwest/url/trait/core/ops/index/index-core/ops/range/rangeto-url/slicing/position": [
           "index"
-        ],
-        "/deps/reqwest/version": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "eq",
-          "partial_cmp"
         ]
       },
       "name": "reqwest",

@@ -4,22 +4,45 @@
       "members": {
         "/deps/bytes": [
           "Bytes",
+          "Bytes.advance",
           "Bytes.clear",
+          "Bytes.clone",
+          "Bytes.cmp",
+          "Bytes.copy_to_bytes",
+          "Bytes.drop",
+          "Bytes.extend",
+          "Bytes.into",
           "Bytes.is_empty",
           "Bytes.is_unique",
           "Bytes.len",
+          "Bytes.remaining",
           "Bytes.slice",
           "Bytes.split_off",
           "Bytes.split_to",
           "Bytes.truncate",
+          "Bytes.try_into",
+          "Bytes::default",
+          "Bytes::from_iter",
           "Bytes::from_owner",
           "Bytes::new",
           "BytesMut",
+          "BytesMut.advance",
+          "BytesMut.advance_mut",
           "BytesMut.capacity",
+          "BytesMut.chunk_mut",
           "BytesMut.clear",
+          "BytesMut.clone",
+          "BytesMut.cmp",
+          "BytesMut.copy_to_bytes",
+          "BytesMut.drop",
           "BytesMut.freeze",
+          "BytesMut.into",
           "BytesMut.is_empty",
           "BytesMut.len",
+          "BytesMut.put",
+          "BytesMut.put_bytes",
+          "BytesMut.remaining",
+          "BytesMut.remaining_mut",
           "BytesMut.reserve",
           "BytesMut.resize",
           "BytesMut.set_len",
@@ -27,12 +50,18 @@
           "BytesMut.split_off",
           "BytesMut.split_to",
           "BytesMut.truncate",
+          "BytesMut.try_into",
           "BytesMut.try_reclaim",
           "BytesMut.unsplit",
+          "BytesMut::default",
           "BytesMut::new",
           "BytesMut::with_capacity",
           "BytesMut::zeroed",
-          "TryGetError"
+          "TryGetError",
+          "TryGetError.eq",
+          "TryGetError.into",
+          "TryGetError.try_into",
+          "TryGetError::from"
         ],
         "/deps/bytes/buf": [
           "UninitSlice",
@@ -75,17 +104,6 @@
         "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
-        "/deps/bytes/bytes": [
-          "advance",
-          "clone",
-          "cmp",
-          "copy_to_bytes",
-          "default",
-          "drop",
-          "extend",
-          "from_iter",
-          "remaining"
-        ],
         "/deps/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -124,20 +142,6 @@
         ],
         "/deps/bytes/bytes/trait/core/convert/from-std/vec/vec-u8": [
           "from"
-        ],
-        "/deps/bytes/bytesmut": [
-          "advance",
-          "advance_mut",
-          "chunk_mut",
-          "clone",
-          "cmp",
-          "copy_to_bytes",
-          "default",
-          "drop",
-          "put",
-          "put_bytes",
-          "remaining",
-          "remaining_mut"
         ],
         "/deps/bytes/bytesmut/trait/core/cmp/partialeq": [
           "eq"
@@ -186,10 +190,6 @@
         ],
         "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8": [
           "from_iter"
-        ],
-        "/deps/bytes/trygeterror": [
-          "eq",
-          "from"
         ]
       },
       "name": "bytes",

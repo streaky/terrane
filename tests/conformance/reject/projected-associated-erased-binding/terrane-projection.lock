@@ -4,13 +4,13 @@
       "members": {
         "/deps/terrane-associated-reject-witness": [
           "NonSend",
+          "NonSend.clone",
+          "NonSend.into",
+          "NonSend.try_into",
           "SendItem",
           "Sequence",
           "non_send",
           "sequence_total"
-        ],
-        "/deps/terrane-associated-reject-witness/nonsend": [
-          "clone"
         ]
       },
       "name": "terrane-associated-reject-witness",

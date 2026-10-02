@@ -8,14 +8,14 @@
           "Event-Optional",
           "Event-Pair",
           "NonClonePayload",
+          "NonClonePayload.eq",
+          "NonClonePayload.into",
+          "NonClonePayload.try_into",
           "OpenEvent",
           "OwnedEvent",
           "consume_payload",
           "future_event",
           "non_clone_payload"
-        ],
-        "/deps/terrane-payload-enum-witness/nonclonepayload": [
-          "eq"
         ]
       },
       "name": "terrane-payload-enum-witness",

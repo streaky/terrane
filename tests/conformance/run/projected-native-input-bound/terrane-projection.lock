@@ -4,17 +4,17 @@
       "members": {
         "/deps/terrane-native-bound-witness": [
           "Border",
+          "Border.clone",
+          "Border.into",
           "Border.rounded",
+          "Border.try_into",
           "Radius",
+          "Radius.clone",
+          "Radius.into",
+          "Radius.try_into",
+          "Radius::from",
           "make_border",
           "radius_value"
-        ],
-        "/deps/terrane-native-bound-witness/border": [
-          "clone"
-        ],
-        "/deps/terrane-native-bound-witness/radius": [
-          "clone",
-          "from"
         ]
       },
       "name": "terrane-native-bound-witness",
