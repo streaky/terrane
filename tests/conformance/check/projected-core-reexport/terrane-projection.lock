@@ -1,30 +1,132 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "terrane-core-witness",
-      "version": "0.1.0",
       "members": {
         "/deps/terrane-core-witness": [
+          "IpAddr",
+          "Ipv4Addr",
+          "Ipv4Addr.is_benchmarking",
+          "Ipv4Addr.is_broadcast",
+          "Ipv4Addr.is_documentation",
+          "Ipv4Addr.is_global",
+          "Ipv4Addr.is_link_local",
+          "Ipv4Addr.is_loopback",
+          "Ipv4Addr.is_multicast",
+          "Ipv4Addr.is_private",
+          "Ipv4Addr.is_reserved",
+          "Ipv4Addr.is_shared",
+          "Ipv4Addr.is_unspecified",
+          "Ipv4Addr.to_bits",
+          "Ipv4Addr.to_ipv6_compatible",
+          "Ipv4Addr.to_ipv6_mapped",
+          "Ipv4Addr::from_bits",
+          "Ipv4Addr::new",
           "is_loopback"
+        ],
+        "/deps/terrane-core-witness/ipaddr": [
+          "clone",
+          "cmp",
+          "from_str"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq-std/net/ipv6addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq-terrane-core-witness/ipv4addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord-std/net/ipv6addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord-terrane-core-witness/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/convert/from-std/net/ipv6addr": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/convert/from-terrane-core-witness/ipv4addr": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipv4addr": [
+          "backward_checked",
+          "backward_unchecked",
+          "clone",
+          "cmp",
+          "forward_checked",
+          "forward_unchecked",
+          "from_str"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq-terrane-core-witness/ipaddr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq-terrane-core-witness/ipv4addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord-terrane-core-witness/ipaddr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord-terrane-core-witness/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitand": [
+          "bitand"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitandassign": [
+          "bitand_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitandassign-terrane-core-witness/ipv4addr": [
+          "bitand_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitor": [
+          "bitor"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitorassign": [
+          "bitor_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitorassign-terrane-core-witness/ipv4addr": [
+          "bitor_assign"
         ]
-      }
+      },
+      "name": "terrane-core-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "dd1c18e9847496dc965f129ddcda9b277ef178d67f1738de5bab2155b8765720",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "191",
-  "content_hash": "4490979db3f8f4643b1c453c574e8a4265386cab0f6a6e009816ef57eed8ed94",
   "resolution": {
-    "outcome": "ExactCache",
     "events": [
       {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `dd1c18e9847496dc965f129ddcda9b277ef178d67f1738de5bab2155b8765720`"
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

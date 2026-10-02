@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, borrowed_value, button, into_widget, label, render_default, render_exact, render_scoped, reset_trace, row, traced_label
+from /deps/witness import Application as WitnessApplication, Button, Label, Widget, borrowed_button, borrowed_button_group, borrowed_group, borrowed_label, borrowed_label_group, borrowed_row, borrowed_value, button, into_widget, label, launch, render_default, render_exact, render_scoped, reset_trace, row, run_application, traced_label
 from /core/collections import list
 from /core/output import print
 
@@ -122,6 +122,24 @@ function aggregate Widget; state ref int64
     children.append; (into_widget; (traced_label; 3))
     return into_widget; (row; children)
 
+class DemoApplication implements WitnessApplication
+    function title string;
+        return 'ui'
+
+function borrowed-title host-invocation-scoped-native; title ref string
+    return borrowed_label; title
+
+function boot string;
+    return 'ui'
+
+function update; state ref string, message int
+
+function application-view host-invocation-scoped-native; state ref string
+    return borrowed_label; state
+
+function application-title string; state ref string
+    return 'ui'
+
 function main;
     state int64 = 40
     exact-state string = '40'
@@ -155,3 +173,6 @@ function main;
     print; (render_scoped; zero, 'message', true, branch)
     reset_trace;
     print; (render_scoped; state, 'message', true, aggregate)
+    application = instance DemoApplication;
+    print; (launch; application, borrowed-title)
+    print; (run_application; boot, update, application-view, application-title)

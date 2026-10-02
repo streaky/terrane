@@ -1197,7 +1197,18 @@ pub(super) fn emit_dependency_unit(
                     native_bound: Some(_),
                     ..
                 }
-            ) {
+            ) || projected.generic_parameter.is_some()
+                && matches!(
+                    &projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback { result, .. }
+                        if matches!(
+                            result.as_ref(),
+                            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                                ..
+                            }
+                        )
+                )
+            {
                 arguments.push(name);
                 continue;
             }

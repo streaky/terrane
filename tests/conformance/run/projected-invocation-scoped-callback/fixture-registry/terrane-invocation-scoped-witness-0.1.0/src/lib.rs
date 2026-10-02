@@ -262,3 +262,32 @@ pub fn render_exact<Message, Theme>(
     let _ = (message, theme);
     view.view(state).value
 }
+
+pub trait Application: Send {
+    fn title(&self) -> String;
+}
+
+pub fn launch<Render>(application: Box<dyn Application>, render: Render) -> i64
+where
+    Render: for<'view> Fn(&'view String) -> BorrowedLabel<'view> + Send + Sync + 'static,
+{
+    let title = application.title();
+    render(&title).value.len() as i64
+}
+
+pub fn run_application<State, Boot, Update, View, Title>(
+    boot: Boot,
+    update: Update,
+    view: View,
+    title: Title,
+) -> i64
+where
+    Boot: Fn() -> State + Send + 'static,
+    Update: Fn(&mut State, i64) + Send + Sync + 'static,
+    View: for<'view> Fn(&'view State) -> BorrowedLabel<'view> + Send + Sync + 'static,
+    Title: Fn(&State) -> String + Send + Sync + 'static,
+{
+    let mut state = boot();
+    update(&mut state, 1);
+    view(&state).value.len() as i64 + title(&state).len() as i64
+}

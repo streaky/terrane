@@ -30,9 +30,6 @@ impl Emitter<'_> {
         >,
     ) -> Option<String> {
         let crate::rust_interop::projection::ProjectedType::Callback {
-            native_bound: Some(_),
-            native_method: Some(_),
-            native_result: Some(_),
             native_substitutions,
             result,
             invocation_mode: InvocationMode::Shared,
@@ -1958,6 +1955,32 @@ impl Emitter<'_> {
                 .iter()
                 .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 .collect::<Vec<_>>();
+            if let Some(projected) = projected_function.as_ref() {
+                for (argument, template) in generic_arguments
+                    .iter_mut()
+                    .zip(&projected.rust_generic_arguments)
+                {
+                    let callback_generic =
+                        match template {
+                            crate::rust_interop::projection::ProjectedType::Callback { .. } => true,
+                            crate::rust_interop::projection::ProjectedType::Generic(name) => {
+                                projected.parameters.iter().any(|parameter| {
+                                    parameter.generic_parameter.as_deref() == Some(name)
+                                        && matches!(
+                                        parameter.ty,
+                                        crate::rust_interop::projection::ProjectedType::Callback {
+                                            ..
+                                        }
+                                    )
+                                })
+                            }
+                            _ => false,
+                        };
+                    if callback_generic {
+                        "_".clone_into(argument);
+                    }
+                }
+            }
             if let (
                 Some(projected),
                 Some(ValueType::InvocationScopedNative {

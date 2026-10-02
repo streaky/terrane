@@ -68,7 +68,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "199";
+const PROJECTION_SCHEMA: &str = "201";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -8011,7 +8011,16 @@ fn project_function_inner(
             .or_else(|| {
                 function.generics.params.iter().find_map(|parameter| {
                     generic_types.get(&parameter.name).and_then(|projected| {
+                        let exact_scoped_callback = matches!(
+                            projected,
+                            ProjectedType::Callback { result, .. }
+                                if matches!(
+                                    result.as_ref(),
+                                    ProjectedType::InvocationScoped { .. }
+                                )
+                        );
                         ((matches!(projected, ProjectedType::Foreign { .. })
+                            || exact_scoped_callback
                             || matches!(projected, ProjectedType::Generic(_))
                                 && matches!(projected_type, ProjectedType::Generic(_)))
                             && type_mentions_generic(ty, &parameter.name))

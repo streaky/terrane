@@ -61,6 +61,9 @@ pub(super) fn canonicalize_rust_path(path: &str) -> String {
         "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
         "core::task::wake::Context" => "core::task::Context".to_owned(),
         "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
+        "core::ops::function::Fn" => "std::ops::Fn".to_owned(),
+        "core::ops::function::FnMut" => "std::ops::FnMut".to_owned(),
+        "core::ops::function::FnOnce" => "std::ops::FnOnce".to_owned(),
         "core::net::socket_addr::SocketAddr" | "core::net::SocketAddr" => {
             "std::net::SocketAddr".to_owned()
         }
