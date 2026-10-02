@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-core-witness import IpAddr, Ipv4Addr, is_loopback as is-loopback
+
+function main;
+    octets Ipv4Addr = Ipv4Addr::new; 127, 0, 0, 1
+    address IpAddr = IpAddr::V4; octets
+    result bool = is-loopback; address

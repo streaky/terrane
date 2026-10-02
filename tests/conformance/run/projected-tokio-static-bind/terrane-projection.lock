@@ -23,6 +23,7 @@
     {
       "members": {
         "/deps/tokio/io": [
+          "ErrorKind",
           "Interest",
           "Interest.add",
           "Interest.is_error",
@@ -38,6 +39,12 @@
           "Ready.is_readable",
           "Ready.is_writable",
           "Ready.is_write_closed"
+        ],
+        "/deps/tokio/io/errorkind": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
         ],
         "/deps/tokio/io/interest": [
           "bitor",

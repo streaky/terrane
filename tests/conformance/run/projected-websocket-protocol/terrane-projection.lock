@@ -1953,6 +1953,7 @@
         "/deps/tokio/io": [
           "DuplexStream",
           "Empty",
+          "ErrorKind",
           "Interest",
           "Interest.add",
           "Interest.is_error",
@@ -1984,6 +1985,12 @@
         ],
         "/deps/tokio/io/empty": [
           "is_write_vectored"
+        ],
+        "/deps/tokio/io/errorkind": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
         ],
         "/deps/tokio/io/interest": [
           "bitor",
@@ -2492,6 +2499,49 @@
           "AccessError"
         ],
         "/deps/tokio/time": [
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.is_zero",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
           "Instant",
           "Instant.checked_add",
           "Instant.checked_duration_since",
@@ -2519,6 +2569,26 @@
           "interval_at",
           "timeout",
           "timeout_at"
+        ],
+        "/deps/tokio/time/duration": [
+          "add",
+          "add_assign",
+          "clone",
+          "cmp",
+          "default",
+          "div",
+          "div_assign",
+          "eq",
+          "mul_assign",
+          "partial_cmp",
+          "sub",
+          "sub_assign"
+        ],
+        "/deps/tokio/time/duration/trait/core/ops/arith/mul-tokio/time/duration": [
+          "mul"
+        ],
+        "/deps/tokio/time/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
         ],
         "/deps/tokio/time/error": [
           "Elapsed",

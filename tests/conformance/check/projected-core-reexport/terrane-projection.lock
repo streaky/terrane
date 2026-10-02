@@ -1,0 +1,30 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "terrane-core-witness",
+      "version": "0.1.0",
+      "members": {
+        "/deps/terrane-core-witness": [
+          "is_loopback"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "cache_identity": "dd1c18e9847496dc965f129ddcda9b277ef178d67f1738de5bab2155b8765720",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "191",
+  "content_hash": "4490979db3f8f4643b1c453c574e8a4265386cab0f6a6e009816ef57eed8ed94",
+  "resolution": {
+    "outcome": "ExactCache",
+    "events": [
+      {
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `dd1c18e9847496dc965f129ddcda9b277ef178d67f1738de5bab2155b8765720`"
+      }
+    ]
+  }
+}

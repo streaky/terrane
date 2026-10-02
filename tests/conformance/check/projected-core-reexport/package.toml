@@ -1,0 +1,8 @@
+package = "projected-core-reexport"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-core-witness]
+version = "=0.1.0"
+effects = ["build"]

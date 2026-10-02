@@ -59,8 +59,8 @@ use source_rendering::{
     render_unavailable_projection, unavailable_member_map,
 };
 use type_rendering::{
-    instantiated_nominal_name, instantiated_type_name, nominal_generics, render_resolved_path,
-    render_rust_type,
+    canonicalize_rust_path, instantiated_nominal_name, instantiated_type_name, nominal_generics,
+    render_resolved_path, render_rust_type,
 };
 mod history;
 #[cfg(test)]
@@ -68,7 +68,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "191";
+const PROJECTION_SCHEMA: &str = "199";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -2413,6 +2413,17 @@ pub fn resolve(
     }
     for reexport in &reexport_rustdocs {
         for provider in &reexport.providers {
+            for (facade_path, canonical_path) in &provider.rust_path_aliases {
+                rewrite_projected_owner_root(
+                    std::slice::from_mut(
+                        projected
+                            .get_mut(provider.dependency_index)
+                            .expect("reexport provider index came from projected dependencies"),
+                    ),
+                    facade_path,
+                    canonical_path,
+                );
+            }
             let fragment_public_paths =
                 provider_fragment_public_paths(&declared_public_paths, provider);
             let mut fragment = project_rustdoc(
@@ -2424,6 +2435,13 @@ pub fn resolve(
                 &fragment_public_paths,
                 false,
             );
+            for (facade_path, canonical_path) in &provider.rust_path_aliases {
+                rewrite_projected_owner_root(
+                    std::slice::from_mut(&mut fragment),
+                    facade_path,
+                    canonical_path,
+                );
+            }
             let dependency = projected
                 .get_mut(provider.dependency_index)
                 .expect("reexport provider index came from projected dependencies");
@@ -4252,6 +4270,7 @@ struct ReexportProvider {
     dependency_index: usize,
     public_paths: BTreeMap<Id, String>,
     canonical_public_paths: BTreeMap<String, String>,
+    rust_path_aliases: BTreeMap<String, String>,
 }
 
 fn provider_fragment_public_paths(
@@ -4531,17 +4550,38 @@ fn external_reexport_rustdocs(
                 let Some(external) = document.external_crates.get(&summary.crate_id) else {
                     continue;
                 };
-                if matches!(external.name.as_str(), "std" | "core" | "alloc") {
+                if matches!(external.name.as_str(), "std" | "alloc") {
                     continue;
                 }
                 external.name.clone()
             };
+            if owner_crate_name == "core"
+                && !matches!(summary.kind, ItemKind::Struct | ItemKind::Enum)
+            {
+                continue;
+            }
             if !reexport_is_demanded(
                 dependency,
                 public_path,
                 summary.kind == ItemKind::Module,
                 demands,
             ) {
+                continue;
+            }
+            if owner_crate_name == "core" {
+                let request = requests
+                    .entry(owner_crate_name)
+                    .or_insert_with(|| ReexportRequest {
+                        package_spec: String::new(),
+                        package_name: "core".to_owned(),
+                        aliases: BTreeMap::new(),
+                        prefixes: BTreeMap::new(),
+                    });
+                let aliases = request.aliases.entry(dependency_index).or_default();
+                aliases
+                    .entry(summary.path.join("::"))
+                    .and_modify(|current| prefer_alias(current, public_path))
+                    .or_insert_with(|| public_path.clone());
                 continue;
             }
             let (package_name, version) =
@@ -4606,14 +4646,21 @@ fn external_reexport_rustdocs(
     requests
         .into_iter()
         .map(|(crate_name, request)| {
-            let document = cached_owner_rustdoc(
-                workspace,
-                &request.package_spec,
-                &crate_name,
-                &request.package_name,
-                target,
-                containment,
-            )?;
+            let document = if crate_name == "core" {
+                terrane_rust_analysis::core_rustdoc(&workspace.join("rust-survey/sysroot"), target)
+                    .map_err(|error| ProjectionError {
+                        message: error.message,
+                    })?
+            } else {
+                cached_owner_rustdoc(
+                    workspace,
+                    &request.package_spec,
+                    &crate_name,
+                    &request.package_name,
+                    target,
+                    containment,
+                )?
+            };
             let owner_public_paths = rustdoc_public_paths(&document);
             let mut provider_indices = request
                 .aliases
@@ -4645,6 +4692,7 @@ fn external_reexport_rustdocs(
                     let prefixes = request.prefixes.get(&dependency_index);
                     let mut public_paths = BTreeMap::new();
                     let mut canonical_public_paths = BTreeMap::new();
+                    let mut rust_path_aliases = BTreeMap::new();
                     for (id, summary) in document
                         .paths
                         .iter()
@@ -4678,6 +4726,12 @@ fn external_reexport_rustdocs(
                                 owner_path,
                                 public_path,
                             );
+                            if crate_name == "core" {
+                                rust_path_aliases.insert(
+                                    public_path.clone(),
+                                    canonicalize_rust_path(&canonical_path),
+                                );
+                            }
                             if reexport_is_demanded(dependency, public_path, false, demands) {
                                 terrane_rust_analysis::prefer_public_path(
                                     &mut public_paths,
@@ -4721,6 +4775,7 @@ fn external_reexport_rustdocs(
                         dependency_index,
                         public_paths,
                         canonical_public_paths,
+                        rust_path_aliases,
                     })
                 })
                 .collect();
@@ -6197,7 +6252,16 @@ fn project_rustdoc(
             .get(&id)
             .cloned()
             .unwrap_or_else(|| path.join("::"));
-        let mut rust_path = extern_rust_path(dependency, &public_rust_path);
+        let canonical_rust_path = original_paths
+            .get(&id)
+            .map_or_else(|| path.join("::"), |summary| summary.path.join("::"));
+        let mut rust_path = if canonical_rust_path.starts_with("core::")
+            || canonical_rust_path.starts_with("alloc::")
+        {
+            canonicalize_rust_path(&canonical_rust_path)
+        } else {
+            extern_rust_path(dependency, &public_rust_path)
+        };
         let docs = item.docs.clone();
         if matches!(item.inner, ItemEnum::Module(_) | ItemEnum::Use(_)) {
             continue;
@@ -6596,8 +6660,63 @@ fn project_rustdoc(
                         base_rust_path: rust_path.clone(),
                         arguments: Vec::new(),
                     };
-                    let mut methods = Vec::new();
-                    let mut static_methods = Vec::new();
+                    let owner_generics = BTreeMap::from([("Self".to_owned(), enum_type.clone())]);
+                    let (projected_methods, trait_methods, projected_constants, method_declines) =
+                        if canonical_rust_path.starts_with("core::")
+                            || canonical_rust_path.starts_with("alloc::")
+                        {
+                            project_methods(
+                                &enumeration.impls,
+                                index,
+                                paths,
+                                public_paths,
+                                &rust_path,
+                                &owner_generics,
+                                false,
+                                &mut source_constants,
+                            )
+                        } else {
+                            (Vec::new(), Vec::new(), Vec::new(), Vec::new())
+                        };
+                    let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
+                        .into_iter()
+                        .partition(|method| method.receiver.is_some());
+                    promote_async_endpoint_methods(&mut methods);
+                    promote_async_endpoint_methods(&mut static_methods);
+                    let owner_namespace = owner_trait_namespace(&namespace, &name);
+                    for (trait_implementation_path, public_trait_path, local_trait, docs, method) in
+                        trait_methods
+                    {
+                        let trait_rust_path = if local_trait {
+                            extern_rust_path(dependency, &public_trait_path)
+                        } else {
+                            public_trait_path.replace('-', "_")
+                        };
+                        let method_rust_path =
+                            format!("<{rust_path} as {trait_rust_path}>::{}", method.name);
+                        projected_trait_items.push(ProjectedTraitOperation {
+                            fallback_namespace: trait_fallback_namespace(
+                                &owner_namespace,
+                                &trait_implementation_path,
+                            ),
+                            item: ProjectedItem {
+                                namespace: owner_namespace.clone(),
+                                name: method.name.clone(),
+                                rust_path: method_rust_path.clone(),
+                                docs: Some(trait_operation_docs(
+                                    &method_rust_path,
+                                    docs.as_deref(),
+                                )),
+                                kind: ProjectedKind::Function(method),
+                            },
+                        });
+                    }
+                    declined.extend(method_declines.into_iter().map(|(name, reason)| {
+                        DeclinedItem {
+                            rust_path: format!("{rust_path}::{name}"),
+                            reason,
+                        }
+                    }));
                     let mut variant_names = Vec::new();
                     let mut data_carrying = false;
                     for variant_id in &enumeration.variants {
@@ -6841,7 +6960,7 @@ fn project_rustdoc(
                     Ok(ProjectedKind::Enum {
                         methods,
                         static_methods,
-                        constants: Vec::new(),
+                        constants: projected_constants,
                         send: false,
                         sync: false,
                         displayable: implements_trait(

@@ -295,7 +295,6 @@ pub(super) fn project_rust_constant_expression(expression: &str) -> Option<Strin
                 syn::Lit::Int(value) => Some(value.base10_digits().to_owned()),
                 syn::Lit::Float(value) => Some(value.base10_digits().to_owned()),
                 syn::Lit::Char(value) => Some(format!("{:?}", value.value())),
-                syn::Lit::Str(value) => Some(format!("{:?}", value.value())),
                 _ => None,
             },
             syn::Expr::Group(group) => translate(&group.expr),

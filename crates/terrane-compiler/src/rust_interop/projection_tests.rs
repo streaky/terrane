@@ -54,11 +54,13 @@ fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
             "std::io::error::Error".to_owned(),
             "facade::Error".to_owned(),
         )]),
+        rust_path_aliases: BTreeMap::new(),
     };
     let unrelated = ReexportProvider {
         dependency_index: 1,
         public_paths: BTreeMap::new(),
         canonical_public_paths: BTreeMap::new(),
+        rust_path_aliases: BTreeMap::new(),
     };
 
     assert_eq!(

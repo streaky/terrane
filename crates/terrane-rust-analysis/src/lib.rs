@@ -14,7 +14,7 @@ pub use oracle::*;
 pub use survey::{
     StableProbeReport, SurveyDeclaration, SurveyDeclarationMember, SurveyDiscoveryFailure,
     SurveyPackage, SurveyProbeExecution, SurveyProbeRequest, SurveyPublicApiItem, SurveyReport,
-    survey_complete_package_for_target, survey_core_declarations, survey_package,
+    core_rustdoc, survey_complete_package_for_target, survey_core_declarations, survey_package,
     survey_package_for_target, survey_package_for_target_with_probes, survey_package_with_policy,
 };
 

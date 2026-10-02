@@ -24,6 +24,15 @@
         "/deps/tokio": [
           "spawn"
         ],
+        "/deps/tokio/io": [
+          "ErrorKind"
+        ],
+        "/deps/tokio/io/errorkind": [
+          "clone",
+          "cmp",
+          "eq",
+          "partial_cmp"
+        ],
         "/deps/tokio/net/addr/sealed": [
           "Internal"
         ],
