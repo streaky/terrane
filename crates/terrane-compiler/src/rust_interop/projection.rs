@@ -27,6 +27,7 @@ use cache_identity::cache_identity;
 use cache_identity::selected_target;
 mod data;
 mod enum_payload;
+mod foreign_impls;
 mod macros;
 use macros::project_macro;
 mod rustdoc_support;
@@ -72,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "232";
+const PROJECTION_SCHEMA: &str = "238";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -1720,23 +1721,32 @@ impl Projection {
         member: &str,
     ) -> Option<(String, String)> {
         let item = self.item(namespace, owner)?;
-        let function = match &item.kind {
+        let result = match &item.kind {
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                constants,
                 ..
             }
             | ProjectedKind::Enum {
                 methods,
                 static_methods,
+                constants,
                 ..
-            } => methods
-                .iter()
-                .chain(static_methods)
-                .find(|function| function.name == member)?,
+            } => {
+                if let Some(constant) = constants.iter().find(|constant| constant.name == member) {
+                    &constant.ty
+                } else {
+                    &methods
+                        .iter()
+                        .chain(static_methods)
+                        .find(|function| function.name == member)?
+                        .result
+                }
+            }
             _ => return None,
         };
-        let result = match &function.result {
+        let result = match result {
             ProjectedType::InvocationScoped {
                 owned,
                 expression_scoped: true,
@@ -1762,6 +1772,9 @@ impl Projection {
         } else {
             base_rust_path
         };
+        if projected_owner_path_matches(&item.rust_path, owner_path) {
+            return Some((item.namespace.clone(), item.name.clone()));
+        }
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
@@ -2527,6 +2540,12 @@ pub fn resolve(
         }
     }
     project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
+    foreign_impls::project_foreign_owner_impls(
+        &mut projected,
+        &rustdocs,
+        &canonical_public_paths,
+        &reexport_rustdocs,
+    );
     aliases::project_closed_alias_members(
         &mut projected,
         &rustdocs,
@@ -5129,15 +5148,22 @@ fn rewrite_projected_owner_root(
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
+                constants,
                 ..
             }
             | ProjectedKind::Enum {
                 methods,
                 static_methods,
+                constants,
                 ..
             } => {
                 for function in methods.iter_mut().chain(static_methods) {
                     rewrite_projected_function_root(function, package_root, dependency_root);
+                }
+                for constant in constants {
+                    constant.rust_path =
+                        rewrite_rust_bound_root(&constant.rust_path, package_root, dependency_root);
+                    rewrite_projected_rust_root(&mut constant.ty, package_root, dependency_root);
                 }
             }
             ProjectedKind::Interface(interface) => {
@@ -7820,6 +7846,39 @@ fn resolved_nominal_id(ty: &Type, index: &HashMap<Id, Item>) -> Option<Id> {
     }
 }
 
+fn alias_type_substitutions(
+    ty: &Type,
+    parameters: &[GenericParamDef],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let arguments = type_arguments(ty);
+    let mut substitutions = generics.clone();
+    for (position, parameter) in parameters
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .enumerate()
+    {
+        let projected = if let Some(argument) = arguments.get(position) {
+            project_type(argument, index, paths, generics)?
+        } else if let GenericParamDefKind::Type {
+            default: Some(default),
+            ..
+        } = &parameter.kind
+        {
+            project_type(default, index, paths, &substitutions)?
+        } else {
+            return Err(format!(
+                "type alias parameter `{}` has no argument or default",
+                parameter.name
+            ));
+        };
+        substitutions.insert(parameter.name.clone(), projected);
+    }
+    Ok(substitutions)
+}
+
 fn expand_output_alias(
     mut output: Type,
     index: &HashMap<Id, Item>,
@@ -7841,18 +7900,8 @@ fn expand_output_alias(
         else {
             return Ok((output, generics));
         };
-        for (parameter, argument) in alias
-            .generics
-            .params
-            .iter()
-            .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
-            .zip(type_arguments(&output))
-        {
-            generics.insert(
-                parameter.name.clone(),
-                project_type(argument, index, paths, &generics)?,
-            );
-        }
+        generics =
+            alias_type_substitutions(&output, &alias.generics.params, index, paths, &generics)?;
         output = alias.type_.clone();
     }
 }
@@ -9133,19 +9182,8 @@ fn project_resolved_type(
         ..
     }) = index.get(&path.id)
     {
-        let mut substitutions = generics.clone();
-        let arguments = type_arguments(ty);
-        let parameters = alias
-            .generics
-            .params
-            .iter()
-            .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }));
-        for (parameter, argument) in parameters.zip(arguments) {
-            substitutions.insert(
-                parameter.name.clone(),
-                project_type(argument, index, paths, generics)?,
-            );
-        }
+        let substitutions =
+            alias_type_substitutions(ty, &alias.generics.params, index, paths, generics)?;
         return project_type(&alias.type_, index, paths, &substitutions);
     }
     let resolved = resolved_path_name(path, paths);

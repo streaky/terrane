@@ -1,6 +1,11 @@
 {
   "bound_dependencies": [
     {
+      "name": "__terrane_recursive_bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
       "name": "__terrane_recursive_either",
       "package": "either",
       "version": "=1.18.0"
@@ -106,6 +111,10 @@
           "Bytes.copy_to_bytes",
           "Bytes.drop",
           "Bytes.extend",
+          "Bytes.get_bytes",
+          "Bytes.get_bytes_nul",
+          "Bytes.get_str",
+          "Bytes.get_str_nul",
           "Bytes.into",
           "Bytes.is_empty",
           "Bytes.is_unique",
@@ -116,6 +125,7 @@
           "Bytes.split_to",
           "Bytes.truncate",
           "Bytes.try_into",
+          "Bytes::decode_with",
           "Bytes::default",
           "Bytes::from_iter",
           "Bytes::from_owner",

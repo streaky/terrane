@@ -377,6 +377,7 @@
           "Builder.into",
           "Builder.status",
           "Builder.try_into",
+          "Builder.url",
           "Builder.version",
           "Builder::default",
           "Builder::new",

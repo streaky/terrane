@@ -1,26 +1,17 @@
 {
-  "format": 4,
   "dependencies": [
     {
+      "members": {
+        "/deps/witness/macros": [
+          "message"
+        ]
+      },
       "name": "witness",
-      "version": "0.1.0",
-      "members": {}
+      "version": "0.1.0"
     }
   ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "f352f218c489f337678f1727981747b015aaba85ab500b5ce9ab1ba30bf327e4",
-  "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "191",
-  "content_hash": "b9637d4ade6c939f8beefbfadb5b2da73f6edf50a3e3f1922149c896a47632d8",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `f352f218c489f337678f1727981747b015aaba85ab500b5ce9ab1ba30bf327e4`"
-      }
-    ]
-  }
+  "source": "Local"
 }
