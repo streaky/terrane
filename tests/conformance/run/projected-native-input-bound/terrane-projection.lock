@@ -1,6 +1,9 @@
 {
+  "format": 4,
   "dependencies": [
     {
+      "name": "terrane-native-bound-witness",
+      "version": "0.1.0",
       "members": {
         "/deps/terrane-native-bound-witness": [
           "Border",
@@ -16,13 +19,33 @@
           "make_border",
           "radius_value"
         ]
-      },
-      "name": "terrane-native-bound-witness",
-      "version": "0.1.0"
+      }
     }
   ],
-  "format": 4,
   "removed": [],
+  "cache_identity": "123adb836b797e1681288177337ba763e6897b2ccd217cb235a5566ec461a4a3",
+  "source": "Local",
   "rustdoc_format": 57,
-  "source": "Local"
+  "projection_schema": "240",
+  "content_hash": "b8013b56d5fcf534971e83efe9ed2cf8b7a156c2ae64e30cd9c91b726ae22fe0",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }

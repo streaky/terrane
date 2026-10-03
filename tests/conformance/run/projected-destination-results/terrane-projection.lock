@@ -1,6 +1,9 @@
 {
+  "format": 4,
   "dependencies": [
     {
+      "name": "factory",
+      "version": "0.1.3",
       "members": {
         "/deps/factory": [
           "default_value",
@@ -9,11 +12,11 @@
           "sample_rows",
           "sample_value"
         ]
-      },
-      "name": "factory",
-      "version": "0.1.3"
+      }
     },
     {
+      "name": "terrane-generic-row-witness",
+      "version": "0.1.0",
       "members": {
         "/deps/terrane-generic-row-witness": [
           "Row",
@@ -22,20 +25,40 @@
           "Row.try_into",
           "row"
         ]
-      },
-      "name": "terrane-generic-row-witness",
-      "version": "0.1.0"
+      }
     }
   ],
-  "format": 4,
   "removed": [
     {
-      "current_version": "0.1.1",
-      "name": "decoded_value",
       "namespace": "/deps/factory",
-      "previous_version": "0.1.0"
+      "name": "decoded_value",
+      "previous_version": "0.1.0",
+      "current_version": "0.1.1"
     }
   ],
+  "cache_identity": "d13f945ff78156296187b56f01e3b4106fc9668a94601d127080a2e28dc36972",
+  "source": "Local",
   "rustdoc_format": 57,
-  "source": "Local"
+  "projection_schema": "240",
+  "content_hash": "ff97845862c304300594cef799f99d4d8807f02595a2a273f0358643bb828c09",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }
