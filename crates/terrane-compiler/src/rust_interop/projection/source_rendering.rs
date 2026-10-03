@@ -1,7 +1,30 @@
 use super::*;
+
+pub(super) fn render_callable_declaration(
+    output: &mut String,
+    item: &ProjectedItem,
+    aliases: &BTreeMap<String, String>,
+) {
+    match &item.kind {
+        ProjectedKind::Function(function) => {
+            render_function(output, function, true, 0, aliases, None);
+        }
+        ProjectedKind::Macro(function) => {
+            writeln!(
+                output,
+                "function {}; arguments {} ...\n",
+                function.name,
+                ProjectedType::Generic("__MacroArgument".to_owned()).terrane_name()
+            )
+            .expect("writing to a string cannot fail");
+        }
+        _ => {}
+    }
+}
+
 pub(super) fn projected_item_functions(item: &ProjectedItem) -> Vec<&ProjectedFunction> {
     match &item.kind {
-        ProjectedKind::Function(function) => vec![function],
+        ProjectedKind::Function(function) | ProjectedKind::Macro(function) => vec![function],
         ProjectedKind::ForeignType {
             methods,
             static_methods,
@@ -408,7 +431,7 @@ pub(super) fn collect_source_foreign(
     let mut foreign = BTreeMap::<String, String>::new();
     for item in selected {
         match &item.kind {
-            ProjectedKind::Function(function) => {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                 collect_foreign_function(function, &mut foreign);
             }
             ProjectedKind::ForeignType {

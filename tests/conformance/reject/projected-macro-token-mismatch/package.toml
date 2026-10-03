@@ -1,0 +1,9 @@
+package = "projected-macro-token-mismatch"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-expression-macro-witness"
+version = "=0.1.0"
+effects = ["build"]

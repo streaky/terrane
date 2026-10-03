@@ -74,9 +74,9 @@ fn is_destination_directed_projected_call(
         lexical_scope_chain(unit, callee.span.start)
             .find_map(|scope| {
                 scope.symbols.get(name)?.iter().rev().find(|symbol| {
-                    symbol
-                        .declaration_span
-                        .is_none_or(|span| span.end <= callee.span.start)
+                    symbol.declaration_span.is_none_or(|span| {
+                        span.file != unit.source.id() || span.end <= callee.span.start
+                    })
                 })
             })
             .map(|symbol| symbol.identity.clone())

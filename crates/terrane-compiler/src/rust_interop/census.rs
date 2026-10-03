@@ -298,7 +298,7 @@ fn assess(
                         declined.insert(item.rust_path.clone(), item.reason.clone());
                     }
                 }
-                ProjectedKind::Function(_) => {}
+                ProjectedKind::Function(_) | ProjectedKind::Macro(_) => {}
             }
         }
         for item in &dependency.declined {

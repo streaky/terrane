@@ -573,6 +573,7 @@ fn augment_units_with_projection(
         for item in &dependency.items {
             match &item.kind {
                 crate::rust_interop::projection::ProjectedKind::Function(function)
+                | crate::rust_interop::projection::ProjectedKind::Macro(function)
                     if function.destination_result.is_some() =>
                 {
                     destination_functions.insert(format!("{}::{}", item.namespace, item.name));

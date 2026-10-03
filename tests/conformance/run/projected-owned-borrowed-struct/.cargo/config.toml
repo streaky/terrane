@@ -1,2 +1,2 @@
 [patch.crates-io]
-terrane-borrowed-struct-witness = { path = "fixture-registry/terrane-borrowed-struct-witness-0.1.5" }
+terrane-borrowed-struct-witness = { path = "fixture-registry/terrane-borrowed-struct-witness-0.1.6" }

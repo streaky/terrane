@@ -462,7 +462,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 7] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:10:20-10:41) */
         { Site { function: 0, file: 0, line: 10, column: 20, end_line: 10, end_column: 41 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:12:25-12:47) */
@@ -471,6 +471,12 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 12, column: 74, end_line: 12, end_column: 93 } },
         /* terrane-site-row: site 3: /app::main (src/main.trn:14:13-14:32) */
         { Site { function: 0, file: 0, line: 14, column: 13, end_line: 14, end_column: 32 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:16:13-16:37) */
+        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 37 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:18:13-18:35) */
+        { Site { function: 0, file: 0, line: 18, column: 13, end_line: 18, end_column: 35 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:20:13-20:34) */
+        { Site { function: 0, file: 0, line: 20, column: 13, end_line: 20, end_column: 34 } },
     ];
     #[cold]
     #[inline(never)]
@@ -499,6 +505,8 @@ fn main() {
     let owned: Owned = terrane_borrowed_struct_witness::Owned {
         label: String::from("owned"),
         count: 7,
+        note: None::<String>,
+        index: None::<i64>,
     };
     let first: String = __terrane_raised(
         summarize(&descriptor),
@@ -526,6 +534,39 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(summarize(&defaults),
         3 /* terrane-site: src/main.trn:14:13-14:32 */))
+    );
+    let indexed: Owned = terrane_borrowed_struct_witness::Owned {
+        label: String::from("indexed"),
+        count: 8,
+        note: None::<String>,
+        index: 42.into(),
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&indexed),
+        4 /* terrane-site: src/main.trn:16:13-16:37 */))
+    );
+    let noted: Owned = terrane_borrowed_struct_witness::Owned {
+        label: String::from("noted"),
+        count: 9,
+        note: String::from("retained").into(),
+        index: None::<i64>,
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&noted),
+        5 /* terrane-site: src/main.trn:18:13-18:35 */))
+    );
+    let zero: Owned = terrane_borrowed_struct_witness::Owned {
+        label: String::from("zero"),
+        count: 10,
+        note: String::from("both").into(),
+        index: 0.into(),
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&zero),
+        6 /* terrane-site: src/main.trn:20:13-20:34 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-borrowed-struct-witness.trn

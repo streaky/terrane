@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness/macros import sum
+
+function main;
+    callback = sum

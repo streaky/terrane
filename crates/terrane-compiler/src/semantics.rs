@@ -16,12 +16,15 @@ mod descriptors;
 mod documents;
 mod expressions;
 mod logging;
+mod macros;
+pub(crate) use macros::macro_argument;
 mod member_inference;
 mod numeric;
 mod types;
 
 // Object, ownership, binding-lifetime, and diagnostic validation.
 mod bindings;
+pub(crate) use bindings::projected_macro_for_call;
 mod diagnostics;
 mod objects;
 mod ownership;

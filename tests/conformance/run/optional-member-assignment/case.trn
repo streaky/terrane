@@ -1,0 +1,12 @@
+namespace app
+class OptionalValue
+    value int|none = none
+    function construct; input int
+        this.value = input
+function main;
+    holder = instance OptionalValue; 7
+    value = holder.value
+    if value != none
+        print; value
+    else
+        print; 'none'

@@ -1,0 +1,17 @@
+namespace app
+from /deps/iced/widget/macros import text as macro-text, row as macro-row, column as macro-column
+from /deps/iced/widget import text as borrowed-text, row as borrowed-row, container as native-container
+from /deps/witness import State, inspect
+from /core/output import print
+from /core/collections import list
+function render host-invocation-scoped-native; state ref State
+    children list of host-invocation-scoped-native = list;
+    for child in ref state.children
+        children.append; (render; child)
+    return native-container; (macro-column; (macro-text; 'macro {}', 7), (macro-row; (macro-text; 'nested {}', 11), (borrowed-text; (state.get_label;))), (borrowed-row; children))
+function main;
+    children list of State = list;
+    children.append; (State::new; 'first borrowed leaf')
+    children.append; (State::new; 'second borrowed leaf')
+    state = State::branch; 'borrowed root', children
+    print; (inspect; state, render)

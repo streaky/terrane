@@ -52,6 +52,16 @@ pub(super) fn validate_call_nodes<'a>(
     active_function: Option<&'a FunctionContract>,
     scoped_bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
+    if matches!(
+        node.kind,
+        SyntaxKind::ImportDeclaration
+            | SyntaxKind::ObjectImport
+            | SyntaxKind::ImportSelection
+            | SyntaxKind::ImportAlias
+            | SyntaxKind::NamespaceDeclaration
+    ) {
+        return Ok(());
+    }
     let entered_function = is_function_node(node)
         .then(|| {
             unit.functions
@@ -63,6 +73,46 @@ pub(super) fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    if node.kind == SyntaxKind::Name && projected_macro_for_call(package, unit, node).is_some() {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "native macros are invocation-only operations, not callable values",
+            node.span,
+        ));
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && projected_macro_for_call(package, unit, callee).is_some()
+    {
+        if crate::syntax::call_is_unsafe(node) {
+            return Err(failure(
+                &unit.source,
+                "T0119",
+                "native macro invocations must satisfy the safe Rust expression contract",
+                node.span,
+            ));
+        }
+        for argument in &arguments.children {
+            if argument.children.len() > 1 {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "native macro invocations use positional expression arguments",
+                    argument.span,
+                ));
+            }
+            validate_call_nodes(
+                package,
+                unit,
+                argument.children.last().unwrap_or(argument),
+                contracts,
+                active_function,
+                scoped_bindings,
+            )?;
+        }
+        return Ok(());
+    }
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("await")
         && !active_function.is_some_and(|function| function.is_async)
@@ -317,6 +367,9 @@ pub(super) fn validate_call_nodes<'a>(
     validate_string_member_expression(unit, node, scoped_bindings)?;
     validate_coercion_family_expression(unit, node)?;
     for (index, child) in node.children.iter().enumerate() {
+        if node.kind.child_field(index, child.kind) == "name" {
+            continue;
+        }
         if node.kind == SyntaxKind::CallExpression
             && index == 0
             && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
@@ -595,11 +648,16 @@ pub(super) fn validate_resolved_assignment(
     if !matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         return Ok(());
     }
-    let Some(name_node) = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
-    else {
+    let name_node = if node.kind == SyntaxKind::Assignment {
+        node.children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name)
+    } else {
+        node.children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+    };
+    let Some(name_node) = name_node else {
         return Ok(());
     };
     let Some(initializer) = node.children.iter().rev().find(|child| {

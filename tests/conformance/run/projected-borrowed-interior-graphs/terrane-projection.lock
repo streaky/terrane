@@ -1,9 +1,6 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "http",
-      "version": "1.5.0",
       "members": {
         "/deps/http": [
           "Error",
@@ -472,11 +469,11 @@
         "/deps/http/uri/trait/core/convert/tryfrom-str": [
           "try_from"
         ]
-      }
+      },
+      "name": "http",
+      "version": "1.5.0"
     },
     {
-      "name": "witness",
-      "version": "0.1.0",
       "members": {
         "/deps/witness": [
           "Canvas",
@@ -522,23 +519,13 @@
           "render",
           "root_count"
         ]
-      }
+      },
+      "name": "witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "bb3c4602f010dcede689981c58463443cdb02408364bf050512261b4958cd69f",
-  "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "226",
-  "content_hash": "bb1515ae1a1633817581f16cc60017c2591ab6b2e6c0d20a28323c43ca405596",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `bb3c4602f010dcede689981c58463443cdb02408364bf050512261b4958cd69f`"
-      }
-    ]
-  }
+  "source": "Local"
 }

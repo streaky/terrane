@@ -18,6 +18,10 @@
 //! Shared Rustdoc indexing, exact probes, and Cargo process policy come directly from
 //! `terrane-rust-analysis`; no compiler compatibility facade duplicates them. Generic Rust
 //! emission remains under `lowering/`; only projected dependency/wrapper planning is owned here.
+//! Native expression macros retain distinct projected identities and use concrete call-oracle
+//! evidence, not matcher interpretation. Lowering preserves literal tokens and nested macro
+//! expressions without pre-evaluating their arguments; Rust owns matching, expansion, and the
+//! resulting repeated or conditional evaluation.
 //! # Value lifetimes and terminal paths
 //!
 //! | Value/terminal path | Status | Evidence |

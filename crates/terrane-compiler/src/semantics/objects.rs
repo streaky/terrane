@@ -2805,6 +2805,75 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .projection
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
+    let mut macro_questions = Vec::new();
+    let mut macro_sites = Vec::new();
+    for specialization in &pending {
+        let unit = &package.units[specialization.unit];
+        if let Some(node) = find_node_by_span(&unit.tree.root, specialization.span)
+            && let Some(callee) = node.children.first()
+            && projected_macro_for_call(package, unit, callee).is_some()
+            // Lifetime-coupled macro graphs are checked with their native callback in the
+            // final Rust program; extracting open producers would lose the shared context.
+            && !matches!(specialization.value_type, ValueType::InvocationScopedNative { .. })
+        {
+            macro_questions.push(super::macros::macro_probe(
+                package,
+                unit,
+                node,
+                &specialization.projected_result,
+            )?);
+            macro_sites.push((specialization.unit, specialization.span));
+        }
+    }
+    if !macro_questions.is_empty() {
+        let report = crate::rust_interop::ProjectionOracle::new(
+            &workspace,
+            &package.projection.cache_identity,
+            package.projection.containment,
+        )
+        .prove_calls(&macro_questions)
+        .map_err(|error| {
+            failure(
+                &package.units[macro_sites[0].0].source,
+                "T0119",
+                format!("native macro proof could not run: {}", error.message),
+                macro_sites[0].1,
+            )
+        })?;
+        package.projection.probe_wall_time_ms = package
+            .projection
+            .probe_wall_time_ms
+            .saturating_add(report.wall_time_ms);
+        let answers = report
+            .evidence
+            .iter()
+            .map(|evidence| (&evidence.question, &evidence.answer))
+            .collect::<BTreeMap<_, _>>();
+        for ((unit_index, span), question) in macro_sites.iter().zip(&macro_questions) {
+            match answers.get(question).copied() {
+                Some(crate::rust_interop::ProbeAnswer::Yes) => {}
+                answer => {
+                    let reason = match answer {
+                        Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => {
+                            reason.as_str()
+                        }
+                        Some(crate::rust_interop::ProbeAnswer::No) => {
+                            "Rust rejected the demanded macro expansion or result type"
+                        }
+                        _ => "native macro proof returned no answer",
+                    };
+                    return Err(failure(
+                        &package.units[*unit_index].source,
+                        "T0119",
+                        format!(
+                            "native macro invocation does not satisfy its concrete expression contract: {reason}"
+                        ),
+                        *span,
+                    ));
+                }
+            }
+        }
+    }
     for mut specialization in pending {
         let mut generic_groups = Vec::new();
         for bound in &specialization.bounds {
@@ -3404,10 +3473,89 @@ pub(super) fn same_projected_native_family(
     }
 }
 
+fn contextual_results(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    results: &mut BTreeMap<(u32, usize, usize), Vec<CallbackFunctionResult>>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+    {
+        for (parameter, argument) in function.parameters.iter().zip(&arguments.children) {
+            let ProjectedType::Callback {
+                result,
+                native_result,
+                ..
+            } = &parameter.ty
+            else {
+                continue;
+            };
+            let ProjectedType::InvocationScoped {
+                name,
+                owned,
+                lifetimes,
+                rust_type,
+                ..
+            } = result.as_ref()
+            else {
+                continue;
+            };
+            if native_result.as_ref().is_some_and(|native| {
+                !crate::rust_ir::rust_type_constructors_match(native, rust_type)
+            }) {
+                // A trait adapter's terminal result is not necessarily its
+                // callback producer contract; retain that producer's identity.
+                continue;
+            }
+            let native = native_result.as_ref().unwrap_or(rust_type);
+            let value = argument.children.last().unwrap_or(argument);
+            if value.kind != SyntaxKind::Name {
+                continue;
+            }
+            let Some(contract) =
+                resolved_function_contract(unit, node_text(&unit.source, value), value.span.start)
+            else {
+                continue;
+            };
+            let base = owned.rust_type();
+            let value_type = ValueType::InvocationScopedNative {
+                rust_type: native.clone(),
+                concrete: true,
+                family: ObjectIdentity::new(unit.namespace.clone(), name.clone())
+                    .with_native_projection(
+                        base.split_once('<')
+                            .map_or(base.clone(), |(base, _)| base.to_owned()),
+                    ),
+                lifetimes: lifetimes.clone(),
+                expression_scoped: false,
+                region: None,
+            };
+            let mut projected = result.as_ref().clone();
+            if let ProjectedType::InvocationScoped { rust_type, .. } = &mut projected {
+                rust_type.clone_from(native);
+            }
+            results
+                .entry((contract.span.file, contract.span.start, contract.span.end))
+                .or_default()
+                .push(CallbackFunctionResult {
+                    projected,
+                    value_type,
+                });
+        }
+    }
+    for child in &node.children {
+        contextual_results(package, unit, child, results);
+    }
+}
 fn resolve_callback_function_results(
     package: &SemanticPackage,
     unit: &SemanticUnit,
 ) -> Vec<(Span, CallbackFunctionResult)> {
+    let mut contexts = BTreeMap::new();
+    contextual_results(package, unit, &unit.tree.root, &mut contexts);
     let mut facts = unit
         .functions
         .iter()
@@ -3428,6 +3576,13 @@ fn resolve_callback_function_results(
                 forwarded_returns: Vec::new(),
             };
             collect_callback_function_facts(package, unit, function, &mut facts);
+            // A scoped function's consumer selects its result, even when the
+            // producer is a different native builder closed through Into.
+            if let Some(context) =
+                contexts.get(&(contract.span.file, contract.span.start, contract.span.end))
+            {
+                facts.direct_results.clone_from(context);
+            }
             for result in &mut facts.direct_results {
                 contextualize_callback_value_type(unit, &mut result.value_type, &[contract.span]);
             }
@@ -3650,6 +3805,126 @@ fn collect_projected_destinations(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    fn collect_inputs(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        value: &SyntaxNode,
+        function_result: Option<&ValueType>,
+        unit_index: usize,
+        pending: &mut Vec<PendingProjectedSpecialization>,
+    ) -> Result<(), SemanticFailure> {
+        if value.kind == SyntaxKind::CallExpression
+            && let Some(callee) = value.children.first()
+            && super::bindings::projected_macro_for_call(package, unit, callee).is_some()
+        {
+            if let Some(arguments) = value.children.get(1) {
+                for argument in &arguments.children {
+                    collect_inputs(
+                        package,
+                        unit,
+                        argument.children.last().unwrap_or(argument),
+                        function_result,
+                        unit_index,
+                        pending,
+                    )?;
+                }
+            }
+            return Ok(());
+        }
+        if value.kind == SyntaxKind::GroupExpression {
+            for child in &value.children {
+                collect_inputs(package, unit, child, function_result, unit_index, pending)?;
+            }
+            return Ok(());
+        }
+        collect_projected_destinations(
+            package,
+            unit,
+            value,
+            None,
+            function_result,
+            unit_index,
+            pending,
+        )
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && let Some(item) = projected_macro_for_call(package, unit, callee)
+    {
+        let destination = expected.ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0119",
+                "native macro invocation requires a concrete result destination",
+                node.span,
+            )
+        })?;
+        let projected_result =
+            destination_projected_type(package, destination).map_err(|error| {
+                failure(
+                    &unit.source,
+                    "T0119",
+                    format!("native macro result cannot be projected: {error}"),
+                    node.span,
+                )
+            })?;
+        let projected_parameters = arguments
+            .children
+            .iter()
+            .enumerate()
+            .map(|(index, argument)| {
+                super::macros::macro_argument(
+                    package,
+                    unit,
+                    argument.children.last().unwrap_or(argument),
+                    index,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        pending.push(PendingProjectedSpecialization {
+            unit: unit_index,
+            span: node.span,
+            operation_name: item.name.clone(),
+            substitutions: BTreeMap::new(),
+            generic_arguments: Vec::new(),
+            projected_result,
+            value_type: destination.clone(),
+            value_parameters: vec![None; projected_parameters.len()],
+            projected_parameters,
+            direct_projected_call: true,
+            bounds: Vec::new(),
+        });
+        let input_start = pending.len();
+        for argument in &arguments.children {
+            collect_inputs(
+                package,
+                unit,
+                argument.children.last().unwrap_or(argument),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        if matches!(
+            destination,
+            ValueType::InvocationScopedNative { concrete: true, .. }
+        ) {
+            // The native callback closes producer lifetimes jointly with the macro.
+            // A detached higher-ranked assertion would demand an unrelated lifetime.
+            for producer in &mut pending[input_start..] {
+                producer.bounds.clear();
+                if producer.generic_arguments.iter().any(|argument| {
+                    matches!(
+                        argument,
+                        crate::rust_interop::projection::ProjectedType::Generic(_)
+                    )
+                }) {
+                    producer.generic_arguments.clear();
+                }
+            }
+        }
+        return Ok(());
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) = projected_function_for_call(package, unit, callee)
@@ -4509,10 +4784,16 @@ fn collect_projected_destinations(
 
     if is_function_node(node) {
         let return_type = unit
-            .functions
-            .iter()
-            .find(|contract| contract.span == node.span)
-            .and_then(|contract| contract.return_type.clone());
+            .invocation_scoped_function_results
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .cloned()
+            .or_else(|| {
+                unit.functions
+                    .iter()
+                    .find(|contract| contract.span == node.span)
+                    .and_then(|contract| contract.return_type.clone())
+            });
+        let graph_start = pending.len();
         for child in &node.children {
             collect_projected_destinations(
                 package,
@@ -4523,6 +4804,16 @@ fn collect_projected_destinations(
                 unit_index,
                 pending,
             )?;
+        }
+        if matches!(
+            return_type,
+            Some(ValueType::InvocationScopedNative { concrete: true, .. })
+        ) {
+            // The complete callback, including ordinary builders around macros,
+            // closes its native loans in the final backend check.
+            for producer in &mut pending[graph_start..] {
+                producer.bounds.clear();
+            }
         }
         return Ok(());
     }

@@ -594,24 +594,6 @@ pub(super) fn write_foreign_import(
     }
 }
 
-fn projected_type_is_identity(ty: &crate::rust_interop::projection::ProjectedType) -> bool {
-    match ty {
-        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            projected_type_is_identity(inner)
-        }
-        crate::rust_interop::projection::ProjectedType::None
-        | crate::rust_interop::projection::ProjectedType::Bool
-        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
-        | crate::rust_interop::projection::ProjectedType::Float
-        | crate::rust_interop::projection::ProjectedType::Float32
-        | crate::rust_interop::projection::ProjectedType::String
-        | crate::rust_interop::projection::ProjectedType::Bytes
-        | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-        | crate::rust_interop::projection::ProjectedType::Foreign { .. } => true,
-        _ => false,
-    }
-}
-
 fn projected_sequence_is_vec(path: &str) -> bool {
     path.starts_with("alloc::vec::Vec<") || path.starts_with("std::vec::Vec<")
 }
@@ -836,7 +818,7 @@ pub(super) fn projected_argument_expression(
             *is_async,
         ),
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            if projected_type_is_identity(inner) {
+            if inner.has_identity_representation() {
                 name.to_owned()
             } else {
                 let converted = projected_argument_expression("value", inner);
@@ -855,7 +837,7 @@ pub(super) fn projected_argument_expression(
                 } else {
                     "into_vec"
                 };
-                if projected_type_is_identity(item) {
+                if item.has_identity_representation() {
                     format!("{name}.{consume}()")
                 } else {
                     let converted = projected_argument_expression("item", item);
@@ -913,7 +895,7 @@ pub(super) fn projected_chain_argument_expression(
     name: &str,
     ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
-    if projected_type_is_identity(ty) {
+    if ty.has_identity_representation() {
         return name.to_owned();
     }
     let converted = projected_argument_expression(name, ty);
@@ -943,7 +925,7 @@ pub(super) fn projected_result_expression(
         }
         crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            if projected_type_is_identity(inner) {
+            if inner.has_identity_representation() {
                 value.to_owned()
             } else {
                 let converted = projected_result_expression("value", inner);
@@ -960,7 +942,7 @@ pub(super) fn projected_result_expression(
             format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
         }
         crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
-            if projected_type_is_identity(item) {
+            if item.has_identity_representation() {
                 format!("terrane_collection_support::List::new({value})")
             } else {
                 let converted = projected_result_expression("item", item);

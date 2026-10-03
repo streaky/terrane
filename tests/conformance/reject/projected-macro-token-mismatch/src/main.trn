@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness/macros import message
+
+function main;
+    text = 'not-a-literal-token'
+    result string = message; text

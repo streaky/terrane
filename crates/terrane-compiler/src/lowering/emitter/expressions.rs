@@ -464,22 +464,35 @@ impl Emitter<'_> {
         if let ValueType::InvocationScopedNative {
             rust_type: expected,
             concrete: true,
-            family: expected_family,
             ..
         } = &value_type
             && let Some(ValueType::InvocationScopedNative {
-                rust_type: actual,
-                concrete: true,
-                ..
+                rust_type: actual, ..
             }) = self.value_type(node)
-            && (expected_family.name == "invocation-scoped-native"
-                || !crate::rust_ir::rust_type_constructors_match(expected, &actual))
+            && !crate::rust_ir::rust_type_constructors_match(expected, &actual)
         {
             let expected = crate::rust_ir::rust_lifetimes(expected)
                 .iter()
                 .fold(expected.clone(), |expected, lifetime| {
                     expected.replace(lifetime, "'_")
                 });
+            let mut producer = node;
+            while producer.kind == SyntaxKind::GroupExpression && producer.children.len() == 1 {
+                producer = &producer.children[0];
+            }
+            let expected = if producer.kind == SyntaxKind::CallExpression
+                && let Some(callee) = producer.children.first()
+                && let Some(function) = self.projected_function_for_call(callee)
+            {
+                let replacements = function
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), "_".to_owned()))
+                    .collect();
+                crate::rust_ir::instantiate_rust_generics(&expected, &replacements)
+            } else {
+                expected
+            };
             return format!(
                 "{{ let value: {expected} = ({}).into(); value }}",
                 self.expression(node)

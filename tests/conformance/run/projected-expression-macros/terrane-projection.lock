@@ -1,0 +1,35 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Packet",
+          "Packet.clone",
+          "Packet.into",
+          "Packet.try_into",
+          "evaluations",
+          "next",
+          "sum"
+        ],
+        "/deps/witness/layout/macros": [
+          "combine"
+        ],
+        "/deps/witness/macros": [
+          "disable",
+          "message",
+          "packet",
+          "selected",
+          "sum",
+          "twice",
+          "values"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

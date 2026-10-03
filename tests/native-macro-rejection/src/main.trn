@@ -1,0 +1,8 @@
+namespace app
+from /deps/iced/widget/macros import text as macro-text
+from /deps/witness import State, inspect
+function render host-invocation-scoped-native; state ref State
+    return macro-text; 'broken {', (state.get_label;)
+function main;
+    state = State::new; 'borrowed state'
+    print; (inspect; state, render)

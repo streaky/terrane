@@ -1,0 +1,9 @@
+package = "projected-macro-supplemental-owner-leak"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-macro-facade-witness"
+version = "=0.1.0"
+effects = ["build"]

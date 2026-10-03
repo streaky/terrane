@@ -21,6 +21,53 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
 }
 
 impl Emitter<'_> {
+    fn native_macro_expression(&mut self, node: &SyntaxNode) -> String {
+        use crate::rust_interop::projection::ProjectedType;
+        let mut node = node;
+        while node.kind == SyntaxKind::GroupExpression && node.children.len() == 1 {
+            node = &node.children[0];
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && let Some(item) =
+                crate::semantics::projected_macro_for_call(self.package, self.unit, callee)
+        {
+            let path = item.rust_path.clone();
+            let values = arguments
+                .children
+                .iter()
+                .map(|argument| {
+                    self.native_macro_expression(argument.children.last().unwrap_or(argument))
+                })
+                .collect::<Vec<_>>();
+            return format!("{path}!({})", values.join(", "));
+        }
+        let parameter = crate::semantics::macro_argument(self.package, self.unit, node, 0)
+            .expect("semantic macro proof records a concrete native argument");
+        if node.kind == SyntaxKind::Literal {
+            let token = native_macro_literal(self.text(node));
+            return match parameter.ty {
+                ProjectedType::Int => format!("{token}_i64"),
+                ProjectedType::Float => format!("{token}_f64"),
+                _ => token,
+            };
+        }
+        if parameter.borrowed {
+            let operand = node
+                .children
+                .last()
+                .filter(|_| node.kind == SyntaxKind::UnaryExpression)
+                .unwrap_or(node);
+            let value = self.native_receiver_expression(operand, parameter.mutable_borrow);
+            return format!(
+                "&{}({value})",
+                if parameter.mutable_borrow { "mut " } else { "" }
+            );
+        }
+        let value = self.expression(node);
+        projected_chain_argument_expression(&value, &parameter.ty)
+    }
+
     fn borrowed_native_callback_adapter(
         &self,
         value: &SyntaxNode,
@@ -1512,9 +1559,18 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_platform_{function}({arguments})");
         }
+        let native_macro_path =
+            crate::semantics::projected_macro_for_call(self.package, self.unit, callee)
+                .map(|item| item.rust_path.clone());
         let mut values = argument_values
             .into_iter()
-            .map(|value| self.expression(value))
+            .map(|value| {
+                if native_macro_path.is_some() {
+                    self.native_macro_expression(value)
+                } else {
+                    self.expression(value)
+                }
+            })
             .collect::<Vec<_>>();
         if callee.kind == SyntaxKind::MemberExpression
             && callee
@@ -1608,7 +1664,23 @@ impl Emitter<'_> {
                             && descriptor.kind == crate::semantics::ObjectKind::Interface
                     })
             });
-        let contract = self.contract_for_call(callee).cloned();
+        let contract = if native_macro_path.is_some() {
+            None
+        } else {
+            self.contract_for_call(callee).cloned()
+        };
+        let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
+            && callee
+                .children
+                .first()
+                .and_then(|designator| self.class_designator(designator))
+                .and_then(|object| {
+                    self.package
+                        .projection
+                        .projected_struct(&object.identity.namespace, &object.identity.name)
+                })
+                .is_some();
+        let mut native_field_values = None;
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
             let mut variadic_values = Vec::new();
@@ -1635,6 +1707,23 @@ impl Emitter<'_> {
                             .parameters
                             .iter()
                             .position(|parameter| parameter.name == self.text(name))
+                            .or_else(|| {
+                                (callee.kind == SyntaxKind::ConstructionExpression)
+                                    .then(|| callee.children.first())
+                                    .flatten()
+                                    .and_then(|designator| self.class_designator(designator))
+                                    .and_then(|object| {
+                                        self.package.projection.projected_struct(
+                                            &object.identity.namespace,
+                                            &object.identity.name,
+                                        )
+                                    })
+                                    .and_then(|(_, fields, _)| {
+                                        fields
+                                            .iter()
+                                            .position(|field| field.name == self.text(name))
+                                    })
+                            })
                             .expect("validated named argument")
                     },
                 );
@@ -1822,10 +1911,17 @@ impl Emitter<'_> {
                 ));
             }
             self.append_defaults(contract, &mut ordered);
-            values = ordered.into_iter().flatten().collect();
-        } else if let Some(
-            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
-        ) = self.value_type(callee)
+            if native_struct_construction {
+                native_field_values = Some(ordered);
+                values.clear();
+            } else {
+                values = ordered.into_iter().flatten().collect();
+            }
+        } else if native_macro_path.is_none()
+            && let Some(
+                ValueType::Function(parameters, _, _)
+                | ValueType::AsyncFunction(parameters, _, _, _),
+            ) = self.value_type(callee)
         {
             let variadic = parameters
                 .last()
@@ -1874,7 +1970,9 @@ impl Emitter<'_> {
             )
         });
         let mut native_member_receiver = None;
-        let name = if callee.kind == SyntaxKind::ConstructionExpression {
+        let name = if let Some(path) = &native_macro_path {
+            path.clone()
+        } else if callee.kind == SyntaxKind::ConstructionExpression {
             callee
                 .children
                 .first()
@@ -2107,7 +2205,19 @@ impl Emitter<'_> {
                         .and_then(|projected| projected.generic_parameters.get(*index))
                         .is_none_or(|parameter| !native_path_generics.contains(&parameter.name))
                 })
-                .map(|(_, argument)| argument.rust_type())
+                .map(|(_, argument)| {
+                    let native = argument.rust_type();
+                    if projected_function.as_ref().is_some_and(|projected| {
+                        projected
+                            .generic_parameters
+                            .iter()
+                            .any(|parameter| parameter.name == native)
+                    }) {
+                        "_".to_owned()
+                    } else {
+                        native
+                    }
+                })
                 .collect::<Vec<_>>();
             if let Some(projected) = projected_function.as_ref() {
                 for (argument, template) in generic_arguments
@@ -2158,6 +2268,8 @@ impl Emitter<'_> {
                         .find(|(template, _)| *template == argument)
                     {
                         argument.clone_from(replacement);
+                    } else if template_arguments.contains(argument) {
+                        "_".clone_into(argument);
                     }
                 }
             }
@@ -2192,93 +2304,128 @@ impl Emitter<'_> {
                     .projection
                     .projected_struct(&object.identity.namespace, &object.identity.name)
             });
-        let call =
-            if let Some((native_path, fields, borrowed_view)) = projected_native_construction {
-                let value_for =
-                    |field_name: &str| {
-                        contract
-                            .as_ref()
-                            .and_then(|contract| {
-                                contract.parameters.iter().zip(&values).find_map(
-                                    |(parameter, value)| {
-                                        (parameter.name == field_name).then(|| value.clone())
-                                    },
-                                )
+        let call = if let Some((native_path, fields, borrowed_view)) = projected_native_construction
+        {
+            let value_for = |field_name: &str| {
+                native_field_values
+                    .as_ref()
+                    .and_then(|slots| {
+                        fields
+                            .iter()
+                            .position(|field| field.name == field_name)
+                            .and_then(|index| slots.get(index))
+                            .and_then(Clone::clone)
+                    })
+                    .or_else(|| {
+                        contract.as_ref().and_then(|contract| {
+                            contract.parameters.iter().zip(&values).find_map(
+                                |(parameter, value)| {
+                                    (parameter.name == field_name).then(|| value.clone())
+                                },
+                            )
+                        })
+                    })
+                    .or_else(|| {
+                        arguments
+                            .children
+                            .iter()
+                            .zip(&values)
+                            .find_map(|(argument, value)| {
+                                argument
+                                    .children
+                                    .first()
+                                    .filter(|name| {
+                                        name.kind == SyntaxKind::Name
+                                            && self.text(name) == field_name
+                                    })
+                                    .map(|_| value.clone())
                             })
-                            .or_else(|| {
-                                arguments.children.iter().zip(&values).find_map(
-                                    |(argument, value)| {
-                                        argument
-                                            .children
-                                            .first()
-                                            .filter(|name| {
-                                                name.kind == SyntaxKind::Name
-                                                    && self.text(name) == field_name
-                                            })
-                                            .map(|_| value.clone())
-                                    },
-                                )
-                            })
-                    };
-                let projected_values = fields
-                    .iter()
-                    .map(|field| {
-                        let value = value_for(&field.name);
-                        match (&field.ty, value) {
-                            (
-                                crate::rust_interop::projection::ProjectedType::Optional(inner),
-                                None,
-                            ) => format!(
+                    })
+            };
+            let projected_values = fields
+                .iter()
+                .map(|field| {
+                    let value = value_for(&field.name);
+                    match (&field.ty, value) {
+                        (crate::rust_interop::projection::ProjectedType::Optional(inner), None) => {
+                            format!(
                                 "None::<{}>",
                                 super::super::dependencies::projected_field_abi_type(inner)
-                            ),
-                            (_, Some(value)) if borrowed_view => value,
-                            (
-                                crate::rust_interop::projection::ProjectedType::Sequence { .. },
-                                Some(value),
-                            ) => {
-                                format!("{value}.into_vec()")
-                            }
-                            (
-                                crate::rust_interop::projection::ProjectedType::Optional(_),
-                                Some(value),
-                            ) => {
-                                format!("{value}.into()")
-                            }
-                            (_, Some(value)) => value,
-                            (_, None) => unreachable!(
-                                "semantics requires projected struct field `{}`",
-                                field.name
-                            ),
+                            )
                         }
-                    })
-                    .collect::<Vec<_>>();
-                if borrowed_view {
-                    format!("{name}({})", projected_values.join(", "))
-                } else {
-                    let assignments = fields
-                        .iter()
-                        .zip(projected_values)
-                        .map(|(field, value)| format!("{}: {value}", rust_name(&field.rust_name)))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{native_path} {{ {assignments} }}")
-                }
-            } else if contract.is_none()
-                && matches!(
-                    callable_mode,
-                    Some(InvocationMode::Mutable | InvocationMode::Consuming)
-                )
-            {
-                let arguments = match values.as_slice() {
-                    [] => "()".to_owned(),
-                    [value] => format!("({value},)"),
-                    _ => format!("({})", values.join(", ")),
-                };
-                format!("{name}.call({arguments})")
+                        (_, Some(value)) if borrowed_view => value,
+                        (
+                            crate::rust_interop::projection::ProjectedType::Sequence { .. },
+                            Some(value),
+                        ) => {
+                            format!("{value}.into_vec()")
+                        }
+                        (
+                            crate::rust_interop::projection::ProjectedType::Optional(_),
+                            Some(value),
+                        ) => {
+                            format!("{value}.into()")
+                        }
+                        (_, Some(value)) => value,
+                        (_, None) => unreachable!(
+                            "semantics requires projected struct field `{}`",
+                            field.name
+                        ),
+                    }
+                })
+                .collect::<Vec<_>>();
+            if borrowed_view {
+                format!("{name}({})", projected_values.join(", "))
             } else {
-                format!("{name}({})", values.join(", "))
+                let assignments = fields
+                    .iter()
+                    .zip(projected_values)
+                    .map(|(field, value)| format!("{}: {value}", rust_name(&field.rust_name)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{native_path} {{ {assignments} }}")
+            }
+        } else if contract.is_none()
+            && matches!(
+                callable_mode,
+                Some(InvocationMode::Mutable | InvocationMode::Consuming)
+            )
+        {
+            let arguments = match values.as_slice() {
+                [] => "()".to_owned(),
+                [value] => format!("({value},)"),
+                _ => format!("({})", values.join(", ")),
             };
+            format!("{name}.call({arguments})")
+        } else if native_macro_path.is_some() {
+            let result = &specialization
+                .expect("macro result destination is proven")
+                .projected_result;
+            let mut result_type = result.rust_type();
+            if let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                lifetimes,
+                ..
+            } = result
+            {
+                for lifetime in lifetimes {
+                    result_type = result_type.replace(lifetime, "'_");
+                }
+            }
+            if matches!(
+                result,
+                crate::rust_interop::projection::ProjectedType::Generic(_)
+            ) {
+                format!("{name}!({})", values.join(", "))
+            } else {
+                format!(
+                    "{{ let __terrane_macro_result: {} = core::convert::Into::into({name}!({})); __terrane_macro_result }}",
+                    result_type,
+                    values.join(", ")
+                )
+            }
+        } else {
+            format!("{name}({})", values.join(", "))
+        };
         let direct_projected_function = specialization
             .is_some_and(|specialization| specialization.direct_projected_call)
             || (callee.kind == SyntaxKind::Name

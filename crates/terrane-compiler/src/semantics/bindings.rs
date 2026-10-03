@@ -1883,6 +1883,27 @@ fn collect_chain_receivers(
     }
 }
 
+pub(crate) fn projected_macro_for_call<'a>(
+    package: &'a SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a crate::rust_interop::projection::ProjectedItem> {
+    if callee.kind != SyntaxKind::Name {
+        return None;
+    }
+    let symbol =
+        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+    package
+        .projection
+        .item(&symbol.namespace, &symbol.name)
+        .filter(|item| {
+            matches!(
+                item.kind,
+                crate::rust_interop::projection::ProjectedKind::Macro(_)
+            )
+        })
+}
+
 pub(super) fn projected_function_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &SemanticUnit,
@@ -1900,9 +1921,8 @@ pub(super) fn projected_function_for_call<'a>(
             .projection
             .item(&symbol.namespace, &symbol.name)
             .and_then(|item| match &item.kind {
-                crate::rust_interop::projection::ProjectedKind::Function(function) => {
-                    Some(function)
-                }
+                crate::rust_interop::projection::ProjectedKind::Function(function)
+                | crate::rust_interop::projection::ProjectedKind::Macro(function) => Some(function),
                 _ => None,
             });
     }

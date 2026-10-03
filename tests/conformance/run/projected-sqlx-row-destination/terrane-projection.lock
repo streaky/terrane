@@ -194,6 +194,21 @@
         "/deps/sqlx/error/trait/core/convert/from-std/io/error/error": [
           "from"
         ],
+        "/deps/sqlx/macros": [
+          "migrate",
+          "query",
+          "query_as",
+          "query_as_unchecked",
+          "query_file",
+          "query_file_as",
+          "query_file_as_unchecked",
+          "query_file_scalar",
+          "query_file_scalar_unchecked",
+          "query_file_unchecked",
+          "query_scalar",
+          "query_scalar_unchecked",
+          "query_unchecked"
+        ],
         "/deps/sqlx/migrate": [
           "AppliedMigration",
           "AppliedMigration.clone",
@@ -861,6 +876,18 @@
         "/deps/sqlx-core/logger": [
           "parse_query_summary"
         ],
+        "/deps/sqlx-core/macros": [
+          "declare_driver_with_optional_migrate",
+          "err_protocol",
+          "impl_acquire",
+          "impl_column_index_for_row",
+          "impl_column_index_for_statement",
+          "impl_encode_for_option",
+          "impl_into_arguments_for_arguments",
+          "impl_statement_query",
+          "impl_type_checking",
+          "try_stream"
+        ],
         "/deps/sqlx-core/migrate": [
           "AppliedMigration",
           "AppliedMigration.clone",
@@ -1393,26 +1420,6 @@
   ],
   "format": 4,
   "removed": [],
-  "resolution": {
-    "events": [
-      {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
-      }
-    ],
-    "outcome": "LocalRustdoc"
-  },
   "rustdoc_format": 57,
   "source": "Local"
 }

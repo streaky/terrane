@@ -12,3 +12,9 @@ function main;
     print; first, ':', (summarize_owned; owned), ':', owned.count, ':', (consume; descriptor)
     defaults Descriptor = instance Descriptor; native-label = 'defaults', values = (list; 'x'), offset = 1
     print; (summarize; defaults)
+    indexed Owned = instance Owned; native-label = 'indexed', count = 8, index = 42
+    print; (summarize_owned; indexed)
+    noted Owned = instance Owned; native-label = 'noted', count = 9, note = 'retained'
+    print; (summarize_owned; noted)
+    zero Owned = instance Owned; native-label = 'zero', count = 10, note = 'both', index = 0
+    print; (summarize_owned; zero)

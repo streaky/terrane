@@ -575,7 +575,8 @@ impl Emitter<'_> {
                 .projection
                 .item(&symbol.namespace, &symbol.name)
                 .and_then(|item| match &item.kind {
-                    crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                    crate::rust_interop::projection::ProjectedKind::Function(function)
+                    | crate::rust_interop::projection::ProjectedKind::Macro(function) => {
                         Some(function)
                     }
                     _ => None,

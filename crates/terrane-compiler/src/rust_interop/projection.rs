@@ -27,6 +27,8 @@ use cache_identity::cache_identity;
 use cache_identity::selected_target;
 mod data;
 mod enum_payload;
+mod macros;
+use macros::project_macro;
 mod rustdoc_support;
 mod source_rendering;
 mod type_rendering;
@@ -57,7 +59,7 @@ use source_rendering::{
     expanded_source_imports, foreign_aliases, foreign_function_dependency_count,
     inventory_member_syntax_gap, projected_item_for_foreign, projected_item_functions,
     projected_source_dependencies, propagate_partial_contract_requirements, render_demand_sites,
-    render_foreign_declaration, render_function, render_required_projected_declarations,
+    render_foreign_declaration, render_required_projected_declarations,
     render_unavailable_projection, unavailable_member_map,
 };
 use type_rendering::{
@@ -70,7 +72,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "226";
+const PROJECTION_SCHEMA: &str = "232";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -284,13 +286,10 @@ pub struct ProjectedItem {
     pub kind: ProjectedKind,
 }
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "projected functions are the common case; boxing every one would add avoidable analysis allocations"
-)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedKind {
     Function(ProjectedFunction),
+    Macro(ProjectedFunction),
     ForeignType {
         methods: Vec<ProjectedFunction>,
         #[serde(default)]
@@ -929,6 +928,22 @@ impl ProjectedType {
         }
     }
 
+    pub(crate) fn has_identity_representation(&self) -> bool {
+        match self {
+            Self::Optional(inner) => inner.has_identity_representation(),
+            Self::None
+            | Self::Bool
+            | Self::FixedInt(_)
+            | Self::Float
+            | Self::Float32
+            | Self::String
+            | Self::Bytes
+            | Self::InvocationScoped { .. }
+            | Self::Foreign { .. } => true,
+            _ => false,
+        }
+    }
+
     pub(crate) fn contains_borrowed_result(&self) -> bool {
         match self {
             Self::BorrowedString
@@ -1179,9 +1194,7 @@ impl Projection {
                 );
             }
             for item in selected {
-                if let ProjectedKind::Function(function) = &item.kind {
-                    render_function(&mut text, function, true, 0, &aliases, None);
-                }
+                source_rendering::render_callable_declaration(&mut text, item, &aliases);
             }
             sources.push((namespace.clone(), text, source_dependencies));
         }
@@ -1426,7 +1439,12 @@ impl Projection {
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .filter(|item| !matches!(item.kind, ProjectedKind::Function(_)))
+            .filter(|item| {
+                !matches!(
+                    item.kind,
+                    ProjectedKind::Function(_) | ProjectedKind::Macro(_)
+                )
+            })
         {
             *counts
                 .entry((item.namespace.clone(), item.name.clone()))
@@ -1555,7 +1573,7 @@ impl Projection {
             .copied()
             .filter(|item| item.namespace == namespace)
         {
-            if let ProjectedKind::Function(function) = &item.kind {
+            if let ProjectedKind::Function(function) | ProjectedKind::Macro(function) = &item.kind {
                 collect_foreign_function(function, &mut foreign);
             }
         }
@@ -1683,7 +1701,7 @@ impl Projection {
                 ),
                 _ => return None,
             },
-            ProjectedKind::Interface(_) => return None,
+            ProjectedKind::Interface(_) | ProjectedKind::Macro(_) => return None,
         };
         self.dependencies
             .iter()
@@ -1781,7 +1799,7 @@ impl Projection {
             .filter(|item| item.namespace == namespace)
         {
             match &item.kind {
-                ProjectedKind::Function(projected) => {
+                ProjectedKind::Function(projected) | ProjectedKind::Macro(projected) => {
                     collect_function_projected_types(projected, name, &mut candidates);
                 }
                 ProjectedKind::ForeignType {
@@ -2097,7 +2115,7 @@ impl Projection {
                 ProjectedKind::ForeignType { send, sync, .. } => Some((*send, *sync)),
                 ProjectedKind::Interface(interface) => Some((interface.send, interface.sync)),
                 ProjectedKind::Enum { .. } => Some((true, true)),
-                ProjectedKind::Function(_) => None,
+                ProjectedKind::Function(_) | ProjectedKind::Macro(_) => None,
             })
     }
 
@@ -3524,7 +3542,7 @@ fn decline_unrepresentable_error_types(projected: &mut [ProjectedDependency]) {
         for mut item in std::mem::take(&mut dependency.items) {
             let item_path = item.rust_path.clone();
             match &mut item.kind {
-                ProjectedKind::Function(function) => {
+                ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                     if let Some(error) =
                         unsupported_projected_error(function, &projected_error_types, &displayable)
                     {
@@ -3679,7 +3697,7 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
         .flat_map(|dependency| &mut dependency.items)
     {
         let functions: Vec<&mut ProjectedFunction> = match &mut item.kind {
-            ProjectedKind::Function(function) => vec![function],
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => vec![function],
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
@@ -3865,7 +3883,7 @@ fn decline_unnameable_bound_owners(
         let mut retained = Vec::new();
         for mut item in std::mem::take(&mut dependency.items) {
             match &mut item.kind {
-                ProjectedKind::Function(function) => {
+                ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                     if let Some(reason) = reason(function) {
                         dependency.declined.push(DeclinedItem {
                             rust_path: item.rust_path,
@@ -3940,7 +3958,7 @@ fn projected_bound_dependencies(
         .iter()
         .flat_map(|dependency| &dependency.items)
         .flat_map(|item| match &item.kind {
-            ProjectedKind::Function(function) => vec![function],
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => vec![function],
             ProjectedKind::ForeignType {
                 methods,
                 static_methods,
@@ -4148,7 +4166,7 @@ fn item_undeclared_owner<'a>(
 ) -> Option<&'a str> {
     if error_owners_only {
         return match &item.kind {
-            ProjectedKind::Function(function) => {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                 function_error_undeclared_owner(function, declared)
             }
             ProjectedKind::Interface(interface) => interface
@@ -4161,7 +4179,7 @@ fn item_undeclared_owner<'a>(
     rust_path_owner(&item.rust_path)
         .filter(|owner| !owner_is_reachable(owner, declared))
         .or_else(|| match &item.kind {
-            ProjectedKind::Function(function) => {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                 function_undeclared_owner(function, declared, false)
             }
             ProjectedKind::Interface(interface) => interface
@@ -4240,7 +4258,7 @@ fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
         owners.insert(owner.to_owned());
     }
     let functions = match &item.kind {
-        ProjectedKind::Function(function) => vec![function],
+        ProjectedKind::Function(function) | ProjectedKind::Macro(function) => vec![function],
         ProjectedKind::ForeignType {
             methods,
             static_methods,
@@ -4581,7 +4599,8 @@ fn reexport_is_demanded(
         });
     }
     let namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
-    demands.contains(&(namespace, name.clone()))
+    demands.contains(&(namespace.clone(), name.clone()))
+        || demands.contains(&(format!("{namespace}/macros"), name.clone()))
 }
 
 #[expect(
@@ -5104,7 +5123,7 @@ fn rewrite_projected_owner_root(
     {
         item.rust_path = rewrite_rust_bound_root(&item.rust_path, package_root, dependency_root);
         match &mut item.kind {
-            ProjectedKind::Function(function) => {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
                 rewrite_projected_function_root(function, package_root, dependency_root);
             }
             ProjectedKind::ForeignType {
@@ -6418,7 +6437,7 @@ fn project_rustdoc(
         let Some(name) = path.last().cloned() else {
             continue;
         };
-        let namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
+        let mut namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
         let public_rust_path = public_paths
             .get(&id)
             .cloned()
@@ -7169,6 +7188,10 @@ fn project_rustdoc(
                         .map(ProjectedKind::Interface)
                 }
             }
+            ItemEnum::Macro(_) => {
+                namespace.push_str("/macros");
+                Ok(ProjectedKind::Macro(project_macro(&name)))
+            }
             _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
@@ -7211,6 +7234,9 @@ fn project_rustdoc(
         }
     }
     items.extend(enum_payload_items);
+    if include_canonical_items {
+        items.extend(macros::macro_reexports(dependency, document));
+    }
     borrowed_graph::add_optional_owners(&mut items);
     projected_associated_items.sort_by(|left, right| {
         (&left.namespace, &left.name, &left.rust_path).cmp(&(
@@ -7321,7 +7347,9 @@ fn project_rustdoc(
         .collect::<BTreeMap<_, _>>();
     for item in &mut items {
         match &mut item.kind {
-            ProjectedKind::Function(function) => normalize(function),
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
+                normalize(function);
+            }
             ProjectedKind::ForeignType {
                 fields,
                 methods,

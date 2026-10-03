@@ -204,7 +204,8 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
             || contains(package, unit, &unit.tree.root)
     }) || package.projection.dependencies.iter().any(|dependency| {
         dependency.items.iter().any(|item| match &item.kind {
-            crate::rust_interop::projection::ProjectedKind::Function(_) => true,
+            crate::rust_interop::projection::ProjectedKind::Function(_)
+            | crate::rust_interop::projection::ProjectedKind::Macro(_) => true,
             crate::rust_interop::projection::ProjectedKind::ForeignType {
                 methods,
                 static_methods,

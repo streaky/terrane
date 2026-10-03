@@ -56,6 +56,19 @@ pub(super) fn literal(text: &str) -> String {
     format!("String::from({value:?})")
 }
 
+/// Preserve a source literal as a native macro token rather than a Terrane value expression.
+pub(crate) fn native_macro_literal(text: &str) -> String {
+    let rust = literal(text);
+    if let Some(string) = rust
+        .strip_prefix("String::from(")
+        .and_then(|value| value.strip_suffix(')'))
+    {
+        string.to_owned()
+    } else {
+        rust
+    }
+}
+
 pub(super) fn adaptive_literal(text: &str) -> String {
     let compact = text.trim().replace('_', "");
     let value = integer_literal(&compact)

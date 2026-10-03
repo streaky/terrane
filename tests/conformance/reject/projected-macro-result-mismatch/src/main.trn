@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness/macros import message
+
+function main;
+    result int = message; 'not-a-number'

@@ -1541,10 +1541,27 @@ impl Emitter<'_> {
         }
     }
 
+    fn native_sequence_iterator(&self, collection: &SyntaxNode) -> bool {
+        self.unary_operator(collection).as_deref() == Some("ref")
+            && collection.children.last().is_some_and(|operand| {
+                let [holder, member] = operand.children.as_slice() else { return false };
+                if operand.kind != SyntaxKind::MemberExpression { return false; }
+                let Some(ValueType::Object(identity)) = self.receiver_value_type(holder) else { return false };
+                let Some(crate::rust_interop::projection::ProjectedItem {
+                    kind: crate::rust_interop::projection::ProjectedKind::ForeignType { fields, .. }, ..
+                }) = self.package.projection.item(&identity.namespace, &identity.name) else { return false };
+                fields.iter().any(|field| field.name == self.text(member) && matches!(
+                    &field.ty, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                        if item.has_identity_representation()
+                ))
+            })
+    }
+
     pub(super) fn for_statement(&mut self, node: &SyntaxNode) {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
                 let collection_type = self.value_type(collection);
+                let native_iterator = self.native_sequence_iterator(collection);
                 let append_bindings = self.inactive_list_append_bindings(collection, block);
                 let collection_expression = match collection_type.clone() {
                     Some(value_type) => self.expression_as(collection, value_type),
@@ -1569,12 +1586,16 @@ impl Emitter<'_> {
                     ));
                     source_name
                 };
-                let constructor = Self::iterable_constructor(collection_type, &source);
+                let constructor = if native_iterator {
+                    format!("{source}.iter()")
+                } else {
+                    Self::iterable_constructor(collection_type, &source)
+                };
                 self.line(&format!("let mut {iterator} = {constructor};"));
                 let prior_borrow_count = self.begin_list_append_region(append_bindings, None);
                 self.line("loop {");
                 self.indent += 1;
-                self.iteration_target_bindings(target, &iterator, loop_index);
+                self.iteration_target_bindings(target, &iterator, loop_index, native_iterator);
                 let outer_continue = self.continue_label.take();
                 let outer_break = self.break_label.take();
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
@@ -1633,6 +1654,7 @@ impl Emitter<'_> {
         target: &SyntaxNode,
         iterator: &str,
         loop_index: usize,
+        native_iterator: bool,
     ) {
         match target.children.as_slice() {
             [name] => {
@@ -1651,8 +1673,13 @@ impl Emitter<'_> {
                 let name = rust_name(self.text(name));
                 self.line(&format!("let {mutable}{name} = match {iterator}.next() {{"));
                 self.indent += 1;
-                self.line("terrane_collection_support::IterationStep::Item(item) => item,");
-                self.line("terrane_collection_support::IterationStep::End => break,");
+                if native_iterator {
+                    self.line("Some(item) => item,");
+                    self.line("None => break,");
+                } else {
+                    self.line("terrane_collection_support::IterationStep::Item(item) => item,");
+                    self.line("terrane_collection_support::IterationStep::End => break,");
+                }
                 self.indent -= 1;
                 self.line("};");
                 if !binding_store_value_is_read(self.package, name_span, name_span) {
