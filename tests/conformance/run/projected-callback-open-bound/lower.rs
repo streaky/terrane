@@ -527,8 +527,14 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            terrane_callback_witness::render_many(values.into_vec()))) { Ok(value) =>
-            Ok(value), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+            terrane_callback_witness::render_many(match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok(values.into_vec().into_iter().map(| item | ->
+            Result < _, crate ::TerraneForeignError > { Ok(terrane_int_support::coerce::
+            < i64 > (&item).map_err(| error | crate ::TerraneForeignError(crate
+            ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) }).collect:: <
+            Result < std::vec::Vec < i64 >, _ > > () ?) } () { Ok(value) => value,
+            Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
+            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
             "terrane-callback-witness", "terrane_callback_witness::render_many")) },
             1 /* terrane-site: src/main.trn:11:13-11:32 */))
         );

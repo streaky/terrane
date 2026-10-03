@@ -561,6 +561,13 @@ impl Emitter<'_> {
         &self,
         callee: &SyntaxNode,
     ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
+        if callee.kind == SyntaxKind::ConstructionExpression {
+            let identity = &self.class_designator(callee.children.first()?)?.identity;
+            return self
+                .package
+                .projection
+                .projected_constructor(&identity.namespace, &identity.name);
+        }
         if callee.kind == SyntaxKind::Name {
             let lookup_name = if Self::callee_is_unsafe(callee) {
                 format!("unsafe::{}", self.text(callee))

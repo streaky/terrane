@@ -1681,8 +1681,12 @@ impl Emitter<'_> {
                 })
                 .is_some();
         let mut native_field_values = None;
+        let mut native_optional_arguments = Vec::new();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
+            if native_struct_construction {
+                native_optional_arguments.resize(contract.parameters.len(), false);
+            }
             let mut variadic_values = Vec::new();
             let variadic_index = contract
                 .parameters
@@ -1829,8 +1833,10 @@ impl Emitter<'_> {
                                 item,
                             },
                             Some(ValueType::List(actual)),
-                        ) if rust_path.starts_with("alloc::vec::Vec<")
-                            || rust_path.starts_with("std::vec::Vec<") =>
+                        ) if (rust_path.starts_with("alloc::vec::Vec<")
+                            || rust_path.starts_with("std::vec::Vec<"))
+                            && (item.has_identity_representation()
+                                || matches!(actual.value_type_ref(), ValueType::InvocationScopedNative { .. })) =>
                         {
                             let convert_items = match (item.as_ref(), actual.value_type_ref()) {
                                 (
@@ -1902,6 +1908,10 @@ impl Emitter<'_> {
                     variadic_values.push(expression);
                 } else {
                     ordered[index] = Some(expression);
+                    if native_struct_construction {
+                        native_optional_arguments[index] =
+                            matches!(self.value_type(value), Some(ValueType::Optional(_)));
+                    }
                 }
             }
             if let Some(index) = variadic_index {
@@ -2306,6 +2316,11 @@ impl Emitter<'_> {
             });
         let call = if let Some((native_path, fields, borrowed_view)) = projected_native_construction
         {
+            let selected_native = self.value_type(node).and_then(|value| match value {
+                ValueType::Object(identity) => identity.native_projection,
+                _ => None,
+            });
+            let native_path = selected_native.as_deref().unwrap_or(native_path);
             let value_for = |field_name: &str| {
                 native_field_values
                     .as_ref()
@@ -2344,7 +2359,8 @@ impl Emitter<'_> {
             };
             let projected_values = fields
                 .iter()
-                .map(|field| {
+                .enumerate()
+                .map(|(index, field)| {
                     let value = value_for(&field.name);
                     match (&field.ty, value) {
                         (crate::rust_interop::projection::ProjectedType::Optional(inner), None) => {
@@ -2353,7 +2369,17 @@ impl Emitter<'_> {
                                 super::super::dependencies::projected_field_abi_type(inner)
                             )
                         }
-                        (_, Some(value)) if borrowed_view => value,
+                        (_, Some(value)) if borrowed_view || projected_function.is_some() => value,
+                        (
+                            crate::rust_interop::projection::ProjectedType::Optional(_),
+                            Some(value),
+                        ) if native_optional_arguments.get(index) == Some(&true) => self.fallible(
+                            format!(
+                                "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({}) }})()",
+                                projected_argument_expression(&value, &field.ty)
+                            ),
+                            node,
+                        ),
                         (
                             crate::rust_interop::projection::ProjectedType::Sequence { .. },
                             Some(value),
@@ -2380,9 +2406,21 @@ impl Emitter<'_> {
                 let assignments = fields
                     .iter()
                     .zip(projected_values)
-                    .map(|(field, value)| format!("{}: {value}", rust_name(&field.rust_name)))
+                    .map(|(field, value)| {
+                        let field_name = if field
+                            .rust_name
+                            .chars()
+                            .all(|character| character.is_ascii_digit())
+                        {
+                            field.rust_name.clone()
+                        } else {
+                            rust_name(&field.rust_name)
+                        };
+                        format!("{field_name}: {value}")
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
+                let native_path = native_path.replacen('<', "::<", 1);
                 format!("{native_path} {{ {assignments} }}")
             }
         } else if contract.is_none()

@@ -671,6 +671,12 @@ impl Emitter<'_> {
             let operator = self.unary_operator(node).unwrap_or_default();
             return format!("{operator}{}", self.expression(operand));
         }
+        if self
+            .native_field_type(node)
+            .is_some_and(|projected| !projected.has_identity_representation())
+        {
+            return self.expression(node);
+        }
         if node.kind == SyntaxKind::MemberExpression
             && matches!(
                 &value_type,
@@ -1241,7 +1247,9 @@ impl Emitter<'_> {
                         self.receiver_value_type(receiver),
                         Some(ValueType::Object(_))
                     )
-                }) =>
+                }) && self
+                    .native_field_type(node)
+                    .is_none_or(|projected| projected.has_identity_representation()) =>
             {
                 format!("({}).clone()", self.expression(node))
             }

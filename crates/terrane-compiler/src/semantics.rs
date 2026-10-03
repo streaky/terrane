@@ -19,6 +19,7 @@ mod logging;
 mod macros;
 pub(crate) use macros::macro_argument;
 mod member_inference;
+mod native_constructors;
 mod numeric;
 mod types;
 
@@ -93,10 +94,11 @@ pub use model::{
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,
     FloatMemberOperation, StringFamily, canonical_default, float_member_contract,
+    value_type_contains_nonclone_foreign,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, destination_projected_type,
-    effective_object_fields, effective_object_interfaces,
+    effective_object_fields, effective_object_interfaces, projected_owned_field_type,
 };
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

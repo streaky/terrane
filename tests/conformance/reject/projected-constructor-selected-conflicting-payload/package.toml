@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-conflicting-payload"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-projected-constructor-conflicting-payload"
+version = "=0.1.0"

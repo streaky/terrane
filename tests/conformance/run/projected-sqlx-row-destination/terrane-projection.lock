@@ -1,11 +1,6 @@
 {
   "bound_dependencies": [
     {
-      "name": "__terrane_recursive_bytes",
-      "package": "bytes",
-      "version": "=1.12.1"
-    },
-    {
       "name": "__terrane_recursive_either",
       "package": "either",
       "version": "=1.18.0"
@@ -433,6 +428,34 @@
         ],
         "/deps/sqlx/sqliteconnection/trait/sqlx-core/executor/executor-c": [
           "describe"
+        ],
+        "/deps/sqlx/types": [
+          "Json",
+          "Json.as_mut",
+          "Json.as_ref",
+          "Json.assert_fields_are_eq",
+          "Json.clone",
+          "Json.cmp",
+          "Json.deref",
+          "Json.eq",
+          "Json.into",
+          "Json.partial_cmp",
+          "Json.serialize",
+          "Json.try_into",
+          "Json::default",
+          "Json::deserialize",
+          "Json::from",
+          "Text",
+          "Text.assert_fields_are_eq",
+          "Text.clone",
+          "Text.cmp",
+          "Text.deref",
+          "Text.eq",
+          "Text.into",
+          "Text.into_inner",
+          "Text.partial_cmp",
+          "Text.try_into",
+          "Text::default"
         ]
       },
       "name": "sqlx",
@@ -828,6 +851,12 @@
         "/deps/sqlx-core/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8": [
           "from_iter"
         ],
+        "/deps/sqlx-core/common": [
+          "DebugFn",
+          "DebugFn.deref",
+          "DebugFn.into",
+          "DebugFn.try_into"
+        ],
         "/deps/sqlx-core/connection": [
           "LogSettings",
           "LogSettings.clone",
@@ -1100,6 +1129,20 @@
           "ParamChecking"
         ],
         "/deps/sqlx-core/types": [
+          "Json",
+          "Json.as_mut",
+          "Json.as_ref",
+          "Json.clone",
+          "Json.cmp",
+          "Json.deref",
+          "Json.eq",
+          "Json.into",
+          "Json.partial_cmp",
+          "Json.serialize",
+          "Json.try_into",
+          "Json::default",
+          "Json::deserialize",
+          "Json::from",
           "JsonRawValue",
           "JsonRawValue.clone",
           "JsonRawValue.get",
@@ -1107,6 +1150,16 @@
           "JsonRawValue.serialize",
           "JsonRawValue::default",
           "JsonValue",
+          "Text",
+          "Text.clone",
+          "Text.cmp",
+          "Text.deref",
+          "Text.eq",
+          "Text.into",
+          "Text.into_inner",
+          "Text.partial_cmp",
+          "Text.try_into",
+          "Text::default",
           "borrowed-option",
           "borrowed-option.and_then",
           "borrowed-option.cloned",

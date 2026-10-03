@@ -185,6 +185,7 @@ pub(super) fn project_multi_enum_payload(
         rust_path: payload_rust_path.clone(),
         docs,
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             methods: Vec::new(),
             static_methods: Vec::new(),
             constants: Vec::new(),

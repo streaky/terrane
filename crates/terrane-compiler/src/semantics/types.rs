@@ -272,7 +272,14 @@ pub(super) fn analyze_binding_node(
         .flatten();
     let value_type =
         if let (Some(type_node), Some(declared_type)) = (declared, declared_value.clone()) {
-            let value_type = if matches!(declared_type, ValueType::Optional(_)) {
+            let value_type = if let (ValueType::Object(declared), Some(ValueType::Object(actual))) =
+                (&declared_type, &inferred)
+                && declared.base() == actual.base()
+                && declared.native_projection.is_none()
+                && !actual.native_arguments.is_empty()
+            {
+                ValueType::Object(actual.clone())
+            } else if matches!(declared_type, ValueType::Optional(_)) {
                 declared_type
             } else if let (Some(inferred), Some(initializer), Ok(_)) = (
                 inferred.clone(),

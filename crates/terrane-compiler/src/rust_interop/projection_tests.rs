@@ -205,6 +205,7 @@ fn projected_foreign_type_item(
         rust_path: rust_path.to_owned(),
         docs: None,
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             methods: vec![method],
             static_methods: Vec::new(),
             constants: Vec::new(),
@@ -356,6 +357,7 @@ fn projected_type_lookup_is_scoped_to_canonical_namespace() {
         item
     };
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "canonical-identities".to_owned(),
         content_hash: String::new(),
         dependencies: vec![
@@ -702,6 +704,7 @@ fn dependency_free_resolution_records_its_outcome() {
 )]
 fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "inventory".to_owned(),
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
@@ -842,6 +845,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
 #[test]
 fn documented_inventory_populates_admitted_members_and_comments_declines() {
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "members".to_owned(),
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
@@ -926,6 +930,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
             rust_path: rust_path.to_owned(),
             docs: None,
             kind: ProjectedKind::ForeignType {
+                constructor: None,
                 methods: Vec::new(),
                 static_methods: Vec::new(),
                 constants: Vec::new(),
@@ -959,6 +964,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
         dependency
     };
     let projection = |dependencies| Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "ambiguous-identities".to_owned(),
         content_hash: String::new(),
         dependencies,
@@ -1623,6 +1629,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
     .unwrap();
     assert_eq!(private[0].items.len(), 1);
     let facade_projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "recursive-owner".to_owned(),
         content_hash: String::new(),
         dependencies: private.clone(),
@@ -1882,6 +1889,7 @@ fn remote_artifact_requires_exact_projection_inputs() {
         effects: vec!["filesystem".to_owned()],
     };
     let mut payload = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "exact".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),
@@ -2000,6 +2008,7 @@ fn projection_history_retains_removed_members_across_checks() {
         rust_path: "fixture::removed".to_owned(),
         docs: None,
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             boundary: ProjectedBoundaryCapabilities::default(),
             fields: Vec::new(),
             borrowed_view: false,
@@ -2051,6 +2060,7 @@ fn projection_history_retains_removed_members_across_checks() {
         },
     };
     let mut old = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "old".to_owned(),
         content_hash: String::new(),
         dependencies: vec![dependency("1.0.0", vec![item])],
@@ -2065,6 +2075,7 @@ fn projection_history_retains_removed_members_across_checks() {
     old.content_hash = projection_content_hash(&old).unwrap();
     apply_projection_history(&directory, &mut old).unwrap();
     let mut current = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "current".to_owned(),
         content_hash: String::new(),
         dependencies: vec![dependency("2.0.0", Vec::new())],
@@ -2102,6 +2113,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
         events: Vec::new(),
     };
     let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "stable-identity".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),
@@ -2146,6 +2158,7 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
     )
     .unwrap();
     let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "stable-identity".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),

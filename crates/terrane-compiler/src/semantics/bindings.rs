@@ -1910,6 +1910,12 @@ pub(super) fn projected_function_for_call<'a>(
     callee: &SyntaxNode,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
     let is_unsafe = crate::syntax::call_is_unsafe(callee);
+    if callee.kind == SyntaxKind::ConstructionExpression {
+        let identity = class_designator_identity(unit, callee.children.first()?)?;
+        return package
+            .projection
+            .projected_constructor(&identity.namespace, &identity.name);
+    }
     if callee.kind == SyntaxKind::Name {
         let lookup_name = if is_unsafe {
             format!("unsafe::{}", node_text(&unit.source, callee))

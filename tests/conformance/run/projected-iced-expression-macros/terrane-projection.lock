@@ -1,9 +1,83 @@
 {
-  "format": 4,
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_cosmic_text",
+      "package": "cosmic-text",
+      "version": "=0.15.0"
+    },
+    {
+      "name": "__terrane_recursive_futures_channel",
+      "package": "futures-channel",
+      "version": "=0.3.34"
+    },
+    {
+      "name": "__terrane_recursive_iced_core",
+      "package": "iced_core",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_futures",
+      "package": "iced_futures",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_graphics",
+      "package": "iced_graphics",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_renderer",
+      "package": "iced_renderer",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_runtime",
+      "package": "iced_runtime",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "__terrane_recursive_iced_winit",
+      "package": "iced_winit",
+      "version": "=0.14.1"
+    },
+    {
+      "name": "__terrane_recursive_naga",
+      "package": "naga",
+      "version": "=27.0.3"
+    },
+    {
+      "name": "__terrane_recursive_raw_window_handle",
+      "package": "raw-window-handle",
+      "version": "=0.6.2"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_core",
+      "package": "wgpu-core",
+      "version": "=27.0.3"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_hal",
+      "package": "wgpu-hal",
+      "version": "=27.0.4"
+    },
+    {
+      "name": "__terrane_recursive_wgpu_types",
+      "package": "wgpu-types",
+      "version": "=27.0.1"
+    },
+    {
+      "name": "bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
+      "name": "iced_program",
+      "package": "iced_program",
+      "version": "=0.14.0"
+    }
+  ],
   "dependencies": [
     {
-      "name": "iced",
-      "version": "0.14.0",
       "members": {
         "/deps/iced": [
           "Alignment",
@@ -399,6 +473,12 @@
           "Id.into",
           "Id.partial_cmp",
           "Id.try_into",
+          "Indexed",
+          "Indexed.assert_fields_are_eq",
+          "Indexed.clone",
+          "Indexed.eq",
+          "Indexed.into",
+          "Indexed.try_into",
           "Renderer",
           "SolidVertex2D",
           "SolidVertex2D.clone",
@@ -691,6 +771,12 @@
           "Selection"
         ],
         "/deps/iced/advanced/text/highlighter": [
+          "Format",
+          "Format.clone",
+          "Format.eq",
+          "Format.into",
+          "Format.try_into",
+          "Format::default",
           "PlainText",
           "PlainText.change_line",
           "PlainText.clone",
@@ -757,6 +843,11 @@
           "RelativeOffset::from"
         ],
         "/deps/iced/advanced/widget/text": [
+          "Format",
+          "Format.clone",
+          "Format.into",
+          "Format.try_into",
+          "Format::default",
           "Style",
           "Style.clone",
           "Style.eq",
@@ -2030,6 +2121,11 @@
           "warning"
         ],
         "/deps/iced/widget/checkbox": [
+          "Icon",
+          "Icon.clone",
+          "Icon.eq",
+          "Icon.into",
+          "Icon.try_into",
           "Status",
           "Status-Active",
           "Status-Disabled",
@@ -2180,6 +2276,11 @@
           "Internal.try_into"
         ],
         "/deps/iced/widget/pick-list": [
+          "Icon",
+          "Icon.clone",
+          "Icon.eq",
+          "Icon.into",
+          "Icon.try_into",
           "Status",
           "Status-Opened",
           "Style",
@@ -2387,6 +2488,10 @@
           "Cursor.state",
           "Cursor.try_into",
           "Cursor::default",
+          "Icon",
+          "Icon.clone",
+          "Icon.into",
+          "Icon.try_into",
           "Side",
           "Status",
           "Status-Focused",
@@ -2552,11 +2657,11 @@
           "PlatformSpecific.try_into",
           "PlatformSpecific::default"
         ]
-      }
+      },
+      "name": "iced",
+      "version": "0.14.0"
     },
     {
-      "name": "witness",
-      "version": "0.1.0",
       "members": {
         "/deps/witness": [
           "State",
@@ -2568,100 +2673,13 @@
           "State::new",
           "inspect"
         ]
-      }
+      },
+      "name": "witness",
+      "version": "0.1.0"
     }
   ],
-  "bound_dependencies": [
-    {
-      "name": "__terrane_recursive_cosmic_text",
-      "package": "cosmic-text",
-      "version": "=0.15.0"
-    },
-    {
-      "name": "__terrane_recursive_futures_channel",
-      "package": "futures-channel",
-      "version": "=0.3.34"
-    },
-    {
-      "name": "__terrane_recursive_iced_core",
-      "package": "iced_core",
-      "version": "=0.14.0"
-    },
-    {
-      "name": "__terrane_recursive_iced_futures",
-      "package": "iced_futures",
-      "version": "=0.14.0"
-    },
-    {
-      "name": "__terrane_recursive_iced_graphics",
-      "package": "iced_graphics",
-      "version": "=0.14.0"
-    },
-    {
-      "name": "__terrane_recursive_iced_renderer",
-      "package": "iced_renderer",
-      "version": "=0.14.0"
-    },
-    {
-      "name": "__terrane_recursive_iced_runtime",
-      "package": "iced_runtime",
-      "version": "=0.14.0"
-    },
-    {
-      "name": "__terrane_recursive_iced_winit",
-      "package": "iced_winit",
-      "version": "=0.14.1"
-    },
-    {
-      "name": "__terrane_recursive_naga",
-      "package": "naga",
-      "version": "=27.0.3"
-    },
-    {
-      "name": "__terrane_recursive_raw_window_handle",
-      "package": "raw-window-handle",
-      "version": "=0.6.2"
-    },
-    {
-      "name": "__terrane_recursive_wgpu_core",
-      "package": "wgpu-core",
-      "version": "=27.0.3"
-    },
-    {
-      "name": "__terrane_recursive_wgpu_hal",
-      "package": "wgpu-hal",
-      "version": "=27.0.4"
-    },
-    {
-      "name": "__terrane_recursive_wgpu_types",
-      "package": "wgpu-types",
-      "version": "=27.0.1"
-    },
-    {
-      "name": "bytes",
-      "package": "bytes",
-      "version": "=1.12.1"
-    },
-    {
-      "name": "iced_program",
-      "package": "iced_program",
-      "version": "=0.14.0"
-    }
-  ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "86c20ecd2f0ac061fcb5e35ed1f715fa0e19a8b08325bd1ff699884051026198",
-  "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "232",
-  "content_hash": "adeb75a8f90cc3db5a6ec10d08b1d5d3a5d989805ecc8af01fa012d277255860",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `86c20ecd2f0ac061fcb5e35ed1f715fa0e19a8b08325bd1ff699884051026198`"
-      }
-    ]
-  }
+  "source": "Local"
 }

@@ -97,6 +97,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
         rust_path: "std::option::Option".to_owned(),
         docs: Some("Native optional borrow; usable only inside one operation graph.".to_owned()),
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             methods: vec![cloned, map, and_then],
             static_methods: Vec::new(),
             constants: Vec::new(),

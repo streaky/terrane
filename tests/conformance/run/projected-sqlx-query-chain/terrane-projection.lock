@@ -1,11 +1,6 @@
 {
   "bound_dependencies": [
     {
-      "name": "__terrane_recursive_bytes",
-      "package": "bytes",
-      "version": "=1.12.1"
-    },
-    {
       "name": "__terrane_recursive_either",
       "package": "either",
       "version": "=1.18.0"
@@ -298,6 +293,12 @@
         "/deps/sqlx-core/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8": [
           "from_iter"
         ],
+        "/deps/sqlx-core/common": [
+          "DebugFn",
+          "DebugFn.deref",
+          "DebugFn.into",
+          "DebugFn.try_into"
+        ],
         "/deps/sqlx-core/connection": [
           "LogSettings",
           "LogSettings.clone",
@@ -506,6 +507,18 @@
         ],
         "/deps/sqlx-core/type-checking": [
           "ParamChecking"
+        ],
+        "/deps/sqlx-core/types": [
+          "Text",
+          "Text.clone",
+          "Text.cmp",
+          "Text.deref",
+          "Text.eq",
+          "Text.into",
+          "Text.into_inner",
+          "Text.partial_cmp",
+          "Text.try_into",
+          "Text::default"
         ],
         "/deps/sqlx-core/url": [
           "OpaqueOrigin",

@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness import Envelope
+
+function main;
+    envelope = instance Envelope; payload = 'text'
+    envelope.payload = 7

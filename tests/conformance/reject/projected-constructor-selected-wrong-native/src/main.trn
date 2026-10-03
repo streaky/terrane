@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness import Address, Envelope, consume_address
+
+function main;
+    text_envelope = instance Envelope; payload = 'text'
+    consume_address; text_envelope

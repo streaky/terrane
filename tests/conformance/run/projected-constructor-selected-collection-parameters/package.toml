@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-collection-parameters"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-constructor-collection-parameters"
+version = "=0.1.0"

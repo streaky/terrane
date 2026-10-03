@@ -112,7 +112,10 @@ pub(super) fn object_field_type(
         .iter()
         .find(|field| field.name == member && field.is_static == is_static)
     {
-        return Some(field.value_type.clone());
+        return Some(super::calls::substitute_projected_value_generics(
+            &field.value_type,
+            &object_identity.native_arguments,
+        ));
     }
     for used_trait in &object.traits {
         if let Some(found) = object_field_type(unit, used_trait, member, is_static) {
@@ -172,7 +175,12 @@ pub(crate) fn object_member_type(
         return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
-        return method_value_type(method);
+        return method_value_type(method).map(|value_type| {
+            super::calls::substitute_projected_value_generics(
+                &value_type,
+                &object_identity.native_arguments,
+            )
+        });
     }
     for used_trait in &object.traits {
         if let Some(trait_object) = unit.descriptors.iter().find(|candidate| {

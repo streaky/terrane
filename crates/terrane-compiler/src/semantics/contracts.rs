@@ -950,6 +950,34 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         errors
     }
 
+    fn native_field_coercion_errors(
+        ty: &crate::rust_interop::projection::ProjectedType,
+        errors: &mut BTreeSet<String>,
+    ) {
+        use crate::rust_interop::projection::ProjectedType;
+        match ty {
+            ProjectedType::Int | ProjectedType::RustInt(_) => {
+                errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+            }
+            ProjectedType::Char => {
+                errors.insert("/core/errors::coercion-error".to_owned());
+            }
+            ProjectedType::Optional(item)
+            | ProjectedType::Sequence { item, .. }
+            | ProjectedType::Set { item, .. } => native_field_coercion_errors(item, errors),
+            ProjectedType::Mapping { key, value, .. } => {
+                native_field_coercion_errors(key, errors);
+                native_field_coercion_errors(value, errors);
+            }
+            ProjectedType::Tuple(items) => {
+                for item in items {
+                    native_field_coercion_errors(item, errors);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn local_builtin_errors(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -1007,6 +1035,18 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             let [target, value] = node.children.as_slice() else {
                 return errors;
             };
+            if target.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = target.children.as_slice()
+                && let Ok(Some(ValueType::Object(identity))) =
+                    infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                && let Some(projected) = super::objects::projected_owned_field_type(
+                    package,
+                    &identity,
+                    node_text(&unit.source, member),
+                )
+            {
+                native_field_coercion_errors(&projected, &mut errors);
+            }
             infer_value_type(unit, target, &unit.typed_bindings)
                 .ok()
                 .flatten()

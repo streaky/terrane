@@ -1,0 +1,19 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Optional",
+          "Optional.into",
+          "Optional.try_into"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

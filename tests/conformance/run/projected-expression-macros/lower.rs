@@ -615,7 +615,11 @@ fn main() {
         },
         5 /* terrane-site: src/main.trn:19:21-19:36 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&record.value));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
+        &record.value)))
+    );
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
     let observed: terrane_int_support::Int = __terrane_raised(
         match std::panic::catch_unwind(

@@ -554,6 +554,15 @@ pub(super) fn infer_binary_type(
     if operator == "is" {
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
+    // Bootstrap bindings precede concrete native constructor selection. Preserve the
+    // placeholder until the normal postselection binding rebuild validates operands.
+    if let Some(generic) = [&left, &right]
+        .into_iter()
+        .flatten()
+        .find(|value| matches!(value, ValueType::ProjectedGeneric(_)))
+    {
+        return Ok(generic.clone());
+    }
     if matches!(operator, "==" | "!=")
         && ((matches!(left, Some(ValueType::Optional(_)))
             && node_text(&unit.source, right_node).trim() == "none")

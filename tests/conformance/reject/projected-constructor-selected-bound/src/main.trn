@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness import Address, Printable
+
+function main;
+    address = instance Address; port = 8080
+    printable = instance Printable; payload = move address

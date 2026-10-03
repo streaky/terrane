@@ -748,8 +748,11 @@ pub(super) fn render_foreign_declaration(
                 },
             ) = projected_kind
             {
-                if let ProjectedKind::ForeignType { fields, .. } =
-                    projected_kind.expect("matched projected kind")
+                if let ProjectedKind::ForeignType {
+                    fields,
+                    constructor,
+                    ..
+                } = projected_kind.expect("matched projected kind")
                 {
                     for field in fields {
                         writeln!(
@@ -759,6 +762,11 @@ pub(super) fn render_foreign_declaration(
                             projected_type_name(&field.ty, aliases)
                         )
                         .expect("writing to a string cannot fail");
+                    }
+                    if let Some(constructor) = constructor {
+                        let mut declaration = constructor.clone();
+                        declaration.result = ProjectedType::None;
+                        render_function(output, &declaration, false, 4, aliases, None);
                     }
                 }
                 for constant in constants {
@@ -1042,12 +1050,39 @@ pub(super) fn render_function(
                 } else {
                     ""
                 },
-                projected_type_name(&parameter.ty, foreign_aliases)
+                projected_parameter_type_name(&parameter.ty, foreign_aliases)
             )
             .expect("writing to a string cannot fail");
         }
     }
     output.push('\n');
+}
+
+fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, String>) -> String {
+    match ty {
+        ProjectedType::Optional(inner) => {
+            format!("{}|none", projected_parameter_type_name(inner, aliases))
+        }
+        ProjectedType::Sequence { .. }
+        | ProjectedType::Mapping { .. }
+        | ProjectedType::Set { .. }
+        | ProjectedType::Tuple(_)
+        | ProjectedType::AsyncIterationStep(_)
+        | ProjectedType::BoxedInterface {
+            associated_type: Some(_),
+            ..
+        } => {
+            format!("({})", projected_type_name(ty, aliases))
+        }
+        ProjectedType::InvocationScoped {
+            owned,
+            expression_scoped: true,
+            ..
+        } if !matches!(owned.as_ref(), ProjectedType::Optional(_)) => {
+            projected_parameter_type_name(owned, aliases)
+        }
+        _ => projected_type_name(ty, aliases),
+    }
 }
 
 #[expect(

@@ -2156,6 +2156,8 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                         application: interface_identity.application.clone(),
                         application_key: interface_identity.application_key.clone(),
                         native_projection: interface_identity.native_projection.clone(),
+                        native_arguments: interface_identity.native_arguments.clone(),
+                        native_arguments_key: interface_identity.native_arguments_key.clone(),
                     };
                     if !object.interfaces.contains(&inherited) {
                         object.interfaces.push(inherited);
@@ -2203,6 +2205,8 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 application: identity.application.clone(),
                 application_key: identity.application_key.clone(),
                 native_projection: identity.native_projection.clone(),
+                native_arguments: identity.native_arguments.clone(),
+                native_arguments_key: identity.native_arguments_key.clone(),
             })
             .collect::<Vec<_>>();
         let projectable = package
@@ -2331,6 +2335,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }
+    super::native_constructors::normalize_contracts(package);
     materialize_projected_interface_applications(package);
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
@@ -2405,7 +2410,80 @@ fn populate_projected_call_result_types(
         if !changed {
             return Ok(());
         }
+        rebuild_typed_bindings(package)?;
     }
+}
+
+fn projected_constructor_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    constructor: &crate::rust_interop::projection::ProjectedFunction,
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let Some(arguments) = node.children.get(1) else {
+        return Ok(None);
+    };
+    let mut substitutions = BTreeMap::new();
+    let mut positional = 0;
+    for argument in &arguments.children {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let parameter = if let Some(name) = named {
+            constructor
+                .parameters
+                .iter()
+                .find(|parameter| parameter.name == node_text(&unit.source, name))
+        } else {
+            let parameter = constructor.parameters.get(positional);
+            positional += 1;
+            parameter
+        };
+        let Some(parameter) = parameter else {
+            return Ok(None);
+        };
+        let value = argument.children.last().unwrap_or(argument);
+        let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+            return Ok(None);
+        };
+        if actual == ValueType::Scalar(ScalarType::None) {
+            continue;
+        }
+        let actual = destination_projected_type(package, &actual).map_err(|error| {
+            failure(
+                &unit.source,
+                "T0129",
+                format!("constructor payload cannot select a native representation: {error}"),
+                value.span,
+            )
+        })?;
+        bind_projected_native_generics(&parameter.ty, &actual, &mut substitutions).map_err(
+            |reason| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "constructor payloads select incompatible native representations: {reason}"
+                    ),
+                    value.span,
+                )
+            },
+        )?;
+    }
+    if constructor
+        .generic_parameters
+        .iter()
+        .any(|parameter| !substitutions.contains_key(&parameter.name))
+    {
+        return Ok(None);
+    }
+    let result = substitutions
+        .iter()
+        .fold(constructor.result.clone(), |result, (name, selected)| {
+            substitute_projected_generic(&result, name, selected)
+        });
+    Ok(closed_projected_value_type(package, &result))
 }
 
 #[expect(
@@ -2437,6 +2515,16 @@ fn collect_projected_call_result_types(
     let Some(function) = projected_function_for_call(package, unit, callee) else {
         return Ok(());
     };
+    if callee.kind == SyntaxKind::ConstructionExpression {
+        if let Some(value_type) = projected_constructor_result(package, unit, node, function)? {
+            additions.push((
+                unit_index,
+                (node.span.file, node.span.start, node.span.end),
+                value_type,
+            ));
+        }
+        return Ok(());
+    }
     if function.chain_role == Some(crate::rust_interop::projection::ChainRole::Continue)
         && let Some(receiver) = callee.children.first()
         && let Some(ValueType::InvocationScopedNative {
@@ -2513,9 +2601,11 @@ fn collect_projected_call_result_types(
                 })
                 .map(|span| (span.file, span.start, span.end));
             let region = (!expression_scoped).then_some(region).flatten();
-            let family_namespace = package.projection.borrowed_scope_owner(owned).map_or_else(
-                || {
-                    callee
+            let (family_namespace, family_name) = package
+                .projection
+                .borrowed_scope_owner(owned)
+                .unwrap_or_else(|| {
+                    let namespace = callee
                         .children
                         .first()
                         .and_then(|receiver| {
@@ -2530,17 +2620,16 @@ fn collect_projected_call_result_types(
                             } => Some(identity.namespace),
                             _ => None,
                         })
-                        .unwrap_or_else(|| package.units[unit_index].namespace.clone())
-                },
-                |(namespace, _)| namespace,
-            );
+                        .unwrap_or_else(|| package.units[unit_index].namespace.clone());
+                    (namespace, name.clone())
+                });
             additions.push((
                 unit_index,
                 (node.span.file, node.span.start, node.span.end),
                 ValueType::InvocationScopedNative {
                     rust_type: rust_type.clone(),
                     concrete: true,
-                    family: ObjectIdentity::new(family_namespace, name.clone())
+                    family: ObjectIdentity::new(family_namespace, family_name)
                         .with_native_projection(
                             if matches!(
                                 owned.as_ref(),
@@ -3774,6 +3863,9 @@ fn bind_projected_native_generics(
             ProjectedType::AsyncIterationStep(expected),
             ProjectedType::AsyncIterationStep(actual),
         ) => bind_projected_native_generics(expected, actual, bindings),
+        (ProjectedType::Optional(expected), actual) if actual != &ProjectedType::None => {
+            bind_projected_native_generics(expected, actual, bindings)
+        }
         (ProjectedType::Tuple(expected), ProjectedType::Tuple(actual))
             if expected.len() == actual.len() =>
         {
@@ -3957,13 +4049,36 @@ fn collect_projected_destinations(
         let mut native_bindings = BTreeMap::new();
         let mut native_value_bindings = BTreeMap::new();
         let mut native_projected_parameters = BTreeMap::new();
-        for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
-            .children
+        for (parameter_index, (parameter, projected_parameter)) in contract
+            .parameters
             .iter()
-            .zip(&contract.parameters)
             .zip(&function.parameters)
             .enumerate()
         {
+            let argument = arguments
+                .children
+                .iter()
+                .find(|argument| {
+                    argument.children.first().is_some_and(|name| {
+                        name.kind == SyntaxKind::Name
+                            && argument.children.len() > 1
+                            && node_text(&unit.source, name) == parameter.name
+                    })
+                })
+                .or_else(|| {
+                    arguments
+                        .children
+                        .iter()
+                        .filter(|argument| {
+                            !argument.children.first().is_some_and(|name| {
+                                name.kind == SyntaxKind::Name && argument.children.len() > 1
+                            })
+                        })
+                        .nth(parameter_index)
+                });
+            let Some(argument) = argument else {
+                continue;
+            };
             let value = argument.children.last().unwrap_or(argument);
             let actual_projected = projected_call_result(package, unit, value);
             if let Some(actual_projected) = actual_projected.as_ref() {
@@ -4380,7 +4495,16 @@ fn collect_projected_destinations(
             })
             .collect();
         let mut projected_result = specialize(&function.result);
-        let result = if let crate::rust_interop::projection::ProjectedType::Generic(name) =
+        let result = if callee.kind == SyntaxKind::ConstructionExpression {
+            closed_projected_value_type(package, &projected_result).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    "constructor payloads do not determine a concrete native representation",
+                    node.span,
+                )
+            })?
+        } else if let crate::rust_interop::projection::ProjectedType::Generic(name) =
             &function.result
             && let Some(bound) = value_bindings.get(name)
         {
@@ -4987,7 +5111,7 @@ fn borrowed_receiver_destination(
     closed_projected_value_type(package, &projected)
 }
 
-fn closed_projected_value_type(
+pub(super) fn closed_projected_value_type(
     package: &SemanticPackage,
     projected: &crate::rust_interop::projection::ProjectedType,
 ) -> Option<ValueType> {
@@ -4996,18 +5120,62 @@ fn closed_projected_value_type(
         ProjectedType::Optional(inner) => {
             ValueType::Optional(Box::new(closed_projected_value_type(package, inner)?))
         }
-        ProjectedType::Foreign { rust_path, .. } => {
+        ProjectedType::Foreign {
+            rust_path,
+            arguments,
+            ..
+        } => {
             let (namespace, name) = package.projection.owner_for_projected_type(projected)?;
-            ValueType::Object(
-                ObjectIdentity::new(namespace, name).with_native_projection(rust_path.clone()),
-            )
+            let mut identity = ObjectIdentity::new(namespace, name);
+            if let Some(constructor) = package
+                .projection
+                .projected_constructor(&identity.namespace, &identity.name)
+                && let ProjectedType::Foreign {
+                    arguments: templates,
+                    ..
+                } = &constructor.result
+            {
+                let selections = templates
+                    .iter()
+                    .zip(arguments)
+                    .filter_map(|(template, actual)| {
+                        let ProjectedType::Generic(name) = template else {
+                            return None;
+                        };
+                        Some(Some((
+                            name.clone(),
+                            closed_projected_value_type(package, actual)?,
+                        )))
+                    })
+                    .collect::<Option<BTreeMap<_, _>>>()?;
+                identity = identity.with_native_arguments(selections);
+            }
+            if !arguments.is_empty() {
+                identity = identity.with_native_projection(
+                    package
+                        .projection
+                        .canonical_native_type(rust_path)
+                        .into_owned(),
+                );
+            }
+            ValueType::Object(identity)
         }
         ProjectedType::String | ProjectedType::BorrowedString => {
             ValueType::Scalar(ScalarType::String)
         }
         ProjectedType::Bool => ValueType::Scalar(ScalarType::Bool),
         ProjectedType::Int => ValueType::Scalar(ScalarType::Int),
-        ProjectedType::FixedInt(name) => ValueType::Scalar(ScalarType::from_source_name(name)?),
+        ProjectedType::RustInt(_)
+        | ProjectedType::FixedInt(_)
+        | ProjectedType::Float
+        | ProjectedType::Float32
+        | ProjectedType::Char
+        | ProjectedType::Bytes => {
+            ValueType::Scalar(ScalarType::from_source_name(&projected.terrane_name())?)
+        }
+        ProjectedType::Sequence { item, .. } => ValueType::List(ElementType::new(
+            closed_projected_value_type(package, item)?,
+        )),
         _ => return None,
     })
 }
@@ -5139,6 +5307,26 @@ pub(crate) fn destination_projected_type(
     })
 }
 
+/// Apply the already-selected owner arguments to its native field contract.
+pub(crate) fn projected_owned_field_type(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    name: &str,
+) -> Option<crate::rust_interop::projection::ProjectedType> {
+    let (_, fields, borrowed_view) = package
+        .projection
+        .projected_struct(&identity.namespace, &identity.name)?;
+    if borrowed_view {
+        return None;
+    }
+    let mut projected = fields.iter().find(|field| field.name == name)?.ty.clone();
+    for (parameter, value_type) in &identity.native_arguments {
+        let selected = destination_projected_type(package, value_type).ok()?;
+        projected = substitute_projected_generic(&projected, parameter, &selected);
+    }
+    Some(projected)
+}
+
 fn projected_reference_type(
     projected: crate::rust_interop::projection::ProjectedType,
     mutable: bool,
@@ -5169,6 +5357,18 @@ fn destination_projected_object(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    if !identity.native_arguments.is_empty()
+        && let Some(constructor) = package
+            .projection
+            .projected_constructor(&identity.namespace, &identity.name)
+    {
+        let mut projected = constructor.result.clone();
+        for (name, value_type) in &identity.native_arguments {
+            let selected = destination_projected_type(package, value_type)?;
+            projected = substitute_projected_generic(&projected, name, &selected);
+        }
+        return Ok(projected);
+    }
     if let Some(projected) = package
         .projection
         .projected_type(&identity.namespace, &identity.name)

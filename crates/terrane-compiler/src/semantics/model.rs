@@ -95,6 +95,10 @@ impl ElementType {
         self.0.as_ref()
     }
 
+    pub(super) fn value_type_mut(&mut self) -> &mut ValueType {
+        self.0.as_mut()
+    }
+
     pub(super) fn scalar(&self) -> Option<ScalarType> {
         match self.0.as_ref() {
             ValueType::Scalar(scalar) => Some(*scalar),
@@ -125,12 +129,27 @@ pub struct ReferenceProvenance {
     pub lifetime_end: Option<Span>,
 }
 
-pub(super) fn value_type_contains_nonclone_foreign(
+pub(crate) fn value_type_contains_nonclone_foreign(
     unit: &SemanticUnit,
     value_type: &ValueType,
 ) -> bool {
     match value_type {
-        ValueType::Object(identity) => unit.nonclone_foreign_objects.contains(identity),
+        ValueType::Object(identity) => {
+            unit.nonclone_foreign_objects.contains(identity)
+                || unit
+                    .nonclone_foreign_objects
+                    .range::<ObjectIdentity, _>((
+                        std::ops::Bound::Unbounded,
+                        std::ops::Bound::Included(identity),
+                    ))
+                    .next_back()
+                    .is_some_and(|base| {
+                        base.namespace == identity.namespace
+                            && base.name == identity.name
+                            && base.application_key == identity.application_key
+                            && base.native_projection.is_none()
+                    })
+        }
         ValueType::Optional(inner) => value_type_contains_nonclone_foreign(unit, inner),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
@@ -323,6 +342,8 @@ pub struct ObjectIdentity {
     pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
     pub(crate) native_projection: Option<String>,
+    pub(crate) native_arguments: BTreeMap<String, ValueType>,
+    pub(crate) native_arguments_key: Option<String>,
 }
 
 impl ObjectIdentity {
@@ -334,6 +355,8 @@ impl ObjectIdentity {
             application: None,
             application_key: None,
             native_projection: None,
+            native_arguments: BTreeMap::new(),
+            native_arguments_key: None,
         }
     }
 
@@ -360,6 +383,12 @@ impl ObjectIdentity {
         self.native_projection = Some(rust_path.into());
         self
     }
+
+    pub(crate) fn with_native_arguments(mut self, arguments: BTreeMap<String, ValueType>) -> Self {
+        self.native_arguments_key = (!arguments.is_empty()).then(|| format!("{arguments:?}"));
+        self.native_arguments = arguments;
+        self
+    }
 }
 
 impl std::fmt::Display for ObjectIdentity {
@@ -370,6 +399,16 @@ impl std::fmt::Display for ObjectIdentity {
         formatter.write_str(&self.name)?;
         if let Some(application) = &self.application {
             write!(formatter, " of {application}")?;
+        }
+        if !self.native_arguments.is_empty() {
+            formatter.write_str(" (payload types: ")?;
+            for (index, value_type) in self.native_arguments.values().enumerate() {
+                if index > 0 {
+                    formatter.write_str(", ")?;
+                }
+                value_type.fmt(formatter)?;
+            }
+            formatter.write_str(")")?;
         }
         Ok(())
     }
@@ -383,6 +422,7 @@ impl Ord for ObjectIdentity {
             self.application_key.as_deref(),
             self.is_unsafe,
             self.native_projection.as_deref(),
+            self.native_arguments_key.as_deref(),
         )
             .cmp(&(
                 &other.namespace,
@@ -390,6 +430,7 @@ impl Ord for ObjectIdentity {
                 other.application_key.as_deref(),
                 other.is_unsafe,
                 other.native_projection.as_deref(),
+                other.native_arguments_key.as_deref(),
             ))
     }
 }
@@ -498,6 +539,10 @@ impl CallableParameterType {
 
     pub(crate) fn value_type_ref(&self) -> &ValueType {
         self.value_type.value_type_ref()
+    }
+
+    pub(super) fn value_type_mut(&mut self) -> &mut ValueType {
+        self.value_type.value_type_mut()
     }
 
     pub(crate) fn element_type(&self) -> ElementType {

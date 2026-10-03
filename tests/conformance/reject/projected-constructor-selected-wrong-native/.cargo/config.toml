@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-projected-constructor-wrong-native = { path = "fixture-registry/terrane-projected-constructor-wrong-native-0.1.0" }

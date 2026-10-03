@@ -21,7 +21,7 @@ pub(super) fn project_foreign_owner_impls(
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
     canonical_public_paths: &[BTreeMap<String, String>],
     reexports: &[ReexportRustdoc],
-) {
+) -> BTreeMap<String, String> {
     let mut additions: Vec<Vec<ProjectedTraitOperation>> =
         (0..projected.len()).map(|_| Vec::new()).collect();
     let mut declined: Vec<Vec<DeclinedItem>> = (0..projected.len()).map(|_| Vec::new()).collect();
@@ -205,4 +205,15 @@ pub(super) fn project_foreign_owner_impls(
             operations,
         );
     }
+    for canonical in owner_aliases.values_mut() {
+        *canonical = canonicalize_rust_path(canonical);
+        for (dependency, _, _) in rustdocs {
+            *canonical = rewrite_rust_bound_root(
+                canonical,
+                &dependency.package.replace('-', "_"),
+                &dependency.name.replace('-', "_"),
+            );
+        }
+    }
+    owner_aliases
 }

@@ -1,0 +1,54 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "witness",
+      "version": "0.1.1",
+      "members": {
+        "/deps/witness": [
+          "Address",
+          "Address.clone",
+          "Address.into",
+          "Address.try_into",
+          "Envelope",
+          "Envelope.into",
+          "Envelope.into_payload",
+          "Envelope.try_into",
+          "Frame",
+          "Frame.into",
+          "Frame.try_into",
+          "Maybe",
+          "Maybe.into",
+          "Maybe.try_into",
+          "Pair",
+          "Printable",
+          "Printable.into",
+          "Printable.try_into",
+          "address_port",
+          "frame_port",
+          "into_address",
+          "maybe_port",
+          "pair_summary",
+          "printable_text",
+          "text_length"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "cache_identity": "7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "240",
+  "content_hash": "4d9f7df20efd1415baef97298d563f2e941c6584100887e4a34bfb2eda221d7a",
+  "resolution": {
+    "outcome": "ExactCache",
+    "events": [
+      {
+        "source": "ExactCache",
+        "status": "Hit",
+        "reason": "matched projection identity `7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498`"
+      }
+    ]
+  }
+}

@@ -602,11 +602,23 @@ impl Emitter<'_> {
         ) && matches!(receiver_type, Some(ValueType::Object(_)))
         {
             let guard = self.receiver_guard_expression(receiver);
-            let field = rust_name(self.text(member));
+            let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
             let access = if wrapped_field {
                 format!("({guard}).terrane_field_{field}().clone()")
+            } else if self
+                .native_field_type(node)
+                .is_some_and(|ty| !ty.has_identity_representation())
+            {
+                format!("({guard}).{field}")
             } else {
                 format!("({guard}).{field}.clone()")
+            };
+            let access = if let Some(projected) = self.native_field_type(node)
+                && !projected.has_identity_representation()
+            {
+                self.native_field_result(node, &access, &projected)
+            } else {
+                access
             };
             return self.wrap_receiver_guard(receiver, access);
         }
@@ -726,8 +738,109 @@ impl Emitter<'_> {
             name if wrapped_field => {
                 format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
             }
-            name => format!("{receiver}.{}", rust_name(name)),
+            name => {
+                let access = format!(
+                    "{receiver}.{}",
+                    self.native_field_name(receiver_type.as_ref(), name)
+                );
+                if !self.assignment_target
+                    && let Some(projected) = self.native_field_type(node)
+                    && !projected.has_identity_representation()
+                {
+                    self.native_field_result(node, &access, &projected)
+                } else {
+                    access
+                }
+            }
         }
+    }
+
+    pub(super) fn native_field_type(
+        &self,
+        node: &SyntaxNode,
+    ) -> Option<crate::rust_interop::projection::ProjectedType> {
+        if node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let [receiver, member] = node.children.as_slice() else {
+            return None;
+        };
+        let ValueType::Object(identity) = self.receiver_value_type(receiver)? else {
+            return None;
+        };
+        crate::semantics::projected_owned_field_type(self.package, &identity, self.text(member))
+    }
+
+    fn native_field_result(
+        &self,
+        node: &SyntaxNode,
+        value: &str,
+        ty: &crate::rust_interop::projection::ProjectedType,
+    ) -> String {
+        if self.value_type(node).is_some_and(|value_type| {
+            crate::semantics::value_type_contains_nonclone_foreign(self.unit, &value_type)
+        }) {
+            return projected_result_expression(value, ty);
+        }
+        Self::borrowed_field_result(&format!("&({value})"), ty)
+    }
+
+    fn borrowed_field_result(
+        reference: &str,
+        ty: &crate::rust_interop::projection::ProjectedType,
+    ) -> String {
+        use crate::rust_interop::projection::ProjectedType;
+        match ty {
+            ProjectedType::Sequence { item, .. } => {
+                let converted = Self::borrowed_field_result("__terrane_field_item", item);
+                format!(
+                    "terrane_collection_support::List::new(({reference}).iter().map(|__terrane_field_item| {converted}).collect())"
+                )
+            }
+            ProjectedType::Optional(item) => {
+                let converted = Self::borrowed_field_result("__terrane_field_item", item);
+                format!("({reference}).as_ref().map(|__terrane_field_item| {converted})")
+            }
+            ProjectedType::Bool
+            | ProjectedType::Int
+            | ProjectedType::RustInt(_)
+            | ProjectedType::FixedInt(_)
+            | ProjectedType::Float32
+            | ProjectedType::Float
+            | ProjectedType::Char
+            | ProjectedType::None => projected_result_expression(&format!("(*({reference}))"), ty),
+            _ => projected_result_expression(&format!("(*({reference})).clone()"), ty),
+        }
+    }
+
+    fn native_field_name(&self, receiver_type: Option<&ValueType>, name: &str) -> String {
+        if let Some(ValueType::Object(identity)) = receiver_type
+            && let Some(crate::rust_interop::projection::ProjectedItem {
+                kind:
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        fields,
+                        borrowed_view: false,
+                        enum_payload: None,
+                        ..
+                    },
+                ..
+            }) = self
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+            && let Some(field) = fields.iter().find(|field| field.name == name)
+        {
+            return if field
+                .rust_name
+                .chars()
+                .all(|character| character.is_ascii_digit())
+            {
+                field.rust_name.clone()
+            } else {
+                rust_name(&field.rust_name)
+            };
+        }
+        rust_name(name)
     }
 
     pub(super) fn float_call(

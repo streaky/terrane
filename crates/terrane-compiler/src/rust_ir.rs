@@ -80,6 +80,68 @@ pub(crate) fn rust_type_constructors_match(left: &str, right: &str) -> bool {
     }
 }
 
+pub(crate) fn rewrite_type_paths<'a>(
+    rust: &'a str,
+    aliases: &'a std::collections::BTreeMap<String, String>,
+) -> std::borrow::Cow<'a, str> {
+    if let Some(canonical) = aliases.get(rust) {
+        return std::borrow::Cow::Borrowed(canonical);
+    }
+    if aliases.is_empty() {
+        return std::borrow::Cow::Borrowed(rust);
+    }
+    let Ok(ty) = syn::parse_str::<syn::Type>(rust) else {
+        return std::borrow::Cow::Borrowed(rust);
+    };
+    let mut rewrite = NativeOwnerPaths {
+        aliases,
+        changed: false,
+    };
+    let ty = rewrite.fold_type(ty);
+    if !rewrite.changed {
+        return std::borrow::Cow::Borrowed(rust);
+    }
+    let file: syn::File = syn::parse_quote!(type __TerraneNative = #ty;);
+    let rendered = prettyplease::unparse(&file);
+    std::borrow::Cow::Owned(
+        rendered
+            .strip_prefix("type __TerraneNative = ")
+            .and_then(|rendered| rendered.strip_suffix(";\n"))
+            .unwrap_or(rust)
+            .to_owned(),
+    )
+}
+
+struct NativeOwnerPaths<'a> {
+    aliases: &'a std::collections::BTreeMap<String, String>,
+    changed: bool,
+}
+
+impl syn::fold::Fold for NativeOwnerPaths<'_> {
+    fn fold_path(&mut self, path: syn::Path) -> syn::Path {
+        let mut path = syn::fold::fold_path(self, path);
+        let name = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::");
+        if let Some(canonical) = self.aliases.get(&name)
+            && canonical != &name
+            && let Ok(mut replacement) = syn::parse_str::<syn::Path>(canonical)
+        {
+            if let (Some(original), Some(last)) =
+                (path.segments.last_mut(), replacement.segments.last_mut())
+            {
+                last.arguments = std::mem::take(&mut original.arguments);
+            }
+            self.changed = true;
+            return replacement;
+        }
+        path
+    }
+}
+
 pub(crate) fn format_rust_bound(rust: &str) -> String {
     let source = format!("fn __terrane<T>() where T: {rust} {{}}");
     let Ok(file) = syn::parse_file(&source) else {

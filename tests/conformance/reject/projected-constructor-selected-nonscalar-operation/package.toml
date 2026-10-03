@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-nonscalar-operation"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-constructor-nonscalar-operation"
+version = "=0.1.0"

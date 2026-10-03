@@ -501,18 +501,6 @@ impl LanguageServer for Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
-        let position = params.text_document_position_params.position;
-        if let Some(name) = word_at(&document.text, position)
-            && let Some(namespace) = imported_dependency_namespace(&document.text, name)
-            && let Some(projection) = projection_for_uri(&uri, &document.text).await
-            && let Some(content) =
-                projected_hover_content(&projection, name, Some(namespace.as_str()))
-        {
-            return Ok(Some(Hover {
-                contents: HoverContents::Scalar(MarkedString::String(content)),
-                range: None,
-            }));
-        }
         if let Some(offset) = byte_offset(
             &document.text,
             params.text_document_position_params.position,
@@ -550,56 +538,80 @@ impl LanguageServer for Backend {
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
         let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
         let documents = self.documents.read().await;
         let Some(document) = documents.get(&uri) else {
             return Ok(None);
         };
-        let Some(name) = call_name_before(
-            &document.text,
-            params.text_document_position_params.position,
-        ) else {
+        let Some(name) = call_name_before(&document.text, position) else {
             return Ok(None);
         };
         let Some(projection) = projection_for_uri(&uri, &document.text).await else {
             return Ok(None);
         };
-        let namespace = imported_dependency_namespace(&document.text, name);
-        let function = projection
+        let imported = imported_dependency_item(&document.text, name);
+        let namespace = imported.map(|(namespace, _)| namespace);
+        let projected_name = imported.map_or(name, |(_, original)| original);
+        let item = projection
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find_map(|item| {
-                if namespace
-                    .as_deref()
-                    .is_some_and(|value| item.namespace != value)
-                {
-                    return None;
-                }
-                match &item.kind {
-                    terrane_compiler::rust_interop::projection::ProjectedKind::Function(
-                        function,
-                    ) if function.name == name => Some(function),
-                    _ => None,
-                }
+            .find(|item| {
+                item.name == projected_name && namespace.is_none_or(|value| item.namespace == value)
             });
-        let Some(function) = function else {
-            return Ok(None);
+        let (signature_name, parameters) = match item.map(|item| (&item.name, &item.kind)) {
+            Some((
+                _,
+                terrane_compiler::rust_interop::projection::ProjectedKind::ForeignType {
+                    fields,
+                    constructor,
+                    ..
+                },
+            )) if construction_call_before(&document.text, position) => {
+                let values = constructor.as_ref().map_or_else(
+                    || {
+                        fields
+                            .iter()
+                            .map(|field| (field.name.as_str(), &field.ty))
+                            .collect::<Vec<_>>()
+                    },
+                    |constructor| {
+                        constructor
+                            .parameters
+                            .iter()
+                            .map(|parameter| (parameter.name.as_str(), &parameter.ty))
+                            .collect()
+                    },
+                );
+                (name, values)
+            }
+            Some((
+                _,
+                terrane_compiler::rust_interop::projection::ProjectedKind::Function(function),
+            )) => (
+                name,
+                function
+                    .parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.as_str(), &parameter.ty))
+                    .collect(),
+            ),
+            _ => return Ok(None),
         };
-        let parameters = function
-            .parameters
+        let parameters = parameters
             .iter()
-            .map(|parameter| ParameterInformation {
+            .map(|(parameter_name, ty)| ParameterInformation {
                 label: ParameterLabel::Simple(format!(
                     "{} {}",
-                    parameter.name,
-                    parameter.ty.terrane_name()
+                    parameter_name,
+                    signature_parameter_type(ty)
                 )),
                 documentation: None,
             })
             .collect::<Vec<_>>();
         let label = format!(
             "{}; {}",
-            function.name,
+            signature_name,
             parameters
                 .iter()
                 .filter_map(|parameter| match &parameter.label {
@@ -1463,22 +1475,50 @@ fn dependency_import_namespace(text: &str, position: Position) -> Option<String>
 }
 
 fn imported_dependency_namespace(text: &str, name: &str) -> Option<String> {
+    imported_dependency_item(text, name).map(|(namespace, _)| namespace.to_owned())
+}
+
+fn imported_dependency_item<'a>(text: &'a str, name: &str) -> Option<(&'a str, &'a str)> {
     text.lines().find_map(|line| {
-        let (path, imported) = line.strip_prefix("from ")?.split_once(" import ")?;
+        let (path, imported) = line
+            .trim_start()
+            .strip_prefix("from ")?
+            .split_once(" import ")?;
         if !path.starts_with("/deps/") {
             return None;
         }
-        imported
-            .split(',')
-            .map(str::trim)
-            .any(|item| {
-                item == name
-                    || item
-                        .rsplit_once(" as ")
-                        .is_some_and(|(_, alias)| alias == name)
-            })
-            .then(|| path.to_owned())
+        imported.split(',').map(str::trim).find_map(|item| {
+            let (original, local) = item.split_once(" as ").unwrap_or((item, item));
+            (local == name).then_some((path, original))
+        })
     })
+}
+
+fn construction_call_before(text: &str, position: Position) -> bool {
+    line_prefix(text, position)
+        .and_then(|prefix| prefix.rsplit_once(';'))
+        .is_some_and(|(callee, _)| {
+            let mut words = callee
+                .rsplit(|character: char| {
+                    !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+                })
+                .filter(|word| !word.is_empty());
+            words.next().is_some() && words.next() == Some("instance")
+        })
+}
+
+fn signature_parameter_type(
+    ty: &terrane_compiler::rust_interop::projection::ProjectedType,
+) -> String {
+    use terrane_compiler::rust_interop::projection::ProjectedType;
+    match ty {
+        ProjectedType::Generic(_) => "inferred".to_owned(),
+        ProjectedType::Optional(inner) => format!("{}|none", signature_parameter_type(inner)),
+        ProjectedType::Sequence { item, .. } => {
+            format!("list of {}", signature_parameter_type(item))
+        }
+        _ => ty.terrane_name(),
+    }
 }
 
 fn word_at(text: &str, position: Position) -> Option<&str> {

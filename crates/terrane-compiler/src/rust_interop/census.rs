@@ -674,6 +674,7 @@ mod tests {
             },
         };
         let projection = Projection {
+            native_owner_aliases: BTreeMap::default(),
             cache_identity: "witness".to_owned(),
             content_hash: "content".to_owned(),
             dependencies: Vec::new(),

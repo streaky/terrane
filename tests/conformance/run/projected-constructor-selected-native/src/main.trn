@@ -1,0 +1,39 @@
+namespace app
+
+from /deps/witness import Address, Envelope, Frame, Pair, Maybe, Printable, address_port, text_length, frame_port, into_address, pair_summary, maybe_port, printable_text
+from /core/output import print
+from /core/errors import integer-conversion-overflow
+
+function main;
+    address = instance Address; port = 8080
+    envelope Envelope = instance Envelope; payload = address
+    print; (address_port; envelope)
+    print; envelope.payload.port
+    envelope.payload = instance Address; port = 8081
+    print; (address_port; envelope)
+    text = instance Envelope; payload = 'hello'
+    print; (text_length; text)
+    frame = instance Frame; address
+    print; (frame_port; frame)
+    restored = into_address; move envelope
+    print; restored.port
+    pair = instance Pair; second = address, first = 'selected'
+    print; (pair_summary; pair)
+    maybe = instance Maybe; native-label = 'optional', payload = address
+    print; (maybe_port; maybe)
+    printable = instance Printable; payload = 'display'
+    print; (printable_text; printable)
+    raw = text.into_payload;
+    print; raw
+    seed = 40 + 1
+    numeric = instance Envelope; payload = seed
+    print; (numeric.payload + 1)
+    numeric.payload = numeric.payload + 2
+    print; (numeric.payload + 1)
+    flag = instance Envelope; payload = true
+    print; flag.payload
+    try
+        numeric.payload = 9223372036854775808
+    catch integer-conversion-overflow
+        print; 'native range rejected'
+    print; numeric.payload

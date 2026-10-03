@@ -744,6 +744,11 @@ pub(super) fn bind_projected_generics(
         (ValueType::Optional(expected), ValueType::Optional(actual)) => {
             bind_projected_generics(expected, actual, bindings)
         }
+        (ValueType::Optional(expected), actual)
+            if actual != &ValueType::Scalar(ScalarType::None) =>
+        {
+            bind_projected_generics(expected, actual, bindings)
+        }
         (
             ValueType::Map(expected_key, expected_value),
             ValueType::Map(actual_key, actual_value),

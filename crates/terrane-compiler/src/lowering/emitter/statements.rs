@@ -338,6 +338,17 @@ impl Emitter<'_> {
             self.expression(right)
         };
         let value = Self::unwrapped_expression(value);
+        let value = if let Some(projected) = self.native_field_type(left)
+            && !projected.has_identity_representation()
+        {
+            let converted = projected_argument_expression("__terrane_field_value", &projected);
+            self.fallible(
+                format!("(|| -> Result<_, crate::TerraneForeignError> {{ let __terrane_field_value = {value}; Ok({converted}) }})()"),
+                node,
+            )
+        } else {
+            value
+        };
         if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
             let target = rust_name(self.text(left));
             self.line(&format!(
