@@ -30,9 +30,9 @@ pub struct Message {
 }
 impl Message {
     pub fn terrane_construct(text: String) -> Self {
-        let mut value = Self { text: String::from("") };
-        value.construct(text);
-        value
+        let mut __terrane_constructed_value = Self { text: String::from("") };
+        __terrane_constructed_value.construct(text);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
         self.text = text;

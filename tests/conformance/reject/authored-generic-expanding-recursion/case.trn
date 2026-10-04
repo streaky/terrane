@@ -1,0 +1,10 @@
+namespace authored-generic-expanding-recursion
+class box of (T)
+    value T
+    function construct; input T
+        this.value = input
+
+function grow of (T) int; value T, count int
+    if count == 0
+        return 0
+    return grow; (instance box; value), count - 1

@@ -1,0 +1,8 @@
+namespace rejected-catch-all-binding
+enum state
+    ready
+
+function inspect; value state
+    match ref value
+        case else; payload
+            return

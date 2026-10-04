@@ -20,7 +20,14 @@ class pair of (T)
             throw coercion-error
         this.second = second
 
+class box
+    value int = 0
+    function construct; value int, __terrane_constructed_value int
+        this.value = value + __terrane_constructed_value
+
 function main;
+    box = instance box; 20, 22
+    print; box.value
     first = instance connection; 'initialized closed'
     second = instance connection; 'unassigned closed'
     try

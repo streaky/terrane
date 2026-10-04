@@ -1,0 +1,11 @@
+namespace rejected-generic
+from /core/output import print
+class token
+    consuming function destruct;
+        print; 'closed'
+function reuse of (T) T; value T
+    return value
+function main;
+    item = instance token;
+    first = (reuse of token); move item
+    second = (reuse of token); move item

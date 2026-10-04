@@ -9,9 +9,9 @@ pub struct OptionalValue {
 }
 impl OptionalValue {
     pub fn terrane_construct(input: terrane_int_support::Int) -> Self {
-        let mut value = Self { value: None };
-        value.construct(input);
-        value
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(input);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, input: terrane_int_support::Int) {
         self.value = Some(input.clone());

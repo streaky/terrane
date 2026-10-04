@@ -159,7 +159,13 @@ pub(super) fn analyze_binding_node(
     if name != "_"
         && node.kind == SyntaxKind::Assignment
         && declared.is_none()
-        && let Some(previous) = bindings.iter().rev().find(|binding| binding.name == name)
+        && let Some(previous) = bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == name
+                    && binding.is_visible_at(unit.source.id(), name_node.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)
         && let Some(initializer) = initializer
         && let Some(actual) = infer_value_type(unit, initializer, bindings)?
     {
@@ -1702,15 +1708,18 @@ pub(crate) fn narrowed_value_type(
         .get(&node.span.start)
         .copied()
         .flatten();
-    let binding = bindings.iter().rev().find(|binding| {
-        binding.name == name
-            && binding.is_visible_at(unit.source.id(), node.span.start)
-            && unit
-                .enclosing_function_spans
-                .get(&binding.span.start)
-                .copied()
-                .flatten()
-                == function_span
-    })?;
+    let binding = bindings
+        .iter()
+        .filter(|binding| {
+            binding.name == name
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+                && unit
+                    .enclosing_function_spans
+                    .get(&binding.span.start)
+                    .copied()
+                    .flatten()
+                    == function_span
+        })
+        .max_by_key(|binding| binding.visible_from)?;
     narrowed_optional_type(unit, node, binding.value_type.clone())
 }

@@ -709,8 +709,29 @@ Anonymous functions use ordinary function syntax without a declaration name. The
 duplicate, unknown, missing, and excess arguments, rejects positional arguments after named
 arguments, and checks callable invocation and throwable compatibility at every typed destination.
 One final `name T ...` parameter captures remaining positional arguments as a `list of T`; variadic
-arity is preserved by function values, methods, closures, and callable compatibility. Overloads and
-generic source functions are not implemented.
+arity is preserved by function values, methods, closures, and callable compatibility. Source
+generic functions declare lexical binders with `of (T)` and select concrete arguments from
+inputs, an immediate destination, or an explicit application such as `identity of int`.
+Overloads are not implemented.
+
+### Generic objects, enums, and required construction
+
+Classes, interfaces, functions, and closed enums support lexical type parameters and nominal
+interface bounds. Concrete applications are invariant; selected payload types and native
+representations survive assignment, calls, and member lookup. Unconstrained generic bodies
+must not assume that their values are independently copyable.
+
+Closed enums declare named alternatives with optional payload parameters. `instance State::variant`
+constructs a selected alternative; `match ref value` inspects payloads without transferring
+ownership, while ordinary by-value matching follows the application's normal copy or transfer
+rules. `case else` is the catch-all. Coverage is checked for the enum family; matching arbitrary
+finite unions is not implemented.
+
+Nondefaultable authored fields without initializers are required construction slots. Every
+successful construction path must initialize them exactly once before observation or escape.
+Partial failure drops initialized fields without invoking an incomplete object's user destructor.
+Projected native records instead retain their admitted storage and construction recipes.
+
 
 ## Source object and name model
 
@@ -1280,7 +1301,6 @@ collection checked lookup children and source-visible typed lookup errors
 reflection inventories beyond retained field metadata, callable contracts, throwable alternatives, and canonical descriptor identity
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
-user-declared type parameters and generic application
 typed task errors, defined cancellation points, automatic sibling cancellation, and explicit detach
 function/class/namespace/type reflection objects
 ```

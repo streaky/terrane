@@ -1,0 +1,10 @@
+namespace rejected-enum-mismatch
+enum state
+    pending
+enum result
+    ready
+
+function inspect; value state
+    match ref value
+        case result::ready
+            return

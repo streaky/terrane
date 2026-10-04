@@ -587,6 +587,25 @@ fn projected_constructor_selection_serves_semantic_hover() {
         json!([]),
         "{diagnostics}"
     );
+    let (line, constructor) = text
+        .lines()
+        .enumerate()
+        .find(|(_, line)| line.contains("envelope Packet = instance Packet;"))
+        .unwrap();
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":2,"method":"textDocument/signatureHelp",
+            "params":{"textDocument":{"uri":uri},"position":{"line":line,"character":constructor.find("payload =").unwrap()+10}}
+        }),
+    );
+    let signature = receive_response(&mut stdout, 2);
+    assert_eq!(signature["result"]["activeParameter"], 0);
+    assert_eq!(
+        signature["result"]["signatures"][0]["parameters"],
+        json!([{"label":"payload: Address"}]),
+        "{signature}"
+    );
     let (line, usage) = text
         .lines()
         .enumerate()

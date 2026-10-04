@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -466,12 +466,12 @@ pub struct StreamOperationResult {
 }
 impl StreamOperationResult {
     pub fn terrane_construct(failed: bool, message: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
         };
-        value.construct(failed, message);
-        value
+        __terrane_constructed_value.construct(failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String) {
         self.failed = failed;
@@ -494,15 +494,15 @@ impl ReadResult {
         failed: bool,
         message: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             data: Vec::from([]),
             completed: terrane_int_support::Int::from(0_i128),
             end: false,
             failed: false,
             message: String::from(""),
         };
-        value.construct(data, completed, end, failed, message);
-        value
+        __terrane_constructed_value.construct(data, completed, end, failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -535,15 +535,15 @@ impl TextReadResult {
         failed: bool,
         message: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             text: String::from(""),
             completed: terrane_int_support::Int::from(0_i128),
             end: false,
             failed: false,
             message: String::from(""),
         };
-        value.construct(text, completed, end, failed, message);
-        value
+        __terrane_constructed_value.construct(text, completed, end, failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -574,14 +574,14 @@ impl WriteResult {
         failed: bool,
         message: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             data: Vec::from([]),
             completed: terrane_int_support::Int::from(0_i128),
             failed: false,
             message: String::from(""),
         };
-        value.construct(data, completed, failed, message);
-        value
+        __terrane_constructed_value.construct(data, completed, failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -608,13 +608,13 @@ pub struct ByteReader {
 }
 impl ByteReader {
     pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
         };
-        value.construct(handle);
-        value.__terrane_constructed = true;
-        value
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
         self.handle = Some(handle);
@@ -783,13 +783,13 @@ pub struct ByteWriter {
 }
 impl ByteWriter {
     pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
         };
-        value.construct(handle);
-        value.__terrane_constructed = true;
-        value
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
         self.handle = Some(handle);
@@ -921,14 +921,14 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
             codec: terrane_string_support::Encoding::Utf8,
         };
-        value.construct(handle, codec);
-        value.__terrane_constructed = true;
-        value
+        __terrane_constructed_value.construct(handle, codec);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1136,14 +1136,14 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
             codec: terrane_string_support::Encoding::Utf8,
         };
-        value.construct(handle, codec);
-        value.__terrane_constructed = true;
-        value
+        __terrane_constructed_value.construct(handle, codec);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,

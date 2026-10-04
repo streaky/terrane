@@ -1,0 +1,8 @@
+namespace rejected-generic
+interface describable
+class message implements describable
+class envelope of (T)
+    value T|none = none
+function main;
+    narrow envelope of message = instance (envelope of message);
+    wide envelope of describable = narrow

@@ -1,0 +1,7 @@
+namespace rejected-enum
+
+enum state
+    completed; result string
+
+function inspect string; value state
+    return value.result

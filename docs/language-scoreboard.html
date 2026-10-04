@@ -20,7 +20,7 @@
 </head>
 <body>
 <main class="shell">
-<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-09-15</div></header>
+<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-10-04</div></header>
 <section class="metrics" id="metrics" aria-label="Scoreboard summary"></section>
 <div class="layout"><aside class="filters"><h2>Explore</h2><div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Feature, note, source…"></div><div class="field"><label for="category">Category</label><select id="category"></select></div><div class="field"><label for="status">Status</label><select id="status"></select></div><div class="field"><label for="milestone">Milestone</label><select id="milestone"></select></div><div class="field"><label for="reference">Reference</label><select id="reference"></select></div><button class="reset" id="reset" type="button">Reset filters</button><div class="legend" id="legend"></div></aside>
 <section class="content"><div class="overview"><h2>Category completion</h2><div class="category-grid" id="category-grid"></div></div><div class="toolbar"><span id="result-count"></span><label>Sort <select id="sort"><option value="roadmap">Roadmap priority</option><option value="category">Category</option><option value="name">Name</option><option value="completion">Completion</option></select></label></div><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Status</th><th>Progress</th><th>Milestone</th><th>Reference</th><th>Notes</th><th>Sources</th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty" hidden>No features match these filters.</div></div></section></div>
@@ -29,7 +29,7 @@
   "format": 1,
   "title": "Terrane language scoreboard",
   "metadata": {
-    "as_of": "2026-09-15",
+    "as_of": "2026-10-04",
     "description": "Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.",
     "completion_rule": "Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded are 0; partial entries use a conservative editorial estimate backed by their notes.",
     "authority": [
@@ -1027,18 +1027,18 @@
     },
     {
       "id": "match-expression",
-      "name": "Pattern matching",
+      "name": "Closed enum statement matching",
       "category": "callables",
-      "status": "potential",
-      "completion": 0,
+      "status": "done",
+      "completion": 100,
       "milestone": null,
       "reference": {
-        "state": "planned",
+        "state": "documented",
         "paths": [
-          "manual/reference/records/language/control-flow/pattern-matching.yaml"
+          "manual/reference/records/language/types/unions.yaml"
         ]
       },
-      "notes": "A match shape is reserved in the design but is outside the minimum compiler roadmap and has no settled milestone.",
+      "notes": "Statement matches check closed enum coverage, named payload bindings, borrowed inspection, consuming extraction, and catch-all ordering. Finite-union matching and value-producing match expressions are not implemented.",
       "sources": [
         "docs/language-spec-concise.md#CONTROL"
       ]
@@ -1300,6 +1300,46 @@
       "sources": [
         "docs/language-spec-concise.md#OBJECT_MODEL",
         "docs/compiler-plan.md#Completed portion of Milestone 16"
+      ]
+    },
+    {
+      "id": "authored-enums",
+      "name": "Authored closed enums",
+      "category": "types",
+      "status": "done",
+      "completion": 100,
+      "milestone": null,
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/language/types/unions.yaml",
+          "manual/reference/records/language/types/generics.yaml"
+        ]
+      },
+      "notes": "Nominal variants retain generic payload contracts and normal ownership; construction, exhaustive matching, borrowed inspection, and consuming resource transfer have executable witnesses.",
+      "sources": [
+        "tests/conformance/run/authored-generic-enum-states/case.trn",
+        "tests/conformance/run/authored-enum-resource-transfer/case.trn"
+      ]
+    },
+    {
+      "id": "required-field-construction",
+      "name": "Required-field initialization and partial construction cleanup",
+      "category": "objects",
+      "status": "done",
+      "completion": 100,
+      "milestone": null,
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/language/classes/fields.yaml"
+        ]
+      },
+      "notes": "Required fields initialize exactly once on every successful path before observation or escape. Failed construction drops initialized fields without the incomplete user destructor.",
+      "sources": [
+        "tests/conformance/run/authored-generic-partial-construction/case.trn",
+        "tests/conformance/reject/authored-required-missing-branch/case.trn",
+        "tests/conformance/reject/authored-required-double-write/case.trn"
       ]
     },
     {
@@ -2751,20 +2791,22 @@
     {
       "id": "source-generics",
       "name": "Source-declared generics",
-      "category": "future",
-      "status": "deferred",
-      "completion": 0,
+      "category": "types",
+      "status": "done",
+      "completion": 100,
       "milestone": null,
       "reference": {
-        "state": "planned",
+        "state": "documented",
         "paths": [
           "manual/reference/records/language/types/generics.yaml"
         ]
       },
-      "notes": "Version one rejects source generic declarations; concrete types, unions, interfaces, and generated declarations are used instead.",
+      "notes": "Classes, functions, interfaces, and enums support lexical type binders, invariant concrete applications, nominal bounds, inferred and explicit selection, and ownership-preserving generic bodies.",
       "sources": [
         "docs/language-spec-concise.md#DECL",
-        "docs/language-spec-concise.md#DEFERRED"
+        "tests/conformance/run/authored-generic-contracts/case.trn",
+        "tests/conformance/run/authored-generic-interfaces/case.trn",
+        "tests/conformance/run/authored-generic-resource-choice/case.trn"
       ]
     },
     {

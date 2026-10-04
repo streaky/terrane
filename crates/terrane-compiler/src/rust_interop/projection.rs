@@ -73,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "243";
+const PROJECTION_SCHEMA: &str = "244";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -648,6 +648,11 @@ pub enum ProjectedType {
         ordered: bool,
     },
     Tuple(Vec<ProjectedType>),
+    Reference {
+        inner: Box<ProjectedType>,
+        mutable: bool,
+        lifetime: Option<String>,
+    },
     AsyncIterationStep(Box<ProjectedType>),
     AsyncSinkOutcome,
     Foreign {
@@ -743,6 +748,18 @@ impl ProjectedType {
             Self::String => "String".to_owned(),
             Self::BorrowedString => "&str".to_owned(),
             Self::Bytes => "Vec<u8>".to_owned(),
+            Self::Reference {
+                inner,
+                mutable,
+                lifetime,
+            } => format!(
+                "&{}{}{}",
+                lifetime
+                    .as_ref()
+                    .map_or_else(String::new, |name| format!("{name} ")),
+                if *mutable { "mut " } else { "" },
+                inner.rust_type()
+            ),
             Self::Sequence { rust_path, .. }
             | Self::Mapping { rust_path, .. }
             | Self::Set { rust_path, .. }
@@ -770,7 +787,8 @@ impl ProjectedType {
             Self::Sequence { item, .. }
             | Self::Set { item, .. }
             | Self::AsyncIterationStep(item)
-            | Self::Optional(item) => item.bind_associated(replacement),
+            | Self::Optional(item)
+            | Self::Reference { inner: item, .. } => item.bind_associated(replacement),
             Self::Mapping { key, value, .. } => {
                 key.bind_associated(replacement);
                 value.bind_associated(replacement);
@@ -799,7 +817,8 @@ impl ProjectedType {
             Self::Sequence { item, .. }
             | Self::Set { item, .. }
             | Self::AsyncIterationStep(item)
-            | Self::Optional(item) => item.contains_opaque(),
+            | Self::Optional(item)
+            | Self::Reference { inner: item, .. } => item.contains_opaque(),
             Self::Mapping { key, value, .. } => key.contains_opaque() || value.contains_opaque(),
             Self::Tuple(items) => items.iter().any(Self::contains_opaque),
             Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_opaque),
@@ -821,7 +840,8 @@ impl ProjectedType {
             Self::Sequence { item, .. }
             | Self::Set { item, .. }
             | Self::AsyncIterationStep(item)
-            | Self::Optional(item) => item.contains_generic(generic),
+            | Self::Optional(item)
+            | Self::Reference { inner: item, .. } => item.contains_generic(generic),
             Self::Mapping { key, value, .. } => {
                 key.contains_generic(generic) || value.contains_generic(generic)
             }
@@ -852,7 +872,8 @@ impl ProjectedType {
             Self::Sequence { item, .. }
             | Self::Set { item, .. }
             | Self::AsyncIterationStep(item)
-            | Self::Optional(item) => item.contains_open_generic(),
+            | Self::Optional(item)
+            | Self::Reference { inner: item, .. } => item.contains_open_generic(),
             Self::Mapping { key, value, .. } => {
                 key.contains_open_generic() || value.contains_open_generic()
             }
@@ -878,6 +899,7 @@ impl ProjectedType {
     #[must_use]
     pub fn terrane_name(&self) -> String {
         match self {
+            Self::Reference { inner, .. } => inner.terrane_name(),
             Self::Associated(_) => "host-projected-associated".to_owned(),
             Self::Generic(name) => format!("host-projected-generic-{name}"),
             Self::Opaque { .. } => "host-projected-opaque".to_owned(),
@@ -972,6 +994,7 @@ impl ProjectedType {
             | Self::String
             | Self::Bytes
             | Self::InvocationScoped { .. }
+            | Self::Reference { .. }
             | Self::Foreign { .. } => true,
             _ => false,
         }
@@ -980,6 +1003,7 @@ impl ProjectedType {
     pub(crate) fn contains_borrowed_result(&self) -> bool {
         match self {
             Self::BorrowedString
+            | Self::Reference { .. }
             | Self::InvocationScoped {
                 expression_scoped: true,
                 ..
@@ -1047,7 +1071,10 @@ fn collect_nested_projected_types(
         ProjectedType::Sequence { item, .. }
         | ProjectedType::Set { item, .. }
         | ProjectedType::AsyncIterationStep(item)
-        | ProjectedType::Optional(item) => collect_nested_projected_types(item, name, candidates),
+        | ProjectedType::Optional(item)
+        | ProjectedType::Reference { inner: item, .. } => {
+            collect_nested_projected_types(item, name, candidates);
+        }
         ProjectedType::Mapping { key, value, .. } => {
             collect_nested_projected_types(key, name, candidates);
             collect_nested_projected_types(value, name, candidates);
@@ -1095,6 +1122,7 @@ fn collect_function_projected_types(
 fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
     match ty {
         ProjectedType::InvocationScoped { owned, .. } => projected_type_owner(owned),
+        ProjectedType::Reference { inner, .. } => projected_type_owner(inner),
         ProjectedType::Foreign { base_rust_path, .. } => Some(
             base_rust_path
                 .split_once('<')
@@ -3892,7 +3920,8 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => {
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => {
             canonicalize_projected_type_name(inner, names);
         }
         ProjectedType::Mapping { key, value, .. } => {
@@ -4372,7 +4401,8 @@ fn type_undeclared_owner<'a>(
             }),
         ProjectedType::Optional(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => type_undeclared_owner(inner, declared),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => type_undeclared_owner(inner, declared),
         ProjectedType::Mapping { key, value, .. } => {
             type_undeclared_owner(key, declared).or_else(|| type_undeclared_owner(value, declared))
         }
@@ -4438,7 +4468,8 @@ fn collect_type_owners(ty: &ProjectedType, owners: &mut BTreeSet<String>) {
         }
         ProjectedType::Optional(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => collect_type_owners(inner, owners),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => collect_type_owners(inner, owners),
         ProjectedType::Mapping { key, value, .. } => {
             collect_type_owners(key, owners);
             collect_type_owners(value, owners);
@@ -4774,17 +4805,25 @@ fn external_reexport_rustdocs(
                 }
                 external.name.clone()
             };
-            if owner_crate_name == "core"
-                && !matches!(summary.kind, ItemKind::Struct | ItemKind::Enum)
-            {
-                continue;
-            }
-            if !reexport_is_demanded(
+            let demanded = reexport_is_demanded(
                 dependency,
                 public_path,
                 summary.kind == ItemKind::Module,
                 demands,
-            ) {
+            );
+            if !demanded {
+                continue;
+            }
+            if owner_crate_name == "core"
+                && !matches!(summary.kind, ItemKind::Struct | ItemKind::Enum)
+            {
+                declines[dependency_index].push(DeclinedItem {
+                    rust_path: public_path.clone(),
+                    reason: format!(
+                        "demanded core item kind {:?} has no Rust-to-Terrane projection",
+                        summary.kind
+                    ),
+                });
                 continue;
             }
             if owner_crate_name == "core" {
@@ -5078,7 +5117,9 @@ fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, depen
                 rewrite_projected_rust_root(item, package_root, dependency_root);
             }
         }
-        ProjectedType::AsyncIterationStep(item) | ProjectedType::Optional(item) => {
+        ProjectedType::AsyncIterationStep(item)
+        | ProjectedType::Optional(item)
+        | ProjectedType::Reference { inner: item, .. } => {
             rewrite_projected_rust_root(item, package_root, dependency_root);
         }
         ProjectedType::Foreign {

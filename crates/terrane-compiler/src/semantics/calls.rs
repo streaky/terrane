@@ -299,6 +299,16 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
+        let mut callee = callee;
+        while matches!(
+            callee.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) {
+            let Some(inner) = callee.children.first() else {
+                break;
+            };
+            callee = inner;
+        }
         let designator = if callee.kind == SyntaxKind::AppliedType {
             callee.children.first().unwrap_or(callee)
         } else {
@@ -316,16 +326,43 @@ pub(super) fn validate_call_nodes<'a>(
             node,
             crate::syntax::call_is_unsafe(node),
         );
+        if selected_contract.is_none()
+            && let Some(contract) = contract
+            && !contract.generic_parameters.is_empty()
+        {
+            use super::generics::GenericSelectionFailure;
+            let selection = super::generics::select_unit_callable_contract_result(
+                Some(package),
+                unit,
+                node,
+                contract,
+                scoped_bindings,
+            );
+            let message = match selection {
+                Err(GenericSelectionFailure::Unselected(parameters)) => format!(
+                    "generic type parameter {} is unselected; write an explicit type argument or a destination selecting the result",
+                    parameters
+                        .iter()
+                        .map(|name| format!("`{name}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                Err(GenericSelectionFailure::Bound {
+                    parameter,
+                    actual,
+                    bound,
+                }) => format!(
+                    "type argument `{actual}` for `{parameter}` does not satisfy interface bound `{bound}`"
+                ),
+                Err(GenericSelectionFailure::Argument(message)) => message,
+                Err(GenericSelectionFailure::InvalidArguments) | Ok(_) => {
+                    "generic callable arguments cannot select a valid application".to_owned()
+                }
+            };
+            return Err(failure(&unit.source, "T0012", message, callee.span));
+        }
         let base_contract = selected_contract.as_ref().or(contract);
         if let Some(contract) = base_contract {
-            if !contract.generic_parameters.is_empty() && selected_contract.is_none() {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    "generic callable type arguments could not be selected consistently; provide explicit type arguments or a written destination",
-                    callee.span,
-                ));
-            }
             let specialized = unit
                 .projected_call_specializations
                 .get(&(node.span.file, node.span.start, node.span.end))

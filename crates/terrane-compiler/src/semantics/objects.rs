@@ -3062,7 +3062,10 @@ fn collect_projected_generic_names(
         ProjectedType::Sequence { item, .. }
         | ProjectedType::Set { item, .. }
         | ProjectedType::AsyncIterationStep(item)
-        | ProjectedType::Optional(item) => collect_projected_generic_names(item, names),
+        | ProjectedType::Optional(item)
+        | ProjectedType::Reference { inner: item, .. } => {
+            collect_projected_generic_names(item, names);
+        }
         ProjectedType::Mapping { key, value, .. } => {
             collect_projected_generic_names(key, names);
             collect_projected_generic_names(value, names);
@@ -4190,6 +4193,20 @@ fn bind_projected_native_generics(
     }
     match (expected, actual) {
         (
+            ProjectedType::Reference {
+                inner: expected,
+                mutable: expected_mutable,
+                ..
+            },
+            ProjectedType::Reference {
+                inner: actual,
+                mutable: actual_mutable,
+                ..
+            },
+        ) if expected_mutable == actual_mutable => {
+            bind_projected_native_generics(expected, actual, bindings)
+        }
+        (
             ProjectedType::Foreign {
                 base_rust_path: expected_path,
                 arguments: expected_arguments,
@@ -4800,19 +4817,24 @@ fn collect_projected_destinations(
         {
             for parameter in &mut projected_parameters {
                 if let crate::rust_interop::projection::ProjectedType::Callback {
+                    parameters,
                     parameter_rust_types,
                     native_bound,
+                    result,
                     ..
                 } = &mut parameter.ty
                 {
-                    for rust_type in parameter_rust_types {
-                        if let Some(referent) = rust_type.strip_prefix('&') {
-                            *rust_type = format!("&mut {}", referent.trim_start());
-                        }
-                    }
-                    if let Some(bound) = native_bound {
-                        *bound = bound.replacen('&', "&mut ", 1);
-                    }
+                    *parameter_rust_types = parameters
+                        .iter()
+                        .map(|parameter| {
+                            projected_reference_type(parameter.clone(), true).rust_type()
+                        })
+                        .collect();
+                    *native_bound = Some(format!(
+                        "FnOnce({}) -> {}",
+                        parameter_rust_types.join(", "),
+                        result.rust_type(),
+                    ));
                 }
             }
         }
@@ -4970,7 +4992,7 @@ fn collect_projected_destinations(
                         Some("&[u8]".to_owned())
                     }
                     crate::rust_interop::projection::ProjectedType::Foreign { .. } => {
-                        Some(format!("&mut {rust_type}"))
+                        Some(format!("&{rust_type}"))
                     }
                     _ => None,
                 };
@@ -5727,25 +5749,10 @@ fn projected_reference_type(
     projected: crate::rust_interop::projection::ProjectedType,
     mutable: bool,
 ) -> crate::rust_interop::projection::ProjectedType {
-    let rust_path = format!(
-        "&{}{}",
-        if mutable { "mut " } else { "" },
-        projected.rust_type()
-    );
-    let (name, base_rust_path, arguments) = match projected {
-        crate::rust_interop::projection::ProjectedType::Foreign {
-            name,
-            base_rust_path,
-            arguments,
-            ..
-        } => (name, base_rust_path, arguments),
-        projected => (projected.rust_type(), projected.rust_type(), Vec::new()),
-    };
-    crate::rust_interop::projection::ProjectedType::Foreign {
-        rust_path,
-        name,
-        base_rust_path,
-        arguments,
+    crate::rust_interop::projection::ProjectedType::Reference {
+        inner: Box::new(projected),
+        mutable,
+        lifetime: None,
     }
 }
 
@@ -6264,6 +6271,15 @@ fn substitute_projected_generic(
             retained: *retained,
             send: *send,
             sync: *sync,
+        },
+        ProjectedType::Reference {
+            inner,
+            mutable,
+            lifetime,
+        } => ProjectedType::Reference {
+            inner: Box::new(substitute_projected_generic(inner, parameter, destination)),
+            mutable: *mutable,
+            lifetime: lifetime.clone(),
         },
         ProjectedType::Foreign {
             name,

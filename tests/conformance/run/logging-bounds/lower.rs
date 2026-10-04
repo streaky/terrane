@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -635,12 +635,12 @@ pub struct LogLevel {
 }
 impl LogLevel {
     pub fn terrane_construct(name: String, rank: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             name: String::from("info"),
             rank: terrane_int_support::Int::from(30_i128),
         };
-        value.construct(name, rank);
-        value
+        __terrane_constructed_value.construct(name, rank);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, name: String, rank: terrane_int_support::Int) {
         self.name = name;
@@ -710,11 +710,11 @@ pub struct DocumentLogValue {
 }
 impl DocumentLogValue {
     pub fn terrane_construct(input: DocumentValue) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             value: make_document_none(),
         };
-        value.construct(input);
-        value
+        __terrane_constructed_value.construct(input);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, input: DocumentValue) {
         self.value = input;
@@ -745,9 +745,9 @@ pub struct TextLogValue {
 }
 impl TextLogValue {
     pub fn terrane_construct(input: String) -> Self {
-        let mut value = Self { value: String::from("") };
-        value.construct(input);
-        value
+        let mut __terrane_constructed_value = Self { value: String::from("") };
+        __terrane_constructed_value.construct(input);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
         self.value = input;
@@ -778,9 +778,9 @@ pub struct ErrorLogValue {
 }
 impl ErrorLogValue {
     pub fn terrane_construct(rendered: String) -> Self {
-        let mut value = Self { rendered: String::from("") };
-        value.construct(rendered);
-        value
+        let mut __terrane_constructed_value = Self { rendered: String::from("") };
+        __terrane_constructed_value.construct(rendered);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, rendered: String) {
         self.rendered = rendered;
@@ -828,14 +828,14 @@ impl LogField {
         secret: bool,
         source: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             name: String::from(""),
             value: <LogValue>::from(TextLogValue::terrane_construct(String::from(""))),
             secret: false,
             source: String::from(""),
         };
-        value.construct(name, input, secret, source);
-        value
+        __terrane_constructed_value.construct(name, input, secret, source);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -873,11 +873,11 @@ pub struct LogSink {
 }
 impl LogSink {
     pub fn terrane_construct(handle: TerranePlatformCapability) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             handle: terrane_platform_support::logging_no_sink(),
         };
-        value.construct(handle);
-        value
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformCapability) {
         self.handle = handle;
@@ -891,15 +891,15 @@ pub struct LogSinkResult {
 }
 impl LogSinkResult {
     pub fn terrane_construct(failed: bool, message: String, sink: LogSink) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: LogSink::terrane_construct(
                 terrane_platform_support::logging_no_sink(),
             ),
         };
-        value.construct(failed, message, sink);
-        value
+        __terrane_constructed_value.construct(failed, message, sink);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, sink: LogSink) {
         self.failed = failed;
@@ -970,15 +970,16 @@ impl LoggerOptions {
         max_fields: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             minimum: info_level(),
             target_prefix: String::from(""),
             target: String::from("application"),
             max_fields: terrane_int_support::Int::from(64_i128),
             max_bytes: terrane_int_support::Int::from(65536_i128),
         };
-        value.construct(minimum, target_prefix, target, max_fields, max_bytes);
-        value
+        __terrane_constructed_value
+            .construct(minimum, target_prefix, target, max_fields, max_bytes);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1131,7 +1132,7 @@ impl Logger {
         options: LoggerOptions,
         context: LogContext,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             sink: LogSink::terrane_construct(
                 terrane_platform_support::logging_no_sink(),
             ),
@@ -1144,8 +1145,8 @@ impl Logger {
             ),
             context: LogContext::terrane_construct(),
         };
-        value.construct(sink, options, context);
-        value
+        __terrane_constructed_value.construct(sink, options, context);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1207,13 +1208,13 @@ pub struct LogOutcome {
 }
 impl LogOutcome {
     pub fn terrane_construct(filtered: bool, failed: bool, message: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             filtered: false,
             failed: false,
             message: String::from(""),
         };
-        value.construct(filtered, failed, message);
-        value
+        __terrane_constructed_value.construct(filtered, failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, filtered: bool, failed: bool, message: String) {
         self.filtered = filtered;
@@ -1235,14 +1236,14 @@ impl LogEvent {
         source: String,
         fields: terrane_collection_support::List<LogField>,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             level: info_level(),
             message: String::from(""),
             fields: terrane_collection_support::List::new(Vec::new()),
             source: String::from(""),
         };
-        value.construct(level, message, source, fields);
-        value
+        __terrane_constructed_value.construct(level, message, source, fields);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1504,9 +1505,9 @@ pub struct DocumentInteger {
 }
 impl DocumentInteger {
     pub fn terrane_construct(text: String) -> Self {
-        let mut value = Self { text: String::from("0") };
-        value.construct(text);
-        value
+        let mut __terrane_constructed_value = Self { text: String::from("0") };
+        __terrane_constructed_value.construct(text);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
         self.text = text;
@@ -1524,13 +1525,13 @@ impl DocumentDecimal {
         exponent: terrane_int_support::Int,
         text: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             coefficient: String::from("0"),
             exponent: terrane_int_support::Int::from(0_i128),
             text: String::from("0"),
         };
-        value.construct(coefficient, exponent, text);
-        value
+        __terrane_constructed_value.construct(coefficient, exponent, text);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1637,7 +1638,7 @@ pub struct DocumentValue {
 }
 impl DocumentValue {
     pub fn terrane_construct(raw: terrane_document_support::DataResult) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             raw: terrane_empty_document(),
             encoded: String::from(""),
             kind: String::from("invalid"),
@@ -1649,8 +1650,8 @@ impl DocumentValue {
                 String::from("0"),
             ),
         };
-        value.construct(raw);
-        value
+        __terrane_constructed_value.construct(raw);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
         self.kind = terrane_document_kind(&raw);
@@ -1724,15 +1725,15 @@ impl DocumentResult {
         expected: String,
         raw: terrane_document_support::DataResult,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             path: String::from("$"),
             expected: String::from(""),
             value: DocumentValue::terrane_construct(terrane_empty_document()),
         };
-        value.construct(failed, message, path, expected, raw);
-        value
+        __terrane_constructed_value.construct(failed, message, path, expected, raw);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1765,7 +1766,7 @@ impl DocumentMapping {
         expected_kind: String,
         allow_unknown: bool,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             descriptor_name: String::from("document-value"),
             expected_kind: String::from("map"),
             field_names: terrane_collection_support::List::<
@@ -1782,8 +1783,9 @@ impl DocumentMapping {
             >::new(vec![String::from("")]),
             allow_unknown: false,
         };
-        value.construct(descriptor_name, expected_kind, allow_unknown);
-        value
+        __terrane_constructed_value
+            .construct(descriptor_name, expected_kind, allow_unknown);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1856,11 +1858,11 @@ pub struct DocumentMapEntries {
 }
 impl DocumentMapEntries {
     pub fn terrane_construct() -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             raw: terrane_make_document_map(),
         };
-        value.construct();
-        value
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
     }
     pub fn construct(&mut self) {
         self.raw = terrane_make_document_map();

@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-unavailable-enum-witness import Event
+
+function inspect; event Event
+    match ref event
+        case Event::Raw; pointer
+            return

@@ -33,10 +33,16 @@ pub(crate) fn rust_syntactic_identifiers(rust: &str) -> std::collections::BTreeS
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Runtime modules and Cargo features are independent capabilities"
+)]
 pub struct Program {
     pub version: &'static str,
     pub requires_platform_support: bool,
     pub requires_async_runtime: bool,
+    pub requires_blocking_runtime: bool,
+    pub requires_runtime_sync: bool,
     pub runtime: Vec<GeneratedModule>,
     pub globals: Vec<Item>,
     pub modules: Vec<Module>,
@@ -78,6 +84,32 @@ pub(crate) fn rust_type_constructors_match(left: &str, right: &str) -> bool {
         (Some(left), Some(right)) => left == right,
         _ => left == right,
     }
+}
+
+pub(crate) fn rust_type_parameter_names(rust: &str) -> std::collections::BTreeSet<String> {
+    #[derive(Default)]
+    struct TypeNames(std::collections::BTreeSet<String>);
+
+    impl syn::fold::Fold for TypeNames {
+        fn fold_type_path(&mut self, path: syn::TypePath) -> syn::TypePath {
+            if path.qself.is_none()
+                && path.path.leading_colon.is_none()
+                && let Some(segment) = path.path.segments.first()
+                && matches!(segment.arguments, syn::PathArguments::None)
+            {
+                self.0.insert(segment.ident.to_string());
+            }
+            syn::fold::fold_type_path(self, path)
+        }
+    }
+
+    let mut names = TypeNames::default();
+    if let Ok(ty) = syn::parse_str::<syn::Type>(rust) {
+        names.fold_type(ty);
+    } else if let Ok(expression) = syn::parse_str::<syn::Expr>(rust) {
+        names.fold_expr(expression);
+    }
+    names.0
 }
 
 pub(crate) fn rewrite_type_paths<'a>(
@@ -200,37 +232,41 @@ pub(crate) fn instantiate_rust_generics(
     rust: &str,
     replacements: &std::collections::BTreeMap<String, String>,
 ) -> String {
-    fn replace(
-        tokens: TokenStream,
-        replacements: &std::collections::BTreeMap<String, String>,
-    ) -> TokenStream {
-        tokens
-            .into_iter()
-            .flat_map(|token| match token {
-                TokenTree::Ident(identifier) => replacements
-                    .get(&identifier.to_string())
-                    .and_then(|replacement| replacement.parse::<TokenStream>().ok())
-                    .map_or_else(
-                        || vec![TokenTree::Ident(identifier)],
-                        |replacement| replacement.into_iter().collect(),
-                    ),
-                TokenTree::Group(group) => {
-                    let mut replaced = proc_macro2::Group::new(
-                        group.delimiter(),
-                        replace(group.stream(), replacements),
-                    );
-                    replaced.set_span(group.span());
-                    vec![TokenTree::Group(replaced)]
-                }
-                token => vec![token],
-            })
-            .collect()
+    struct Substitutions<'a>(&'a std::collections::BTreeMap<String, String>);
+
+    impl syn::fold::Fold for Substitutions<'_> {
+        fn fold_type(&mut self, ty: syn::Type) -> syn::Type {
+            if let syn::Type::Path(path) = &ty
+                && path.qself.is_none()
+                && path.path.leading_colon.is_none()
+                && path.path.segments.len() == 1
+                && let Some(segment) = path.path.segments.first()
+                && matches!(segment.arguments, syn::PathArguments::None)
+                && let Some(replacement) = self.0.get(&segment.ident.to_string())
+                && let Ok(replacement) = syn::parse_str::<syn::Type>(replacement)
+            {
+                return replacement;
+            }
+            syn::fold::fold_type(self, ty)
+        }
     }
 
-    rust.parse::<TokenStream>().map_or_else(
-        |_| rust.to_owned(),
-        |tokens| replace(tokens, replacements).to_string(),
-    )
+    let mut substitutions = Substitutions(replacements);
+    if let Ok(ty) = syn::parse_str::<syn::Type>(rust) {
+        substitutions.fold_type(ty).to_token_stream().to_string()
+    } else if let Ok(expression) = syn::parse_str::<syn::Expr>(rust) {
+        substitutions
+            .fold_expr(expression)
+            .to_token_stream()
+            .to_string()
+    } else if let Ok(bound) = syn::parse_str::<syn::TypeParamBound>(rust) {
+        substitutions
+            .fold_type_param_bound(bound)
+            .to_token_stream()
+            .to_string()
+    } else {
+        rust.to_owned()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1126,6 +1162,8 @@ mod tests {
             version: "test",
             requires_platform_support: false,
             requires_async_runtime: true,
+            requires_blocking_runtime: false,
+            requires_runtime_sync: false,
             runtime: vec![
                 GeneratedModule {
                     name: "async",
@@ -1185,6 +1223,8 @@ mod tests {
             version: "test",
             requires_platform_support: false,
             requires_async_runtime: false,
+            requires_blocking_runtime: false,
+            requires_runtime_sync: false,
             runtime: Vec::new(),
             globals: Vec::new(),
             modules: Vec::new(),
@@ -1208,6 +1248,57 @@ mod tests {
         ));
         assert!(rust_type_constructors_match("[Message]", "[Message]"));
         assert!(!rust_type_constructors_match("[Message]", "[Theme]"));
+    }
+
+    #[test]
+    fn native_generic_selection_distinguishes_binders_from_qualified_names() {
+        let names = super::rust_type_parameter_names(
+            "<Holder<Outer<T>> as Trait<U, std::marker::T>>::operation",
+        );
+        assert!(names.contains("T"));
+        assert!(names.contains("U"));
+        let qualified =
+            super::rust_type_parameter_names("<std::marker::T as Trait<usize>>::operation");
+        assert!(!qualified.contains("T"));
+    }
+
+    #[test]
+    fn native_substitution_preserves_qualified_names_and_selects_nested_binders() {
+        let replacements = std::collections::BTreeMap::from([
+            ("T".to_owned(), "&mut String".to_owned()),
+            ("U".to_owned(), "bool".to_owned()),
+        ]);
+        for (template, expected, is_bound) in [
+            (
+                "<Holder<Outer<T>> as Trait<U, std::marker::T>>::operation",
+                "<Holder<Outer<&mut String>> as Trait<bool, std::marker::T>>::operation",
+                false,
+            ),
+            (
+                "FnOnce(T, std::marker::T) -> U",
+                "FnOnce(&mut String, std::marker::T) -> bool",
+                true,
+            ),
+            ("&'T T", "&'T &mut String", false),
+            (
+                "<Holder<T> as Trait>::T",
+                "<Holder<&mut String> as Trait>::T",
+                false,
+            ),
+        ] {
+            let selected = super::instantiate_rust_generics(template, &replacements);
+            if is_bound {
+                assert_eq!(
+                    syn::parse_str::<syn::TypeParamBound>(&selected).unwrap(),
+                    syn::parse_str::<syn::TypeParamBound>(expected).unwrap(),
+                );
+            } else {
+                assert_eq!(
+                    syn::parse_str::<syn::Type>(&selected).unwrap(),
+                    syn::parse_str::<syn::Type>(expected).unwrap(),
+                );
+            }
+        }
     }
 
     #[test]

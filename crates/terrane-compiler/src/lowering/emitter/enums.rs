@@ -620,11 +620,12 @@ impl<'a> Emitter<'a> {
                 .collect::<Vec<_>>();
             let mut native_payload_conversions = Vec::new();
             let mut none_pattern = false;
-            let variant_pattern = if selector.kind == SyntaxKind::Name {
+            let variant_pattern = if selector.kind == SyntaxKind::MatchCatchAll {
+                "_".to_owned()
+            } else if selector.kind == SyntaxKind::Name {
                 let name = self.text(selector);
                 none_pattern = name == "none";
                 match name {
-                    "else" => "_".to_owned(),
                     "none" => "None".to_owned(),
                     _ => continue,
                 }

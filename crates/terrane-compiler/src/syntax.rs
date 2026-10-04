@@ -127,6 +127,7 @@ pub enum SyntaxKind {
     SelectCase,
     MatchStatement,
     MatchCase,
+    MatchCatchAll,
     BreakStatement,
     ContinueStatement,
     Assignment,
@@ -186,7 +187,11 @@ impl SyntaxKind {
             (Self::EnumVariant, Self::ParameterList, _) => "payload",
             (Self::MatchStatement, _, 0) => "scrutinee",
             (Self::MatchStatement, Self::MatchCase, _) => "case",
-            (Self::MatchCase, Self::StaticMemberExpression | Self::Name, 0) => "variant",
+            (
+                Self::MatchCase,
+                Self::StaticMemberExpression | Self::Name | Self::MatchCatchAll,
+                0,
+            ) => "variant",
             (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (Self::Binding, Self::TypeExpression, _) => "type",
             (Self::Binding, _, _)

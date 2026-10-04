@@ -708,6 +708,15 @@ fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), S
         unit: &SemanticUnit,
         node: &SyntaxNode,
     ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::MatchCase {
+            // A variant selector is a pattern, not a static operation. Enum matching
+            // validates its payload availability; runtime expressions in the arm still
+            // use the ordinary projected-operation admission checks.
+            for child in node.children.iter().skip(1) {
+                visit(package, unit, child)?;
+            }
+            return Ok(());
+        }
         if node.kind == SyntaxKind::StaticMemberExpression
             && let [receiver, member] = node.children.as_slice()
             && let Some(owner) = package.resolve_name_at(
@@ -1196,8 +1205,9 @@ fn analyze_parsed_with_projection(
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
-    record_binding_mutability(&mut semantic);
     validate_calls(&semantic)?;
+    super::generic_recursion::validate(&semantic)?;
+    record_binding_mutability(&mut semantic);
     validate_discarded_temporary_mutations(&semantic)?;
     validate_definite_assignment(&semantic)?;
     super::initialization::validate(&mut semantic)?;

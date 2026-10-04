@@ -395,14 +395,11 @@ impl Parser<'_> {
             self.block_depth += 1;
             self.skip_newlines();
             while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
-                if self.at_text("case") || self.at_text("else") {
+                if self.at_text("case") {
                     children.push(self.parse_match_case());
                     self.finish_statement();
                 } else {
-                    self.error_here(
-                        "S1090",
-                        "a match body may contain only `case` clauses or `else`",
-                    );
+                    self.error_here("S1090", "a match body may contain only `case` clauses");
                     self.recover_line();
                 }
                 self.skip_newlines();
@@ -419,10 +416,10 @@ impl Parser<'_> {
 
     fn parse_match_case(&mut self) -> SyntaxNode {
         let start = self.position;
-        let catch_all = self.at_text("else");
         self.bump();
+        let catch_all = self.eat_text("else");
         let selector = if catch_all {
-            self.node(SyntaxKind::Name, start, self.position, Vec::new())
+            self.node(SyntaxKind::MatchCatchAll, start, self.position, Vec::new())
         } else if self.at_text("none") {
             self.leaf(SyntaxKind::Name)
         } else {

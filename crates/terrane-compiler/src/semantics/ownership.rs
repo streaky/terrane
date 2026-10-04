@@ -1614,6 +1614,12 @@ pub(super) fn validate_initializer_dependencies(
         reads: &mut Vec<(Key, Span)>,
         functions: &mut BTreeSet<Key>,
     ) {
+        if node.kind == SyntaxKind::Argument && node.children.len() > 1 {
+            if let Some(value) = node.children.last() {
+                collect_reads(package, unit, value, reads, functions);
+            }
+            return;
+        }
         if node.kind == SyntaxKind::Name {
             if let Some(symbol) =
                 package.resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
@@ -1665,6 +1671,12 @@ pub(super) fn validate_initializer_dependencies(
         node: &SyntaxNode,
         name: &str,
     ) -> Option<Span> {
+        if node.kind == SyntaxKind::Argument && node.children.len() > 1 {
+            return node
+                .children
+                .last()
+                .and_then(|value| unresolved_name_span(package, unit, value, name));
+        }
         if matches!(
             node.kind,
             SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression

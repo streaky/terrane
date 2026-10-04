@@ -821,7 +821,16 @@ impl<'a> Emitter<'a> {
                         self.output.push_str(") -> Self {\n");
                     }
                     self.indent += 1;
-                    self.line("let mut value = Self {");
+                    let parameter_names = construct
+                        .parameters
+                        .iter()
+                        .map(|parameter| rust_name(&parameter.name))
+                        .collect::<BTreeSet<_>>();
+                    let mut value_name = "__terrane_constructed_value".to_owned();
+                    while parameter_names.contains(&value_name) {
+                        value_name.push('_');
+                    }
+                    self.line(&format!("let mut {value_name} = Self {{"));
                     self.indent += 1;
                     if tracks_construction {
                         self.line("__terrane_constructed: false,");
@@ -845,16 +854,16 @@ impl<'a> Emitter<'a> {
                         .collect::<Vec<_>>()
                         .join(", ");
                     self.line(&format!(
-                        "value.construct({arguments}){};",
+                        "{value_name}.construct({arguments}){};",
                         if construct.throws { "?" } else { "" }
                     ));
                     if tracks_construction {
-                        self.line("value.__terrane_constructed = true;");
+                        self.line(&format!("{value_name}.__terrane_constructed = true;"));
                     }
-                    self.line(if construct.throws {
-                        "Ok(value)"
+                    self.line(&if construct.throws {
+                        format!("Ok({value_name})")
                     } else {
-                        "value"
+                        value_name
                     });
                     self.indent -= 1;
                     self.line("}");

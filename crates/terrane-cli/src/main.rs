@@ -315,21 +315,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = compilation.requires_async_runtime;
-    let uses_tokio_blocking = rust_files
-        .iter()
-        .any(|file| file.contents.contains("tokio::task::spawn_blocking"));
-    // Generated platform fragments can require Tokio even when the Terrane program
-    // itself has no async entrypoint (for example, stream support uses spawn_blocking).
-    // Mutable async callable receiver transactions use `tokio::sync::Mutex` to
-    // serialize overlapping invocations without coupling separated copies.
-    let uses_tokio_sync = rust_files
-        .iter()
-        .any(|file| file.contents.contains("tokio::sync::"));
+    let uses_tokio_blocking = compilation.requires_blocking_runtime;
+    let uses_tokio_sync = compilation.requires_runtime_sync;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
-        uses_async_runtime || uses_tokio_blocking,
+        uses_async_runtime || uses_tokio_blocking || uses_tokio_sync,
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
@@ -1260,18 +1252,19 @@ fn write_runtime_dependencies(
     rust_dependencies: &[terrane_compiler::RustDependency],
     options: &GeneratedCrateOptions,
 ) {
-    let dependencies = if options.uses_async_runtime || options.uses_tokio_blocking {
-        let mut required_features = vec!["rt"];
-        if options.uses_async_runtime {
-            required_features.extend(["macros", "rt-multi-thread", "time"]);
-        }
-        if options.uses_tokio_sync {
-            required_features.push("sync");
-        }
-        terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
-    } else {
-        rust_dependencies.to_vec()
-    };
+    let dependencies =
+        if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
+            let mut required_features = vec!["rt"];
+            if options.uses_async_runtime {
+                required_features.extend(["macros", "rt-multi-thread", "time"]);
+            }
+            if options.uses_tokio_sync {
+                required_features.push("sync");
+            }
+            terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
+        } else {
+            rust_dependencies.to_vec()
+        };
     for dependency in dependencies
         .iter()
         .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")

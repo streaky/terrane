@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -463,13 +463,13 @@ pub struct NativeString {
 }
 impl NativeString {
     pub fn terrane_construct(encoded: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             is_text: true,
             text: String::from(""),
             raw: Vec::from([]),
         };
-        value.construct(encoded);
-        value
+        __terrane_constructed_value.construct(encoded);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, encoded: String) {
         self.is_text = terrane_platform_value_is_text(&encoded);
@@ -484,12 +484,12 @@ pub struct EnvironmentEntry {
 }
 impl EnvironmentEntry {
     pub fn terrane_construct(name: NativeString, entry_value: NativeString) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             name: NativeString::terrane_construct(String::from("text:")),
             value: NativeString::terrane_construct(String::from("text:")),
         };
-        value.construct(name, entry_value);
-        value
+        __terrane_constructed_value.construct(name, entry_value);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
         self.name = name;
@@ -510,14 +510,15 @@ impl ProcessHostNameResult {
         detail: String,
         result_value: NativeString,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             available: false,
             message: String::from(""),
             value: NativeString::terrane_construct(String::from("text:")),
         };
-        value.construct(did_fail, is_available, detail, result_value);
-        value
+        __terrane_constructed_value
+            .construct(did_fail, is_available, detail, result_value);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -645,11 +646,11 @@ impl CliSchema {
     pub fn terrane_construct(
         declared: terrane_collection_support::List<String>,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             entries: terrane_collection_support::List::<String>::new(Vec::new()),
         };
-        value.construct(declared);
-        value
+        __terrane_constructed_value.construct(declared);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
         self.entries = declared;

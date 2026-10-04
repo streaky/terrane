@@ -176,7 +176,7 @@ fn validate_match(
             .children
             .iter()
             .find(|child| child.kind == SyntaxKind::Block);
-        if selector.kind == SyntaxKind::Name && text == "else" {
+        if selector.kind == SyntaxKind::MatchCatchAll {
             if payload_bindings.is_some() {
                 return Err(failure(
                     &unit.source,
@@ -466,7 +466,7 @@ pub(crate) fn validate_enum_matches(package: &mut SemanticPackage) -> Result<(),
                     .iter()
                     .map(|field| projected_enum_payload_type(package, &field.ty))
                     .collect::<Option<Vec<_>>>();
-                if fields.is_none() {
+                if variant.unavailable_reason.is_some() || fields.is_none() {
                     unavailable_variants.insert(variant.name.clone());
                 }
                 resolved.push((variant.name.clone(), fields.unwrap_or_default()));

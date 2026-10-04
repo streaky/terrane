@@ -378,7 +378,8 @@ fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &Pr
         ProjectedType::Optional(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. }
-        | ProjectedType::AsyncIterationStep(inner) => {
+        | ProjectedType::AsyncIterationStep(inner)
+        | ProjectedType::Reference { inner, .. } => {
             rebind_owner_type(inner, native, facade);
         }
         ProjectedType::Tuple(items)
@@ -458,7 +459,6 @@ pub(super) fn project_rust_constant_expression(expression: &str) -> Option<Strin
                 syn::Lit::Bool(value) => Some(value.value.to_string()),
                 syn::Lit::Int(value) => Some(value.base10_digits().to_owned()),
                 syn::Lit::Float(value) => Some(value.base10_digits().to_owned()),
-                syn::Lit::Char(value) => Some(format!("{:?}", value.value())),
                 _ => None,
             },
             syn::Expr::Group(group) => translate(&group.expr),
@@ -506,6 +506,7 @@ pub(super) fn project_rust_constant_expression(expression: &str) -> Option<Strin
         .ok()
         .and_then(|expression| translate(&expression))
 }
+
 pub(super) type SourceConstantCache = BTreeMap<PathBuf, BTreeMap<(String, String), Option<String>>>;
 
 pub(super) fn source_constant_expression(
@@ -571,4 +572,16 @@ pub(super) fn source_constant_expression(
         .get(&(owner.to_owned(), name.to_owned()))
         .cloned()
         .flatten()
+}
+
+#[cfg(test)]
+mod constant_expression_tests {
+    use super::project_rust_constant_expression;
+
+    #[test]
+    fn rust_string_literals_are_not_terrane_constant_expressions() {
+        assert_eq!(project_rust_constant_expression(r#""hello world""#), None);
+        assert_eq!(project_rust_constant_expression(r#""don't""#), None);
+        assert_eq!(project_rust_constant_expression(r#""line\nbreak""#), None);
+    }
 }

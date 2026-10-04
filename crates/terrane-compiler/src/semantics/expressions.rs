@@ -24,10 +24,13 @@ fn constant_duration_factory_value(
         node = node.children.first()?;
     }
     if node.kind == SyntaxKind::Name {
-        let binding = bindings.iter().rev().find(|binding| {
-            binding.name == node_text(&unit.source, node)
-                && binding.is_visible_at(unit.source.id(), node.span.start)
-        })?;
+        let binding = bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == node_text(&unit.source, node)
+                    && binding.is_visible_at(unit.source.id(), node.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)?;
         if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
             return None;
         }
@@ -284,9 +287,13 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(binding) = bindings.iter().rev().find(|binding| {
-            binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
-        }) {
+        if let Some(binding) = bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)
+        {
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
@@ -719,15 +726,32 @@ pub(super) fn infer_value_type(
                         )?;
                     }
                 }
+                let unselected = descriptor
+                    .generic_parameters
+                    .iter()
+                    .filter(|parameter| !substitutions.contains_key(&parameter.name))
+                    .map(|parameter| parameter.name.as_str())
+                    .collect::<Vec<_>>();
+                if !unselected.is_empty() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0210",
+                        format!(
+                            "class `{}` construction leaves type parameter(s) {} unselected; write an applied class type or provide constraining constructor arguments or a destination",
+                            descriptor.name,
+                            unselected
+                                .iter()
+                                .map(|name| format!("`{name}`"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                        class.span,
+                    ));
+                }
                 let arguments = descriptor
                     .generic_parameters
                     .iter()
-                    .map(|parameter| {
-                        substitutions
-                            .get(&parameter.name)
-                            .cloned()
-                            .unwrap_or_else(|| ValueType::TypeParameter(parameter.name.clone()))
-                    })
+                    .map(|parameter| substitutions[&parameter.name].clone())
                     .collect();
                 return Ok(Some(ValueType::Object(
                     identity.with_type_arguments(arguments),
@@ -1533,9 +1557,14 @@ pub(super) fn infer_value_type(
                     result.value_type()
                 }));
             }
-            if let Some(binding) = bindings.iter().rev().find(|binding| {
-                binding.name == name && binding.is_visible_at(unit.source.id(), callee.span.start)
-            }) {
+            if let Some(binding) = bindings
+                .iter()
+                .filter(|binding| {
+                    binding.name == name
+                        && binding.is_visible_at(unit.source.id(), callee.span.start)
+                })
+                .max_by_key(|binding| binding.visible_from)
+            {
                 return match &binding.value_type {
                     ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
                     ValueType::AsyncFunction(_, result, transferability, _) => {

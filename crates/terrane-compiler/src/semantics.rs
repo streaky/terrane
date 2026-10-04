@@ -2,6 +2,7 @@ pub use crate::invocation::InvocationMode;
 // Compiler-owned semantic data and the ordered package analysis pipeline.
 mod analysis;
 mod enums;
+mod generic_recursion;
 mod generics;
 mod initialization;
 mod matching;

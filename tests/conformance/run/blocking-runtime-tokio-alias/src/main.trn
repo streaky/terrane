@@ -1,0 +1,8 @@
+namespace app
+from /core/streams import stdout
+
+function main;
+    output = stdout;
+    output.write-all; b'alias-ok\n'
+    output.flush;
+    output.close;

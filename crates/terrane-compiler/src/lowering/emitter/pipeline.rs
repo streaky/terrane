@@ -206,15 +206,25 @@ fn lower_with_tests(
     let registry = LoweringRegistry::default();
     for unit in &package.units {
         let emitter = Emitter::new(&registry, package, unit, false);
-        for ((file, start, end), specialization) in &unit.projected_call_specializations {
-            let Some(call) = find_node_by_span(
-                &unit.tree.root,
-                crate::Span {
-                    file: *file,
-                    start: *start,
-                    end: *end,
-                },
-            ) else {
+        let mut nodes = vec![&unit.tree.root];
+        while let Some(call) = nodes.pop() {
+            nodes.extend(&call.children);
+            if call.kind != SyntaxKind::CallExpression {
+                continue;
+            }
+            let Some(callee) = call.children.first() else {
+                continue;
+            };
+            let parameters = unit
+                .projected_call_specializations
+                .get(&(call.span.file, call.span.start, call.span.end))
+                .map(|specialization| specialization.projected_parameters.as_slice())
+                .or_else(|| {
+                    emitter
+                        .projected_function_for_call(callee)
+                        .map(|function| function.parameters.as_slice())
+                });
+            let Some(parameters) = parameters else {
                 continue;
             };
             for (argument, parameter) in call
@@ -223,7 +233,7 @@ fn lower_with_tests(
                 .filter(|child| child.kind == SyntaxKind::ArgumentList)
                 .flat_map(|arguments| &arguments.children)
                 .map(|argument| argument.children.last().unwrap_or(argument))
-                .zip(&specialization.projected_parameters)
+                .zip(parameters)
             {
                 let crate::rust_interop::projection::ProjectedType::Callback {
                     parameter_rust_types,
@@ -862,6 +872,8 @@ fn lower_with_tests(
         version: crate::VERSION,
         requires_platform_support,
         requires_async_runtime: has_async_entry || projected_async_entry || has_async_finally,
+        requires_blocking_runtime: uses_streams || uses_filesystem || uses_networking,
+        requires_runtime_sync: has_async_mutable_callables || (has_async && native_cancellation),
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))

@@ -9,9 +9,9 @@ pub struct Gate {
 }
 impl Gate {
     pub fn terrane_construct(open: bool) -> Self {
-        let mut value = Self { open: false };
-        value.construct(open);
-        value
+        let mut __terrane_constructed_value = Self { open: false };
+        __terrane_constructed_value.construct(open);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, open: bool) {
         self.open = open;

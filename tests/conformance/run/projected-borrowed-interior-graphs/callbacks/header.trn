@@ -12,3 +12,7 @@ function clear-sensitive bool; header ref HeaderValue
 
 function read-sensitive bool; header ref HeaderValue
     return header.is_sensitive;
+
+function clear-sensitive-optional bool|none; header ref HeaderValue
+    header.set_sensitive; false
+    return none

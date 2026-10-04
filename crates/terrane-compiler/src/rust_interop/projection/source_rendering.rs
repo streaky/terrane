@@ -678,7 +678,8 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => collect_foreign_type(inner, foreign),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => collect_foreign_type(inner, foreign),
         ProjectedType::Mapping { key, value, .. } => {
             collect_foreign_type(key, foreign);
             collect_foreign_type(value, foreign);
@@ -1015,7 +1016,8 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => foreign_type_name(inner),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => foreign_type_name(inner),
         ProjectedType::Mapping { key, value, .. } => {
             foreign_type_name(key).or_else(|| foreign_type_name(value))
         }
@@ -1129,6 +1131,7 @@ fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, 
 )]
 fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
     match ty {
+        ProjectedType::Reference { inner, .. } => projected_type_name(inner, foreign_aliases),
         ProjectedType::Foreign {
             rust_path, name, ..
         } => foreign_aliases

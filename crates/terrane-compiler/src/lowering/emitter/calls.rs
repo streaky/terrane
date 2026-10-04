@@ -2177,24 +2177,15 @@ impl Emitter<'_> {
                 projected
                     .native_path
                     .as_ref()
-                    .or_else(|| {
-                        projected
-                            .native_owner
-                            .as_ref()
-                            .filter(|owner| owner.contains('<'))
-                    })
+                    .or(projected.native_owner.as_ref())
                     .map(|path| (projected, path))
             })
             .map_or_else(Vec::new, |(projected, path)| {
+                let names = crate::rust_ir::rust_type_parameter_names(path);
                 projected
                     .generic_parameters
                     .iter()
-                    .filter(|parameter| {
-                        path.split(|character: char| {
-                            !(character.is_alphanumeric() || character == '_')
-                        })
-                        .any(|segment| segment == parameter.name)
-                    })
+                    .filter(|parameter| names.contains(&parameter.name))
                     .map(|parameter| parameter.name.clone())
                     .collect()
             });
@@ -2660,10 +2651,11 @@ impl Emitter<'_> {
             } else {
                 call.clone()
             };
-            let unwind_call = if !method.is_async
+            let discarded_unit = !method.is_async
+                && !method.into_future
                 && method.error.is_none()
-                && self.discarded_call == Some(node.span)
-            {
+                && self.discarded_call == Some(node.span);
+            let unwind_call = if discarded_unit {
                 format!("{{ let _ = {call}; }}")
             } else {
                 call.clone()
@@ -2678,7 +2670,11 @@ impl Emitter<'_> {
             let projected_result = specialization.map_or(&method.result, |specialization| {
                 &specialization.projected_result
             });
-            let converted = projected_result_expression("value", projected_result);
+            let converted = if discarded_unit {
+                "()".to_owned()
+            } else {
+                projected_result_expression("value", projected_result)
+            };
             let nested_converted = match projected_result {
                 crate::rust_interop::projection::ProjectedType::Optional(inner)
                     if method.error_optional_depth == 1 =>
@@ -2736,8 +2732,9 @@ impl Emitter<'_> {
                     "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
+                let value_pattern = if discarded_unit { "()" } else { "value" };
                 format!(
-                    "match {caught} {{ Ok(value) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok({value_pattern}) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             };
             if method.is_async {

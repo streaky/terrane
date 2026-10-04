@@ -1,0 +1,8 @@
+namespace rejected-enum
+
+enum state of (T)
+    ready
+    completed; value T
+
+function main;
+    value = instance state::ready;

@@ -64,7 +64,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -72,7 +72,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -99,7 +99,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -123,14 +123,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -145,7 +145,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -182,7 +182,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -425,7 +425,7 @@ const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
     reason = "projected type methods may be imported without being crossed"
 )]
 fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
+    payload: std::boxed::Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
     member: &'static str,
 ) -> TerraneForeignError {
@@ -462,7 +462,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 20] = [
+    pub static SITES: [Site; 19] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:10-7:30) */
         { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 30 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:8:11-8:29) */
@@ -501,8 +501,6 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 40, column: 15, end_line: 40, end_column: 44 } },
         /* terrane-site-row: site 18: /app::main (src/main.trn:41:22-41:35) */
         { Site { function: 0, file: 0, line: 41, column: 22, end_line: 41, end_column: 35 } },
-        /* terrane-site-row: site 19: /app::main (src/main.trn:42:11-42:31) */
-        { Site { function: 0, file: 0, line: 42, column: 11, end_line: 42, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]
@@ -894,15 +892,15 @@ fn main() {
         future_event(),
         18 /* terrane-site: src/main.trn:41:22-41:35 */,
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | match &future {
-        terrane_payload_enum_witness::OpenEvent::Known { .. } => "Known".to_owned(), _ =>
-        "unknown".to_owned() })) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
-        "terrane_payload_enum_witness::OpenEvent::variant-name")) },
-        19 /* terrane-site: src/main.trn:42:11-42:31 */))
-    );
+    let __terrane_match_value_1620 = future.clone();
+    match __terrane_match_value_1620 {
+        terrane_payload_enum_witness::OpenEvent::Known(text) => {
+            println!("{}", terrane_scalar_support::scalar_text(&text));
+        }
+        _ => {
+            println!("{}", terrane_scalar_support::scalar_text(&String::from("future")));
+        }
+    }
 }
 // Source: <terrane>/projected/deps/terrane-payload-enum-witness.trn
 // Namespace: deps/terrane-payload-enum-witness

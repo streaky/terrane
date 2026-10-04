@@ -158,6 +158,18 @@ pub(super) fn type_parameter_bound_at<'a>(
     unit.type_parameter_at(position, name)?.bound.as_ref()
 }
 
+#[derive(Debug)]
+pub(super) enum GenericSelectionFailure {
+    InvalidArguments,
+    Argument(String),
+    Unselected(Vec<String>),
+    Bound {
+        parameter: String,
+        actual: String,
+        bound: String,
+    },
+}
+
 pub(crate) fn select_unit_callable_contract(
     package: Option<&SemanticPackage>,
     unit: &SemanticUnit,
@@ -165,12 +177,30 @@ pub(crate) fn select_unit_callable_contract(
     contract: &FunctionContract,
     bindings: &[TypedBinding],
 ) -> Option<(FunctionContract, BTreeMap<String, ValueType>)> {
+    select_unit_callable_contract_result(package, unit, call, contract, bindings).ok()
+}
+
+pub(super) fn select_unit_callable_contract_result(
+    package: Option<&SemanticPackage>,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    contract: &FunctionContract,
+    bindings: &[TypedBinding],
+) -> Result<(FunctionContract, BTreeMap<String, ValueType>), GenericSelectionFailure> {
     if contract.generic_parameters.is_empty() {
-        return Some((contract.clone(), BTreeMap::new()));
+        return Ok((contract.clone(), BTreeMap::new()));
     }
-    let arguments = call.children.get(1)?;
-    let callee = call.children.first()?;
-    let mut substitutions = explicit_callable_arguments(unit, callee, contract)?;
+    let arguments = call
+        .children
+        .get(1)
+        .ok_or(GenericSelectionFailure::InvalidArguments)?;
+    let callee = call
+        .children
+        .first()
+        .ok_or(GenericSelectionFailure::InvalidArguments)?;
+    let mut substitutions = explicit_callable_arguments(unit, callee, contract)
+        .ok_or(GenericSelectionFailure::InvalidArguments)?;
+    let explicitly_selected = !substitutions.is_empty();
     let mut positional = 0;
     let mut named_seen = false;
     let mut bound_parameters = BTreeSet::new();
@@ -187,9 +217,9 @@ pub(crate) fn select_unit_callable_contract(
             &mut positional,
             &mut named_seen,
         )
-        .ok()?;
+        .map_err(|_| GenericSelectionFailure::InvalidArguments)?;
         if !parameter.variadic && !bound_parameters.insert(parameter.name.as_str()) {
-            return None;
+            return Err(GenericSelectionFailure::InvalidArguments);
         }
         let Some(expected) = parameter.element_value_type() else {
             continue;
@@ -219,9 +249,6 @@ pub(crate) fn select_unit_callable_contract(
                 }
             }
             let selected_expected = substitute_value_type(&expected, &substitutions);
-            let explicitly_selected = callee.kind == SyntaxKind::AppliedType
-                && matches!(selected_expected, ValueType::Object(_))
-                && selected_expected != expected;
             if explicitly_selected
                 && let ValueType::Object(expected_identity) = &selected_expected
                 && let ValueType::Object(actual_identity) = &actual
@@ -233,7 +260,8 @@ pub(crate) fn select_unit_callable_contract(
             {
                 continue;
             }
-            bind_generic_type(&expected, &actual, &mut substitutions).ok()?;
+            bind_generic_type(&expected, &actual, &mut substitutions)
+                .map_err(GenericSelectionFailure::Argument)?;
         }
     }
     let expected = package
@@ -245,22 +273,42 @@ pub(crate) fn select_unit_callable_contract(
         .any(|parameter| !substitutions.contains_key(&parameter.name))
         && let (Some(expected), Some(result)) = (expected, contract.return_type.as_ref())
     {
-        bind_generic_type(result, &expected, &mut substitutions).ok()?;
+        bind_generic_type(result, &expected, &mut substitutions)
+            .map_err(GenericSelectionFailure::Argument)?;
     }
-    if contract
-        .generic_parameters
-        .iter()
-        .any(|parameter| !substitutions.contains_key(&parameter.name))
-    {
-        return None;
-    }
-    if !generic_bounds_satisfied(unit, &contract.generic_parameters, &substitutions) {
-        return None;
-    }
-    Some((
+    validate_generic_substitutions(unit, contract, &substitutions)?;
+    Ok((
         substitute_function_contract(contract, &substitutions),
         substitutions,
     ))
+}
+
+fn validate_generic_substitutions(
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+    substitutions: &BTreeMap<String, ValueType>,
+) -> Result<(), GenericSelectionFailure> {
+    let unselected = contract
+        .generic_parameters
+        .iter()
+        .filter(|parameter| !substitutions.contains_key(&parameter.name))
+        .map(|parameter| parameter.name.clone())
+        .collect::<Vec<_>>();
+    if !unselected.is_empty() {
+        return Err(GenericSelectionFailure::Unselected(unselected));
+    }
+    for parameter in &contract.generic_parameters {
+        if let Some(bound) = &parameter.bound
+            && !generic_bounds_satisfied(unit, std::slice::from_ref(parameter), substitutions)
+        {
+            return Err(GenericSelectionFailure::Bound {
+                parameter: parameter.name.clone(),
+                actual: substitutions[&parameter.name].to_string(),
+                bound: bound.qualified(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn explicit_callable_arguments(

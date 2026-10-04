@@ -1,0 +1,5 @@
+namespace rejected-generic
+class slot of (T)
+    value T|none = none
+function main;
+    unknown = instance slot;

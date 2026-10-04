@@ -1,0 +1,480 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "http",
+      "version": "1.5.0",
+      "members": {
+        "/deps/http": [
+          "Error",
+          "Error.is",
+          "Extensions",
+          "Extensions.clear",
+          "Extensions.extend",
+          "Extensions.get_or_insert",
+          "Extensions.insert",
+          "Extensions.is_empty",
+          "Extensions.len",
+          "Extensions.remove",
+          "Extensions::new",
+          "HeaderMap",
+          "HeaderMap.append",
+          "HeaderMap.capacity",
+          "HeaderMap.clear",
+          "HeaderMap.contains_key",
+          "HeaderMap.drain",
+          "HeaderMap.entry",
+          "HeaderMap.get",
+          "HeaderMap.get_all",
+          "HeaderMap.get_mut",
+          "HeaderMap.insert",
+          "HeaderMap.is_empty",
+          "HeaderMap.iter",
+          "HeaderMap.iter_mut",
+          "HeaderMap.keys",
+          "HeaderMap.keys_len",
+          "HeaderMap.len",
+          "HeaderMap.remove",
+          "HeaderMap.reserve",
+          "HeaderMap.try_append",
+          "HeaderMap.try_entry",
+          "HeaderMap.try_insert",
+          "HeaderMap.try_reserve",
+          "HeaderMap.values",
+          "HeaderMap.values_mut",
+          "HeaderMap::new",
+          "HeaderMap::try_with_capacity",
+          "HeaderMap::with_capacity",
+          "HeaderName",
+          "HeaderName.as_str",
+          "HeaderName::from_static",
+          "HeaderValue",
+          "HeaderValue.is_empty",
+          "HeaderValue.is_sensitive",
+          "HeaderValue.len",
+          "HeaderValue.set_sensitive",
+          "HeaderValue.to_str",
+          "HeaderValue::from_maybe_shared",
+          "HeaderValue::from_maybe_shared_unchecked",
+          "HeaderValue::from_name",
+          "HeaderValue::from_static",
+          "HeaderValue::from_str",
+          "Method",
+          "Method.as_str",
+          "Method.is_idempotent",
+          "Method.is_safe",
+          "StatusCode",
+          "StatusCode.as_str",
+          "StatusCode.as_u16",
+          "StatusCode.canonical_reason",
+          "StatusCode.is_client_error",
+          "StatusCode.is_informational",
+          "StatusCode.is_redirection",
+          "StatusCode.is_server_error",
+          "StatusCode.is_success",
+          "StatusCode::from_u16",
+          "Uri",
+          "Uri.authority",
+          "Uri.host",
+          "Uri.into_parts",
+          "Uri.path",
+          "Uri.path_and_query",
+          "Uri.port",
+          "Uri.port_u16",
+          "Uri.query",
+          "Uri.scheme",
+          "Uri.scheme_str",
+          "Uri::builder",
+          "Uri::from_maybe_shared",
+          "Uri::from_parts",
+          "Uri::from_static",
+          "Version"
+        ],
+        "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/header/invalidheadername": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/header/invalidheadervalue": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/header/maxsizereached": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/method/invalidmethod": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/status/invalidstatuscode": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/uri/invaliduri": [
+          "from"
+        ],
+        "/deps/http/error/trait/core/convert/from-http/uri/invaliduriparts": [
+          "from"
+        ],
+        "/deps/http/extensions": [
+          "clone",
+          "default"
+        ],
+        "/deps/http/header": [
+          "InvalidHeaderName",
+          "InvalidHeaderValue",
+          "MaxSizeReached",
+          "ToStrError"
+        ],
+        "/deps/http/header/invalidheadername": [
+          "from"
+        ],
+        "/deps/http/header/invalidheadervalue": [
+          "from"
+        ],
+        "/deps/http/header/map/as-header-name": [
+          "TryEntryError"
+        ],
+        "/deps/http/header/maxsizereached": [
+          "from"
+        ],
+        "/deps/http/headermap": [
+          "clone",
+          "default",
+          "eq",
+          "from_iter"
+        ],
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue": [
+          "extend"
+        ],
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue": [
+          "extend"
+        ],
+        "/deps/http/headername": [
+          "as_ref",
+          "borrow",
+          "clone",
+          "from_str"
+        ],
+        "/deps/http/headername/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/headername/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/http/headername/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/headervalue": [
+          "clone",
+          "cmp",
+          "from_str"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialeq-str": [
+          "eq"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/http/headervalue/trait/core/cmp/partialord-str": [
+          "partial_cmp"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-http/headername": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-http/headervalue": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-i16": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-i64": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-isize": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-u16": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-u64": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/from-usize": [
+          "from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/http/headervalue/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/method": [
+          "InvalidMethod",
+          "as_ref",
+          "clone",
+          "cmp",
+          "default",
+          "from",
+          "from_str",
+          "partial_cmp",
+          "try_from"
+        ],
+        "/deps/http/method/invalidmethod": [
+          "from"
+        ],
+        "/deps/http/method/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/request": [
+          "Builder",
+          "Builder.body",
+          "Builder.extension",
+          "Builder.extensions_mut",
+          "Builder.extensions_ref",
+          "Builder.header",
+          "Builder.headers_mut",
+          "Builder.headers_ref",
+          "Builder.method",
+          "Builder.method_ref",
+          "Builder.uri",
+          "Builder.uri_ref",
+          "Builder.version",
+          "Builder.version_ref",
+          "Builder::new",
+          "Parts"
+        ],
+        "/deps/http/request/builder": [
+          "default"
+        ],
+        "/deps/http/request/parts": [
+          "clone"
+        ],
+        "/deps/http/response": [
+          "Builder",
+          "Builder.body",
+          "Builder.extension",
+          "Builder.extensions_mut",
+          "Builder.extensions_ref",
+          "Builder.header",
+          "Builder.headers_mut",
+          "Builder.headers_ref",
+          "Builder.status",
+          "Builder.version",
+          "Builder::new",
+          "Parts"
+        ],
+        "/deps/http/response/builder": [
+          "default"
+        ],
+        "/deps/http/response/parts": [
+          "clone"
+        ],
+        "/deps/http/status": [
+          "InvalidStatusCode"
+        ],
+        "/deps/http/status/invalidstatuscode": [
+          "from"
+        ],
+        "/deps/http/statuscode": [
+          "clone",
+          "cmp",
+          "default",
+          "from_str",
+          "partial_cmp"
+        ],
+        "/deps/http/statuscode/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/statuscode/trait/core/cmp/partialeq-http/statuscode": [
+          "eq"
+        ],
+        "/deps/http/statuscode/trait/core/cmp/partialeq-u16": [
+          "eq"
+        ],
+        "/deps/http/statuscode/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/statuscode/trait/core/convert/tryfrom-u16": [
+          "try_from"
+        ],
+        "/deps/http/uri": [
+          "Authority",
+          "Authority.as_str",
+          "Authority.host",
+          "Authority.port",
+          "Authority.port_u16",
+          "Authority::from_maybe_shared",
+          "Authority::from_static",
+          "Builder",
+          "Builder.authority",
+          "Builder.build",
+          "Builder.path_and_query",
+          "Builder.scheme",
+          "Builder::new",
+          "InvalidUri",
+          "InvalidUriParts",
+          "Parts",
+          "PathAndQuery",
+          "PathAndQuery.as_str",
+          "PathAndQuery.path",
+          "PathAndQuery.query",
+          "PathAndQuery::from_maybe_shared",
+          "PathAndQuery::from_static",
+          "Scheme",
+          "Scheme.as_str",
+          "clone",
+          "default",
+          "from_str"
+        ],
+        "/deps/http/uri/authority": [
+          "as_ref",
+          "clone",
+          "from",
+          "from_str"
+        ],
+        "/deps/http/uri/authority/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/uri/authority/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/http/uri/authority/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/http/uri/authority/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/http/uri/authority/trait/core/convert/tryfrom-std/string/string": [
+          "try_from"
+        ],
+        "/deps/http/uri/authority/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/http/uri/authority/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/uri/builder": [
+          "default",
+          "from"
+        ],
+        "/deps/http/uri/invaliduri": [
+          "from"
+        ],
+        "/deps/http/uri/invaliduriparts": [
+          "from"
+        ],
+        "/deps/http/uri/parts": [
+          "default",
+          "from",
+          "try_from"
+        ],
+        "/deps/http/uri/pathandquery": [
+          "clone",
+          "from",
+          "from_str"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/uri/scheme": [
+          "as_ref",
+          "clone",
+          "from_str",
+          "try_from"
+        ],
+        "/deps/http/uri/scheme/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/uri/scheme/trait/core/cmp/partialeq-http/uri/scheme": [
+          "eq"
+        ],
+        "/deps/http/uri/scheme/trait/core/cmp/partialeq-str": [
+          "eq"
+        ],
+        "/deps/http/uri/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/http/uri/trait/core/convert/from-http/uri/authority": [
+          "from"
+        ],
+        "/deps/http/uri/trait/core/convert/from-http/uri/pathandquery": [
+          "from"
+        ],
+        "/deps/http/uri/trait/core/convert/tryfrom-http/uri": [
+          "try_from"
+        ],
+        "/deps/http/uri/trait/core/convert/tryfrom-http/uri/parts": [
+          "try_from"
+        ],
+        "/deps/http/uri/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/http/uri/trait/core/convert/tryfrom-str": [
+          "try_from"
+        ],
+        "/deps/http/version": [
+          "clone",
+          "cmp",
+          "default",
+          "eq",
+          "partial_cmp"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "cache_identity": "c72e0064413c356927fe1acb79d61e1565f37ccce955ecd8b5c296181741fce8",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "191",
+  "content_hash": "2560daa88fecb152b0e192a7d553ee97c183cc77c635f491b00b569544317d82",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

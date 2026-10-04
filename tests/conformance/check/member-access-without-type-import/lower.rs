@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -461,9 +461,9 @@ pub struct FrameBody {
 }
 impl FrameBody {
     pub fn terrane_construct(x: f64) -> Self {
-        let mut value = Self { x: 0.0_f64 };
-        value.construct(x);
-        value
+        let mut __terrane_constructed_value = Self { x: 0.0_f64 };
+        __terrane_constructed_value.construct(x);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, x: f64) {
         self.x = x;
@@ -479,11 +479,11 @@ impl FrameState {
     pub fn terrane_construct(
         bodies: terrane_collection_support::List<FrameBody>,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             bodies: terrane_collection_support::List::<FrameBody>::new(Vec::new()),
         };
-        value.construct(bodies);
-        value
+        __terrane_constructed_value.construct(bodies);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, bodies: terrane_collection_support::List<FrameBody>) {
         self.bodies = bodies;

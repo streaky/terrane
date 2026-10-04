@@ -63,6 +63,8 @@ pub struct Compilation {
     entry_span: Span,
     pub requires_platform_support: bool,
     pub requires_async_runtime: bool,
+    pub requires_blocking_runtime: bool,
+    pub requires_runtime_sync: bool,
     pub requires_unsafe_code: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
@@ -346,7 +348,11 @@ fn bind_tokio_runtime_alias(
     dependencies: &[RustDependency],
     testing: bool,
 ) {
-    if !program.requires_async_runtime && !testing {
+    if !program.requires_async_runtime
+        && !program.requires_blocking_runtime
+        && !program.requires_runtime_sync
+        && !testing
+    {
         return;
     }
     if let Some(dependency) = dependencies
@@ -538,6 +544,8 @@ pub fn compile_package_with_options(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_blocking_runtime: rust_ir.requires_blocking_runtime,
+        requires_runtime_sync: rust_ir.requires_runtime_sync,
         requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
         warnings,
         rust_dependencies,
@@ -827,6 +835,8 @@ pub fn compile_discovered_test_tier(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_async_runtime: rust_ir.requires_async_runtime,
+        requires_blocking_runtime: rust_ir.requires_blocking_runtime,
+        requires_runtime_sync: rust_ir.requires_runtime_sync,
         requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
         warnings,
         rust_dependencies,

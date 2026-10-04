@@ -540,7 +540,8 @@ fn projected_generic_names(ty: &crate::rust_interop::projection::ProjectedType) 
             ProjectedType::Sequence { item, .. }
             | ProjectedType::Set { item, .. }
             | ProjectedType::AsyncIterationStep(item)
-            | ProjectedType::Optional(item) => collect(item, names),
+            | ProjectedType::Optional(item)
+            | ProjectedType::Reference { inner: item, .. } => collect(item, names),
             ProjectedType::Mapping { key, value, .. } => {
                 collect(key, names);
                 collect(value, names);
@@ -738,7 +739,10 @@ fn projected_callback_argument(
         .enumerate()
         .map(|(index, argument)| {
             if parameter_borrows.get(index) == Some(&true) {
-                format!("&{argument}")
+                let mutable = parameter_rust_types.get(index).is_some_and(|rust_type| {
+                    matches!(syn::parse_str::<syn::Type>(rust_type), Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
+                });
+                format!("&{}{argument}", if mutable { "mut " } else { "" })
             } else {
                 argument.clone()
             }

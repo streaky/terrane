@@ -1,0 +1,13 @@
+{
+  "dependencies": [
+    {
+      "members": {},
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}
