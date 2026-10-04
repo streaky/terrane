@@ -2134,6 +2134,70 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
 }
 
 #[test]
+fn legacy_format_three_history_migrates_without_losing_removed_members() {
+    let legacy = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/projection-history/format-3.lock"
+    ));
+    let inventory: serde_json::Value = serde_json::from_str(legacy).unwrap();
+    let expected = inventory["dependencies"][0]["members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|member| {
+            (
+                member[0].as_str().unwrap().to_owned(),
+                member[1].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let directory = std::env::temp_dir().join(format!(
+        "terrane-projection-format-three-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(directory.join("terrane-projection.lock"), legacy).unwrap();
+    let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
+        cache_identity: "format-three-migration".to_owned(),
+        content_hash: String::new(),
+        dependencies: vec![ProjectedDependency {
+            name: "bytes".to_owned(),
+            package: "bytes".to_owned(),
+            version: "1.10.2".to_owned(),
+            items: Vec::new(),
+            declined: Vec::new(),
+            partial_declines: Vec::new(),
+        }],
+        bound_dependencies: Vec::new(),
+        containment: Containment::Unavailable,
+        source: ProjectionSource::Local,
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: Vec::new(),
+        },
+        removed: Vec::new(),
+    };
+    projection.content_hash = projection_content_hash(&projection).unwrap();
+    apply_projection_history(&directory, &mut projection).unwrap();
+    assert_eq!(
+        projection
+            .removed
+            .iter()
+            .map(|member| (member.namespace.clone(), member.name.clone(),))
+            .collect::<BTreeSet<_>>(),
+        expected
+    );
+    let migrated: ProjectionHistory =
+        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+            .unwrap();
+    assert_eq!(migrated.format, 4);
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
 fn projection_history_migrates_provenance_and_detects_replay_drift() {
     let directory = std::env::temp_dir().join(format!(
         "terrane-projection-provenance-{}",
